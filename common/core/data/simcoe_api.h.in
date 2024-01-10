@@ -1,0 +1,13 @@
+#pragma once
+
+#include "core/macros.h"
+
+#if SM_@API@_SHARED
+#   if SM_@API@_BUILD
+#       define SM_@API@_API SM_EXPORT
+#   else
+#       define SM_@API@_API SM_IMPORT
+#   endif
+#else
+#   define SM_@API@_API
+#endif
