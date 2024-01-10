@@ -24,14 +24,16 @@
 #   define SM_PRIVATE
 #   define SM_EXPORT __declspec(dllexport)
 #   define SM_IMPORT __declspec(dllimport)
-#elif defined(__GNUC__)
-#   if __GNUC__ >= 4
-#       define SM_PRIVATE __attribute__((visibility("hidden")))
-#       define SM_EXPORT __attribute__((visibility("default")))
-#       define SM_IMPORT
-#   else
-#       define SM_PRIVATE
-#       define SM_EXPORT
-#       define SM_IMPORT
-#   endif
+#elif (__GNUC__ >= 4) || (__clang__ >= 3)
+#   define SM_PRIVATE __attribute__((visibility("hidden")))
+#   define SM_EXPORT __attribute__((visibility("default")))
+#   define SM_IMPORT
+#else
+#   define SM_PRIVATE
+#   define SM_EXPORT
+#   define SM_IMPORT
 #endif
+
+#define SM_EXIT_OK 0
+#define SM_EXIT_ERROR 1
+#define SM_EXIT_INTERNAL 99
