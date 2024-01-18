@@ -1,0 +1,21 @@
+module sm::rhi;
+
+export variant AdapterLookup : uint8 {
+    default Default = 0
+    case HighPerformance = 1
+    case MinimumPower = 2
+    case Software = 3
+}
+
+export struct RenderConfig {
+    debug_layer: bool;
+    device_removed_info: bool;
+    info_queue: bool;
+
+    dsv_heap_size: uint32;
+    rtv_heap_size: uint32;
+    cbv_heap_size: uint32;
+
+    adapter_index: uint32;
+    adapter_lookup: AdapterLookup;
+}

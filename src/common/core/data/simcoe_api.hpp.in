@@ -1,0 +1,15 @@
+#pragma once
+
+#include <simcoe_config.hpp>
+
+#include "core/macros.hpp" // IWYU pragma: keep
+
+#if SMC_BUILD_SHARED
+#   if SM_@MOD@_BUILD
+#       define SM_@MOD@_API CT_EXPORT
+#   else
+#       define SM_@MOD@_API CT_IMPORT
+#   endif
+#else
+#   define SM_@MOD@_API
+#endif

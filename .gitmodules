@@ -1,0 +1,3 @@
+[submodule "subprojects/cthulhu"]
+	path = subprojects/cthulhu
+	url = https://github.com/apache-hb/cthulhu.git

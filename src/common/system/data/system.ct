@@ -1,0 +1,13 @@
+module sm::system;
+
+export variant WindowMode : uint8 {
+    default Windowed = 0
+    case Borderless = 1
+}
+
+export struct WindowInfo {
+    mode: WindowMode;
+    width: uint32;
+    height: uint32;
+    title: str;
+}
