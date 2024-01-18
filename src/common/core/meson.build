@@ -47,6 +47,7 @@ src = [
 ]
 
 libcore = library('core', src,
+    install : true,
     cpp_args : [ '-DSM_CORE_BUILD=1' ],
     include_directories : core_include,
     dependencies : core_dependencies

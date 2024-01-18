@@ -1,0 +1,26 @@
+module math;
+
+export struct float2 {
+    x: float;
+    y: float;
+}
+
+export struct float3 {
+    x: float;
+    y: float;
+    z: float;
+}
+
+export struct float4 {
+    x: float;
+    y: float;
+    z: float;
+    w: float;
+}
+
+export struct float4x4 {
+    r0: float4;
+    r1: float4;
+    r2: float4;
+    r3: float4;
+}

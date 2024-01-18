@@ -12,6 +12,7 @@ src = [
 ]
 
 simcoe_libsystem = library('system', src,
+    install : true,
     cpp_args : [ '-DSM_SYSTEM_BUILD=1' ],
     include_directories : system_include,
     dependencies : [ core ]

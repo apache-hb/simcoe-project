@@ -11,6 +11,7 @@ src = [
 ]
 
 libservice = library('service', src,
+    install : true,
     cpp_args : [ '-DSM_SERVICE_BUILD=1' ],
     include_directories : service_include,
     dependencies : [ core ]

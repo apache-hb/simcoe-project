@@ -42,6 +42,9 @@ client = executable('client', 'src/client/src/main.cpp',
 # apply app manifest to client executable
 manifest = find_program('scripts/manifest.py')
 custom_target('client_manifest',
+    install : true,
+    install_tag : 'runtime',
+    install_dir : get_option('bindir'),
     build_by_default : true,
     depends : client,
     input : [ 'data/client.exe.manifest', client ],
