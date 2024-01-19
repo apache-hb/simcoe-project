@@ -1,0 +1,8 @@
+# devel package: internal use only (default)
+# private package: shipping to testing
+# release package: shipping to public
+option('package_type', type : 'combo',
+    description : 'Package type when building',
+    choices : [ 'devel', 'private', 'release' ],
+    value : 'devel'
+)

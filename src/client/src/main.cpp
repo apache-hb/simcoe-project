@@ -1,16 +1,16 @@
 #include "core/arena.hpp"
-
-#include "base/panic.h"
 #include "core/backtrace.hpp"
 #include "core/text.hpp"
+
+#include "system/system.hpp"
+
+#include "base/panic.h"
+
 #include "format/backtrace.h"
 #include "format/colour.h"
 #include "io/console.h"
-
 #include "backtrace/backtrace.h"
 #include "os/os.h"
-
-#include <iostream>
 
 using namespace sm;
 
@@ -35,6 +35,8 @@ class DefaultArena final : public IArena {
 };
 
 class TraceArena final : public IArena {
+    IArena *m_source;
+
     void *impl_alloc(size_t size) override {
         void *ptr = m_source->alloc(size);
         std::printf("[%s] alloc(%zu) = %p\n", name, size, ptr);
@@ -60,8 +62,6 @@ class TraceArena final : public IArena {
         std::printf("[%s] reparent(0x%p, %p)\n", name, ptr, parent);
     }
 
-    IArena *m_source;
-
 public:
     TraceArena(const char *name, IArena *source)
         : IArena(name)
@@ -84,6 +84,9 @@ static print_backtrace_t print_options_make(arena_t *arena, io_t *io) {
 }
 
 class DefaultSystemError final : public ISystemError {
+    arena_t *m_arena = nullptr;
+    bt_report_t *m_report = nullptr;
+
     void error_begin(size_t error) override {
         m_report = bt_report_new(m_arena);
         std::printf("system_error(0x%zX)\n", error);
@@ -99,13 +102,29 @@ class DefaultSystemError final : public ISystemError {
         std::exit(CT_EXIT_INTERNAL);
     }
 
-    arena_t *m_arena = nullptr;
-    bt_report_t *m_report = nullptr;
-
 public:
     DefaultSystemError(arena_t *arena)
         : m_arena(arena)
     { }
+};
+
+class DefaultWindowEvents final : public system::IWindowEvents {
+    void create(system::Window&) override {
+
+    }
+
+    void destroy(system::Window& window) override {
+        window.destroy_window();
+    }
+
+    bool close(system::Window&) override {
+        return true;
+    }
+};
+
+struct System {
+    System() { system::create(GetModuleHandle(nullptr)); }
+    ~System() { system::destroy(); }
 };
 
 static DefaultArena gGlobalArena{"default"};
@@ -129,12 +148,32 @@ int main(int argc, const char **argv) {
         print_backtrace(kPrintOptions, report);
     };
 
-    CTU_UNUSED(argc);
-    CTU_UNUSED(argv);
+    std::printf("argc = %d\n", argc);
+    for (int i = 0; i < argc; ++i) {
+        std::printf("argv[%d] = %s\n", i, argv[i]);
+    }
 
-    std::cout << "CTU_DEBUG = " << CTU_DEBUG << std::endl;
-    std::cout << "SMC_DEBUG = " << SMC_DEBUG << std::endl;
+    System system;
 
-    volatile int *ptr = nullptr;
-    *ptr = 0;
+    system::WindowInfo info = {
+        .mode = system::WindowMode::eWindowed,
+        .width = 1280,
+        .height = 720,
+        .center = true,
+        .title = "Priority Zero",
+    };
+
+    DefaultWindowEvents events;
+
+    system::Window window { info, &events };
+
+    window.show_window(system::ShowWindow::eShow);
+
+    MSG msg = { };
+    while (GetMessageA(&msg, nullptr, 0, 0)) {
+        TranslateMessage(&msg);
+        DispatchMessageA(&msg);
+    }
+
+    std::printf("exiting\n");
 }

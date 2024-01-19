@@ -12,7 +12,6 @@ src = [
 ]
 
 simcoe_librhi = library('rhi', src,
-    install : true,
     cpp_args : [ '-DSM_RHI_BUILD=1' ],
     include_directories : [ rhi_include, reflect_include ],
     dependencies : [ core ]

@@ -1,4 +1,4 @@
-# Simcoe Engine
+# Simcoe Engine {#index}
 
 ## Core features needed
 * RHI across d3d11 and d3d12

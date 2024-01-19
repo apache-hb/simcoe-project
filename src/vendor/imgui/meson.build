@@ -17,6 +17,7 @@ imgui_include = include_directories('.', 'backends')
 imgui_deps = [ d3d12, dxgi, dxguid, core, math ]
 
 libimgui = library('imgui', src,
+    cpp_args : cpp.get_supported_arguments('/wd4702'),
     include_directories : imgui_include,
     dependencies : imgui_deps
 )

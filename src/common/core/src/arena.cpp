@@ -1,5 +1,7 @@
 #include "core/arena.hpp"
+
 #include <cstring>
+#include <cstdlib>
 
 using namespace sm;
 
@@ -78,4 +80,30 @@ void IArena::impl_rename(const void *ptr, const char *ptr_name) {
 void IArena::impl_reparent(const void *ptr, const void *parent) {
     CTU_UNUSED(ptr);
     CTU_UNUSED(parent);
+}
+
+class DefaultArena final : public IArena {
+    using IArena::IArena;
+
+    void *impl_alloc(size_t size) override {
+        return std::malloc(size);
+    }
+
+    void *impl_resize(void *ptr, size_t new_size, size_t old_size) override {
+        CTU_UNUSED(old_size);
+
+        return std::realloc(ptr, new_size);
+    }
+
+    void impl_release(void *ptr, size_t size) override {
+        CTU_UNUSED(size);
+
+        std::free(ptr);
+    }
+};
+
+static DefaultArena gDebugArena{"debug"};
+
+IArena *sm::get_debug_arena(void) {
+    return &gDebugArena;
 }

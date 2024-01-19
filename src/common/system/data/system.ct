@@ -7,7 +7,37 @@ export variant WindowMode : uint8 {
 
 export struct WindowInfo {
     mode: WindowMode;
-    width: uint32;
-    height: uint32;
+    width: int;
+    height: int;
+    center: bool;
     title: str;
+}
+
+export variant ShowWindow : uint {
+    case Hide = 0
+    case Normal = 1
+    case Show = 5
+    case Restore = 9
+    case Default = 10
+}
+
+export struct WindowCoords {
+    left: int;
+    top: int;
+    right: int;
+    bottom: int;
+}
+
+export struct Point {
+    x: int;
+    y: int;
+}
+
+export struct WindowPlacement {
+    length: uint;
+    flags: uint;
+    show_cmd: ShowWindow;
+    min_position: Point;
+    max_position: Point;
+    normal_position: WindowCoords;
 }

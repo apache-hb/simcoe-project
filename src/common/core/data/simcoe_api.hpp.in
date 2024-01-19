@@ -1,6 +1,6 @@
 #pragma once
 
-#include <simcoe_config.hpp>
+#include <simcoe_config.h>
 
 #include "core/macros.hpp" // IWYU pragma: keep
 

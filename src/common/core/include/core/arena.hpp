@@ -29,4 +29,6 @@ namespace sm {
         void rename(const void *ptr, const char *ptr_name);
         void reparent(const void *ptr, const void *parent);
     };
+
+    IArena *get_debug_arena(void);
 }

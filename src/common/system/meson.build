@@ -11,15 +11,14 @@ src = [
     reflect.process('data/system.ct')
 ]
 
-simcoe_libsystem = library('system', src,
-    install : true,
+libsystem = library('system', src,
     cpp_args : [ '-DSM_SYSTEM_BUILD=1' ],
-    include_directories : system_include,
-    dependencies : [ core ]
+    include_directories : [ system_include, reflect_include, res_include ],
+    dependencies : [ core, cthulhu.get_variable('os') ]
 )
 
-simcoe_system = declare_dependency(
-    link_with : simcoe_libsystem,
-    include_directories : system_include,
+system = declare_dependency(
+    link_with : libsystem,
+    include_directories : [ system_include, reflect_include, libsystem.private_dir_include() ],
     dependencies : [ core ]
 )
