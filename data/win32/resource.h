@@ -1,2 +1,1 @@
 #define IDI_DEFAULT_ICON 101
-#define IDI_HIDDEN_ICON 102

@@ -34,7 +34,6 @@ namespace sm::system {
 
     public:
         SM_NOCOPY(Window)
-        SM_NOMOVE(Window)
 
         Window(const WindowInfo& info, IWindowEvents *events);
         ~Window();

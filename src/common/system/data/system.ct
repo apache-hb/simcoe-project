@@ -1,5 +1,7 @@
 module sm::system;
 
+// system.hpp data
+
 export variant WindowMode : uint8 {
     default Windowed = 0
     case Borderless = 1
@@ -10,7 +12,7 @@ export struct WindowInfo {
     width: int;
     height: int;
     center: bool;
-    title: str;
+    title: string;
 }
 
 export variant ShowWindow : uint {
@@ -40,4 +42,15 @@ export struct WindowPlacement {
     min_position: Point;
     max_position: Point;
     normal_position: WindowCoords;
+}
+
+export variant FileVersion : uint32 {
+    case Version0 = 0
+}
+
+export struct FileHeader {
+    magic: uint32; // 'CUM\0'
+    version: FileVersion;
+    size: uint32;
+    checksum: uint32;
 }

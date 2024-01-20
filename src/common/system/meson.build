@@ -7,7 +7,9 @@ system_api = configure_file(
 system_include = include_directories('.', 'include')
 
 src = [
+    'src/common.cpp',
     'src/system.cpp',
+    'src/io.cpp',
     reflect.process('data/system.ct')
 ]
 

@@ -13,8 +13,7 @@ project('simcoe', [ 'c', 'cpp' ],
 
         'cthulhu:default_library=static',
         'cthulhu:auto_features=disabled',
-        'cthulhu:frontend_cli=enabled',
-        'cthulhu:lang_ctu=enabled'
+        'cthulhu:tool_reflect=enabled'
     ]
 )
 
@@ -22,6 +21,9 @@ cpp = meson.get_compiler('cpp')
 
 cthulhu = subproject('cthulhu')
 windows = import('windows')
+
+magick = find_program('magick')
+convert_utf16 = find_program('scripts/convert_utf16.py')
 
 reflect_include = cthulhu.get_variable('reflect_include')
 reflect = cthulhu.get_variable('reflect')
@@ -78,45 +80,36 @@ subdir('src/common/service')
 subdir('src/common/system')
 subdir('src/common/rhi')
 
-magick = find_program('magick')
-# convert_ico = generator(magick,
-#     output : '@BASENAME@.ico',
-#     arguments : [ '@INPUT@', '-define', 'icon:auto-resize=256,128,48,32,16', '@OUTPUT@' ]
-# )
-
 default_ico = custom_target('default_icon',
     input : [ 'data/assets/icon/icon_circle.png' ],
     command : [ magick, '@INPUT@', '-define', 'icon:auto-resize=256,128,48,32,16', '@OUTPUT@' ],
     output : [ 'icon_default.ico' ]
 )
 
-hidden_ico = custom_target('hidden_icon',
-    input : [ 'data/assets/icon/icon_stylized_circle.png' ],
-    command : [ magick, '@INPUT@', '-define', 'icon:auto-resize=256,128,48,32,16', '@OUTPUT@' ],
-    output : [ 'icon_hidden.ico' ]
-)
-
 rc_cdata = configuration_data()
 rc_cdata.merge_from(simcoe_cdata)
 rc_cdata.set('DEFAULT_ICON', default_ico.full_path())
-rc_cdata.set('HIDDEN_ICON', hidden_ico.full_path())
 rc_cdata.set('MAJOR', parts[0].to_int())
 rc_cdata.set('MINOR', parts[1].to_int())
 rc_cdata.set('PATCH', parts[2].to_int())
 rc_cdata.set('BUILD', 99)
 
-# TODO: we need to save client.rc as utf-16, but meson doesn't support
-#       that.
-rc = configure_file(
+rc_temp = configure_file(
     input : 'data/win32/client.in.rc',
-    output : 'client.rc',
+    output : 'client.temp.rc',
     configuration : rc_cdata
+)
+
+rc = custom_target('client.rc',
+    input : [ rc_temp ],
+    output : [ 'client.rc' ],
+    command : [ convert_utf16, '@INPUT@', '@OUTPUT@' ]
 )
 
 # icky, rc actually depends on default_ico, but meson doesn't support
 # custom_target dependencies on generated files
 res = windows.compile_resources(rc,
-    depends : [ default_ico, hidden_ico ],
+    depends : [ default_ico ],
     include_directories : res_include
 )
 
@@ -139,16 +132,3 @@ client = executable('client', 'src/client/src/main.cpp',
         cthulhu.get_variable('io')
     ]
 )
-
-# # apply app manifest to client executable
-# manifest = find_program('scripts/manifest.py')
-# custom_target('client_manifest',
-#     install : true,
-#     install_tag : 'runtime',
-#     install_dir : get_option('bindir'),
-#     build_by_default : true,
-#     depends : client,
-#     input : [ 'data/win32/client.exe.manifest', client ],
-#     output : [ 'client_final.exe' ],
-#     command : [ manifest, '@INPUT0@', '@INPUT1@', '@OUTPUT@' ],
-# )

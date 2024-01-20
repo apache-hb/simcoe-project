@@ -1,5 +1,7 @@
 #include "system/system.hpp"
 
+#include "common.hpp"
+
 #include "core/arena.hpp"
 
 #include "base/panic.h"
@@ -16,26 +18,11 @@ using namespace sm::system;
 static HINSTANCE gInstance = nullptr;
 static LPTSTR gWindowClass = nullptr;
 
-NORETURN
-static assert_last_error(panic_t panic, const char *expr) {
-    IArena *arena = sm::get_debug_arena();
-    DWORD last_error = GetLastError();
-    char *message = os_error_string(last_error, arena);
-
-    ctpanic(panic, "win32 error: %s %s", message, expr);
-}
-
-#define SM_ASSERT_WIN32(expr) \
-    if (auto result = (expr); !result) { \
-        assert_last_error(CTU_PANIC_INFO, #expr); \
-    }
-
 static DWORD get_window_style(WindowMode mode) {
-    constexpr auto refl = ctu::reflect<WindowMode>();
     switch (mode) {
     case WindowMode::eBorderless: return WS_POPUP;
     case WindowMode::eWindowed: return WS_OVERLAPPEDWINDOW;
-    default: NEVER("invalid window mode: %d", refl.to_underlying(mode));
+    default: NEVER("invalid window mode: %d", mode.to_underlying());
     }
 }
 
@@ -154,12 +141,10 @@ WindowPlacement Window::get_placement(void) const {
     WINDOWPLACEMENT placement{};
     SM_ASSERT_WIN32(GetWindowPlacement(m_window, &placement));
 
-    constexpr auto refl = ctu::reflect<ShowWindow>();
-
     WindowPlacement result = {
         .length = placement.length,
         .flags = placement.flags,
-        .show_cmd = refl.from_underlying(placement.showCmd),
+        .show_cmd = ShowWindow(placement.showCmd),
         .min_position = make_point(placement.ptMinPosition),
         .max_position = make_point(placement.ptMaxPosition),
         .normal_position = make_coords(placement.rcNormalPosition),
@@ -169,11 +154,10 @@ WindowPlacement Window::get_placement(void) const {
 }
 
 void Window::set_placement(const WindowPlacement& placement) {
-    constexpr auto refl = ctu::reflect<ShowWindow>();
     const WINDOWPLACEMENT win32_placement = {
         .length = placement.length,
         .flags = placement.flags,
-        .showCmd = refl.to_underlying(placement.show_cmd),
+        .showCmd = placement.show_cmd.to_underlying(),
         .ptMinPosition = { placement.min_position.x, placement.min_position.y },
         .ptMaxPosition = { placement.max_position.x, placement.max_position.y },
         .rcNormalPosition = {
@@ -188,8 +172,9 @@ void Window::set_placement(const WindowPlacement& placement) {
 }
 
 void Window::show_window(ShowWindow show) {
-    constexpr auto refl = ctu::reflect<ShowWindow>();
-    ::ShowWindow(m_window, refl.to_underlying(show));
+    CTASSERTF(m_window != nullptr, "Window::show_window() called before Window::create()");
+    CTASSERTF(show.is_valid(), "Window::show_window() invalid show: %d", show.to_underlying());
+    ::ShowWindow(m_window, show.to_underlying());
 }
 
 void Window::destroy_window(void) {
