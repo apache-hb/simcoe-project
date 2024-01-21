@@ -2,16 +2,12 @@
 
 #include "common.hpp"
 
-#include "core/arena.hpp"
-
 #include "base/panic.h"
-#include "io/io.h"
-#include "os/os.h"
 
 #include "resource.h"
 
 using namespace sm;
-using namespace sm::system;
+using namespace sm::sys;
 
 #define SM_CLASS_NAME "simcoe"
 
@@ -27,11 +23,14 @@ static DWORD get_window_style(WindowMode mode) {
 }
 
 LRESULT CALLBACK Window::proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam) {
-    // if i ever handle WM_CLOSE, update Window::destroy() to call DestroyWindow()
     switch (message) {
     case WM_CREATE: {
         CREATESTRUCT *create = reinterpret_cast<CREATESTRUCT*>(lparam);
         Window *self = reinterpret_cast<Window*>(create->lpCreateParams);
+
+        // CreateWindow calls WM_CREATE before returning
+        // so we need to set the window handle here
+        self->m_window = window;
 
         SetWindowLongPtrA(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(self));
 
@@ -40,13 +39,11 @@ LRESULT CALLBACK Window::proc(HWND window, UINT message, WPARAM wparam, LPARAM l
     }
     case WM_CLOSE: {
         Window *self = reinterpret_cast<Window*>(GetWindowLongPtrA(window, GWLP_USERDATA));
-        if (self != nullptr) {
-            if (self->m_events->close(*self)) {
-                DestroyWindow(window);
-            }
-        } else {
+        if (self == nullptr)
             DestroyWindow(window);
-        }
+        else if (self->m_events->close(*self))
+            DestroyWindow(window);
+
         break;
     }
     case WM_DESTROY: {
@@ -82,40 +79,6 @@ void Window::create(const WindowInfo& info) {
     );
 
     SM_ASSERT_WIN32(m_window != nullptr);
-
-    // if we have placement data, use that instead of the default
-    io_t *io = io_file(SM_CLASS_NAME ".placement.bin", eAccessRead, sm::get_debug_arena());
-    if (io_error_t err = io_error(io); err == 0) {
-        WINDOWPLACEMENT placement{};
-        io_read(io, &placement, sizeof(placement));
-        io_close(io);
-
-        SM_ASSERT_WIN32(SetWindowPlacement(m_window, &placement));
-    }
-    // no placement data and centering requested, so center the window
-    else if (info.center) {
-
-        // get current monitor
-        HMONITOR monitor = MonitorFromWindow(m_window, MONITOR_DEFAULTTONEAREST);
-        SM_ASSERT_WIN32(monitor != nullptr);
-
-        // get monitor info
-        MONITORINFO monitor_info { .cbSize = sizeof(monitor_info) };
-        SM_ASSERT_WIN32(GetMonitorInfoA(monitor, &monitor_info));
-
-        // get window rect
-        RECT rect{};
-        SM_ASSERT_WIN32(GetWindowRect(m_window, &rect));
-
-        // calculate center
-        int x = (monitor_info.rcWork.left + monitor_info.rcWork.right) / 2 - (rect.right - rect.left) / 2;
-        int y = (monitor_info.rcWork.top + monitor_info.rcWork.bottom) / 2 - (rect.bottom - rect.top) / 2;
-
-        // move window
-        SM_ASSERT_WIN32(SetWindowPos(m_window, nullptr, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER));
-    }
-
-    io_close(io);
 }
 
 Window::Window(const WindowInfo& info, IWindowEvents *events) : m_events(events) {
@@ -130,7 +93,7 @@ Window::~Window() {
 }
 
 WindowPlacement Window::get_placement(void) const {
-    WINDOWPLACEMENT placement{};
+    WINDOWPLACEMENT placement{ .length = sizeof(WINDOWPLACEMENT) };
     SM_ASSERT_WIN32(GetWindowPlacement(m_window, &placement));
 
     return placement;
@@ -171,7 +134,34 @@ WindowCoords Window::get_coords() const {
     return coords;
 }
 
-void system::create(HINSTANCE hInstance) {
+bool Window::center_window(MultiMonitor monitor) {
+    constexpr auto refl = ctu::reflect<MultiMonitor>();
+    CTASSERTF(m_window != nullptr, "Window::center_window() called before Window::create()");
+    CTASSERTF(monitor.is_valid(), "Window::center_window() invalid monitor: %s", refl.to_string(monitor).data());
+
+    // get current monitor
+    HMONITOR hmonitor = MonitorFromWindow(m_window, monitor.as_integral());
+    SM_ASSERT_WIN32(hmonitor != nullptr);
+
+    // get monitor info
+    MONITORINFO monitor_info { .cbSize = sizeof(monitor_info) };
+    SM_ASSERT_WIN32(GetMonitorInfoA(hmonitor, &monitor_info));
+
+    // get window rect
+    RECT rect{};
+    SM_ASSERT_WIN32(GetWindowRect(m_window, &rect));
+
+    // calculate center
+    int x = (monitor_info.rcWork.left + monitor_info.rcWork.right) / 2 - (rect.right - rect.left) / 2;
+    int y = (monitor_info.rcWork.top + monitor_info.rcWork.bottom) / 2 - (rect.bottom - rect.top) / 2;
+
+    // move window
+    SM_ASSERT_WIN32(SetWindowPos(m_window, nullptr, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER));
+
+    return true;
+}
+
+void sys::create(HINSTANCE hInstance) {
     CTASSERTF(hInstance != nullptr, "system::create() invalid hInstance");
     CTASSERTF(gWindowClass == nullptr, "system::create() called twice");
 
@@ -200,7 +190,7 @@ void system::create(HINSTANCE hInstance) {
     }
 }
 
-void system::destroy(void) {
+void sys::destroy(void) {
     CTASSERTF(gInstance != nullptr, "system::destroy() called before system::create()");
     CTASSERTF(gWindowClass != nullptr, "system::destroy() called before system::create()");
 

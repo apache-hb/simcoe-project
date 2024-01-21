@@ -2,6 +2,8 @@
 #include "core/backtrace.hpp"
 #include "core/text.hpp"
 
+#include "core/units.hpp"
+#include "system/io.hpp"
 #include "system/system.hpp"
 
 #include "base/panic.h"
@@ -108,23 +110,36 @@ public:
     { }
 };
 
-class DefaultWindowEvents final : public system::IWindowEvents {
-    void create(system::Window&) override {
+class DefaultWindowEvents final : public sys::IWindowEvents {
+    sys::FileMapping *m_store = nullptr;
+    sys::WindowPlacement *m_placement = nullptr;
 
+    void create(sys::Window& window) override {
+        if (m_store->get_record(&m_placement)) {
+            window.set_placement(*m_placement);
+        } else {
+            window.center_window(sys::MultiMonitor::ePrimary);
+        }
     }
 
-    void destroy(system::Window& window) override {
+    void destroy(sys::Window& window) override {
         window.destroy_window();
     }
 
-    bool close(system::Window&) override {
+    bool close(sys::Window& window) override {
+        *m_placement = window.get_placement();
         return true;
     }
+
+public:
+    DefaultWindowEvents(sys::FileMapping *store)
+        : m_store(store)
+    { }
 };
 
 struct System {
-    System() { system::create(GetModuleHandle(nullptr)); }
-    ~System() { system::destroy(); }
+    System() { sys::create(GetModuleHandle(nullptr)); }
+    ~System() { sys::destroy(); }
 };
 
 static DefaultArena gGlobalArena{"default"};
@@ -155,19 +170,28 @@ int main(int argc, const char **argv) {
 
     System system;
 
-    system::WindowInfo info = {
-        .mode = system::WindowMode::eWindowed,
+    Memory size{4, Memory::eMegabytes};
+    sys::FileMapping store { "client.bin", size.b(), 256 };
+
+    constexpr auto refl = ctu::reflect<sys::MappingError>();
+
+    auto error = store.get_error();
+
+    CTASSERTF(error == sys::MappingError::eOk, "failed to create file mapping: %s", refl.to_string(error).data());
+
+    sys::WindowInfo info = {
+        .mode = sys::WindowMode::eWindowed,
         .width = 1280,
         .height = 720,
         .center = true,
         .title = "Priority Zero",
     };
 
-    DefaultWindowEvents events;
+    DefaultWindowEvents events { &store };
 
-    system::Window window { info, &events };
+    sys::Window window { info, &events };
 
-    window.show_window(system::ShowWindow::eShow);
+    window.show_window(sys::ShowWindow::eShow);
 
     MSG msg = { };
     while (GetMessageA(&msg, nullptr, 0, 0)) {

@@ -21,7 +21,10 @@ core_dependencies = [
 src = [
     'src/arena.cpp',
     'src/text.cpp',
-    'src/backtrace.cpp'
+    'src/backtrace.cpp',
+    'src/bitmap.cpp',
+    'src/units.cpp',
+    reflect.process('data/core.ct')
 ]
 
 libcore = library('core', src,
@@ -32,6 +35,9 @@ libcore = library('core', src,
 
 core = declare_dependency(
     link_with : libcore,
-    include_directories : [ core_include, config_include, reflect_include ],
+    include_directories : [
+        core_include, config_include,
+        reflect_include, libcore.private_dir_include()
+    ],
     dependencies : core_dependencies
 )

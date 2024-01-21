@@ -1,0 +1,27 @@
+module sm;
+
+[[iterator]]
+export variant BitMapIndex : usize {
+    default Invalid = opaque(SIZE_MAX)
+}
+
+export variant CastError : uint {
+    default None = 0
+    case Overflow = 1
+    case Underflow = 2
+}
+
+[[arithmatic]]
+export variant Day : uint8 {
+    default Initial = 0
+}
+
+[[arithmatic]]
+export variant Month : uint8 {
+    default Initial = 0
+}
+
+[[arithmatic]]
+export variant Year : uint16 {
+    default Initial = 0
+}

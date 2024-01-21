@@ -10,7 +10,7 @@ typedef struct arena_t arena_t;
 
 namespace sm { class IArena; }
 
-namespace sm::system {
+namespace sm::sys {
     using WindowPlacement = WINDOWPLACEMENT;
     using Point = POINT;
     using WindowCoords = RECT;
@@ -50,6 +50,8 @@ namespace sm::system {
         void destroy_window(void);
 
         void set_title(const char *title);
+
+        bool center_window(MultiMonitor monitor = MultiMonitor());
 
         WindowCoords get_coords() const;
 

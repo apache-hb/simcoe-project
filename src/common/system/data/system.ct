@@ -1,4 +1,4 @@
-module sm::system;
+module sm::sys;
 
 import "core/win32.h";
 
@@ -21,14 +21,37 @@ export variant FileVersion : uint32 {
     case Version0 = 0
 }
 
+export variant MappingError : uint8 {
+    default Ok = 0
+    case InvalidFile = 1
+    case InvalidVersion = 2
+    case InvalidChecksum = 3
+    case InvalidMagic = 4
+}
+
 export struct FileHeader {
     magic: uint32; // 'CUM\0'
     version: FileVersion;
     size: uint32;
     checksum: uint32;
+    count: uint16; // number of records
+    used: uint16; // number of records slots used
+}
+
+export struct RecordHeader {
+    id: uint32; // matches typeid of the record
+    offset: uint16; // offset from the start of the data region
+    size: uint16; // size of the record
 }
 
 // win32 types
+
+[[facade]]
+export variant MultiMonitor : ulong {
+    default Null = opaque(MONITOR_DEFAULTTONULL)
+    case Primary = opaque(MONITOR_DEFAULTTOPRIMARY)
+    case Nearest = opaque(MONITOR_DEFAULTTONEAREST)
+}
 
 [[facade]]
 export variant ShowWindow : uint {
