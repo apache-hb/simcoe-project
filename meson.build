@@ -126,7 +126,7 @@ client = executable('client', 'src/client/src/main.cpp',
         '/manifest:embed', '/manifestinput:' + manifest
     ],
     dependencies : [
-        core, service, system,
+        core, service, system, rhi,
         cthulhu.get_variable('backtrace'),
         cthulhu.get_variable('format_core'),
         cthulhu.get_variable('io')

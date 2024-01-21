@@ -1,21 +1,34 @@
 module sm::rhi;
 
-export variant AdapterLookup : uint8 {
-    default Default = 0
-    case HighPerformance = 1
-    case MinimumPower = 2
-    case Software = 3
+import "<dxgi1_6.h>";
+import "<d3d12.h>";
+import "<dxgidebug.h>";
+
+[[facade, bitflags]]
+export variant AdapterPreference : opaque(DXGI_GPU_PREFERENCE) {
+    default Default = opaque(DXGI_GPU_PREFERENCE_UNSPECIFIED)
+    case MinimumPower = opaque(DXGI_GPU_PREFERENCE_MINIMUM_POWER)
+    case HighPerformance = opaque(DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE)
+}
+
+[[bitflags]]
+export variant DebugFlags : uint8 {
+    default None = 0
+    case DebugLayer = 1 // dxgi debug layer
+    case DeviceRemovedInfo = 2 // dred
+    case InfoQueue = 4 // d3d12 debug layer
 }
 
 export struct RenderConfig {
-    debug_layer: bool;
-    device_removed_info: bool;
-    info_queue: bool;
+    debug_flags: DebugFlags;
 
     dsv_heap_size: uint32;
     rtv_heap_size: uint32;
-    cbv_heap_size: uint32;
+    cbv_srv_uav_heap_size: uint32;
 
+    adapter_lookup: AdapterPreference;
     adapter_index: uint32;
-    adapter_lookup: AdapterLookup;
+    software_adapter: bool;
+
+    [[transient]] hwnd: opaque(HWND);
 }

@@ -13,7 +13,6 @@ export struct WindowInfo {
     mode: WindowMode;
     width: int;
     height: int;
-    center: bool;
     title: string;
 }
 

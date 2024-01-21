@@ -16,7 +16,7 @@ static LPTSTR gWindowClass = nullptr;
 
 static DWORD get_window_style(WindowMode mode) {
     switch (mode) {
-    case WindowMode::eBorderless: return WS_POPUP;
+    case WindowMode::eBorderless: return WS_POPUPWINDOW;
     case WindowMode::eWindowed: return WS_OVERLAPPEDWINDOW;
     default: NEVER("invalid window mode: %d", mode.as_integral());
     }
@@ -64,7 +64,8 @@ void Window::create(const WindowInfo& info) {
     CTASSERTF(gInstance != nullptr, "system::create() not called before Window::create()");
     CTASSERTF(gWindowClass != nullptr, "system::create() not called before Window::create()");
 
-    m_window = CreateWindowA(
+    m_window = CreateWindowExA(
+        /* dwExStyle = */ 0,
         /* lpClassName = */ gWindowClass,
         /* lpWindowName = */ info.title,
         /* dwStyle = */ get_window_style(info.mode),
@@ -75,8 +76,7 @@ void Window::create(const WindowInfo& info) {
         /* hWndParent = */ nullptr,
         /* hMenu = */ nullptr,
         /* hInstance = */ gInstance,
-        /* lpParam = */ this
-    );
+        /* lpParam = */ this);
 
     SM_ASSERT_WIN32(m_window != nullptr);
 }
@@ -124,14 +124,7 @@ WindowCoords Window::get_coords() const {
     RECT rect{};
     SM_ASSERT_WIN32(GetWindowRect(m_window, &rect));
 
-    WindowCoords coords = {
-        .left = rect.left,
-        .top = rect.top,
-        .right = rect.right,
-        .bottom = rect.bottom,
-    };
-
-    return coords;
+    return rect;
 }
 
 bool Window::center_window(MultiMonitor monitor) {
@@ -173,6 +166,12 @@ void sys::create(HINSTANCE hInstance) {
 
     SM_ASSERT_WIN32(hIcon != nullptr);
 
+    HCURSOR hCursor = LoadCursorA(
+        /* hInst = */ nullptr,
+        /* name = */ IDC_ARROW);
+
+    SM_ASSERT_WIN32(hCursor != nullptr);
+
     const WNDCLASSEXA kClass = {
         .cbSize = sizeof(WNDCLASSEX),
 
@@ -180,6 +179,7 @@ void sys::create(HINSTANCE hInstance) {
         .lpfnWndProc = Window::proc,
         .hInstance = hInstance,
         .hIcon = hIcon,
+        .hCursor = hCursor,
         .lpszClassName = SM_CLASS_NAME
     };
 

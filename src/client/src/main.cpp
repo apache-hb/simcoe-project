@@ -5,6 +5,7 @@
 #include "core/units.hpp"
 #include "system/io.hpp"
 #include "system/system.hpp"
+#include "rhi/rhi.hpp"
 
 #include "base/panic.h"
 
@@ -170,26 +171,34 @@ int main(int argc, const char **argv) {
 
     System system;
 
-    Memory size{4, Memory::eMegabytes};
+    Memory size { 4, Memory::eMegabytes };
     sys::FileMapping store { "client.bin", size.b(), 256 };
-
-    constexpr auto refl = ctu::reflect<sys::MappingError>();
-
-    auto error = store.get_error();
-
-    CTASSERTF(error == sys::MappingError::eOk, "failed to create file mapping: %s", refl.to_string(error).data());
 
     sys::WindowInfo info = {
         .mode = sys::WindowMode::eWindowed,
         .width = 1280,
         .height = 720,
-        .center = true,
         .title = "Priority Zero",
     };
 
     DefaultWindowEvents events { &store };
 
     sys::Window window { info, &events };
+
+    rhi::RenderConfig rhi_config = {
+        .debug_flags = rhi::DebugFlags::mask(),
+        .dsv_heap_size = 256,
+        .rtv_heap_size = 256,
+        .cbv_srv_uav_heap_size = 256,
+
+        .adapter_lookup = rhi::AdapterPreference::eDefault,
+        .adapter_index = 0,
+        .software_adapter = true,
+
+        .hwnd = window.get_handle(),
+    };
+
+    rhi::Context context { rhi_config };
 
     window.show_window(sys::ShowWindow::eShow);
 
@@ -198,6 +207,4 @@ int main(int argc, const char **argv) {
         TranslateMessage(&msg);
         DispatchMessageA(&msg);
     }
-
-    std::printf("exiting\n");
 }
