@@ -1,7 +1,6 @@
 #pragma once
 
-#include "base/panic.h"
-#include "ctu/reflect.h"
+#include "reflect/reflect.h"
 
 #include "io/io.h"
 
@@ -22,15 +21,6 @@ namespace sm {
     template<>
     inline void serialize<int32_t>(const int32_t& data, io_t *io) {
         io_write(io, &data, sizeof(data));
-    }
-
-    template<>
-    inline void serialize<const char*>(const char *const& data, io_t *io) {
-        size_t size = data ? std::strlen(data) : 0;
-        CTASSERTF(size <= UINT32_MAX, "string too long: %zu", size);
-
-        serialize(uint32_t(size), io);
-        io_write(io, data, size);
     }
 
     template<typename T>

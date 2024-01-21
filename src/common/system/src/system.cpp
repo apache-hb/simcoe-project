@@ -22,16 +22,8 @@ static DWORD get_window_style(WindowMode mode) {
     switch (mode) {
     case WindowMode::eBorderless: return WS_POPUP;
     case WindowMode::eWindowed: return WS_OVERLAPPEDWINDOW;
-    default: NEVER("invalid window mode: %d", mode.to_underlying());
+    default: NEVER("invalid window mode: %d", mode.as_integral());
     }
-}
-
-static constexpr system::Point make_point(POINT pt) {
-    return { pt.x, pt.y };
-}
-
-static constexpr system::WindowCoords make_coords(RECT rect) {
-    return { rect.top, rect.left, rect.bottom, rect.right };
 }
 
 LRESULT CALLBACK Window::proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam) {
@@ -141,40 +133,17 @@ WindowPlacement Window::get_placement(void) const {
     WINDOWPLACEMENT placement{};
     SM_ASSERT_WIN32(GetWindowPlacement(m_window, &placement));
 
-    WindowPlacement result = {
-        .length = placement.length,
-        .flags = placement.flags,
-        .show_cmd = ShowWindow(placement.showCmd),
-        .min_position = make_point(placement.ptMinPosition),
-        .max_position = make_point(placement.ptMaxPosition),
-        .normal_position = make_coords(placement.rcNormalPosition),
-    };
-
-    return result;
+    return placement;
 }
 
 void Window::set_placement(const WindowPlacement& placement) {
-    const WINDOWPLACEMENT win32_placement = {
-        .length = placement.length,
-        .flags = placement.flags,
-        .showCmd = placement.show_cmd.to_underlying(),
-        .ptMinPosition = { placement.min_position.x, placement.min_position.y },
-        .ptMaxPosition = { placement.max_position.x, placement.max_position.y },
-        .rcNormalPosition = {
-            .left = placement.normal_position.left,
-            .top = placement.normal_position.top,
-            .right = placement.normal_position.right,
-            .bottom = placement.normal_position.bottom,
-        },
-    };
-
-    SM_ASSERT_WIN32(SetWindowPlacement(m_window, &win32_placement));
+    SM_ASSERT_WIN32(SetWindowPlacement(m_window, &placement));
 }
 
 void Window::show_window(ShowWindow show) {
     CTASSERTF(m_window != nullptr, "Window::show_window() called before Window::create()");
-    CTASSERTF(show.is_valid(), "Window::show_window() invalid show: %d", show.to_underlying());
-    ::ShowWindow(m_window, show.to_underlying());
+    CTASSERTF(show.is_valid(), "Window::show_window() invalid show: %d", show.as_integral());
+    ::ShowWindow(m_window, show.as_integral());
 }
 
 void Window::destroy_window(void) {

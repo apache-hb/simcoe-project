@@ -1,6 +1,8 @@
 module sm::system;
 
-// system.hpp data
+import "core/win32.h";
+
+// internal types
 
 export variant WindowMode : uint8 {
     default Windowed = 0
@@ -15,35 +17,6 @@ export struct WindowInfo {
     title: string;
 }
 
-export variant ShowWindow : uint {
-    case Hide = 0
-    case Normal = 1
-    case Show = 5
-    case Restore = 9
-    case Default = 10
-}
-
-export struct WindowCoords {
-    left: int;
-    top: int;
-    right: int;
-    bottom: int;
-}
-
-export struct Point {
-    x: int;
-    y: int;
-}
-
-export struct WindowPlacement {
-    length: uint;
-    flags: uint;
-    show_cmd: ShowWindow;
-    min_position: Point;
-    max_position: Point;
-    normal_position: WindowCoords;
-}
-
 export variant FileVersion : uint32 {
     case Version0 = 0
 }
@@ -53,4 +26,39 @@ export struct FileHeader {
     version: FileVersion;
     size: uint32;
     checksum: uint32;
+}
+
+// win32 types
+
+[[facade]]
+export variant ShowWindow : uint {
+    case Hide = opaque(SW_HIDE)
+    case ShowNormal = opaque(SW_SHOWNORMAL)
+    case Show = opaque(SW_SHOW)
+    case Restore = opaque(SW_RESTORE)
+    case ShowDefault = opaque(SW_SHOWDEFAULT)
+}
+
+[[external]]
+export struct RECT {
+    left: long;
+    top: long;
+    right: long;
+    bottom: long;
+}
+
+[[external]]
+export struct POINT {
+    x: long;
+    y: long;
+}
+
+[[external]]
+export struct WINDOWPLACEMENT {
+    length: uint;
+    flags: uint;
+    showCmd: ShowWindow;
+    ptMinPosition: POINT;
+    ptMaxPosition: POINT;
+    rcNormalPosition: RECT;
 }

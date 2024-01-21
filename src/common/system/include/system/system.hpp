@@ -11,6 +11,10 @@ typedef struct arena_t arena_t;
 namespace sm { class IArena; }
 
 namespace sm::system {
+    using WindowPlacement = WINDOWPLACEMENT;
+    using Point = POINT;
+    using WindowCoords = RECT;
+
     class SM_SYSTEM_API IWindowEvents {
         friend class Window;
 
