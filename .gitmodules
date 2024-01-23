@@ -6,3 +6,6 @@
 	path = data/vendor/public-sans
 	url = https://github.com/uswds/public-sans
 	branch = develop
+[submodule "scripts/ninjatracing"]
+	path = scripts/ninjatracing
+	url = https://github.com/nico/ninjatracing

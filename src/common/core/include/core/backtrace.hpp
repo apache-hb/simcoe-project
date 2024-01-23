@@ -1,11 +1,9 @@
 #pragma once
 
-#include <sm_core_api.hpp>
-
 #include "backtrace/backtrace.h"
 
 namespace sm {
-    class SM_CORE_API ISystemError : public bt_error_t {
+    class ISystemError : public bt_error_t {
         void init(void);
 
         static void wrap_begin(size_t error, void *user);

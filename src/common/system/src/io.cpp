@@ -191,7 +191,7 @@ bool FileMapping::get_record(uint32_t id, void **data, uint16_t size) {
 
     // find free record header
     volatile RecordHeader *found = nullptr;
-    for (uint16_t i = 0; i < m_capacity; i++) {
+    for (uint_fast16_t i = 0; i < m_capacity; i++) {
         RecordHeader *record = get_record_header(i);
         if (record->id == 0) {
             found = record;

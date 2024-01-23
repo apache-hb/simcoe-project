@@ -1,8 +1,19 @@
 module sm::rhi;
 
+import "logs/logs.hpp";
+
 import "<dxgi1_6.h>";
 import "<d3d12.h>";
 import "<dxgidebug.h>";
+
+[[facade]]
+export variant FeatureLevel : opaque(D3D_FEATURE_LEVEL) {
+    case Level_11_0 = opaque(D3D_FEATURE_LEVEL_11_0)
+    case Level_11_1 = opaque(D3D_FEATURE_LEVEL_11_1)
+    case Level_12_0 = opaque(D3D_FEATURE_LEVEL_12_0)
+    case Level_12_1 = opaque(D3D_FEATURE_LEVEL_12_1)
+    case Level_12_2 = opaque(D3D_FEATURE_LEVEL_12_2)
+}
 
 [[facade, bitflags]]
 export variant AdapterPreference : opaque(DXGI_GPU_PREFERENCE) {
@@ -11,12 +22,34 @@ export variant AdapterPreference : opaque(DXGI_GPU_PREFERENCE) {
     case HighPerformance = opaque(DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE)
 }
 
+[[facade, bitflags]]
+export variant AdapterFlag : opaque(DXGI_ADAPTER_FLAG) {
+    default None = opaque(DXGI_ADAPTER_FLAG_NONE)
+    case Remote = opaque(DXGI_ADAPTER_FLAG_REMOTE)
+    case Software = opaque(DXGI_ADAPTER_FLAG_SOFTWARE)
+}
+
+[[external]]
+export struct DXGI_ADAPTER_DESC1 {
+    VendorId: uint;
+    DeviceId: uint;
+    SubSysId: uint;
+    Revision: uint;
+    DedicatedVideoMemory: usize;
+    DedicatedSystemMemory: usize;
+    SharedSystemMemory: usize;
+
+    Flags: AdapterFlag;
+}
+
+// TODO: need to make constant initializers work in reflect
 [[bitflags]]
 export variant DebugFlags : uint8 {
     default None = 0
-    case DebugLayer = 1 // dxgi debug layer
-    case DeviceRemovedInfo = 2 // dred
-    case InfoQueue = 4 // d3d12 debug layer
+    case DeviceDebugLayer = 0b0001 // d3d12 debug layer
+    case FactoryDebug = 0b0010 // dxgi debug layer
+    case DeviceRemovedInfo = 0b0100 // dred
+    case InfoQueue = 0b1000 // d3d12 debug layer
 }
 
 export struct RenderConfig {
@@ -29,6 +62,8 @@ export struct RenderConfig {
     adapter_lookup: AdapterPreference;
     adapter_index: uint32;
     software_adapter: bool;
+    feature_level: FeatureLevel;
 
     [[transient]] hwnd: opaque(HWND);
+    [[transient]] logger: opaque("sm::logs::ILogger&");
 }

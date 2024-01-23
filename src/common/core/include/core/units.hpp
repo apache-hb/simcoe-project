@@ -52,38 +52,20 @@ namespace sm {
         size_t m_bytes;
     };
 
-    struct Date {
-        // time starts the day jesus was born (00/00/0000)
-        constexpr Date(Day day = Day(), Month month = Month(), Year year = Year())
-            : m_day(day)
-            , m_month(month)
-            , m_year(year)
-        { }
-
-        constexpr Day get_day() const { return m_day; }
-        constexpr Month get_month() const { return m_month; }
-        constexpr Year get_year() const { return m_year; }
-
-    private:
-        Day m_day;
-        Month m_month;
-        Year m_year;
-    };
-
     template<typename T, typename O>
     struct CastResult {
-        static constexpr T kDstMin = std::numeric_limits<T>::min();
-        static constexpr T kDstMax = std::numeric_limits<T>::max();
+        static inline constexpr T kDstMin = std::numeric_limits<T>::min();
+        static inline constexpr T kDstMax = std::numeric_limits<T>::max();
 
-        static constexpr O kSrcMin = std::numeric_limits<O>::min();
-        static constexpr O kSrcMax = std::numeric_limits<O>::max();
+        static inline constexpr O kSrcMin = std::numeric_limits<O>::min();
+        static inline constexpr O kSrcMax = std::numeric_limits<O>::max();
 
         T value;
         CastError error = CastError::eNone;
     };
 
     template<typename T, typename O>
-    CastResult<T, O> checkedIntCast(O value) {
+    CastResult<T, O> checked_cast(O value) {
         using C = CastResult<T, O>;
 
         if constexpr (C::kDstMax > C::kSrcMax) {

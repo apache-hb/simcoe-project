@@ -53,7 +53,7 @@ export variant MultiMonitor : ulong {
 }
 
 [[facade]]
-export variant ShowWindow : uint {
+export variant ShowWindow : int {
     case Hide = opaque(SW_HIDE)
     case ShowNormal = opaque(SW_SHOWNORMAL)
     case Show = opaque(SW_SHOW)

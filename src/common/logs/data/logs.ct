@@ -1,0 +1,27 @@
+module sm::logs;
+
+import "<string_view>";
+
+// keep these in order of severity so that we can compare them
+export variant Severity {
+    case Trace = 0
+    case Info = 1
+    case Warning = 2
+    case Error = 3
+    case Fatal = 4
+    case Panic = 5
+}
+
+export variant Category {
+    default Global = 0
+    case Render = 1
+    case Count = 2
+}
+
+export final struct Message {
+    message: opaque("std::string_view");
+    category: Category;
+    severity: Severity;
+    timestamp: uint32; // milliseconds since program start
+    thread: uint16;
+}

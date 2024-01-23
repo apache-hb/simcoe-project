@@ -6,7 +6,9 @@
 NORETURN
 assert_last_error(panic_t panic, const char *expr);
 
-#define SM_ASSERT_WIN32(expr) \
-    if (auto result = (expr); !result) { \
-        assert_last_error(CTU_PANIC_INFO, #expr); \
-    }
+#define SM_ASSERT_WIN32(expr)                                                  \
+  do {                                                                         \
+    if (auto result = (expr); !result) {                                       \
+      assert_last_error(CTU_PANIC_INFO, #expr);                                \
+    }                                                                          \
+  } while (0)

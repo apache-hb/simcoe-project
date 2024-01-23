@@ -4,8 +4,6 @@
 
 #include "core/macros.hpp"
 
-#include <utility>
-
 namespace sm {
     template<typename T, typename TDelete, T TEmpty = T()>
     class UniqueHandle {
@@ -25,11 +23,13 @@ namespace sm {
         }
 
         constexpr UniqueHandle(UniqueHandle &&other) noexcept {
-            std::swap(m_handle, other.m_handle);
+            reset(other.m_handle);
+            other.m_handle = TEmpty;
         }
 
         constexpr UniqueHandle &operator=(UniqueHandle &&other) noexcept {
-            std::swap(m_handle, other.m_handle);
+            reset(other.m_handle);
+            other.m_handle = TEmpty;
             return *this;
         }
 

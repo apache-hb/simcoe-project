@@ -59,6 +59,6 @@ namespace sm::sys {
         HWND get_handle() const { return m_window; }
     };
 
-    void create(HINSTANCE hInstance);
-    void destroy(void);
+    SM_SYSTEM_API void create(HINSTANCE hInstance);
+    SM_SYSTEM_API void destroy(void);
 }

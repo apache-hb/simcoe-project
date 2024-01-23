@@ -1,9 +1,3 @@
-system_api = configure_file(
-    input : api_header,
-    output : 'sm_system_api.hpp',
-    configuration : { 'MOD': 'SYSTEM' }
-)
-
 system_include = include_directories('.', 'include')
 
 src = [

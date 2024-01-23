@@ -1,4 +1,5 @@
 #include "core/arena.hpp"
+#include "core/macros.h"
 
 #include <cstring>
 #include <cstdlib>

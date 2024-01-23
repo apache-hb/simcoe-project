@@ -1,12 +1,3 @@
-# we use the api header elsewhere so use files()
-api_header = files('data/simcoe_api.hpp.in')
-
-core_api = configure_file(
-    input : api_header,
-    output : 'sm_core_api.hpp',
-    configuration : { 'MOD': 'CORE' }
-)
-
 core_include = include_directories('.', 'include')
 
 core_dependencies = [

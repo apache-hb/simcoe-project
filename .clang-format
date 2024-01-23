@@ -1,0 +1,35 @@
+---
+Language: Cpp
+BasedOnStyle: Microsoft
+IndentPPDirectives: AfterHash
+PPIndentWidth: 3
+ColumnLimit: 100
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortIfStatementsOnASingleLine: true
+AlignOperands: true
+PenaltyBreakAssignment: 50
+BreakBeforeTernaryOperators: true
+# AlignOperands: DontAlign
+AlignEscapedNewlines: Left
+BreakAfterAttributes: Always
+BraceWrapping:
+  AfterCaseLabel: false
+  AfterClass: true
+  AfterControlStatement: Never
+  AfterEnum: false
+  AfterFunction: false
+  AfterNamespace: false
+  AfterObjCDeclaration: true
+  AfterStruct: true
+  AfterUnion: false
+  AfterExternBlock: true
+  BeforeCatch: true
+  BeforeElse: false
+  BeforeLambdaBody: false
+  BeforeWhile: false
+  IndentBraces: false
+  SplitEmptyFunction: true
+  SplitEmptyRecord: true
+  SplitEmptyNamespace: true
+AlwaysBreakTemplateDeclarations: true
+...

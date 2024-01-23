@@ -1,11 +1,9 @@
 #pragma once
 
-#include <sm_core_api.hpp>
-
 #include "arena/arena.h"
 
 namespace sm {
-    class SM_CORE_API IArena : public arena_t {
+    class IArena : public arena_t {
         void init(const char *id);
 
     protected:

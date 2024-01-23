@@ -19,7 +19,16 @@ project('simcoe', [ 'c', 'cpp' ],
 
 cpp = meson.get_compiler('cpp')
 
+version = meson.project_version()
+parts = version.split('.')
+build_type = get_option('buildtype')
+library_type = get_option('default_library')
+
+package_type = get_option('package_type')
+trace_time = get_option('trace_time')
+
 cthulhu = subproject('cthulhu')
+agility = subproject('d3d12-agility')
 windows = import('windows')
 
 magick = find_program('magick')
@@ -33,22 +42,67 @@ args = cpp.get_supported_arguments(
     '-fstrict-aliasing',
     '-fno-threadsafe-statics',
     '-fno-keep-static-consts',
-    '-fmerge-all-constants')
+    '-fmerge-all-constants',
+    '/Zc:threadSafeInit-',
 
-add_project_arguments(args, language : 'cpp')
+    # nicer messages
+    '-fansi-escape-codes'
+)
+
+cpp_args = cpp.get_supported_arguments(
+    '/wd4251',
+    '-fforce-emit-vtables'
+)
+
+if trace_time.enabled()
+    args += cpp.get_supported_arguments('-ftime-trace')
+
+    ninjatracing = find_program('scripts/ninjatracing/ninjatracing')
+
+    custom_target('gather_time_trace',
+        output : 'trace.json',
+        capture : true,
+        command : [ ninjatracing, meson.global_build_root() / '.ninja_log' ]
+    )
+endif
+
+if cpp.has_multi_arguments('-Xclang', '-funsafe-math-optimizations')
+    args += [ '-Xclang', '-funsafe-math-optimizations' ]
+endif
+
+if cpp.has_multi_arguments('-Xclang', '-mglobal-merge')
+    args += [ '-Xclang', '-mglobal-merge' ]
+endif
+
+if cpp.has_multi_arguments('-Xclang', '-ffast-math')
+    args += [ '-Xclang', '-ffast-math' ]
+endif
+
+if cpp.has_multi_arguments('-Xclang', '-fno-math-errno')
+    args += [ '-Xclang', '-fno-math-errno' ]
+endif
+
+if cpp.has_multi_arguments('-Xclang', '-fstrict-vtable-pointers')
+    cpp_args += ['-Xclang', '-fstrict-vtable-pointers' ]
+endif
+
+if get_option('b_lto')
+    if cpp.has_multi_arguments('-Xclang', '-fwhole-program-vtables')
+        cpp_args += [ '-Xclang', '-fwhole-program-vtables' ]
+    endif
+
+    if cpp.has_multi_arguments('-Xclang', '-fvirtual-function-elimination')
+        cpp_args += [ '-Xclang', '-fvirtual-function-elimination' ]
+    endif
+endif
+
 add_project_arguments('-D_HAS_EXCEPTIONS=0', language : 'cpp')
-add_project_arguments('/wd4251', language : 'cpp')
+add_project_arguments(cpp_args, language : 'cpp')
+add_project_arguments(args, language : ['c', 'cpp'])
 
 res_include = include_directories('data/win32')
 
 # generate the project config header
-version = meson.project_version()
-parts = version.split('.')
-build_type = get_option('buildtype')
-library_type = get_option('default_library')
-
-package_type = get_option('package_type')
-
 simcoe_cdata = configuration_data()
 simcoe_cdata.set('SMC_VERSION_PATCH', parts[2].to_int())
 simcoe_cdata.set('SMC_VERSION_MINOR', parts[1].to_int())
@@ -74,6 +128,7 @@ simcoe_config = configure_file(
 config_include = include_directories('.')
 
 subdir('src/common/core')
+subdir('src/common/logs')
 subdir('src/common/math')
 subdir('src/vendor/imgui')
 subdir('src/common/service')
@@ -94,14 +149,14 @@ rc_cdata.set('MINOR', parts[1].to_int())
 rc_cdata.set('PATCH', parts[2].to_int())
 rc_cdata.set('BUILD', 99)
 
-rc_temp = configure_file(
+rc = configure_file(
     input : 'data/win32/client.in.rc',
     output : 'client.temp.rc',
     configuration : rc_cdata
 )
 
-rc = custom_target('client.rc',
-    input : [ rc_temp ],
+rc_utf16 = custom_target('client.rc',
+    input : [ rc ],
     output : [ 'client.rc' ],
     command : [ convert_utf16, '@INPUT@', '@OUTPUT@' ]
 )
@@ -126,7 +181,7 @@ client = executable('client', 'src/client/src/main.cpp',
         '/manifest:embed', '/manifestinput:' + manifest
     ],
     dependencies : [
-        core, service, system, rhi,
+        core, service, system, rhi, logs,
         cthulhu.get_variable('backtrace'),
         cthulhu.get_variable('format_core'),
         cthulhu.get_variable('io')

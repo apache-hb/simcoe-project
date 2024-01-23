@@ -1,39 +1,29 @@
-# Prerequisites
-*.d
+# ignore everything while retaining folder structure
+*
+!*/
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
+# source files
+!*.cpp
+!*.hpp
+!*.c
+!*.h
+!*.hlsl
+!*.ct
 
-# Precompiled Headers
-*.gch
-*.pch
+# scripts
+!*.py
+!*.build
+!*.txt
 
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
+# config files
+!*.ini
+!.clang-format
+!.clang-tidy
 
-# Fortran module files
-*.mod
-*.smod
+# assets
+!data/**/*
 
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
-
-.cache/
-.vs/
-.vscode/
-*build*/
-*release*/
-*bundle*/
+# dependencies
+subprojects/*
+!subprojects/*.wrap
+!subprojects/packagefiles

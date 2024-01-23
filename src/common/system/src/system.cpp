@@ -39,9 +39,7 @@ LRESULT CALLBACK Window::proc(HWND window, UINT message, WPARAM wparam, LPARAM l
     }
     case WM_CLOSE: {
         Window *self = reinterpret_cast<Window*>(GetWindowLongPtrA(window, GWLP_USERDATA));
-        if (self == nullptr)
-            DestroyWindow(window);
-        else if (self->m_events->close(*self))
+        if (self == nullptr || self->m_events->close(*self))
             DestroyWindow(window);
 
         break;

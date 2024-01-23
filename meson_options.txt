@@ -6,3 +6,8 @@ option('package_type', type : 'combo',
     choices : [ 'devel', 'private', 'release' ],
     value : 'devel'
 )
+
+option('trace_time', type : 'feature',
+    description : 'Trace compile time',
+    value : 'disabled'
+)

@@ -43,12 +43,6 @@ namespace sm {
             constexpr size_t get_total_bits() const { return m_size; }
             constexpr size_t get_capacity() const { return word_count() * kBitPerWord; }
 
-            constexpr bool test(Index index) const {
-                verify_index(index);
-
-                return m_bits[get_word(index)] & get_mask(index);
-            }
-
             constexpr Index scan_set_first() {
                 Super *self = static_cast<Super*>(this);
                 for (size_t i = 0; i < get_total_bits(); i++) {
@@ -60,10 +54,6 @@ namespace sm {
                 return Index::eInvalid;
             }
 
-            constexpr void release(Index index) {
-                clear(size_t(index));
-            }
-
             constexpr void reset() {
                 if (m_bits.is_valid())
                     std::memset(m_bits.get(), 0, word_count() * sizeof(T));
@@ -71,12 +61,17 @@ namespace sm {
 
             constexpr static inline size_t kBitPerWord = sizeof(T) * CHAR_BIT;
 
+            constexpr bool test(Index index) const {
+                verify_index(index);
+
+                return m_bits[get_word(index)] & get_mask(index);
+            }
+
             constexpr void set(Index index) {
                 verify_index(index);
                 m_bits[get_word(index)] |= get_mask(index);
             }
 
-        protected:
             constexpr void clear(Index index) {
                 verify_index(index);
                 m_bits[get_word(index)] &= ~get_mask(index);
@@ -138,8 +133,8 @@ namespace sm {
             return Index::eInvalid;
         }
 
-        constexpr bool test_set(size_t index) {
-            if (test(Index(index))) {
+        constexpr bool test_set(Index index) {
+            if (test(index)) {
                 return false;
             }
 
@@ -152,6 +147,6 @@ namespace sm {
         using Super = detail::BitMapStorage<std::atomic_uint64_t, AtomicBitMap>;
         using Super::BitMapStorage;
 
-        bool test_set(size_t index);
+        bool test_set(Index index);
     };
 }

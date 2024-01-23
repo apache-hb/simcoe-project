@@ -6,6 +6,7 @@
 #include "system/io.hpp"
 #include "system/system.hpp"
 #include "rhi/rhi.hpp"
+#include "logs/logs.hpp"
 
 #include "base/panic.h"
 
@@ -16,6 +17,44 @@
 #include "os/os.h"
 
 using namespace sm;
+
+template<ctu::Reflected T>
+static constexpr auto enum_to_string(T value) {
+    return ctu::reflect<T>().to_string(value);
+}
+
+class ConsoleLog final : public logs::ILogger {
+    static constexpr colour_t get_colour(logs::Severity severity) {
+        CTASSERTF(severity.is_valid(), "invalid severity: %s", enum_to_string(severity).data());
+
+        using logs::Severity;
+        switch (severity) {
+        case Severity::eTrace: return eColourWhite;
+        case Severity::eInfo: return eColourGreen;
+        case Severity::eWarning: return eColourYellow;
+        case Severity::eError: return eColourRed;
+        case Severity::ePanic: return eColourMagenta;
+        default: return eColourDefault;
+        }
+    }
+
+    void accept(const logs::Message& message) override {
+        const auto c = enum_to_string(message.category);
+        const auto s = enum_to_string(message.severity);
+
+        const auto pallete = &kColourDefault;
+
+        const char *colour = colour_get(pallete, get_colour(message.severity));
+        const char *reset = colour_reset(pallete);
+
+        std::printf("%s[%s]%s %s: %.*s\n", colour, s.data(), reset, c.data(), (int)message.message.length(), message.message.data());
+    }
+
+public:
+    constexpr ConsoleLog(logs::Severity severity)
+        : ILogger(severity)
+    { }
+};
 
 class DefaultArena final : public IArena {
     using IArena::IArena;
@@ -38,22 +77,22 @@ class DefaultArena final : public IArena {
 };
 
 class TraceArena final : public IArena {
-    IArena *m_source;
+    IArena& m_source;
 
     void *impl_alloc(size_t size) override {
-        void *ptr = m_source->alloc(size);
+        void *ptr = m_source.alloc(size);
         std::printf("[%s] alloc(%zu) = %p\n", name, size, ptr);
         return ptr;
     }
 
     void *impl_resize(void *ptr, size_t new_size, size_t old_size) override {
-        void *new_ptr = m_source->resize(ptr, new_size, old_size);
+        void *new_ptr = m_source.resize(ptr, new_size, old_size);
         std::printf("[%s] resize(0x%p, %zu, %zu) = 0x%p\n", name, ptr, new_size, old_size, new_ptr);
         return new_ptr;
     }
 
     void impl_release(void *ptr, size_t size) override {
-        m_source->release(ptr, size);
+        m_source.release(ptr, size);
         std::printf("[%s] release(0x%p, %zu)\n", name, ptr, size);
     }
 
@@ -66,7 +105,7 @@ class TraceArena final : public IArena {
     }
 
 public:
-    TraceArena(const char *name, IArena *source)
+    TraceArena(const char *name, IArena& source)
         : IArena(name)
         , m_source(source)
     { }
@@ -112,11 +151,11 @@ public:
 };
 
 class DefaultWindowEvents final : public sys::IWindowEvents {
-    sys::FileMapping *m_store = nullptr;
+    sys::FileMapping& m_store;
     sys::WindowPlacement *m_placement = nullptr;
 
     void create(sys::Window& window) override {
-        if (m_store->get_record(&m_placement)) {
+        if (m_store.get_record(&m_placement)) {
             window.set_placement(*m_placement);
         } else {
             window.center_window(sys::MultiMonitor::ePrimary);
@@ -133,21 +172,22 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     }
 
 public:
-    DefaultWindowEvents(sys::FileMapping *store)
+    DefaultWindowEvents(sys::FileMapping& store)
         : m_store(store)
     { }
 };
 
 struct System {
-    System() { sys::create(GetModuleHandle(nullptr)); }
+    System(HINSTANCE hInstance) { sys::create(hInstance); }
     ~System() { sys::destroy(); }
 };
 
 static DefaultArena gGlobalArena{"default"};
-static TraceArena gTraceArena{"trace", &gGlobalArena};
+static TraceArena gTraceArena{"trace", gGlobalArena};
 static DefaultSystemError gDefaultError{&gGlobalArena};
+static ConsoleLog gConsoleLog{logs::Severity::eInfo};
 
-int main(int argc, const char **argv) {
+static void common_init(void) {
     bt_init();
     os_init();
 
@@ -156,21 +196,18 @@ int main(int argc, const char **argv) {
     gPanicHandler = [](panic_t info, const char *msg, va_list args) {
         const print_backtrace_t kPrintOptions = print_options_make(&gGlobalArena, io_stderr());
 
-        Text message = Text::vformat(&gGlobalArena, msg, args);
+        auto message = sm::vformat(msg, args);
 
-        std::printf("[%s:%zu] %s\npanic: %.*s\n", info.file, info.line, info.function, (int)message.count(), message.data());
+        gConsoleLog.log(logs::Category::eGlobal, logs::Severity::ePanic, message.data());
+
+        std::printf("[%s:%zu] %s\npanic: %.*s\n", info.file, info.line, info.function, (int)message.size(), message.data());
 
         bt_report_t *report = bt_report_collect(&gGlobalArena);
         print_backtrace(kPrintOptions, report);
     };
+}
 
-    std::printf("argc = %d\n", argc);
-    for (int i = 0; i < argc; ++i) {
-        std::printf("argv[%d] = %s\n", i, argv[i]);
-    }
-
-    System system;
-
+static int common_main(sys::ShowWindow show) {
     Memory size { 4, Memory::eMegabytes };
     sys::FileMapping store { "client.bin", size.b(), 256 };
 
@@ -181,7 +218,7 @@ int main(int argc, const char **argv) {
         .title = "Priority Zero",
     };
 
-    DefaultWindowEvents events { &store };
+    DefaultWindowEvents events { store };
 
     sys::Window window { info, &events };
 
@@ -194,17 +231,47 @@ int main(int argc, const char **argv) {
         .adapter_lookup = rhi::AdapterPreference::eDefault,
         .adapter_index = 0,
         .software_adapter = true,
+        .feature_level = rhi::FeatureLevel::eLevel_12_0,
 
         .hwnd = window.get_handle(),
+        .logger = gConsoleLog,
     };
 
     rhi::Context context { rhi_config };
 
-    window.show_window(sys::ShowWindow::eShow);
+    window.show_window(show);
 
     MSG msg = { };
     while (GetMessageA(&msg, nullptr, 0, 0)) {
         TranslateMessage(&msg);
         DispatchMessageA(&msg);
     }
+
+    return 0;
+}
+
+int main(int argc, const char **argv) {
+    common_init();
+
+    std::printf("args[%d] = {", argc);
+    for (int i = 0; i < argc; ++i) {
+        if (i != 0) std::printf(", ");
+        std::printf("[%d] = \"%s\"", i, argv[i]);
+    }
+    std::printf("}\n");
+
+    System sys { GetModuleHandleA(nullptr) };
+
+    return common_main(sys::ShowWindow::eShow);
+}
+
+int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
+    common_init();
+
+    std::printf("lpCmdLine = %s\n", lpCmdLine);
+    std::printf("nShowCmd = %d\n", nShowCmd);
+
+    System sys { hInstance };
+
+    return common_main(sys::ShowWindow{nShowCmd});
 }
