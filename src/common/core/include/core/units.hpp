@@ -1,9 +1,9 @@
 #pragma once
 
 #include <string>
-#include "fmt/format.h"
-
 #include <limits>
+
+#include "fmtlib/format.h"
 
 #include "core.reflect.h"
 
@@ -143,7 +143,6 @@ namespace sm {
         return result;
     }
 }
-
 
 template<>
 struct fmt::formatter<sm::Memory> {

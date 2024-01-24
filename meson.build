@@ -13,7 +13,8 @@ project('simcoe', [ 'c', 'cpp' ],
 
         'cthulhu:default_library=static',
         'cthulhu:auto_features=disabled',
-        'cthulhu:tool_reflect=enabled'
+        'cthulhu:tool_reflect=enabled',
+        'cthulhu:win32_trickery=enabled'
     ]
 )
 
@@ -31,11 +32,16 @@ trace_time = get_option('trace_time')
 
 cthulhu = subproject('cthulhu')
 agility = subproject('d3d12-agility')
-fmt = dependency('fmt')
 windows = import('windows')
 
 magick = find_program('magick')
 convert_utf16 = find_program('scripts/convert_utf16.py')
+
+compile_hlsl = find_program('scripts/compile_hlsl.py')
+hlsl = generator(compile_hlsl,
+    output : [ '@BASENAME@.vs.cso', '@BASENAME@.ps.cso' ],
+    arguments : [ '@INPUT@', '@BASENAME@', '@BUILD_DIR@', 'vs,ps', '5_0' ]
+)
 
 reflect_include = cthulhu.get_variable('reflect_include')
 reflect = cthulhu.get_variable('reflect')
@@ -129,6 +135,8 @@ simcoe_config = configure_file(
 
 config_include = include_directories('.')
 
+subdir('src/vendor/fmtlib')
+
 subdir('src/common/core')
 subdir('src/common/logs')
 subdir('src/common/math')
@@ -178,7 +186,11 @@ install_data(agility.get_variable('redist'),
     install_dir : get_option('bindir') / 'D3D12'
 )
 
-client = executable('client', 'src/client/src/main.cpp',
+shaders = [
+    hlsl.process('data/assets/shaders/shader.hlsl')
+]
+
+client = executable('client', 'src/client/src/main.cpp', shaders,
     install : true,
     link_depends : [ manifest, res ],
     link_args : [

@@ -159,7 +159,7 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     sys::RecordLookup m_lookup;
 
     void create(sys::Window& window) override {
-        if (m_lookup = m_store.get_record(&m_placement); m_lookup.has_valid_data()) {
+        if (m_lookup = m_store.get_record(&m_placement); m_lookup == sys::RecordLookup::eOpened) {
             window.set_placement(*m_placement);
         } else {
             window.center_window(sys::MultiMonitor::ePrimary);
@@ -223,6 +223,10 @@ static int common_main(sys::ShowWindow show) {
 
     sys::FileMapping store { store_config };
 
+    if (!store.is_valid()) {
+        store.reset();
+    }
+
     sys::WindowConfig window_config = {
         .mode = sys::WindowMode::eWindowed,
         .width = 1280,
@@ -235,8 +239,11 @@ static int common_main(sys::ShowWindow show) {
 
     sys::Window window { window_config, &events };
 
-    rhi::RenderConfig rhi_config = {
+    rhi::RenderConfig render_config = {
         .debug_flags = rhi::DebugFlags::mask(),
+
+        .buffer_count = 2,
+
         .dsv_heap_size = 256,
         .rtv_heap_size = 256,
         .cbv_srv_uav_heap_size = 256,
@@ -244,13 +251,13 @@ static int common_main(sys::ShowWindow show) {
         .adapter_lookup = rhi::AdapterPreference::eDefault,
         .adapter_index = 0,
         .software_adapter = true,
-        .feature_level = rhi::FeatureLevel::eLevel_12_0,
+        .feature_level = rhi::FeatureLevel::eLevel_11_0,
 
-        .hwnd = window.get_handle(),
+        .window = window,
         .logger = gConsoleLog,
     };
 
-    rhi::Context context { rhi_config };
+    rhi::Context render { render_config };
 
     window.show_window(show);
 
@@ -261,6 +268,10 @@ static int common_main(sys::ShowWindow show) {
     while (GetMessageA(&msg, nullptr, 0, 0)) {
         TranslateMessage(&msg);
         DispatchMessageA(&msg);
+
+        render.begin_frame();
+
+        render.end_frame();
     }
 
     return 0;

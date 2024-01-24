@@ -7,13 +7,13 @@
 
 namespace math {
     template<typename T>
-    constexpr T kPi = T(3.14159265358979323846264338327950288);
+    constexpr inline T kPi = T(3.14159265358979323846264338327950288);
 
     template<typename T>
-    constexpr T kRadToDeg = T(180) / kPi<T>;
+    constexpr inline T kRadToDeg = T(180) / kPi<T>;
 
     template<typename T>
-    constexpr T kDegToRad = kPi<T> / T(180);
+    constexpr inline T kDegToRad = kPi<T> / T(180);
 
     template<typename T>
     T clamp(T it, T low, T high) {

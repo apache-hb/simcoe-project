@@ -5,7 +5,7 @@ src = [
     reflect.process('data/rhi.ct')
 ]
 
-deps = [ core, logs, agility.get_variable('d3d12'), agility.get_variable('d3dx12') ]
+deps = [ core, logs, system, math, agility.get_variable('d3d12'), agility.get_variable('d3dx12') ]
 
 librhi = library('rhi', src,
     cpp_args : [ '-DSM_RHI_BUILD=1' ],

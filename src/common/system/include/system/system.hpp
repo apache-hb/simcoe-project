@@ -1,7 +1,7 @@
 #pragma once
 
-#include "core/win32.h" // IWYU pragma: export
 #include "core/macros.hpp"
+#include "base/panic.h"
 
 #include "system.reflect.h"
 
@@ -9,11 +9,33 @@ typedef struct arena_t arena_t;
 
 namespace sm { class IArena; }
 
+#define SM_ASSERT_WIN32(expr)                         \
+    do {                                              \
+        if (auto result = (expr); !result) {          \
+            sm::sys::assert_last_error(CT_SOURCE_HERE, #expr); \
+        }                                             \
+    } while (0)
+
+// like assert but non-fatal if the api call fails
+#define SM_CHECK_WIN32(expr, sink)                             \
+    [&]() -> bool {                                            \
+        if (auto result = (expr); !result) {                   \
+            (sink).error(#expr " = {}. {}", result, sm::sys::get_last_error()); \
+            return false;                                      \
+        }                                                      \
+        return true;                                           \
+    }()
+
 namespace sm::sys {
     using SystemSink = logs::Sink<logs::Category::eSystem>;
     using WindowPlacement = WINDOWPLACEMENT;
     using Point = POINT;
     using WindowCoords = RECT;
+
+    NORETURN
+    assert_last_error(source_info_t panic, const char *expr);
+
+    char *get_last_error(void);
 
     class IWindowEvents {
         friend class Window;

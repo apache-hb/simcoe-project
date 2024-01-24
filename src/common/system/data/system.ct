@@ -2,7 +2,10 @@ module sm::sys;
 
 import "logs/logs.hpp";
 import "core/units.hpp";
+
 import "core/win32.h";
+import "<windef.h>";
+import "<winuser.h>";
 
 // internal types
 

@@ -1,12 +1,8 @@
 #include "system/io.hpp"
 
-#include "common.hpp"
+#include "core/reflect.hpp" // IWYU pragma: keep
 
-#include <cstdint>
-#include <cstdio>
-#include <cstring>
-
-#include "system.reflect.h"
+#include <winbase.h>
 
 using namespace sm::sys;
 
@@ -65,10 +61,9 @@ bool FileMapping::create() {
 
     // we have an existing file, validate it
     auto validate_file = [this]() -> bool {
-        SM_UNUSED constexpr auto refl = ctu::reflect<FileVersion>();
         FileHeader *header = get_private_header();
 
-        if (!SM_CHECKF(m_log, header->version == kCurrentVersion, "file version mismatch, {}/{}", refl.to_string(header->version).data(), refl.to_string(kCurrentVersion).data()))
+        if (!SM_CHECKF(m_log, header->version == kCurrentVersion, "file version mismatch, {}/{}", header->version, kCurrentVersion))
             return false;
 
         sm::Memory read_size = header->size;
@@ -234,7 +229,7 @@ RecordLookup FileMapping::get_record(uint32_t id, void **data, uint16_t size) {
     // m_space operates on 8 byte chunks, convert the size and scan for free space
     BitMap::Index index = m_space.scan_set_range((size + 7) / 8);
 
-    if (!SM_CHECKF(m_log, index != BitMap::Index::eInvalid, "unable to find free space, %hu required, %zu free total. defragment or make the file bigger", size, m_space.freecount()))
+    if (!SM_CHECKF(m_log, index != BitMap::Index::eInvalid, "unable to find free space, {:#08x} required, {:#08x} free total. defragment or make the file bigger", size, m_space.freecount()))
         return RecordLookup::eDataRegionExhausted;
 
     // write record header

@@ -1,7 +1,7 @@
 core_include = include_directories('.', 'include')
 
 core_dependencies = [
-    fmt,
+    fmtlib,
     cthulhu.get_variable('core'),
     cthulhu.get_variable('base'),
     cthulhu.get_variable('arena'),

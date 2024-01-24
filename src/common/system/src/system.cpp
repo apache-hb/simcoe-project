@@ -1,10 +1,10 @@
 #include "system/system.hpp"
 
-#include "common.hpp"
-
 #include "base/panic.h"
 
 #include "resource.h"
+
+#include <winbase.h>
 
 using namespace sm;
 using namespace sm::sys;
@@ -101,7 +101,7 @@ WindowPlacement Window::get_placement(void) const {
 }
 
 void Window::set_placement(const WindowPlacement& placement) {
-    SM_ASSERT_WIN32(SetWindowPlacement(m_window, &placement));
+    SM_CHECK_WIN32(SetWindowPlacement(m_window, &placement), m_log);
 }
 
 void Window::show_window(ShowWindow show) {
