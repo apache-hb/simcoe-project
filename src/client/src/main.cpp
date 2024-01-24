@@ -221,14 +221,19 @@ static void common_init(void) {
 
         bt_report_t *report = bt_report_collect(&gGlobalArena);
         print_backtrace(kPrintOptions, report);
+
+        std::exit(CT_EXIT_INTERNAL); // NOLINT
     };
 }
 
 static int common_main(sys::ShowWindow show) {
     logs::Sink<logs::Category::eGlobal> general { gConsoleLog };
+    general.info("SMC_DEBUG = {}", SMC_DEBUG);
+    general.info("CTU_DEBUG = {}", CTU_DEBUG);
+
     sys::MappingConfig store_config = {
         .path = "client.bin",
-        .size = { 4, Memory::eMegabytes },
+        .size = { 1, Memory::eMegabytes },
         .record_count = 256,
         .logger = gConsoleLog,
     };
@@ -248,7 +253,7 @@ static int common_main(sys::ShowWindow show) {
     }
 
     sys::WindowConfig window_config = {
-        .mode = sys::WindowMode::eWindowed,
+        .mode = sys::WindowMode::eBorderless,
         .width = 1280,
         .height = 720,
         .title = "Priority Zero",
@@ -282,9 +287,6 @@ static int common_main(sys::ShowWindow show) {
     rhi::Context context = render.new_context();
 
     window.show_window(show);
-
-    general.info("SMC_DEBUG = {}", SMC_DEBUG);
-    general.info("CTU_DEBUG = {}", CTU_DEBUG);
 
     MSG msg = { };
     while (GetMessageA(&msg, nullptr, 0, 0)) {

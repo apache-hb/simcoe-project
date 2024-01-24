@@ -14,7 +14,10 @@ project('simcoe', [ 'c', 'cpp' ],
         'cthulhu:default_library=static',
         'cthulhu:auto_features=disabled',
         'cthulhu:tool_reflect=enabled',
-        'cthulhu:win32_trickery=enabled'
+        'cthulhu:win32_trickery=enabled',
+
+        # ugh
+        'fmt:warning_level=0'
     ]
 )
 
@@ -32,6 +35,7 @@ trace_time = get_option('trace_time')
 
 cthulhu = subproject('cthulhu')
 agility = subproject('d3d12-agility')
+warp = subproject('d3d-warp')
 windows = import('windows')
 
 magick = find_program('magick')
@@ -48,20 +52,26 @@ reflect_include = cthulhu.get_variable('reflect_include')
 reflect = cthulhu.get_variable('reflect')
 
 args = cpp.get_supported_arguments(
-    '/GS-'#,
-    #'-fstrict-aliasing',
-    #'-fno-threadsafe-statics',
-    #'-fno-keep-static-consts',
-    #'-fmerge-all-constants',
-    #'/Zc:threadSafeInit-',
+    '/GS-',
+    '-fstrict-aliasing',
+    '-fno-threadsafe-statics',
+    '-fno-keep-static-consts',
+    '-fmerge-all-constants',
+    '/Zc:threadSafeInit-',
 
     # nicer messages
-    #'-fansi-escape-codes'
+    '-fansi-escape-codes',
+
+    # fmtlib forgot to mark a single argument as [[maybe_unused]]. pain
+    '-Wno-unused-parameter'
 )
 
 cpp_args = cpp.get_supported_arguments(
-    '/wd4251'#,
-    #'-fforce-emit-vtables'
+    '/wd4251',
+    '/wd4201',
+    '/wd4244', # weird narrowing stuff i cant be bothered to figure out
+    '/wd4702', # unreachable code in fmtlib
+    '-fforce-emit-vtables'
 )
 
 if trace_time.enabled()
@@ -76,35 +86,35 @@ if trace_time.enabled()
     )
 endif
 
-# if cpp.has_multi_arguments('-Xclang', '-funsafe-math-optimizations')
-#     args += [ '-Xclang', '-funsafe-math-optimizations' ]
-# endif
+if cpp.has_multi_arguments('-Xclang', '-funsafe-math-optimizations')
+    args += [ '-Xclang', '-funsafe-math-optimizations' ]
+endif
 
-# if cpp.has_multi_arguments('-Xclang', '-mglobal-merge')
-#     args += [ '-Xclang', '-mglobal-merge' ]
-# endif
+if cpp.has_multi_arguments('-Xclang', '-mglobal-merge')
+    args += [ '-Xclang', '-mglobal-merge' ]
+endif
 
-# if cpp.has_multi_arguments('-Xclang', '-ffast-math')
-#     args += [ '-Xclang', '-ffast-math' ]
-# endif
+if cpp.has_multi_arguments('-Xclang', '-ffast-math')
+    args += [ '-Xclang', '-ffast-math' ]
+endif
 
-# if cpp.has_multi_arguments('-Xclang', '-fno-math-errno')
-#     args += [ '-Xclang', '-fno-math-errno' ]
-# endif
+if cpp.has_multi_arguments('-Xclang', '-fno-math-errno')
+    args += [ '-Xclang', '-fno-math-errno' ]
+endif
 
-# if cpp.has_multi_arguments('-Xclang', '-fstrict-vtable-pointers')
-#     cpp_args += ['-Xclang', '-fstrict-vtable-pointers' ]
-# endif
+if cpp.has_multi_arguments('-Xclang', '-fstrict-vtable-pointers')
+    cpp_args += ['-Xclang', '-fstrict-vtable-pointers' ]
+endif
 
-# if get_option('b_lto')
-#     if cpp.has_multi_arguments('-Xclang', '-fwhole-program-vtables')
-#         cpp_args += [ '-Xclang', '-fwhole-program-vtables' ]
-#     endif
+if get_option('b_lto')
+    if cpp.has_multi_arguments('-Xclang', '-fwhole-program-vtables')
+        cpp_args += [ '-Xclang', '-fwhole-program-vtables' ]
+    endif
 
-#     if cpp.has_multi_arguments('-Xclang', '-fvirtual-function-elimination')
-#         cpp_args += [ '-Xclang', '-fvirtual-function-elimination' ]
-#     endif
-# endif
+    if cpp.has_multi_arguments('-Xclang', '-fvirtual-function-elimination')
+        cpp_args += [ '-Xclang', '-fvirtual-function-elimination' ]
+    endif
+endif
 
 add_project_arguments(cpp_args, language : 'cpp')
 add_project_arguments(args, language : ['c', 'cpp'])
@@ -183,10 +193,32 @@ res = windows.compile_resources(rc,
 
 manifest = meson.current_source_dir() / 'data/win32/client.exe.manifest'
 
-install_data(agility.get_variable('redist'),
+agility_redist = agility.get_variable('redist')
+agility_redist_pdb = agility.get_variable('redist_pdb')
+warp_redist = warp.get_variable('redist')
+warp_redist_pdb = warp.get_variable('redist_pdb')
+
+install_data(agility_redist,
     install_tag : 'bin',
     install_dir : get_option('bindir') / 'D3D12'
 )
+
+if package_type == 'devel'
+    install_data(agility_redist_pdb,
+        install_tag : 'bin',
+        install_dir : get_option('bindir') / 'D3D12'
+    )
+
+    install_data(warp_redist,
+        install_tag : 'bin',
+        install_dir : get_option('bindir')
+    )
+
+    install_data(warp_redist_pdb,
+        install_tag : 'bin',
+        install_dir : get_option('bindir')
+    )
+endif
 
 shaders = [
     hlsl.process('data/assets/shaders/shader.hlsl')

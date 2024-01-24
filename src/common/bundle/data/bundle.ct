@@ -1,0 +1,38 @@
+module sm::bundle;
+
+variant AssetType : uint16 {
+    [[format("invalid")]] default Invalid = 0
+    [[format("shader")]] case ShaderProgram = 1
+    [[format("texture")]] case Texture = 2
+    [[format("mesh")]] case Mesh = 3
+    [[format("anim")]] case Animation = 4
+}
+
+variant BundleVersion : uint16 {
+    default CurrentVersion = 0
+    [[format("24/01/24")]] case Version0 = 0
+}
+
+variant TextureFormat : uint8 {
+    [[format("bc7")]] case LINEAR_BC7 = 0
+    [[format("bc7.sRGB")]] case SRGB_BC7
+}
+
+struct Bundle {
+    magic: uint32;
+    checksum: uint32;
+    version: uint16;
+}
+
+struct ShaderBytecode {
+    name: string;
+    size: uint16;
+    data: opaque("std::vector<uint8_t>");
+}
+
+struct Texture {
+    name: string;
+    width: uint16;
+    height: uint16;
+    format: TextureFormat;
+}

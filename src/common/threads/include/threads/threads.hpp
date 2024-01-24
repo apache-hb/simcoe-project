@@ -22,11 +22,11 @@ namespace sm::threads {
     };
 
     struct Core {
-        uint16_t schedule; // schedule speed (lower is faster)
-        uint8_t efficiency; // efficiency (higher is more efficient)
-
         GROUP_AFFINITY mask;
         SubcoreIndices subcores;
+
+        uint16_t schedule; // schedule speed (lower is faster)
+        uint8_t efficiency; // efficiency (higher is more efficient)
     };
 
     struct Chiplet {

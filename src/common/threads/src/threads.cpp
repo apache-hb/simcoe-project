@@ -140,20 +140,25 @@ struct CpuSetInfo {
 struct GeometryBuilder : CpuGeometry {
     std::unordered_set<uint16_t> unique;
 
+    bool should_add_item(GROUP_AFFINITY item, GROUP_AFFINITY affinity) {
+        if (item.Group != affinity.Group || !(item.Mask & affinity.Mask)) return false;
+
+        auto [it, exists] = unique.emplace(item.Mask);
+        return !exists;
+    }
+
+    // TODO: de-template this to save binary space
     template <typename Index, typename Item>
     void get_item_with_mask(std::vector<Index> &ids, std::span<const Item> items,
                             GROUP_AFFINITY affinity) {
-        for (size_t i = 0; i < items.size(); ++i) {
-            const auto &item = items[i];
-            if (item.mask.Group == affinity.Group && item.mask.Mask & affinity.Mask) {
-                if (auto [it, exists] = unique.emplace(i); !exists) {
-                    ids.push_back(sm::enum_cast<Index>(*it));
-                }
-            }
-        }
+        for (size_t i = 0; i < items.size(); ++i)
+            if (should_add_item(items[i].mask, affinity))
+                ids.push_back(sm::enum_cast<Index>(i));
 
         unique.clear();
     }
+
+    // TODO: figure out the max number of subcores for the cpu and do this all with arrays
 
     void get_masked_subcores(SubcoreIndices &ids, GROUP_AFFINITY affinity) {
         get_item_with_mask<SubcoreIndex, Subcore>(ids, subcores, affinity);
@@ -191,16 +196,16 @@ struct ProcessorInfoLayout {
                     .Group = group.Group,
                 };
 
-                m_builder->subcores.push_back({.mask = groupAffinity});
+                m_builder->subcores.push_back({ .mask = groupAffinity });
 
                 subcore_ids.push_back(sm::enum_cast<SubcoreIndex>(m_builder->subcores.size() - 1));
             }
         }
 
         m_builder->cores.push_back({
-            .efficiency = info.EfficiencyClass,
             .mask = info.GroupMask[0],
             .subcores = subcore_ids,
+            .efficiency = info.EfficiencyClass,
         });
     }
 

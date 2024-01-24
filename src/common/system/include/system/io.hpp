@@ -94,7 +94,7 @@ namespace sm::sys {
 
             constexpr auto refl = ctu::reflect<T>();
 
-            return get_record(refl.get_id(), (void**)record, refl.get_size());
+            return get_record(refl.get_id(), (void**)record, sizeof(T));
         }
     };
 }

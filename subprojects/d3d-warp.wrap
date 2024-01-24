@@ -1,0 +1,9 @@
+[wrap-file]
+directory = warp-1.0.9
+
+source_url = https://www.nuget.org/api/v2/package/Microsoft.Direct3D.WARP/1.0.9
+source_filename = d3d-warp-1.0.9.zip
+source_hash = 41b1f87f641ade2e8a3a312ccf78044642d8391cb582486116028fd4482a4585
+lead_directory_missing = true
+
+patch_directory = d3d-warp

@@ -23,7 +23,8 @@ struct WindowConfig {
 }
 
 variant FileVersion : uint32 {
-    case Version0 = 0
+    default CurrentVersion = 0
+    [[format("v0")]] case Version0 = 0
 }
 
 struct MappingConfig {

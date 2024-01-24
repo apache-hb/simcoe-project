@@ -11,6 +11,17 @@
 using namespace sm;
 using namespace sm::rhi;
 
+extern "C" {
+    __declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
+    __declspec(dllexport) DWORD AmdPowerXpressRequestHighPerformance = 0x00000001;
+}
+
+extern "C" {
+    // load the agility sdk
+    __declspec(dllexport) extern const UINT D3D12SDKVersion = 611;
+    __declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\";
+}
+
 static char *hr_string(HRESULT hr) {
     sm::IArena *arena = sm::get_debug_arena();
     return os_error_string(hr, arena);
@@ -220,6 +231,9 @@ static std::vector<uint8_t> load_shader(const char *file) {
 
     size_t size = io_size(io);
     const void *data = io_map(io); // TODO: leaks!!!
+
+    CTASSERTF(size != SIZE_MAX, "failed to get size of shader file %s", file);
+    CTASSERTF(data != nullptr, "failed to map shader file %s", file);
 
     std::vector<uint8_t> result(size);
     memcpy(result.data(), data, size);

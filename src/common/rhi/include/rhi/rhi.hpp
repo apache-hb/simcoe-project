@@ -81,14 +81,14 @@ namespace sm::rhi {
     public:
         SM_NOCOPY(Adapter)
 
-        constexpr Adapter(IDXGIAdapter1 *adapter) : Object(adapter) {
+        Adapter(IDXGIAdapter1 *adapter) : Object(adapter) {
             if (is_valid()) {
                 (*this)->GetDesc1(&m_desc);
                 m_name = sm::narrow(m_desc.Description);
             }
         }
 
-        constexpr Adapter(Adapter&& other) noexcept
+        Adapter(Adapter&& other) noexcept
             : Object(other.get())
             , m_desc(other.m_desc)
             , m_name(std::move(other.m_name))

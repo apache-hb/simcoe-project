@@ -33,6 +33,7 @@ d3dconfig = find_program(bindir / 'd3dconfig')
 # meson currently has no mechanism for installing redist files
 # so we just export them as files and the user can `install_data` them
 redist = files(bindir / 'D3D12Core.dll', bindir / 'D3D12SDKLayers.dll')
+redist_pdb = files(bindir / 'D3D12Core.pdb', bindir / 'd3d12SDKLayers.pdb')
 
 # we only need to export the include directory for d3d12
 d3d12_include = include_directories('build/native/include')
