@@ -1,6 +1,6 @@
 #pragma once
 
-#include <format>
+#include "fmt/format.h"
 
 #include "logs.reflect.h"
 
@@ -38,7 +38,7 @@ namespace sm::logs {
         }
 
         void log(Severity severity, std::string_view msg, auto&&... args) const {
-            m_logger.log(C, severity, std::vformat(msg, std::make_format_args(args...)));
+            m_logger.log(C, severity, fmt::vformat(msg, fmt::make_format_args(args...)));
         }
 
         void trace(std::string_view msg, auto&&... args) const {

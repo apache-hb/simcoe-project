@@ -1,23 +1,22 @@
 #pragma once
 
-#include <sm_system_api.hpp>
-
 #include "core/bitmap.hpp"
-#include "core/win32.h" // IWYU pragma: export
 
-#include "system.reflect.h"
+#include "system/system.hpp"
 
 namespace sm::sys {
     // memory mapped file memory
-    class SM_SYSTEM_API FileMapping {
+    class FileMapping {
         // file path
         const char *m_path = nullptr;
+        SystemSink m_log;
 
         // mapping data
         HANDLE m_file = nullptr;
         HANDLE m_mapping = nullptr;
         void *m_memory = nullptr;
-        size_t m_size = 0;
+        Memory m_size = 0;
+        bool m_valid;
 
         // allocation info
 
@@ -32,12 +31,11 @@ namespace sm::sys {
         // number of used records
         uint_fast16_t m_used = 0;
 
-        // error info
-        MappingError m_error;
+        void init_alloc_info();
 
         void update_header();
 
-        void create();
+        bool create();
         void destroy();
 
         // region where records are placed
@@ -66,7 +64,7 @@ namespace sm::sys {
         // returns false if the record is not found
         // initializes the data buffer with the record data
         // memsets the data buffer to 0 if the record is not found
-        bool get_record(uint32_t id, void **data, uint16_t size);
+        RecordLookup get_record(uint32_t id, void **data, uint16_t size);
 
     public:
         SM_NOCOPY(FileMapping)
@@ -77,18 +75,21 @@ namespace sm::sys {
         /// @param path path to the file
         /// @param size size of the record data region
         /// @param count maximum number of records
-        FileMapping(const char *path, size_t size, uint16_t count);
+        FileMapping(const MappingConfig& info);
         ~FileMapping();
 
-        bool has_checksum() const { return read_checksum() != 0; }
+        // erase all data in the file and reset the header
+        // with the given record count
+        void reset();
+
         bool is_data_mapped() const { return m_memory != nullptr; }
 
-        // file path
+        // getters
         const char *get_path() const { return m_path; }
-        MappingError get_error() const { return m_error; }
+        bool is_valid() const { return m_valid && is_data_mapped(); }
 
         template<ctu::Reflected T>
-        bool get_record(T **record) {
+        RecordLookup get_record(T **record) {
             CTASSERTF(is_data_mapped(), "file mapping not initialized");
 
             constexpr auto refl = ctu::reflect<T>();

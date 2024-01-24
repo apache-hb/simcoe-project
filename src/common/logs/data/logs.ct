@@ -3,22 +3,24 @@ module sm::logs;
 import "<string_view>";
 
 // keep these in order of severity so that we can compare them
-export variant Severity {
-    case Trace = 0
-    case Info = 1
-    case Warning = 2
-    case Error = 3
-    case Fatal = 4
-    case Panic = 5
+[[ordered]]
+variant Severity {
+    [[format("trace")]] case Trace = 0 // trace
+    [[format("info")]] case Info = 1 // informational
+    [[format("warn")]] case Warning = 2 // warning
+    [[format("error")]] case Error = 3 // nonfatal error
+    [[format("fatal")]] case Fatal = 4 // fatal error
+    [[format("assert")]] case Panic = 5 // fatal error caused by an assertion
 }
 
-export variant Category {
-    default Global = 0
-    case Render = 1
-    case Count = 2
+variant Category {
+    [[format("global")]] default Global = 0
+    [[format("render")]] case Render = 1
+    [[format("system")]] case System = 2
+    case Count = 3
 }
 
-export final struct Message {
+struct Message {
     message: opaque("std::string_view");
     category: Category;
     severity: Severity;

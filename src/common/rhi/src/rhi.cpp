@@ -6,17 +6,17 @@ using namespace sm;
 using namespace sm::rhi;
 
 NORETURN
-static assert_hresult(panic_t panic, const char *expr, HRESULT hr) {
+static assert_hresult(source_info_t panic, const char *expr, HRESULT hr) {
     sm::IArena *arena = sm::get_debug_arena();
     char *message = os_error_string(hr, arena);
 
-    ctpanic(panic, "hresult: %s %s", message, expr);
+    ctu_panic(panic, "hresult: %s %s", message, expr);
 }
 
 #define SM_ASSERT_HR(expr)                                 \
     do {                                                   \
         if (auto result = (expr); FAILED(result)) {        \
-            assert_hresult(CTU_PANIC_INFO, #expr, result); \
+            assert_hresult(CT_SOURCE_HERE, #expr, result); \
         }                                                  \
     } while (0)
 

@@ -1,0 +1,15 @@
+[wrap-git]
+directory = fmt-10.1.1
+
+url = https://github.com/fmtlib/fmt.git
+revision = head
+depth = 1
+
+patch_filename = fmt_10.1.1-1_patch.zip
+patch_url = https://wrapdb.mesonbuild.com/v2/fmt_10.1.1-1/get_patch
+patch_hash = adec33acaf87c0859c52b242a44bc71c3427751da3f1adaed511f4186794a42f
+
+diff_files = fmt/noprint.patch
+
+[provide]
+fmt = fmt_dep

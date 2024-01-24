@@ -16,6 +16,16 @@ static_assert(sizeof(RecordHeader) == 8);
 static constexpr uint32_t kFileMagic = 'CUM\0';
 static constexpr FileVersion kCurrentVersion = FileVersion::eVersion0;
 
+#define SM_CHECKF(sink, expr, ...) \
+    [&]() -> bool {          \
+        if (auto result = (expr); !result) {       \
+            (sink).error(#expr " = {}", result); \
+            (sink).error(__VA_ARGS__);            \
+            return false;    \
+        }                    \
+        return true;         \
+    }()
+
 static constexpr size_t header_size(size_t record_count) {
     return sizeof(FileHeader) + (record_count * sizeof(RecordHeader));
 }
@@ -33,18 +43,17 @@ static constexpr uint32_t checksum(const uint8_t *data, size_t size) {
     return (sum2 << 16) | sum1;
 }
 
-void FileMapping::create() {
-    auto fail = [this](sys::MappingError error) {
-        m_error = error;
-        destroy();
-    };
+bool RecordLookup::has_valid_data() const {
+    return m_value == eCreated || m_value == eOpened;
+}
 
+bool FileMapping::create() {
     // do first time initialization of file header
     auto setup_file = [&] {
         FileHeader data = {
             .magic = kFileMagic,
             .version = kCurrentVersion,
-            .size = uint32_t(m_size),
+            .size = uint32_t(m_size.as_bytes()),
             .checksum = 0, // we calculate checksum at closing
             .count = uint16_t(m_capacity),
             .used = uint16_t(m_used),
@@ -55,21 +64,28 @@ void FileMapping::create() {
     };
 
     // we have an existing file, validate it
-    auto validate_file = [this] {
-        constexpr auto refl = ctu::reflect<FileVersion>();
+    auto validate_file = [this]() -> bool {
+        SM_UNUSED constexpr auto refl = ctu::reflect<FileVersion>();
         FileHeader *header = get_private_header();
 
-        CTASSERTF(header->version == kCurrentVersion, "file version mismatch, %s/%s", refl.to_string(header->version).data(), refl.to_string(kCurrentVersion).data());
+        if (!SM_CHECKF(m_log, header->version == kCurrentVersion, "file version mismatch, {}/{}", refl.to_string(header->version).data(), refl.to_string(kCurrentVersion).data()))
+            return false;
 
-        uint32_t read_size = header->size;
-        uint32_t expected_size = uint32_t(m_size);
-        CTASSERTF(read_size == expected_size, "file size mismatch, %u/%u", read_size, expected_size);
+        sm::Memory read_size = header->size;
+        if (!SM_CHECKF(m_log, m_size == read_size, "file size mismatch, {}/{}", read_size, m_size))
+            return false;
 
         uint32_t checksum = calc_checksum();
-        CTASSERTF(header->checksum == checksum, "file checksum mismatch, %08x/%08x", header->checksum, checksum);
+        if (!SM_CHECKF(m_log, header->checksum == checksum, "file checksum mismatch, {:#08x}/{:#08x}", header->checksum, checksum))
+            return false;
 
-        CTASSERTF(header->count == m_capacity, "file record count mismatch, %u/%u", header->count, m_capacity);
-        CTASSERTF(header->used <= header->count, "file used count over limit, %u/%u", header->used, header->count);
+        if (!SM_CHECKF(m_log, header->count == m_capacity, "file record count mismatch, {}/{}", header->count, m_capacity))
+            return false;
+
+        if (!SM_CHECKF(m_log, header->used <= header->count, "file used count over limit, {}/{}", header->used, header->count))
+            return false;
+
+        return true;
     };
 
     m_file = CreateFileA(
@@ -81,15 +97,15 @@ void FileMapping::create() {
         /* dwFlagsAndAttributes = */ FILE_ATTRIBUTE_NORMAL,
         /* hTemplateFile = */ nullptr);
 
-    SM_ASSERT_WIN32(m_file != INVALID_HANDLE_VALUE);
+    if (!SM_CHECK_WIN32(m_file != INVALID_HANDLE_VALUE, m_log)) return false;
 
     // resize file to the desired size
 
-    CTASSERTF(m_size <= UINT32_MAX, "file size too large: %zu", m_size);
-    LARGE_INTEGER file_size = { .QuadPart = LONGLONG(m_size) };
+    CTASSERTF(m_size <= UINT32_MAX, "file size too large: %s", m_size.to_string().c_str());
+    LARGE_INTEGER file_size = { .QuadPart = LONGLONG(m_size.as_bytes()) };
 
-    SM_ASSERT_WIN32(SetFilePointerEx(m_file, file_size, nullptr, FILE_BEGIN));
-    SM_ASSERT_WIN32(SetEndOfFile(m_file));
+    if (!SM_CHECK_WIN32(SetFilePointerEx(m_file, file_size, nullptr, FILE_BEGIN), m_log)) return false;
+    if (!SM_CHECK_WIN32(SetEndOfFile(m_file), m_log)) return false;
 
     // map the file into memory
 
@@ -98,19 +114,19 @@ void FileMapping::create() {
         /* lpFileMappingAttributes = */ nullptr,
         /* flProtect = */ PAGE_READWRITE,
         /* dwMaximumSizeHigh = */ 0,
-        /* dwMaximumSizeLow = */ DWORD(m_size),
+        /* dwMaximumSizeLow = */ DWORD(m_size.as_bytes()),
         /* lpName = */ nullptr);
 
-    SM_ASSERT_WIN32(m_mapping != nullptr);
+    if (!SM_CHECK_WIN32(m_mapping != nullptr, m_log)) return false;
 
     m_memory = MapViewOfFile(
         /* hFileMappingObject = */ m_mapping,
         /* dwDesiredAccess = */ FILE_MAP_READ | FILE_MAP_WRITE,
         /* dwFileOffsetHigh = */ 0,
         /* dwFileOffsetLow = */ 0,
-        /* dwNumberOfBytesToMap = */ m_size);
+        /* dwNumberOfBytesToMap = */ m_size.as_bytes());
 
-    SM_ASSERT_WIN32(m_memory != nullptr);
+    if (!SM_CHECK_WIN32(m_memory != nullptr, m_log)) return false;
 
     // read in the file header
 
@@ -121,24 +137,29 @@ void FileMapping::create() {
         break;
 
     case kFileMagic: // magic matches, validate file before use
-        validate_file();
+        if (!validate_file()) return false;
         break;
 
     default: // magic doesnt match, dont use it to avoid stomping
-        fail(MappingError::eInvalidMagic);
-        return;
+        destroy();
+        return false;
     }
 
-    size_t public_size = get_public_size();
-    CTASSERTF(public_size % 8 == 0, "public_size size must be a multiple of 8, %zu", public_size);
+    sm::Memory public_size = get_public_size();
+    if (public_size.as_bytes() % 8 != 0) {
+        m_log.error("public_size size must be a multiple of 8, {}", public_size);
+        return false;
+    }
+
+    size_t as_bytes = public_size.as_bytes();
 
     // intialize allocation data
     m_used = header->used;
     m_capacity = header->count;
 
     // mark header region as used
-    m_space.resize(public_size / 8);
-    m_space.set_range(BitMap::Index(0), BitMap::Index(public_size / 8));
+    m_space.resize(as_bytes / 8);
+    m_space.set_range(BitMap::Index(0), BitMap::Index(as_bytes / 8));
 
     // mark already used record data as used
     for (uint32_t i = 0; i < m_used; i++) {
@@ -146,25 +167,30 @@ void FileMapping::create() {
         if (record->id == 0) continue;
         m_space.set_range(BitMap::Index(record->offset), BitMap::Index(record->offset + record->size));
     }
+
+    return true;
 }
 
 void FileMapping::destroy() {
     // unmap the file from memory
     if (m_memory != nullptr) {
-        update_header();
-        SM_ASSERT_WIN32(UnmapViewOfFile(m_memory));
+        // only update the header if the file is valid
+        // we dont want to trample over a file that we didnt create
+        if (is_valid()) update_header();
+
+        SM_CHECK_WIN32(UnmapViewOfFile(m_memory), m_log);
         m_memory = nullptr;
     }
 
     // close the file mapping
     if (m_mapping != nullptr) {
-        SM_ASSERT_WIN32(CloseHandle(m_mapping));
+        SM_CHECK_WIN32(CloseHandle(m_mapping), m_log);
         m_mapping = nullptr;
     }
 
     // close the file
     if (m_file != nullptr) {
-        SM_ASSERT_WIN32(CloseHandle(m_file));
+        SM_CHECK_WIN32(CloseHandle(m_file), m_log);
         m_file = nullptr;
     }
 
@@ -172,22 +198,23 @@ void FileMapping::destroy() {
     m_size = 0;
 
     m_space.reset();
-    m_error = MappingError::eOk;
 }
 
-bool FileMapping::get_record(uint32_t id, void **data, uint16_t size) {
+RecordLookup FileMapping::get_record(uint32_t id, void **data, uint16_t size) {
     for (uint32_t i = 0; i <= m_used; i++) {
         RecordHeader *record = get_record_header(i);
         if (record->id != id) continue;
 
-        CTASSERTF(record->size == size, "record size mismatch, somebody didnt update the version number, %hu/%hu", record->size, size);
+        if (!SM_CHECKF(m_log, record->size == size, "record size mismatch, somebody didnt update the version number, {}/{}", record->size, size))
+            return RecordLookup::eRecordInvalid;
 
         *data = get_record_data(record->offset);
-        return true;
+        return RecordLookup::eOpened;
     }
 
     // no existing record found, create a new one
-    CTASSERTF(m_capacity >= m_used, "record slots at capacity, cant create new record, %u/%u", m_used, m_capacity);
+    if (!SM_CHECKF(m_log, m_capacity >= m_used, "record slots at capacity, cant create new record, {}/{}", m_used, m_capacity))
+        return RecordLookup::eRecordTableExhausted;
 
     // find free record header
     volatile RecordHeader *found = nullptr;
@@ -199,14 +226,16 @@ bool FileMapping::get_record(uint32_t id, void **data, uint16_t size) {
         }
     }
 
-    CTASSERTF(found != nullptr, "unable to find free record header, %u/%u", m_used, m_capacity);
+    if (!SM_CHECKF(m_log, found != nullptr, "unable to find free record header, {}/{}", m_used, m_capacity))
+        return RecordLookup::eRecordTableExhausted;
 
     // find free space
 
     // m_space operates on 8 byte chunks, convert the size and scan for free space
     BitMap::Index index = m_space.scan_set_range((size + 7) / 8);
 
-    CTASSERTF(index != BitMap::Index::eInvalid, "unable to find free space, %hu required, %zu free total. defragment or make the file bigger", size, m_space.freecount());
+    if (!SM_CHECKF(m_log, index != BitMap::Index::eInvalid, "unable to find free space, %hu required, %zu free total. defragment or make the file bigger", size, m_space.freecount()))
+        return RecordLookup::eDataRegionExhausted;
 
     // write record header
     found->id = id;
@@ -220,7 +249,22 @@ bool FileMapping::get_record(uint32_t id, void **data, uint16_t size) {
     std::memset(ptr, 0, size);
     *data = ptr;
 
-    return false;
+    return RecordLookup::eCreated;
+}
+
+void FileMapping::init_alloc_info() {
+    size_t public_size = get_public_size();
+
+    // mark header region as used
+    m_space.resize(public_size / 8);
+    m_space.set_range(BitMap::Index(0), BitMap::Index(public_size / 8));
+
+    // mark already used record data as used
+    for (uint32_t i = 0; i < m_used; i++) {
+        const RecordHeader *record = get_record_header(i);
+        if (record->id == 0) continue;
+        m_space.set_range(BitMap::Index(record->offset), BitMap::Index(record->offset + record->size));
+    }
 }
 
 void FileMapping::update_header() {
@@ -228,7 +272,7 @@ void FileMapping::update_header() {
     FileHeader it = {
         .magic = kFileMagic,
         .version = kCurrentVersion,
-        .size = uint32_t(m_size),
+        .size = uint32_t(m_size.as_bytes()),
         .checksum = calc_checksum(),
         .count = header->count,
         .used = header->used,
@@ -241,20 +285,42 @@ void FileMapping::destroy_safe() {
     if (is_data_mapped()) destroy();
 }
 
-FileMapping::FileMapping(const char *path, size_t size, uint16_t count)
-    : m_path(path)
-    , m_size(size + (header_size(count)))
-    , m_capacity(count)
+FileMapping::FileMapping(const MappingConfig& config)
+    : m_path(config.path)
+    , m_log(config.logger)
+    , m_size(config.size.b() + (header_size(config.record_count)))
+    , m_capacity(config.record_count)
 {
     CTASSERT(m_path != nullptr);
     CTASSERT(m_size > 0);
     CTASSERT(m_capacity > 0);
 
-    create();
+    m_valid = create();
+    if (m_valid) {
+        m_log.info("file mapping created, path: {}, size: {}, record count: {}", m_path, m_size, m_capacity);
+    }
 }
 
 FileMapping::~FileMapping() {
     destroy_safe();
+}
+
+void FileMapping::reset() {
+    // this doesnt unmap the file, only resets the contents
+
+    // reset the header
+    FileHeader *header = get_private_header();
+    header->magic = kFileMagic;
+    header->version = kCurrentVersion;
+    header->size = uint32_t(m_size.as_bytes());
+    header->checksum = 0;
+    header->count = uint16_t(m_capacity);
+    header->used = 0;
+
+    // reset the space bitmap
+    m_space.reset();
+
+    init_alloc_info();
 }
 
 uint32_t FileMapping::read_checksum() const {
@@ -292,7 +358,7 @@ uint8_t *FileMapping::get_private_region() const {
 
 size_t FileMapping::get_public_size() const {
     CTASSERT(is_data_mapped());
-    return m_size - header_size(m_capacity);
+    return m_size.as_bytes() - header_size(m_capacity);
 }
 
 void *FileMapping::get_record_data(uint32_t offset) const {

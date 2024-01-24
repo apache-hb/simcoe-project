@@ -1,34 +1,36 @@
 module sm::sys;
 
+import "logs/logs.hpp";
+import "core/units.hpp";
 import "core/win32.h";
 
 // internal types
 
-export variant WindowMode : uint8 {
+variant WindowMode : uint8 {
     default Windowed = 0
     case Borderless = 1
 }
 
-export struct WindowInfo {
+struct WindowConfig {
     mode: WindowMode;
     width: int;
     height: int;
     title: string;
+    logger: &opaque("sm::logs::ILogger");
 }
 
-export variant FileVersion : uint32 {
+variant FileVersion : uint32 {
     case Version0 = 0
 }
 
-export variant MappingError : uint8 {
-    default Ok = 0
-    case InvalidFile = 1
-    case InvalidVersion = 2
-    case InvalidChecksum = 3
-    case InvalidMagic = 4
+struct MappingConfig {
+    path: string;
+    size: opaque("sm::Memory");
+    record_count: fast16;
+    logger: &opaque("sm::logs::ILogger");
 }
 
-export struct FileHeader {
+struct FileHeader {
     magic: uint32; // 'CUM\0'
     version: FileVersion;
     size: uint32;
@@ -37,23 +39,33 @@ export struct FileHeader {
     used: uint16; // number of records slots used
 }
 
-export struct RecordHeader {
+struct RecordHeader {
     id: uint32; // matches typeid of the record
     offset: uint16; // offset from the start of the data region
     size: uint16; // size of the record
 }
 
+variant RecordLookup {
+    case Created = 0
+    case Opened = 1
+    case RecordTableExhausted = 2
+    case DataRegionExhausted = 3
+    default RecordInvalid = 4
+
+    const def has_valid_data(): bool;
+}
+
 // win32 types
 
 [[facade]]
-export variant MultiMonitor : ulong {
+variant MultiMonitor : ulong {
     default Null = opaque(MONITOR_DEFAULTTONULL)
     case Primary = opaque(MONITOR_DEFAULTTOPRIMARY)
     case Nearest = opaque(MONITOR_DEFAULTTONEAREST)
 }
 
 [[facade]]
-export variant ShowWindow : int {
+variant ShowWindow : int {
     case Hide = opaque(SW_HIDE)
     case ShowNormal = opaque(SW_SHOWNORMAL)
     case Show = opaque(SW_SHOW)
@@ -62,7 +74,7 @@ export variant ShowWindow : int {
 }
 
 [[external]]
-export struct RECT {
+struct RECT {
     left: long;
     top: long;
     right: long;
@@ -70,13 +82,13 @@ export struct RECT {
 }
 
 [[external]]
-export struct POINT {
+struct POINT {
     x: long;
     y: long;
 }
 
 [[external]]
-export struct WINDOWPLACEMENT {
+struct WINDOWPLACEMENT {
     length: uint;
     flags: uint;
     showCmd: ShowWindow;

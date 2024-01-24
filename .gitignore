@@ -27,3 +27,4 @@
 subprojects/*
 !subprojects/*.wrap
 !subprojects/packagefiles
+!subprojects/packagefiles/**

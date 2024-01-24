@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include "fmt/format.h"
 
 #include <limits>
 
@@ -36,7 +37,7 @@ namespace sm {
             "b", "kb", "mb", "gb", "tb"
         };
 
-        constexpr Memory(size_t memory = 0, Unit unit = eBytes)
+        constexpr Memory(std::integral auto memory = 0, Unit unit = eBytes)
             : m_bytes(memory * kSizes[unit])
         { }
 
@@ -46,11 +47,29 @@ namespace sm {
         constexpr size_t gb() const { return m_bytes / kGigabyte; }
         constexpr size_t tb() const { return m_bytes / kTerabyte; }
 
+        constexpr size_t as_bytes() const { return m_bytes; }
+        constexpr size_t as_kilobytes() const { return m_bytes / kKilobyte; }
+        constexpr size_t as_megabytes() const { return m_bytes / kMegabyte; }
+        constexpr size_t as_gigabytes() const { return m_bytes / kGigabyte; }
+        constexpr size_t as_terabytes() const { return m_bytes / kTerabyte; }
+
+        constexpr std::strong_ordering operator<=>(const Memory& other) const {
+            return m_bytes <=> other.m_bytes;
+        }
+
+        constexpr bool operator==(const Memory& other) const { return m_bytes == other.m_bytes; }
+
         std::string to_string() const;
 
     private:
         size_t m_bytes;
     };
+
+    constexpr Memory bytes(size_t bytes) { return Memory(bytes, Memory::eBytes); }
+    constexpr Memory kilobytes(size_t kilobytes) { return Memory(kilobytes, Memory::eKilobytes); }
+    constexpr Memory megabytes(size_t megabytes) { return Memory(megabytes, Memory::eMegabytes); }
+    constexpr Memory gigabytes(size_t gigabytes) { return Memory(gigabytes, Memory::eGigabytes); }
+    constexpr Memory terabytes(size_t terabytes) { return Memory(terabytes, Memory::eTerabytes); }
 
     template<typename T, typename O>
     struct CastResult {
@@ -124,3 +143,16 @@ namespace sm {
         return result;
     }
 }
+
+
+template<>
+struct fmt::formatter<sm::Memory> {
+    constexpr auto parse(format_parse_context& ctx) {
+        return ctx.begin();
+    }
+
+    template<typename FormatContext>
+    auto format(const sm::Memory& value, FormatContext& ctx) const {
+        return fmt::format_to(ctx.out(), "{}", value.to_string());
+    }
+};

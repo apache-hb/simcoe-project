@@ -6,11 +6,14 @@
 
 #include "os/os.h"
 
-NORETURN
-assert_last_error(panic_t panic, const char *expr) {
-    sm::IArena *arena = sm::get_debug_arena();
+char *get_last_error(void) {
     DWORD last_error = GetLastError();
-    char *message = os_error_string(last_error, arena);
+    sm::IArena *arena = sm::get_debug_arena();
+    return os_error_string(last_error, arena);
+}
 
-    ctpanic(panic, "win32 error: %s %s", message, expr);
+NORETURN
+assert_last_error(source_info_t panic, const char *expr) {
+    char *message = get_last_error();
+    ctu_panic(panic, "win32 error: %s %s", message, expr);
 }

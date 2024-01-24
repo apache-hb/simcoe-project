@@ -17,6 +17,8 @@ project('simcoe', [ 'c', 'cpp' ],
     ]
 )
 
+add_global_arguments('-D_HAS_EXCEPTIONS=0', '-DFMT_DISABLE_PRINT=1', language : 'cpp')
+
 cpp = meson.get_compiler('cpp')
 
 version = meson.project_version()
@@ -29,6 +31,7 @@ trace_time = get_option('trace_time')
 
 cthulhu = subproject('cthulhu')
 agility = subproject('d3d12-agility')
+fmt = dependency('fmt')
 windows = import('windows')
 
 magick = find_program('magick')
@@ -96,7 +99,6 @@ if get_option('b_lto')
     endif
 endif
 
-add_project_arguments('-D_HAS_EXCEPTIONS=0', language : 'cpp')
 add_project_arguments(cpp_args, language : 'cpp')
 add_project_arguments(args, language : ['c', 'cpp'])
 
@@ -130,10 +132,11 @@ config_include = include_directories('.')
 subdir('src/common/core')
 subdir('src/common/logs')
 subdir('src/common/math')
-subdir('src/vendor/imgui')
 subdir('src/common/service')
 subdir('src/common/system')
 subdir('src/common/rhi')
+
+# subdir('src/vendor/imgui')
 
 default_ico = custom_target('default_icon',
     input : [ 'data/assets/icon/icon_circle.png' ],
@@ -169,6 +172,11 @@ res = windows.compile_resources(rc,
 )
 
 manifest = meson.current_source_dir() / 'data/win32/client.exe.manifest'
+
+install_data(agility.get_variable('redist'),
+    install_tag : 'bin',
+    install_dir : get_option('bindir') / 'D3D12'
+)
 
 client = executable('client', 'src/client/src/main.cpp',
     install : true,

@@ -3,6 +3,7 @@
 #include "core/text.hpp"
 
 #include "core/units.hpp"
+#include "simcoe_config.h"
 #include "system/io.hpp"
 #include "system/system.hpp"
 #include "rhi/rhi.hpp"
@@ -15,6 +16,7 @@
 #include "io/console.h"
 #include "backtrace/backtrace.h"
 #include "os/os.h"
+#include <iterator>
 
 using namespace sm;
 
@@ -64,13 +66,13 @@ class DefaultArena final : public IArena {
     }
 
     void *impl_resize(void *ptr, size_t new_size, size_t old_size) override {
-        CTU_UNUSED(old_size);
+        CT_UNUSED(old_size);
 
         return std::realloc(ptr, new_size);
     }
 
     void impl_release(void *ptr, size_t size) override {
-        CTU_UNUSED(size);
+        CT_UNUSED(size);
 
         std::free(ptr);
     }
@@ -152,10 +154,12 @@ public:
 
 class DefaultWindowEvents final : public sys::IWindowEvents {
     sys::FileMapping& m_store;
+
     sys::WindowPlacement *m_placement = nullptr;
+    sys::RecordLookup m_lookup;
 
     void create(sys::Window& window) override {
-        if (m_store.get_record(&m_placement)) {
+        if (m_lookup = m_store.get_record(&m_placement); m_lookup.has_valid_data()) {
             window.set_placement(*m_placement);
         } else {
             window.center_window(sys::MultiMonitor::ePrimary);
@@ -167,7 +171,8 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     }
 
     bool close(sys::Window& window) override {
-        *m_placement = window.get_placement();
+        if (m_lookup.has_valid_data())
+            *m_placement = window.get_placement();
         return true;
     }
 
@@ -178,7 +183,7 @@ public:
 };
 
 struct System {
-    System(HINSTANCE hInstance) { sys::create(hInstance); }
+    System(HINSTANCE hInstance, logs::ILogger& logger) { sys::create(hInstance, logger); }
     ~System() { sys::destroy(); }
 };
 
@@ -193,7 +198,7 @@ static void common_init(void) {
 
     gSystemError = gDefaultError;
 
-    gPanicHandler = [](panic_t info, const char *msg, va_list args) {
+    gPanicHandler = [](source_info_t info, const char *msg, va_list args) {
         const print_backtrace_t kPrintOptions = print_options_make(&gGlobalArena, io_stderr());
 
         auto message = sm::vformat(msg, args);
@@ -208,19 +213,27 @@ static void common_init(void) {
 }
 
 static int common_main(sys::ShowWindow show) {
-    Memory size { 4, Memory::eMegabytes };
-    sys::FileMapping store { "client.bin", size.b(), 256 };
+    logs::Sink<logs::Category::eGlobal> general { gConsoleLog };
+    sys::MappingConfig store_config = {
+        .path = "client.bin",
+        .size = { 4, Memory::eMegabytes },
+        .record_count = 256,
+        .logger = gConsoleLog,
+    };
 
-    sys::WindowInfo info = {
+    sys::FileMapping store { store_config };
+
+    sys::WindowConfig window_config = {
         .mode = sys::WindowMode::eWindowed,
         .width = 1280,
         .height = 720,
         .title = "Priority Zero",
+        .logger = gConsoleLog,
     };
 
     DefaultWindowEvents events { store };
 
-    sys::Window window { info, &events };
+    sys::Window window { window_config, &events };
 
     rhi::RenderConfig rhi_config = {
         .debug_flags = rhi::DebugFlags::mask(),
@@ -241,6 +254,9 @@ static int common_main(sys::ShowWindow show) {
 
     window.show_window(show);
 
+    general.info("SMC_DEBUG = {}", SMC_DEBUG);
+    general.info("CTU_DEBUG = {}", CTU_DEBUG);
+
     MSG msg = { };
     while (GetMessageA(&msg, nullptr, 0, 0)) {
         TranslateMessage(&msg);
@@ -251,27 +267,33 @@ static int common_main(sys::ShowWindow show) {
 }
 
 int main(int argc, const char **argv) {
+    logs::Sink<logs::Category::eGlobal> general { gConsoleLog };
     common_init();
 
-    std::printf("args[%d] = {", argc);
+    std::string args;
+    auto it = std::back_inserter(args);
+    fmt::format_to(it, "args[{}] = {{", argc);
     for (int i = 0; i < argc; ++i) {
-        if (i != 0) std::printf(", ");
-        std::printf("[%d] = \"%s\"", i, argv[i]);
+        if (i != 0) fmt::format_to(it, ", ");
+        fmt::format_to(it, "[{}] = \"{}\"", i, argv[i]);
     }
-    std::printf("}\n");
+    fmt::format_to(it, "}}\0");
 
-    System sys { GetModuleHandleA(nullptr) };
+    general.info("{}", args);
+
+    System sys { GetModuleHandleA(nullptr), gConsoleLog };
 
     return common_main(sys::ShowWindow::eShow);
 }
 
 int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
+    logs::Sink<logs::Category::eGlobal> general { gConsoleLog };
     common_init();
 
-    std::printf("lpCmdLine = %s\n", lpCmdLine);
-    std::printf("nShowCmd = %d\n", nShowCmd);
+    general.info("lpCmdLine = {}", lpCmdLine);
+    general.info("nShowCmd = {}", nShowCmd);
 
-    System sys { hInstance };
+    System sys { hInstance, gConsoleLog };
 
     return common_main(sys::ShowWindow{nShowCmd});
 }

@@ -69,18 +69,18 @@ void IArena::reparent(const void *ptr, const void *parent) {
 // default implementations
 
 void IArena::impl_release(void *ptr, size_t size) {
-    CTU_UNUSED(ptr);
-    CTU_UNUSED(size);
+    CT_UNUSED(ptr);
+    CT_UNUSED(size);
 }
 
 void IArena::impl_rename(const void *ptr, const char *ptr_name) {
-    CTU_UNUSED(ptr);
-    CTU_UNUSED(ptr_name);
+    CT_UNUSED(ptr);
+    CT_UNUSED(ptr_name);
 }
 
 void IArena::impl_reparent(const void *ptr, const void *parent) {
-    CTU_UNUSED(ptr);
-    CTU_UNUSED(parent);
+    CT_UNUSED(ptr);
+    CT_UNUSED(parent);
 }
 
 class DefaultArena final : public IArena {
@@ -91,13 +91,13 @@ class DefaultArena final : public IArena {
     }
 
     void *impl_resize(void *ptr, size_t new_size, size_t old_size) override {
-        CTU_UNUSED(old_size);
+        CT_UNUSED(old_size);
 
         return std::realloc(ptr, new_size);
     }
 
     void impl_release(void *ptr, size_t size) override {
-        CTU_UNUSED(size);
+        CT_UNUSED(size);
 
         std::free(ptr);
     }

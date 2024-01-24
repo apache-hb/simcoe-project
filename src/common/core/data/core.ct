@@ -1,11 +1,11 @@
 module sm;
 
 [[iterator]]
-export variant BitMapIndex : usize {
+variant BitMapIndex : usize {
     default Invalid = opaque(SIZE_MAX)
 }
 
-export variant CastError : uint {
+variant CastError : uint {
     default None = 0
     case Overflow = 1
     case Underflow = 2

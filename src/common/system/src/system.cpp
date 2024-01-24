@@ -40,7 +40,7 @@ LRESULT CALLBACK Window::proc(HWND window, UINT message, WPARAM wparam, LPARAM l
     case WM_CLOSE: {
         Window *self = reinterpret_cast<Window*>(GetWindowLongPtrA(window, GWLP_USERDATA));
         if (self == nullptr || self->m_events->close(*self))
-            DestroyWindow(window);
+            SM_CHECK_WIN32(DestroyWindow(window), self->m_log);
 
         break;
     }
@@ -58,7 +58,7 @@ LRESULT CALLBACK Window::proc(HWND window, UINT message, WPARAM wparam, LPARAM l
     return 0;
 }
 
-void Window::create(const WindowInfo& info) {
+void Window::create(const WindowConfig& info) {
     CTASSERTF(gInstance != nullptr, "system::create() not called before Window::create()");
     CTASSERTF(gWindowClass != nullptr, "system::create() not called before Window::create()");
 
@@ -79,7 +79,10 @@ void Window::create(const WindowInfo& info) {
     SM_ASSERT_WIN32(m_window != nullptr);
 }
 
-Window::Window(const WindowInfo& info, IWindowEvents *events) : m_events(events) {
+Window::Window(const WindowConfig& info, IWindowEvents *events)
+    : m_events(events)
+    , m_log(info.logger)
+{
     CTASSERT(events != nullptr);
 
     create(info);
@@ -108,14 +111,14 @@ void Window::show_window(ShowWindow show) {
 }
 
 void Window::destroy_window(void) {
-    SM_ASSERT_WIN32(DestroyWindow(m_window));
+    SM_CHECK_WIN32(DestroyWindow(m_window), m_log);
     m_window = nullptr;
 }
 
 void Window::set_title(const char *title) {
     CTASSERT(title != nullptr);
 
-    SM_ASSERT_WIN32(SetWindowTextA(m_window, title));
+    SM_CHECK_WIN32(SetWindowTextA(m_window, title), m_log);
 }
 
 WindowCoords Window::get_coords() const {
@@ -126,35 +129,35 @@ WindowCoords Window::get_coords() const {
 }
 
 bool Window::center_window(MultiMonitor monitor) {
-    constexpr auto refl = ctu::reflect<MultiMonitor>();
+    SM_UNUSED constexpr auto refl = ctu::reflect<MultiMonitor>();
     CTASSERTF(m_window != nullptr, "Window::center_window() called before Window::create()");
     CTASSERTF(monitor.is_valid(), "Window::center_window() invalid monitor: %s", refl.to_string(monitor).data());
 
     // get current monitor
     HMONITOR hmonitor = MonitorFromWindow(m_window, monitor.as_integral());
-    SM_ASSERT_WIN32(hmonitor != nullptr);
+    if (!SM_CHECK_WIN32(hmonitor != nullptr, m_log)) return false;
 
     // get monitor info
     MONITORINFO monitor_info { .cbSize = sizeof(monitor_info) };
-    SM_ASSERT_WIN32(GetMonitorInfoA(hmonitor, &monitor_info));
+    if (!SM_CHECK_WIN32(GetMonitorInfoA(hmonitor, &monitor_info), m_log)) return false;
 
     // get window rect
     RECT rect{};
-    SM_ASSERT_WIN32(GetWindowRect(m_window, &rect));
+    if (!SM_CHECK_WIN32(GetWindowRect(m_window, &rect), m_log)) return false;
 
     // calculate center
     int x = (monitor_info.rcWork.left + monitor_info.rcWork.right) / 2 - (rect.right - rect.left) / 2;
     int y = (monitor_info.rcWork.top + monitor_info.rcWork.bottom) / 2 - (rect.bottom - rect.top) / 2;
 
     // move window
-    SM_ASSERT_WIN32(SetWindowPos(m_window, nullptr, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER));
-
-    return true;
+    return SM_CHECK_WIN32(SetWindowPos(m_window, nullptr, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER), m_log);
 }
 
-void sys::create(HINSTANCE hInstance) {
+void sys::create(HINSTANCE hInstance, logs::ILogger& logger) {
     CTASSERTF(hInstance != nullptr, "system::create() invalid hInstance");
     CTASSERTF(gWindowClass == nullptr, "system::create() called twice");
+
+    SystemSink sink { logger };
 
     gInstance = hInstance;
 
@@ -162,13 +165,17 @@ void sys::create(HINSTANCE hInstance) {
         /* hInst = */ hInstance,
         /* name = */ MAKEINTRESOURCEA(IDI_DEFAULT_ICON));
 
-    SM_ASSERT_WIN32(hIcon != nullptr);
+    if (hIcon == nullptr) {
+        sink.warn("failed to load icon {}", get_last_error());
+    }
 
     HCURSOR hCursor = LoadCursorA(
         /* hInst = */ nullptr,
         /* name = */ IDC_ARROW);
 
-    SM_ASSERT_WIN32(hCursor != nullptr);
+    if (hCursor == nullptr) {
+        sink.warn("failed to load cursor {}", get_last_error());
+    }
 
     const WNDCLASSEXA kClass = {
         .cbSize = sizeof(WNDCLASSEX),
@@ -182,7 +189,7 @@ void sys::create(HINSTANCE hInstance) {
     };
 
     if (ATOM atom = RegisterClassExA(&kClass); atom == 0) {
-        assert_last_error(CTU_PANIC_INFO, "RegisterClassExA");
+        assert_last_error(CT_SOURCE_HERE, "RegisterClassExA");
     } else {
         gWindowClass = MAKEINTATOM(atom);
     }
