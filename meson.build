@@ -37,30 +37,31 @@ windows = import('windows')
 magick = find_program('magick')
 convert_utf16 = find_program('scripts/convert_utf16.py')
 
+# TODO: move off this as soon as possible
 compile_hlsl = find_program('scripts/compile_hlsl.py')
 hlsl = generator(compile_hlsl,
     output : [ '@BASENAME@.vs.cso', '@BASENAME@.ps.cso' ],
-    arguments : [ '@INPUT@', '@BASENAME@', '@BUILD_DIR@', 'vs,ps', '5_0' ]
+    arguments : [ '@INPUT@', '@BUILD_DIR@/@BASENAME@', '@BUILD_DIR@', 'vs,ps', '5_0' ]
 )
 
 reflect_include = cthulhu.get_variable('reflect_include')
 reflect = cthulhu.get_variable('reflect')
 
 args = cpp.get_supported_arguments(
-    '/GS-',
-    '-fstrict-aliasing',
-    '-fno-threadsafe-statics',
-    '-fno-keep-static-consts',
-    '-fmerge-all-constants',
-    '/Zc:threadSafeInit-',
+    '/GS-'#,
+    #'-fstrict-aliasing',
+    #'-fno-threadsafe-statics',
+    #'-fno-keep-static-consts',
+    #'-fmerge-all-constants',
+    #'/Zc:threadSafeInit-',
 
     # nicer messages
-    '-fansi-escape-codes'
+    #'-fansi-escape-codes'
 )
 
 cpp_args = cpp.get_supported_arguments(
-    '/wd4251',
-    '-fforce-emit-vtables'
+    '/wd4251'#,
+    #'-fforce-emit-vtables'
 )
 
 if trace_time.enabled()
@@ -75,35 +76,35 @@ if trace_time.enabled()
     )
 endif
 
-if cpp.has_multi_arguments('-Xclang', '-funsafe-math-optimizations')
-    args += [ '-Xclang', '-funsafe-math-optimizations' ]
-endif
+# if cpp.has_multi_arguments('-Xclang', '-funsafe-math-optimizations')
+#     args += [ '-Xclang', '-funsafe-math-optimizations' ]
+# endif
 
-if cpp.has_multi_arguments('-Xclang', '-mglobal-merge')
-    args += [ '-Xclang', '-mglobal-merge' ]
-endif
+# if cpp.has_multi_arguments('-Xclang', '-mglobal-merge')
+#     args += [ '-Xclang', '-mglobal-merge' ]
+# endif
 
-if cpp.has_multi_arguments('-Xclang', '-ffast-math')
-    args += [ '-Xclang', '-ffast-math' ]
-endif
+# if cpp.has_multi_arguments('-Xclang', '-ffast-math')
+#     args += [ '-Xclang', '-ffast-math' ]
+# endif
 
-if cpp.has_multi_arguments('-Xclang', '-fno-math-errno')
-    args += [ '-Xclang', '-fno-math-errno' ]
-endif
+# if cpp.has_multi_arguments('-Xclang', '-fno-math-errno')
+#     args += [ '-Xclang', '-fno-math-errno' ]
+# endif
 
-if cpp.has_multi_arguments('-Xclang', '-fstrict-vtable-pointers')
-    cpp_args += ['-Xclang', '-fstrict-vtable-pointers' ]
-endif
+# if cpp.has_multi_arguments('-Xclang', '-fstrict-vtable-pointers')
+#     cpp_args += ['-Xclang', '-fstrict-vtable-pointers' ]
+# endif
 
-if get_option('b_lto')
-    if cpp.has_multi_arguments('-Xclang', '-fwhole-program-vtables')
-        cpp_args += [ '-Xclang', '-fwhole-program-vtables' ]
-    endif
+# if get_option('b_lto')
+#     if cpp.has_multi_arguments('-Xclang', '-fwhole-program-vtables')
+#         cpp_args += [ '-Xclang', '-fwhole-program-vtables' ]
+#     endif
 
-    if cpp.has_multi_arguments('-Xclang', '-fvirtual-function-elimination')
-        cpp_args += [ '-Xclang', '-fvirtual-function-elimination' ]
-    endif
-endif
+#     if cpp.has_multi_arguments('-Xclang', '-fvirtual-function-elimination')
+#         cpp_args += [ '-Xclang', '-fvirtual-function-elimination' ]
+#     endif
+# endif
 
 add_project_arguments(cpp_args, language : 'cpp')
 add_project_arguments(args, language : ['c', 'cpp'])
@@ -142,6 +143,7 @@ subdir('src/common/logs')
 subdir('src/common/math')
 subdir('src/common/service')
 subdir('src/common/system')
+subdir('src/common/threads')
 subdir('src/common/rhi')
 
 # subdir('src/vendor/imgui')
@@ -201,7 +203,7 @@ client = executable('client', 'src/client/src/main.cpp', shaders,
         '/manifest:embed', '/manifestinput:' + manifest
     ],
     dependencies : [
-        core, service, system, rhi, logs,
+        core, service, system, rhi, logs, threads,
         cthulhu.get_variable('backtrace'),
         cthulhu.get_variable('format_core'),
         cthulhu.get_variable('io')

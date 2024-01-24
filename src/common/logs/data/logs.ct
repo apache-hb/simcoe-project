@@ -17,7 +17,8 @@ variant Category {
     [[format("global")]] default Global = 0
     [[format("render")]] case Render = 1
     [[format("system")]] case System = 2
-    case Count = 3
+    [[format("scheduler")]] case Schedule = 3
+    case Count = 4
 }
 
 struct Message {

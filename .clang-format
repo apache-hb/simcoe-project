@@ -14,13 +14,13 @@ AlignEscapedNewlines: Left
 BreakAfterAttributes: Always
 BraceWrapping:
   AfterCaseLabel: false
-  AfterClass: true
+  AfterClass: false
   AfterControlStatement: Never
   AfterEnum: false
   AfterFunction: false
   AfterNamespace: false
   AfterObjCDeclaration: true
-  AfterStruct: true
+  AfterStruct: false
   AfterUnion: false
   AfterExternBlock: true
   BeforeCatch: true

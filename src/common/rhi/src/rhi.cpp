@@ -52,65 +52,19 @@ void Context::info_callback(D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVER
     ctx->m_log.log(sev.get_log_severity(), "{} {}: {}", cat_refl.to_string(cat).data(), id_refl.to_string(msg).data(), desc);
 }
 
-void Context::enum_adapters() {
-    IDXGIAdapter1 *adapter;
-    for (UINT i = 0; m_factory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; i++) {
-        Adapter& handle = m_adapters.emplace_back(adapter);
-
-        m_log.info("found adapter: {}", handle.get_adapter_name());
-    }
-}
-
-void Context::enum_warp_adapter() {
-    IDXGIAdapter1 *adapter;
-    SM_ASSERT_HR(m_factory->EnumWarpAdapter(IID_PPV_ARGS(&adapter)));
-
-    m_adapters.emplace_back(adapter);
-}
-
-void Context::init_factory() {
-    auto& config = get_config();
-    bool debug_factory = config.debug_flags.test(DebugFlags::eFactoryDebug);
-
-    UINT flags = debug_factory ? DXGI_CREATE_FACTORY_DEBUG : 0u;
-
-    SM_ASSERT_HR(CreateDXGIFactory2(flags, IID_PPV_ARGS(&m_factory)));
-    m_log.info("created dxgi factory");
-
-    if (debug_factory) {
-        if (HRESULT hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&m_factory_debug)); SUCCEEDED(hr)) {
-            m_log.info("created dxgi debug interface");
-            m_factory_debug->EnableLeakTrackingForThread();
-        } else {
-            m_log.error("failed to create dxgi debug interface: {}", hr_string(hr));
-        }
-    }
-}
-
-Context::Context(const RenderConfig &config)
+Context::Context(const RenderConfig &config, Factory& factory)
     : m_config(config)
     , m_log(config.logger)
+    , m_factory(factory)
+    , m_adapter(factory.get_selected_adapter())
 {
     init();
 }
 
 Context::~Context() {
+    wait_for_fence();
+
     CloseHandle(m_fevent);
-
-    m_info_queue.try_release();
-    m_device.try_release();
-    for (auto &adapter : m_adapters)
-        adapter.try_release();
-
-    // report live objects
-    if (m_factory_debug) {
-        m_factory_debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
-    }
-
-    // TODO: we should extract out all device resources into a separate class
-    // then run its destructor before the factory is destroyed
-    // that way we get correct reporting from ReportLiveObjects
-    m_factory.try_release();
 }
 
 void Context::setup_device() {
@@ -118,18 +72,10 @@ void Context::setup_device() {
 
     auto config = get_config();
 
-    auto adapter_index = config.adapter_index;
-
-    if (m_adapters.size() < adapter_index) {
-        m_log.warn("adapter index {} is out of bounds, using first adapter", adapter_index);
-        adapter_index = 0;
-    }
-
     bool debug_device = config.debug_flags.test(DebugFlags::eDeviceDebugLayer);
     bool debug_dred = config.debug_flags.test(DebugFlags::eDeviceRemovedInfo);
     bool debug_queue = config.debug_flags.test(DebugFlags::eInfoQueue);
 
-    auto &adapter = m_adapters[adapter_index];
     auto fl = config.feature_level;
 
     if (debug_device) {
@@ -152,11 +98,11 @@ void Context::setup_device() {
         }
     }
 
-    m_log.info("using adapter: {}", adapter.get_adapter_name());
+    m_log.info("using adapter: {}", m_adapter.get_adapter_name());
 
     CTASSERTF(fl.is_valid(), "invalid feature level %s", fl_refl.to_string(fl, 16).data());
 
-    SM_ASSERT_HR(D3D12CreateDevice(adapter.get(), fl.as_facade(), IID_PPV_ARGS(&m_device)));
+    SM_ASSERT_HR(D3D12CreateDevice(m_adapter.get(), fl.as_facade(), IID_PPV_ARGS(&m_device)));
 
     m_log.info("created d3d12 device");
 
@@ -205,10 +151,12 @@ void Context::setup_pipeline() {
         .SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
     };
 
-    Object<IDXGISwapChain1> swapchain;
-    SM_ASSERT_HR(m_factory->CreateSwapChainForHwnd(m_queue.get(), hwnd, &kSwapChainDesc, nullptr, nullptr, &swapchain));
+    auto& factory = m_factory.m_factory;
 
-    SM_ASSERT_HR(m_factory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER));
+    Object<IDXGISwapChain1> swapchain;
+    SM_ASSERT_HR(factory->CreateSwapChainForHwnd(m_queue.get(), hwnd, &kSwapChainDesc, nullptr, nullptr, &swapchain));
+
+    SM_ASSERT_HR(factory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER));
 
     SM_ASSERT_HR(swapchain.query(&m_swapchain));
 
@@ -259,17 +207,6 @@ void Context::init() {
     m_log.info(" - software adapter: {}", config.software_adapter);
     m_log.info(" - feature level: {}", fl_refl.to_string(config.feature_level, 16).data());
 
-    init_factory();
-
-    if (config.software_adapter) {
-        m_log.info("overriding adapter enumeration with software adapter");
-        enum_warp_adapter();
-    } else {
-        enum_adapters();
-    }
-
-    CTASSERTF(!m_adapters.empty(), "no adapters found, perhaps you need to enable software rendering?");
-
     setup_device();
     setup_pipeline();
     setup_assets();
@@ -319,8 +256,8 @@ void Context::setup_assets() {
         { "COLOUR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(Vertex, colour), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
     };
 
-    auto vs = load_shader("build/shader.vs.cso");
-    auto ps = load_shader("build/shader.ps.cso");
+    auto vs = load_shader("build/client.exe.p/shader.vs.cso");
+    auto ps = load_shader("build/client.exe.p/shader.ps.cso");
 
     SM_UNUSED D3D12_GRAPHICS_PIPELINE_STATE_DESC pso = {
         .pRootSignature = root_signature.get(),
@@ -462,4 +399,86 @@ void Context::end_frame() {
     SM_ASSERT_HR(m_swapchain->Present(1, 0));
 
     wait_for_fence();
+}
+
+
+void Factory::enum_adapters() {
+    IDXGIAdapter1 *adapter;
+    for (UINT i = 0; m_factory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; i++) {
+        Adapter& handle = m_adapters.emplace_back(adapter);
+
+        m_log.info("found adapter: {}", handle.get_adapter_name());
+    }
+}
+
+void Factory::enum_warp_adapter() {
+    IDXGIAdapter1 *adapter;
+    SM_ASSERT_HR(m_factory->EnumWarpAdapter(IID_PPV_ARGS(&adapter)));
+
+    m_adapters.emplace_back(adapter);
+}
+
+void Factory::init() {
+    auto& config = get_config();
+    bool debug_factory = config.debug_flags.test(DebugFlags::eFactoryDebug);
+
+    UINT flags = debug_factory ? DXGI_CREATE_FACTORY_DEBUG : 0u;
+
+    SM_ASSERT_HR(CreateDXGIFactory2(flags, IID_PPV_ARGS(&m_factory)));
+    m_log.info("created dxgi factory");
+
+    if (debug_factory) {
+        if (HRESULT hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&m_factory_debug)); SUCCEEDED(hr)) {
+            m_log.info("created dxgi debug interface");
+            m_factory_debug->EnableLeakTrackingForThread();
+        } else {
+            m_log.error("failed to create dxgi debug interface: {}", hr_string(hr));
+        }
+    }
+
+    if (config.software_adapter) {
+        enum_warp_adapter();
+    } else {
+        enum_adapters();
+    }
+}
+
+Factory::Factory(const RenderConfig& config)
+    : m_config(config)
+    , m_log(config.logger)
+{
+    init();
+}
+
+Factory::~Factory() {
+    for (auto &adapter : m_adapters)
+        adapter.try_release();
+
+    // report live objects
+    if (m_factory_debug) {
+        m_log.info("reporting live objects");
+        m_factory_debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
+    }
+
+    m_factory_debug.try_release();
+    m_factory.try_release();
+}
+
+Adapter& Factory::get_selected_adapter() {
+    auto config = get_config();
+
+    auto adapter_index = config.adapter_index;
+
+    CTASSERTF(!m_adapters.empty(), "no adapters found, cannot create context");
+
+    if (m_adapters.size() < adapter_index) {
+        m_log.warn("adapter index {} is out of bounds, using first adapter", adapter_index);
+        adapter_index = 0;
+    }
+
+    return m_adapters[adapter_index];
+}
+
+Context Factory::new_context() {
+    return Context{get_config(), *this};
 }

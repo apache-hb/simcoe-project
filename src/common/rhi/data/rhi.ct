@@ -119,7 +119,7 @@ struct PipelineStateConfig {
 
 [[bitflags]]
 variant DebugFlags : uint8 {
-    default None = 0
+    [[format("none")]] default None = 0
     [[format("device")]] case DeviceDebugLayer = (1 << 0) // d3d12 debug layer
     [[format("factory")]] case FactoryDebug = (1 << 1) // dxgi debug layer
     [[format("dred")]] case DeviceRemovedInfo = (1 << 2) // dred

@@ -21,6 +21,8 @@
 ///
 
 namespace sm::rhi {
+    using RenderSink = logs::Sink<logs::Category::eRender>;
+
     template<typename T>
     concept ComObject = std::is_base_of_v<IUnknown, T>;
 
@@ -72,13 +74,6 @@ namespace sm::rhi {
         Object<ID3D12RootSignature> m_signature;
     };
 
-    class Device : public Object<ID3D12Device1> {
-    public:
-        SM_NOCOPY(Device)
-
-        constexpr Device(ID3D12Device1 *device = nullptr) : Object(device) {}
-    };
-
     class Adapter : public Object<IDXGIAdapter1> {
         DXGI_ADAPTER_DESC1 m_desc;
         std::string m_name;
@@ -116,15 +111,16 @@ namespace sm::rhi {
         math::float4 colour;
     };
 
+    class Factory;
+
     class Context {
         RenderConfig m_config;
-        logs::Sink<logs::Category::eRender> m_log;
+        RenderSink m_log;
 
-        Object<IDXGIFactory4> m_factory;
-        Object<IDXGIDebug1> m_factory_debug;
-        std::vector<Adapter> m_adapters;
+        Factory& m_factory;
+        Adapter& m_adapter;
 
-        Device m_device;
+        Object<ID3D12Device1> m_device;
         Object<ID3D12Debug> m_debug;
         Object<ID3D12InfoQueue1> m_info_queue;
         DWORD cookie = 0;
@@ -156,11 +152,6 @@ namespace sm::rhi {
 
         static void info_callback(D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID id, LPCSTR desc, void *user);
 
-        void enum_adapters();
-        void enum_warp_adapter();
-
-        void init_factory();
-
         void init();
         void setup_device();
         void setup_pipeline();
@@ -175,9 +166,8 @@ namespace sm::rhi {
 
     public:
         SM_NOCOPY(Context)
-        SM_NOMOVE(Context)
 
-        Context(const RenderConfig& config);
+        Context(const RenderConfig& config, Factory& factory);
         ~Context();
 
         const RenderConfig& get_config() const { return m_config; }
@@ -186,5 +176,32 @@ namespace sm::rhi {
 
         void begin_frame();
         void end_frame();
+    };
+
+    class Factory {
+        friend class Context;
+
+        RenderConfig m_config;
+        RenderSink m_log;
+
+        Object<IDXGIFactory4> m_factory;
+        Object<IDXGIDebug1> m_factory_debug;
+        std::vector<Adapter> m_adapters;
+
+        void enum_adapters();
+        void enum_warp_adapter();
+        void init();
+
+        Adapter& get_selected_adapter();
+
+    public:
+        SM_NOCOPY(Factory)
+
+        Factory(const RenderConfig& config);
+        ~Factory();
+
+        const RenderConfig& get_config() const { return m_config; }
+
+        Context new_context();
     };
 }

@@ -6,6 +6,7 @@
 #include "simcoe_config.h"
 #include "system/io.hpp"
 #include "system/system.hpp"
+#include "threads/threads.hpp"
 #include "rhi/rhi.hpp"
 #include "logs/logs.hpp"
 
@@ -16,13 +17,19 @@
 #include "io/console.h"
 #include "backtrace/backtrace.h"
 #include "os/os.h"
+
 #include <iterator>
+#include <chrono>
+
+#include "fmt/chrono.h"
 
 using namespace sm;
+namespace chrono = std::chrono;
 
 template<ctu::Reflected T>
 static constexpr auto enum_to_string(T value) {
-    return ctu::reflect<T>().to_string(value);
+    constexpr auto refl = ctu::reflect<T>();
+    return refl.to_string(value);
 }
 
 class ConsoleLog final : public logs::ILogger {
@@ -49,7 +56,12 @@ class ConsoleLog final : public logs::ILogger {
         const char *colour = colour_get(pallete, get_colour(message.severity));
         const char *reset = colour_reset(pallete);
 
-        std::printf("%s[%s]%s %s: %.*s\n", colour, s.data(), reset, c.data(), (int)message.message.length(), message.message.data());
+        // milliseconds since epoch
+        chrono::milliseconds ms { message.timestamp };
+        chrono::time_point<std::chrono::system_clock> now { ms };
+
+        fmt::println("{}[{}]{}[{:>6%X}] {}: {}",
+            colour, s.data(), reset, chrono::floor<chrono::milliseconds>(now), c.data(), message.message.data());
     }
 
 public:
@@ -223,6 +235,14 @@ static int common_main(sys::ShowWindow show) {
 
     sys::FileMapping store { store_config };
 
+    threads::CpuGeometry geometry = threads::global_cpu_geometry(gConsoleLog);
+
+    threads::SchedulerConfig thread_config = {
+        .worker_count = 8,
+        .process_priority = threads::PriorityClass::eNormal,
+    };
+    threads::Scheduler scheduler { thread_config, geometry, gConsoleLog };
+
     if (!store.is_valid()) {
         store.reset();
     }
@@ -257,7 +277,9 @@ static int common_main(sys::ShowWindow show) {
         .logger = gConsoleLog,
     };
 
-    rhi::Context render { render_config };
+    rhi::Factory render { render_config };
+
+    rhi::Context context = render.new_context();
 
     window.show_window(show);
 
@@ -269,9 +291,9 @@ static int common_main(sys::ShowWindow show) {
         TranslateMessage(&msg);
         DispatchMessageA(&msg);
 
-        render.begin_frame();
+        context.begin_frame();
 
-        render.end_frame();
+        context.end_frame();
     }
 
     return 0;
