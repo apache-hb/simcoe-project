@@ -5,7 +5,7 @@ variant BitMapIndex : usize {
     default Invalid = opaque(SIZE_MAX)
 }
 
-variant CastError : uint {
+variant CastError {
     default None = 0
     case Overflow = 1
     case Underflow = 2

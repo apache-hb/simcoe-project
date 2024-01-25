@@ -35,7 +35,7 @@ namespace sm::sys {
     NORETURN
     assert_last_error(source_info_t panic, const char *expr);
 
-    char *get_last_error(void);
+    char *get_last_error();
 
     class IWindowEvents {
         friend class Window;
@@ -43,9 +43,10 @@ namespace sm::sys {
     protected:
         virtual ~IWindowEvents() = default;
 
-        virtual void create(Window& window) = 0;
-        virtual void destroy(Window& window) = 0;
-        virtual bool close(Window& window) = 0;
+        virtual void paint(Window& window) { }
+        virtual void create(Window& window) { }
+        virtual void destroy(Window& window) { }
+        virtual bool close(Window& window) { return true; }
     };
 
     class Window {
@@ -56,6 +57,7 @@ namespace sm::sys {
         static LRESULT CALLBACK proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 
         void create(const WindowConfig& config);
+        void destroy();
 
         friend void create(HINSTANCE hInstance, logs::ILogger& logger);
 
@@ -66,16 +68,14 @@ namespace sm::sys {
         Window(const WindowConfig& config, IWindowEvents *events);
         ~Window();
 
-        WindowPlacement get_placement(void) const;
+        WindowPlacement get_placement() const;
         void set_placement(const WindowPlacement& placement);
 
         void show_window(ShowWindow show);
 
-        void destroy_window(void);
-
         void set_title(const char *title);
 
-        bool center_window(MultiMonitor monitor = MultiMonitor());
+        bool center_window(MultiMonitor monitor = MultiMonitor{}, bool topmost = false);
 
         WindowCoords get_coords() const;
 

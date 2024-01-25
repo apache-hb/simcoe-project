@@ -1,0 +1,11 @@
+[wrap-file]
+directory = microsoft-gdk-10.25398.1897
+
+source_url = https://www.nuget.org/api/v2/package/Microsoft.GDK.PC.231001/10.0.25398.1897
+source_filename = microsoft-gdk-10.25398.1897.zip
+source_hash = 2f98595e10d720bbc41d47f41c919fd559a605a0678a9a349ef473bb70519e66
+lead_directory_missing = true
+
+patch_directory = microsoft-gdk
+
+[provide]

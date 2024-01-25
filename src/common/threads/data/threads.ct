@@ -4,8 +4,7 @@ import "core/win32.h";
 import "<windef.h>";
 import "<winbase.h>";
 
-// TODO: get the entirety of thread geometry information
-// would be nice to send that home to the server
+// this doesnt expose the padding that the struct has
 [[external]]
 struct GROUP_AFFINITY {
     Mask: uint64;

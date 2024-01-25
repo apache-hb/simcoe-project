@@ -38,6 +38,9 @@ agility = subproject('d3d12-agility')
 warp = subproject('d3d-warp')
 windows = import('windows')
 
+debug_render = get_option('debug_render').disable_auto_if(package_type == 'release')
+enable_agility = get_option('enable_agility').allowed()
+
 magick = find_program('magick')
 convert_utf16 = find_program('scripts/convert_utf16.py')
 
@@ -69,6 +72,7 @@ args = cpp.get_supported_arguments(
 cpp_args = cpp.get_supported_arguments(
     '/wd4251',
     '/wd4201',
+    '/wd4100',
     '/wd4244', # weird narrowing stuff i cant be bothered to figure out
     '/wd4702', # unreachable code in fmtlib
     '-fforce-emit-vtables'
@@ -139,6 +143,9 @@ simcoe_cdata.set10('SMC_RELEASE', build_type.contains('release'))
 simcoe_cdata.set10('SMC_BUILD_SHARED', library_type == 'shared')
 simcoe_cdata.set10('SMC_BUILD_STATIC', library_type == 'static')
 
+simcoe_cdata.set10('SMC_RENDER_DEBUG', debug_render.allowed())
+simcoe_cdata.set10('SMC_AGILITY_SDK', enable_agility)
+
 simcoe_config = configure_file(
     output : 'simcoe_config.h',
     configuration : simcoe_cdata
@@ -146,6 +153,7 @@ simcoe_config = configure_file(
 
 config_include = include_directories('.')
 
+# we vendor fmtlib via a small shim header to hook FMT_THROW(x) into cthulhu's error handling
 subdir('src/vendor/fmtlib')
 
 subdir('src/common/core')
@@ -153,7 +161,11 @@ subdir('src/common/logs')
 subdir('src/common/math')
 subdir('src/common/service')
 subdir('src/common/system')
+subdir('src/common/bundle')
 subdir('src/common/threads')
+
+subdir('src/vendor/imgui')
+
 subdir('src/common/rhi')
 
 # subdir('src/vendor/imgui')
@@ -166,7 +178,7 @@ default_ico = custom_target('default_icon',
 
 rc_cdata = configuration_data()
 rc_cdata.merge_from(simcoe_cdata)
-rc_cdata.set('DEFAULT_ICON', default_ico.full_path())
+rc_cdata.set('DEFAULT_ICON', default_ico.full_path().replace('\\', '\\\\'))
 rc_cdata.set('MAJOR', parts[0].to_int())
 rc_cdata.set('MINOR', parts[1].to_int())
 rc_cdata.set('PATCH', parts[2].to_int())
@@ -193,27 +205,30 @@ res = windows.compile_resources(rc,
 
 manifest = meson.current_source_dir() / 'data/win32/client.exe.manifest'
 
-agility_redist = agility.get_variable('redist')
-agility_redist_pdb = agility.get_variable('redist_pdb')
-warp_redist = warp.get_variable('redist')
-warp_redist_pdb = warp.get_variable('redist_pdb')
-
-install_data(agility_redist,
-    install_tag : 'bin',
-    install_dir : get_option('bindir') / 'D3D12'
-)
-
-if package_type == 'devel'
-    install_data(agility_redist_pdb,
+if enable_agility
+    agility_redist = agility.get_variable('redist')
+    install_data(agility_redist,
         install_tag : 'bin',
         install_dir : get_option('bindir') / 'D3D12'
     )
+endif
 
+if package_type == 'devel'
+    if enable_agility
+        agility_redist_pdb = agility.get_variable('redist_pdb')
+        install_data(agility_redist_pdb,
+            install_tag : 'bin',
+            install_dir : get_option('bindir') / 'D3D12'
+        )
+    endif
+
+    warp_redist = warp.get_variable('redist')
     install_data(warp_redist,
         install_tag : 'bin',
         install_dir : get_option('bindir')
     )
 
+    warp_redist_pdb = warp.get_variable('redist_pdb')
     install_data(warp_redist_pdb,
         install_tag : 'bin',
         install_dir : get_option('bindir')

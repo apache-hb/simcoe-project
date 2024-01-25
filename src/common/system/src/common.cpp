@@ -3,8 +3,11 @@
 #include "core/arena.hpp"
 
 #include "os/os.h"
+#include "common.hpp"
 
 #include <errhandlingapi.h>
+
+HINSTANCE gInstance = nullptr;
 
 char *sm::sys::get_last_error(void) {
     DWORD last_error = GetLastError();

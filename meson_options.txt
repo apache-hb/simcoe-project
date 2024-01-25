@@ -1,5 +1,5 @@
 # devel package: internal use only (default)
-# private package: shipping to testing
+# private package: shipping to testers
 # release package: shipping to public
 option('package_type', type : 'combo',
     description : 'Package type when building',
@@ -10,4 +10,14 @@ option('package_type', type : 'combo',
 option('trace_time', type : 'feature',
     description : 'Trace compile time',
     value : 'disabled'
+)
+
+option('debug_render', type : 'feature',
+    description : 'Attach names to api objects',
+    value : 'auto'
+)
+
+option('enable_agility', type : 'feature',
+    description : 'Enable agility sdk',
+    value : 'auto'
 )

@@ -155,7 +155,7 @@ class DefaultSystemError final : public ISystemError {
     void error_end(void) override {
         const print_backtrace_t kPrintOptions = print_options_make(m_arena, io_stderr());
         print_backtrace(kPrintOptions, m_report);
-        std::exit(CT_EXIT_INTERNAL);
+        std::exit(CT_EXIT_INTERNAL); // NOLINT
     }
 
 public:
@@ -176,10 +176,6 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
         } else {
             window.center_window(sys::MultiMonitor::ePrimary);
         }
-    }
-
-    void destroy(sys::Window& window) override {
-        window.destroy_window();
     }
 
     bool close(sys::Window& window) override {
@@ -253,7 +249,7 @@ static int common_main(sys::ShowWindow show) {
     }
 
     sys::WindowConfig window_config = {
-        .mode = sys::WindowMode::eBorderless,
+        .mode = sys::WindowMode::eWindowed,
         .width = 1280,
         .height = 720,
         .title = "Priority Zero",

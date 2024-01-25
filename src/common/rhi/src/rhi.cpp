@@ -4,6 +4,8 @@
 #include "rhi/rhi.hpp"
 #include "core/arena.hpp"
 
+#include <simcoe_config.h>
+
 #include "d3dx12/d3dx12_core.h"
 #include "d3dx12/d3dx12_barriers.h"
 #include "d3dx12/d3dx12_root_signature.h"
@@ -12,15 +14,23 @@ using namespace sm;
 using namespace sm::rhi;
 
 extern "C" {
-    __declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
-    __declspec(dllexport) DWORD AmdPowerXpressRequestHighPerformance = 0x00000001;
+    __declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001; // NOLINT
+    __declspec(dllexport) DWORD AmdPowerXpressRequestHighPerformance = 0x00000001; // NOLINT
 }
 
+#if SMC_AGILITY_SDK
 extern "C" {
     // load the agility sdk
     __declspec(dllexport) extern const UINT D3D12SDKVersion = 611;
     __declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\";
 }
+#endif
+
+#if SMC_RENDER_DEBUG
+#   define SM_RENAME_OBJECT(obj) obj.rename(#obj)
+#else
+#   define SM_RENAME_OBJECT(obj) ((void)0)
+#endif
 
 static char *hr_string(HRESULT hr) {
     sm::IArena *arena = sm::get_debug_arena();
@@ -86,12 +96,18 @@ void Context::setup_device() {
     bool debug_device = config.debug_flags.test(DebugFlags::eDeviceDebugLayer);
     bool debug_dred = config.debug_flags.test(DebugFlags::eDeviceRemovedInfo);
     bool debug_queue = config.debug_flags.test(DebugFlags::eInfoQueue);
+    bool debug_autoname = config.debug_flags.test(DebugFlags::eAutoName);
 
     auto fl = config.feature_level;
 
     if (debug_device) {
         if (HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(&m_debug)); SUCCEEDED(hr)) {
             m_debug->EnableDebugLayer();
+
+            Object<ID3D12Debug5> debug5;
+            if (debug_autoname && SUCCEEDED(m_debug.query(&debug5))) {
+                debug5->SetEnableAutoName(true);
+            }
         } else {
             m_log.error("failed to create d3d12 debug interface: {}", hr_string(hr));
         }
@@ -115,6 +131,8 @@ void Context::setup_device() {
 
     SM_ASSERT_HR(D3D12CreateDevice(m_adapter.get(), fl.as_facade(), IID_PPV_ARGS(&m_device)));
 
+    SM_RENAME_OBJECT(m_device);
+
     m_log.info("created d3d12 device");
 
     if (debug_queue) {
@@ -137,9 +155,11 @@ void Context::setup_pipeline() {
     };
 
     SM_ASSERT_HR(m_device->CreateCommandQueue(&kQueueDesc, IID_PPV_ARGS(&m_queue)));
+    SM_RENAME_OBJECT(m_queue);
 
     // fence
     SM_ASSERT_HR(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
+    SM_RENAME_OBJECT(m_fence);
 
     // fence handle
     m_fevent = CreateEventA(nullptr, FALSE, FALSE, "rhi.fevent");
@@ -166,9 +186,7 @@ void Context::setup_pipeline() {
 
     Object<IDXGISwapChain1> swapchain;
     SM_ASSERT_HR(factory->CreateSwapChainForHwnd(m_queue.get(), hwnd, &kSwapChainDesc, nullptr, nullptr, &swapchain));
-
     SM_ASSERT_HR(factory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER));
-
     SM_ASSERT_HR(swapchain.query(&m_swapchain));
 
     m_frame_index = m_swapchain->GetCurrentBackBufferIndex();
@@ -414,7 +432,6 @@ void Context::end_frame() {
 
     wait_for_fence();
 }
-
 
 void Factory::enum_adapters() {
     IDXGIAdapter1 *adapter;

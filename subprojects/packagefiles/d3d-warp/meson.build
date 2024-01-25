@@ -1,7 +1,7 @@
-project('d3d_warp',
+project('d3d-warp',
     version : '1.0.9',
-    # the binary is licensed under a microsoft license
-    # do not redistribute the binary
+    # !!! unlicensed DOES NOT mean public domain, redistribute this stuff
+    # !!! and microsoft lawyers will have your head
     license : 'UNLICENSED',
     license_files : [ 'LICENSE.txt' ],
     meson_version : '>=1.1.0'

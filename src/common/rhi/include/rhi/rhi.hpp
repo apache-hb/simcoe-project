@@ -65,6 +65,11 @@ namespace sm::rhi {
 
         constexpr bool is_valid() const { return m_object != nullptr; }
         constexpr operator bool() const { return is_valid(); }
+
+        void rename(std::string_view name) requires (D3DObject<T>) {
+            CTASSERT(is_valid());
+            m_object->SetName(sm::widen(name).c_str());
+        }
     };
 
     class PipelineState {

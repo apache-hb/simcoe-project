@@ -7,10 +7,10 @@
 
 ```sh
 # debug
-meson setup build -Dprefix=%cd%\bundle_debug --native-file data\meson\clang-cl.ini
+meson setup build -Dprefix=%cd%\bundle_debug --native-file data\meson\clang-cl.ini --native-file data\meson\devel.ini
 
 # release
-meson setup build-release -Dbuildtype=release -Dprefix=%cd%\bundle_release -Db_lto=true --native-file data\meson\clang-cl.ini
+meson setup build-shipping -Dprefix=%cd%\bundle_release--native-file data\meson\clang-cl.ini --native-file data\meson\shipping.ini
 
 # profiling compile time
 meson setup build-trace --native-file data\meson\clang-cl.ini --native-file data\meson\trace.ini

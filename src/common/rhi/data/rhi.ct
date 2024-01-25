@@ -118,12 +118,13 @@ struct PipelineStateConfig {
 }
 
 [[bitflags]]
-variant DebugFlags : uint8 {
+variant DebugFlags {
     [[format("none")]] default None = 0
     [[format("device")]] case DeviceDebugLayer = (1 << 0) // d3d12 debug layer
     [[format("factory")]] case FactoryDebug = (1 << 1) // dxgi debug layer
     [[format("dred")]] case DeviceRemovedInfo = (1 << 2) // dred
     [[format("queue")]] case InfoQueue = (1 << 3) // d3d12 debug layer
+    [[format("auto_name")]] case AutoName = (1 << 4) // automatically name objects
 }
 
 struct RenderConfig {
@@ -140,6 +141,6 @@ struct RenderConfig {
     software_adapter: bool;
     feature_level: FeatureLevel;
 
-    [[transient]] window: &opaque("sm::sys::Window");
-    [[transient]] logger: &opaque("sm::logs::ILogger");
+    window: &opaque("sm::sys::Window");
+    logger: &opaque("sm::logs::ILogger");
 }

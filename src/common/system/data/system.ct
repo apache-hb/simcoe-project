@@ -9,9 +9,10 @@ import "<winuser.h>";
 
 // internal types
 
-variant WindowMode : uint8 {
-    default Windowed = 0
-    case Borderless = 1
+[[facade]]
+variant WindowMode : uint32 {
+    default Windowed = opaque(WS_POPUP)
+    case Borderless = opaque(WS_OVERLAPPEDWINDOW)
 }
 
 struct WindowConfig {
@@ -22,6 +23,9 @@ struct WindowConfig {
     logger: &opaque("sm::logs::ILogger");
 }
 
+// TODO: make this a smaller type than uint32
+// we dont need 4 billion versions
+[[layout(export)]]
 variant FileVersion : uint32 {
     default CurrentVersion = 0
     [[format("v0")]] case Version0 = 0
@@ -34,6 +38,7 @@ struct MappingConfig {
     logger: &opaque("sm::logs::ILogger");
 }
 
+[[layout(export)]]
 struct FileHeader {
     magic: uint32; // 'CUM\0'
     version: FileVersion;
@@ -43,6 +48,7 @@ struct FileHeader {
     used: uint16; // number of records slots used
 }
 
+[[layout(export)]]
 struct RecordHeader {
     id: uint32; // matches typeid of the record
     offset: uint16; // offset from the start of the data region

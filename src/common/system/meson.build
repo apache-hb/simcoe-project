@@ -1,5 +1,10 @@
 system_include = include_directories('.', 'include')
 
+# TODO: splash screens, do them all in d3d12 rather than trying to grok
+# how gdi works. its quick enough to start a d3d12 software device and
+# render using that
+# 'src/splash.cpp',
+
 src = [
     'src/common.cpp',
     'src/system.cpp',
