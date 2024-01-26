@@ -1,0 +1,21 @@
+From 620fe743e3e3c870f916113461e1b9fe61d08735 Mon Sep 17 00:00:00 2001
+From: Elliot <35050275+apache-hb@users.noreply.github.com>
+Date: Thu, 25 Jan 2024 10:02:23 -0500
+Subject: [PATCH] suppress crt warnings on windows
+
+---
+ meson.build | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/meson.build b/meson.build
+index 1014159be9a..45837eee760 100644
+--- a/meson.build
++++ b/meson.build
+@@ -62,6 +62,7 @@ if host_machine.system() == 'windows'
+   add_project_arguments(cpp.get_supported_arguments([
+     '-Wa,-mbig-obj'
+   ]), language : 'cpp')
++  add_project_arguments('-D_CRT_SECURE_NO_WARNINGS=1', language: ['c', 'cpp'])
+ endif
+ 
+ check_headers = [

@@ -1,0 +1,100 @@
+#
+# meson_options.txt
+#
+
+# Copyright (C) 2020-2023 by
+# David Turner, Robert Wilhelm, and Werner Lemberg.
+#
+# This file is part of the FreeType project, and may only be used, modified,
+# and distributed under the terms of the FreeType project license,
+# LICENSE.TXT.  By continuing to use, modify, or distribute this file you
+# indicate that you have read the license and understand and accept it
+# fully.
+
+
+option('brotli',
+  type: 'feature',
+  value: 'auto',
+  description: 'Use Brotli library to support decompressing WOFF2 fonts')
+
+option('bzip2',
+  type: 'feature',
+  value: 'auto',
+  description: 'Support reading bzip2-compressed font files')
+
+option('harfbuzz',
+  type: 'feature',
+  value: 'auto',
+  description: 'Use Harfbuzz library to improve auto-hinting;'
+               + ' if available, many glyphs not directly addressable'
+               + ' by a font\'s character map will be hinted also')
+
+option('mmap',
+  type: 'feature',
+  value: 'auto',
+  description: 'Use mmap() to open font files for faster parsing')
+
+option('png',
+  type: 'feature',
+  value: 'auto',
+  description: 'Support color bitmap glyph formats in the PNG format;'
+               + ' requires libpng')
+
+option('tests',
+  type: 'feature',
+  value: 'disabled',
+  description: 'Enable FreeType unit and regression tests')
+
+option('zlib',
+  type: 'combo',
+  choices: [ 'auto', 'none',
+             'internal', 'external', 'system',
+             'disabled', 'enabled' ],
+  description: 'Support reading gzip-compressed font files')
+
+option('mac_fonts',
+  type: 'feature',
+  value: 'auto',
+  description: 'Support outline fonts in Mac format')
+
+option('bytecode_interpreter',
+  type: 'feature',
+  value: 'auto',
+  description: 'Enable truetype font hinting bytecode driver')
+
+option('gx_var',
+  type: 'feature',
+  value: 'auto',
+  description: 'Enable support for Apples distortable font technology')
+
+option('boring_expansion',
+  type: 'feature',
+  value: 'auto',
+  description: 'Support for boring OpenType specification expansions')
+
+option('bdf',
+  type: 'feature',
+  value: 'auto',
+  description: 'support for an embedded BDF~ table within SFNT-based bitmap formats.')
+
+option('streams',
+  type: 'feature',
+  value: 'auto',
+  description: 'Allow use of FILE*, fopen, etc')
+
+option('logging',
+  type: 'feature',
+  value: 'auto',
+  description: 'Enable logging support')
+
+option('error_strings',
+  type: 'feature',
+  value: 'auto',
+  description: 'Make FT_Error_String return meaningful strings')
+
+option('environment',
+  type: 'feature',
+  value: 'auto',
+  description: 'Enable environment properties support')
+
+# EOF

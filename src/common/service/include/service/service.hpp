@@ -1,6 +1,6 @@
 #pragma once
 
-namespace simcoe::service {
+namespace sm::service {
     class IService {
     public:
         virtual ~IService() = default;

@@ -1,0 +1,23 @@
+From da7a7d7870d053112fd5ef631d540adffdc179cf Mon Sep 17 00:00:00 2001
+From: Elliot <35050275+apache-hb@users.noreply.github.com>
+Date: Thu, 25 Jan 2024 09:47:09 -0500
+Subject: [PATCH] dont build the harfbuzz.cc as a subproject
+
+dont build the harfbuzz.cc amalgam file by default when being consumed as a subproject
+---
+ src/meson.build | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/meson.build b/src/meson.build
+index 77c7e750178..70cacc3ca2c 100644
+--- a/src/meson.build
++++ b/src/meson.build
+@@ -427,7 +427,7 @@ else
+ endif
+ 
+ custom_target('harfbuzz.cc',
+-  build_by_default: true,
++  build_by_default: not meson.is_subproject(),
+   output: 'harfbuzz.cc',
+   input: hb_base_sources + hb_glib_sources + hb_ft_sources +
+          hb_graphite2_sources + hb_uniscribe_sources + hb_gdi_sources +

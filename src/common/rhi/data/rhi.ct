@@ -1,6 +1,7 @@
 module sm::rhi;
 
 import "logs/logs.hpp";
+import "system/window.hpp";
 
 import "<span>";
 
@@ -71,11 +72,30 @@ variant RootSignatureVersion : opaque(D3D_ROOT_SIGNATURE_VERSION) {
 }
 
 [[facade]]
-variant TypeFormat : opaque(DXGI_FORMAT) {
-    default Unknown = opaque(DXGI_FORMAT_UNKNOWN)
+variant DataFormat : opaque(DXGI_FORMAT) {
+    [[format("unknown")]]
+    default UNKNOWN = opaque(DXGI_FORMAT_UNKNOWN)
 
-    case Float32x3 = opaque(DXGI_FORMAT_R32G32B32_FLOAT)
-    case Float32x4 = opaque(DXGI_FORMAT_R32G32B32A32_FLOAT)
+    [[format("rgb32/float")]]
+    case R32G32B32_FLOAT = opaque(DXGI_FORMAT_R32G32B32_FLOAT)
+
+    [[format("rgba32/uint")]]
+    case R32G32B32A32_FLOAT = opaque(DXGI_FORMAT_R32G32B32A32_FLOAT)
+
+    [[format("bc7/typeless")]]
+    case BC7_TYPELESS = opaque(DXGI_FORMAT_BC7_TYPELESS)
+
+    [[format("bc7/unorm")]]
+    case BC7_UNORM = opaque(DXGI_FORMAT_BC7_UNORM)
+
+    [[format("bc7/srgb")]]
+    case BC7_UNORM_SRGB = opaque(DXGI_FORMAT_BC7_UNORM_SRGB)
+
+    [[format("rgba8/unorm")]]
+    case R8G8B8A8_UNORM = opaque(DXGI_FORMAT_R8G8B8A8_UNORM)
+
+    [[format("rgba8/uint")]]
+    case R8G8B8A8_UINT = opaque(DXGI_FORMAT_R8G8B8A8_UINT)
 }
 
 [[facade]]
@@ -101,7 +121,7 @@ struct DXGI_ADAPTER_DESC1 {
 struct D3D12_INPUT_ELEMENT_DESC {
     SemanticName: string;
     SemanticIndex: uint;
-    Format: TypeFormat;
+    Format: DataFormat;
     InputSlot: uint;
     AlignedByteOffset: uint;
     InputSlotClass: InputClassifier;
@@ -131,6 +151,7 @@ struct RenderConfig {
     debug_flags: DebugFlags;
 
     buffer_count: uint;
+    buffer_format: DataFormat;
 
     dsv_heap_size: uint32;
     rtv_heap_size: uint32;

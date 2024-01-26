@@ -3,12 +3,12 @@
 #include "core/text.hpp"
 
 #include "core/units.hpp"
-#include "simcoe_config.h"
 #include "system/io.hpp"
 #include "system/system.hpp"
 #include "threads/threads.hpp"
 #include "rhi/rhi.hpp"
 #include "logs/logs.hpp"
+#include "service/freetype.hpp"
 
 #include "base/panic.h"
 
@@ -18,13 +18,16 @@
 #include "backtrace/backtrace.h"
 #include "os/os.h"
 
-#include <iterator>
-#include <chrono>
+#include "imgui/imgui.h"
+#include "imgui/misc/imgui_freetype.h"
+#include "imgui/backends/imgui_impl_win32.h"
+#include "imgui/backends/imgui_impl_dx12.h"
 
-#include "fmt/chrono.h"
+#include <iterator>
 
 using namespace sm;
-namespace chrono = std::chrono;
+
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 template<ctu::Reflected T>
 static constexpr auto enum_to_string(T value) {
@@ -56,12 +59,34 @@ class ConsoleLog final : public logs::ILogger {
         const char *colour = colour_get(pallete, get_colour(message.severity));
         const char *reset = colour_reset(pallete);
 
-        // milliseconds since epoch
-        chrono::milliseconds ms { message.timestamp };
-        chrono::time_point<std::chrono::system_clock> now { ms };
+        // we dont have fmt/chrono.h because we use it in header only mode
+        // so pull out the hours/minutes/seconds/milliseconds manually
 
-        fmt::println("{}[{}]{}[{:>6%X}] {}: {}",
-            colour, s.data(), reset, chrono::floor<chrono::milliseconds>(now), c.data(), message.message.data());
+        auto hours = (message.timestamp / (60 * 60 * 1000)) % 24;
+        auto minutes = (message.timestamp / (60 * 1000)) % 60;
+        auto seconds = (message.timestamp / 1000) % 60;
+        auto milliseconds = message.timestamp % 1000;
+
+        auto header = fmt::format("{}[{}]{}[{:02}:{:02}:{:02}.{:03}] {}:",
+            colour, s.data(), reset, hours, minutes, seconds, milliseconds, c.data());
+
+        // ranges is impossible to use without going through a bunch of hoops
+        // just iterate over the message split by newlines
+
+        auto it = message.message.begin();
+        auto end = message.message.end();
+
+        while (it != end) {
+            auto next = std::find(it, end, '\n');
+            auto line = std::string_view { &*it, static_cast<size_t>(std::distance(it, next)) };
+            it = next;
+
+            fmt::println("{} {}", header, line);
+
+            if (it != end) {
+                ++it;
+            }
+        }
     }
 
 public:
@@ -91,36 +116,38 @@ class DefaultArena final : public IArena {
 };
 
 class TraceArena final : public IArena {
+    logs::Sink<logs::Category::eDebug> m_log;
     IArena& m_source;
 
     void *impl_alloc(size_t size) override {
         void *ptr = m_source.alloc(size);
-        std::printf("[%s] alloc(%zu) = %p\n", name, size, ptr);
+        m_log.trace("[{}] alloc({:#x}) = {}\n", name, size, ptr);
         return ptr;
     }
 
     void *impl_resize(void *ptr, size_t new_size, size_t old_size) override {
         void *new_ptr = m_source.resize(ptr, new_size, old_size);
-        std::printf("[%s] resize(0x%p, %zu, %zu) = 0x%p\n", name, ptr, new_size, old_size, new_ptr);
+        m_log.trace("[{}] resize({:#x}, {:#x}, {}) = 0x%p\n", name, ptr, new_size, old_size, new_ptr);
         return new_ptr;
     }
 
     void impl_release(void *ptr, size_t size) override {
         m_source.release(ptr, size);
-        std::printf("[%s] release(0x%p, %zu)\n", name, ptr, size);
+        m_log.trace("[{}] release({}, {:#x})\n", name, ptr, size);
     }
 
     void impl_rename(const void *ptr, const char *ptr_name) override {
-        std::printf("[%s] rename(0x%p, %s)\n", name, ptr, ptr_name);
+        m_log.trace("[{}] rename({}, {})\n", name, ptr, ptr_name);
     }
 
     void impl_reparent(const void *ptr, const void *parent) override {
-        std::printf("[%s] reparent(0x%p, %p)\n", name, ptr, parent);
+        m_log.trace("[{}] reparent({}, {})\n", name, ptr, parent);
     }
 
 public:
-    TraceArena(const char *name, IArena& source)
+    TraceArena(const char *name, IArena& source, logs::ILogger& logger)
         : IArena(name)
+        , m_log(logger)
         , m_source(source)
     { }
 };
@@ -170,6 +197,18 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     sys::WindowPlacement *m_placement = nullptr;
     sys::RecordLookup m_lookup;
 
+    rhi::Context *m_context = nullptr;
+
+    LRESULT event(sys::Window& window, UINT message, WPARAM wparam, LPARAM lparam) override {
+        return ImGui_ImplWin32_WndProcHandler(window.get_handle(), message, wparam, lparam);
+    }
+
+    void resize(sys::Window&, math::int2 size) override {
+        // TODO: this will break if we ever have multiple windows
+        if (m_context != nullptr)
+            m_context->resize(size.as<uint32_t>());
+    }
+
     void create(sys::Window& window) override {
         if (m_lookup = m_store.get_record(&m_placement); m_lookup == sys::RecordLookup::eOpened) {
             window.set_placement(*m_placement);
@@ -188,6 +227,10 @@ public:
     DefaultWindowEvents(sys::FileMapping& store)
         : m_store(store)
     { }
+
+    void attach_render(rhi::Context *context) {
+        m_context = context;
+    }
 };
 
 struct System {
@@ -196,9 +239,8 @@ struct System {
 };
 
 static DefaultArena gGlobalArena{"default"};
-static TraceArena gTraceArena{"trace", gGlobalArena};
 static DefaultSystemError gDefaultError{&gGlobalArena};
-static ConsoleLog gConsoleLog{logs::Severity::eInfo};
+static ConsoleLog gConsoleLog{logs::Severity::eTrace};
 
 static void common_init(void) {
     bt_init();
@@ -213,8 +255,6 @@ static void common_init(void) {
 
         gConsoleLog.log(logs::Category::eGlobal, logs::Severity::ePanic, message.data());
 
-        std::printf("[%s:%zu] %s\npanic: %.*s\n", info.file, info.line, info.function, (int)message.size(), message.data());
-
         bt_report_t *report = bt_report_collect(&gGlobalArena);
         print_backtrace(kPrintOptions, report);
 
@@ -226,6 +266,22 @@ static int common_main(sys::ShowWindow show) {
     logs::Sink<logs::Category::eGlobal> general { gConsoleLog };
     general.info("SMC_DEBUG = {}", SMC_DEBUG);
     general.info("CTU_DEBUG = {}", CTU_DEBUG);
+
+    TraceArena trace_freetype_arena{"freetype", gGlobalArena, gConsoleLog};
+    service::init_freetype(&gConsoleLog);
+
+    service::FreeType freetype { &trace_freetype_arena };
+
+    ImGuiFreeType::SetAllocatorFunctions(
+        [](size_t size, void *user_data) {
+            auto *arena = static_cast<IArena*>(user_data);
+            return arena->alloc(size);
+        },
+        [](void *ptr, void *user_data) {
+            auto *arena = static_cast<IArena*>(user_data);
+            return arena->release(ptr, 0);
+        },
+        &trace_freetype_arena);
 
     sys::MappingConfig store_config = {
         .path = "client.bin",
@@ -260,13 +316,16 @@ static int common_main(sys::ShowWindow show) {
 
     sys::Window window { window_config, &events };
 
+    constexpr unsigned kBufferCount = 2;
+
     rhi::RenderConfig render_config = {
         .debug_flags = rhi::DebugFlags::mask(),
 
-        .buffer_count = 2,
+        .buffer_count = kBufferCount,
+        .buffer_format = rhi::DataFormat::eR8G8B8A8_UNORM,
 
         .dsv_heap_size = 256,
-        .rtv_heap_size = 256,
+        .rtv_heap_size = 8,
         .cbv_srv_uav_heap_size = 256,
 
         .adapter_lookup = rhi::AdapterPreference::eDefault,
@@ -282,17 +341,67 @@ static int common_main(sys::ShowWindow show) {
 
     rhi::Context context = render.new_context();
 
+    rhi::DescriptorHeap& srv_heap = context.get_srv_heap();
+    rhi::DescriptorIndex imgui_index = srv_heap.alloc_index();
+
+    constexpr ImGuiConfigFlags kIoFlags = ImGuiConfigFlags_NavEnableGamepad
+                                        | ImGuiConfigFlags_NavEnableKeyboard
+                                        | ImGuiConfigFlags_DockingEnable
+                                        | ImGuiConfigFlags_ViewportsEnable;
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= kIoFlags;
+
+    ImGui::StyleColorsDark();
+
+    // make imgui windows look more like native windows
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+        ImGuiStyle& style = ImGui::GetStyle();
+        style.WindowRounding = 0.0f;
+        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+    }
+
+    ImGui_ImplWin32_Init(window.get_handle());
+    ImGui_ImplDX12_Init(context.get_device(), kBufferCount,
+        render_config.buffer_format.as_facade(), srv_heap.get_heap(),
+        srv_heap.get_cpu_handle(imgui_index),
+        srv_heap.get_gpu_handle(imgui_index));
+
     window.show_window(show);
+    events.attach_render(&context);
 
     MSG msg = { };
     while (GetMessageA(&msg, nullptr, 0, 0)) {
         TranslateMessage(&msg);
         DispatchMessageA(&msg);
 
+        auto& commands = context.get_commands();
+
         context.begin_frame();
 
+        ImGui_ImplDX12_NewFrame();
+        ImGui_ImplWin32_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::ShowDemoWindow();
+
+        ImGui::Render();
+        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commands.get());
+
         context.end_frame();
+
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault(nullptr, commands.get()); // TODO: get command list
+        }
+
+        context.present();
     }
+
+    ImGui_ImplDX12_Shutdown();
+    ImGui_ImplWin32_Shutdown();
 
     return 0;
 }

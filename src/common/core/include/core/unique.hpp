@@ -4,6 +4,8 @@
 
 #include "core/macros.hpp"
 
+#include <simcoe_config.h>
+
 namespace sm {
     template<typename T, typename TDelete, T TEmpty = T()>
     class UniqueHandle {

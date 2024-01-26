@@ -8,6 +8,7 @@
 #include <errhandlingapi.h>
 
 HINSTANCE gInstance = nullptr;
+LPTSTR gWindowClass = nullptr;
 
 char *sm::sys::get_last_error(void) {
     DWORD last_error = GetLastError();

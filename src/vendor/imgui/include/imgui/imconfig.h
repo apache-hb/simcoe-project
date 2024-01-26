@@ -14,7 +14,8 @@
 
 #pragma once
 
-#include "base/panic.h"
+#include "base/panic.h" // IWYU pragma: keep
+#include "math/math.hpp" // IWYU pragma: keep
 
 //---- Define assertion handler. Defaults to calling assert().
 // If your macro uses multiple statements, make sure is enclosed in a 'do { .. } while (0)' block so it can be used as a single statement.
@@ -78,7 +79,7 @@
 //---- Use FreeType to build and rasterize the font atlas (instead of stb_truetype which is embedded by default in Dear ImGui)
 // Requires FreeType headers to be available in the include path. Requires program to be compiled with 'misc/freetype/imgui_freetype.cpp' (in this repository) + the FreeType library (not provided).
 // On Windows you may use vcpkg with 'vcpkg install freetype --triplet=x64-windows' + 'vcpkg integrate install'.
-//#define IMGUI_ENABLE_FREETYPE
+#define IMGUI_ENABLE_FREETYPE
 
 //---- Use FreeType+lunasvg library to render OpenType SVG fonts (SVGinOT)
 // Requires lunasvg headers to be available in the include path + program to be linked with the lunasvg library (not provided).
@@ -103,6 +104,14 @@
 */
 //---- ...Or use Dear ImGui's own very basic math operators.
 //#define IMGUI_DEFINE_MATH_OPERATORS
+
+#define IM_VEC2_CLASS_EXTRA \
+        constexpr ImVec2(const sm::math::float2& f) : x(f.x), y(f.y) {} \
+        operator sm::math::float2() const { return sm::math::float2(x,y); }
+
+#define IM_VEC4_CLASS_EXTRA \
+        constexpr ImVec4(const sm::math::float4& f) : x(f.x), y(f.y), z(f.z), w(f.w) {} \
+        operator sm::math::float4() const { return sm::math::float4(x,y,z,w); }
 
 //---- Use 32-bit vertex indices (default is 16-bit) is one way to allow large meshes with more than 64K vertices.
 // Your renderer backend will need to support it (most example renderer backends support both 16/32-bit indices).

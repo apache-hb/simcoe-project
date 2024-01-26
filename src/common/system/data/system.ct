@@ -11,8 +11,8 @@ import "<winuser.h>";
 
 [[facade]]
 variant WindowMode : uint32 {
-    default Windowed = opaque(WS_POPUP)
-    case Borderless = opaque(WS_OVERLAPPEDWINDOW)
+    default Windowed = opaque(WS_OVERLAPPEDWINDOW)
+    case Borderless = opaque(WS_POPUP)
 }
 
 struct WindowConfig {

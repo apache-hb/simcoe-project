@@ -11,3 +11,4 @@ diff_files = fmt/noprint.patch
 
 [provide]
 fmt = fmt_dep
+fmt_header_only = fmt_header_only_dep

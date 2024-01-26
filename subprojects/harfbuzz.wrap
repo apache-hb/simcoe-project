@@ -1,0 +1,12 @@
+[wrap-file]
+directory = harfbuzz-8.3.0
+source_url = https://github.com/harfbuzz/harfbuzz/releases/download/8.3.0/harfbuzz-8.3.0.tar.xz
+source_filename = harfbuzz-8.3.0.tar.xz
+source_hash = 109501eaeb8bde3eadb25fab4164e993fbace29c3d775bcaa1c1e58e2f15f847
+source_fallback_url = https://github.com/mesonbuild/wrapdb/releases/download/harfbuzz_8.3.0-1/harfbuzz-8.3.0.tar.xz
+wrapdb_version = 8.3.0-1
+
+diff_files = harfbuzz/fix-meson.patch, harfbuzz/meson-version.patch, harfbuzz/optional-amalgam.patch, harfbuzz/optional-subset-amalgam.patch, harfbuzz/crt-deprecation.patch
+
+[provide]
+dependency_names = harfbuzz, harfbuzz-cairo, harfbuzz-gobject, harfbuzz-icu, harfbuzz-subset

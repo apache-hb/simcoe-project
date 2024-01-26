@@ -4,3 +4,4 @@
 #include <minwindef.h>
 
 extern HINSTANCE gInstance;
+extern LPTSTR gWindowClass;

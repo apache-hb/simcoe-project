@@ -18,7 +18,14 @@ variant Category {
     [[format("render")]] case Render = 1
     [[format("system")]] case System = 2
     [[format("scheduler")]] case Schedule = 3
-    case Count = 4
+    [[format("input")]] case Input = 4
+    [[format("audio")]] case Audio = 5
+    [[format("network")]] case Network = 6
+    [[format("service")]] case Service = 7
+    [[format("physics")]] case Physics = 8
+    [[format("ui")]] case UI = 9
+    [[format("debug")]] case Debug = 10
+    case Count = 11 // always keep this up to date
 }
 
 struct Message {

@@ -15,16 +15,13 @@ namespace sm {
 
             constexpr BitMapStorage() = default;
 
-            constexpr BitMapStorage(size_t bits)
-                : m_size(bits)
-                , m_bits(word_count())
-            {
-                reset();
+            constexpr BitMapStorage(size_t length) {
+                resize(length);
             }
 
-            constexpr void resize(size_t bits) {
-                m_size = bits;
-                m_bits = sm::UniquePtr<T[]>(word_count());
+            constexpr void resize(size_t length) {
+                m_size = length;
+                m_bits = sm::UniquePtr<T[]>(word_count() * sizeof(T));
                 reset();
             }
 
@@ -41,7 +38,7 @@ namespace sm {
             }
 
             constexpr size_t get_total_bits() const { return m_size; }
-            constexpr size_t get_capacity() const { return word_count() * kBitPerWord; }
+            constexpr size_t get_capacity() const { return word_count() * kBitsPerWord; }
 
             constexpr Index scan_set_first() {
                 Super *self = static_cast<Super*>(this);
@@ -55,11 +52,11 @@ namespace sm {
             }
 
             constexpr void reset() {
-                if (m_bits.is_valid())
-                    std::memset(m_bits.get(), 0, word_count() * sizeof(T));
+                CTASSERT(m_bits.is_valid());
+                std::memset(m_bits.get(), 0, word_count() * sizeof(T));
             }
 
-            constexpr static inline size_t kBitPerWord = sizeof(T) * CHAR_BIT;
+            constexpr static inline size_t kBitsPerWord = sizeof(T) * CHAR_BIT;
 
             constexpr bool test(Index index) const {
                 verify_index(index);
@@ -78,9 +75,9 @@ namespace sm {
             }
 
         protected:
-            constexpr T get_mask(Index bit) const { return T(1) << (bit.as_integral() % kBitPerWord); }
-            constexpr size_t get_word(Index bit) const { return bit.as_integral() / kBitPerWord; }
-            constexpr size_t word_count() const { return (get_total_bits() / kBitPerWord) + 1; }
+            constexpr T get_mask(Index bit) const { return T(1) << (bit.as_integral() % kBitsPerWord); }
+            constexpr size_t get_word(Index bit) const { return bit.as_integral() / kBitsPerWord; }
+            constexpr size_t word_count() const { return (get_total_bits() / kBitsPerWord) + 1; }
 
             size_t m_size;
             sm::UniquePtr<T[]> m_bits;

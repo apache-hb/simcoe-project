@@ -5,7 +5,7 @@
 
 #include "base/panic.h"
 
-namespace math {
+namespace sm::math {
     template<typename T>
     constexpr inline T kPi = T(3.14159265358979323846264338327950288);
 
@@ -724,18 +724,18 @@ namespace math {
 
 namespace std {
     template<typename T>
-    struct tuple_size<math::Vec2<T>> : std::integral_constant<size_t, 2> { };
+    struct tuple_size<sm::math::Vec2<T>> : std::integral_constant<size_t, 2> { };
     template<typename T>
-    struct tuple_size<math::Vec3<T>> : std::integral_constant<size_t, 3> { };
+    struct tuple_size<sm::math::Vec3<T>> : std::integral_constant<size_t, 3> { };
     template<typename T>
-    struct tuple_size<math::Vec4<T>> : std::integral_constant<size_t, 4> { };
+    struct tuple_size<sm::math::Vec4<T>> : std::integral_constant<size_t, 4> { };
 
     template<size_t I, typename T>
-    struct tuple_element<I, math::Vec2<T>> { using type = T; };
+    struct tuple_element<I, sm::math::Vec2<T>> { using type = T; };
 
     template<size_t I, typename T>
-    struct tuple_element<I, math::Vec3<T>> { using type = T; };
+    struct tuple_element<I, sm::math::Vec3<T>> { using type = T; };
 
     template<size_t I, typename T>
-    struct tuple_element<I, math::Vec4<T>> { using type = T; };
+    struct tuple_element<I, sm::math::Vec4<T>> { using type = T; };
 }

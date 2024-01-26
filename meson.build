@@ -16,12 +16,31 @@ project('simcoe', [ 'c', 'cpp' ],
         'cthulhu:tool_reflect=enabled',
         'cthulhu:win32_trickery=enabled',
 
-        # ugh
-        'fmt:warning_level=0'
+        # configure harfbuzz and freetype2 to do our font rendering
+        'harfbuzz:tests=disabled',
+        'harfbuzz:freetype=enabled',
+
+        'freetype2:harfbuzz=disabled',
+        'freetype2:png=disabled',
+        'freetype2:zlib=disabled',
+        'freetype2:mac_fonts=disabled',
+        'freetype2:gx_var=disabled',
+        'freetype2:boring_expansion=disabled',
+        'freetype2:bdf=disabled',
+        'freetype2:streams=disabled',
+        'freetype2:environment=disabled',
+
+        # harfbuzz has some logic when building with c++11 that cause build issues
+        'harfbuzz:cpp_std=c++20',
+
+        # nobody builds with clean warnings, so disable them per subproject
+        'fmt:warning_level=0',
+        'harfbuzz:warning_level=0',
+        'freetype2:warning_level=0'
     ]
 )
 
-add_global_arguments('-D_HAS_EXCEPTIONS=0', '-DFMT_DISABLE_PRINT=1', language : 'cpp')
+add_project_arguments('-D_HAS_EXCEPTIONS=0', language : 'cpp')
 
 cpp = meson.get_compiler('cpp')
 
@@ -33,10 +52,20 @@ library_type = get_option('default_library')
 package_type = get_option('package_type')
 trace_time = get_option('trace_time')
 
+# the perfect library
 cthulhu = subproject('cthulhu')
+
+# font rendering
+freetype2 = dependency('freetype2')
+harfbuzz = dependency('harfbuzz')
+
+# windows specific dependencies
 agility = subproject('d3d12-agility')
 warp = subproject('d3d-warp')
 windows = import('windows')
+
+d3d12 = dependency('d3d12')
+d3dx12 = dependency('d3dx12')
 
 debug_render = get_option('debug_render').disable_auto_if(package_type == 'release')
 enable_agility = get_option('enable_agility').allowed()
@@ -159,16 +188,15 @@ subdir('src/vendor/fmtlib')
 subdir('src/common/core')
 subdir('src/common/logs')
 subdir('src/common/math')
+subdir('src/vendor/imgui')
+
 subdir('src/common/service')
+
 subdir('src/common/system')
 subdir('src/common/bundle')
 subdir('src/common/threads')
 
-subdir('src/vendor/imgui')
-
 subdir('src/common/rhi')
-
-# subdir('src/vendor/imgui')
 
 default_ico = custom_target('default_icon',
     input : [ 'data/assets/icon/icon_circle.png' ],
@@ -250,7 +278,7 @@ client = executable('client', 'src/client/src/main.cpp', shaders,
         '/manifest:embed', '/manifestinput:' + manifest
     ],
     dependencies : [
-        core, service, system, rhi, logs, threads,
+        core, system, rhi, logs, threads, imgui, service,
         cthulhu.get_variable('backtrace'),
         cthulhu.get_variable('format_core'),
         cthulhu.get_variable('io')

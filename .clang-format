@@ -22,14 +22,20 @@ BraceWrapping:
   AfterObjCDeclaration: true
   AfterStruct: false
   AfterUnion: false
-  AfterExternBlock: true
+  AfterExternBlock: false
   BeforeCatch: true
   BeforeElse: false
   BeforeLambdaBody: false
   BeforeWhile: false
   IndentBraces: false
-  SplitEmptyFunction: true
+  SplitEmptyFunction: false
   SplitEmptyRecord: true
   SplitEmptyNamespace: true
 AlwaysBreakTemplateDeclarations: true
+AllowShortFunctionsOnASingleLine: Empty
+IndentAccessModifiers: false
+AccessModifierOffset: -4
+BreakConstructorInitializers: BeforeComma
+PackConstructorInitializers: Never
+IndentExternBlock: Indent
 ...

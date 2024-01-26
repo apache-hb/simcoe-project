@@ -18,7 +18,7 @@ variant BundleVersion : uint16 {
 }
 
 [[layout(export)]]
-variant TextureFormat : uint8 {
+variant DataFormat : uint8 {
     [[format("bc7")]] case LINEAR_BC7 = 0
     [[format("bc7.sRGB")]] case SRGB_BC7 = 1
 }
@@ -42,6 +42,6 @@ struct Texture {
     name: string;
     width: uint16;
     height: uint16;
-    format: TextureFormat;
+    format: DataFormat;
     data: opaque("std::vector<uint8_t>");
 }
