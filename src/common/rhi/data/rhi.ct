@@ -2,6 +2,7 @@ module sm::rhi;
 
 import "logs/logs.hpp";
 import "system/window.hpp";
+import "math/math.hpp";
 
 import "<span>";
 

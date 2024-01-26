@@ -313,7 +313,10 @@ void FileMapping::reset() {
     header->used = 0;
 
     // reset the space bitmap
-    m_space.reset();
+    if (m_space.is_valid())
+        m_space.reset();
+    else
+        m_space.resize(get_public_size() / 8);
 
     init_alloc_info();
 }

@@ -15,13 +15,15 @@ namespace sm {
 
             constexpr BitMapStorage() = default;
 
-            constexpr BitMapStorage(size_t length) {
+            constexpr BitMapStorage(size_t length) : m_size(length) {
                 resize(length);
             }
 
             constexpr void resize(size_t length) {
-                m_size = length;
-                m_bits = sm::UniquePtr<T[]>(word_count() * sizeof(T));
+                if (length > m_size) {
+                    m_size = length;
+                    m_bits = sm::UniquePtr<T[]>(word_count());
+                }
                 reset();
             }
 
@@ -51,9 +53,11 @@ namespace sm {
                 return Index::eInvalid;
             }
 
+            constexpr bool is_valid() const { return m_bits.is_valid(); }
+
             constexpr void reset() {
-                CTASSERT(m_bits.is_valid());
-                std::memset(m_bits.get(), 0, word_count() * sizeof(T));
+                CTASSERT(is_valid());
+                std::memset(m_bits.get(), 0, word_count());
             }
 
             constexpr static inline size_t kBitsPerWord = sizeof(T) * CHAR_BIT;
@@ -79,8 +83,8 @@ namespace sm {
             constexpr size_t get_word(Index bit) const { return bit.as_integral() / kBitsPerWord; }
             constexpr size_t word_count() const { return (get_total_bits() / kBitsPerWord) + 1; }
 
-            size_t m_size;
-            sm::UniquePtr<T[]> m_bits;
+            size_t m_size = 0;
+            sm::UniquePtr<T[]> m_bits{};
 
             constexpr void verify_index(Index index) const {
                 CTASSERTF(index != Index::eInvalid, "invalid index");

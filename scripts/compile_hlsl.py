@@ -34,7 +34,7 @@ for target in targets.split(','):
     output_name = f'{output}.{target}.cso'
     args = [ dxc, '-T' + target_model, '-E' + entry, '-Fo' + output_name, '-WX', '-Ges' ]
     if debug:
-        args += [ '/Zi', '-DDEBUG=1', '/Fd', f'{build_dir}/' ]
+        args += [ '/Zi', '-DDEBUG=1', '/Fd', f'{build_dir}\\' ]
 
     args += [ file ]
 

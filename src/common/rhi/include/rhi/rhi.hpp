@@ -23,19 +23,18 @@
 /// * d3d12 device, swapchain, queues, lists, fences, heaps, etc.
 ///
 
+#define CBUFFER_ALIGN alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT)
+
 namespace sm::rhi {
     class Context;
     class Factory;
     class DescriptorHeap;
 
+    static inline constexpr math::float3 kUpVector = { 0.0f, 0.0f, 1.0f };
+    static inline constexpr math::float3 kForwardVector = { 0.0f, 1.0f, 0.0f };
+    static inline constexpr math::float3 kRightVector = { 1.0f, 0.0f, 0.0f };
+
     using RenderSink = logs::Sink<logs::Category::eRender>;
-
-    template<typename T>
-    static constexpr DXGI_FORMAT kDataType = DXGI_FORMAT_UNKNOWN;
-
-    template<> static constexpr DXGI_FORMAT kDataType<math::float2> = DXGI_FORMAT_R32G32_FLOAT;
-    template<> static constexpr DXGI_FORMAT kDataType<math::float3> = DXGI_FORMAT_R32G32B32_FLOAT;
-    template<> static constexpr DXGI_FORMAT kDataType<math::float4> = DXGI_FORMAT_R32G32B32A32_FLOAT;
 
     template<typename T>
     concept ComObject = std::is_base_of_v<IUnknown, T>;
@@ -88,17 +87,8 @@ namespace sm::rhi {
 
     using CommandList = Object<ID3D12GraphicsCommandList2>;
     using Device = Object<ID3D12Device1>;
-
-    class PipelineState {
-        friend class Context;
-
-        Object<ID3D12PipelineState> m_state;
-        Object<ID3D12RootSignature> m_signature;
-    };
-
-    class Resource {
-        Object<ID3D12Resource> m_resource;
-    };
+    using RootSignature = Object<ID3D12RootSignature>;
+    using PipelineState = Object<ID3D12PipelineState>;
 
     class Adapter : public Object<IDXGIAdapter1> {
         DXGI_ADAPTER_DESC1 m_desc;
@@ -177,6 +167,7 @@ namespace sm::rhi {
             return m_heap->GetCPUDescriptorHandleForHeapStart();
         }
 
+        void release_index(DescriptorIndex index);
         DescriptorIndex alloc_index();
         UINT get_descriptor_size() const { return m_descriptor_size; }
         ID3D12DescriptorHeap *get_heap() const { return m_heap.get(); }
@@ -199,12 +190,53 @@ namespace sm::rhi {
         void wait(UINT64 value);
 
     public:
+        SM_NOCOPY(CommandQueue)
+        CommandQueue() = default;
+
         ~CommandQueue() { if (m_event) CloseHandle(m_event); }
+    };
+
+    class ShaderPipeline {
+        friend class Context;
+
+        RootSignature m_signature;
+        PipelineState m_state;
+
+        ShaderPipeline() = default;
+
+        ShaderPipeline(RootSignature&& signature, PipelineState&& state)
+            : m_signature(std::move(signature))
+            , m_state(std::move(state))
+        {}
+
+        ShaderPipeline(ShaderPipeline&& other) noexcept
+            : m_signature(std::move(other.m_signature))
+            , m_state(std::move(other.m_state))
+        {}
+
+        ShaderPipeline& operator=(ShaderPipeline&& other) noexcept {
+            m_signature = std::move(other.m_signature);
+            m_state = std::move(other.m_state);
+            return *this;
+        }
+
+        ID3D12RootSignature *get_signature() const { return m_signature.get(); }
+        ID3D12PipelineState *get_state() const { return m_state.get(); }
+    };
+
+    class Resource {
+        Object<ID3D12Resource> m_resource;
+    };
+
+    struct CBUFFER_ALIGN CameraBuffer {
+        math::float4x4 model;
+        math::float4x4 view;
+        math::float4x4 projection;
     };
 
     struct Vertex {
         math::float3 position;
-        math::float4 colour;
+        math::float2 uv;
     };
 
     class Context {
@@ -214,6 +246,7 @@ namespace sm::rhi {
         Factory& m_factory;
         Adapter& m_adapter;
 
+        RootSignatureVersion m_version = RootSignatureVersion::eVersion_1_0;
         Device m_device;
         Object<ID3D12Debug> m_debug;
         Object<ID3D12InfoQueue1> m_info_queue;
@@ -221,7 +254,7 @@ namespace sm::rhi {
 
         CommandQueue m_direct_queue;
         CommandQueue m_copy_queue;
-        UINT64 m_copy_value = 0;
+        UINT64 m_copy_value = 1;
 
         Object<ID3D12GraphicsCommandList2> m_commands;
         Object<IDXGISwapChain4> m_swapchain;
@@ -241,16 +274,30 @@ namespace sm::rhi {
         D3D12_RECT m_scissor;
 
         // pipeline
-        Object<ID3D12PipelineState> m_state;
-        Object<ID3D12RootSignature> m_signature;
+        ShaderPipeline m_pipeline;
 
         // gpu resources
         Object<ID3D12Resource> m_vbo;
         D3D12_VERTEX_BUFFER_VIEW m_vbo_view;
 
+        Object<ID3D12Resource> m_ibo;
+        D3D12_INDEX_BUFFER_VIEW m_ibo_view;
+
+        DescriptorIndex m_texture_index;
+        Object<ID3D12Resource> m_texture;
+
+        DescriptorIndex m_camera_index;
+        CameraBuffer m_camera;
+        CameraBuffer *m_camera_data = nullptr;
+        Object<ID3D12Resource> m_camera_resource;
+
+        void setup_camera();
+
         static void info_callback(D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID id, LPCSTR desc, void *user);
 
         void init();
+
+        void query_root_signature_version();
 
         void setup_device();
         void setup_pipeline();
@@ -260,10 +307,15 @@ namespace sm::rhi {
 
         // setup assets that only depend on the device
         void setup_device_assets();
+        RootSignature create_root_signature() const;
+        PipelineState create_shader_pipeline(RootSignature& root_signature) const;
 
         // setup assets that depend on the swapchain resolution
+        void update_camera();
+
         void setup_display_assets();
 
+        void open_commands(ID3D12PipelineState *pipeline);
         void record_commands();
         void finish_commands();
         void submit_commands();
@@ -291,6 +343,9 @@ namespace sm::rhi {
 
         void begin_frame();
         void end_frame();
+
+        void begin_copy();
+        void submit_copy();
 
         void present();
     };

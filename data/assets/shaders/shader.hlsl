@@ -1,15 +1,31 @@
 struct Input {
     float4 position : SV_POSITION;
-    float4 colour : COLOUR;
+    float2 uv : TEXCOORD;
 };
 
-Input vs_main(float4 position : POSITION, float4 colour : COLOUR) {
+cbuffer CameraBuffer : register(b0) {
+    float4x4 model;
+    float4x4 view;
+    float4x4 projection;
+};
+
+Texture2D gTexture : register(t0);
+SamplerState gSampler : register(s0);
+
+float4 camera(float3 position) {
+    float4 result = mul(float4(position, 1.f), model);
+    result = mul(result, view);
+    result = mul(result, projection);
+    return result;
+}
+
+Input vs_main(float3 position : POSITION, float2 uv : TEXCOORD) {
     Input output;
-    output.position = position;
-    output.colour = colour;
+    output.position = camera(position);
+    output.uv = uv;
     return output;
 }
 
 float4 ps_main(Input input) : SV_TARGET {
-    return input.colour;
+    return gTexture.Sample(gSampler, input.uv);
 }

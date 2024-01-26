@@ -47,6 +47,7 @@ cpp = meson.get_compiler('cpp')
 version = meson.project_version()
 parts = version.split('.')
 build_type = get_option('buildtype')
+is_debug = build_type.contains('debug')
 library_type = get_option('default_library')
 
 package_type = get_option('package_type')
@@ -75,9 +76,13 @@ convert_utf16 = find_program('scripts/convert_utf16.py')
 
 # TODO: move off this as soon as possible
 compile_hlsl = find_program('scripts/compile_hlsl.py')
+extra_hlsl_args = []
+if is_debug
+    extra_hlsl_args += [ '--debug' ]
+endif
 hlsl = generator(compile_hlsl,
     output : [ '@BASENAME@.vs.cso', '@BASENAME@.ps.cso' ],
-    arguments : [ '@INPUT@', '@BUILD_DIR@/@BASENAME@', '@BUILD_DIR@', 'vs,ps', '5_0' ]
+    arguments : [ '@INPUT@', '@BUILD_DIR@/@BASENAME@', '@BUILD_DIR@', 'vs,ps', '5_0' ] + extra_hlsl_args
 )
 
 reflect_include = cthulhu.get_variable('reflect_include')

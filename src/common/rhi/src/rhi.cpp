@@ -7,6 +7,7 @@
 #include "d3dx12/d3dx12_barriers.h"
 #include "d3dx12/d3dx12_core.h"
 #include "d3dx12/d3dx12_root_signature.h"
+#include "d3dx12/d3dx12_resource_helpers.h"
 
 using namespace sm;
 using namespace sm::rhi;
@@ -24,12 +25,6 @@ extern "C" {
     DLLEXPORT extern const UINT D3D12SDKVersion = 611;        // NOLINT
     DLLEXPORT extern const char *D3D12SDKPath = ".\\D3D12\\"; // NOLINT
 }
-#endif
-
-#if SMC_RENDER_DEBUG
-#   define SM_RENAME_OBJECT(obj) obj.rename(#obj)
-#else
-#   define SM_RENAME_OBJECT(obj) ((void)0)
 #endif
 
 static char *hr_string(HRESULT hr) {
@@ -77,6 +72,11 @@ void DescriptorHeap::init(ID3D12Device1 *device, D3D12_DESCRIPTOR_HEAP_TYPE type
     SM_ASSERT_HR(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_heap)));
 
     m_descriptor_size = device->GetDescriptorHandleIncrementSize(type);
+}
+
+void DescriptorHeap::release_index(DescriptorIndex index) {
+    CTASSERTF(m_slots.test(index), "descriptor heap index %zu is already free", index.as_integral());
+    m_slots.clear(index);
 }
 
 DescriptorIndex DescriptorHeap::alloc_index() {
@@ -186,8 +186,6 @@ void Context::setup_device() {
 
     SM_ASSERT_HR(D3D12CreateDevice(m_adapter.get(), fl.as_facade(), IID_PPV_ARGS(&m_device)));
 
-    SM_RENAME_OBJECT(m_device);
-
     m_log.info("created d3d12 device");
 
     if (debug_queue) {
@@ -199,6 +197,8 @@ void Context::setup_device() {
             m_log.error("failed to create d3d12 info queue: {}", hr_string(hr));
         }
     }
+
+    query_root_signature_version();
 }
 
 void Context::setup_render_targets() {
@@ -228,12 +228,12 @@ void Context::setup_copy_queue() {
 
     m_copy_queue.init(m_device.get(), kQueueType, "copy_queue");
 
-    SM_ASSERT_HR(m_device->CreateCommandAllocator(kQueueType,
-                                                  IID_PPV_ARGS(&m_copy_allocator)));
+    SM_ASSERT_HR(m_device->CreateCommandAllocator(kQueueType, IID_PPV_ARGS(&m_copy_allocator)));
 
-    SM_ASSERT_HR(m_device->CreateCommandList(0, kQueueType,
-                                             m_copy_allocator.get(), nullptr,
+    SM_ASSERT_HR(m_device->CreateCommandList(0, kQueueType, m_copy_allocator.get(), nullptr,
                                              IID_PPV_ARGS(&m_copy_commands)));
+
+    SM_ASSERT_HR(m_copy_commands->Close());
 }
 
 void Context::setup_pipeline() {
@@ -265,8 +265,8 @@ void Context::setup_pipeline() {
     auto &factory = m_factory.m_factory;
 
     Object<IDXGISwapChain1> swapchain;
-    SM_ASSERT_HR(factory->CreateSwapChainForHwnd(m_direct_queue.get(), hwnd, &kSwapChainDesc, nullptr,
-                                                 nullptr, &swapchain));
+    SM_ASSERT_HR(factory->CreateSwapChainForHwnd(m_direct_queue.get(), hwnd, &kSwapChainDesc,
+                                                 nullptr, nullptr, &swapchain));
     SM_ASSERT_HR(factory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER));
     SM_ASSERT_HR(swapchain.query(&m_swapchain));
 
@@ -311,6 +311,8 @@ void Context::init() {
     setup_pipeline();
     setup_copy_queue();
     setup_device_assets();
+    setup_camera();
+    setup_display_assets();
 }
 
 static std::vector<uint8_t> load_shader(const char *file) {
@@ -333,23 +335,56 @@ static std::vector<uint8_t> load_shader(const char *file) {
     return result;
 }
 
-void Context::setup_device_assets() {
-    auto &config = get_config();
+void Context::query_root_signature_version() {
+    D3D12_FEATURE_DATA_ROOT_SIGNATURE feature{D3D_ROOT_SIGNATURE_VERSION_1_1};
+    if (FAILED(m_device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &feature,
+                                             sizeof(feature)))) {
+        m_version = RootSignatureVersion::eVersion_1_0;
+    } else {
+        m_version = feature.HighestVersion;
+    }
+}
 
-    SM_UNUSED constexpr auto v_refl = ctu::reflect<RootSignatureVersion>();
-    RootSignatureVersion version = RootSignatureVersion::eVersion_1_0;
-    CTASSERTF(version.is_valid(), "invalid pipeline state version %s",
-              v_refl.to_string(version, 2).data());
+RootSignature Context::create_root_signature() const {
+    RootSignature root_signature;
 
-    Object<ID3D12RootSignature> root_signature;
-    Object<ID3D12PipelineState> pipeline_state;
+    CD3DX12_DESCRIPTOR_RANGE1 srv_ranges[1];
+    srv_ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
-    CD3DX12_ROOT_SIGNATURE_DESC rsd;
-    rsd.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    CD3DX12_DESCRIPTOR_RANGE1 cbv_ranges[1];
+    cbv_ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+
+    CD3DX12_ROOT_PARAMETER1 params[2];
+    params[0].InitAsDescriptorTable(std::size(srv_ranges), srv_ranges, D3D12_SHADER_VISIBILITY_PIXEL);
+    params[1].InitAsDescriptorTable(std::size(cbv_ranges), cbv_ranges, D3D12_SHADER_VISIBILITY_VERTEX);
+
+    const D3D12_STATIC_SAMPLER_DESC kSampler {
+        .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+        .AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+        .AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+        .AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+        .MipLODBias = 0.0f,
+        .MaxAnisotropy = 0,
+        .ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
+        .BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
+        .MinLOD = 0.0f,
+        .MaxLOD = D3D12_FLOAT32_MAX,
+        .ShaderRegister = 0,
+        .RegisterSpace = 0,
+        .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL,
+    };
+
+    constexpr D3D12_ROOT_SIGNATURE_FLAGS kRootFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
+                                                    | D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS
+                                                    | D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS
+                                                    | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+
+    CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rsd;
+    rsd.Init_1_1(std::size(params), params, 1, &kSampler, kRootFlags);
 
     Object<ID3DBlob> signature;
     Object<ID3DBlob> error;
-    if (HRESULT hr = D3D12SerializeRootSignature(&rsd, version.as_facade(), &signature, &error);
+    if (HRESULT hr = D3DX12SerializeVersionedRootSignature(&rsd, m_version.as_facade(), &signature, &error);
         FAILED(hr)) {
         m_log.error("failed to serialize root signature: {}", hr_string(hr));
         std::string_view err{(char *)error->GetBufferPointer(), error->GetBufferSize()};
@@ -361,10 +396,17 @@ void Context::setup_device_assets() {
                                                signature->GetBufferSize(),
                                                IID_PPV_ARGS(&root_signature)));
 
+    return root_signature;
+}
+
+PipelineState Context::create_shader_pipeline(RootSignature& root_signature) const {
+    auto &config = get_config();
+
+    PipelineState pipeline_state;
     constexpr D3D12_INPUT_ELEMENT_DESC kInputElements[] = {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Vertex, position),
          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-        {"COLOUR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(Vertex, colour),
+        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(Vertex, uv),
          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
     };
 
@@ -389,13 +431,57 @@ void Context::setup_device_assets() {
     SM_ASSERT_HR(
         m_device->CreateGraphicsPipelineState(&kPipelineDesc, IID_PPV_ARGS(&pipeline_state)));
 
-    m_state = std::move(pipeline_state);
-    m_signature = std::move(root_signature);
+    return pipeline_state;
+}
 
-    setup_display_assets();
+void Context::setup_device_assets() {
+    auto signature = create_root_signature();
+    auto pipeline = create_shader_pipeline(signature);
+
+    m_pipeline = ShaderPipeline{std::move(signature), std::move(pipeline)};
+}
+
+void Context::setup_camera() {
+    m_camera.model = math::float4x4::identity();
+    m_camera.view = math::float4x4::identity();
+    m_camera.projection = math::float4x4::identity();
+
+    constexpr UINT kBufferSize = sizeof(CameraBuffer);
+    const CD3DX12_HEAP_PROPERTIES kUploadHeapProperties{D3D12_HEAP_TYPE_UPLOAD};
+    const CD3DX12_RESOURCE_DESC kBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kBufferSize);
+
+    SM_ASSERT_HR(m_device->CreateCommittedResource(
+        &kUploadHeapProperties,
+        D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
+        &kBufferDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&m_camera_resource)
+    ));
+
+    const D3D12_CONSTANT_BUFFER_VIEW_DESC kViewDesc {
+        .BufferLocation = m_camera_resource->GetGPUVirtualAddress(),
+        .SizeInBytes = kBufferSize,
+    };
+
+    m_camera_index = m_srv_heap.alloc_index();
+    m_device->CreateConstantBufferView(&kViewDesc, m_srv_heap.get_cpu_handle(m_camera_index));
+
+    CD3DX12_RANGE read_range{0,0};
+    SM_ASSERT_HR(m_camera_resource->Map(0, &read_range, reinterpret_cast<void **>(&m_camera_data)));
+}
+
+void Context::update_camera() {
+    float aspect = get_aspect_ratio();
+    m_camera.view = math::float4x4::lookAtRH({1.0f, 1.0f, 1.0f}, {0.1f, 0.1f, 0.1f}, kUpVector).transpose();
+    m_camera.projection = math::float4x4::perspectiveRH(60.0f, aspect, 0.1f, 100.0f).transpose();
+    *m_camera_data = m_camera;
 }
 
 void Context::setup_display_assets() {
+    begin_copy();
+    open_commands(nullptr);
+
     m_viewport = {
         .TopLeftX = 0.0f,
         .TopLeftY = 0.0f,
@@ -412,48 +498,212 @@ void Context::setup_display_assets() {
         .bottom = LONG(m_swapchain_size.height),
     };
 
+    const CD3DX12_HEAP_PROPERTIES kDefaultHeapProperties{D3D12_HEAP_TYPE_DEFAULT};
+    const CD3DX12_HEAP_PROPERTIES kUploadHeapProperties{D3D12_HEAP_TYPE_UPLOAD};
+
+    // create and upload texture
+
+    constexpr size_t kTextureWidth = 2;
+    constexpr size_t kTextureHeight = 2;
+    constexpr size_t kPixelSize = sizeof(math::uint8x4);
+
+    constexpr math::uint8x4 kTextureData[kTextureWidth * kTextureHeight] = {
+        {255, 0, 0, 255},
+        {0, 255, 0, 255},
+        {0, 0, 255, 255},
+        {255, 255, 255, 255},
+    };
+
+    Object<ID3D12Resource> texture_upload;
+
+    const D3D12_RESOURCE_DESC kTextureDesc {
+        .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+        .Width = kTextureWidth,
+        .Height = kTextureHeight,
+        .DepthOrArraySize = 1,
+        .MipLevels = 1,
+        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+        .SampleDesc = {1, 0},
+        .Flags = D3D12_RESOURCE_FLAG_NONE,
+    };
+
+    SM_ASSERT_HR(m_device->CreateCommittedResource(
+        &kDefaultHeapProperties,
+        D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
+        &kTextureDesc,
+        D3D12_RESOURCE_STATE_COPY_DEST,
+        nullptr,
+        IID_PPV_ARGS(&m_texture)
+    ));
+
+    const UINT64 kUploadSize = GetRequiredIntermediateSize(m_texture.get(), 0, 1);
+    const CD3DX12_RESOURCE_DESC kUploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kUploadSize);
+
+    SM_ASSERT_HR(m_device->CreateCommittedResource(
+        &kUploadHeapProperties,
+        D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
+        &kUploadBufferDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&texture_upload)
+    ));
+
+    constexpr size_t kRowPitch = kTextureWidth * kPixelSize;
+    constexpr size_t kSlicePitch = kRowPitch * kTextureHeight;
+
+    const D3D12_SUBRESOURCE_DATA kTextureInfo {
+        .pData = kTextureData,
+        .RowPitch = kRowPitch,
+        .SlicePitch = kSlicePitch,
+    };
+
+    UpdateSubresources<4>(m_copy_commands.get(), m_texture.get(), texture_upload.get(), 0, 0, 1, &kTextureInfo);
+
+    const CD3DX12_RESOURCE_BARRIER kIntoTexture = CD3DX12_RESOURCE_BARRIER::Transition(
+        m_texture.get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+    m_commands->ResourceBarrier(1, &kIntoTexture);
+
+    const D3D12_SHADER_RESOURCE_VIEW_DESC kViewDesc {
+        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+        .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
+        .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+        .Texture2D = {
+            .MipLevels = 1
+        },
+    };
+
+    if (m_texture_index == DescriptorIndex::eInvalid)
+        m_texture_index = m_srv_heap.alloc_index();
+
+    m_log.info("texture index: {}", m_texture_index.as_integral());
+
+    m_device->CreateShaderResourceView(m_texture.get(), &kViewDesc, m_srv_heap.get_cpu_handle(m_texture_index));
+
+    // create ibo
+    constexpr uint16_t kIndexData[] = {0, 1, 2, 2, 1, 3};
+    constexpr UINT kIboSize = sizeof(kIndexData);
+    const CD3DX12_RESOURCE_DESC kIndexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kIboSize);
+
+    m_ibo.try_release();
+    Object<ID3D12Resource> ibo_upload;
+
+    SM_ASSERT_HR(m_device->CreateCommittedResource(
+        &kDefaultHeapProperties,
+        D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
+        &kIndexBufferDesc,
+        D3D12_RESOURCE_STATE_COMMON,
+        nullptr,
+        IID_PPV_ARGS(&m_ibo)
+    ));
+
+    SM_ASSERT_HR(m_device->CreateCommittedResource(
+        &kUploadHeapProperties,
+        D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
+        &kIndexBufferDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&ibo_upload)
+    ));
+
+    UINT8 *ibo_data;
+    CD3DX12_RANGE read_range{0,0};
+    SM_ASSERT_HR(ibo_upload->Map(0, &read_range, reinterpret_cast<void **>(&ibo_data)));
+    memcpy(ibo_data, kIndexData, kIboSize);
+    ibo_upload->Unmap(0, nullptr);
+
+    const CD3DX12_RESOURCE_BARRIER kIntoIbo = CD3DX12_RESOURCE_BARRIER::Transition(
+        m_ibo.get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_INDEX_BUFFER);
+
+    m_copy_commands->CopyBufferRegion(m_ibo.get(), 0, ibo_upload.get(), 0, kIboSize);
+    m_commands->ResourceBarrier(1, &kIntoIbo);
+
+    m_ibo_view = {
+        .BufferLocation = m_ibo->GetGPUVirtualAddress(),
+        .SizeInBytes = kIboSize,
+        .Format = DXGI_FORMAT_R16_UINT,
+    };
+
     // create vbo
-    float aspect = get_aspect_ratio();
-    const Vertex kVertexData[] = {
-        {{0.0f, 0.25f * aspect, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
-        {{0.25f, -0.25f * aspect, 0.0f}, {0.0f, 1.0f, 0.0f, 1.0f}},
-        {{-0.25f, -0.25f * aspect, 0.0f}, {0.0f, 0.0f, 1.0f, 1.0f}},
+    constexpr Vertex kVertexData[] = {
+        {{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f}},
+        {{-0.5f, 0.5f, 0.0f}, {0.0f, 1.0f}},
+        {{0.5f, -0.5f, 0.0f}, {1.0f, 0.0f}},
+        {{0.5f, 0.5f, 0.0f}, {1.0f, 1.0f}},
     };
 
     constexpr UINT kVboSize = sizeof(kVertexData);
 
-    const CD3DX12_HEAP_PROPERTIES kUploadHeapProperties(D3D12_HEAP_TYPE_UPLOAD);
-    const CD3DX12_RESOURCE_DESC kUploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kVboSize);
+    const CD3DX12_RESOURCE_DESC kVertexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kVboSize);
 
+    // upload vbo data
     m_vbo.try_release();
+    Object<ID3D12Resource> vbo_upload;
 
     SM_ASSERT_HR(m_device->CreateCommittedResource(
-        &kUploadHeapProperties, D3D12_HEAP_FLAG_NONE, &kUploadBufferDesc,
-        D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_vbo)));
+        &kDefaultHeapProperties,
+        D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
+        &kVertexBufferDesc,
+        D3D12_RESOURCE_STATE_COMMON,
+        nullptr,
+        IID_PPV_ARGS(&m_vbo)
+    ));
+
+    SM_ASSERT_HR(m_device->CreateCommittedResource(
+        &kUploadHeapProperties,
+        D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
+        &kVertexBufferDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&vbo_upload)
+    ));
 
     UINT8 *vbo_data;
-    CD3DX12_RANGE read_range(0, 0);
-    SM_ASSERT_HR(m_vbo->Map(0, &read_range, reinterpret_cast<void **>(&vbo_data)));
+    SM_ASSERT_HR(vbo_upload->Map(0, &read_range, reinterpret_cast<void **>(&vbo_data)));
     memcpy(vbo_data, kVertexData, kVboSize);
-    m_vbo->Unmap(0, nullptr);
+    vbo_upload->Unmap(0, nullptr);
+
+    const CD3DX12_RESOURCE_BARRIER kIntoBuffer = CD3DX12_RESOURCE_BARRIER::Transition(
+        m_vbo.get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+
+    m_copy_commands->CopyBufferRegion(m_vbo.get(), 0, vbo_upload.get(), 0, kVboSize);
+    m_commands->ResourceBarrier(1, &kIntoBuffer);
 
     m_vbo_view = {
         .BufferLocation = m_vbo->GetGPUVirtualAddress(),
         .SizeInBytes = kVboSize,
         .StrideInBytes = sizeof(Vertex),
     };
+
+    submit_copy();
+    await_copy_queue();
+
+    SM_ASSERT_HR(m_commands->Close());
+    submit_commands();
+    await_direct_queue();
 }
 
-void Context::record_commands() {
+void Context::open_commands(ID3D12PipelineState *pipeline) {
     auto &[backbuffer, allocator, _] = m_frames[m_frame_index];
     SM_ASSERT_HR(allocator->Reset());
 
-    SM_ASSERT_HR(m_commands->Reset(allocator.get(), m_state.get()));
+    SM_ASSERT_HR(m_commands->Reset(allocator.get(), pipeline));
+}
+
+void Context::record_commands() {
+    update_camera();
+
+    open_commands(m_pipeline.get_state());
+    auto &[backbuffer, allocator, _] = m_frames[m_frame_index];
 
     ID3D12DescriptorHeap *heaps[] = {m_srv_heap.get_heap()};
-
     m_commands->SetDescriptorHeaps(std::size(heaps), heaps);
-    m_commands->SetGraphicsRootSignature(m_signature.get());
+
+    m_commands->SetGraphicsRootSignature(m_pipeline.get_signature());
+
+    // use 2 tables in case the indices are not contiguous
+    m_commands->SetGraphicsRootDescriptorTable(0, m_srv_heap.get_gpu_handle(m_texture_index));
+    m_commands->SetGraphicsRootDescriptorTable(1, m_srv_heap.get_gpu_handle(m_camera_index));
     m_commands->RSSetViewports(1, &m_viewport);
     m_commands->RSSetScissorRects(1, &m_scissor);
 
@@ -471,7 +721,8 @@ void Context::record_commands() {
 
     m_commands->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commands->IASetVertexBuffers(0, 1, &m_vbo_view);
-    m_commands->DrawInstanced(3, 1, 0, 0);
+    m_commands->IASetIndexBuffer(&m_ibo_view);
+    m_commands->DrawIndexedInstanced(6, 1, 0, 0, 0);
 }
 
 void Context::finish_commands() {
@@ -531,7 +782,7 @@ void Context::resize(math::uint2 size) {
     m_swapchain_size = size.as<uint32_t>();
 
     setup_render_targets();
-    setup_display_assets();
+    update_camera();
 }
 
 void Context::begin_frame() {
@@ -546,6 +797,18 @@ void Context::end_frame() {
 void Context::present() {
     SM_ASSERT_HR(m_swapchain->Present(1, 0));
     await_direct_queue();
+}
+
+void Context::begin_copy() {
+    SM_ASSERT_HR(m_copy_allocator->Reset());
+    SM_ASSERT_HR(m_copy_commands->Reset(m_copy_allocator.get(), nullptr));
+}
+
+void Context::submit_copy() {
+    SM_ASSERT_HR(m_copy_commands->Close());
+
+    ID3D12CommandList *commands[] = {m_copy_commands.get()};
+    m_copy_queue.execute_commands(commands, std::size(commands));
 }
 
 void Factory::enum_adapters() {
