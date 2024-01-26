@@ -1,10 +1,10 @@
 #pragma once
 
+#include <simcoe_config.h>
+
 #include "base/panic.h" // IWYU pragma: keep
 
 #include "core/macros.hpp"
-
-#include <simcoe_config.h>
 
 namespace sm {
     template<typename T, typename TDelete, T TEmpty = T()>
@@ -45,7 +45,6 @@ namespace sm {
         constexpr T& get() noexcept { CTASSERT(is_valid()); return m_handle; }
         constexpr const T& get() const noexcept { CTASSERT(is_valid()); return m_handle; }
         constexpr explicit operator bool() const noexcept { return m_handle != TEmpty; }
-        constexpr operator T() const noexcept { return m_handle; }
 
         constexpr bool is_valid() const noexcept { return m_handle != TEmpty; }
 

@@ -207,12 +207,7 @@ namespace sm::rhi {
         ShaderPipeline(RootSignature&& signature, PipelineState&& state)
             : m_signature(std::move(signature))
             , m_state(std::move(state))
-        {}
-
-        ShaderPipeline(ShaderPipeline&& other) noexcept
-            : m_signature(std::move(other.m_signature))
-            , m_state(std::move(other.m_state))
-        {}
+        { }
 
         ShaderPipeline& operator=(ShaderPipeline&& other) noexcept {
             m_signature = std::move(other.m_signature);
@@ -226,6 +221,15 @@ namespace sm::rhi {
 
     class Resource {
         Object<ID3D12Resource> m_resource;
+
+    protected:
+        Resource() = default;
+        Resource(Object<ID3D12Resource>&& resource) : m_resource(std::move(resource)) { }
+    };
+
+    template<typename T>
+    class ConstBufferResource : public Resource {
+
     };
 
     struct CBUFFER_ALIGN CameraBuffer {

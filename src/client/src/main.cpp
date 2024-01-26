@@ -240,7 +240,7 @@ struct System {
 
 static DefaultArena gGlobalArena{"default"};
 static DefaultSystemError gDefaultError{&gGlobalArena};
-static ConsoleLog gConsoleLog{logs::Severity::eTrace};
+static ConsoleLog gConsoleLog{logs::Severity::eInfo};
 
 static void common_init(void) {
     bt_init();

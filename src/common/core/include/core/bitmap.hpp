@@ -24,6 +24,7 @@ namespace sm {
                     m_size = length;
                     m_bits = sm::UniquePtr<T[]>(word_count());
                 }
+
                 reset();
             }
 

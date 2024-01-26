@@ -1,7 +1,6 @@
 #pragma once
 
 #include "core/macros.h" // IWYU pragma: export
-#include "core/compiler.h"
 
 #define SM_UNUSED [[maybe_unused]]
 
