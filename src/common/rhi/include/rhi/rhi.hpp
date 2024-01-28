@@ -152,19 +152,17 @@ namespace sm::rhi {
         SM_NOMOVE(DescriptorHeap)
 
         D3D12_GPU_DESCRIPTOR_HANDLE get_gpu_handle(DescriptorIndex index) const {
-            CTASSERT(m_heap.is_valid());
             CTASSERT(index != DescriptorIndex::eInvalid);
 
-            D3D12_GPU_DESCRIPTOR_HANDLE handle = m_heap->GetGPUDescriptorHandleForHeapStart();
+            D3D12_GPU_DESCRIPTOR_HANDLE handle = get_gpu_front();
             handle.ptr += index * m_descriptor_size;
             return handle;
         }
 
         D3D12_CPU_DESCRIPTOR_HANDLE get_cpu_handle(DescriptorIndex index) const {
-            CTASSERT(m_heap.is_valid());
             CTASSERT(index != DescriptorIndex::eInvalid);
 
-            D3D12_CPU_DESCRIPTOR_HANDLE handle = m_heap->GetCPUDescriptorHandleForHeapStart();
+            D3D12_CPU_DESCRIPTOR_HANDLE handle = get_cpu_front();
             handle.ptr += index * m_descriptor_size;
             return handle;
         }
@@ -301,7 +299,7 @@ namespace sm::rhi {
         Object<ID3D12Resource> m_ibo;
         D3D12_INDEX_BUFFER_VIEW m_ibo_view;
 
-        DescriptorIndex m_texture_index;
+        DescriptorIndex m_texture_index = DescriptorIndex::eInvalid;
         Object<ID3D12Resource> m_texture;
 
         DescriptorIndex m_camera_index;

@@ -714,7 +714,7 @@ void Context::record_commands() {
 
     m_commands->ResourceBarrier(1, &into_rtv);
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle{m_rtv_heap.get_cpu_handle(rtv_index)};
+    auto rtv_handle = m_rtv_heap.get_cpu_handle(rtv_index);
 
     m_commands->OMSetRenderTargets(1, &rtv_handle, FALSE, nullptr);
 
