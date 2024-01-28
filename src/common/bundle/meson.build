@@ -5,7 +5,7 @@ src = [
     reflect.process('data/bundle.ct')
 ]
 
-deps = [ core, logs, system ]
+deps = [ core, logs ]
 
 libbundle = library('bundle', src,
     cpp_args : [ '-DSM_BUNDLE_BUILD=1' ],
@@ -15,6 +15,6 @@ libbundle = library('bundle', src,
 
 bundle = declare_dependency(
     link_with : libbundle,
-    include_directories : [ libbundle.private_dir_include() ],
+    include_directories : [ bundle_include, libbundle.private_dir_include() ],
     dependencies : deps
 )

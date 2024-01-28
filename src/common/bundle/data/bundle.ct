@@ -9,6 +9,8 @@ variant AssetType : uint16 {
     [[format("texture")]] case Texture = 2
     [[format("mesh")]] case Mesh = 3
     [[format("anim")]] case Animation = 4
+    [[format("font")]] case Font = 5
+    [[format("license")]] case Legal = 6
 }
 
 [[layout(export)]]
@@ -18,16 +20,37 @@ variant BundleVersion : uint16 {
 }
 
 [[layout(export)]]
-variant DataFormat : uint8 {
-    [[format("bc7")]] case LINEAR_BC7 = 0
-    [[format("bc7.sRGB")]] case SRGB_BC7 = 1
+variant DataFormat : uint16 {
+    [[format("unknown")]]
+    default UNKNOWN = 0
+
+    [[format("rgb32/float")]]
+    case RGB32_FLOAT = 1
+
+    [[format("rgba32/float")]]
+    case RGBA32_FLOAT = 2
+
+    [[format("bc7/typeless")]]
+    case BC7_TYPELESS = 3
+
+    [[format("bc7/unorm")]]
+    case BC7_UNORM = 4
+
+    [[format("bc7/srgb")]]
+    case BC7_SRGB = 5
+
+    [[format("rgba8/unorm")]]
+    case RGBA8_UNORM = 6
+
+    [[format("rgba8/uint")]]
+    case RGBA8_UINT = 7
 }
 
 [[layout(export)]]
 struct Bundle {
-    magic: uint32;
+    magic: uint32; // 'BNDL'
     checksum: uint32;
-    version: uint16;
+    version: BundleVersion;
 }
 
 [[layout(export)]]

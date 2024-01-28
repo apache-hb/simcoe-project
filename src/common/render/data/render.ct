@@ -1,2 +1,32 @@
 module sm::render;
 
+import "system/window.hpp";
+import "logs/logs.hpp";
+import "bundle/bundle.hpp";
+
+using Window = opaque("sm::sys::Window")
+using ILogger = opaque("sm::logs::ILogger")
+using DataFormat = opaque("sm::bundle::DataFormat")
+
+struct RenderConfig {
+    dsv_heap_size: uint32;
+    rtv_heap_size: uint32;
+    cbv_heap_size: uint32;
+
+    swapchain_length: uint32;
+    swapchain_format: DataFormat;
+
+    [[transient]] window: &Window;
+    [[transient]] logger: &ILogger;
+}
+
+[[iterator]]
+variant ResourceIndex : usize {
+    default Invalid = opaque(SIZE_MAX)
+}
+
+variant BindingType {
+    default Invalid = 0
+    case ShaderResource = 1
+    case RenderTarget = 2
+}

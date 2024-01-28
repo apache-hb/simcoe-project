@@ -23,11 +23,14 @@
 #include "imgui/backends/imgui_impl_win32.h"
 #include "imgui/backends/imgui_impl_dx12.h"
 
+#include "render/render.hpp"
+
 #include <iterator>
 
 using namespace sm;
 
 using FormatBuffer = fmt::basic_memory_buffer<char, 256, sm::StandardArena<char>>;
+using GlobalSink = logs::Sink<logs::Category::eGlobal>;
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -206,15 +209,15 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     sys::WindowPlacement *m_placement = nullptr;
     sys::RecordLookup m_lookup;
 
-    rhi::Context *m_context = nullptr;
+    rhi::Device *m_device = nullptr;
 
     LRESULT event(sys::Window& window, UINT message, WPARAM wparam, LPARAM lparam) override {
         return ImGui_ImplWin32_WndProcHandler(window.get_handle(), message, wparam, lparam);
     }
 
     void resize(sys::Window&, math::int2 size) override {
-        if (m_context != nullptr)
-            m_context->resize(size.as<uint32_t>());
+        if (m_device != nullptr)
+            m_device->resize(size.as<uint32_t>());
     }
 
     void create(sys::Window& window) override {
@@ -236,8 +239,8 @@ public:
         : m_store(store)
     { }
 
-    void attach_render(rhi::Context *context) {
-        m_context = context;
+    void attach_render(rhi::Device *device) {
+        m_device = device;
     }
 };
 
@@ -271,7 +274,7 @@ static void common_init(void) {
 }
 
 static int common_main(sys::ShowWindow show) {
-    logs::Sink<logs::Category::eGlobal> general { gConsoleLog };
+    GlobalSink general { gConsoleLog };
     general.info("SMC_DEBUG = {}", SMC_DEBUG);
     general.info("CTU_DEBUG = {}", CTU_DEBUG);
 
@@ -326,13 +329,24 @@ static int common_main(sys::ShowWindow show) {
 
     constexpr unsigned kBufferCount = 2;
 
-    rhi::RenderConfig render_config = {
+    render::RenderConfig render_config = {
+        .dsv_heap_size = 8,
+        .rtv_heap_size = 8,
+        .cbv_heap_size = 256,
+
+        .swapchain_length = kBufferCount,
+        .swapchain_format = bundle::DataFormat::eRGBA8_UNORM,
+        .window = window,
+        .logger = gConsoleLog,
+    };
+
+    rhi::RenderConfig rhi_config = {
         .debug_flags = rhi::DebugFlags::mask(),
 
         .buffer_count = kBufferCount,
-        .buffer_format = rhi::DataFormat::eR8G8B8A8_UNORM,
+        .buffer_format = bundle::DataFormat::eRGBA8_UNORM,
 
-        .dsv_heap_size = 256,
+        .dsv_heap_size = 8,
         .rtv_heap_size = 8,
         .cbv_srv_uav_heap_size = 256,
 
@@ -345,12 +359,74 @@ static int common_main(sys::ShowWindow show) {
         .logger = gConsoleLog,
     };
 
-    rhi::Factory render { render_config };
+    rhi::Factory render { rhi_config };
 
-    rhi::Context context = render.new_context();
+    class ImGuiCommands : public render::IRenderCommands {
+        render::SrvHeapIndex& imgui_index = srv_local();
 
-    rhi::DescriptorHeap& srv_heap = context.get_srv_heap();
-    rhi::DescriptorIndex imgui_index = srv_heap.alloc_index();
+    public:
+        void create(render::Context& ctx) override {
+            const auto& config = ctx.get_config();
+            const auto& srv_heap = ctx.get_srv_heap();
+
+            auto format = rhi::get_data_format(config.swapchain_format);
+
+            ImGui_ImplDX12_Init(ctx.get_rhi_device(), (int)config.swapchain_length,
+                format, srv_heap.get_heap(),
+                srv_heap.cpu_handle(imgui_index),
+                srv_heap.gpu_handle(imgui_index));
+        }
+
+        void destroy(render::Context& ctx) override {
+            ImGui_ImplDX12_Shutdown();
+        }
+
+        void build(render::Context& ctx) override {
+            auto& commands = ctx.get_direct_commands();
+            ImGui_ImplDX12_NewFrame();
+            ImGui::NewFrame();
+            ImGui::ShowDemoWindow();
+
+            ImGui::Render();
+            ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commands.get());
+        }
+    };
+
+    class BeginCommands : public render::IRenderCommands {
+        //SM_UNUSED render::RtvHeapIndex& m_target = rtv_local();
+
+    public:
+        void build(render::Context& ctx) override {
+            ctx.get_rhi().begin_frame();
+        }
+    };
+
+    class EndCommands : public render::IRenderCommands {
+        //SM_UNUSED render::RtvHeapIndex& m_target = rtv_local();
+
+    public:
+        void build(render::Context& ctx) override {
+            ctx.get_rhi().end_frame();
+        }
+    };
+
+    class WorldCommands : public render::IRenderCommands {
+        //SM_UNUSED render::RtvHeapIndex& m_target = rtv_local();
+
+    public:
+        void build(render::Context& ctx) override {
+
+        }
+    };
+
+    class PresentCommands : public render::IRenderCommands {
+    public:
+        void build(render::Context& ctx) override {
+            ctx.get_rhi().present();
+        }
+    };
+
+    render::Context context { render_config, render };
 
     constexpr ImGuiConfigFlags kIoFlags = ImGuiConfigFlags_NavEnableGamepad
                                         | ImGuiConfigFlags_NavEnableKeyboard
@@ -372,50 +448,47 @@ static int common_main(sys::ShowWindow show) {
     }
 
     ImGui_ImplWin32_Init(window.get_handle());
-    ImGui_ImplDX12_Init(context.get_device(), kBufferCount,
-        render_config.buffer_format.as_facade(), srv_heap.get_heap(),
-        srv_heap.get_cpu_handle(imgui_index),
-        srv_heap.get_gpu_handle(imgui_index));
+
+    auto& cmd_imgui = context.add_node<ImGuiCommands>();
+    auto& cmd_begin = context.add_node<BeginCommands>();
+    auto& cmd_end = context.add_node<EndCommands>();
+    auto& cmd_present = context.add_node<PresentCommands>();
 
     window.show_window(show);
-    events.attach_render(&context);
+    events.attach_render(&context.get_rhi());
 
     MSG msg = { };
     while (GetMessageA(&msg, nullptr, 0, 0)) {
         TranslateMessage(&msg);
         DispatchMessageA(&msg);
 
-        auto& commands = context.get_commands();
+        auto& commands = context.get_direct_commands();
 
-        context.begin_frame();
+        context.execute_node(cmd_begin);
 
-        ImGui_ImplDX12_NewFrame();
         ImGui_ImplWin32_NewFrame();
-        ImGui::NewFrame();
+        context.execute_node(cmd_imgui);
 
-        ImGui::ShowDemoWindow();
-
-        ImGui::Render();
-        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commands.get());
-
-        context.end_frame();
+        context.execute_node(cmd_end);
 
         if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
             ImGui::UpdatePlatformWindows();
-            ImGui::RenderPlatformWindowsDefault(nullptr, commands.get()); // TODO: get command list
+            ImGui::RenderPlatformWindowsDefault(nullptr, commands.get()); // TODO: this should be part of the imgui pass
         }
 
-        context.present();
+        context.execute_node(cmd_present);
     }
 
-    ImGui_ImplDX12_Shutdown();
+    // TODO: graph should manage resources
+    context.destroy_node(cmd_imgui);
+
     ImGui_ImplWin32_Shutdown();
 
     return 0;
 }
 
 int main(int argc, const char **argv) {
-    logs::Sink<logs::Category::eGlobal> general { gConsoleLog };
+    GlobalSink general { gConsoleLog };
     common_init();
 
     FormatBuffer args { gGlobalArena };
@@ -435,7 +508,7 @@ int main(int argc, const char **argv) {
 }
 
 int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
-    logs::Sink<logs::Category::eGlobal> general { gConsoleLog };
+    GlobalSink general { gConsoleLog };
     common_init();
 
     general.info("lpCmdLine = {}", lpCmdLine);

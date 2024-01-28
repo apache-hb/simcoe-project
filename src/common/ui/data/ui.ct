@@ -1,0 +1,13 @@
+module sm::ui;
+
+variant AlignV {
+    case Top = 0
+    case Middle = 1
+    case Bottom = 2
+}
+
+variant AlignH {
+    case Left = 0
+    case Center = 1
+    case Right = 2
+}

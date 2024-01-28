@@ -1,6 +1,7 @@
 #pragma once
 
 #include <simcoe_config.h>
+
 #include "core/bitmap.hpp"
 #include "core/text.hpp"
 #include "core/macros.hpp"
@@ -24,9 +25,10 @@
 #define CBUFFER_ALIGN alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT)
 
 namespace sm::rhi {
-    class Context;
+    class Device;
     class Factory;
-    class DescriptorHeap;
+
+    DXGI_FORMAT get_data_format(bundle::DataFormat format);
 
     static inline constexpr math::float3 kUpVector = { 0.0f, 0.0f, 1.0f };
     static inline constexpr math::float3 kForwardVector = { 0.0f, 1.0f, 0.0f };
@@ -74,6 +76,13 @@ namespace sm::rhi {
             m_object = nullptr;
         }
 
+        T *acquire() {
+            CTASSERT(is_valid());
+            T *object = m_object;
+            m_object = nullptr;
+            return object;
+        }
+
         bool try_release() {
             if (is_valid()) {
                 release();
@@ -96,10 +105,12 @@ namespace sm::rhi {
         }
     };
 
-    using CommandList = Object<ID3D12GraphicsCommandList2>;
-    using Device = Object<ID3D12Device1>;
-    using RootSignature = Object<ID3D12RootSignature>;
-    using PipelineState = Object<ID3D12PipelineState>;
+    using CommandListObject = Object<ID3D12GraphicsCommandList2>;
+    using DeviceObject = Object<ID3D12Device1>;
+    using RootSignatureObject = Object<ID3D12RootSignature>;
+    using PipelineStateObject = Object<ID3D12PipelineState>;
+    using ResourceObject = Object<ID3D12Resource>;
+    using DescriptorHeapObject = Object<ID3D12DescriptorHeap>;
 
     class Adapter : public Object<IDXGIAdapter1> {
         DXGI_ADAPTER_DESC1 m_desc;
@@ -115,13 +126,11 @@ namespace sm::rhi {
             }
         }
 
-        Adapter(Adapter&& other) noexcept
-            : Object(other.get())
+        Adapter(Adapter&& other)
+            : Object(other.acquire())
             , m_desc(other.m_desc)
             , m_name(std::move(other.m_name))
-        {
-            other.release();
-        }
+        { }
 
         constexpr const DXGI_ADAPTER_DESC1& get_desc() const { return m_desc; }
         constexpr std::string_view get_adapter_name() const { return m_name; }
@@ -130,32 +139,66 @@ namespace sm::rhi {
     using DescriptorIndex = sm::BitMap::Index;
 
     struct FrameData {
-        Object<ID3D12Resource> backbuffer;
+        ResourceObject backbuffer;
         DescriptorIndex rtv_index = DescriptorIndex::eInvalid;
         Object<ID3D12CommandAllocator> allocator;
         UINT64 fence_value = 1;
     };
 
+    class CpuDescriptorHandle : public D3D12_CPU_DESCRIPTOR_HANDLE {
+        friend class DescriptorHeap;
+
+        CpuDescriptorHandle(D3D12_CPU_DESCRIPTOR_HANDLE handle, SIZE_T offset, UINT stride)
+            : D3D12_CPU_DESCRIPTOR_HANDLE(handle.ptr + offset * stride)
+        { }
+    };
+
+    class GpuDescriptorHandle : public D3D12_GPU_DESCRIPTOR_HANDLE {
+        friend class DescriptorHeap;
+
+        GpuDescriptorHandle(D3D12_GPU_DESCRIPTOR_HANDLE handle, SIZE_T offset, UINT stride)
+            : D3D12_GPU_DESCRIPTOR_HANDLE(handle.ptr + offset * stride)
+        { }
+    };
+
     class DescriptorHeap {
-        friend class Context;
+        DescriptorHeapObject m_heap;
+        UINT m_descriptor_size = 0;
+
+    public:
+        void init(Device& device, const DescriptorHeapConfig& config);
+
+        ID3D12DescriptorHeap *get() const { return m_heap.get(); }
+
+        CpuDescriptorHandle cpu_handle(DescriptorIndex index) const {
+            return CpuDescriptorHandle(m_heap->GetCPUDescriptorHandleForHeapStart(), index, m_descriptor_size);
+        }
+
+        GpuDescriptorHandle gpu_handle(DescriptorIndex index) const {
+            return GpuDescriptorHandle(m_heap->GetGPUDescriptorHandleForHeapStart(), index, m_descriptor_size);
+        }
+    };
+
+    class DescriptorArena {
+        friend class Device;
 
         // TODO: maybe use a slotmap for more resource safety
         sm::BitMap m_slots{};
-        Object<ID3D12DescriptorHeap> m_heap{};
+        DescriptorHeapObject m_heap{};
         UINT m_descriptor_size{};
 
         void init(ID3D12Device1 *device, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT length, bool shader_visible);
 
     public:
-        DescriptorHeap() = default;
-        SM_NOCOPY(DescriptorHeap)
-        SM_NOMOVE(DescriptorHeap)
+        DescriptorArena() = default;
+        SM_NOCOPY(DescriptorArena)
+        SM_NOMOVE(DescriptorArena)
 
         D3D12_GPU_DESCRIPTOR_HANDLE get_gpu_handle(DescriptorIndex index) const {
             CTASSERT(index != DescriptorIndex::eInvalid);
 
             D3D12_GPU_DESCRIPTOR_HANDLE handle = get_gpu_front();
-            handle.ptr += index * m_descriptor_size;
+            handle.ptr += size_t(index * m_descriptor_size);
             return handle;
         }
 
@@ -163,7 +206,7 @@ namespace sm::rhi {
             CTASSERT(index != DescriptorIndex::eInvalid);
 
             D3D12_CPU_DESCRIPTOR_HANDLE handle = get_cpu_front();
-            handle.ptr += index * m_descriptor_size;
+            handle.ptr += size_t(index * m_descriptor_size);
             return handle;
         }
 
@@ -186,7 +229,7 @@ namespace sm::rhi {
     };
 
     class CommandQueue {
-        friend class Context;
+        friend class Device;
 
         Object<ID3D12CommandQueue> m_queue;
 
@@ -209,14 +252,14 @@ namespace sm::rhi {
     };
 
     class ShaderPipeline {
-        friend class Context;
+        friend class Device;
 
-        RootSignature m_signature;
-        PipelineState m_state;
+        RootSignatureObject m_signature;
+        PipelineStateObject m_state;
 
         ShaderPipeline() = default;
 
-        ShaderPipeline(RootSignature&& signature, PipelineState&& state)
+        ShaderPipeline(RootSignatureObject&& signature, PipelineStateObject&& state)
             : m_signature(std::move(signature))
             , m_state(std::move(state))
         { }
@@ -231,19 +274,6 @@ namespace sm::rhi {
         ID3D12PipelineState *get_state() const { return m_state.get(); }
     };
 
-    class Resource {
-        Object<ID3D12Resource> m_resource;
-
-    protected:
-        Resource() = default;
-        Resource(Object<ID3D12Resource>&& resource) : m_resource(std::move(resource)) { }
-    };
-
-    template<typename T>
-    class ConstBufferResource : public Resource {
-
-    };
-
     struct CBUFFER_ALIGN CameraBuffer {
         math::float4x4 model;
         math::float4x4 view;
@@ -255,7 +285,7 @@ namespace sm::rhi {
         math::float2 uv;
     };
 
-    class Context {
+    class Device {
         RenderConfig m_config;
         RenderSink m_log;
 
@@ -263,7 +293,7 @@ namespace sm::rhi {
         Adapter& m_adapter;
 
         RootSignatureVersion m_version = RootSignatureVersion::eVersion_1_0;
-        Device m_device;
+        DeviceObject m_device;
         Object<ID3D12Debug> m_debug;
         Object<ID3D12InfoQueue1> m_info_queue;
         DWORD m_cookie = 0;
@@ -279,8 +309,8 @@ namespace sm::rhi {
         Object<ID3D12CommandAllocator> m_copy_allocator;
         Object<ID3D12GraphicsCommandList2> m_copy_commands;
 
-        DescriptorHeap m_rtv_heap{};
-        DescriptorHeap m_srv_heap{};
+        DescriptorArena m_rtv_heap{};
+        DescriptorArena m_srv_heap{};
 
         UINT m_frame_index = 0;
         sm::UniquePtr<FrameData[]> m_frames;
@@ -293,19 +323,19 @@ namespace sm::rhi {
         ShaderPipeline m_pipeline;
 
         // gpu resources
-        Object<ID3D12Resource> m_vbo;
+        ResourceObject m_vbo;
         D3D12_VERTEX_BUFFER_VIEW m_vbo_view;
 
-        Object<ID3D12Resource> m_ibo;
+        ResourceObject m_ibo;
         D3D12_INDEX_BUFFER_VIEW m_ibo_view;
 
         DescriptorIndex m_texture_index = DescriptorIndex::eInvalid;
-        Object<ID3D12Resource> m_texture;
+        ResourceObject m_texture;
 
         DescriptorIndex m_camera_index;
         CameraBuffer m_camera;
         CameraBuffer *m_camera_data = nullptr;
-        Object<ID3D12Resource> m_camera_resource;
+        ResourceObject m_camera_resource;
 
         void setup_camera();
 
@@ -323,8 +353,8 @@ namespace sm::rhi {
 
         // setup assets that only depend on the device
         void setup_device_assets();
-        RootSignature create_root_signature() const;
-        PipelineState create_shader_pipeline(RootSignature& root_signature) const;
+        RootSignatureObject create_root_signature() const;
+        PipelineStateObject create_shader_pipeline(RootSignatureObject& root_signature) const;
 
         // setup assets that depend on the swapchain resolution
         void update_camera();
@@ -342,16 +372,16 @@ namespace sm::rhi {
         sys::Window& get_window() const { return m_config.window; }
 
     public:
-        SM_NOCOPY(Context)
+        SM_NOCOPY(Device)
 
-        Context(const RenderConfig& config, Factory& factory);
-        ~Context();
+        Device(const RenderConfig& config, Factory& factory);
+        ~Device();
 
         const RenderConfig& get_config() const { return m_config; }
-        DescriptorHeap& get_rtv_heap() { return m_rtv_heap; }
-        DescriptorHeap& get_srv_heap() { return m_srv_heap; }
+        DescriptorArena& get_rtv_heap() { return m_rtv_heap; }
+        DescriptorArena& get_srv_heap() { return m_srv_heap; }
         ID3D12Device1 *get_device() const { return m_device.get(); }
-        CommandList& get_commands() { return m_commands; }
+        CommandListObject& get_commands() { return m_commands; }
 
         void resize(math::uint2 size);
 
@@ -367,7 +397,7 @@ namespace sm::rhi {
     };
 
     class Factory {
-        friend class Context;
+        friend class Device;
 
         RenderConfig m_config;
         RenderSink m_log;
@@ -390,6 +420,6 @@ namespace sm::rhi {
 
         const RenderConfig& get_config() const { return m_config; }
 
-        Context new_context();
+        Device new_device();
     };
 }

@@ -21,3 +21,8 @@ option('enable_agility', type : 'feature',
     description : 'Enable agility sdk',
     value : 'auto'
 )
+
+option('freetype_logging', type : 'feature',
+    description : 'Enable freetype logging',
+    value : 'disabled'
+)

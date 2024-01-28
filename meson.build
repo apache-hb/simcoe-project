@@ -11,27 +11,19 @@ project('simcoe', [ 'c', 'cpp' ],
 
         'default_library=static',
 
-        'cthulhu:default_library=static',
         'cthulhu:auto_features=disabled',
         'cthulhu:tool_reflect=enabled',
         'cthulhu:win32_trickery=enabled',
 
-        # configure harfbuzz and freetype2 to do our font rendering
-        'harfbuzz:tests=disabled',
-        'harfbuzz:freetype=enabled',
-
-        'freetype2:harfbuzz=disabled',
-        'freetype2:png=disabled',
+        # configure freetype before harfbuzz to pick up configuration
+        'freetype2:auto_features=disabled',
         'freetype2:zlib=disabled',
-        'freetype2:mac_fonts=disabled',
-        'freetype2:gx_var=disabled',
-        'freetype2:boring_expansion=disabled',
-        'freetype2:bdf=disabled',
-        'freetype2:streams=disabled',
-        'freetype2:environment=disabled',
+        'freetype2:png=disabled',
 
         # harfbuzz has some logic when building with c++11 that cause build issues
         'harfbuzz:cpp_std=c++20',
+        'harfbuzz:tests=disabled',
+        'harfbuzz:freetype=enabled',
 
         # nobody builds with clean warnings, so disable them per subproject
         'fmt:warning_level=0',
@@ -191,17 +183,23 @@ config_include = include_directories('.')
 subdir('src/vendor/fmtlib')
 
 subdir('src/common/core')
-subdir('src/common/logs')
 subdir('src/common/math')
+
+# vendor imgui here to have access to our own math library
 subdir('src/vendor/imgui')
 
+subdir('src/common/logs')
 subdir('src/common/service')
 
-subdir('src/common/system')
 subdir('src/common/bundle')
+
+subdir('src/common/system')
 subdir('src/common/threads')
 
 subdir('src/common/rhi')
+subdir('src/common/render')
+
+subdir('src/common/ui')
 
 default_ico = custom_target('default_icon',
     input : [ 'data/assets/icon/icon_circle.png' ],
@@ -283,7 +281,7 @@ client = executable('client', 'src/client/src/main.cpp', shaders,
         '/manifest:embed', '/manifestinput:' + manifest
     ],
     dependencies : [
-        core, system, rhi, logs, threads, imgui, service,
+        core, system, rhi, logs, threads, imgui, service, render, bundle,
         cthulhu.get_variable('backtrace'),
         cthulhu.get_variable('format_core'),
         cthulhu.get_variable('io')

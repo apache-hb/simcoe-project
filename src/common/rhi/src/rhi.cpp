@@ -49,6 +49,43 @@ logs::Severity MessageSeverity::get_log_severity() const {
     }
 }
 
+D3D12_RESOURCE_STATES ResourceState::get_inner_state() const {
+    using enum ResourceState::Inner;
+    switch (m_value) {
+    case ePresent: return D3D12_RESOURCE_STATE_PRESENT;
+    case eRenderTarget: return D3D12_RESOURCE_STATE_RENDER_TARGET;
+
+    case eIndexBuffer: return D3D12_RESOURCE_STATE_INDEX_BUFFER;
+
+    case eVertexBuffer:
+    case eConstBuffer:
+        return D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+
+    case eCopySource: return D3D12_RESOURCE_STATE_COPY_SOURCE;
+    case eCopyTarget: return D3D12_RESOURCE_STATE_COPY_DEST;
+
+    case eDepthWrite: return D3D12_RESOURCE_STATE_DEPTH_WRITE;
+    case eDepthRead: return D3D12_RESOURCE_STATE_DEPTH_READ;
+
+    case ePixelShaderTextureRead: return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+    case eShaderResourceTextureRead: return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+    case eTextureWrite: return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+
+    default: NEVER("invalid resource state %d", static_cast<int>(m_value));
+    }
+}
+
+DXGI_FORMAT rhi::get_data_format(bundle::DataFormat format) {
+    SM_UNUSED constexpr auto refl = ctu::reflect<bundle::DataFormat>();
+    using enum bundle::DataFormat::Inner;
+    switch (format) {
+    case eRGBA8_UNORM: return DXGI_FORMAT_R8G8B8A8_UNORM;
+    case eRGBA8_UINT: return DXGI_FORMAT_R8G8B8A8_UINT;
+
+    default: NEVER("invalid data format %s", refl.to_string(format).data());
+    }
+}
+
 #define SM_ASSERT_HR(expr)                                 \
     do {                                                   \
         if (auto result = (expr); FAILED(result)) {        \
@@ -56,30 +93,50 @@ logs::Severity MessageSeverity::get_log_severity() const {
         }                                                  \
     } while (0)
 
-void DescriptorHeap::init(ID3D12Device1 *device, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT length,
+void DescriptorHeap::init(Device& device, const DescriptorHeapConfig& config) {
+    D3D12_DESCRIPTOR_HEAP_FLAGS flags = config.shader_visible
+        ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
+        : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+
+    D3D12_DESCRIPTOR_HEAP_TYPE type = config.type.as_facade();
+
+    const D3D12_DESCRIPTOR_HEAP_DESC kHeapDesc {
+        .Type = type,
+        .NumDescriptors = config.size,
+        .Flags = flags,
+    };
+
+    ID3D12Device1 *api = device.get_device();
+
+    SM_ASSERT_HR(api->CreateDescriptorHeap(&kHeapDesc, IID_PPV_ARGS(&m_heap)));
+
+    m_descriptor_size = api->GetDescriptorHandleIncrementSize(type);
+}
+
+void DescriptorArena::init(ID3D12Device1 *device, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT length,
                           bool shader_visible) {
     m_slots.resize(length);
 
     D3D12_DESCRIPTOR_HEAP_FLAGS flags = shader_visible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
                                                        : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
-    const D3D12_DESCRIPTOR_HEAP_DESC desc{
+    const D3D12_DESCRIPTOR_HEAP_DESC kHeapDesc {
         .Type = type,
         .NumDescriptors = length,
         .Flags = flags,
     };
 
-    SM_ASSERT_HR(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_heap)));
+    SM_ASSERT_HR(device->CreateDescriptorHeap(&kHeapDesc, IID_PPV_ARGS(&m_heap)));
 
     m_descriptor_size = device->GetDescriptorHandleIncrementSize(type);
 }
 
-void DescriptorHeap::release_index(DescriptorIndex index) {
+void DescriptorArena::release_index(DescriptorIndex index) {
     CTASSERTF(m_slots.test(index), "descriptor heap index %zu is already free", index);
     m_slots.clear(index);
 }
 
-DescriptorIndex DescriptorHeap::alloc_index() {
+DescriptorIndex DescriptorArena::alloc_index() {
     DescriptorIndex index = m_slots.scan_set_first();
     CTASSERTF(index != DescriptorIndex::eInvalid, "descriptor heap exhausted %zu",
               m_slots.get_total_bits());
@@ -114,21 +171,21 @@ void CommandQueue::wait(UINT64 value) {
     }
 }
 
-void Context::info_callback(D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERITY severity,
+void Device::info_callback(D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERITY severity,
                             D3D12_MESSAGE_ID id, LPCSTR desc, void *user) {
     MessageCategory cat{category};
     MessageSeverity sev{severity};
     MessageID msg{id};
-    Context *ctx = reinterpret_cast<Context *>(user);
+    Device *device = reinterpret_cast<Device *>(user);
 
     constexpr auto cat_refl = ctu::reflect<MessageCategory>();
     constexpr auto id_refl = ctu::reflect<MessageID>();
 
-    ctx->m_log(sev.get_log_severity(), "{} {}: {}", cat_refl.to_string(cat).data(),
+    device->m_log(sev.get_log_severity(), "{} {}: {}", cat_refl.to_string(cat).data(),
                id_refl.to_string(msg).data(), desc);
 }
 
-Context::Context(const RenderConfig &config, Factory &factory)
+Device::Device(const RenderConfig &config, Factory &factory)
     : m_config(config)
     , m_log(config.logger)
     , m_factory(factory)
@@ -136,12 +193,12 @@ Context::Context(const RenderConfig &config, Factory &factory)
     init();
 }
 
-Context::~Context() {
+Device::~Device() {
     await_copy_queue();
     await_direct_queue();
 }
 
-void Context::setup_device() {
+void Device::setup_device() {
     SM_UNUSED constexpr auto fl_refl = ctu::reflect<FeatureLevel>();
 
     auto config = get_config();
@@ -201,7 +258,7 @@ void Context::setup_device() {
     query_root_signature_version();
 }
 
-void Context::setup_render_targets() {
+void Device::setup_render_targets() {
     auto config = get_config();
 
     for (UINT i = 0; i < config.buffer_count; i++) {
@@ -216,7 +273,7 @@ void Context::setup_render_targets() {
     }
 }
 
-void Context::setup_direct_allocators() {
+void Device::setup_direct_allocators() {
     auto config = get_config();
 
     for (UINT i = 0; i < config.buffer_count; i++) {
@@ -225,7 +282,7 @@ void Context::setup_direct_allocators() {
     }
 }
 
-void Context::setup_copy_queue() {
+void Device::setup_copy_queue() {
     constexpr D3D12_COMMAND_LIST_TYPE kQueueType = D3D12_COMMAND_LIST_TYPE_COPY;
 
     m_copy_queue.init(m_device.get(), kQueueType, "copy_queue");
@@ -238,7 +295,7 @@ void Context::setup_copy_queue() {
     SM_ASSERT_HR(m_copy_commands->Close());
 }
 
-void Context::setup_pipeline() {
+void Device::setup_pipeline() {
     auto config = get_config();
 
     // create command queue
@@ -257,7 +314,7 @@ void Context::setup_pipeline() {
     const DXGI_SWAP_CHAIN_DESC1 kSwapChainDesc{
         .Width = m_swapchain_size.width,
         .Height = m_swapchain_size.height,
-        .Format = config.buffer_format.as_facade(),
+        .Format = get_data_format(config.buffer_format),
         .SampleDesc = {.Count = 1, .Quality = 0},
         .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
         .BufferCount = config.buffer_count,
@@ -293,7 +350,7 @@ void Context::setup_pipeline() {
     SM_ASSERT_HR(m_commands->Close());
 }
 
-void Context::init() {
+void Device::init() {
     auto config = get_config();
     constexpr auto df_refl = ctu::reflect<DebugFlags>();
     constexpr auto ap_refl = ctu::reflect<AdapterPreference>();
@@ -337,7 +394,7 @@ static sm::Vector<uint8_t> load_shader(const char *file) {
     return result;
 }
 
-void Context::query_root_signature_version() {
+void Device::query_root_signature_version() {
     D3D12_FEATURE_DATA_ROOT_SIGNATURE feature{D3D_ROOT_SIGNATURE_VERSION_1_1};
     if (FAILED(m_device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &feature,
                                              sizeof(feature)))) {
@@ -347,8 +404,8 @@ void Context::query_root_signature_version() {
     }
 }
 
-RootSignature Context::create_root_signature() const {
-    RootSignature root_signature;
+RootSignatureObject Device::create_root_signature() const {
+    RootSignatureObject root_signature;
 
     CD3DX12_DESCRIPTOR_RANGE1 srv_ranges[1];
     srv_ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
@@ -401,10 +458,10 @@ RootSignature Context::create_root_signature() const {
     return root_signature;
 }
 
-PipelineState Context::create_shader_pipeline(RootSignature& root_signature) const {
+PipelineStateObject Device::create_shader_pipeline(RootSignatureObject& root_signature) const {
     auto &config = get_config();
 
-    PipelineState pipeline_state;
+    PipelineStateObject pipeline_state;
     constexpr D3D12_INPUT_ELEMENT_DESC kInputElements[] = {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Vertex, position),
          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
@@ -426,7 +483,7 @@ PipelineState Context::create_shader_pipeline(RootSignature& root_signature) con
         .InputLayout = {kInputElements, std::size(kInputElements)},
         .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
         .NumRenderTargets = 1,
-        .RTVFormats = {config.buffer_format.as_facade()},
+        .RTVFormats = {get_data_format(config.buffer_format)},
         .SampleDesc = {1, 0},
     };
 
@@ -436,14 +493,14 @@ PipelineState Context::create_shader_pipeline(RootSignature& root_signature) con
     return pipeline_state;
 }
 
-void Context::setup_device_assets() {
+void Device::setup_device_assets() {
     auto signature = create_root_signature();
     auto pipeline = create_shader_pipeline(signature);
 
     m_pipeline = ShaderPipeline{std::move(signature), std::move(pipeline)};
 }
 
-void Context::setup_camera() {
+void Device::setup_camera() {
     m_camera.model = math::float4x4::identity();
     m_camera.view = math::float4x4::identity();
     m_camera.projection = math::float4x4::identity();
@@ -473,14 +530,14 @@ void Context::setup_camera() {
     SM_ASSERT_HR(m_camera_resource->Map(0, &read_range, reinterpret_cast<void **>(&m_camera_data)));
 }
 
-void Context::update_camera() {
+void Device::update_camera() {
     float aspect = get_aspect_ratio();
     m_camera.view = math::float4x4::lookAtRH({1.0f, 1.0f, 1.0f}, {0.1f, 0.1f, 0.1f}, kUpVector).transpose();
     m_camera.projection = math::float4x4::perspectiveRH(60.0f, aspect, 0.1f, 100.0f).transpose();
     *m_camera_data = m_camera;
 }
 
-void Context::setup_display_assets() {
+void Device::setup_display_assets() {
     begin_copy();
     open_commands(nullptr);
 
@@ -559,7 +616,7 @@ void Context::setup_display_assets() {
         .SlicePitch = kSlicePitch,
     };
 
-    UpdateSubresources<4>(m_copy_commands.get(), m_texture.get(), texture_upload.get(), 0, 0, 1, &kTextureInfo);
+    UpdateSubresources<1>(m_copy_commands.get(), m_texture.get(), texture_upload.get(), 0, 0, 1, &kTextureInfo);
 
     const CD3DX12_RESOURCE_BARRIER kIntoTexture = CD3DX12_RESOURCE_BARRIER::Transition(
         m_texture.get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -685,14 +742,14 @@ void Context::setup_display_assets() {
     await_direct_queue();
 }
 
-void Context::open_commands(ID3D12PipelineState *pipeline) {
+void Device::open_commands(ID3D12PipelineState *pipeline) {
     auto &[backbuffer, rtv_index, allocator, _] = m_frames[m_frame_index];
     SM_ASSERT_HR(allocator->Reset());
 
     SM_ASSERT_HR(m_commands->Reset(allocator.get(), pipeline));
 }
 
-void Context::record_commands() {
+void Device::record_commands() {
     update_camera();
 
     open_commands(m_pipeline.get_state());
@@ -727,7 +784,7 @@ void Context::record_commands() {
     m_commands->DrawIndexedInstanced(6, 1, 0, 0, 0);
 }
 
-void Context::finish_commands() {
+void Device::finish_commands() {
     auto &[backbuffer, index, allocator, _] = m_frames[m_frame_index];
     CD3DX12_RESOURCE_BARRIER into_present = CD3DX12_RESOURCE_BARRIER::Transition(
         backbuffer.get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -736,19 +793,19 @@ void Context::finish_commands() {
     SM_ASSERT_HR(m_commands->Close());
 }
 
-void Context::submit_commands() {
+void Device::submit_commands() {
     // later: CommandListCast from d3dx12_core.h
     ID3D12CommandList *commands[] = {m_commands.get()};
     m_direct_queue.execute_commands(commands, std::size(commands));
 }
 
-void Context::await_copy_queue() {
+void Device::await_copy_queue() {
     auto value = m_copy_value++;
     m_copy_queue.signal(value);
     m_copy_queue.wait(value);
 }
 
-void Context::await_direct_queue() {
+void Device::await_direct_queue() {
     auto value = m_frames[m_frame_index].fence_value++;
 
     m_direct_queue.signal(value);
@@ -757,12 +814,12 @@ void Context::await_direct_queue() {
     m_frame_index = m_swapchain->GetCurrentBackBufferIndex();
 }
 
-float Context::get_aspect_ratio() const {
+float Device::get_aspect_ratio() const {
     auto [width, height] = m_swapchain_size.as<float>();
     return width / height;
 }
 
-void Context::resize(math::uint2 size) {
+void Device::resize(math::uint2 size) {
     // dont resize if the size is the same
     if (size == m_swapchain_size) return;
 
@@ -778,7 +835,7 @@ void Context::resize(math::uint2 size) {
     m_log.info("resizing swapchain to {}x{}", size.x, size.y);
 
     SM_ASSERT_HR(m_swapchain->ResizeBuffers(config.buffer_count, size.x, size.y,
-                                            config.buffer_format.as_facade(), 0));
+                                            get_data_format(config.buffer_format), 0));
 
     m_frame_index = m_swapchain->GetCurrentBackBufferIndex();
     m_swapchain_size = size.as<uint32_t>();
@@ -787,26 +844,26 @@ void Context::resize(math::uint2 size) {
     update_camera();
 }
 
-void Context::begin_frame() {
+void Device::begin_frame() {
     record_commands();
 }
 
-void Context::end_frame() {
+void Device::end_frame() {
     finish_commands();
     submit_commands();
 }
 
-void Context::present() {
+void Device::present() {
     SM_ASSERT_HR(m_swapchain->Present(1, 0));
     await_direct_queue();
 }
 
-void Context::begin_copy() {
+void Device::begin_copy() {
     SM_ASSERT_HR(m_copy_allocator->Reset());
     SM_ASSERT_HR(m_copy_commands->Reset(m_copy_allocator.get(), nullptr));
 }
 
-void Context::submit_copy() {
+void Device::submit_copy() {
     SM_ASSERT_HR(m_copy_commands->Close());
 
     ID3D12CommandList *commands[] = {m_copy_commands.get()};
@@ -889,6 +946,6 @@ Adapter &Factory::get_selected_adapter() {
     return m_adapters[adapter_index];
 }
 
-Context Factory::new_context() {
-    return Context{get_config(), *this};
+Device Factory::new_device() {
+    return Device{get_config(), *this};
 }

@@ -1,11 +1,9 @@
 #pragma once
 
-#include "core/traits.hpp"
+#include "core/traits.hpp" // IWYU pragma: export
 #include "core/unique.hpp"
 
 #include <bit>
-
-#include "core.reflect.h"
 
 namespace sm {
     namespace detail {
@@ -15,6 +13,7 @@ namespace sm {
         template<Integral T, typename Super>
         struct BitMapStorage {
             enum Index : size_t { eInvalid = SIZE_MAX };
+            using IndexType = std::underlying_type_t<Index>;
 
             constexpr BitMapStorage() = default;
 
@@ -50,7 +49,7 @@ namespace sm {
 
             constexpr Index scan_set_first() {
                 Super *self = static_cast<Super*>(this);
-                for (size_t i = 0; i < get_total_bits(); i++) {
+                for (uint32_t i = 0; i < get_total_bits(); i++) {
                     if (self->test_set(Index{i})) {
                         return Index{i};
                     }
@@ -64,6 +63,11 @@ namespace sm {
             constexpr void reset() {
                 CTASSERT(is_valid());
                 std::memset(m_bits.get(), 0, word_count());
+            }
+
+            constexpr void release(Index index) {
+                CTASSERT(test(index));
+                clear(index);
             }
 
             constexpr static inline size_t kBitsPerWord = sizeof(T) * CHAR_BIT;
@@ -99,6 +103,9 @@ namespace sm {
         };
     }
 
+    // TODO: these shouldnt handle allocation, thats a seperate concern
+    // these should just be the underlying storage
+
     struct BitMap final : detail::BitMapStorage<std::uint64_t, BitMap> {
         using Super = detail::BitMapStorage<std::uint64_t, BitMap>;
         using Super::BitMapStorage;
@@ -118,7 +125,7 @@ namespace sm {
             verify_index(front);
             verify_index(back);
 
-            for (size_t i = front; i <= back; i++) {
+            for (uint32_t i = front; i <= back; i++) {
                 if (!test(Index{i})) {
                     return false;
                 }
@@ -128,7 +135,7 @@ namespace sm {
         }
 
         constexpr Index scan_set_range(Index size) {
-            for (size_t i = 0; i <= get_total_bits(); i++) {
+            for (uint32_t i = 0; i <= get_total_bits(); i++) {
                 Index front{i};
                 Index back{i + size - 1};
                 if (test_range(front, back)) {
@@ -155,5 +162,8 @@ namespace sm {
         using Super::BitMapStorage;
 
         bool test_set(Index index);
+
+        // TODO: should be possible to set some ranges atomically
+        // as long as the range doesnt cross word boundaries
     };
 }

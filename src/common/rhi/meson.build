@@ -5,7 +5,7 @@ src = [
     reflect.process('data/rhi.ct')
 ]
 
-deps = [ core, logs, system, math, d3d12, d3dx12 ]
+deps = [ core, logs, system, bundle, math, d3d12, d3dx12 ]
 
 librhi = library('rhi', src,
     cpp_args : [ '-DSM_RHI_BUILD=1' ],

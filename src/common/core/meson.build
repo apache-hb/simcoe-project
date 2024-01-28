@@ -16,6 +16,7 @@ src = [
     'src/backtrace.cpp',
     'src/bitmap.cpp',
     'src/units.cpp',
+    'src/utf8.cpp',
     reflect.process('data/core.ct')
 ]
 
