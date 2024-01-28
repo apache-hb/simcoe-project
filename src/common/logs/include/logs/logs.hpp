@@ -1,8 +1,13 @@
 #pragma once
 
+#include "core/arena.hpp"
 #include "fmtlib/format.h"
 
 #include "logs.reflect.h"
+
+#include <iterator>
+
+namespace sm { class IArena; }
 
 namespace sm::logs {
     class ILogger {
@@ -24,8 +29,14 @@ namespace sm::logs {
         constexpr bool will_accept(Severity severity) const { return severity >= m_severity; }
     };
 
+    /// @brief a logging sink that wraps a logger and the category of the calling code
+    /// @tparam C the category of the calling code
+    /// @warning this class is not thread-safe
     template<Category::Inner C> requires (Category{C}.is_valid())
     class Sink final {
+        using FormatBuffer = fmt::basic_memory_buffer<char, 256, sm::StandardArena<char>>;
+
+        mutable FormatBuffer m_buffer{sm::get_pool(sm::Pool::eLogging)};
         ILogger& m_logger;
 
     public:
@@ -38,7 +49,14 @@ namespace sm::logs {
         }
 
         void log(Severity severity, std::string_view msg, auto&&... args) const {
-            m_logger.log(C, severity, fmt::vformat(msg, fmt::make_format_args(args...)));
+            if (!m_logger.will_accept(severity)) { return; }
+
+            auto out = std::back_inserter(m_buffer);
+            fmt::vformat_to(out, msg, fmt::make_format_args(args...));
+
+            m_logger.log(C, severity, std::string_view { m_buffer.data(), m_buffer.size() });
+
+            m_buffer.clear();
         }
 
         void trace(std::string_view msg, auto&&... args) const {

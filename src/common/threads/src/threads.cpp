@@ -149,7 +149,7 @@ struct GeometryBuilder : CpuGeometry {
 
     // TODO: de-template this to save binary space
     template <typename Index, typename Item>
-    void get_item_with_mask(std::vector<Index> &ids, std::span<const Item> items,
+    void get_item_with_mask(sm::Vector<Index> &ids, std::span<const Item> items,
                             GROUP_AFFINITY affinity) {
         for (size_t i = 0; i < items.size(); ++i)
             if (should_add_item(items[i].mask, affinity))
@@ -278,7 +278,7 @@ CpuGeometry threads::global_cpu_geometry(logs::ILogger &logger) {
     CpuSetLayout cpuset_layout{&builder};
 
     ProcessorInfo processor_info{RelationAll};
-    CpuSetInfo cpuset_info;
+    CpuSetInfo cpuset_info{};
 
     for (const auto *relation : processor_info) {
         if (relation->Relationship == RelationProcessorCore)

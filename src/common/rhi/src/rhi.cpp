@@ -28,8 +28,8 @@ extern "C" {
 #endif
 
 static char *hr_string(HRESULT hr) {
-    sm::IArena *arena = sm::get_debug_arena();
-    return os_error_string(hr, arena);
+    sm::IArena& arena = sm::get_pool(sm::Pool::eDebug);
+    return os_error_string(hr, &arena);
 }
 
 NORETURN
@@ -75,13 +75,13 @@ void DescriptorHeap::init(ID3D12Device1 *device, D3D12_DESCRIPTOR_HEAP_TYPE type
 }
 
 void DescriptorHeap::release_index(DescriptorIndex index) {
-    CTASSERTF(m_slots.test(index), "descriptor heap index %zu is already free", index.as_integral());
+    CTASSERTF(m_slots.test(index), "descriptor heap index %zu is already free", index);
     m_slots.clear(index);
 }
 
 DescriptorIndex DescriptorHeap::alloc_index() {
-    auto index = m_slots.scan_set_first();
-    CTASSERTF(index != BitMapIndex::eInvalid, "descriptor heap exhausted %zu",
+    DescriptorIndex index = m_slots.scan_set_first();
+    CTASSERTF(index != DescriptorIndex::eInvalid, "descriptor heap exhausted %zu",
               m_slots.get_total_bits());
     return index;
 }
@@ -204,13 +204,15 @@ void Context::setup_device() {
 void Context::setup_render_targets() {
     auto config = get_config();
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle{m_rtv_heap.get_cpu_front()};
-
     for (UINT i = 0; i < config.buffer_count; i++) {
         auto &backbuffer = m_frames[i].backbuffer;
+        auto& rtv_index = m_frames[i].rtv_index;
+
+        if (rtv_index == DescriptorIndex::eInvalid)
+            rtv_index = m_rtv_heap.alloc_index();
+
         SM_ASSERT_HR(m_swapchain->GetBuffer(i, IID_PPV_ARGS(&backbuffer)));
-        m_device->CreateRenderTargetView(backbuffer.get(), nullptr, rtv_handle);
-        rtv_handle.Offset(1, m_rtv_heap.get_descriptor_size());
+        m_device->CreateRenderTargetView(backbuffer.get(), nullptr, m_rtv_heap.get_cpu_handle(rtv_index));
     }
 }
 
@@ -315,19 +317,19 @@ void Context::init() {
     setup_display_assets();
 }
 
-static std::vector<uint8_t> load_shader(const char *file) {
-    sm::IArena *arena = sm::get_debug_arena();
-    io_t *io = io_file(file, eAccessRead, arena);
+static sm::Vector<uint8_t> load_shader(const char *file) {
+    sm::IArena& arena = sm::get_pool(sm::Pool::eGlobal);
+    io_t *io = io_file(file, eAccessRead, &arena);
     io_error_t err = io_error(io);
-    CTASSERTF(err == 0, "failed to open shader file %s: %s", file, os_error_string(err, arena));
+    CTASSERTF(err == 0, "failed to open shader file %s: %s", file, os_error_string(err, &arena));
 
     size_t size = io_size(io);
-    const void *data = io_map(io);
+    const void *data = io_map(io, eProtectRead);
 
     CTASSERTF(size != SIZE_MAX, "failed to get size of shader file %s", file);
     CTASSERTF(data != nullptr, "failed to map shader file %s", file);
 
-    std::vector<uint8_t> result(size);
+    sm::Vector<uint8_t> result(size);
     memcpy(result.data(), data, size);
 
     io_close(io);
@@ -576,7 +578,7 @@ void Context::setup_display_assets() {
     if (m_texture_index == DescriptorIndex::eInvalid)
         m_texture_index = m_srv_heap.alloc_index();
 
-    m_log.info("texture index: {}", m_texture_index.as_integral());
+    m_log.info("texture index: {}", size_t(m_texture_index));
 
     m_device->CreateShaderResourceView(m_texture.get(), &kViewDesc, m_srv_heap.get_cpu_handle(m_texture_index));
 
@@ -684,7 +686,7 @@ void Context::setup_display_assets() {
 }
 
 void Context::open_commands(ID3D12PipelineState *pipeline) {
-    auto &[backbuffer, allocator, _] = m_frames[m_frame_index];
+    auto &[backbuffer, rtv_index, allocator, _] = m_frames[m_frame_index];
     SM_ASSERT_HR(allocator->Reset());
 
     SM_ASSERT_HR(m_commands->Reset(allocator.get(), pipeline));
@@ -694,7 +696,7 @@ void Context::record_commands() {
     update_camera();
 
     open_commands(m_pipeline.get_state());
-    auto &[backbuffer, allocator, _] = m_frames[m_frame_index];
+    auto &[backbuffer, rtv_index, allocator, _] = m_frames[m_frame_index];
 
     ID3D12DescriptorHeap *heaps[] = {m_srv_heap.get_heap()};
     m_commands->SetDescriptorHeaps(std::size(heaps), heaps);
@@ -712,7 +714,7 @@ void Context::record_commands() {
 
     m_commands->ResourceBarrier(1, &into_rtv);
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle{m_rtv_heap.get_cpu_handle(m_frame_index)};
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_handle{m_rtv_heap.get_cpu_handle(rtv_index)};
 
     m_commands->OMSetRenderTargets(1, &rtv_handle, FALSE, nullptr);
 
@@ -726,7 +728,7 @@ void Context::record_commands() {
 }
 
 void Context::finish_commands() {
-    auto &[backbuffer, allocator, _] = m_frames[m_frame_index];
+    auto &[backbuffer, index, allocator, _] = m_frames[m_frame_index];
     CD3DX12_RESOURCE_BARRIER into_present = CD3DX12_RESOURCE_BARRIER::Transition(
         backbuffer.get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 

@@ -12,8 +12,8 @@ LPTSTR gWindowClass = nullptr;
 
 char *sm::sys::get_last_error(void) {
     DWORD last_error = GetLastError();
-    sm::IArena *arena = sm::get_debug_arena();
-    return os_error_string(last_error, arena);
+    sm::IArena& arena = sm::get_pool(sm::Pool::eDebug);
+    return os_error_string(last_error, &arena);
 }
 
 NORETURN

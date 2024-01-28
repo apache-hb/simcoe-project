@@ -4,7 +4,7 @@
 #include "threads.reflect.h"
 
 #include "logs/logs.hpp"
-#include <vector>
+#include "core/vector.hpp"
 
 namespace sm::threads {
     enum struct SubcoreIndex : uint16_t { eInvalid = UINT16_MAX };
@@ -12,10 +12,10 @@ namespace sm::threads {
     enum struct ChipletIndex : uint16_t { eInvalid = UINT16_MAX };
     enum struct PackageIndex : uint16_t { eInvalid = UINT16_MAX };
 
-    using SubcoreIndices = std::vector<SubcoreIndex>;
-    using CoreIndices = std::vector<CoreIndex>;
-    using ChipletIndices = std::vector<ChipletIndex>;
-    using PackageIndices = std::vector<PackageIndex>;
+    using SubcoreIndices = sm::Vector<SubcoreIndex>;
+    using CoreIndices = sm::Vector<CoreIndex>;
+    using ChipletIndices = sm::Vector<ChipletIndex>;
+    using PackageIndices = sm::Vector<PackageIndex>;
 
     struct Subcore {
         GROUP_AFFINITY mask;
@@ -44,10 +44,10 @@ namespace sm::threads {
 
     struct CpuGeometry {
         // we call hardware threads "subcores" to avoid confusion with OS threads
-        std::vector<Subcore> subcores;
-        std::vector<Core> cores;
-        std::vector<Chiplet> chiplets;
-        std::vector<Package> packages;
+        sm::Vector<Subcore> subcores;
+        sm::Vector<Core> cores;
+        sm::Vector<Chiplet> chiplets;
+        sm::Vector<Package> packages;
 
         const Subcore& get_subcore(SubcoreIndex idx) const { return subcores[size_t(idx)]; }
         const Core& get_core(CoreIndex idx) const { return cores[size_t(idx)]; }

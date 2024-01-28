@@ -4,7 +4,12 @@
 
 namespace sm {
     class ISystemError : public bt_error_t {
-        void init(void);
+        constexpr void init(void) {
+            begin = wrap_begin;
+            next = wrap_frame;
+            end = wrap_end;
+            user = this;
+        }
 
         static void wrap_begin(size_t error, void *user);
         static void wrap_frame(const bt_frame_t *frame, void *user);
@@ -15,6 +20,8 @@ namespace sm {
         virtual void error_frame(const bt_frame_t *frame) = 0;
         virtual void error_end(void) = 0;
 
-        ISystemError();
+        constexpr ISystemError() {
+            init();
+        }
     };
 }

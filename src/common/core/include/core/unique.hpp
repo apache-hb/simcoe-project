@@ -7,50 +7,63 @@
 #include "core/macros.hpp"
 
 namespace sm {
-    template<typename T, typename TDelete, T TEmpty = T()>
+    // TODO: arena support
+    /// @brief A handle to a resource that is automatically destroyed when it goes out of scope.
+    /// @tparam T The type of the handle.
+    /// @tparam TDelete the deleter function that is called to destroy the handle.
+    /// @tparam TEmpty The value that represents an empty handle.
+    ///
+    /// @a TEmpty is provided to allow for handles whos default value is not the same as the
+    /// value that represents an empty handle. For example mmap returns MAP_FAILED on failure
+    template<typename T, typename TDelete, T TEmpty = T{}>
     class UniqueHandle {
         T m_handle = TEmpty;
 
-        static constexpr inline TDelete kDelete = TDelete();
+        SM_NO_UNIQUE_ADDRESS TDelete m_delete{};
 
     public:
         SM_NOCOPY(UniqueHandle)
 
-        constexpr UniqueHandle(T handle = TEmpty) noexcept
+        constexpr UniqueHandle(T handle = TEmpty)
             : m_handle(handle)
         { }
+
+        constexpr UniqueHandle &operator=(T handle) {
+            reset(handle);
+            return *this;
+        }
 
         constexpr ~UniqueHandle() {
             destroy();
         }
 
-        constexpr UniqueHandle(UniqueHandle &&other) noexcept {
+        constexpr UniqueHandle(UniqueHandle &&other) {
             reset(other.m_handle);
             other.m_handle = TEmpty;
         }
 
-        constexpr UniqueHandle &operator=(UniqueHandle &&other) noexcept {
+        constexpr UniqueHandle &operator=(UniqueHandle &&other) {
             reset(other.m_handle);
             other.m_handle = TEmpty;
             return *this;
         }
 
-        constexpr void destroy() noexcept {
+        constexpr void destroy() {
             if (m_handle != TEmpty) {
-                kDelete(m_handle);
+                m_delete(m_handle);
                 m_handle = TEmpty;
             }
         }
 
-        constexpr T& get() noexcept { CTASSERT(is_valid()); return m_handle; }
-        constexpr const T& get() const noexcept { CTASSERT(is_valid()); return m_handle; }
-        constexpr explicit operator bool() const noexcept { return m_handle != TEmpty; }
+        constexpr T& get() { CTASSERT(is_valid()); return m_handle; }
+        constexpr const T& get() const { CTASSERT(is_valid()); return m_handle; }
+        constexpr explicit operator bool() const { return m_handle != TEmpty; }
 
-        constexpr bool is_valid() const noexcept { return m_handle != TEmpty; }
+        constexpr bool is_valid() const { return m_handle != TEmpty; }
 
-        constexpr void reset(T handle = TEmpty) noexcept {
+        constexpr void reset(T handle = TEmpty) {
             if (m_handle != TEmpty) {
-                kDelete(m_handle);
+                m_delete(m_handle);
             }
             m_handle = handle;
         }

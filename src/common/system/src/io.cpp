@@ -66,8 +66,8 @@ bool FileMapping::create() {
         if (!SM_CHECKF(m_log, header->version == kCurrentVersion, "file version mismatch, {}/{}", header->version, kCurrentVersion))
             return false;
 
-        sm::Memory read_size = header->size;
-        if (!SM_CHECKF(m_log, m_size == read_size, "file size mismatch, {}/{}", read_size, m_size))
+        sm::Memory actual_size = header->size;
+        if (!SM_CHECKF(m_log, m_size == actual_size, "file size mismatch, {}/{}", actual_size, m_size))
             return false;
 
         uint32_t checksum = calc_checksum();
@@ -227,14 +227,15 @@ RecordLookup FileMapping::get_record(uint32_t id, void **data, uint16_t size) {
     // find free space
 
     // m_space operates on 8 byte chunks, convert the size and scan for free space
-    BitMap::Index index = m_space.scan_set_range((size + 7) / 8);
+    uint16_t chunks = (size + 7) / 8;
+    BitMap::Index index = m_space.scan_set_range(BitMap::Index{chunks});
 
     if (!SM_CHECKF(m_log, index != BitMap::Index::eInvalid, "unable to find free space, {:#08x} required, {:#08x} free total. defragment or make the file bigger", size, m_space.freecount()))
         return RecordLookup::eDataRegionExhausted;
 
     // write record header
     found->id = id;
-    found->offset = uint32_t(index.as_integral() * 8);
+    found->offset = uint32_t(index * 8);
     found->size = size;
 
     m_used += 1;

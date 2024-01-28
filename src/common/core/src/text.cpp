@@ -5,15 +5,15 @@
 using namespace sm;
 
 // NOLINTNEXTLINE
-std::string sm::format(const char *fmt, ...) {
+sm::String sm::format(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    std::string result = vformat(fmt, args);
+    sm::String result = vformat(fmt, args);
     va_end(args);
     return result;
 }
 
-std::string sm::vformat(const char *fmt, va_list args) {
+sm::String sm::vformat(const char *fmt, va_list args) {
     va_list args_copy;
     va_copy(args_copy, args);
 
@@ -22,7 +22,7 @@ std::string sm::vformat(const char *fmt, va_list args) {
 
     CTASSERTF(size > 0, "vsnprintf returned %d", size);
 
-    std::string result;
+    sm::String result;
     result.resize(size);
 
     int res = vsnprintf(result.data(), result.size() + 1, fmt, args);
@@ -31,8 +31,8 @@ std::string sm::vformat(const char *fmt, va_list args) {
     return result;
 }
 
-std::string sm::narrow(std::wstring_view wstr) {
-    std::string result(wstr.size() + 1, '\0');
+sm::String sm::narrow(std::wstring_view wstr) {
+    sm::String result(wstr.size() + 1, '\0');
     size_t size = result.size();
 
     errno_t err = wcstombs_s(&size, result.data(), result.size(), wstr.data(), wstr.size());
@@ -44,7 +44,7 @@ std::string sm::narrow(std::wstring_view wstr) {
     return result;
 }
 
-std::wstring sm::widen(std::string_view str) {
+sm::WideString sm::widen(std::string_view str) {
     // use mbstowcs_s to get the size of the buffer
     size_t size = 0;
     errno_t err = mbstowcs_s(&size, nullptr, 0, str.data(), str.size());
@@ -53,7 +53,7 @@ std::wstring sm::widen(std::string_view str) {
         return L"";
     }
 
-    std::wstring result(size, '\0');
+    sm::WideString result(size, '\0');
     err = mbstowcs_s(&size, result.data(), result.size(), str.data(), str.size());
 
     if (err != 0) {

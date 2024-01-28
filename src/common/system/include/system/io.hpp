@@ -15,7 +15,7 @@ namespace sm::sys {
         HANDLE m_file = nullptr;
         HANDLE m_mapping = nullptr;
         void *m_memory = nullptr;
-        Memory m_size = 0;
+        sm::Memory m_size = 0;
         bool m_valid;
 
         // allocation info

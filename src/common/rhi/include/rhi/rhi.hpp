@@ -1,12 +1,10 @@
 #pragma once
 
 #include <simcoe_config.h>
-
-#include <vector>
-
 #include "core/bitmap.hpp"
 #include "core/text.hpp"
 #include "core/macros.hpp"
+#include "core/vector.hpp"
 
 #include "core/unique.hpp"
 #include "system/system.hpp" // IWYU pragma: export
@@ -34,7 +32,7 @@ namespace sm::rhi {
     static inline constexpr math::float3 kForwardVector = { 0.0f, 1.0f, 0.0f };
     static inline constexpr math::float3 kRightVector = { 1.0f, 0.0f, 0.0f };
 
-    using RenderSink = logs::Sink<logs::Category::eRender>;
+    using RenderSink = logs::Sink<logs::Category::eRHI>;
 
     template<typename T>
     concept ComObject = std::is_base_of_v<IUnknown, T>;
@@ -66,10 +64,23 @@ namespace sm::rhi {
         }
 
         template<ComObject O>
-        HRESULT query(O **out) const { return m_object->QueryInterface(IID_PPV_ARGS(out)); }
+        HRESULT query(O **out) const {
+            return m_object->QueryInterface(IID_PPV_ARGS(out));
+        }
 
-        void release() { CTASSERT(is_valid()); m_object->Release(); m_object = nullptr; }
-        bool try_release() { if (is_valid()) { release(); return true; } return false; }
+        void release() {
+            CTASSERT(is_valid());
+            m_object->Release();
+            m_object = nullptr;
+        }
+
+        bool try_release() {
+            if (is_valid()) {
+                release();
+                return true;
+            }
+            return false;
+        }
 
         constexpr T *operator->() const { CTASSERT(is_valid()); return m_object; }
         constexpr T **operator&() { return &m_object; }
@@ -92,7 +103,7 @@ namespace sm::rhi {
 
     class Adapter : public Object<IDXGIAdapter1> {
         DXGI_ADAPTER_DESC1 m_desc;
-        std::string m_name;
+        sm::String m_name;
 
     public:
         SM_NOCOPY(Adapter)
@@ -116,13 +127,14 @@ namespace sm::rhi {
         constexpr std::string_view get_adapter_name() const { return m_name; }
     };
 
+    using DescriptorIndex = sm::BitMap::Index;
+
     struct FrameData {
         Object<ID3D12Resource> backbuffer;
+        DescriptorIndex rtv_index = DescriptorIndex::eInvalid;
         Object<ID3D12CommandAllocator> allocator;
         UINT64 fence_value = 1;
     };
-
-    using DescriptorIndex = sm::BitMap::Index;
 
     class DescriptorHeap {
         friend class Context;
@@ -141,17 +153,19 @@ namespace sm::rhi {
 
         D3D12_GPU_DESCRIPTOR_HANDLE get_gpu_handle(DescriptorIndex index) const {
             CTASSERT(m_heap.is_valid());
+            CTASSERT(index != DescriptorIndex::eInvalid);
 
             D3D12_GPU_DESCRIPTOR_HANDLE handle = m_heap->GetGPUDescriptorHandleForHeapStart();
-            handle.ptr += index.as_integral() * m_descriptor_size;
+            handle.ptr += index * m_descriptor_size;
             return handle;
         }
 
         D3D12_CPU_DESCRIPTOR_HANDLE get_cpu_handle(DescriptorIndex index) const {
             CTASSERT(m_heap.is_valid());
+            CTASSERT(index != DescriptorIndex::eInvalid);
 
             D3D12_CPU_DESCRIPTOR_HANDLE handle = m_heap->GetCPUDescriptorHandleForHeapStart();
-            handle.ptr += index.as_integral() * m_descriptor_size;
+            handle.ptr += index * m_descriptor_size;
             return handle;
         }
 
@@ -362,7 +376,7 @@ namespace sm::rhi {
 
         Object<IDXGIFactory4> m_factory;
         Object<IDXGIDebug1> m_factory_debug;
-        std::vector<Adapter> m_adapters;
+        sm::Vector<Adapter> m_adapters;
 
         void enum_adapters();
         void enum_warp_adapter();

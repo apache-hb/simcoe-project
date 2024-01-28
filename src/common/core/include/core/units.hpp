@@ -1,8 +1,8 @@
 #pragma once
 
-#include <string>
 #include <limits>
 
+#include "core/text.hpp"
 #include "fmtlib/format.h"
 
 #include "core.reflect.h"
@@ -53,13 +53,9 @@ namespace sm {
         constexpr size_t as_gigabytes() const { return m_bytes / kGigabyte; }
         constexpr size_t as_terabytes() const { return m_bytes / kTerabyte; }
 
-        constexpr std::strong_ordering operator<=>(const Memory& other) const {
-            return m_bytes <=> other.m_bytes;
-        }
+        friend constexpr auto operator<=>(const Memory& lhs, const Memory& rhs) = default;
 
-        constexpr bool operator==(const Memory& other) const { return m_bytes == other.m_bytes; }
-
-        std::string to_string() const;
+        sm::String to_string() const;
 
     private:
         size_t m_bytes;

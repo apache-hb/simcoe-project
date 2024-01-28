@@ -15,7 +15,7 @@ variant Severity {
 
 variant Category {
     [[format("global")]] default Global = 0
-    [[format("render")]] case Render = 1
+    [[format("render")]] case Render = 1 // render layer
     [[format("system")]] case System = 2
     [[format("scheduler")]] case Schedule = 3
     [[format("input")]] case Input = 4
@@ -25,7 +25,9 @@ variant Category {
     [[format("physics")]] case Physics = 8
     [[format("ui")]] case UI = 9
     [[format("debug")]] case Debug = 10
-    case Count = 11 // always keep this up to date
+    [[format("rhi")]] case RHI = 11 // rhi layer under render
+
+    case Count = 12 // always keep this up to date
 }
 
 struct Message {

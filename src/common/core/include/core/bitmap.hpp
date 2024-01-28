@@ -1,28 +1,33 @@
 #pragma once
 
+#include "core/traits.hpp"
 #include "core/unique.hpp"
 
-#include <atomic>
 #include <bit>
 
 #include "core.reflect.h"
 
 namespace sm {
     namespace detail {
-        template<typename T, typename Super>
+        /// @brief bitmap backing storage
+        /// @tparam T the type of the backing storage
+        /// @tparam Super crtp superclass
+        template<Integral T, typename Super>
         struct BitMapStorage {
-            struct Index : public sm::BitMapIndex { using BitMapIndex::BitMapIndex; };
+            enum Index : size_t { eInvalid = SIZE_MAX };
 
             constexpr BitMapStorage() = default;
 
-            constexpr BitMapStorage(size_t length) : m_size(length) {
+            constexpr BitMapStorage(size_t length)
+                : m_size(length)
+            {
                 resize(length);
             }
 
             constexpr void resize(size_t length) {
                 if (length > m_size) {
                     m_size = length;
-                    m_bits = sm::UniquePtr<T[]>(word_count());
+                    m_bits.reset(word_count());
                 }
 
                 reset();
@@ -46,8 +51,8 @@ namespace sm {
             constexpr Index scan_set_first() {
                 Super *self = static_cast<Super*>(this);
                 for (size_t i = 0; i < get_total_bits(); i++) {
-                    if (self->test_set(i)) {
-                        return Index(i);
+                    if (self->test_set(Index{i})) {
+                        return Index{i};
                     }
                 }
 
@@ -80,16 +85,16 @@ namespace sm {
             }
 
         protected:
-            constexpr T get_mask(Index bit) const { return T(1) << (bit.as_integral() % kBitsPerWord); }
-            constexpr size_t get_word(Index bit) const { return bit.as_integral() / kBitsPerWord; }
+            constexpr T get_mask(Index bit) const { return T(1) << (bit % kBitsPerWord); }
+            constexpr size_t get_word(Index bit) const { return bit / kBitsPerWord; }
             constexpr size_t word_count() const { return (get_total_bits() / kBitsPerWord) + 1; }
 
             size_t m_size = 0;
-            sm::UniquePtr<T[]> m_bits{};
+            sm::UniquePtr<T[]> m_bits;
 
             constexpr void verify_index(Index index) const {
                 CTASSERTF(index != Index::eInvalid, "invalid index");
-                CTASSERTF(index.as_integral() <= get_total_bits(), "bit %zu is out of bounds", index.as_integral());
+                CTASSERTF(index <= get_total_bits(), "bit %zu is out of bounds", index);
             }
         };
     }
@@ -104,8 +109,8 @@ namespace sm {
             verify_index(front);
             verify_index(back);
 
-            for (auto i : Index::range(front, back)) {
-                set(i.as_enum()); // TODO: optimize
+            for (size_t i = front; i <= back; i++) {
+                set(Index(i)); // TODO: optimize
             }
         }
 
@@ -113,8 +118,8 @@ namespace sm {
             verify_index(front);
             verify_index(back);
 
-            for (auto i : Index::range(front, back)) {
-                if (!test(i.as_enum())) {
+            for (size_t i = front; i <= back; i++) {
+                if (!test(Index{i})) {
                     return false;
                 }
             }
@@ -123,9 +128,9 @@ namespace sm {
         }
 
         constexpr Index scan_set_range(Index size) {
-            for (auto i : Index::range(Index::kBegin, Index(get_total_bits()))) {
-                auto front = i.as_integral();
-                auto back = i.as_integral() + size.as_integral() - 1;
+            for (size_t i = 0; i <= get_total_bits(); i++) {
+                Index front{i};
+                Index back{i + size - 1};
                 if (test_range(front, back)) {
                     set_range(front, back);
                     return Index(i);

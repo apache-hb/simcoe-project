@@ -1,5 +1,6 @@
 #include "core/arena.hpp"
 #include "core/macros.h"
+#include "core/macros.hpp"
 
 #include <cstring>
 #include <cstdlib>
@@ -8,43 +9,27 @@ using namespace sm;
 
 // trampoline functions
 
-static void *wrap_alloc(size_t size, void *user) {
+void *IArena::wrap_alloc(size_t size, void *user) {
     return static_cast<IArena*>(user)->alloc(size);
 }
 
-static void *wrap_resize(void *ptr, size_t new_size, size_t old_size, void *user) {
+void *IArena::wrap_resize(void *ptr, size_t new_size, size_t old_size, void *user) {
     return static_cast<IArena*>(user)->resize(ptr, new_size, old_size);
 }
 
-static void wrap_release(void *ptr, size_t size, void *user) {
+void IArena::wrap_release(void *ptr, size_t size, void *user) {
     static_cast<IArena*>(user)->release(ptr, size);
 }
 
-static void wrap_rename(const void *ptr, const char *name, void *user) {
+void IArena::wrap_rename(const void *ptr, const char *name, void *user) {
     static_cast<IArena*>(user)->rename(ptr, name);
 }
 
-static void wrap_reparent(const void *ptr, const void *parent, void *user) {
+void IArena::wrap_reparent(const void *ptr, const void *parent, void *user) {
     static_cast<IArena*>(user)->reparent(ptr, parent);
 }
 
-// setup
-
-void IArena::init(const char *id) {
-    name = id;
-    fn_malloc = wrap_alloc;
-    fn_realloc = wrap_resize;
-    fn_free = wrap_release;
-    fn_rename = wrap_rename;
-    fn_reparent = wrap_reparent;
-    user = this;
-}
-
 // public interface
-
-IArena::IArena(const char *name) {
-    init(name);
-}
 
 void *IArena::alloc(size_t size) {
     return impl_alloc(size);
@@ -103,8 +88,17 @@ class DefaultArena final : public IArena {
     }
 };
 
-static DefaultArena gDebugArena{"debug"};
+constinit static DefaultArena gGlobalPools[] = {
+    /* global */ DefaultArena{"global"},
+    /* debug */ DefaultArena{"debug"},
+    /* logging */ DefaultArena{"logging"},
+    /* rhi */ DefaultArena{"rhi"},
+    /* render */ DefaultArena{"render"},
+};
 
-IArena *sm::get_debug_arena(void) {
-    return &gDebugArena;
+IArena& sm::get_pool(Pool pool) {
+    SM_UNUSED constexpr auto refl = ctu::reflect<Pool>();
+    CTASSERTF(pool.is_valid(), "invalid pool %s", refl.to_string(pool).data());
+
+    return gGlobalPools[pool.as_integral()];
 }

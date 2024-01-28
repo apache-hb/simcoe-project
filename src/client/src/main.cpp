@@ -27,6 +27,8 @@
 
 using namespace sm;
 
+using FormatBuffer = fmt::basic_memory_buffer<char, 256, sm::StandardArena<char>>;
+
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 template<ctu::Reflected T>
@@ -36,6 +38,8 @@ static constexpr auto enum_to_string(T value) {
 }
 
 class ConsoleLog final : public logs::ILogger {
+    FormatBuffer m_buffer;
+
     static constexpr colour_t get_colour(logs::Severity severity) {
         CTASSERTF(severity.is_valid(), "invalid severity: %s", enum_to_string(severity).data());
 
@@ -67,8 +71,10 @@ class ConsoleLog final : public logs::ILogger {
         auto seconds = (message.timestamp / 1000) % 60;
         auto milliseconds = message.timestamp % 1000;
 
-        auto header = fmt::format("{}[{}]{}[{:02}:{:02}:{:02}.{:03}] {}:",
+        fmt::format_to(std::back_inserter(m_buffer), "{}[{}]{}[{:02}:{:02}:{:02}.{:03}] {}:",
             colour, s.data(), reset, hours, minutes, seconds, milliseconds, c.data());
+
+        std::string_view header { m_buffer.data(), m_buffer.size() };
 
         // ranges is impossible to use without going through a bunch of hoops
         // just iterate over the message split by newlines
@@ -87,11 +93,14 @@ class ConsoleLog final : public logs::ILogger {
                 ++it;
             }
         }
+
+        m_buffer.clear();
     }
 
 public:
-    constexpr ConsoleLog(logs::Severity severity)
+    constexpr ConsoleLog(IArena& arena, logs::Severity severity)
         : ILogger(severity)
+        , m_buffer(arena)
     { }
 };
 
@@ -167,11 +176,11 @@ static print_backtrace_t print_options_make(arena_t *arena, io_t *io) {
 }
 
 class DefaultSystemError final : public ISystemError {
-    arena_t *m_arena = nullptr;
+    IArena& m_arena;
     bt_report_t *m_report = nullptr;
 
     void error_begin(size_t error) override {
-        m_report = bt_report_new(m_arena);
+        m_report = bt_report_new(&m_arena);
         std::printf("system_error(0x%zX)\n", error);
     }
 
@@ -180,13 +189,13 @@ class DefaultSystemError final : public ISystemError {
     }
 
     void error_end(void) override {
-        const print_backtrace_t kPrintOptions = print_options_make(m_arena, io_stderr());
+        const print_backtrace_t kPrintOptions = print_options_make(&m_arena, io_stderr());
         print_backtrace(kPrintOptions, m_report);
         std::exit(CT_EXIT_INTERNAL); // NOLINT
     }
 
 public:
-    DefaultSystemError(arena_t *arena)
+    constexpr DefaultSystemError(IArena& arena)
         : m_arena(arena)
     { }
 };
@@ -204,7 +213,6 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     }
 
     void resize(sys::Window&, math::int2 size) override {
-        // TODO: this will break if we ever have multiple windows
         if (m_context != nullptr)
             m_context->resize(size.as<uint32_t>());
     }
@@ -238,9 +246,9 @@ struct System {
     ~System() { sys::destroy(); }
 };
 
-static DefaultArena gGlobalArena{"default"};
-static DefaultSystemError gDefaultError{&gGlobalArena};
-static ConsoleLog gConsoleLog{logs::Severity::eInfo};
+constinit static DefaultArena gGlobalArena{"default"};
+constinit static DefaultSystemError gDefaultError{gGlobalArena};
+constinit static ConsoleLog gConsoleLog{gGlobalArena, logs::Severity::eInfo};
 
 static void common_init(void) {
     bt_init();
@@ -410,7 +418,7 @@ int main(int argc, const char **argv) {
     logs::Sink<logs::Category::eGlobal> general { gConsoleLog };
     common_init();
 
-    std::string args;
+    FormatBuffer args { gGlobalArena };
     auto it = std::back_inserter(args);
     fmt::format_to(it, "args[{}] = {{", argc);
     for (int i = 0; i < argc; ++i) {
@@ -419,7 +427,7 @@ int main(int argc, const char **argv) {
     }
     fmt::format_to(it, "}}\0");
 
-    general.info("{}", args);
+    general.info("{}", std::string_view { args.data(), args.size() });
 
     System sys { GetModuleHandleA(nullptr), gConsoleLog };
 

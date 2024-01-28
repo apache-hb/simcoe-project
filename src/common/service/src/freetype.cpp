@@ -59,7 +59,8 @@ void service::init_freetype(logs::ILogger *logger) {
     gFreeTypeLogger = logger;
     FT_Trace_Set_Default_Level();
     FT_Set_Log_Handler([](const char *component, const char *fmt, va_list args) {
-        text_t text = text_vformat(sm::get_debug_arena(), fmt, args);
+        sm::IArena& arena = sm::get_pool(sm::Pool::eDebug);
+        text_t text = text_vformat(&arena, fmt, args);
         std::string_view view { text.text, text.text + text.length };
         auto msg = fmt::format("{}: {}", component, view);
         gFreeTypeLogger->log(logs::Category::eGlobal, logs::Severity::eTrace, msg);

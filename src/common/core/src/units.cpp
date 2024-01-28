@@ -1,33 +1,32 @@
 #include "core/units.hpp"
+#include "core/text.hpp"
 
-#include <vector>
+#include <iterator>
 
 using namespace sm;
 
-static std::string join(const std::vector<std::string> &parts, const std::string &sep) {
-    std::string result;
+using FormatBuffer = fmt::basic_memory_buffer<char, 256, sm::StandardArena<char>>;
 
-    for (size_t i = 0; i < parts.size(); i++) {
-        if (i > 0) { result += sep; }
-        result += parts[i];
-    }
-
-    return result;
-}
-
-std::string Memory::to_string() const {
+sm::String Memory::to_string() const {
     if (m_bytes == 0) { return "0b"; }
 
-    std::vector<std::string> parts;
+    FormatBuffer buffer;
+    auto out = std::back_inserter(buffer);
     size_t total = m_bytes;
+
+    // seperate each part with a +
 
     for (int fmt = eLimit - 1; fmt >= 0; fmt--) {
         size_t size = total / kSizes[fmt];
         if (size > 0) {
-            parts.push_back(std::to_string(size) + kNames[fmt]); // TODO: we need our own string and string_view, this is ridiculous
+            fmt::format_to(out, "{}{}", size, kNames[fmt]);
             total %= kSizes[fmt];
+
+            if (total > 0) {
+                fmt::format_to(out, "+");
+            }
         }
     }
 
-    return ::join(parts, "+");
+    return { buffer.data(), buffer.size() };
 }
