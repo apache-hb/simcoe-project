@@ -354,9 +354,7 @@ void Device::init() {
 
     m_log.info("creating rhi context");
     m_log.info(" - flags: {}", df_refl.to_string(config.debug_flags, 2).data());
-    m_log.info(" - dsv heap size: {}", config.dsv_heap_size);
     m_log.info(" - rtv heap size: {}", config.rtv_heap_size);
-    m_log.info(" - cbv/srv/uav heap size: {}", config.cbv_srv_uav_heap_size);
     m_log.info(" - adapter lookup: {}", ap_refl.to_string(config.adapter_lookup, 10).data());
     m_log.info(" - adapter index: {}", config.adapter_index);
     m_log.info(" - software adapter: {}", config.software_adapter);

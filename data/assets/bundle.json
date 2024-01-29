@@ -1,0 +1,26 @@
+{
+    "licenses": [
+        "licenses/agility/LICENSE",
+        "licenses/cthulhu/LICENSE",
+        "licenses/fmtlib/LICENSE",
+        "licenses/freetype2/LICENSE",
+        "licenses/harfbuzz/LICENSE"
+    ],
+    "shaders": {
+        "blit": {
+            "path": "shaders/blit.hlsl",
+            "vertex": "vs_main",
+            "pixel": "ps_main"
+        },
+        "canvas": {
+            "path": "shaders/canvas.hlsl",
+            "vertex": "vs_main",
+            "pixel": "ps_main"
+        },
+        "object": {
+            "path": "shaders/object.hlsl",
+            "vertex": "vs_main",
+            "pixel": "ps_main"
+        }
+    }
+}

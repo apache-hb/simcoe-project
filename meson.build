@@ -55,6 +55,7 @@ harfbuzz = dependency('harfbuzz')
 # windows specific dependencies
 agility = subproject('d3d12-agility')
 warp = subproject('d3d-warp')
+dxc = subproject('dxc').get_variable('dxc')
 windows = import('windows')
 
 d3d12 = dependency('d3d12')
@@ -68,13 +69,10 @@ convert_utf16 = find_program('scripts/convert_utf16.py')
 
 # TODO: move off this as soon as possible
 compile_hlsl = find_program('scripts/compile_hlsl.py')
-extra_hlsl_args = []
-if is_debug
-    extra_hlsl_args += [ '--debug' ]
-endif
+extra_hlsl_args = is_debug ? [ '--debug' ] : []
 hlsl = generator(compile_hlsl,
     output : [ '@BASENAME@.vs.cso', '@BASENAME@.ps.cso' ],
-    arguments : [ '@INPUT@', '@BUILD_DIR@/@BASENAME@', '@BUILD_DIR@', 'vs,ps', '5_0' ] + extra_hlsl_args
+    arguments : [ dxc.full_path(), '@INPUT@', '@BUILD_DIR@/@BASENAME@', '@BUILD_DIR@', 'vs,ps', '5_0' ] + extra_hlsl_args
 )
 
 reflect_include = cthulhu.get_variable('reflect_include')
@@ -157,6 +155,7 @@ simcoe_cdata.set('SMC_VERSION_PATCH', parts[2].to_int())
 simcoe_cdata.set('SMC_VERSION_MINOR', parts[1].to_int())
 simcoe_cdata.set('SMC_VERSION_MAJOR', parts[0].to_int())
 simcoe_cdata.set_quoted('SMC_VERSION', version)
+simcoe_cdata.set_quoted('SMC_SOURCE_DIR', meson.project_source_root().replace('\\', '\\\\'))
 
 simcoe_cdata.set_quoted('SMC_PACKAGE_TYPE', package_type)
 simcoe_cdata.set10('SMC_BUILD_DEVEL', package_type == 'devel')
@@ -195,6 +194,7 @@ subdir('src/common/bundle')
 
 subdir('src/common/system')
 subdir('src/common/threads')
+subdir('src/common/input')
 
 subdir('src/common/rhi')
 subdir('src/common/render')
@@ -267,7 +267,9 @@ if package_type == 'devel'
 endif
 
 shaders = [
-    hlsl.process('data/assets/shaders/shader.hlsl')
+    hlsl.process('data/assets/shaders/object.hlsl'),
+    hlsl.process('data/assets/shaders/canvas.hlsl'),
+    hlsl.process('data/assets/shaders/blit.hlsl')
 ]
 
 client = executable('client', 'src/client/src/main.cpp', shaders,
@@ -281,7 +283,7 @@ client = executable('client', 'src/client/src/main.cpp', shaders,
         '/manifest:embed', '/manifestinput:' + manifest
     ],
     dependencies : [
-        core, system, rhi, logs, threads, imgui, service, render, bundle,
+        core, system, rhi, logs, threads, imgui, service, render, bundle, input, ui,
         cthulhu.get_variable('backtrace'),
         cthulhu.get_variable('format_core'),
         cthulhu.get_variable('io')

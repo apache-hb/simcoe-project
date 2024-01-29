@@ -1,0 +1,8 @@
+module sm::input;
+
+variant InputType {
+    default None = 0 // null input
+    case XInput = 1 // xbox gamepad
+    case Desktop = 2 // mouse and keyboard
+    case Playback = 3 // file playback
+}

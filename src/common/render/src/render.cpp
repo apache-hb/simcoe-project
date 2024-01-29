@@ -89,8 +89,8 @@ void Context::setup_pipeline() {
          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
     };
 
-    auto vs = load_shader("build/client.exe.p/shader.vs.cso");
-    auto ps = load_shader("build/client.exe.p/shader.ps.cso");
+    auto vs = load_shader("build/client.exe.p/object.vs.cso");
+    auto ps = load_shader("build/client.exe.p/object.ps.cso");
 
     const D3D12_GRAPHICS_PIPELINE_STATE_DESC kPipelineDesc = {
         .pRootSignature = m_pipeline.m_signature.get(),
@@ -351,10 +351,10 @@ void Context::setup_camera() {
     SM_ASSERT_HR(m_camera_resource->Map(0, &read_range, reinterpret_cast<void **>(&m_camera_data)));
 }
 
-void Context::update_camera() {
-    float aspect = m_device.get_aspect_ratio();
+void Context::update_camera(math::uint2 size) {
+    float aspect = float(size.x) / float(size.y);
     m_camera.view = math::float4x4::lookAtRH({1.0f, 1.0f, 1.0f}, {0.1f, 0.1f, 0.1f}, kUpVector).transpose();
-    m_camera.projection = math::float4x4::perspectiveRH(60.0f, aspect, 0.1f, 100.0f).transpose();
+    m_camera.projection = math::float4x4::perspectiveRH(90.0f * math::kDegToRad<float>, aspect, 0.1f, 100.0f).transpose();
     *m_camera_data = m_camera;
 }
 
@@ -400,11 +400,11 @@ void Context::resize(math::uint2 size) {
 
     m_device.resize(size);
 
-    update_camera();
+    update_camera(size);
 }
 
 void Context::begin_frame() {
-    update_camera();
+    update_camera(m_device.get_swapchain_size());
 
     auto& commands = m_device.open_direct_commands(m_pipeline.m_pipeline.get());
     m_device.begin_frame();

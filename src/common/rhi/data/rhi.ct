@@ -130,9 +130,7 @@ struct RenderConfig {
     buffer_count: uint;
     buffer_format: DataFormat;
 
-    dsv_heap_size: uint32;
     rtv_heap_size: uint32;
-    cbv_srv_uav_heap_size: uint32;
 
     adapter_lookup: AdapterPreference;
     adapter_index: uint32;

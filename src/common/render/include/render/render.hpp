@@ -191,7 +191,7 @@ namespace sm::render {
         rhi::ResourceObject m_camera_resource;
 
         void setup_camera();
-        void update_camera();
+        void update_camera(math::uint2 size);
 
         ///
         /// end awful
