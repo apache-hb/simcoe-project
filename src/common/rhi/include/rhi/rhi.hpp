@@ -24,17 +24,23 @@
 
 #define CBUFFER_ALIGN alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT)
 
+#define SM_ASSERT_HR(expr)                                 \
+    do {                                                   \
+        if (auto result = (expr); FAILED(result)) {        \
+            sm::rhi::assert_hresult(CT_SOURCE_HERE, #expr, result); \
+        }                                                  \
+    } while (0)
+
 namespace sm::rhi {
     class Device;
     class Factory;
 
+    NORETURN assert_hresult(source_info_t source, const char *expr, HRESULT hr);
+    char *hresult_string(HRESULT hr);
+
     DXGI_FORMAT get_data_format(bundle::DataFormat format);
 
-    static inline constexpr math::float3 kUpVector = { 0.0f, 0.0f, 1.0f };
-    static inline constexpr math::float3 kForwardVector = { 0.0f, 1.0f, 0.0f };
-    static inline constexpr math::float3 kRightVector = { 1.0f, 0.0f, 0.0f };
-
-    using RenderSink = logs::Sink<logs::Category::eRHI>;
+    using RhiSink = logs::Sink<logs::Category::eRHI>;
 
     template<typename T>
     concept ComObject = std::is_base_of_v<IUnknown, T>;
@@ -287,7 +293,7 @@ namespace sm::rhi {
 
     class Device {
         RenderConfig m_config;
-        RenderSink m_log;
+        RhiSink m_log;
 
         Factory& m_factory;
         Adapter& m_adapter;
@@ -310,34 +316,9 @@ namespace sm::rhi {
         Object<ID3D12GraphicsCommandList2> m_copy_commands;
 
         DescriptorArena m_rtv_heap{};
-        DescriptorArena m_srv_heap{};
 
         UINT m_frame_index = 0;
         sm::UniquePtr<FrameData[]> m_frames;
-
-        // viewport/scissor
-        D3D12_VIEWPORT m_viewport;
-        D3D12_RECT m_scissor;
-
-        // pipeline
-        ShaderPipeline m_pipeline;
-
-        // gpu resources
-        ResourceObject m_vbo;
-        D3D12_VERTEX_BUFFER_VIEW m_vbo_view;
-
-        ResourceObject m_ibo;
-        D3D12_INDEX_BUFFER_VIEW m_ibo_view;
-
-        DescriptorIndex m_texture_index = DescriptorIndex::eInvalid;
-        ResourceObject m_texture;
-
-        DescriptorIndex m_camera_index;
-        CameraBuffer m_camera;
-        CameraBuffer *m_camera_data = nullptr;
-        ResourceObject m_camera_resource;
-
-        void setup_camera();
 
         static void info_callback(D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID id, LPCSTR desc, void *user);
 
@@ -346,22 +327,12 @@ namespace sm::rhi {
         void query_root_signature_version();
 
         void setup_device();
-        void setup_pipeline();
+        void setup_direct_queue();
+        void setup_swapchain();
         void setup_render_targets();
         void setup_direct_allocators();
         void setup_copy_queue();
 
-        // setup assets that only depend on the device
-        void setup_device_assets();
-        RootSignatureObject create_root_signature() const;
-        PipelineStateObject create_shader_pipeline(RootSignatureObject& root_signature) const;
-
-        // setup assets that depend on the swapchain resolution
-        void update_camera();
-
-        void setup_display_assets();
-
-        void open_commands(ID3D12PipelineState *pipeline);
         void record_commands();
         void finish_commands();
         void submit_commands();
@@ -377,11 +348,29 @@ namespace sm::rhi {
         Device(const RenderConfig& config, Factory& factory);
         ~Device();
 
+        RootSignatureVersion get_root_signature_version() const { return m_version; }
         const RenderConfig& get_config() const { return m_config; }
         DescriptorArena& get_rtv_heap() { return m_rtv_heap; }
-        DescriptorArena& get_srv_heap() { return m_srv_heap; }
         ID3D12Device1 *get_device() const { return m_device.get(); }
         CommandListObject& get_commands() { return m_commands; }
+
+        math::uint2 get_swapchain_size() const { return m_swapchain_size; }
+
+        CommandListObject& open_copy_commands(ID3D12PipelineState *pipeline = nullptr) {
+            SM_ASSERT_HR(m_copy_allocator->Reset());
+            SM_ASSERT_HR(m_copy_commands->Reset(m_copy_allocator.get(), pipeline));
+            return m_copy_commands;
+        }
+
+        CommandListObject& open_direct_commands(ID3D12PipelineState *pipeline = nullptr) {
+            auto& alloc = m_frames[m_frame_index].allocator;
+            SM_ASSERT_HR(alloc->Reset());
+            SM_ASSERT_HR(m_commands->Reset(alloc.get(), pipeline));
+            return m_commands;
+        }
+
+        void flush_copy_commands(CommandListObject& commands);
+        void flush_direct_commands(CommandListObject& commands);
 
         void resize(math::uint2 size);
 
@@ -390,9 +379,6 @@ namespace sm::rhi {
         void begin_frame();
         void end_frame();
 
-        void begin_copy();
-        void submit_copy();
-
         void present();
     };
 
@@ -400,7 +386,7 @@ namespace sm::rhi {
         friend class Device;
 
         RenderConfig m_config;
-        RenderSink m_log;
+        RhiSink m_log;
 
         Object<IDXGIFactory4> m_factory;
         Object<IDXGIDebug1> m_factory_debug;

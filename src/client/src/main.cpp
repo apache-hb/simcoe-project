@@ -24,6 +24,7 @@
 #include "imgui/backends/imgui_impl_dx12.h"
 
 #include "render/render.hpp"
+#include "render/graph.hpp"
 
 #include <iterator>
 
@@ -361,13 +362,14 @@ static int common_main(sys::ShowWindow show) {
 
     rhi::Factory render { rhi_config };
 
-    class ImGuiCommands : public render::IRenderCommands {
-        render::SrvHeapIndex& imgui_index = srv_local();
+    class ImGuiCommands : public render::IRenderNode {
+        render::SrvHeapIndex imgui_index = render::SrvHeapIndex::eInvalid;
 
     public:
         void create(render::Context& ctx) override {
             const auto& config = ctx.get_config();
-            const auto& srv_heap = ctx.get_srv_heap();
+            auto& srv_heap = ctx.get_srv_heap();
+            imgui_index = srv_heap.bind_slot();
 
             auto format = rhi::get_data_format(config.swapchain_format);
 
@@ -379,6 +381,9 @@ static int common_main(sys::ShowWindow show) {
 
         void destroy(render::Context& ctx) override {
             ImGui_ImplDX12_Shutdown();
+
+            auto& srv_heap = ctx.get_srv_heap();
+            srv_heap.unbind_slot(imgui_index);
         }
 
         void build(render::Context& ctx) override {
@@ -389,40 +394,6 @@ static int common_main(sys::ShowWindow show) {
 
             ImGui::Render();
             ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commands.get());
-        }
-    };
-
-    class BeginCommands : public render::IRenderCommands {
-        //SM_UNUSED render::RtvHeapIndex& m_target = rtv_local();
-
-    public:
-        void build(render::Context& ctx) override {
-            ctx.get_rhi().begin_frame();
-        }
-    };
-
-    class EndCommands : public render::IRenderCommands {
-        //SM_UNUSED render::RtvHeapIndex& m_target = rtv_local();
-
-    public:
-        void build(render::Context& ctx) override {
-            ctx.get_rhi().end_frame();
-        }
-    };
-
-    class WorldCommands : public render::IRenderCommands {
-        //SM_UNUSED render::RtvHeapIndex& m_target = rtv_local();
-
-    public:
-        void build(render::Context& ctx) override {
-
-        }
-    };
-
-    class PresentCommands : public render::IRenderCommands {
-    public:
-        void build(render::Context& ctx) override {
-            ctx.get_rhi().present();
         }
     };
 
@@ -450,9 +421,9 @@ static int common_main(sys::ShowWindow show) {
     ImGui_ImplWin32_Init(window.get_handle());
 
     auto& cmd_imgui = context.add_node<ImGuiCommands>();
-    auto& cmd_begin = context.add_node<BeginCommands>();
-    auto& cmd_end = context.add_node<EndCommands>();
-    auto& cmd_present = context.add_node<PresentCommands>();
+    auto& cmd_begin = context.add_node<render::BeginCommands>();
+    auto& cmd_end = context.add_node<render::EndCommands>();
+    auto& cmd_present = context.add_node<render::PresentCommands>();
 
     window.show_window(show);
     events.attach_render(&context.get_rhi());

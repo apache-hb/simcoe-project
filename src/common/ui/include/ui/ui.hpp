@@ -36,7 +36,7 @@ namespace sm::ui {
     };
 
     class ImageWidget : public IWidget {
-        SM_UNUSED render::Texture m_texture;
+        SM_UNUSED bundle::Texture m_texture;
     };
 
     class ButtonWidget : public IWidget {
