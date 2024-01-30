@@ -28,3 +28,5 @@ subprojects/*
 !subprojects/*.wrap
 !subprojects/packagefiles
 !subprojects/packagefiles/**
+
+*[bB]uild*/

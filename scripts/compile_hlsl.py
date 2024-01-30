@@ -18,31 +18,6 @@ import os
 # if multiple targets are specified a shader will be compiled for each
 #
 
-class ShaderCompiler:
-    # dxc is the path to dxc.exe
-    # target_dir is the output directory
-    # pdb_dir is the pdb directory
-    # debug enables debug mode
-    def __init__(self, dxc, target_dir, pdb_dir, debug):
-        self.dxc = dxc
-        self.target_dir = target_dir
-        self.pdb_dir = pdb_dir
-        self.debug = debug
-
-        self.args = [ self.dxc, '/WX', '/Ges' ]
-        if self.debug:
-            self.args += [ '/Zi', '/Fd', self.pdb_dir ]
-
-    # file is the input file
-    # model is the shader model to use
-    # target is the shader target to compile for
-    # entrypoint is the entry point to use
-    def compile_hlsl(self, file, model, target, entrypoint):
-        output = os.path.join(self.target_dir, f'{target}.{model}.cso')
-        extra_args = [ '-T' + target + '_' + model, '-E' + entrypoint, '-Fo' + output ]
-
-        return os.system(' '.join(self.args + extra_args + [ file ]))
-
 def compile_hlsl(dxc, file, output, build_dir, targets, shader_model, debug, pdb_dir = None):
     if pdb_dir is None:
         pdb_dir = build_dir

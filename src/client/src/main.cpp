@@ -446,7 +446,7 @@ static int common_main(sys::ShowWindow show) {
     TraceArena ft_arena{"freetype", gGlobalArena, gConsoleLog};
     service::init_freetype(&ft_arena, &gConsoleLog);
 
-    bundle::AssetBundle assets{"build\\client.exe.p", gConsoleLog};
+    bundle::AssetBundle assets{"build\\bundle", gConsoleLog};
 
     ImGuiFreeType::SetAllocatorFunctions(
         [](size_t size, void *user_data) {

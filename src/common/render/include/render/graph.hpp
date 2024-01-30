@@ -25,8 +25,8 @@ namespace sm::render {
     };
 
     class WorldCommands : public render::IRenderNode {
-        static constexpr inline const char *kVertexShader = "object.vs.cso";
-        static constexpr inline const char *kPixelShader = "object.ps.cso";
+        static constexpr inline const char *kVertexShader = "shaders/object.vs.cso";
+        static constexpr inline const char *kPixelShader = "shaders/object.ps.cso";
 
         static constexpr inline const char *kTextureSlot = "texture";
         static constexpr inline const char *kCameraSlot = "camera";

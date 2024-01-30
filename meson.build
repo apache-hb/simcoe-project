@@ -203,8 +203,6 @@ subdir('src/common/render')
 
 subdir('src/common/ui')
 
-fs = import('fs')
-
 default_ico = custom_target('default_icon',
     input : [ 'data/assets/icon/icon_circle.png' ],
     command : [ magick, '@INPUT@', '-define', 'icon:auto-resize=256,128,48,32,16', '@OUTPUT@' ],
@@ -270,15 +268,25 @@ if package_type == 'devel'
     )
 endif
 
-fonts = fs.copyfile('data/vendor/public-sans/fonts/ttf/PublicSans-Bold.ttf', 'PublicSans-Bold.ttf')
+debug_bundle = is_debug ? [ '--debug' ] : []
 
-shaders = [
-    hlsl.process('data/assets/shaders/object.hlsl'),
-    hlsl.process('data/assets/shaders/canvas.hlsl'),
-    hlsl.process('data/assets/shaders/blit.hlsl')
-]
+make_bundle = find_program('scripts/make_bundle.py')
+game_bundle = custom_target('game_bundle',
+    input : [ 'data/assets/bundle.json' ],
+    output : 'dummy.txt',
+    depfile : 'bundle.d',
+    command : [
+        make_bundle,
+        '--bundlefile', '@INPUT@',
+        '--inputdir', '@SOURCE_ROOT@/data/assets',
+        '--outdir', '@OUTDIR@',
+        '--output', '@OUTPUT@',
+        '--depfile', '@DEPFILE@',
+        '--dxc', dxc.full_path(),
+    ] + debug_bundle
+)
 
-client = executable('client', 'src/client/src/main.cpp', shaders,
+client = executable('client', 'src/client/src/main.cpp', game_bundle,
     install : true,
     link_depends : [ manifest, res ],
     link_args : [

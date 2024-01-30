@@ -13,8 +13,8 @@ namespace sm::ui {
         CanvasDrawData m_draw;
 
         // canvas pipeline
-        static constexpr inline const char *kVertexShader = "canvas.vs.cso";
-        static constexpr inline const char *kPixelShader = "canvas.ps.cso";
+        static constexpr inline const char *kVertexShader = "shaders/canvas.vs.cso";
+        static constexpr inline const char *kPixelShader = "shaders/canvas.ps.cso";
         static constexpr inline const char *kFontAtlasSlot = "font_atlas";
         static constexpr inline const char *kCameraSlot = "camera";
 

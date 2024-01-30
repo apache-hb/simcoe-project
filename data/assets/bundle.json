@@ -4,31 +4,37 @@
     },
     "licenses": [
         {
+            "id": "agility",
             "name": "Microsoft Agility SDK",
             "url": "https://www.microsoft.com",
             "path": "licenses/agility/LICENSE"
         },
         {
+            "id": "cthulhu",
             "name": "Cthulhu Runtime",
             "url": "https://github.com/apache-hb/cthulhu",
             "path": "licenses/cthulhu/LICENSE"
         },
         {
+            "id": "libfmt",
             "name": "libfmt",
             "url": "https://fmt.dev/latest/index.html",
             "path": "licenses/fmtlib/LICENSE"
         },
         {
+            "id": "freetype",
             "name": "Freetype 2",
             "url": "https://freetype.org",
             "path": "licenses/freetype2/LICENSE"
         },
         {
+            "id": "harfbuzz",
             "name": "Harfbuzz",
             "url": "https://harfbuzz.github.io",
             "path": "licenses/harfbuzz/LICENSE"
         },
         {
+            "id": "publicsans",
             "name": "Public Sans (USWDS)",
             "url": "https://public-sans.digital.gov",
             "path": "licenses/public-sans/LICENSE"
