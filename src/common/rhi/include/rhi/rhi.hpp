@@ -1,6 +1,7 @@
 #pragma once
 
 #include <simcoe_config.h>
+#include <span>
 
 #include "core/bitmap.hpp"
 #include "core/text.hpp"
@@ -115,7 +116,14 @@ namespace sm::rhi {
 
         ResourceObject m_resource;
 
-        // TODO: use this rather than raw objects
+    public:
+        template<typename T>
+        void write(std::span<const T> data) {
+            void *ptr = nullptr;
+            SM_ASSERT_HR(m_resource->Map(0, nullptr, &ptr));
+            std::memcpy(ptr, data.data(), data.size_bytes());
+            m_resource->Unmap(0, nullptr);
+        }
     };
 
     // TODO: remove this from rhi

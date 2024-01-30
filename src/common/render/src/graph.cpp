@@ -2,7 +2,6 @@
 
 #include "d3dx12/d3dx12_barriers.h"
 #include "d3dx12/d3dx12_resource_helpers.h"
-#include "d3dx12/d3dx12_root_signature.h"
 #include "io/io.h"
 
 using namespace sm;
@@ -28,11 +27,31 @@ static sm::Vector<uint8_t> load_shader(const char *file) {
     return result;
 }
 
+void WorldCommands::update_viewport() {
+    auto [width, height] = m_size;
+
+    m_viewport = {
+        .TopLeftX = 0.0f,
+        .TopLeftY = 0.0f,
+        .Width = float(width),
+        .Height = float(height),
+        .MinDepth = 0.0f,
+        .MaxDepth = 1.0f,
+    };
+
+    m_scissor = {
+        .left = 0,
+        .top = 0,
+        .right = LONG(width),
+        .bottom = LONG(height),
+    };
+}
+
 void WorldCommands::setup_pipeline(render::Context &ctx) {
     auto &rhi = ctx.get_rhi();
 
     static constexpr rhi::InputElement kInputLayout[] = {
-        {"POSITION", bundle::DataFormat::eRGBA32_FLOAT, offsetof(Vertex, position)},
+        {"POSITION", bundle::DataFormat::eRGB32_FLOAT, offsetof(Vertex, position)},
         {"TEXCOORD", bundle::DataFormat::eRG32_FLOAT, offsetof(Vertex, uv)},
     };
 
@@ -61,29 +80,12 @@ void WorldCommands::setup_pipeline(render::Context &ctx) {
 
 void WorldCommands::setup_assets(render::Context &ctx) {
     auto &rhi = ctx.get_rhi();
+    auto &heap = ctx.get_srv_heap();
+    auto &log = ctx.get_logger();
+    auto device = rhi.get_device();
+
     auto &copy = rhi.open_copy_commands();
     auto &direct = rhi.open_direct_commands();
-    auto &heap = ctx.get_srv_heap();
-    auto& log = ctx.get_logger();
-
-    auto device = rhi.get_device();
-    auto [width, height] = rhi.get_swapchain_size();
-
-    m_viewport = {
-        .TopLeftX = 0.0f,
-        .TopLeftY = 0.0f,
-        .Width = float(width),
-        .Height = float(height),
-        .MinDepth = 0.0f,
-        .MaxDepth = 1.0f,
-    };
-
-    m_scissor = {
-        .left = 0,
-        .top = 0,
-        .right = LONG(width),
-        .bottom = LONG(height),
-    };
 
     const CD3DX12_HEAP_PROPERTIES kDefaultHeapProperties{D3D12_HEAP_TYPE_DEFAULT};
     const CD3DX12_HEAP_PROPERTIES kUploadHeapProperties{D3D12_HEAP_TYPE_UPLOAD};
@@ -269,8 +271,8 @@ void WorldCommands::setup_camera(render::Context &ctx) {
     SM_ASSERT_HR(m_camera_resource->Map(0, &read_range, reinterpret_cast<void **>(&m_camera_data)));
 }
 
-void WorldCommands::update_camera(math::uint2 size) {
-    float aspect = float(size.x) / float(size.y);
+void WorldCommands::update_camera() {
+    float aspect = float(m_size.x) / float(m_size.y);
     m_camera.view =
         math::float4x4::lookAtRH({1.0f, 1.0f, 1.0f}, {0.1f, 0.1f, 0.1f}, kUpVector).transpose();
     m_camera.projection = math::float4x4::perspectiveRH(90.0f * math::kDegToRad<float>, aspect,

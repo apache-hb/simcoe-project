@@ -78,6 +78,10 @@ namespace sm::render {
         rhi::ResourceState m_expects;
     };
 
+    class NodeOutput : GraphEdge {
+
+    };
+
     using NodeInputPtr = sm::UniquePtr<NodeInput>;
 
     struct ResourceBinding {
@@ -119,13 +123,15 @@ namespace sm::render {
             return *input.get();
         }
 
-    public:
-        virtual ~IGraphNode() = default;
-
         virtual void create(Context& context) { }
         virtual void destroy(Context& context) { }
 
+        virtual void resize(Context& context, math::uint2 size) { }
+
         virtual void build(Context& context) = 0;
+
+    public:
+        virtual ~IGraphNode() = default;
     };
 
     class IRenderNode : public IGraphNode {
@@ -152,45 +158,6 @@ namespace sm::render {
         void execute_inner(IGraphNode& node);
 
         void create_node(IGraphNode& node);
-
-        ///
-        /// begin awful
-        ///
-
-        // viewport/scissor
-        D3D12_VIEWPORT m_viewport;
-        D3D12_RECT m_scissor;
-
-        void setup_viewport(math::uint2 size);
-
-        // pipeline
-        rhi::PipelineState m_pipeline;
-
-        void setup_pipeline();
-
-        // gpu resources
-        rhi::ResourceObject m_vbo;
-        D3D12_VERTEX_BUFFER_VIEW m_vbo_view;
-
-        rhi::ResourceObject m_ibo;
-        D3D12_INDEX_BUFFER_VIEW m_ibo_view;
-
-        SrvHeapIndex m_texture_index = SrvHeapIndex::eInvalid;
-        rhi::ResourceObject m_texture;
-
-        void setup_assets();
-
-        SrvHeapIndex m_camera_index = SrvHeapIndex::eInvalid;
-        CameraBuffer m_camera;
-        CameraBuffer *m_camera_data = nullptr;
-        rhi::ResourceObject m_camera_resource;
-
-        void setup_camera();
-        void update_camera(math::uint2 size);
-
-        ///
-        /// end awful
-        ///
 
     public:
         SM_NOCOPY(Context)

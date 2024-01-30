@@ -424,6 +424,7 @@ static int common_main(sys::ShowWindow show) {
 
         auto &cmd_imgui = context.add_node<ImGuiCommands>();
         auto &cmd_begin = context.add_node<render::BeginCommands>();
+        auto &cmd_world = context.add_node<render::WorldCommands>();
         auto &cmd_end = context.add_node<render::EndCommands>();
         auto &cmd_present = context.add_node<render::PresentCommands>();
 
@@ -451,6 +452,8 @@ static int common_main(sys::ShowWindow show) {
 
             context.execute_node(cmd_begin);
 
+            context.execute_node(cmd_world);
+
             context.execute_node(cmd_imgui);
 
             context.execute_node(cmd_end);
@@ -468,6 +471,7 @@ static int common_main(sys::ShowWindow show) {
 
         // TODO: graph should manage resources
         context.destroy_node(cmd_imgui);
+        context.destroy_node(cmd_world);
 
         ImGui_ImplWin32_Shutdown();
     }

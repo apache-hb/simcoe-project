@@ -29,6 +29,9 @@ namespace sm::render {
         // viewport/scissor
         D3D12_VIEWPORT m_viewport;
         D3D12_RECT m_scissor;
+        math::uint2 m_size;
+
+        void update_viewport();
 
         // pipeline
         rhi::PipelineState m_pipeline;
@@ -37,10 +40,10 @@ namespace sm::render {
 
         // gpu resources
         rhi::ResourceObject m_vbo;
-        D3D12_VERTEX_BUFFER_VIEW m_vbo_view;
+        D3D12_VERTEX_BUFFER_VIEW m_vbo_view{};
 
         rhi::ResourceObject m_ibo;
-        D3D12_INDEX_BUFFER_VIEW m_ibo_view;
+        D3D12_INDEX_BUFFER_VIEW m_ibo_view{};
 
         SrvHeapIndex m_texture_index = SrvHeapIndex::eInvalid;
         rhi::ResourceObject m_texture;
@@ -48,30 +51,37 @@ namespace sm::render {
         void setup_assets(render::Context& ctx);
 
         SrvHeapIndex m_camera_index = SrvHeapIndex::eInvalid;
-        CameraBuffer m_camera;
+        CameraBuffer m_camera{};
         CameraBuffer *m_camera_data = nullptr;
         rhi::ResourceObject m_camera_resource;
 
         void setup_camera(render::Context& ctx);
-        void update_camera(math::uint2 size);
+        void update_camera();
 
         void create(render::Context& ctx) override {
+            m_size = ctx.get_rhi().get_swapchain_size();
+            update_viewport();
+
             setup_pipeline(ctx);
             setup_assets(ctx);
             setup_camera(ctx);
+            update_camera();
         }
 
-    public:
-        void build(render::Context& ctx) override {
-            // TODO: awful
-            update_camera(ctx.get_rhi().get_swapchain_size());
+        void resize(render::Context& ctx, math::uint2 size) override {
+            m_size = size;
+            update_camera();
+            update_viewport();
+        }
 
+        void build(render::Context& ctx) override {
             auto& commands = ctx.get_direct_commands();
             auto& heap = ctx.get_srv_heap();
 
             ID3D12DescriptorHeap *heaps[] = { heap.get_heap() };
             commands->SetDescriptorHeaps(std::size(heaps), heaps);
 
+            commands->SetPipelineState(m_pipeline.get_pipeline());
             commands->SetGraphicsRootSignature(m_pipeline.get_root_signature());
 
             // use 2 tables in case the indices are not contiguous
@@ -85,6 +95,9 @@ namespace sm::render {
             commands->IASetIndexBuffer(&m_ibo_view);
             commands->DrawIndexedInstanced(6, 1, 0, 0, 0);
         }
+
+    public:
+        WorldCommands() = default;
     };
 
     class PresentCommands : public render::IRenderNode {

@@ -96,12 +96,12 @@ void PipelineState::init(Device &device, const GraphicsPipelineConfig &config) {
     auto &in_elements = config.elements;
     auto &in_binding = config.resources;
 
-    for (unsigned i = 0; i < in_samplers.count; i++) {
-        builder.add_sampler(in_samplers.samplers[i]);
-    }
-
     for (unsigned i = 0; i < in_elements.count; i++) {
         builder.add_element(in_elements.elements[i]);
+    }
+
+    for (unsigned i = 0; i < in_samplers.count; i++) {
+        builder.add_sampler(in_samplers.samplers[i]);
     }
 
     for (unsigned i = 0; i < in_binding.count; i++) {

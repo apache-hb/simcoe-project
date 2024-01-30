@@ -92,6 +92,8 @@ DXGI_FORMAT rhi::get_data_format(bundle::DataFormat format) {
     case eRG32_FLOAT: return DXGI_FORMAT_R32G32_FLOAT;
     case eRGB32_FLOAT: return DXGI_FORMAT_R32G32B32_FLOAT;
     case eRGBA32_FLOAT: return DXGI_FORMAT_R32G32B32A32_FLOAT;
+    case eUINT16: return DXGI_FORMAT_R16_UINT;
+    case eUINT32: return DXGI_FORMAT_R32_UINT;
 
     default: NEVER("invalid data format %s", refl.to_string(format).data());
     }

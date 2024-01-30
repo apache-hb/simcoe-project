@@ -47,6 +47,12 @@ variant DataFormat : uint16 {
 
     [[format("rgba8/uint")]]
     case RGBA8_UINT = 8
+
+    [[format("uint16")]]
+    case UINT16 = 9
+
+    [[format("uint32")]]
+    case UINT32 = 10
 }
 
 [[layout(export)]]
