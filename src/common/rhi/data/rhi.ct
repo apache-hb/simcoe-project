@@ -196,7 +196,7 @@ struct SamplerLayout {
 }
 
 struct ShaderData {
-    data: memory;
+    data: const memory;
     size: usize;
 }
 

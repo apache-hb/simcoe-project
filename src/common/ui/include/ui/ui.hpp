@@ -13,7 +13,10 @@
 // text, buttons, layouts
 namespace sm::ui {
     class Canvas;
-    class FontAtlas;
+
+    struct FontAtlas {
+        sm::Vector<char32_t> codepoints;
+    };
 
     struct BoxBounds {
         math::float2 min;
@@ -46,7 +49,7 @@ namespace sm::ui {
         { }
     };
 
-    class ImageWidget : public IWidget {
+    class TextureWidget : public IWidget {
         SM_UNUSED bundle::Texture m_texture;
     };
 

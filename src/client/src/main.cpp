@@ -310,49 +310,8 @@ static void common_init(void) {
     };
 }
 
-static int common_main(sys::ShowWindow show) {
-    GlobalSink general{gConsoleLog};
-    general.info("SMC_DEBUG = {}", SMC_DEBUG);
-    general.info("CTU_DEBUG = {}", CTU_DEBUG);
-
-    TraceArena trace_freetype_arena{"freetype", gGlobalArena, gConsoleLog};
-    service::init_freetype(&gConsoleLog);
-
-    bundle::AssetBundle assets{"build\\client.exe.p", gConsoleLog};
-
-    service::FreeType freetype{&trace_freetype_arena};
-
-    ImGuiFreeType::SetAllocatorFunctions(
-        [](size_t size, void *user_data) {
-            auto *arena = static_cast<IArena *>(user_data);
-            return arena->alloc(size);
-        },
-        [](void *ptr, void *user_data) {
-            auto *arena = static_cast<IArena *>(user_data);
-            return arena->release(ptr, 0);
-        },
-        &trace_freetype_arena);
-
-    sys::MappingConfig store_config = {
-        .path = "client.bin",
-        .size = {1, Memory::eMegabytes},
-        .record_count = 256,
-        .logger = gConsoleLog,
-    };
-
-    sys::FileMapping store{store_config};
-
-    threads::CpuGeometry geometry = threads::global_cpu_geometry(gConsoleLog);
-
-    threads::SchedulerConfig thread_config = {
-        .worker_count = 8,
-        .process_priority = threads::PriorityClass::eNormal,
-    };
-    threads::Scheduler scheduler{thread_config, geometry, gConsoleLog};
-
-    if (!store.is_valid()) {
-        store.reset();
-    }
+static void message_loop(sys::ShowWindow show, sys::FileMapping &store,
+                         bundle::AssetBundle &assets) {
 
     sys::WindowConfig window_config = {
         .mode = sys::WindowMode::eWindowed,
@@ -477,6 +436,53 @@ static int common_main(sys::ShowWindow show) {
     }
 
     ImGui_ImplWin32_Shutdown();
+}
+
+static int common_main(sys::ShowWindow show) {
+    GlobalSink general{gConsoleLog};
+    general.info("SMC_DEBUG = {}", SMC_DEBUG);
+    general.info("CTU_DEBUG = {}", CTU_DEBUG);
+
+    TraceArena ft_arena{"freetype", gGlobalArena, gConsoleLog};
+    service::init_freetype(&ft_arena, &gConsoleLog);
+
+    bundle::AssetBundle assets{"build\\client.exe.p", gConsoleLog};
+
+    ImGuiFreeType::SetAllocatorFunctions(
+        [](size_t size, void *user_data) {
+            auto *arena = static_cast<IArena *>(user_data);
+            return arena->alloc(size);
+        },
+        [](void *ptr, void *user_data) {
+            auto *arena = static_cast<IArena *>(user_data);
+            return arena->release(ptr, 0);
+        },
+        &ft_arena);
+
+    sys::MappingConfig store_config = {
+        .path = "client.bin",
+        .size = {1, Memory::eMegabytes},
+        .record_count = 256,
+        .logger = gConsoleLog,
+    };
+
+    sys::FileMapping store{store_config};
+
+    threads::CpuGeometry geometry = threads::global_cpu_geometry(gConsoleLog);
+
+    threads::SchedulerConfig thread_config = {
+        .worker_count = 8,
+        .process_priority = threads::PriorityClass::eNormal,
+    };
+    threads::Scheduler scheduler{thread_config, geometry, gConsoleLog};
+
+    if (!store.is_valid()) {
+        store.reset();
+    }
+
+    message_loop(show, store, assets);
+
+    service::deinit_freetype();
     return 0;
 }
 

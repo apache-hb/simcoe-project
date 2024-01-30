@@ -44,6 +44,10 @@ namespace sm::logs {
             : m_logger(logger)
         { }
 
+        constexpr Sink(const Sink& other)
+            : m_logger(other.m_logger)
+        { }
+
         void operator()(Severity severity, std::string_view msg, auto&&... args) const {
             log(severity, msg, std::forward<decltype(args)>(args)...);
         }

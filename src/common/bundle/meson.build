@@ -2,10 +2,11 @@ bundle_include = include_directories('.', 'include')
 
 src = [
     'src/bundle.cpp',
+    'src/font.cpp',
     reflect.process('data/bundle.ct')
 ]
 
-deps = [ core, logs ]
+deps = [ core, logs, service ]
 
 libbundle = library('bundle', src,
     cpp_args : [ '-DSM_BUNDLE_BUILD=1' ],

@@ -203,6 +203,8 @@ subdir('src/common/render')
 
 subdir('src/common/ui')
 
+fs = import('fs')
+
 default_ico = custom_target('default_icon',
     input : [ 'data/assets/icon/icon_circle.png' ],
     command : [ magick, '@INPUT@', '-define', 'icon:auto-resize=256,128,48,32,16', '@OUTPUT@' ],
@@ -267,6 +269,8 @@ if package_type == 'devel'
         install_dir : get_option('bindir')
     )
 endif
+
+fonts = fs.copyfile('data/vendor/public-sans/fonts/ttf/PublicSans-Bold.ttf', 'PublicSans-Bold.ttf')
 
 shaders = [
     hlsl.process('data/assets/shaders/object.hlsl'),
