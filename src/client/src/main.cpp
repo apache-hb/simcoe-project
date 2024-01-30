@@ -10,7 +10,7 @@
 #include "system/system.hpp"
 #include "threads/threads.hpp"
 
-
+#include "ui/render.hpp"
 #include "base/panic.h"
 
 #include "backtrace/backtrace.h"
@@ -318,6 +318,8 @@ static int common_main(sys::ShowWindow show) {
     TraceArena trace_freetype_arena{"freetype", gGlobalArena, gConsoleLog};
     service::init_freetype(&gConsoleLog);
 
+    bundle::AssetBundle assets{"build\\client.exe.p", gConsoleLog};
+
     service::FreeType freetype{&trace_freetype_arena};
 
     ImGuiFreeType::SetAllocatorFunctions(
@@ -410,6 +412,8 @@ static int common_main(sys::ShowWindow show) {
 
     ImGui::StyleColorsDark();
 
+    ui::Canvas canvas { assets };
+
     // make imgui windows look more like native windows
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
         ImGuiStyle &style = ImGui::GetStyle();
@@ -424,7 +428,8 @@ static int common_main(sys::ShowWindow show) {
 
         auto &cmd_imgui = context.add_node<ImGuiCommands>();
         auto &cmd_begin = context.add_node<render::BeginCommands>();
-        auto &cmd_world = context.add_node<render::WorldCommands>();
+        auto &cmd_world = context.add_node<render::WorldCommands>(assets);
+        auto &cmd_canvas = context.add_node<ui::CanvasCommands>(canvas, assets);
         auto &cmd_end = context.add_node<render::EndCommands>();
         auto &cmd_present = context.add_node<render::PresentCommands>();
 
@@ -432,7 +437,6 @@ static int common_main(sys::ShowWindow show) {
 
         bool done = false;
         while (!done) {
-
             // more complex message loop to avoid imgui
             // destroying the main window, then attempting to access it
             // in RenderPlatformWindowsDefault.
@@ -454,6 +458,8 @@ static int common_main(sys::ShowWindow show) {
 
             context.execute_node(cmd_world);
 
+            context.execute_node(cmd_canvas);
+
             context.execute_node(cmd_imgui);
 
             context.execute_node(cmd_end);
@@ -468,14 +474,9 @@ static int common_main(sys::ShowWindow show) {
 
             context.execute_node(cmd_present);
         }
-
-        // TODO: graph should manage resources
-        context.destroy_node(cmd_imgui);
-        context.destroy_node(cmd_world);
-
-        ImGui_ImplWin32_Shutdown();
     }
 
+    ImGui_ImplWin32_Shutdown();
     return 0;
 }
 

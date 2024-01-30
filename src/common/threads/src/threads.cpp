@@ -300,18 +300,9 @@ CpuGeometry threads::global_cpu_geometry(logs::ILogger &logger) {
 
     // print cpu geometry
 
-    log.info("cpu geometry: {} packages, {} chiplets, {} cores, {} subcores",
+    log.info("cpu geometry: {} package(s), {} chiplet(s), {} cores, {} subcores",
              builder.packages.size(), builder.chiplets.size(), builder.cores.size(),
              builder.subcores.size());
-
-    for (auto &package : builder.packages) {
-        log.info("package: {}", package.mask.Mask);
-
-        for (auto &chiplet_id : package.chiplets) {
-            auto &chiplet = builder.get_chiplet(chiplet_id);
-            log.info("  chiplet: {}", chiplet.mask.Mask);
-        }
-    }
 
     return builder;
 }

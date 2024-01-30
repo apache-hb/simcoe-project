@@ -96,22 +96,6 @@ namespace sm::render {
         { }
     };
 
-    class CommandList {
-        friend class Context;
-
-        rhi::CommandListObject m_commands;
-        rhi::CpuDescriptorHandle m_current_rtv;
-
-    public:
-        void bind_rtv(rhi::CpuDescriptorHandle rtv) {
-            if (m_current_rtv.ptr == rtv.ptr)
-                return;
-
-            m_current_rtv = rtv;
-            m_commands->OMSetRenderTargets(1, &rtv, false, nullptr);
-        }
-    };
-
     class IGraphNode {
         friend class Context;
 

@@ -1,25 +1,28 @@
 #pragma once
 
+#include "core/macros.hpp"
 #include "core/utf8.hpp"
 
+#include "bundle/bundle.hpp"
 #include "core/vector.hpp"
 #include "math/math.hpp"
-
-#include "render/render.hpp"
 
 #include "ui.reflect.h"
 
 // very barebones ui system
 // text, buttons, layouts
 namespace sm::ui {
+    class Canvas;
+    class FontAtlas;
+
     struct BoxBounds {
         math::float2 min;
         math::float2 max;
     };
 
     struct Align {
-        AlignH h;
-        AlignV v;
+        AlignH h = AlignH::eCenter;
+        AlignV v = AlignV::eMiddle;
     };
 
     class IWidget {
@@ -29,10 +32,18 @@ namespace sm::ui {
         virtual ~IWidget() = default;
 
         Align get_align() const { return m_align; }
+        void set_align(Align align) { m_align = align; }
     };
 
     class TextWidget : public IWidget {
+        SM_UNUSED FontAtlas& m_font;
         utf8::StaticText m_text;
+
+    public:
+        TextWidget(FontAtlas& font, utf8::StaticText text)
+            : m_font(font)
+            , m_text(text)
+        { }
     };
 
     class ImageWidget : public IWidget {
@@ -61,12 +72,16 @@ namespace sm::ui {
         math::uint8x4 colour;
     };
 
+    using Index = uint16_t;
+
     struct CanvasDrawData {
         sm::Vector<Vertex> vertices;
-        sm::Vector<uint16_t> indices;
+        sm::Vector<Index> indices;
     };
 
     class Canvas {
+        bundle::AssetBundle& m_bundle;
+
         // resolution of the entire screen
         BoxBounds m_screen;
 
@@ -74,14 +89,16 @@ namespace sm::ui {
         BoxBounds m_user;
 
     public:
-        Canvas(BoxBounds screen, BoxBounds user)
-            : m_screen(screen)
-            , m_user(user)
+        Canvas(bundle::AssetBundle& bundle)
+            : m_bundle(bundle)
         { }
 
         BoxBounds get_screen_bounds() const { return m_screen; }
         BoxBounds get_user_bounds() const { return m_user; }
+        bundle::AssetBundle& get_bundle() const { return m_bundle; }
 
         void layout(CanvasDrawData& data, const IWidget& widget);
+
+        bool is_dirty() const { return false; }
     };
 }

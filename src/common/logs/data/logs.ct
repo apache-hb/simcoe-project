@@ -26,8 +26,9 @@ variant Category {
     [[format("ui")]] case UI = 9
     [[format("debug")]] case Debug = 10
     [[format("rhi")]] case RHI = 11 // rhi layer under render
+    [[format("assets")]] case Assets = 12
 
-    case Count = 12 // always keep this up to date
+    case Count = 13 // always keep this up to date
 }
 
 struct Message {

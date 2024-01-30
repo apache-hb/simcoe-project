@@ -94,6 +94,7 @@ constinit static DefaultArena gGlobalPools[] = {
     /* logging */ DefaultArena{"logging"},
     /* rhi */ DefaultArena{"rhi"},
     /* render */ DefaultArena{"render"},
+    /* assets */ DefaultArena{"assets"},
 };
 
 IArena& sm::get_pool(Pool pool) {

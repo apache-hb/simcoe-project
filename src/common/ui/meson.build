@@ -2,6 +2,7 @@ ui_include = include_directories('.', 'include')
 
 src = [
     'src/ui.cpp',
+    'src/render.cpp',
     reflect.process('data/ui.ct')
 ]
 

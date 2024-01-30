@@ -252,12 +252,18 @@ namespace sm::rhi {
         UINT64 fence_value = 1;
     };
 
+    struct DeviceFeatures {
+        bool gpu_upload_heap:1 = false;
+    };
+
     class Device {
         RenderConfig m_config;
         RhiSink m_log;
 
         Factory& m_factory;
         Adapter& m_adapter;
+
+        DeviceFeatures m_features;
 
         RootSignatureVersion m_version = RootSignatureVersion::eVersion_1_0;
         DeviceObject m_device;
@@ -287,6 +293,7 @@ namespace sm::rhi {
         void init();
 
         void query_root_signature_version();
+        void query_features();
 
         void setup_device();
         void setup_direct_queue();
@@ -316,6 +323,7 @@ namespace sm::rhi {
         ID3D12Device1 *get_device() const { return m_device.get(); }
         CommandList& get_direct_commands() { return m_direct_list; }
         RhiSink& get_logger() { return m_log; }
+        const DeviceFeatures& get_features() const { return m_features; }
 
         math::uint2 get_swapchain_size() const { return m_swapchain_size; }
 

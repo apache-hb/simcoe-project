@@ -5,6 +5,7 @@ using namespace sm::render;
 
 void Context::create_node(IGraphNode& node) {
     node.create(*this);
+    m_nodes.emplace_back(&node);
 }
 
 void Context::destroy_node(IGraphNode& node) {
@@ -88,7 +89,7 @@ Context::Context(RenderConfig config, rhi::Factory& factory)
 
 Context::~Context() {
     for (auto& node : m_nodes) {
-        destroy_node(*node.get());
+        node->destroy(*this);
     }
 
     m_nodes.clear();

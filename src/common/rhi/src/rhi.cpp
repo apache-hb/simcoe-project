@@ -334,6 +334,7 @@ void Device::init() {
     m_log.info(" - feature level: {}", fl_refl.to_string(config.feature_level, 16).data());
 
     setup_device();
+    query_features();
     setup_direct_queue();
     setup_copy_queue();
 }
@@ -346,6 +347,17 @@ void Device::query_root_signature_version() {
     } else {
         m_version = feature.HighestVersion;
     }
+}
+
+void Device::query_features() {
+    D3D12_FEATURE_DATA_D3D12_OPTIONS16 options{};
+    if (SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS16, &options,
+                                                sizeof(options)))) {
+        m_features.gpu_upload_heap = options.GPUUploadHeapSupported;
+    }
+
+    m_log.info("features:");
+    m_log.info(" - gpu upload heap: {}", (bool)m_features.gpu_upload_heap);
 }
 
 void Device::record_commands() {

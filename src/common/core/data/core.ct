@@ -14,6 +14,7 @@ variant Pool {
 
     [[format("rhi")]] case RHI = 3 // gpu api
     [[format("render")]] case Render = 4 // render layer over the rhi
+    [[format("assets")]] case Assets = 5
 
-    case Count = 5
+    case Count = 6
 }

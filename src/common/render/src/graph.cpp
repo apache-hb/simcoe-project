@@ -2,30 +2,9 @@
 
 #include "d3dx12/d3dx12_barriers.h"
 #include "d3dx12/d3dx12_resource_helpers.h"
-#include "io/io.h"
 
 using namespace sm;
 using namespace sm::render;
-
-static sm::Vector<uint8_t> load_shader(const char *file) {
-    sm::IArena &arena = sm::get_pool(sm::Pool::eGlobal);
-    io_t *io = io_file(file, eAccessRead, &arena);
-    io_error_t err = io_error(io);
-    CTASSERTF(err == 0, "failed to open shader file %s: %s", file, os_error_string(err, &arena));
-
-    size_t size = io_size(io);
-    const void *data = io_map(io, eProtectRead);
-
-    CTASSERTF(size != SIZE_MAX, "failed to get size of shader file %s", file);
-    CTASSERTF(data != nullptr, "failed to map shader file %s", file);
-
-    sm::Vector<uint8_t> result(size);
-    memcpy(result.data(), data, size);
-
-    io_close(io);
-
-    return result;
-}
 
 void WorldCommands::update_viewport() {
     auto [width, height] = m_size;
@@ -64,8 +43,8 @@ void WorldCommands::setup_pipeline(render::Context &ctx) {
         {kCameraSlot, rhi::ShaderVisibility::eVertex, rhi::BindingType::eUniform, 0, 0},
     };
 
-    auto vs = load_shader(kVertexShader);
-    auto ps = load_shader(kPixelShader);
+    auto vs = m_assets.load_shader(kVertexShader);
+    auto ps = m_assets.load_shader(kPixelShader);
 
     const rhi::GraphicsPipelineConfig kPipelineConfig = {
         .elements = {kInputLayout, std::size(kInputLayout)},

@@ -5,26 +5,33 @@
 namespace sm::render {
     class BeginCommands : public render::IRenderNode {
 
-    public:
         void build(render::Context& ctx) override {
             ctx.begin_frame();
+
+            auto& commands = ctx.get_direct_commands();
+            auto& heap = ctx.get_srv_heap();
+
+            ID3D12DescriptorHeap *heaps[] = { heap.get_heap() };
+            commands->SetDescriptorHeaps(std::size(heaps), heaps);
+
         }
     };
 
     class EndCommands : public render::IRenderNode {
 
-    public:
         void build(render::Context& ctx) override {
             ctx.end_frame();
         }
     };
 
     class WorldCommands : public render::IRenderNode {
-        static constexpr inline const char *kVertexShader = "build/client.exe.p/object.vs.cso";
-        static constexpr inline const char *kPixelShader = "build/client.exe.p/object.ps.cso";
+        static constexpr inline const char *kVertexShader = "object.vs.cso";
+        static constexpr inline const char *kPixelShader = "object.ps.cso";
 
         static constexpr inline const char *kTextureSlot = "texture";
         static constexpr inline const char *kCameraSlot = "camera";
+
+        bundle::AssetBundle& m_assets;
 
         // viewport/scissor
         D3D12_VIEWPORT m_viewport;
@@ -78,9 +85,6 @@ namespace sm::render {
             auto& commands = ctx.get_direct_commands();
             auto& heap = ctx.get_srv_heap();
 
-            ID3D12DescriptorHeap *heaps[] = { heap.get_heap() };
-            commands->SetDescriptorHeaps(std::size(heaps), heaps);
-
             commands->SetPipelineState(m_pipeline.get_pipeline());
             commands->SetGraphicsRootSignature(m_pipeline.get_root_signature());
 
@@ -97,11 +101,12 @@ namespace sm::render {
         }
 
     public:
-        WorldCommands() = default;
+        WorldCommands(bundle::AssetBundle& assets)
+            : m_assets(assets)
+        { }
     };
 
     class PresentCommands : public render::IRenderNode {
-    public:
         void build(render::Context& ctx) override {
             ctx.present();
         }

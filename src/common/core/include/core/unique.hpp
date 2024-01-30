@@ -91,7 +91,7 @@ namespace sm {
         constexpr T *operator->() { return Super::get(); }
         constexpr const T *operator->() const { return Super::get(); }
 
-        constexpr void reset(T *data) {
+        constexpr void reset(T *data = nullptr) {
             Super::destroy();
             Super::reset(data);
         }

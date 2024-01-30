@@ -169,6 +169,9 @@ struct InputElement {
     offset: uint; // AlignedByteOffset
 }
 
+// TODO: update reflect to handle tagged unions
+// need them for more complex root parameters
+
 struct ResourceBinding {
     name: string;
     visibility: ShaderVisibility;
