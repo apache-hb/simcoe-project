@@ -1,7 +1,14 @@
 rhi_include = include_directories('.', 'include')
 
 src = [
+    # core rhi
     'src/rhi.cpp',
+
+    # graphics and compute pipelines + root signatures
+    'src/pipeline.cpp',
+
+    # command list and queue
+    'src/commands.cpp',
     reflect.process('data/rhi.ct')
 ]
 

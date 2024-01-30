@@ -24,26 +24,29 @@ variant DataFormat : uint16 {
     [[format("unknown")]]
     default UNKNOWN = 0
 
+    [[format("rg32/float")]]
+    case RG32_FLOAT = 1
+
     [[format("rgb32/float")]]
-    case RGB32_FLOAT = 1
+    case RGB32_FLOAT = 2
 
     [[format("rgba32/float")]]
-    case RGBA32_FLOAT = 2
+    case RGBA32_FLOAT = 3
 
     [[format("bc7/typeless")]]
-    case BC7_TYPELESS = 3
+    case BC7_TYPELESS = 4
 
     [[format("bc7/unorm")]]
-    case BC7_UNORM = 4
+    case BC7_UNORM = 5
 
     [[format("bc7/srgb")]]
-    case BC7_SRGB = 5
+    case BC7_SRGB = 6
 
     [[format("rgba8/unorm")]]
-    case RGBA8_UNORM = 6
+    case RGBA8_UNORM = 7
 
     [[format("rgba8/uint")]]
-    case RGBA8_UINT = 7
+    case RGBA8_UINT = 8
 }
 
 [[layout(export)]]

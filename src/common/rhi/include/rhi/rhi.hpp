@@ -8,7 +8,6 @@
 #include "core/vector.hpp"
 
 #include "core/unique.hpp"
-#include "system/system.hpp" // IWYU pragma: export
 
 #include "math/math.hpp"
 
@@ -35,97 +34,21 @@ namespace sm::rhi {
     class Device;
     class Factory;
 
-    NORETURN assert_hresult(source_info_t source, const char *expr, HRESULT hr);
+    CT_NORETURN assert_hresult(source_info_t source, const char *expr, HRESULT hr);
     char *hresult_string(HRESULT hr);
 
     DXGI_FORMAT get_data_format(bundle::DataFormat format);
 
     using RhiSink = logs::Sink<logs::Category::eRHI>;
 
-    template<typename T>
-    concept ComObject = std::is_base_of_v<IUnknown, T>;
-
-    template<typename T>
-    concept D3DObject = std::is_base_of_v<ID3D12Object, T>;
-
-    template<ComObject T>
-    class Object {
-        T *m_object;
-
-    public:
-        SM_NOCOPY(Object)
-
-        constexpr Object(T *object = nullptr) : m_object(object) {}
-        ~Object() { try_release(); }
-
-        constexpr Object(Object&& other) noexcept
-            : m_object(other.m_object)
-        {
-            other.m_object = nullptr;
-        }
-
-        constexpr Object& operator=(Object&& other) noexcept {
-            try_release();
-            m_object = other.m_object;
-            other.m_object = nullptr;
-            return *this;
-        }
-
-        template<ComObject O>
-        HRESULT query(O **out) const {
-            return m_object->QueryInterface(IID_PPV_ARGS(out));
-        }
-
-        void release() {
-            CTASSERT(is_valid());
-            m_object->Release();
-            m_object = nullptr;
-        }
-
-        T *acquire() {
-            CTASSERT(is_valid());
-            T *object = m_object;
-            m_object = nullptr;
-            return object;
-        }
-
-        bool try_release() {
-            if (is_valid()) {
-                release();
-                return true;
-            }
-            return false;
-        }
-
-        constexpr T *operator->() const { CTASSERT(is_valid()); return m_object; }
-        constexpr T **operator&() { return &m_object; }
-        constexpr T *get() const { CTASSERT(is_valid()); return m_object; }
-        constexpr T **get_address() { return &m_object; }
-
-        constexpr bool is_valid() const { return m_object != nullptr; }
-        constexpr operator bool() const { return is_valid(); }
-
-        void rename(std::string_view name) requires (D3DObject<T>) {
-            CTASSERT(is_valid());
-            m_object->SetName(sm::widen(name).c_str());
-        }
-    };
-
-    using CommandListObject = Object<ID3D12GraphicsCommandList2>;
-    using DeviceObject = Object<ID3D12Device1>;
-    using RootSignatureObject = Object<ID3D12RootSignature>;
-    using PipelineStateObject = Object<ID3D12PipelineState>;
-    using ResourceObject = Object<ID3D12Resource>;
-    using DescriptorHeapObject = Object<ID3D12DescriptorHeap>;
-
-    class Adapter : public Object<IDXGIAdapter1> {
+    class Adapter : public AdapterObject {
         DXGI_ADAPTER_DESC1 m_desc;
         sm::String m_name;
 
     public:
         SM_NOCOPY(Adapter)
 
-        Adapter(IDXGIAdapter1 *adapter) : Object(adapter) {
+        Adapter(IDXGIAdapter1 *adapter) : AdapterObject(adapter) {
             if (is_valid()) {
                 (*this)->GetDesc1(&m_desc);
                 m_name = sm::narrow(m_desc.Description);
@@ -143,13 +66,6 @@ namespace sm::rhi {
     };
 
     using DescriptorIndex = sm::BitMap::Index;
-
-    struct FrameData {
-        ResourceObject backbuffer;
-        DescriptorIndex rtv_index = DescriptorIndex::eInvalid;
-        Object<ID3D12CommandAllocator> allocator;
-        UINT64 fence_value = 1;
-    };
 
     class CpuDescriptorHandle : public D3D12_CPU_DESCRIPTOR_HANDLE {
         friend class DescriptorHeap;
@@ -174,7 +90,16 @@ namespace sm::rhi {
     public:
         void init(Device& device, const DescriptorHeapConfig& config);
 
+        constexpr bool is_valid() const { return m_heap.is_valid(); }
         ID3D12DescriptorHeap *get() const { return m_heap.get(); }
+
+        CpuDescriptorHandle cpu_front() const {
+            return CpuDescriptorHandle(m_heap->GetCPUDescriptorHandleForHeapStart(), 0, m_descriptor_size);
+        }
+
+        GpuDescriptorHandle gpu_front() const {
+            return GpuDescriptorHandle(m_heap->GetGPUDescriptorHandleForHeapStart(), 0, m_descriptor_size);
+        }
 
         CpuDescriptorHandle cpu_handle(DescriptorIndex index) const {
             return CpuDescriptorHandle(m_heap->GetCPUDescriptorHandleForHeapStart(), index, m_descriptor_size);
@@ -185,15 +110,23 @@ namespace sm::rhi {
         }
     };
 
+    class Resource {
+        friend class Device;
+
+        ResourceObject m_resource;
+
+        // TODO: use this rather than raw objects
+    };
+
+    // TODO: remove this from rhi
     class DescriptorArena {
         friend class Device;
 
         // TODO: maybe use a slotmap for more resource safety
         sm::BitMap m_slots{};
-        DescriptorHeapObject m_heap{};
-        UINT m_descriptor_size{};
+        DescriptorHeap m_heap{};
 
-        void init(ID3D12Device1 *device, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT length, bool shader_visible);
+        void init(Device& device, const DescriptorHeapConfig& config);
 
     public:
         DescriptorArena() = default;
@@ -203,46 +136,93 @@ namespace sm::rhi {
         D3D12_GPU_DESCRIPTOR_HANDLE get_gpu_handle(DescriptorIndex index) const {
             CTASSERT(index != DescriptorIndex::eInvalid);
 
-            D3D12_GPU_DESCRIPTOR_HANDLE handle = get_gpu_front();
-            handle.ptr += size_t(index * m_descriptor_size);
-            return handle;
+            return m_heap.gpu_handle(index);
         }
 
         D3D12_CPU_DESCRIPTOR_HANDLE get_cpu_handle(DescriptorIndex index) const {
             CTASSERT(index != DescriptorIndex::eInvalid);
 
-            D3D12_CPU_DESCRIPTOR_HANDLE handle = get_cpu_front();
-            handle.ptr += size_t(index * m_descriptor_size);
-            return handle;
+            return m_heap.cpu_handle(index);
         }
 
         D3D12_GPU_DESCRIPTOR_HANDLE get_gpu_front() const {
             CTASSERT(m_heap.is_valid());
 
-            return m_heap->GetGPUDescriptorHandleForHeapStart();
+            return m_heap.gpu_front();
         }
 
         D3D12_CPU_DESCRIPTOR_HANDLE get_cpu_front() const {
             CTASSERT(m_heap.is_valid());
 
-            return m_heap->GetCPUDescriptorHandleForHeapStart();
+            return m_heap.cpu_front();
         }
 
         void release_index(DescriptorIndex index);
         DescriptorIndex alloc_index();
-        UINT get_descriptor_size() const { return m_descriptor_size; }
         ID3D12DescriptorHeap *get_heap() const { return m_heap.get(); }
+    };
+
+    class PipelineState {
+        friend class Device;
+
+        RootSignatureObject m_signature;
+        PipelineStateObject m_pipeline;
+
+    public:
+        SM_NOCOPY(PipelineState)
+        PipelineState() = default;
+
+        void init(Device& device, const GraphicsPipelineConfig& config);
+
+        ID3D12RootSignature *get_root_signature() const { return m_signature.get(); }
+        ID3D12PipelineState *get_pipeline() const { return m_pipeline.get(); }
+    };
+
+    class Allocator : public AllocatorObject {
+        friend class Device;
+        friend class CommandList;
+
+        void init(Device& device, CommandListType type);
+    };
+
+    class CommandList : public CommandListObject {
+        friend class Device;
+
+    public:
+        SM_NOCOPY(CommandList)
+        CommandList() = default;
+
+        void init(Device& device, Allocator& allocator, CommandListType type);
+        void init(Device& device, Allocator& allocator, CommandListType type, PipelineState& pipeline);
+
+        void close() { SM_ASSERT_HR((*this)->Close()); }
+
+        void reset(Allocator& allocator, PipelineState& pipeline) {
+            SM_ASSERT_HR((*this)->Reset(allocator.get(), pipeline.get_pipeline()));
+        }
+
+        void reset(Allocator& allocator) {
+            SM_ASSERT_HR((*this)->Reset(allocator.get(), nullptr));
+        }
+
+        void set_root_signature(const PipelineState& pipeline) {
+            (*this)->SetGraphicsRootSignature(pipeline.get_root_signature());
+        }
+
+        void set_pipeline_state(const PipelineState& pipeline) {
+            (*this)->SetPipelineState(pipeline.get_pipeline());
+        }
     };
 
     class CommandQueue {
         friend class Device;
 
-        Object<ID3D12CommandQueue> m_queue;
+        CommandQueueObject m_queue;
 
-        Object<ID3D12Fence> m_fence;
+        FenceObject m_fence;
         HANDLE m_event = nullptr;
 
-        void init(ID3D12Device1 *device, D3D12_COMMAND_LIST_TYPE type, const char *name = nullptr);
+        void init(Device& device, CommandListType type, const char *name = nullptr);
 
         ID3D12CommandQueue *get() const { return m_queue.get(); }
         void execute_commands(ID3D12CommandList *const *commands, UINT count);
@@ -257,38 +237,11 @@ namespace sm::rhi {
         ~CommandQueue() { if (m_event) CloseHandle(m_event); }
     };
 
-    class ShaderPipeline {
-        friend class Device;
-
-        RootSignatureObject m_signature;
-        PipelineStateObject m_state;
-
-        ShaderPipeline() = default;
-
-        ShaderPipeline(RootSignatureObject&& signature, PipelineStateObject&& state)
-            : m_signature(std::move(signature))
-            , m_state(std::move(state))
-        { }
-
-        ShaderPipeline& operator=(ShaderPipeline&& other) noexcept {
-            m_signature = std::move(other.m_signature);
-            m_state = std::move(other.m_state);
-            return *this;
-        }
-
-        ID3D12RootSignature *get_signature() const { return m_signature.get(); }
-        ID3D12PipelineState *get_state() const { return m_state.get(); }
-    };
-
-    struct CBUFFER_ALIGN CameraBuffer {
-        math::float4x4 model;
-        math::float4x4 view;
-        math::float4x4 projection;
-    };
-
-    struct Vertex {
-        math::float3 position;
-        math::float2 uv;
+    struct FrameData {
+        ResourceObject backbuffer;
+        DescriptorIndex rtv_index = DescriptorIndex::eInvalid;
+        Allocator allocator;
+        UINT64 fence_value = 1;
     };
 
     class Device {
@@ -308,12 +261,13 @@ namespace sm::rhi {
         CommandQueue m_copy_queue;
         UINT64 m_copy_value = 1;
 
-        Object<ID3D12GraphicsCommandList2> m_commands;
+        CommandList m_direct_list;
+
+        Allocator m_copy_allocator;
+        CommandList m_copy_list;
+
         Object<IDXGISwapChain4> m_swapchain;
         math::uint2 m_swapchain_size;
-
-        Object<ID3D12CommandAllocator> m_copy_allocator;
-        Object<ID3D12GraphicsCommandList2> m_copy_commands;
 
         DescriptorArena m_rtv_heap{};
 
@@ -352,21 +306,26 @@ namespace sm::rhi {
         const RenderConfig& get_config() const { return m_config; }
         DescriptorArena& get_rtv_heap() { return m_rtv_heap; }
         ID3D12Device1 *get_device() const { return m_device.get(); }
-        CommandListObject& get_commands() { return m_commands; }
+        CommandList& get_direct_commands() { return m_direct_list; }
+        RhiSink& get_logger() { return m_log; }
 
         math::uint2 get_swapchain_size() const { return m_swapchain_size; }
 
-        CommandListObject& open_copy_commands(ID3D12PipelineState *pipeline = nullptr) {
-            SM_ASSERT_HR(m_copy_allocator->Reset());
-            SM_ASSERT_HR(m_copy_commands->Reset(m_copy_allocator.get(), pipeline));
-            return m_copy_commands;
+        CommandList& open_copy_commands() {
+            m_copy_list.reset(m_copy_allocator);
+            return m_copy_list;
         }
 
-        CommandListObject& open_direct_commands(ID3D12PipelineState *pipeline = nullptr) {
+        CommandList& open_direct_commands(PipelineState& pipeline) {
             auto& alloc = m_frames[m_frame_index].allocator;
-            SM_ASSERT_HR(alloc->Reset());
-            SM_ASSERT_HR(m_commands->Reset(alloc.get(), pipeline));
-            return m_commands;
+            m_direct_list.reset(alloc, pipeline);
+            return m_direct_list;
+        }
+
+        CommandList& open_direct_commands() {
+            auto& alloc = m_frames[m_frame_index].allocator;
+            m_direct_list.reset(alloc);
+            return m_direct_list;
         }
 
         void flush_copy_commands(CommandListObject& commands);
@@ -388,7 +347,7 @@ namespace sm::rhi {
         RenderConfig m_config;
         RhiSink m_log;
 
-        Object<IDXGIFactory4> m_factory;
+        FactoryObject m_factory;
         Object<IDXGIDebug1> m_factory_debug;
         sm::Vector<Adapter> m_adapters;
 

@@ -4,9 +4,6 @@
 #include "os/os.h"
 
 #include "d3dx12/d3dx12_barriers.h"
-#include "d3dx12/d3dx12_core.h"
-#include "d3dx12/d3dx12_root_signature.h"
-#include "d3dx12/d3dx12_resource_helpers.h"
 
 using namespace sm;
 using namespace sm::rhi;
@@ -31,7 +28,7 @@ char *sm::rhi::hresult_string(HRESULT hr) {
     return os_error_string(hr, &arena);
 }
 
-NORETURN
+CT_NORETURN
 sm::rhi::assert_hresult(source_info_t source, const char *expr, HRESULT hr) {
     ctu_panic(source, "hresult: %s %s", hresult_string(hr), expr);
 }
@@ -49,6 +46,7 @@ logs::Severity MessageSeverity::get_log_severity() const {
 }
 
 D3D12_RESOURCE_STATES ResourceState::get_inner_state() const {
+    SM_UNUSED constexpr auto refl = ctu::reflect<ResourceState>();
     using enum ResourceState::Inner;
     switch (m_value) {
     case ePresent: return D3D12_RESOURCE_STATE_PRESENT;
@@ -70,7 +68,18 @@ D3D12_RESOURCE_STATES ResourceState::get_inner_state() const {
     case eShaderResourceTextureRead: return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
     case eTextureWrite: return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 
-    default: NEVER("invalid resource state %d", static_cast<int>(m_value));
+    default: NEVER("invalid resource state %s", refl.to_string(m_value).data());
+    }
+}
+
+D3D12_DESCRIPTOR_RANGE_TYPE BindingType::get_range_type() const {
+    SM_UNUSED constexpr auto refl = ctu::reflect<BindingType>();
+    using enum BindingType::Inner;
+    switch (m_value) {
+    case eTexture: return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    case eUniform: return D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+
+    default: NEVER("invalid binding type %s", refl.to_string(m_value).data());
     }
 }
 
@@ -80,6 +89,9 @@ DXGI_FORMAT rhi::get_data_format(bundle::DataFormat format) {
     switch (format) {
     case eRGBA8_UNORM: return DXGI_FORMAT_R8G8B8A8_UNORM;
     case eRGBA8_UINT: return DXGI_FORMAT_R8G8B8A8_UINT;
+    case eRG32_FLOAT: return DXGI_FORMAT_R32G32_FLOAT;
+    case eRGB32_FLOAT: return DXGI_FORMAT_R32G32B32_FLOAT;
+    case eRGBA32_FLOAT: return DXGI_FORMAT_R32G32B32A32_FLOAT;
 
     default: NEVER("invalid data format %s", refl.to_string(format).data());
     }
@@ -92,7 +104,7 @@ void DescriptorHeap::init(Device& device, const DescriptorHeapConfig& config) {
 
     D3D12_DESCRIPTOR_HEAP_TYPE type = config.type.as_facade();
 
-    const D3D12_DESCRIPTOR_HEAP_DESC kHeapDesc {
+    const D3D12_DESCRIPTOR_HEAP_DESC kHeapDesc = {
         .Type = type,
         .NumDescriptors = config.size,
         .Flags = flags,
@@ -105,22 +117,9 @@ void DescriptorHeap::init(Device& device, const DescriptorHeapConfig& config) {
     m_descriptor_size = api->GetDescriptorHandleIncrementSize(type);
 }
 
-void DescriptorArena::init(ID3D12Device1 *device, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT length,
-                          bool shader_visible) {
-    m_slots.resize(length);
-
-    D3D12_DESCRIPTOR_HEAP_FLAGS flags = shader_visible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
-                                                       : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-
-    const D3D12_DESCRIPTOR_HEAP_DESC kHeapDesc {
-        .Type = type,
-        .NumDescriptors = length,
-        .Flags = flags,
-    };
-
-    SM_ASSERT_HR(device->CreateDescriptorHeap(&kHeapDesc, IID_PPV_ARGS(&m_heap)));
-
-    m_descriptor_size = device->GetDescriptorHandleIncrementSize(type);
+void DescriptorArena::init(Device& device, const DescriptorHeapConfig& config) {
+    m_slots.resize(config.size);
+    m_heap.init(device, config);
 }
 
 void DescriptorArena::release_index(DescriptorIndex index) {
@@ -133,34 +132,6 @@ DescriptorIndex DescriptorArena::alloc_index() {
     CTASSERTF(index != DescriptorIndex::eInvalid, "descriptor heap exhausted %zu",
               m_slots.get_total_bits());
     return index;
-}
-
-void CommandQueue::init(ID3D12Device1 *device, D3D12_COMMAND_LIST_TYPE type, const char *name) {
-    const D3D12_COMMAND_QUEUE_DESC kQueueDesc{
-        .Type = type,
-    };
-
-    SM_ASSERT_HR(device->CreateCommandQueue(&kQueueDesc, IID_PPV_ARGS(&m_queue)));
-
-    SM_ASSERT_HR(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
-
-    m_event = CreateEventA(nullptr, FALSE, FALSE, name);
-    SM_ASSERT_WIN32(m_event != nullptr);
-}
-
-void CommandQueue::execute_commands(ID3D12CommandList *const *commands, UINT count) {
-    m_queue->ExecuteCommandLists(count, commands);
-}
-
-void CommandQueue::signal(UINT64 value) {
-    SM_ASSERT_HR(m_queue->Signal(m_fence.get(), value));
-}
-
-void CommandQueue::wait(UINT64 value) {
-    if (m_fence->GetCompletedValue() < value) {
-        SM_ASSERT_HR(m_fence->SetEventOnCompletion(value, m_event));
-        SM_ASSERT_WIN32(WaitForSingleObject(m_event, INFINITE) == WAIT_OBJECT_0);
-    }
 }
 
 void Device::info_callback(D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERITY severity,
@@ -269,22 +240,19 @@ void Device::setup_direct_allocators() {
     auto config = get_config();
 
     for (UINT i = 0; i < config.buffer_count; i++) {
-        SM_ASSERT_HR(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                                      IID_PPV_ARGS(&m_frames[i].allocator)));
+        m_frames[i].allocator.init(*this, CommandListType::eDirect);
     }
 }
 
 void Device::setup_copy_queue() {
-    constexpr D3D12_COMMAND_LIST_TYPE kQueueType = D3D12_COMMAND_LIST_TYPE_COPY;
+    constexpr CommandListType kQueueType = CommandListType::eDirect;
 
-    m_copy_queue.init(m_device.get(), kQueueType, "copy_queue");
+    m_copy_queue.init(*this, kQueueType, "copy_queue");
 
-    SM_ASSERT_HR(m_device->CreateCommandAllocator(kQueueType, IID_PPV_ARGS(&m_copy_allocator)));
+    m_copy_allocator.init(*this, kQueueType);
 
-    SM_ASSERT_HR(m_device->CreateCommandList(0, kQueueType, m_copy_allocator.get(), nullptr,
-                                             IID_PPV_ARGS(&m_copy_commands)));
-
-    SM_ASSERT_HR(m_copy_commands->Close());
+    m_copy_list.init(*this, m_copy_allocator, kQueueType);
+    m_copy_list.close();
 }
 
 void Device::setup_direct_queue() {
@@ -292,22 +260,25 @@ void Device::setup_direct_queue() {
 
     // create command queue
     constexpr D3D12_COMMAND_LIST_TYPE kQueueType = D3D12_COMMAND_LIST_TYPE_DIRECT;
-    m_direct_queue.init(m_device.get(), kQueueType, "direct_queue");
+    m_direct_queue.init(*this, kQueueType, "direct_queue");
 
     setup_swapchain();
 
     // create rtv heap
 
-    m_rtv_heap.init(m_device.get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, config.rtv_heap_size, false);
+    const DescriptorHeapConfig kHeapConfig = {
+        .type = DescriptorHeapType::eRTV,
+        .size = config.rtv_heap_size,
+        .shader_visible = false,
+    };
+
+    m_rtv_heap.init(*this, kHeapConfig);
 
     setup_render_targets();
     setup_direct_allocators();
 
-    // command list
-    SM_ASSERT_HR(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                             m_frames[m_frame_index].allocator.get(), nullptr,
-                                             IID_PPV_ARGS(&m_commands)));
-    SM_ASSERT_HR(m_commands->Close());
+    m_direct_list.init(*this, m_frames[m_frame_index].allocator, kQueueType);
+    m_direct_list.close();
 }
 
 void Device::setup_swapchain() {
@@ -381,14 +352,14 @@ void Device::record_commands() {
     CD3DX12_RESOURCE_BARRIER into_rtv = CD3DX12_RESOURCE_BARRIER::Transition(
         backbuffer.get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-    m_commands->ResourceBarrier(1, &into_rtv);
+    m_direct_list->ResourceBarrier(1, &into_rtv);
 
     auto rtv_handle = m_rtv_heap.get_cpu_handle(rtv_index);
 
-    m_commands->OMSetRenderTargets(1, &rtv_handle, FALSE, nullptr);
+    m_direct_list->OMSetRenderTargets(1, &rtv_handle, FALSE, nullptr);
 
     constexpr float kClearColor[] = {0.0f, 0.2f, 0.4f, 1.0f};
-    m_commands->ClearRenderTargetView(rtv_handle, kClearColor, 0, nullptr);
+    m_direct_list->ClearRenderTargetView(rtv_handle, kClearColor, 0, nullptr);
 }
 
 void Device::finish_commands() {
@@ -396,13 +367,13 @@ void Device::finish_commands() {
     CD3DX12_RESOURCE_BARRIER into_present = CD3DX12_RESOURCE_BARRIER::Transition(
         backbuffer.get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
-    m_commands->ResourceBarrier(1, &into_present);
-    SM_ASSERT_HR(m_commands->Close());
+    m_direct_list->ResourceBarrier(1, &into_present);
+    m_direct_list.close();
 }
 
 void Device::submit_commands() {
     // later: CommandListCast from d3dx12_core.h
-    ID3D12CommandList *commands[] = {m_commands.get()};
+    ID3D12CommandList *commands[] = {m_direct_list.get()};
     m_direct_queue.execute_commands(commands, std::size(commands));
 }
 

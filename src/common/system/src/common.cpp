@@ -16,7 +16,7 @@ char *sm::sys::get_last_error(void) {
     return os_error_string(last_error, &arena);
 }
 
-NORETURN
+CT_NORETURN
 sm::sys::assert_last_error(source_info_t panic, const char *expr) {
     char *message = sm::sys::get_last_error();
     ctu_panic(panic, "win32 error: %s %s", message, expr);

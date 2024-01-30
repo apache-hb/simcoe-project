@@ -29,11 +29,12 @@ class IArena;
         }                                                                                          \
         return true;                                                                               \
     }(CT_SOURCE_HERE)
+// pass CT_SOURCE_HERE as an arg to preserve source location
 
 namespace sm::sys {
 using SystemSink = logs::Sink<logs::Category::eSystem>;
 
-NORETURN
+CT_NORETURN
 assert_last_error(source_info_t panic, const char *expr);
 
 char *get_last_error();

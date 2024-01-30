@@ -70,13 +70,6 @@ namespace sm::render {
     using SrvHeapIndex = SrvArena::Index;
     using RtvHeapIndex = RtvArena::Index;
 
-    class PipelineState {
-        friend class Context;
-
-        rhi::RootSignatureObject m_signature;
-        rhi::PipelineStateObject m_pipeline;
-    };
-
     class GraphEdge {
 
     };
@@ -168,8 +161,10 @@ namespace sm::render {
         D3D12_VIEWPORT m_viewport;
         D3D12_RECT m_scissor;
 
+        void setup_viewport(math::uint2 size);
+
         // pipeline
-        PipelineState m_pipeline;
+        rhi::PipelineState m_pipeline;
 
         void setup_pipeline();
 
@@ -224,9 +219,10 @@ namespace sm::render {
         rhi::Device& get_rhi() { return m_device; }
         ID3D12Device1 *get_rhi_device() { return m_device.get_device(); }
         const RenderConfig& get_config() const { return m_config; }
+        RenderSink& get_logger() { return m_log; }
 
         SrvArena& get_srv_heap() { return m_srv_arena; }
         RtvArena& get_rtv_heap() { return m_rtv_arena; }
-        rhi::CommandListObject& get_direct_commands() { return m_device.get_commands(); }
+        rhi::CommandListObject& get_direct_commands() { return m_device.get_direct_commands(); }
     };
 }

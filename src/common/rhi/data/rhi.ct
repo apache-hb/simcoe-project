@@ -5,13 +5,11 @@ import "system/window.hpp";
 import "math/math.hpp";
 import "bundle/bundle.hpp";
 
-import "<span>";
-
-import "<dxgi1_6.h>";
-import "<d3d12.h>";
-import "<dxgidebug.h>";
+import "rhi/types.hpp";
 
 using DataFormat = opaque("sm::bundle::DataFormat")
+using Window = opaque("sm::sys::Window")
+using ILogger = opaque("sm::logs::ILogger")
 
 [[facade]]
 variant MessageCategory : opaque(D3D12_MESSAGE_CATEGORY) {
@@ -83,6 +81,14 @@ variant DescriptorHeapType : opaque(D3D12_DESCRIPTOR_HEAP_TYPE) {
     [[format("dsv")]] case DSV = opaque(D3D12_DESCRIPTOR_HEAP_TYPE_DSV)
 }
 
+[[facade]]
+variant CommandListType : opaque(D3D12_COMMAND_LIST_TYPE) {
+    [[format("direct")]] case Direct = opaque(D3D12_COMMAND_LIST_TYPE_DIRECT)
+    [[format("bundle")]] case Bundle = opaque(D3D12_COMMAND_LIST_TYPE_BUNDLE)
+    [[format("compute")]] case Compute = opaque(D3D12_COMMAND_LIST_TYPE_COMPUTE)
+    [[format("copy")]] case Copy = opaque(D3D12_COMMAND_LIST_TYPE_COPY)
+}
+
 struct DescriptorHeapConfig {
     type: DescriptorHeapType;
     size: uint32;
@@ -124,6 +130,81 @@ variant DebugFlags {
     [[format("auto_name")]] case AutoName = (1 << 4) // automatically name objects
 }
 
+[[facade]]
+variant Filter : opaque(D3D12_FILTER) {
+    case MinMagMipLinear = opaque(D3D12_FILTER_MIN_MAG_MIP_LINEAR)
+}
+
+[[facade]]
+variant AddressMode : opaque(D3D12_TEXTURE_ADDRESS_MODE) {
+    case Border = opaque(D3D12_TEXTURE_ADDRESS_MODE_BORDER)
+}
+
+[[facade]]
+variant ShaderVisibility : opaque(D3D12_SHADER_VISIBILITY) {
+    case Vertex = opaque(D3D12_SHADER_VISIBILITY_VERTEX)
+    case Pixel = opaque(D3D12_SHADER_VISIBILITY_PIXEL)
+}
+
+using DescriptorRangeType = opaque(D3D12_DESCRIPTOR_RANGE_TYPE)
+
+variant BindingType {
+    case Texture = 0
+    case Uniform = 1
+
+    const def get_range_type(): DescriptorRangeType;
+}
+
+// D3D12_STATIC_SAMPLER_DESC
+struct StaticSampler {
+    filter: Filter; // Filter
+    address: AddressMode; // AddressU, AddressV, AddressW
+    reg: uint;
+}
+
+// thin layer over D3D12_INPUT_ELEMENT_DESC
+struct InputElement {
+    name: string; // SemanticName
+    format: DataFormat; // Format
+    offset: uint; // AlignedByteOffset
+}
+
+struct ResourceBinding {
+    name: string;
+    visibility: ShaderVisibility;
+    binding: BindingType;
+    reg: uint;
+    space: uint;
+}
+
+struct InputLayout {
+    elements: const *const InputElement;
+    count: uint;
+}
+
+struct ResourceLayout {
+    bindings: const *const ResourceBinding;
+    count: uint;
+}
+
+struct SamplerLayout {
+    samplers: const *const StaticSampler;
+    count: uint;
+}
+
+struct ShaderData {
+    data: memory;
+    size: usize;
+}
+
+struct GraphicsPipelineConfig {
+    elements: InputLayout;
+    resources: ResourceLayout;
+    samplers: SamplerLayout;
+    vs: ShaderData;
+    ps: ShaderData;
+}
+
 struct RenderConfig {
     debug_flags: DebugFlags;
 
@@ -137,6 +218,6 @@ struct RenderConfig {
     software_adapter: bool;
     feature_level: FeatureLevel;
 
-    window: &opaque("sm::sys::Window");
-    logger: &opaque("sm::logs::ILogger");
+    window: &Window;
+    logger: &ILogger;
 }

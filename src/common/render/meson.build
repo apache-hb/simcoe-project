@@ -2,6 +2,7 @@ render_include = include_directories('.', 'include')
 
 src = [
     'src/render.cpp',
+    'src/graph.cpp',
     reflect.process('data/render.ct')
 ]
 

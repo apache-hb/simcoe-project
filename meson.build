@@ -1,4 +1,6 @@
 project('simcoe', [ 'c', 'cpp' ],
+    # UNLICENSED does not mean public domain, this is my code do not use it
+    license : 'UNLICENSED',
     version : '1.0.1',
     default_options : [
         'cpp_std=c++20',
@@ -72,7 +74,7 @@ compile_hlsl = find_program('scripts/compile_hlsl.py')
 extra_hlsl_args = is_debug ? [ '--debug' ] : []
 hlsl = generator(compile_hlsl,
     output : [ '@BASENAME@.vs.cso', '@BASENAME@.ps.cso' ],
-    arguments : [ dxc.full_path(), '@INPUT@', '@BUILD_DIR@/@BASENAME@', '@BUILD_DIR@', 'vs,ps', '5_0' ] + extra_hlsl_args
+    arguments : [ dxc.full_path(), '@INPUT@', '@BUILD_DIR@/@BASENAME@', '@BUILD_DIR@', 'vs,ps', '6_0' ] + extra_hlsl_args
 )
 
 reflect_include = cthulhu.get_variable('reflect_include')

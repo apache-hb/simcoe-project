@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
-from subprocess import run
 import sys
+import os
 
 # usage: compile_hlsl.py <dxc> <file> <output> <build_dir> <targets> <model> [--debug]
 # <dxc> is the path to dxc.exe
@@ -37,9 +37,9 @@ def main():
 
         args += [ file ]
 
-        result = run(args)
-        if result.returncode != 0:
-            sys.exit(result.returncode)
+        result = os.system(' '.join(args))
+        if result != 0:
+            sys.exit(1)
 
 if __name__ == '__main__':
     main()

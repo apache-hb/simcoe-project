@@ -3,28 +3,32 @@
 #include "core/text.hpp"
 
 #include "core/units.hpp"
+#include "logs/logs.hpp"
+#include "rhi/rhi.hpp"
+#include "service/freetype.hpp"
 #include "system/io.hpp"
 #include "system/system.hpp"
 #include "threads/threads.hpp"
-#include "rhi/rhi.hpp"
-#include "logs/logs.hpp"
-#include "service/freetype.hpp"
+
 
 #include "base/panic.h"
 
+#include "backtrace/backtrace.h"
 #include "format/backtrace.h"
 #include "format/colour.h"
 #include "io/console.h"
-#include "backtrace/backtrace.h"
 #include "os/os.h"
 
+
+#include "imgui/backends/imgui_impl_dx12.h"
+#include "imgui/backends/imgui_impl_win32.h"
 #include "imgui/imgui.h"
 #include "imgui/misc/imgui_freetype.h"
-#include "imgui/backends/imgui_impl_win32.h"
-#include "imgui/backends/imgui_impl_dx12.h"
 
-#include "render/render.hpp"
+
 #include "render/graph.hpp"
+#include "render/render.hpp"
+
 
 #include <iterator>
 
@@ -33,9 +37,10 @@ using namespace sm;
 using FormatBuffer = fmt::basic_memory_buffer<char, 256, sm::StandardArena<char>>;
 using GlobalSink = logs::Sink<logs::Category::eGlobal>;
 
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
+                                                             LPARAM lParam);
 
-template<ctu::Reflected T>
+template <ctu::Reflected T>
 static constexpr auto enum_to_string(T value) {
     constexpr auto refl = ctu::reflect<T>();
     return refl.to_string(value);
@@ -58,7 +63,7 @@ class ConsoleLog final : public logs::ILogger {
         }
     }
 
-    void accept(const logs::Message& message) override {
+    void accept(const logs::Message &message) override {
         const auto c = enum_to_string(message.category);
         const auto s = enum_to_string(message.severity);
 
@@ -75,10 +80,11 @@ class ConsoleLog final : public logs::ILogger {
         auto seconds = (message.timestamp / 1000) % 60;
         auto milliseconds = message.timestamp % 1000;
 
-        fmt::format_to(std::back_inserter(m_buffer), "{}[{}]{}[{:02}:{:02}:{:02}.{:03}] {}:",
-            colour, s.data(), reset, hours, minutes, seconds, milliseconds, c.data());
+        fmt::format_to(std::back_inserter(m_buffer),
+                       "{}[{}]{}[{:02}:{:02}:{:02}.{:03}] {}:", colour, s.data(), reset, hours,
+                       minutes, seconds, milliseconds, c.data());
 
-        std::string_view header { m_buffer.data(), m_buffer.size() };
+        std::string_view header{m_buffer.data(), m_buffer.size()};
 
         // ranges is impossible to use without going through a bunch of hoops
         // just iterate over the message split by newlines
@@ -88,7 +94,7 @@ class ConsoleLog final : public logs::ILogger {
 
         while (it != end) {
             auto next = std::find(it, end, '\n');
-            auto line = std::string_view { &*it, static_cast<size_t>(std::distance(it, next)) };
+            auto line = std::string_view{&*it, static_cast<size_t>(std::distance(it, next))};
             it = next;
 
             fmt::println("{} {}", header, line);
@@ -102,10 +108,9 @@ class ConsoleLog final : public logs::ILogger {
     }
 
 public:
-    constexpr ConsoleLog(IArena& arena, logs::Severity severity)
+    constexpr ConsoleLog(IArena &arena, logs::Severity severity)
         : ILogger(severity)
-        , m_buffer(arena)
-    { }
+        , m_buffer(arena) {}
 };
 
 class DefaultArena final : public IArena {
@@ -130,7 +135,7 @@ class DefaultArena final : public IArena {
 
 class TraceArena final : public IArena {
     logs::Sink<logs::Category::eDebug> m_log;
-    IArena& m_source;
+    IArena &m_source;
 
     void *impl_alloc(size_t size) override {
         void *ptr = m_source.alloc(size);
@@ -140,7 +145,8 @@ class TraceArena final : public IArena {
 
     void *impl_resize(void *ptr, size_t new_size, size_t old_size) override {
         void *new_ptr = m_source.resize(ptr, new_size, old_size);
-        m_log.trace("[{}] resize({:#x}, {:#x}, {}) = 0x%p\n", name, ptr, new_size, old_size, new_ptr);
+        m_log.trace("[{}] resize({:#x}, {:#x}, {}) = 0x%p\n", name, ptr, new_size, old_size,
+                    new_ptr);
         return new_ptr;
     }
 
@@ -158,20 +164,15 @@ class TraceArena final : public IArena {
     }
 
 public:
-    TraceArena(const char *name, IArena& source, logs::ILogger& logger)
+    TraceArena(const char *name, IArena &source, logs::ILogger &logger)
         : IArena(name)
         , m_log(logger)
-        , m_source(source)
-    { }
+        , m_source(source) {}
 };
 
 static print_backtrace_t print_options_make(arena_t *arena, io_t *io) {
     print_backtrace_t print = {
-        .options = {
-            .arena = arena,
-            .io = io,
-            .pallete = &kColourDefault
-        },
+        .options = {.arena = arena, .io = io, .pallete = &kColourDefault},
         .heading_style = eHeadingGeneric,
         .zero_indexed_lines = false,
         .project_source_path = SMC_SOURCE_DIR,
@@ -181,7 +182,7 @@ static print_backtrace_t print_options_make(arena_t *arena, io_t *io) {
 }
 
 class DefaultSystemError final : public ISystemError {
-    IArena& m_arena;
+    IArena &m_arena;
     bt_report_t *m_report = nullptr;
 
     void error_begin(size_t error) override {
@@ -200,29 +201,27 @@ class DefaultSystemError final : public ISystemError {
     }
 
 public:
-    constexpr DefaultSystemError(IArena& arena)
-        : m_arena(arena)
-    { }
+    constexpr DefaultSystemError(IArena &arena)
+        : m_arena(arena) {}
 };
 
 class DefaultWindowEvents final : public sys::IWindowEvents {
-    sys::FileMapping& m_store;
+    sys::FileMapping &m_store;
 
     sys::WindowPlacement *m_placement = nullptr;
     sys::RecordLookup m_lookup;
 
     render::Context *m_context = nullptr;
 
-    LRESULT event(sys::Window& window, UINT message, WPARAM wparam, LPARAM lparam) override {
+    LRESULT event(sys::Window &window, UINT message, WPARAM wparam, LPARAM lparam) override {
         return ImGui_ImplWin32_WndProcHandler(window.get_handle(), message, wparam, lparam);
     }
 
-    void resize(sys::Window&, math::int2 size) override {
-        if (m_context != nullptr)
-            m_context->resize(size.as<uint32_t>());
+    void resize(sys::Window &, math::int2 size) override {
+        if (m_context != nullptr) m_context->resize(size.as<uint32_t>());
     }
 
-    void create(sys::Window& window) override {
+    void create(sys::Window &window) override {
         if (m_lookup = m_store.get_record(&m_placement); m_lookup == sys::RecordLookup::eOpened) {
             window.set_placement(*m_placement);
         } else {
@@ -230,16 +229,14 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
         }
     }
 
-    bool close(sys::Window& window) override {
-        if (m_lookup.has_valid_data())
-            *m_placement = window.get_placement();
+    bool close(sys::Window &window) override {
+        if (m_lookup.has_valid_data()) *m_placement = window.get_placement();
         return true;
     }
 
 public:
-    DefaultWindowEvents(sys::FileMapping& store)
-        : m_store(store)
-    { }
+    DefaultWindowEvents(sys::FileMapping &store)
+        : m_store(store) {}
 
     void attach_render(render::Context *context) {
         m_context = context;
@@ -247,8 +244,12 @@ public:
 };
 
 struct System {
-    System(HINSTANCE hInstance, logs::ILogger& logger) { sys::create(hInstance, logger); }
-    ~System() { sys::destroy(); }
+    System(HINSTANCE hInstance, logs::ILogger &logger) {
+        sys::create(hInstance, logger);
+    }
+    ~System() {
+        sys::destroy();
+    }
 };
 
 constinit static DefaultArena gGlobalArena{"default"};
@@ -259,28 +260,27 @@ class ImGuiCommands : public render::IRenderNode {
     render::SrvHeapIndex imgui_index = render::SrvHeapIndex::eInvalid;
 
 public:
-    void create(render::Context& ctx) override {
-        const auto& config = ctx.get_config();
-        auto& srv_heap = ctx.get_srv_heap();
+    void create(render::Context &ctx) override {
+        const auto &config = ctx.get_config();
+        auto &srv_heap = ctx.get_srv_heap();
         imgui_index = srv_heap.bind_slot();
 
         auto format = rhi::get_data_format(config.swapchain_format);
 
-        ImGui_ImplDX12_Init(ctx.get_rhi_device(), (int)config.swapchain_length,
-            format, srv_heap.get_heap(),
-            srv_heap.cpu_handle(imgui_index),
-            srv_heap.gpu_handle(imgui_index));
+        ImGui_ImplDX12_Init(ctx.get_rhi_device(), (int)config.swapchain_length, format,
+                            srv_heap.get_heap(), srv_heap.cpu_handle(imgui_index),
+                            srv_heap.gpu_handle(imgui_index));
     }
 
-    void destroy(render::Context& ctx) override {
+    void destroy(render::Context &ctx) override {
         ImGui_ImplDX12_Shutdown();
 
-        auto& srv_heap = ctx.get_srv_heap();
+        auto &srv_heap = ctx.get_srv_heap();
         srv_heap.unbind_slot(imgui_index);
     }
 
-    void build(render::Context& ctx) override {
-        auto& commands = ctx.get_direct_commands();
+    void build(render::Context &ctx) override {
+        auto &commands = ctx.get_direct_commands();
         ImGui_ImplDX12_NewFrame();
         ImGui::NewFrame();
         ImGui::ShowDemoWindow();
@@ -311,34 +311,34 @@ static void common_init(void) {
 }
 
 static int common_main(sys::ShowWindow show) {
-    GlobalSink general { gConsoleLog };
+    GlobalSink general{gConsoleLog};
     general.info("SMC_DEBUG = {}", SMC_DEBUG);
     general.info("CTU_DEBUG = {}", CTU_DEBUG);
 
     TraceArena trace_freetype_arena{"freetype", gGlobalArena, gConsoleLog};
     service::init_freetype(&gConsoleLog);
 
-    service::FreeType freetype { &trace_freetype_arena };
+    service::FreeType freetype{&trace_freetype_arena};
 
     ImGuiFreeType::SetAllocatorFunctions(
         [](size_t size, void *user_data) {
-            auto *arena = static_cast<IArena*>(user_data);
+            auto *arena = static_cast<IArena *>(user_data);
             return arena->alloc(size);
         },
         [](void *ptr, void *user_data) {
-            auto *arena = static_cast<IArena*>(user_data);
+            auto *arena = static_cast<IArena *>(user_data);
             return arena->release(ptr, 0);
         },
         &trace_freetype_arena);
 
     sys::MappingConfig store_config = {
         .path = "client.bin",
-        .size = { 1, Memory::eMegabytes },
+        .size = {1, Memory::eMegabytes},
         .record_count = 256,
         .logger = gConsoleLog,
     };
 
-    sys::FileMapping store { store_config };
+    sys::FileMapping store{store_config};
 
     threads::CpuGeometry geometry = threads::global_cpu_geometry(gConsoleLog);
 
@@ -346,7 +346,7 @@ static int common_main(sys::ShowWindow show) {
         .worker_count = 8,
         .process_priority = threads::PriorityClass::eNormal,
     };
-    threads::Scheduler scheduler { thread_config, geometry, gConsoleLog };
+    threads::Scheduler scheduler{thread_config, geometry, gConsoleLog};
 
     if (!store.is_valid()) {
         store.reset();
@@ -360,9 +360,9 @@ static int common_main(sys::ShowWindow show) {
         .logger = gConsoleLog,
     };
 
-    DefaultWindowEvents events { store };
+    DefaultWindowEvents events{store};
 
-    sys::Window window { window_config, &events };
+    sys::Window window{window_config, &events};
 
     constexpr unsigned kBufferCount = 2;
 
@@ -394,79 +394,92 @@ static int common_main(sys::ShowWindow show) {
         .logger = gConsoleLog,
     };
 
-    rhi::Factory render { rhi_config };
+    rhi::Factory render{rhi_config};
 
-    render::Context context { render_config, render };
+    window.show_window(show);
 
-    constexpr ImGuiConfigFlags kIoFlags = ImGuiConfigFlags_NavEnableGamepad
-                                        | ImGuiConfigFlags_NavEnableKeyboard
-                                        | ImGuiConfigFlags_DockingEnable
-                                        | ImGuiConfigFlags_ViewportsEnable;
+    constexpr ImGuiConfigFlags kIoFlags = ImGuiConfigFlags_NavEnableGamepad |
+                                          ImGuiConfigFlags_NavEnableKeyboard |
+                                          ImGuiConfigFlags_DockingEnable |
+                                          ImGuiConfigFlags_ViewportsEnable;
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
+    ImGuiIO &io = ImGui::GetIO();
     io.ConfigFlags |= kIoFlags;
 
     ImGui::StyleColorsDark();
 
     // make imgui windows look more like native windows
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-        ImGuiStyle& style = ImGui::GetStyle();
+        ImGuiStyle &style = ImGui::GetStyle();
         style.WindowRounding = 0.0f;
         style.Colors[ImGuiCol_WindowBg].w = 1.0f;
     }
 
-    ImGui_ImplWin32_Init(window.get_handle());
+    {
+        render::Context context{render_config, render};
+        events.attach_render(&context);
+        ImGui_ImplWin32_Init(window.get_handle());
 
-    auto& cmd_imgui = context.add_node<ImGuiCommands>();
-    auto& cmd_begin = context.add_node<render::BeginCommands>();
-    auto& cmd_end = context.add_node<render::EndCommands>();
-    auto& cmd_present = context.add_node<render::PresentCommands>();
+        auto &cmd_imgui = context.add_node<ImGuiCommands>();
+        auto &cmd_begin = context.add_node<render::BeginCommands>();
+        auto &cmd_end = context.add_node<render::EndCommands>();
+        auto &cmd_present = context.add_node<render::PresentCommands>();
 
-    // context.connect(cmd_present, cmd_end.render_target);
+        // context.connect(cmd_present, cmd_end.render_target);
 
-    window.show_window(show);
-    events.attach_render(&context);
+        bool done = false;
+        while (!done) {
 
-    MSG msg = { };
-    while (GetMessageA(&msg, nullptr, 0, 0)) {
-        TranslateMessage(&msg);
-        DispatchMessageA(&msg);
+            // more complex message loop to avoid imgui
+            // destroying the main window, then attempting to access it
+            // in RenderPlatformWindowsDefault.
+            // fun thing to debug
+            MSG msg = {};
+            while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)) {
+                TranslateMessage(&msg);
+                DispatchMessageA(&msg);
+                if (msg.message == WM_QUIT) {
+                    done = true;
+                }
+            }
 
-        if (msg.message == WM_QUIT)
-            break;
+            if (done) break;
 
-        context.execute_node(cmd_begin);
+            ImGui_ImplWin32_NewFrame();
 
-        ImGui_ImplWin32_NewFrame();
-        context.execute_node(cmd_imgui);
+            context.execute_node(cmd_begin);
 
-        context.execute_node(cmd_end);
+            context.execute_node(cmd_imgui);
 
-        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-            ImGui::UpdatePlatformWindows();
+            context.execute_node(cmd_end);
 
-            auto& commands = context.get_direct_commands();
-            ImGui::RenderPlatformWindowsDefault(nullptr, commands.get()); // TODO: this should be part of the imgui pass
+            if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+                ImGui::UpdatePlatformWindows();
+
+                auto &commands = context.get_direct_commands();
+                ImGui::RenderPlatformWindowsDefault(
+                    nullptr, commands.get()); // TODO: this should be part of the imgui pass
+            }
+
+            context.execute_node(cmd_present);
         }
 
-        context.execute_node(cmd_present);
+        // TODO: graph should manage resources
+        context.destroy_node(cmd_imgui);
+
+        ImGui_ImplWin32_Shutdown();
     }
-
-    // TODO: graph should manage resources
-    context.destroy_node(cmd_imgui);
-
-    ImGui_ImplWin32_Shutdown();
 
     return 0;
 }
 
 int main(int argc, const char **argv) {
-    GlobalSink general { gConsoleLog };
+    GlobalSink general{gConsoleLog};
     common_init();
 
-    FormatBuffer args { gGlobalArena };
+    FormatBuffer args{gGlobalArena};
     auto it = std::back_inserter(args);
     fmt::format_to(it, "args[{}] = {{", argc);
     for (int i = 0; i < argc; ++i) {
@@ -475,21 +488,21 @@ int main(int argc, const char **argv) {
     }
     fmt::format_to(it, "}}\0");
 
-    general.info("{}", std::string_view { args.data(), args.size() });
+    general.info("{}", std::string_view{args.data(), args.size()});
 
-    System sys { GetModuleHandleA(nullptr), gConsoleLog };
+    System sys{GetModuleHandleA(nullptr), gConsoleLog};
 
     return common_main(sys::ShowWindow::eShow);
 }
 
 int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
-    GlobalSink general { gConsoleLog };
+    GlobalSink general{gConsoleLog};
     common_init();
 
     general.info("lpCmdLine = {}", lpCmdLine);
     general.info("nShowCmd = {}", nShowCmd);
 
-    System sys { hInstance, gConsoleLog };
+    System sys{hInstance, gConsoleLog};
 
     return common_main(sys::ShowWindow{nShowCmd});
 }
