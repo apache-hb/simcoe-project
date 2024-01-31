@@ -17,7 +17,7 @@ static FreeType gFreeType;
 CT_NORETURN
 service::assert_ft2(source_info_t info, FT_Error error, const char *expr, const char *msg) {
     const char *str = FT_Error_String(error);
-    ctu_panic(info, "freetype2 error: %s\n - expr: %s\n - error: %s (%d)", msg, expr, str, error);
+    ctu_panic(info, "| freetype2 error: %s\n| expr: %s\n| error: %s (%d)", msg, expr, str, error);
 }
 
 void *FreeType::wrap_malloc(FT_Memory memory, long size) {
@@ -56,8 +56,9 @@ void FreeType::deinit() {
     CTASSERTF(gFreeTypeLogger != nullptr, "service::init_freetype not called");
     CTASSERTF(m_library != nullptr, "service::init_freetype not called");
 
-    FT_Done_Library(m_library);
+    SM_ASSERT_FT2(FT_Done_Library(m_library), "failed to deinitialize freetype");
     m_library = nullptr;
+    m_arena = nullptr;
 
     gFreeTypeLogger->log(logs::Category::eAssets, logs::Severity::eInfo, "destroyed freetype2");
 }

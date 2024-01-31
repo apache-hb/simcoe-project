@@ -25,11 +25,23 @@ namespace sm::bundle {
         friend class AssetBundle;
 
         const AssetSink& m_log;
+        const char *m_name;
+        BinaryData m_data;
         FT_Face m_face;
 
-        Font(const AssetSink& log, BinarySpan data, const char *name);
+        Font(const AssetSink& log, BinaryData data, const char *name);
 
+        Font(const Font&) = delete;
     public:
+        Font(Font&& other)
+            : m_log(other.m_log)
+            , m_name(other.m_name)
+            , m_data(std::move(other.m_data))
+            , m_face(other.m_face)
+        {
+            other.m_face = nullptr;
+        }
+
         ~Font();
     };
 

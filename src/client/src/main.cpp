@@ -310,8 +310,11 @@ static void common_init(void) {
     };
 }
 
-static void message_loop(sys::ShowWindow show, sys::FileMapping &store,
-                         bundle::AssetBundle &assets) {
+static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
+
+    bundle::AssetBundle assets{"build\\bundle", gConsoleLog};
+
+    SM_UNUSED auto& font = assets.load_font("fonts\\public-sans-regular.ttf");
 
     sys::WindowConfig window_config = {
         .mode = sys::WindowMode::eWindowed,
@@ -446,8 +449,6 @@ static int common_main(sys::ShowWindow show) {
     TraceArena ft_arena{"freetype", gGlobalArena, gConsoleLog};
     service::init_freetype(&ft_arena, &gConsoleLog);
 
-    bundle::AssetBundle assets{"build\\bundle", gConsoleLog};
-
     ImGuiFreeType::SetAllocatorFunctions(
         [](size_t size, void *user_data) {
             auto *arena = static_cast<IArena *>(user_data);
@@ -480,7 +481,7 @@ static int common_main(sys::ShowWindow show) {
         store.reset();
     }
 
-    message_loop(show, store, assets);
+    message_loop(show, store);
 
     service::deinit_freetype();
     return 0;

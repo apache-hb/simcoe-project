@@ -164,7 +164,7 @@ Device::~Device() {
 }
 
 void Device::setup_device() {
-    SM_UNUSED constexpr auto fl_refl = ctu::reflect<FeatureLevel>();
+    SM_UNUSED constexpr auto refl = ctu::reflect<FeatureLevel>();
 
     auto config = get_config();
 
@@ -178,12 +178,10 @@ void Device::setup_device() {
     if (debug_device) {
         if (HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(&m_debug)); SUCCEEDED(hr)) {
             m_debug->EnableDebugLayer();
-            m_log.info("enabled d3d12 debug layer");
 
             Object<ID3D12Debug5> debug5;
             if (debug_autoname && SUCCEEDED(m_debug.query(&debug5))) {
                 debug5->SetEnableAutoName(true);
-                m_log.info("enabled d3d12 auto naming");
             }
         } else {
             m_log.error("failed to create d3d12 debug interface: {}", hresult_string(hr));
@@ -204,15 +202,12 @@ void Device::setup_device() {
 
     m_log.info("using adapter: {}", m_adapter.get_adapter_name());
 
-    CTASSERTF(fl.is_valid(), "invalid feature level %s", fl_refl.to_string(fl, 16).data());
+    CTASSERTF(fl.is_valid(), "invalid feature level %s", refl.to_string(fl, 16).data());
 
     SM_ASSERT_HR(D3D12CreateDevice(m_adapter.get(), fl.as_facade(), IID_PPV_ARGS(&m_device)));
 
-    m_log.info("created d3d12 device");
-
     if (debug_queue) {
         if (HRESULT hr = m_device->QueryInterface(IID_PPV_ARGS(&m_info_queue)); SUCCEEDED(hr)) {
-            m_log.info("created d3d12 info queue");
             SM_ASSERT_HR(m_info_queue->RegisterMessageCallback(
                 info_callback, D3D12_MESSAGE_CALLBACK_FLAG_NONE, this, &m_cookie));
         } else {

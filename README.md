@@ -19,3 +19,9 @@ python scripts\ninjatracing\ninjatracing.py build\.ninja_log > trace.json
 # create package
 meson install -C <dir> --skip-subprojects
 ```
+
+
+```sh
+# building llvm
+cmake -S llvm -B build -G Ninja -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;lld" -DCMAKE_BUILD_TYPE=Release -DLLVM_USE_LINKER="lld-link" -DCMAKE_INSTALL_PREFIX="K:\llvm" -DLLVM_PARALLEL_COMPILE_JOBS=24 -DLLVM_PARALLEL_LINK_JOBS=16 -D CMAKE_C_COMPILER=clang -D CMAKE_CXX_COMPILER=clang++ -DLLVM_HOST_TRIPLE=x86_64
+```
