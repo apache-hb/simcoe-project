@@ -118,7 +118,7 @@ namespace sm::ui {
         // resolution of the entire screen
         BoxBounds m_screen = { { 0.f, 0.f }, { 0.f, 0.f } };
 
-        // user region
+        // user region, relative to screen bounds
         BoxBounds m_user = { { 0.f, 0.f }, { 0.f, 0.f } };
 
     public:
@@ -136,7 +136,12 @@ namespace sm::ui {
         }
 
         const BoxBounds& get_screen() const { return m_screen; }
-        const BoxBounds& get_user() const { return m_user; }
+        constexpr BoxBounds get_user() const {
+            auto min = m_screen.min + m_user.min;
+            auto max = m_screen.max + m_user.max;
+            return { min, max };
+        }
+
         const math::float2& get_white_pixel_uv() const { return m_font.get_white_pixel_uv(); }
 
         bundle::AssetBundle& get_bundle() const { return m_bundle; }

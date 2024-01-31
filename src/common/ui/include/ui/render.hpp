@@ -47,11 +47,11 @@ namespace sm::ui {
         // TODO: extract this out, and also do rectpacking on it
         bundle::Texture m_font_atlas_texture;
         rhi::ResourceObject m_atlas;
-        SM_UNUSED render::SrvHeapIndex m_font_atlas_index = render::SrvHeapIndex::eInvalid;
+        render::SrvHeapIndex m_font_atlas_index = render::SrvHeapIndex::eInvalid;
 
         // camera resources, TODO: get root constants working to avoid this
         rhi::ResourceObject m_camera;
-        SM_UNUSED render::SrvHeapIndex m_camera_index = render::SrvHeapIndex::eInvalid;
+        render::SrvHeapIndex m_camera_index = render::SrvHeapIndex::eInvalid;
         CanvasProjection m_projection;
         CanvasProjection *m_projection_data = nullptr;
 
@@ -65,10 +65,11 @@ namespace sm::ui {
         void update_viewport(const ui::BoxBounds& bounds);
 
         void resize(render::Context& context, math::uint2 size) override {
-            //m_canvas.set_screen(size);
+            m_canvas.set_screen(size);
+            auto bounds = m_canvas.get_screen();
 
-            //update_camera(size);
-            //update_viewport(size);
+            update_camera(bounds);
+            update_viewport(bounds);
         }
 
         void create(render::Context& context) override;

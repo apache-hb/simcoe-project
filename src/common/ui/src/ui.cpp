@@ -31,13 +31,13 @@ static math::float2 adjust_bounds(const BoxBounds& item, const BoxBounds& bounds
 
     switch (align.v) {
     case AlignV::eTop:
-        offset.y = bounds.min.y;
+        offset.y = bounds.max.y - item.max.y;
         break;
     case AlignV::eMiddle:
         offset.y = bounds.min.y + (bounds.max.y - bounds.min.y) / 2.f - (item.min.y + item.max.y) / 2.f;
         break;
     case AlignV::eBottom:
-        offset.y = bounds.max.y - item.max.y;
+        offset.y = bounds.min.y;
         break;
     }
 

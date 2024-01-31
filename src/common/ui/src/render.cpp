@@ -272,7 +272,6 @@ static constexpr math::float4x4 ortho(float left, float right, float top, float 
 
 void CanvasCommands::update_camera(const ui::BoxBounds& bounds) {
     auto [min, max] = bounds;
-    std::printf("min %f %f max %f %f\n", min.x, min.y, max.x, max.y);
 
     // TODO: this coordinate system is wrong...
     // bottom should be max.y, top should be min.y
@@ -286,7 +285,6 @@ void CanvasCommands::create(render::Context& context) {
     //auto size = rhi.get_swapchain_size();
 
     // note: disabled temporarily
-    //m_canvas.set_screen(size);
     setup_buffers(context, 0x1000, 0x1000); // create initial buffers
     setup_pipeline(context);
     setup_camera(context);

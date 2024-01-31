@@ -401,12 +401,15 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
     ui::Canvas canvas { assets, atlas };
 
     auto text = ui::TextWidget(atlas, u8"Hello, World!")
-        .align({ ui::AlignH::eLeft, ui::AlignV::eMiddle });
+        .align({ ui::AlignH::eRight, ui::AlignV::eTop });
 
     auto [left, top, right, bottom] = window.get_client_coords();
 
-    canvas.set_screen({static_cast<unsigned int>(right - left), static_cast<unsigned int>(bottom - top)});
-    canvas.set_user({50.f, 50.f}, { right - left - 50.f, bottom - top - 50.f });
+    auto width = static_cast<unsigned>(right - left);
+    auto height = static_cast<unsigned>(bottom - top);
+
+    canvas.set_screen({width, height});
+    canvas.set_user({50.f, 50.f}, { -50.f, -50.f });
     canvas.layout(text);
 
     // make imgui windows look more like native windows
@@ -447,11 +450,11 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
 
             if (done) break;
 
-            // if (size != events.get_client_size()) {
-            //     size = events.get_client_size();
-            //     canvas.set_screen(size.as<uint32_t>());
-            //     canvas.layout(text);
-            // }
+            if (size != events.get_client_size()) {
+                size = events.get_client_size();
+                canvas.set_screen(size.as<uint32_t>());
+                canvas.layout(text);
+            }
 
             ImGui_ImplWin32_NewFrame();
 
