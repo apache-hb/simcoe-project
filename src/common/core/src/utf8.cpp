@@ -114,7 +114,7 @@ StaticText::StaticText(const char8_t *text)
     , m_size(utf8_string_length(text))
 {
     size_t offset = utf8_validate(text, m_size);
-    CTASSERTF(offset != SIZE_MAX, "invalid utf8 text at offset %zu", offset);
+    CTASSERTF(offset == SIZE_MAX, "invalid utf8 text at offset %zu", offset);
 }
 
 StaticText::StaticText(const char8_t *text, size_t size)

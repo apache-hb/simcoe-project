@@ -7,6 +7,8 @@
 #include "core/vector.hpp"
 #include "math/math.hpp"
 
+#include "ui/atlas.hpp"
+
 #include "ui.reflect.h"
 
 // very barebones ui system
@@ -14,13 +16,32 @@
 namespace sm::ui {
     class Canvas;
 
-    struct FontAtlas {
-        sm::Vector<char32_t> codepoints;
+    struct BoxBounds {
+        // top left
+        math::float2 min;
+
+        // bottom right
+        math::float2 max;
     };
 
-    struct BoxBounds {
-        math::float2 min;
-        math::float2 max;
+    struct Vertex {
+        math::float2 position;
+        math::float2 uv;
+        math::uint8x4 colour;
+    };
+
+    using Index = uint16_t;
+
+    struct CanvasDrawData {
+        sm::Vector<Vertex> vertices;
+        sm::Vector<Index> indices;
+    };
+
+    struct LayoutInfo {
+        CanvasDrawData& draw;
+        Canvas& canvas;
+
+        void box(const BoxBounds& bounds, const math::uint8x4& colour);
     };
 
     struct Align {
@@ -34,19 +55,26 @@ namespace sm::ui {
     public:
         virtual ~IWidget() = default;
 
+        virtual void layout(LayoutInfo& info, BoxBounds bounds) const { }
+
         Align get_align() const { return m_align; }
         void set_align(Align align) { m_align = align; }
     };
 
     class TextWidget : public IWidget {
-        SM_UNUSED FontAtlas& m_font;
+        const FontAtlas& m_font;
         utf8::StaticText m_text;
 
     public:
-        TextWidget(FontAtlas& font, utf8::StaticText text)
+        TextWidget(const FontAtlas& font, utf8::StaticText text)
             : m_font(font)
             , m_text(text)
         { }
+
+        void layout(LayoutInfo& info, BoxBounds bounds) const override;
+
+        const FontAtlas& get_font() const { return m_font; }
+        const utf8::StaticText& get_text() const { return m_text; }
     };
 
     class TextureWidget : public IWidget {
@@ -69,39 +97,41 @@ namespace sm::ui {
         sm::Vector<const IWidget*> m_children;
     };
 
-    struct Vertex {
-        math::float2 position;
-        math::float2 uv;
-        math::uint8x4 colour;
-    };
-
-    using Index = uint16_t;
-
-    struct CanvasDrawData {
-        sm::Vector<Vertex> vertices;
-        sm::Vector<Index> indices;
-    };
-
     class Canvas {
+        bool m_dirty = false;
+        CanvasDrawData m_draw;
         bundle::AssetBundle& m_bundle;
+        FontAtlas& m_font;
 
         // resolution of the entire screen
         BoxBounds m_screen;
 
-        // resolution of the region we are allowed to draw in
-        BoxBounds m_user;
-
     public:
-        Canvas(bundle::AssetBundle& bundle)
+        Canvas(bundle::AssetBundle& bundle, FontAtlas& font)
             : m_bundle(bundle)
+            , m_font(font)
         { }
 
-        BoxBounds get_screen_bounds() const { return m_screen; }
-        BoxBounds get_user_bounds() const { return m_user; }
+        void set_screen(math::uint2 size) {
+            // go from top left to bottom right
+            // top left is always 0,0 for now
+            // bottom right is always the size of the screen
+            m_screen = { { 0.f, 0.f }, { float(size.x), -float(size.y) } };
+        }
+
+        const BoxBounds& get_screen() const { return m_screen; }
+        const math::float2& get_white_pixel_uv() const { return m_font.get_white_pixel_uv(); }
+
         bundle::AssetBundle& get_bundle() const { return m_bundle; }
+        const CanvasDrawData& get_draw_data() const { return m_draw; }
 
-        void layout(CanvasDrawData& data, const IWidget& widget);
+        const FontAtlas& get_font() const { return m_font; }
 
-        bool is_dirty() const { return false; }
+        void layout(const IWidget& widget);
+
+        bool is_dirty() const { return m_dirty; }
+        void clear_dirty() { m_dirty = false; }
+
+
     };
 }

@@ -18,25 +18,34 @@ project('simcoe', [ 'c', 'cpp' ],
         'cthulhu:win32_trickery=enabled',
 
         # configure freetype before harfbuzz to pick up configuration
-        'freetype2:auto_features=disabled',
+        'freetype2:auto_features=enabled',
         'freetype2:zlib=disabled',
         'freetype2:png=disabled',
+        'freetype2:harfbuzz=disabled',
 
         # harfbuzz has some logic when building with c++11 that cause build issues
         'harfbuzz:cpp_std=c++20',
         'harfbuzz:tests=disabled',
         'harfbuzz:freetype=enabled',
 
+        # we dont want zlib to use any file io
+        'zlib:solo=true',
+        'zlib:tests=disabled',
+
         # nobody builds with clean warnings, so disable them per subproject
         'fmt:warning_level=0',
         'harfbuzz:warning_level=0',
-        'freetype2:warning_level=0'
+        'freetype2:warning_level=0',
+        'zlib:warning_level=0',
+        'minizip:warning_level=0',
     ]
 )
 
-add_project_arguments('-D_HAS_EXCEPTIONS=0', language : 'cpp')
-
 cpp = meson.get_compiler('cpp')
+cc = meson.get_compiler('c')
+
+add_global_arguments(cc.get_supported_arguments('/GS-'), language : [ 'c', 'cpp' ])
+add_project_arguments('-D_HAS_EXCEPTIONS=0', language : 'cpp')
 
 version = meson.project_version()
 parts = version.split('.')
@@ -57,8 +66,16 @@ harfbuzz = dependency('harfbuzz')
 # windows specific dependencies
 agility = subproject('d3d12-agility')
 warp = subproject('d3d-warp')
+
+# get dxc from the subproject directly rather than using find_program
+# if we use find_program it finds the system dxc, which will be older
+# than this one
 dxc = subproject('dxc').get_variable('dxc')
+
+minizip = dependency('minizip')
 windows = import('windows')
+
+stb = subproject('stb').get_variable('stb')
 
 d3d12 = dependency('d3d12')
 d3dx12 = dependency('d3dx12')
@@ -116,34 +133,45 @@ if trace_time.enabled()
     )
 endif
 
-if cpp.has_multi_arguments('-Xclang', '-funsafe-math-optimizations')
-    args += [ '-Xclang', '-funsafe-math-optimizations' ]
-endif
+xclang_args = [
+    '-funsafe-math-optimizations',
+    '-mglobal-merge',
+    '-ffast-math',
+    '-fno-math-errno'
+]
 
-if cpp.has_multi_arguments('-Xclang', '-mglobal-merge')
-    args += [ '-Xclang', '-mglobal-merge' ]
-endif
+xclang_cpp_args = [
+    '-fstrict-vtable-pointers',
+    '-Wno-missing-field-initializers',
 
-if cpp.has_multi_arguments('-Xclang', '-ffast-math')
-    args += [ '-Xclang', '-ffast-math' ]
-endif
+    # TODO: this could be UB in the future
+    # note: if formatting is doing weird stuff check here
+    '-Wno-nan-infinity-disabled'
+]
 
-if cpp.has_multi_arguments('-Xclang', '-fno-math-errno')
-    args += [ '-Xclang', '-fno-math-errno' ]
-endif
+xclang_lto_args = [
+    '-fwhole-program-vtables',
+    '-fvirtual-function-elimination'
+]
 
-if cpp.has_multi_arguments('-Xclang', '-fstrict-vtable-pointers')
-    cpp_args += ['-Xclang', '-fstrict-vtable-pointers' ]
-endif
+foreach arg : xclang_args
+    if cc.has_multi_arguments('-Xclang', arg)
+        args += [ '-Xclang', arg ]
+    endif
+endforeach
+
+foreach arg : xclang_cpp_args
+    if cpp.has_multi_arguments('-Xclang', arg)
+        cpp_args += [ '-Xclang', arg ]
+    endif
+endforeach
 
 if get_option('b_lto')
-    if cpp.has_multi_arguments('-Xclang', '-fwhole-program-vtables')
-        cpp_args += [ '-Xclang', '-fwhole-program-vtables' ]
-    endif
-
-    if cpp.has_multi_arguments('-Xclang', '-fvirtual-function-elimination')
-        cpp_args += [ '-Xclang', '-fvirtual-function-elimination' ]
-    endif
+    foreach arg : xclang_lto_args
+        if cpp.has_multi_arguments('-Xclang', arg)
+            cpp_args += [ '-Xclang', arg ]
+        endif
+    endforeach
 endif
 
 add_project_arguments(cpp_args, language : 'cpp')
@@ -273,7 +301,9 @@ debug_bundle = is_debug ? [ '--debug' ] : []
 make_bundle = find_program('scripts/make_bundle.py')
 game_bundle = custom_target('game_bundle',
     input : [ 'data/assets/bundle.json' ],
-    output : 'dummy.txt',
+    output : 'bundle.zip',
+    install : true,
+    install_dir : 'bin',
     depfile : 'bundle.d',
     command : [
         make_bundle,

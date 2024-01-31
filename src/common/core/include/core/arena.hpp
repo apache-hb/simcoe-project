@@ -13,16 +13,6 @@ namespace sm {
         static void wrap_rename(const void *ptr, const char *name, void *user);
         static void wrap_reparent(const void *ptr, const void *parent, void *user);
 
-        constexpr void init(const char *id) {
-            name = id;
-            fn_malloc = wrap_alloc;
-            fn_realloc = wrap_resize;
-            fn_free = wrap_release;
-            fn_rename = wrap_rename;
-            fn_reparent = wrap_reparent;
-            user = this;
-        }
-
     protected:
         virtual void *impl_alloc(size_t size) = 0;
         virtual void *impl_resize(void *ptr, size_t new_size, size_t old_size) = 0;
@@ -33,8 +23,14 @@ namespace sm {
         virtual void impl_reparent(const void *ptr, const void *parent);
 
     public:
-        constexpr IArena(const char *name) {
-            init(name);
+        constexpr IArena(const char *id) {
+            name = id;
+            fn_malloc = wrap_alloc;
+            fn_realloc = wrap_resize;
+            fn_free = wrap_release;
+            fn_rename = wrap_rename;
+            fn_reparent = wrap_reparent;
+            user = this;
         }
 
         virtual ~IArena() = default;
@@ -46,6 +42,8 @@ namespace sm {
         void rename(const void *ptr, const char *ptr_name);
         void reparent(const void *ptr, const void *parent);
     };
+
+    IArena& get_pool(Pool pool);
 
     template<typename T>
     class StandardArena {
@@ -67,7 +65,7 @@ namespace sm {
                 return p;
             }
 
-            NEVER("out of memory");
+            NEVER("Arena %s failed to allocate %zu bytes", m_arena.name, n * sizeof(T));
         }
 
         void deallocate(T *const p, size_t n) const noexcept {
@@ -91,7 +89,35 @@ namespace sm {
         { }
     };
 
-    // TODO: templated pool arena
+    template<typename T, Pool::Inner P> requires (Pool{P}.is_valid())
+    struct StandardPool {
+        using value_type = T;
 
-    IArena& get_pool(Pool pool);
+        constexpr IArena& get_arena() const noexcept { return sm::get_pool(P); }
+
+        constexpr bool operator==(const StandardPool &) const noexcept { return true; }
+        constexpr bool operator!=(const StandardPool &) const noexcept { return false; }
+
+        T *allocate(size_t n) const {
+            if (n > SIZE_MAX / sizeof(T)) {
+                return nullptr;
+            }
+
+            if (auto p = static_cast<T *>(get_arena().alloc(n * sizeof(T)))) {
+                return p;
+            }
+
+            NEVER("Arena %s failed to allocate %zu bytes", get_arena().name, n * sizeof(T));
+        }
+
+        void deallocate(T *const p, size_t n) const noexcept {
+            get_arena().release(p, n * sizeof(T));
+        }
+
+        constexpr StandardPool() noexcept = default;
+        constexpr StandardPool(const StandardPool &) noexcept = default;
+
+        template<typename O>
+        constexpr StandardPool(const StandardPool<O, P> &) noexcept { }
+    };
 }

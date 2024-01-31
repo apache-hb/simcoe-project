@@ -4,13 +4,16 @@
 #include "render/render.hpp"
 
 namespace sm::ui {
+    struct CBUFFER_ALIGN CanvasProjection {
+        math::float4x4 projection;
+    };
+
     class CanvasCommands : public render::IRenderNode {
         // external data
         bundle::AssetBundle& m_assets;
 
         // canvas data
         ui::Canvas& m_canvas;
-        CanvasDrawData m_draw;
 
         // canvas pipeline
         static constexpr inline const char *kVertexShader = "shaders/canvas.vs.cso";
@@ -43,13 +46,14 @@ namespace sm::ui {
 
         // TODO: extract this out, and also do rectpacking on it
         bundle::Texture m_font_atlas_texture;
-        rhi::ResourceObject m_font_atlas;
+        rhi::ResourceObject m_atlas;
         SM_UNUSED render::SrvHeapIndex m_font_atlas_index = render::SrvHeapIndex::eInvalid;
 
         // camera resources, TODO: get root constants working to avoid this
         rhi::ResourceObject m_camera;
         SM_UNUSED render::SrvHeapIndex m_camera_index = render::SrvHeapIndex::eInvalid;
-        math::float4x4 m_projection;
+        CanvasProjection m_projection;
+        CanvasProjection *m_projection_data = nullptr;
 
         void setup_pipeline(render::Context& context);
 
@@ -61,6 +65,8 @@ namespace sm::ui {
         void update_viewport(math::uint2 size);
 
         void resize(render::Context& context, math::uint2 size) override {
+            m_canvas.set_screen(size);
+
             update_camera(size);
             update_viewport(size);
         }

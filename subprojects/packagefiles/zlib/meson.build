@@ -2,8 +2,7 @@ project(
   'zlib',
   'c',
   version: '1.3.1',
-  license: 'zlib',
-  meson_version: '>=0.49.0',
+  license: 'zlib'
 )
 
 cc = meson.get_compiler('c')
@@ -90,4 +89,10 @@ pkg.generate(
   extra_cflags: solo_args,
 )
 
-subdir('test')
+subdir('contrib/minizip')
+
+build_tests = get_option('tests').disable_auto_if(meson.is_subproject())
+
+if build_tests.allowed()
+  subdir('test')
+endif

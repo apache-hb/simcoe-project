@@ -38,6 +38,12 @@
             "name": "Public Sans (USWDS)",
             "url": "https://public-sans.digital.gov",
             "path": "licenses/public-sans/LICENSE"
+        },
+        {
+            "id": "zlib",
+            "name": "zlib",
+            "url": "https://www.zlib.net",
+            "path": "licenses/zlib/LICENSE"
         }
     ],
     "shaders": [
@@ -74,6 +80,10 @@
         {
             "name": "public-sans-bold",
             "path": "fonts/ttf/PublicSans-Bold.ttf"
+        },
+        {
+            "name": "segoe-ui",
+            "path": "fonts/ttf/SEGOEUI.TTF"
         }
     ]
 }

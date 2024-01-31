@@ -26,6 +26,7 @@
 # dependencies
 subprojects/*
 !subprojects/*.wrap
+!subprojects/stb
 !subprojects/packagefiles
 !subprojects/packagefiles/**
 

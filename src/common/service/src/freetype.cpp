@@ -48,6 +48,7 @@ void FreeType::init(arena_t *arena) {
     SM_ASSERT_FT2(FT_New_Library(&m_memory, &m_library), "failed to initialize freetype");
 
     FT_Add_Default_Modules(m_library);
+    FT_Set_Default_Properties(m_library);
 
     gFreeTypeLogger->log(logs::Category::eAssets, logs::Severity::eInfo, "initialized freetype2");
 }

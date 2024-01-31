@@ -82,26 +82,17 @@ void WorldCommands::setup_assets(render::Context &ctx) {
         {255, 255, 255, 255},
     };
 
-    rhi::ResourceObject texture_upload;
-
-    const D3D12_RESOURCE_DESC kTextureDesc{
-        .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-        .Width = kTextureWidth,
-        .Height = kTextureHeight,
-        .DepthOrArraySize = 1,
-        .MipLevels = 1,
-        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
-        .SampleDesc = {1, 0},
-        .Flags = D3D12_RESOURCE_FLAG_NONE,
-    };
+    const auto kTextureDesc = CD3DX12_RESOURCE_DESC::Tex2D(
+        DXGI_FORMAT_R8G8B8A8_UNORM, kTextureWidth, kTextureHeight, 1, 1);
 
     SM_ASSERT_HR(device->CreateCommittedResource(
         &kDefaultHeapProperties, D3D12_HEAP_FLAG_CREATE_NOT_ZEROED, &kTextureDesc,
         D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_texture)));
 
     const UINT64 kUploadSize = GetRequiredIntermediateSize(m_texture.get(), 0, 1);
-    const CD3DX12_RESOURCE_DESC kUploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kUploadSize);
+    const auto kUploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kUploadSize);
 
+    rhi::ResourceObject texture_upload;
     SM_ASSERT_HR(device->CreateCommittedResource(
         &kUploadHeapProperties, D3D12_HEAP_FLAG_CREATE_NOT_ZEROED, &kUploadBufferDesc,
         D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&texture_upload)));
@@ -154,7 +145,7 @@ void WorldCommands::setup_assets(render::Context &ctx) {
         D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&ibo_upload)));
 
     UINT8 *ibo_data;
-    CD3DX12_RANGE read_range{0, 0};
+    D3D12_RANGE read_range{0, 0};
     SM_ASSERT_HR(ibo_upload->Map(0, &read_range, reinterpret_cast<void **>(&ibo_data)));
     memcpy(ibo_data, kIndexData, kIboSize);
     ibo_upload->Unmap(0, nullptr);
@@ -246,7 +237,7 @@ void WorldCommands::setup_camera(render::Context &ctx) {
     m_camera_index = heap.bind_slot();
     device->CreateConstantBufferView(&kViewDesc, heap.cpu_handle(m_camera_index));
 
-    CD3DX12_RANGE read_range{0, 0};
+    D3D12_RANGE read_range{0, 0};
     SM_ASSERT_HR(m_camera_resource->Map(0, &read_range, reinterpret_cast<void **>(&m_camera_data)));
 }
 

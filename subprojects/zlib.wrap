@@ -9,3 +9,4 @@ patch_directory = zlib
 
 [provide]
 zlib = zlib_dep
+minizip = minizip_dep

@@ -206,6 +206,7 @@ struct GraphicsPipelineConfig {
     samplers: SamplerLayout;
     vs: ShaderData;
     ps: ShaderData;
+    blending: bool;
 }
 
 struct RenderConfig {

@@ -1,16 +1,15 @@
 #include "core/units.hpp"
+#include "core/format.hpp"
 #include "core/text.hpp"
 
 #include <iterator>
 
 using namespace sm;
 
-using FormatBuffer = fmt::basic_memory_buffer<char, 256, sm::StandardArena<char>>;
-
 sm::String Memory::to_string() const {
     if (m_bytes == 0) { return "0b"; }
 
-    FormatBuffer buffer;
+    sm::FormatBuffer buffer;
     auto out = std::back_inserter(buffer);
     size_t total = m_bytes;
 
@@ -28,5 +27,5 @@ sm::String Memory::to_string() const {
         }
     }
 
-    return { buffer.data(), buffer.size() };
+    return sm::String(buffer.data(), buffer.size());
 }

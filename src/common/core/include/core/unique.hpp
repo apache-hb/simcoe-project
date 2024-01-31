@@ -5,6 +5,7 @@
 #include "base/panic.h" // IWYU pragma: keep
 
 #include "core/macros.hpp"
+#include "core/debug.hpp"
 
 namespace sm {
     // TODO: arena support
@@ -105,9 +106,7 @@ namespace sm {
 
         constexpr UniquePtr(T *data, SM_UNUSED size_t size)
             : Super(data)
-#if SMC_DEBUG
             , m_size(size)
-#endif
         { }
 
         constexpr UniquePtr()
@@ -121,9 +120,7 @@ namespace sm {
         constexpr void reset(SM_UNUSED size_t size) {
             Super::destroy();
             Super::reset(new T[size]);
-#if SMC_DEBUG
-            m_size = size;
-#endif
+            SM_DBG_REF(m_size) = size;
         }
 
         constexpr T &operator[](size_t index) {
@@ -137,13 +134,14 @@ namespace sm {
         }
 
     private:
-#if SMC_DEBUG
-        constexpr void verify_index(size_t index) const {
-            CTASSERTF(index < m_size, "index out of bounds (%zu < %zu)", index, m_size);
+        constexpr void verify_index(SM_UNUSED size_t index) const {
+            SM_DBG_ASSERT(index < m_size, "index out of bounds (%zu < %zu)", index, m_size);
         }
-        size_t m_size;
-#else
-        constexpr void verify_index(size_t) const { }
-#endif
+
+        SM_DBG_MEMBER(size_t) m_size;
     };
+
+    SM_REL_STATIC_ASSERT(sizeof(sm::UniquePtr<int>) == sizeof(int*),
+        "UniquePtr<T> should be the same size as T* in release"
+        "a compiler that supports [[no_unique_address]] or [[msvc::no_unique_address]] is required");
 }

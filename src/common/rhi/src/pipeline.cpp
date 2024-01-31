@@ -89,6 +89,22 @@ struct PipelineBuilder {
     }
 };
 
+static const D3D12_BLEND_DESC kDefaultBlendDesc = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+static const D3D12_BLEND_DESC kAlphaBlendDesc = {
+    .RenderTarget = {
+        {
+            .BlendEnable = true,
+            .SrcBlend = D3D12_BLEND_SRC_ALPHA,
+            .DestBlend = D3D12_BLEND_INV_SRC_ALPHA,
+            .BlendOp = D3D12_BLEND_OP_ADD,
+            .SrcBlendAlpha = D3D12_BLEND_ONE,
+            .DestBlendAlpha = D3D12_BLEND_ZERO,
+            .BlendOpAlpha = D3D12_BLEND_OP_ADD,
+            .RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL,
+        }
+    }
+};
+
 void PipelineState::init(Device &device, const GraphicsPipelineConfig &config) {
     PipelineBuilder builder{config};
 
@@ -153,12 +169,16 @@ void PipelineState::init(Device &device, const GraphicsPipelineConfig &config) {
     SM_ASSERT_HR(dev->CreateRootSignature(0, signature->GetBufferPointer(),
                                           signature->GetBufferSize(), IID_PPV_ARGS(&m_signature)));
 
+    const D3D12_BLEND_DESC kBlendDesc = config.blending
+        ? kAlphaBlendDesc
+        : kDefaultBlendDesc;
+
     const D3D12_GRAPHICS_PIPELINE_STATE_DESC kPipelineDesc = {
         .pRootSignature = m_signature.get(),
         .VS = {config.vs.data, config.vs.size},
         .PS = {config.ps.data, config.ps.size},
 
-        .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
+        .BlendState = kBlendDesc,
         .SampleMask = UINT_MAX,
         .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
         // no depth stencil state for now

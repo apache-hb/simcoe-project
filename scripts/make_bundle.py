@@ -12,6 +12,7 @@ import os
 import json
 import shutil
 import argparse
+from pathlib import Path
 
 class ShaderCompiler:
     # dxc is the path to dxc.exe
@@ -43,7 +44,7 @@ argparser = argparse.ArgumentParser(description="bundle assets into a folder")
 argparser.add_argument("--bundlefile", help="the input bundle description file")
 argparser.add_argument("--inputdir", help="the input directory")
 argparser.add_argument("--outdir", help="the output directory")
-argparser.add_argument("--output", help="dummy output file")
+argparser.add_argument("--output", help="output zip file")
 argparser.add_argument("--depfile", help="the output dependency file")
 argparser.add_argument("--dxc", help="the path to dxc.exe")
 argparser.add_argument("--debug", help="enable debug mode", action="store_true")
@@ -138,8 +139,7 @@ def main():
 
     open(depfile, "w").write(args.output + ': ' + ' '.join(deps))
 
-    # touch output file
-    open(args.output, "w").close()
+    shutil.make_archive(Path(args.output).stem, 'zip', outdir)
 
 if __name__ == "__main__":
     main()

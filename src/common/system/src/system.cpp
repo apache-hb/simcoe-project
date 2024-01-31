@@ -10,7 +10,17 @@
 using namespace sm;
 using namespace sm::sys;
 
-#define SM_CLASS_NAME "simcoe"
+static constexpr const char *kClassName = "simcoe";
+static constexpr size_t kPathMax = 512;
+
+static TCHAR gExecutablePath[kPathMax];
+static DWORD gExecutablePathLength = 0;
+
+const char *sys::get_exe_path() {
+    CTASSERTF(gExecutablePathLength != 0, "system::get_exe_path() called before system::create()");
+
+    return gExecutablePath;
+}
 
 void sys::create(HINSTANCE hInstance, logs::ILogger &logger) {
     CTASSERTF(hInstance != nullptr, "system::create() invalid hInstance");
@@ -25,7 +35,7 @@ void sys::create(HINSTANCE hInstance, logs::ILogger &logger) {
         /* name = */ MAKEINTRESOURCEA(IDI_DEFAULT_ICON));
 
     if (hIcon == nullptr) {
-        sink.warn("failed to load icon {}", get_last_error());
+        sink.warn("failed to load icon {}", last_error_string());
     }
 
     HCURSOR hCursor = LoadCursorA(
@@ -33,7 +43,7 @@ void sys::create(HINSTANCE hInstance, logs::ILogger &logger) {
         /* name = */ IDC_ARROW);
 
     if (hCursor == nullptr) {
-        sink.warn("failed to load cursor {}", get_last_error());
+        sink.warn("failed to load cursor {}", last_error_string());
     }
 
     const WNDCLASSEXA kClass = {
@@ -44,13 +54,26 @@ void sys::create(HINSTANCE hInstance, logs::ILogger &logger) {
         .hInstance = hInstance,
         .hIcon = hIcon,
         .hCursor = hCursor,
-        .lpszClassName = SM_CLASS_NAME,
+        .lpszClassName = kClassName,
     };
 
     if (ATOM atom = RegisterClassExA(&kClass); atom == 0) {
         assert_last_error(CT_SOURCE_HERE, "RegisterClassExA");
     } else {
         gWindowClass = MAKEINTATOM(atom);
+    }
+
+    gExecutablePathLength = GetModuleFileNameA(
+        /* hModule = */ nullptr,
+        /* lpFilename = */ gExecutablePath,
+        /* nSize = */ kPathMax);
+
+    if (gExecutablePathLength == 0) {
+        assert_last_error(CT_SOURCE_HERE, "GetModuleFileNameA");
+    }
+
+    if (gExecutablePathLength == kPathMax) {
+        sink.warn("executable path longer than {}, may be truncated", kPathMax);
     }
 }
 

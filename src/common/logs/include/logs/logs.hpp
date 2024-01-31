@@ -1,7 +1,6 @@
 #pragma once
 
-#include "core/arena.hpp"
-#include "fmtlib/format.h"
+#include "core/format.hpp"
 
 #include "logs.reflect.h"
 
@@ -34,9 +33,8 @@ namespace sm::logs {
     /// @warning this class is not thread-safe
     template<Category::Inner C> requires (Category{C}.is_valid())
     class Sink final {
-        using FormatBuffer = fmt::basic_memory_buffer<char, 256, sm::StandardArena<char>>;
+        mutable FormatPoolBuffer<Pool::eLogging> m_buffer;
 
-        mutable FormatBuffer m_buffer{sm::get_pool(sm::Pool::eLogging)};
         ILogger& m_logger;
 
     public:
@@ -53,6 +51,8 @@ namespace sm::logs {
         }
 
         void log(Severity severity, std::string_view msg, auto&&... args) const {
+            // while ILogger will reject the message, still do an early return
+            // to avoid formatting if we don't need to
             if (!m_logger.will_accept(severity)) { return; }
 
             auto out = std::back_inserter(m_buffer);

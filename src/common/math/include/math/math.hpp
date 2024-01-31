@@ -720,6 +720,14 @@ namespace sm::math {
     static_assert(sizeof(uint8x2) == sizeof(uint8_t) * 2);
     static_assert(sizeof(uint8x3) == sizeof(uint8_t) * 3);
     static_assert(sizeof(uint8x4) == sizeof(uint8_t) * 4);
+
+    using uint16x2 = Vec2<uint16_t>;
+    using uint16x3 = Vec3<uint16_t>;
+    using uint16x4 = Vec4<uint16_t>;
+
+    static_assert(sizeof(uint16x2) == sizeof(uint16_t) * 2);
+    static_assert(sizeof(uint16x3) == sizeof(uint16_t) * 3);
+    static_assert(sizeof(uint16x4) == sizeof(uint16_t) * 4);
 }
 
 namespace std {

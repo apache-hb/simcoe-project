@@ -1,11 +1,14 @@
 #include "core/arena.hpp"
 #include "core/backtrace.hpp"
+#include "core/format.hpp"
 #include "core/text.hpp"
 
 #include "core/units.hpp"
+#include "io/io.h"
 #include "logs/logs.hpp"
 #include "rhi/rhi.hpp"
 #include "service/freetype.hpp"
+#include "std/str.h"
 #include "system/io.hpp"
 #include "system/system.hpp"
 #include "threads/threads.hpp"
@@ -28,13 +31,10 @@
 
 #include "render/graph.hpp"
 #include "render/render.hpp"
-
-
-#include <iterator>
+#include <array>
 
 using namespace sm;
 
-using FormatBuffer = fmt::basic_memory_buffer<char, 256, sm::StandardArena<char>>;
 using GlobalSink = logs::Sink<logs::Category::eGlobal>;
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
@@ -47,7 +47,7 @@ static constexpr auto enum_to_string(T value) {
 }
 
 class ConsoleLog final : public logs::ILogger {
-    FormatBuffer m_buffer;
+    sm::FormatBuffer m_buffer;
 
     static constexpr colour_t get_colour(logs::Severity severity) {
         CTASSERTF(severity.is_valid(), "invalid severity: %s", enum_to_string(severity).data());
@@ -145,7 +145,7 @@ class TraceArena final : public IArena {
 
     void *impl_resize(void *ptr, size_t new_size, size_t old_size) override {
         void *new_ptr = m_source.resize(ptr, new_size, old_size);
-        m_log.trace("[{}] resize({:#x}, {:#x}, {}) = 0x%p\n", name, ptr, new_size, old_size,
+        m_log.trace("[{}] resize({}, {:#x}, {}) = {}\n", name, ptr, new_size, old_size,
                     new_ptr);
         return new_ptr;
     }
@@ -185,16 +185,17 @@ class DefaultSystemError final : public ISystemError {
     IArena &m_arena;
     bt_report_t *m_report = nullptr;
 
-    void error_begin(size_t error) override {
+    void error_begin(os_error_t error) override {
         m_report = bt_report_new(&m_arena);
-        std::printf("system_error(0x%zX)\n", error);
+        io_t *io = io_stderr();
+        io_printf(io, "System error detected: (%s)\n", os_error_string(error, &m_arena));
     }
 
     void error_frame(const bt_frame_t *it) override {
         bt_report_add(m_report, it);
     }
 
-    void error_end(void) override {
+    void error_end() override {
         const print_backtrace_t kPrintOptions = print_options_make(&m_arena, io_stderr());
         print_backtrace(kPrintOptions, m_report);
         std::exit(CT_EXIT_INTERNAL); // NOLINT
@@ -212,13 +213,17 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     sys::RecordLookup m_lookup;
 
     render::Context *m_context = nullptr;
+    math::int2 m_size;
 
     LRESULT event(sys::Window &window, UINT message, WPARAM wparam, LPARAM lparam) override {
         return ImGui_ImplWin32_WndProcHandler(window.get_handle(), message, wparam, lparam);
     }
 
     void resize(sys::Window &, math::int2 size) override {
-        if (m_context != nullptr) m_context->resize(size.as<uint32_t>());
+        m_size = size;
+        if (m_context != nullptr) {
+            m_context->resize(size.as<uint32_t>());
+        }
     }
 
     void create(sys::Window &window) override {
@@ -235,8 +240,14 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     }
 
 public:
-    DefaultWindowEvents(sys::FileMapping &store)
-        : m_store(store) {}
+    math::int2 get_client_size() const {
+        return m_size;
+    }
+
+    DefaultWindowEvents(sys::FileMapping &store, math::int2 size)
+        : m_store(store)
+        , m_size(size)
+    {}
 
     void attach_render(render::Context *context) {
         m_context = context;
@@ -311,8 +322,16 @@ static void common_init(void) {
 }
 
 static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
+#if 0
+    const char *appname = sys::get_exe_path();
+    char *appdir = str_directory(appname, &gGlobalArena);
+    char *bundlename = str_format(&gGlobalArena, "%s\\bundle.zip", appdir);
 
+    bundle::AssetBundle assets{bundlename, gConsoleLog};
+#else
+    // TODO: figure out why zlib is busted
     bundle::AssetBundle assets{"build\\bundle", gConsoleLog};
+#endif
 
     SM_UNUSED auto& font = assets.load_font("fonts\\public-sans-regular.ttf");
 
@@ -324,7 +343,9 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
         .logger = gConsoleLog,
     };
 
-    DefaultWindowEvents events{store};
+    math::int2 size = { 1280, 720 };
+
+    DefaultWindowEvents events{store, size};
 
     sys::Window window{window_config, &events};
 
@@ -373,8 +394,16 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
     io.ConfigFlags |= kIoFlags;
 
     ImGui::StyleColorsDark();
+    const auto codepoints = std::to_array(U"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()");
 
-    ui::Canvas canvas { assets };
+    ui::FontAtlas atlas{font, {1024, 1024}, {codepoints.begin(), codepoints.end() - 1}};
+
+    ui::Canvas canvas { assets, atlas };
+
+    ui::TextWidget text { atlas, u8"Hello, World!" };
+
+    canvas.set_screen(size.as<uint32_t>());
+    canvas.layout(text);
 
     // make imgui windows look more like native windows
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
@@ -413,6 +442,12 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
             }
 
             if (done) break;
+
+            if (size != events.get_client_size()) {
+                size = events.get_client_size();
+                canvas.set_screen(size.as<uint32_t>());
+                canvas.layout(text);
+            }
 
             ImGui_ImplWin32_NewFrame();
 

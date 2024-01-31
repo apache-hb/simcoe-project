@@ -81,23 +81,24 @@ namespace sm::render {
             update_viewport();
         }
 
-        void build(render::Context& ctx) override {
-            auto& commands = ctx.get_direct_commands();
-            auto& heap = ctx.get_srv_heap();
+        void build(render::Context& context) override {
+            auto& rhi = context.get_rhi();
+            auto& heap = context.get_srv_heap();
+            auto& direct = rhi.get_direct_commands();
 
-            commands->SetPipelineState(m_pipeline.get_pipeline());
-            commands->SetGraphicsRootSignature(m_pipeline.get_root_signature());
+            direct.set_root_signature(m_pipeline);
+            direct.set_pipeline_state(m_pipeline);
 
             // use 2 tables in case the indices are not contiguous
-            commands->SetGraphicsRootDescriptorTable(0, heap.gpu_handle(m_texture_index));
-            commands->SetGraphicsRootDescriptorTable(1, heap.gpu_handle(m_camera_index));
-            commands->RSSetViewports(1, &m_viewport);
-            commands->RSSetScissorRects(1, &m_scissor);
+            direct->SetGraphicsRootDescriptorTable(0, heap.gpu_handle(m_texture_index));
+            direct->SetGraphicsRootDescriptorTable(1, heap.gpu_handle(m_camera_index));
+            direct->RSSetViewports(1, &m_viewport);
+            direct->RSSetScissorRects(1, &m_scissor);
 
-            commands->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-            commands->IASetVertexBuffers(0, 1, &m_vbo_view);
-            commands->IASetIndexBuffer(&m_ibo_view);
-            commands->DrawIndexedInstanced(6, 1, 0, 0, 0);
+            direct->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            direct->IASetVertexBuffers(0, 1, &m_vbo_view);
+            direct->IASetIndexBuffer(&m_ibo_view);
+            direct->DrawIndexedInstanced(6, 1, 0, 0, 0);
         }
 
     public:

@@ -7,17 +7,19 @@
 
 #include <errhandlingapi.h>
 
+using namespace sm;
+
 HINSTANCE gInstance = nullptr;
 LPTSTR gWindowClass = nullptr;
 
-char *sm::sys::get_last_error(void) {
+char *sys::last_error_string(void) {
     DWORD last_error = GetLastError();
-    sm::IArena& arena = sm::get_pool(sm::Pool::eDebug);
+    IArena& arena = sm::get_pool(sm::Pool::eDebug);
     return os_error_string(last_error, &arena);
 }
 
 CT_NORETURN
-sm::sys::assert_last_error(source_info_t panic, const char *expr) {
-    char *message = sm::sys::get_last_error();
+sys::assert_last_error(source_info_t panic, const char *expr) {
+    char *message = sys::last_error_string();
     ctu_panic(panic, "win32 error: %s %s", message, expr);
 }
