@@ -115,8 +115,8 @@ void TextWidget::layout(LayoutInfo& info, BoxBounds bounds) const {
     size_t index = info.draw.vertices.size();
 
     // min and max extents of text relative to the bounding box
-    float2 text_min = bounds.max;
-    float2 text_max = bounds.min;
+    float2 text_min = 0.f;
+    float2 text_max = 0.f;
 
     for (; gbegin != gend && tbegin != tend; ++gbegin, ++tbegin) {
         const auto& glyph = *gbegin;
@@ -140,22 +140,13 @@ void TextWidget::layout(LayoutInfo& info, BoxBounds bounds) const {
             fxa = float(size.x);
         }
 
-        // harfbuzz gives us the bottom left of the glyph as the origin
-        // we use top left so we need to convert them to our coordinate system
-
+        // harfbuzz gives us inverted uv along the v axis
+        // fix them here
         float2 glyph_size = size.as<float>();
         float2 glyph_start = cursor + float2{ fxo, fyo };
 
-        //float2 top_left = { glyph_start.x, glyph_start.y + glyph_size.y };
-        //float2 bottom_right = { glyph_start.x + glyph_size.x, glyph_start.y };
-
         float2 top_left = glyph_start;
         float2 bottom_right = glyph_start + glyph_size;
-
-        std::printf("glyph %c %f %f %f %f\n", codepoint, top_left.x, top_left.y, bottom_right.x, bottom_right.y);
-
-        // harfbuzz gives us inverted uv along the v axis
-        // fix them here
 
         Vertex vertices[4] = {
             // top left
