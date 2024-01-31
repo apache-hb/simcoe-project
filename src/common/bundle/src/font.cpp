@@ -61,6 +61,10 @@ Font::Font(const AssetSink& log, BinaryData data, const char *name)
     m_log.info("| glyphs: {}", m_face->num_glyphs);
 
     SM_ASSERT_FT2(FT_Set_Char_Size(m_face, 0, 16 * 64, 300, 300), "failed to set font size for font {}", m_name);
+
+    FT_Size_Metrics metrics = m_face->size->metrics;
+    m_info.ascender = float(metrics.ascender) / 64.f;
+    m_info.descender = float(metrics.descender) / 64.f;
 }
 
 Font::~Font() {
@@ -77,11 +81,18 @@ math::uint2 Font::get_glyph_size(char32_t codepoint) const {
     return math::uint2(m_face->glyph->bitmap.width, m_face->glyph->bitmap.rows);
 }
 
-void Font::draw_glyph(char32_t codepoint, math::uint2 start, Image& image, const math::float4& color) const {
+GlyphInfo Font::draw_glyph(char32_t codepoint, math::uint2 start, Image& image, const math::float4& color) const {
     FT_Set_Transform(m_face, nullptr, nullptr);
 
     SM_ASSERT_FT2(FT_Load_Char(m_face, codepoint, FT_LOAD_RENDER), "failed to load glyph for codepoint {}", int32_t(codepoint));
 
     FT_Bitmap *bitmap = &m_face->glyph->bitmap;
     blit_glyph(m_log, image, codepoint, m_face->family_name, bitmap, start.x, start.y, color);
+
+    GlyphInfo info = {
+        .size = { int(bitmap->width), int(bitmap->rows) },
+        .bearing = { m_face->glyph->bitmap_left, m_face->glyph->bitmap_top }
+    };
+
+    return info;
 }

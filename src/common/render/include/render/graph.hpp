@@ -13,7 +13,6 @@ namespace sm::render {
 
             ID3D12DescriptorHeap *heaps[] = { heap.get_heap() };
             commands->SetDescriptorHeaps(std::size(heaps), heaps);
-
         }
     };
 

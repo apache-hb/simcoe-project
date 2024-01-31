@@ -43,7 +43,7 @@ FontAtlas::FontAtlas(bundle::Font& font, math::uint2 size, std::span<const char3
         math::uint2 point = { uint32_t(rect.x + 1), uint32_t(rect.y + 1) };
         math::uint2 size = { uint32_t(rect.w - 1), uint32_t(rect.h - 1) };
 
-        m_font.draw_glyph(cp, point, m_image, kBlack);
+        bundle::GlyphInfo info = m_font.draw_glyph(cp, point, m_image, kBlack);
 
         // calculate uv coords
         float u0 = float(point.x) / float(m_image.size.width);
@@ -52,7 +52,7 @@ FontAtlas::FontAtlas(bundle::Font& font, math::uint2 size, std::span<const char3
         float u1 = float(point.x + size.x) / float(m_image.size.width);
         float v1 = float(point.y + size.y) / float(m_image.size.height);
 
-        GlyphCoords coords = { { u0, v0 }, { u1, v1 }, size };
+        GlyphInfo coords = { { u0, v0 }, { u1, v1 }, info.bearing, info.size };
         glyphs[cp] = coords;
     }
 

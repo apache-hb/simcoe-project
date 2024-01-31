@@ -29,10 +29,12 @@ namespace sm {
 #if SMC_DEBUG
 #   define SM_DBG_MEMBER(T) T
 #   define SM_DBG_REF(name) name
+#   define SM_DBG_MEMBER_OR(name, ...) name
 #   define SM_DBG_ASSERT(expr, ...) CTASSERTF(expr, __VA_ARGS__)
 #else
 #   define SM_DBG_MEMBER(T) SM_NO_UNIQUE_ADDRESS sm::Empty<T>
 #   define SM_DBG_REF(name) sm::kIgnore
+#   define SM_DBG_MEMBER_OR(name, ...) __VA_ARGS__
 #   define SM_DBG_ASSERT(expr, ...) do { } while (0)
 #endif
 

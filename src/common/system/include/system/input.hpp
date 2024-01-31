@@ -6,7 +6,7 @@
 
 namespace sm::sys {
     // mouse and keyboard input
-    class DesktopInput : input::ISource {
+    class DesktopInput : public input::ISource {
         // keyboard state
         input::ButtonState m_buttons{};
         size_t m_index = 0;

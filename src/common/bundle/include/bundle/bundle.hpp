@@ -47,6 +47,16 @@ namespace sm::bundle {
         math::uint8x4& get_pixel_rgba(size_t x, size_t y);
     };
 
+    struct GlyphInfo {
+        math::int2 size;
+        math::int2 bearing;
+    };
+
+    struct FontInfo {
+        float ascender;
+        float descender;
+    };
+
     class Font {
         friend class AssetBundle;
 
@@ -54,6 +64,8 @@ namespace sm::bundle {
         const char *m_name;
         BinaryData m_data;
         FT_Face m_face;
+
+        FontInfo m_info;
 
         Font(const AssetSink& log, BinaryData data, const char *name);
 
@@ -73,11 +85,12 @@ namespace sm::bundle {
 
         // TODO: dont do this
         const AssetSink& get_logger() const { return m_log; }
+        const FontInfo& get_info() const { return m_info; }
         FT_Face get_face() const { return m_face; }
 
         math::uint2 get_glyph_size(char32_t codepoint) const;
 
-        void draw_glyph(char32_t codepoint, math::uint2 start, Image& image, const math::float4& color) const;
+        GlyphInfo draw_glyph(char32_t codepoint, math::uint2 start, Image& image, const math::float4& color) const;
     };
 
     class AssetBundle {

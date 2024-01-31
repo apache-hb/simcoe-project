@@ -281,10 +281,6 @@ void CanvasCommands::update_camera(const ui::BoxBounds& bounds) {
 }
 
 void CanvasCommands::create(render::Context& context) {
-    //auto& rhi = context.get_rhi();
-    //auto size = rhi.get_swapchain_size();
-
-    // note: disabled temporarily
     setup_buffers(context, 0x1000, 0x1000); // create initial buffers
     setup_pipeline(context);
     setup_camera(context);

@@ -355,7 +355,7 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
     DefaultWindowEvents events{store, size};
 
     sys::Window window{window_config, &events};
-    sys::DesktopInput input{window};
+    sys::DesktopInput desktop_input{window};
 
     constexpr unsigned kBufferCount = 2;
 
@@ -391,7 +391,7 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
 
     window.show_window(show);
 
-    events.attach_input(&input);
+    events.attach_input(&desktop_input);
 
     constexpr ImGuiConfigFlags kIoFlags = ImGuiConfigFlags_NavEnableGamepad |
                                           ImGuiConfigFlags_NavEnableKeyboard |
@@ -410,17 +410,59 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
 
     ui::Canvas canvas { assets, atlas };
 
-    auto text = ui::TextWidget(atlas, u8"Hello, World!")
-        .align({ ui::AlignH::eRight, ui::AlignV::eTop });
+    auto title_text = ui::TextWidget(atlas, u8"Priority Zero")
+        .align({ ui::AlignH::eLeft, ui::AlignV::eTop })
+        .scale(2.f);
+
+    auto play_text = ui::TextWidget(atlas, u8"Play")
+        .align({ ui::AlignH::eLeft, ui::AlignV::eMiddle })
+        .scale(1.f);
+
+    auto options_text = ui::TextWidget(atlas, u8"Options")
+        .align({ ui::AlignH::eLeft, ui::AlignV::eMiddle })
+        .scale(1.f);
+
+    auto quit_text = ui::TextWidget(atlas, u8"Quit")
+        .align({ ui::AlignH::eLeft, ui::AlignV::eMiddle })
+        .scale(1.f);
+
+    auto license_text = ui::TextWidget(atlas, u8"Licenses")
+        .align({ ui::AlignH::eRight, ui::AlignV::eBottom })
+        .scale(1.f);
+
+    auto lower_bar = ui::HStackWidget()
+        .align({ ui::AlignH::eLeft, ui::AlignV::eBottom })
+        .spacing(25.f)
+        .padding({ 10.f, 10.f, 25.f, 25.f })
+        .add(play_text)
+        .add(options_text)
+        .add(quit_text)
+        .add(license_text);
+
+    auto stack = ui::VStackWidget()
+        .padding({ 25.f, 25.f, 25.f, 25.f })
+        .spacing(25.f)
+        .add(title_text)
+        .add(lower_bar);
+
+    // play_text.set_debug_draw(true, ui::kColourGreen);
+    // options_text.set_debug_draw(true, ui::kColourGreen);
+    // quit_text.set_debug_draw(true, ui::kColourGreen);
+
+    // lower_bar.set_debug_draw(true, ui::kColourBlack);
+    // stack.set_debug_draw(true, ui::kColourRed);
 
     auto [left, top, right, bottom] = window.get_client_coords();
 
-    auto width = static_cast<unsigned>(right - left);
-    auto height = static_cast<unsigned>(bottom - top);
+    input::InputService input;
+    input.add_source(&desktop_input);
+
+    auto width = unsigned(right - left);
+    auto height = unsigned(bottom - top);
 
     canvas.set_screen({width, height});
     canvas.set_user({50.f, 50.f}, { -50.f, -50.f });
-    canvas.layout(text);
+    canvas.layout(stack);
 
     // make imgui windows look more like native windows
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
@@ -434,12 +476,15 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
         events.attach_render(&context);
         ImGui_ImplWin32_Init(window.get_handle());
 
-        auto &cmd_imgui = context.add_node<ImGuiCommands>();
-        auto &cmd_begin = context.add_node<render::BeginCommands>();
-        auto &cmd_world = context.add_node<render::WorldCommands>(assets);
-        auto &cmd_canvas = context.add_node<ui::CanvasCommands>(canvas, assets);
-        auto &cmd_end = context.add_node<render::EndCommands>();
-        auto &cmd_present = context.add_node<render::PresentCommands>();
+        // TODO: something here is leaking objects like mad
+        // find it after demo 1 is done
+
+        SM_UNUSED auto &cmd_imgui = context.add_node<ImGuiCommands>();
+        SM_UNUSED auto &cmd_begin = context.add_node<render::BeginCommands>();
+        SM_UNUSED auto &cmd_world = context.add_node<render::WorldCommands>(assets);
+        SM_UNUSED auto &cmd_canvas = context.add_node<ui::CanvasCommands>(canvas, assets);
+        SM_UNUSED auto &cmd_end = context.add_node<render::EndCommands>();
+        SM_UNUSED auto &cmd_present = context.add_node<render::PresentCommands>();
 
         // context.connect(cmd_present, cmd_end.render_target);
 
@@ -463,7 +508,7 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
             if (size != events.get_client_size()) {
                 size = events.get_client_size();
                 canvas.set_screen(size.as<uint32_t>());
-                canvas.layout(text);
+                canvas.layout(stack);
             }
 
             ImGui_ImplWin32_NewFrame();

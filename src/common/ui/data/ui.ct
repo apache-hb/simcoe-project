@@ -2,12 +2,39 @@ module sm::ui;
 
 variant AlignV {
     case Top = 0
-    case Middle = 1
+    default Middle = 1
     case Bottom = 2
 }
 
 variant AlignH {
     case Left = 0
-    case Center = 1
+    default Center = 1
     case Right = 2
+}
+
+struct Align {
+    h: AlignH;
+    v: AlignV;
+}
+
+struct Padding {
+    top: float;
+    right: float;
+    bottom: float;
+    left: float;
+}
+
+struct Margin {
+    top: float;
+    right: float;
+    bottom: float;
+    left: float;
+}
+
+variant Justify {
+    // as close as possible in the direction of the container alignment
+    case FollowAlign = 0
+
+    // as far apart as possible
+    case Fit = 1
 }

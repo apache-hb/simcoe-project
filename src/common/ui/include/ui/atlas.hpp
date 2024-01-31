@@ -5,12 +5,12 @@
 #include "ui/text.hpp"
 
 namespace sm::ui {
-    struct GlyphCoords {
+    struct GlyphInfo {
         math::float2 uv0;
         math::float2 uv1;
 
-        // TODO: this feels wrong
-        math::uint2 size;
+        math::int2 size;
+        math::int2 bearing;
     };
 
     class FontAtlas {
@@ -35,13 +35,14 @@ namespace sm::ui {
         { }
 
         // lookup info
-        sm::Map<char32_t, GlyphCoords> glyphs;
+        sm::Map<char32_t, GlyphInfo> glyphs;
 
         FontAtlas(bundle::Font& font, math::uint2 size, std::span<const char32_t> codepoints);
 
         const bundle::Image& get_image() const { return m_image; }
         const TextShaper& get_shaper() const { return m_shaper; }
+        const bundle::FontInfo& get_font_info() const { return m_font.get_info(); }
         const math::float2& get_white_pixel_uv() const { return m_white_pixel_uv; }
-        const GlyphCoords& get_glyph_coords(char32_t codepoint) const { return glyphs.at(codepoint); }
+        const GlyphInfo& get_glyph_coords(char32_t codepoint) const { return glyphs.at(codepoint); }
     };
 }
