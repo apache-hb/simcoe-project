@@ -162,8 +162,6 @@ void TextWidget::layout(LayoutInfo& info, BoxBounds bounds) const {
             { bottom_right, { tex_max.u, tex_min.v }, kColourWhite },
         };
 
-        info.rect({ top_left, bottom_right }, 3.f, kColourRed);
-
         Index idx = Index(index);
 
         Index indices[6] = {
@@ -189,7 +187,7 @@ void TextWidget::layout(LayoutInfo& info, BoxBounds bounds) const {
     float2 offset = adjust_bounds(text_bounds, bounds, get_align());
 
     for (size_t i = start; i < index; i++) {
-        //info.draw.vertices[i].position += offset;
+        info.draw.vertices[i].position += offset;
     }
 
     info.rect(bounds, 3.f, kColourGreen);
@@ -202,6 +200,6 @@ void Canvas::layout(const IWidget& widget) {
     m_draw.vertices.clear();
 
     LayoutInfo info = { m_draw, *this };
-    widget.layout(info, get_screen());
+    widget.layout(info, get_user());
     m_dirty = true;
 }

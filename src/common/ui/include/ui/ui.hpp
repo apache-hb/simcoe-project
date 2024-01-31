@@ -116,7 +116,10 @@ namespace sm::ui {
         FontAtlas& m_font;
 
         // resolution of the entire screen
-        BoxBounds m_screen;
+        BoxBounds m_screen = { { 0.f, 0.f }, { 0.f, 0.f } };
+
+        // user region
+        BoxBounds m_user = { { 0.f, 0.f }, { 0.f, 0.f } };
 
     public:
         Canvas(bundle::AssetBundle& bundle, FontAtlas& font)
@@ -124,11 +127,16 @@ namespace sm::ui {
             , m_font(font)
         { }
 
-        void set_screen(math::float2 min, math::float2 max) {
-            m_screen = { min, max };
+        void set_screen(math::uint2 size) {
+            m_screen = { { 0.f, 0.f }, { float(size.x), float(size.y) } };
+        }
+
+        void set_user(math::float2 min, math::float2 max) {
+            m_user = { min, max };
         }
 
         const BoxBounds& get_screen() const { return m_screen; }
+        const BoxBounds& get_user() const { return m_user; }
         const math::float2& get_white_pixel_uv() const { return m_font.get_white_pixel_uv(); }
 
         bundle::AssetBundle& get_bundle() const { return m_bundle; }
@@ -140,7 +148,5 @@ namespace sm::ui {
 
         bool is_dirty() const { return m_dirty; }
         void clear_dirty() { m_dirty = false; }
-
-
     };
 }

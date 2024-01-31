@@ -403,7 +403,10 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
     auto text = ui::TextWidget(atlas, u8"Hello, World!")
         .align({ ui::AlignH::eLeft, ui::AlignV::eMiddle });
 
-    canvas.set_screen({ 200.f, 200.f }, { 400.f, 400.f });
+    auto [left, top, right, bottom] = window.get_client_coords();
+
+    canvas.set_screen({static_cast<unsigned int>(right - left), static_cast<unsigned int>(bottom - top)});
+    canvas.set_user({50.f, 50.f}, { right - left - 50.f, bottom - top - 50.f });
     canvas.layout(text);
 
     // make imgui windows look more like native windows

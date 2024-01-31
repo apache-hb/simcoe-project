@@ -61,14 +61,14 @@ namespace sm::ui {
 
         void setup_font_atlas(render::Context& context);
         void setup_camera(render::Context& context);
-        void update_camera(math::uint2 size);
-        void update_viewport(math::uint2 size);
+        void update_camera(const ui::BoxBounds& bounds);
+        void update_viewport(const ui::BoxBounds& bounds);
 
         void resize(render::Context& context, math::uint2 size) override {
             //m_canvas.set_screen(size);
 
-            update_camera(size);
-            update_viewport(size);
+            //update_camera(size);
+            //update_viewport(size);
         }
 
         void create(render::Context& context) override;

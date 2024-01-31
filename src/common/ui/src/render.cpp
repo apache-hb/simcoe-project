@@ -238,8 +238,9 @@ void CanvasCommands::setup_camera(render::Context& context) {
     SM_ASSERT_HR(m_camera->Map(0, &range, (void**)&m_projection_data));
 }
 
-void CanvasCommands::update_viewport(math::uint2 size) {
-    auto [width, height] = size;
+void CanvasCommands::update_viewport(const ui::BoxBounds& bounds) {
+    auto width = bounds.max.x - bounds.min.x;
+    auto height = bounds.max.y - bounds.min.y;
 
     m_viewport = {
         .TopLeftX = 0.0f,
@@ -258,22 +259,41 @@ void CanvasCommands::update_viewport(math::uint2 size) {
     };
 }
 
-void CanvasCommands::update_camera(math::uint2 size) {
-    m_projection.projection = math::float4x4::orthographicRH(float(size.width), float(size.height), 0.f, 1.f);
+static constexpr math::float4x4 ortho(float left, float right, float top, float bottom, float near_limit, float far_limit) {
+    math::float4x4 result = math::float4x4::identity();
+    result[0][0] = 2.f / (right - left);
+    result[1][1] = 2.f / (top - bottom);
+    result[2][2] = 1.f / (far_limit - near_limit);
+    result[3][0] = -(right + left) / (right - left);
+    result[3][1] = -(top + bottom) / (top - bottom);
+    result[3][2] = -near_limit / (far_limit - near_limit);
+    return result;
+}
+
+void CanvasCommands::update_camera(const ui::BoxBounds& bounds) {
+    auto [min, max] = bounds;
+    std::printf("min %f %f max %f %f\n", min.x, min.y, max.x, max.y);
+
+    // TODO: this coordinate system is wrong...
+    // bottom should be max.y, top should be min.y
+    math::float4x4 mvp = ortho(min.x, max.x, max.y, min.y, -1.f, 1.f);
+    m_projection.projection = mvp;
     *m_projection_data = m_projection;
 }
 
 void CanvasCommands::create(render::Context& context) {
-    auto& rhi = context.get_rhi();
-    auto size = rhi.get_swapchain_size();
+    //auto& rhi = context.get_rhi();
+    //auto size = rhi.get_swapchain_size();
 
     // note: disabled temporarily
     //m_canvas.set_screen(size);
     setup_buffers(context, 0x1000, 0x1000); // create initial buffers
     setup_pipeline(context);
     setup_camera(context);
-    update_camera(size);
     setup_font_atlas(context);
+
+    update_camera(m_canvas.get_screen());
+    update_viewport(m_canvas.get_screen());
 }
 
 void CanvasCommands::destroy(render::Context& context) {
@@ -285,6 +305,7 @@ void CanvasCommands::build(render::Context& context) {
 
     if (m_canvas.is_dirty()) {
         setup_buffers(context, vertices.size(), indices.size());
+        update_camera(m_canvas.get_screen());
 
         std::memcpy(m_vbo_data, vertices.data(), vertices.size() * sizeof(ui::Vertex));
         std::memcpy(m_ibo_data, indices.data(), indices.size() * sizeof(ui::Index));
@@ -303,7 +324,7 @@ void CanvasCommands::build(render::Context& context) {
     direct->SetGraphicsRootDescriptorTable(0, heap.gpu_handle(m_font_atlas_index));
     direct->SetGraphicsRootDescriptorTable(1, heap.gpu_handle(m_camera_index));
 
-    // direct->RSSetViewports(1, &m_viewport);
+    direct->RSSetViewports(1, &m_viewport);
     // direct->RSSetScissorRects(1, &m_scissor);
 
     constexpr float kBlendFactor[4] = { 0.f, 0.f, 0.f, 0.f };
