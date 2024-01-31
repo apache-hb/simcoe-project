@@ -222,9 +222,9 @@ subdir('src/common/service')
 
 subdir('src/common/bundle')
 
+subdir('src/common/input')
 subdir('src/common/system')
 subdir('src/common/threads')
-subdir('src/common/input')
 
 subdir('src/common/rhi')
 subdir('src/common/render')

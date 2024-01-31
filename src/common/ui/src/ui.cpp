@@ -14,9 +14,6 @@ static math::float2 adjust_bounds(const BoxBounds& item, const BoxBounds& bounds
 
     float2 offset = 0.f;
 
-    std::printf("bounds %f %f %f %f\n", bounds.min.x, bounds.min.y, bounds.max.x, bounds.max.y);
-    std::printf("item %f %f %f %f\n", item.min.x, item.min.y, item.max.x, item.max.y);
-
     switch (align.h) {
     case AlignH::eLeft:
         offset.x = bounds.min.x;
@@ -40,8 +37,6 @@ static math::float2 adjust_bounds(const BoxBounds& item, const BoxBounds& bounds
         offset.y = bounds.min.y;
         break;
     }
-
-    std::printf("offset %f %f\n", offset.x, offset.y);
 
     return offset;
 }
@@ -191,7 +186,6 @@ void TextWidget::layout(LayoutInfo& info, BoxBounds bounds) const {
     }
 
     info.rect(bounds, 3.f, kColourGreen);
-    info.rect(text_bounds, 3.f, kColourRed);
     info.rect({ text_min + offset, text_max + offset }, 3.f, kColourBlue);
 }
 

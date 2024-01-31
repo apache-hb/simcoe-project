@@ -17,17 +17,22 @@ src = [
 
     # memory mapped files conflated with persistent storage
     'src/io.cpp',
+
+    # win32 input source
+    'src/input.cpp',
     reflect.process('data/system.ct')
 ]
+
+deps = [ core, logs, math, cthulhu.get_variable('os'), input ]
 
 libsystem = library('system', src,
     cpp_args : [ '-DSM_SYSTEM_BUILD=1' ],
     include_directories : [ system_include, res_include ],
-    dependencies : [ core, logs, math, cthulhu.get_variable('os') ]
+    dependencies : deps
 )
 
 system = declare_dependency(
     link_with : libsystem,
     include_directories : [ system_include, libsystem.private_dir_include() ],
-    dependencies : [ core, logs, math ]
+    dependencies : deps
 )

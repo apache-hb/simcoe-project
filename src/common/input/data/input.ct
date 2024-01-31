@@ -1,8 +1,109 @@
 module sm::input;
 
-variant InputType {
+variant InputDevice {
     default None = 0 // null input
     case XInput = 1 // xbox gamepad
     case Desktop = 2 // mouse and keyboard
     case Playback = 3 // file playback
+
+    case Count = 4
+}
+
+variant Axis {
+    case MouseX = 0
+    case MouseY = 1
+
+    case GamepadLeftX = 2
+    case GamepadLeftY = 3
+
+    case GamepadRightX = 4
+    case GamepadRightY = 5
+
+    case GamepadTriggerL = 6
+    case GamepadTriggerR = 7
+
+    case Count = 8
+}
+
+variant Button {
+    case PadButtonUp = 0
+    case PadButtonDown = 1
+    case PadButtonLeft = 2
+    case PadButtonRight = 3
+
+    case PadDirectionUp = 4
+    case PadDirectionDown = 5
+    case PadDirectionLeft = 6
+    case PadDirectionRight = 7
+
+    case PadBumperL = 8
+    case PadBumperR = 9
+
+    case PadStickL = 10
+    case PadStickR = 11
+
+    case A = 12
+    case B = 13
+    case C = 14
+    case D = 15
+    case E = 16
+    case F = 17
+    case G = 18
+    case H = 19
+    case I = 20
+    case J = 21
+    case K = 22
+    case L = 23
+    case M = 24
+    case N = 25
+    case O = 26
+    case P = 27
+    case Q = 28
+    case R = 29
+    case S = 30
+    case T = 31
+    case U = 32
+    case V = 33
+    case W = 34
+    case X = 35
+    case Y = 36
+    case Z = 37
+
+    case Key0 = 38
+    case Key1 = 39
+    case Key2 = 40
+    case Key3 = 41
+    case Key4 = 42
+    case Key5 = 43
+    case Key6 = 44
+    case Key7 = 45
+    case Key8 = 46
+    case Key9 = 47
+
+    case ShiftL = 48
+    case ShiftR = 49
+    case CtrlL = 50
+    case CtrlR = 51
+    case AltL = 52
+    case AltR = 53
+    case Space = 54
+    case Enter = 55
+    case Backspace = 56
+    case Tab = 57
+    case Escape = 58
+    case Tilde = 59
+
+    case MouseLeft = 60
+    case MouseRight = 61
+    case MouseMiddle = 62
+
+    case MouseExtra1 = 63
+    case MouseExtra2 = 64
+
+    case KeyLeft = 65
+    case KeyRight = 66
+    case KeyUp = 67
+    case KeyDown = 68
+
+    case Count = 69
 }

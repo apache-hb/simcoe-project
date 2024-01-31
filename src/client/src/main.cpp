@@ -9,6 +9,7 @@
 #include "rhi/rhi.hpp"
 #include "service/freetype.hpp"
 #include "std/str.h"
+#include "system/input.hpp"
 #include "system/io.hpp"
 #include "system/system.hpp"
 #include "threads/threads.hpp"
@@ -213,9 +214,11 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     sys::RecordLookup m_lookup;
 
     render::Context *m_context = nullptr;
+    sys::DesktopInput *m_input = nullptr;
     math::int2 m_size;
 
     LRESULT event(sys::Window &window, UINT message, WPARAM wparam, LPARAM lparam) override {
+        if (m_input) m_input->window_event(message, wparam, lparam);
         return ImGui_ImplWin32_WndProcHandler(window.get_handle(), message, wparam, lparam);
     }
 
@@ -251,6 +254,10 @@ public:
 
     void attach_render(render::Context *context) {
         m_context = context;
+    }
+
+    void attach_input(sys::DesktopInput *input) {
+        m_input = input;
     }
 };
 
@@ -348,6 +355,7 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
     DefaultWindowEvents events{store, size};
 
     sys::Window window{window_config, &events};
+    sys::DesktopInput input{window};
 
     constexpr unsigned kBufferCount = 2;
 
@@ -382,6 +390,8 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
     rhi::Factory render{rhi_config};
 
     window.show_window(show);
+
+    events.attach_input(&input);
 
     constexpr ImGuiConfigFlags kIoFlags = ImGuiConfigFlags_NavEnableGamepad |
                                           ImGuiConfigFlags_NavEnableKeyboard |
