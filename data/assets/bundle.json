@@ -80,10 +80,6 @@
         {
             "name": "public-sans-bold",
             "path": "fonts/ttf/PublicSans-Bold.ttf"
-        },
-        {
-            "name": "segoe-ui",
-            "path": "fonts/ttf/SEGOEUI.TTF"
         }
     ]
 }

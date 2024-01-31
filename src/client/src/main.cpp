@@ -372,7 +372,7 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
 
         .adapter_lookup = rhi::AdapterPreference::eDefault,
         .adapter_index = 0,
-        .software_adapter = true,
+        .software_adapter = false,
         .feature_level = rhi::FeatureLevel::eLevel_11_0,
 
         .window = window,
@@ -400,9 +400,10 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
 
     ui::Canvas canvas { assets, atlas };
 
-    ui::TextWidget text { atlas, u8"Hello, World!" };
+    auto text = ui::TextWidget(atlas, u8"Hello, World!")
+        .align({ ui::AlignH::eLeft, ui::AlignV::eMiddle });
 
-    canvas.set_screen(size.as<uint32_t>());
+    canvas.set_screen({ 200.f, 200.f }, { 400.f, 400.f });
     canvas.layout(text);
 
     // make imgui windows look more like native windows
@@ -443,11 +444,11 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
 
             if (done) break;
 
-            if (size != events.get_client_size()) {
-                size = events.get_client_size();
-                canvas.set_screen(size.as<uint32_t>());
-                canvas.layout(text);
-            }
+            // if (size != events.get_client_size()) {
+            //     size = events.get_client_size();
+            //     canvas.set_screen(size.as<uint32_t>());
+            //     canvas.layout(text);
+            // }
 
             ImGui_ImplWin32_NewFrame();
 

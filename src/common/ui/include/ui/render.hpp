@@ -65,7 +65,7 @@ namespace sm::ui {
         void update_viewport(math::uint2 size);
 
         void resize(render::Context& context, math::uint2 size) override {
-            m_canvas.set_screen(size);
+            //m_canvas.set_screen(size);
 
             update_camera(size);
             update_viewport(size);

@@ -37,7 +37,6 @@ static BinaryData read_file(fs_t *fs, const char *path) {
 }
 
 BinarySpan AssetBundle::load_shader(const char *path) {
-    m_log.info("loading shader {}", path);
     // TODO: timing
     if (auto it = m_shaders.find(path); it != m_shaders.end()) {
         return it->second;
@@ -48,7 +47,7 @@ BinarySpan AssetBundle::load_shader(const char *path) {
     auto [it, ok] = m_shaders.emplace(path, std::move(result));
     CTASSERTF(ok, "failed to insert shader %s into cache", path);
 
-    m_log.info("placed shader {} into cache", path);
+    m_log.info("loaded shader bytecode {} into cache", path);
 
     return it->second;
 }
@@ -63,7 +62,7 @@ Font& AssetBundle::load_font(const char *path) {
     auto [it, ok] = m_fonts.emplace(path, Font(m_log, result, path));
     CTASSERTF(ok, "failed to insert font %s into cache", path);
 
-    m_log.info("placed font {} into cache", path);
+    m_log.info("loaded font {} into cache", path);
 
     return it->second;
 }

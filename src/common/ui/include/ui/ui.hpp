@@ -42,12 +42,16 @@ namespace sm::ui {
         Canvas& canvas;
 
         void box(const BoxBounds& bounds, const math::uint8x4& colour);
+        void rect(const BoxBounds& bounds, float border, const math::uint8x4& colour);
     };
 
     struct Align {
         AlignH h = AlignH::eCenter;
         AlignV v = AlignV::eMiddle;
     };
+
+    static constexpr math::uint8x4 kColourWhite = { 255, 255, 255, 255 };
+    static constexpr math::uint8x4 kColourBlack = { 0, 0, 0, 255 };
 
     class IWidget {
         Align m_align;
@@ -64,6 +68,7 @@ namespace sm::ui {
     class TextWidget : public IWidget {
         const FontAtlas& m_font;
         utf8::StaticText m_text;
+        math::uint8x4 m_colour = kColourWhite;
 
     public:
         TextWidget(const FontAtlas& font, utf8::StaticText text)
@@ -75,10 +80,14 @@ namespace sm::ui {
 
         const FontAtlas& get_font() const { return m_font; }
         const utf8::StaticText& get_text() const { return m_text; }
+
+        TextWidget& text(utf8::StaticText text) { m_text = text; return *this; }
+        TextWidget& colour(math::uint8x4 colour) { m_colour = colour; return *this; }
+        TextWidget& align(Align align) { set_align(align); return *this; }
     };
 
     class TextureWidget : public IWidget {
-        SM_UNUSED bundle::Texture m_texture;
+        SM_UNUSED bundle::Image m_texture;
     };
 
     class ButtonWidget : public IWidget {
@@ -112,11 +121,8 @@ namespace sm::ui {
             , m_font(font)
         { }
 
-        void set_screen(math::uint2 size) {
-            // go from top left to bottom right
-            // top left is always 0,0 for now
-            // bottom right is always the size of the screen
-            m_screen = { { 0.f, 0.f }, { float(size.x), -float(size.y) } };
+        void set_screen(math::float2 min, math::float2 max) {
+            m_screen = { min, max };
         }
 
         const BoxBounds& get_screen() const { return m_screen; }

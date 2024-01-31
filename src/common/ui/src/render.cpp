@@ -259,7 +259,7 @@ void CanvasCommands::update_viewport(math::uint2 size) {
 }
 
 void CanvasCommands::update_camera(math::uint2 size) {
-    m_projection.projection = math::float4x4::orthographicRH(0.f, float(size.width), 0.f, -float(size.height), 0.f, 1.f);
+    m_projection.projection = math::float4x4::orthographicRH(float(size.width), float(size.height), 0.f, 1.f);
     *m_projection_data = m_projection;
 }
 
@@ -267,7 +267,8 @@ void CanvasCommands::create(render::Context& context) {
     auto& rhi = context.get_rhi();
     auto size = rhi.get_swapchain_size();
 
-    m_canvas.set_screen(size);
+    // note: disabled temporarily
+    //m_canvas.set_screen(size);
     setup_buffers(context, 0x1000, 0x1000); // create initial buffers
     setup_pipeline(context);
     setup_camera(context);
