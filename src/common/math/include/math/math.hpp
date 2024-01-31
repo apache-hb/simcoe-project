@@ -52,6 +52,7 @@ namespace sm::math {
         union {
             T fields[2];
             struct { T x; T y; };
+            struct { T u; T v; };
             struct { T width; T height; };
         };
 

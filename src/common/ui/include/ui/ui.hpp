@@ -52,6 +52,9 @@ namespace sm::ui {
 
     static constexpr math::uint8x4 kColourWhite = { 255, 255, 255, 255 };
     static constexpr math::uint8x4 kColourBlack = { 0, 0, 0, 255 };
+    static constexpr math::uint8x4 kColourRed = { 255, 0, 0, 255 };
+    static constexpr math::uint8x4 kColourGreen = { 0, 255, 0, 255 };
+    static constexpr math::uint8x4 kColourBlue = { 0, 0, 255, 255 };
 
     class IWidget {
         Align m_align;

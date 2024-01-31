@@ -47,22 +47,30 @@ static math::float2 adjust_bounds(const BoxBounds& item, const BoxBounds& bounds
 }
 
 void LayoutInfo::box(const BoxBounds& bounds, const math::uint8x4& colour) {
-    CTASSERTF(bounds.min.x <= bounds.max.x, "min x is greater than max x %f %f", bounds.min.x, bounds.max.x);
-    CTASSERTF(bounds.min.y <= bounds.max.y, "min y is greater than max y %f %f", bounds.min.y, bounds.max.y);
+    if (bounds.min.x > bounds.max.x)
+        std::printf("min x is greater than max x %f %f\n", bounds.min.x, bounds.max.x);
+
+    if (bounds.min.y > bounds.max.y)
+        std::printf("min y is greater than max y %f %f\n", bounds.min.y, bounds.max.y);
+
+    using math::float2;
+
+    float2 min = math::min(bounds.min, bounds.max);
+    float2 max = math::max(bounds.min, bounds.max);
 
     const auto& white_uv = canvas.get_white_pixel_uv();
     Vertex vertices[4] = {
         // top left
-        { bounds.min, white_uv, colour },
+        { min, white_uv, colour },
 
         // top right
-        { { bounds.min.x, bounds.max.y }, white_uv, colour },
+        { { min.x, max.y }, white_uv, colour },
 
         // bottom left
-        { { bounds.max.x, bounds.min.y }, white_uv, colour },
+        { { max.x, min.y }, white_uv, colour },
 
         // bottom right
-        { bounds.max, white_uv, colour },
+        { max, white_uv, colour },
     };
 
     size_t offset = draw.vertices.size();
@@ -108,7 +116,7 @@ void TextWidget::layout(LayoutInfo& info, BoxBounds bounds) const {
 
     // min and max extents of text relative to the bounding box
     float2 text_min = bounds.max;
-    float2 text_max = 0.f;
+    float2 text_max = bounds.min;
 
     for (; gbegin != gend && tbegin != tend; ++gbegin, ++tbegin) {
         const auto& glyph = *gbegin;
@@ -132,25 +140,38 @@ void TextWidget::layout(LayoutInfo& info, BoxBounds bounds) const {
             fxa = float(size.x);
         }
 
-        float2 glyph_size = size.as<float>();
-        float2 glyph_start = cursor + float2{ fxo, fyo };
-
         // harfbuzz gives us the bottom left of the glyph as the origin
         // we use top left so we need to convert them to our coordinate system
 
-        float2 top_left = { glyph_start.x, glyph_start.y + glyph_size.y };
-        float2 bottom_right = { glyph_start.x + glyph_size.x, glyph_start.y };
+        float2 glyph_size = size.as<float>();
+        float2 glyph_start = cursor + float2{ fxo, fyo };
+
+        //float2 top_left = { glyph_start.x, glyph_start.y + glyph_size.y };
+        //float2 bottom_right = { glyph_start.x + glyph_size.x, glyph_start.y };
+
+        float2 top_left = glyph_start;
+        float2 bottom_right = glyph_start + glyph_size;
+
+        std::printf("glyph %c %f %f %f %f\n", codepoint, top_left.x, top_left.y, bottom_right.x, bottom_right.y);
+
+        // harfbuzz gives us inverted uv along the v axis
+        // fix them here
 
         Vertex vertices[4] = {
             // top left
-            { top_left, tex_min, m_colour },
+            { top_left, {tex_min.u, tex_max.v}, kColourWhite },
+
             // top right
-            { glyph_start + glyph_size, { tex_max.x, tex_min.y }, m_colour },
+            { { top_left.x, bottom_right.y }, { tex_min.u, tex_min.v }, kColourWhite },
+
             // bottom left
-            { glyph_start, { tex_min.x, tex_max.y }, m_colour },
+            { { bottom_right.x, top_left.y }, { tex_max.u, tex_max.v }, kColourWhite },
+
             // bottom right
-            { bottom_right, tex_max, m_colour },
+            { bottom_right, { tex_max.u, tex_min.v }, kColourWhite },
         };
+
+        info.rect({ top_left, bottom_right }, 3.f, kColourRed);
 
         Index idx = Index(index);
 
@@ -161,8 +182,8 @@ void TextWidget::layout(LayoutInfo& info, BoxBounds bounds) const {
 
         index += 4;
 
-        text_min = math::min(text_min, glyph_start - float2{ 0.f, glyph_size.y });
-        text_max = math::max(text_max, glyph_size + glyph_start);
+        text_min = math::min(text_min, top_left);
+        text_max = math::max(text_max, bottom_right);
 
         info.draw.vertices.insert(info.draw.vertices.end(), std::begin(vertices), std::end(vertices));
         info.draw.indices.insert(info.draw.indices.end(), std::begin(indices), std::end(indices));
@@ -171,14 +192,18 @@ void TextWidget::layout(LayoutInfo& info, BoxBounds bounds) const {
         cursor.y += fya;
     }
 
+    BoxBounds text_bounds = { text_min, text_max };
+
     // bounds are relative to the top left of the text
-    float2 offset = adjust_bounds({ text_min, text_max }, bounds, get_align());
+    float2 offset = adjust_bounds(text_bounds, bounds, get_align());
 
     for (size_t i = start; i < index; i++) {
-        info.draw.vertices[i].position += offset;
+        //info.draw.vertices[i].position += offset;
     }
 
-    info.rect(bounds, 3.f, kColourBlack);
+    info.rect(bounds, 3.f, kColourGreen);
+    info.rect(text_bounds, 3.f, kColourRed);
+    info.rect({ text_min + offset, text_max + offset }, 3.f, kColourBlue);
 }
 
 void Canvas::layout(const IWidget& widget) {
