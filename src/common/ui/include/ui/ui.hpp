@@ -43,6 +43,7 @@ namespace sm::ui {
         Canvas& canvas;
 
         void box(const BoxBounds& bounds, const math::uint8x4& colour);
+        void rounded_box(const BoxBounds& bounds, float rounding, const math::uint8x4& colour);
         void rect(const BoxBounds& bounds, float border, const math::uint8x4& colour);
     };
 
@@ -74,6 +75,8 @@ namespace sm::ui {
         Align m_align;
         Padding m_padding;
 
+        bool m_focus = false;
+
         SM_DBG_MEMBER(bool) m_draw_bounds = false;
         SM_DBG_MEMBER(math::uint8x4) m_dbg_colour = kColourRed;
 
@@ -81,16 +84,24 @@ namespace sm::ui {
         // returns the bounds of the drawn object
         virtual BoxBounds impl_layout(LayoutInfo& info, BoxBounds bounds) const = 0;
 
+        virtual void enter_focus() { }
+        virtual void leave_focus() { }
+
     public:
         virtual ~IWidget() = default;
 
         LayoutResult layout(LayoutInfo& info, BoxBounds bounds) const;
+
+        void begin_focus();
+        void end_focus();
 
         Align get_align() const { return m_align; }
         void set_align(Align align) { m_align = align; }
 
         Padding get_padding() const { return m_padding; }
         void set_padding(Padding padding) { m_padding = padding; }
+
+        constexpr bool has_focus() const { return m_focus; }
 
         constexpr bool draw_bounds() const { return SM_DBG_MEMBER_OR(m_draw_bounds, false); }
         constexpr math::uint8x4 dbg_colour() const { return SM_DBG_MEMBER_OR(m_dbg_colour, kColourRed); }
@@ -101,15 +112,45 @@ namespace sm::ui {
         }
     };
 
+    class StyleWidget : public IWidget {
+        IWidget& m_child;
+
+        math::uint8x4 m_colour = kColourBlack;
+        math::uint8x4 m_focus_colour = kColourGreen;
+
+        float m_rounding = 0.f;
+
+        const math::uint8x4& get_colour() const { return has_focus() ? m_focus_colour : m_colour; }
+
+        void enter_focus() override { m_child.begin_focus(); }
+        void leave_focus() override { m_child.end_focus(); }
+
+        BoxBounds impl_layout(LayoutInfo& info, BoxBounds bounds) const override;
+
+    public:
+        StyleWidget(IWidget& child)
+            : m_child(child)
+        { }
+
+        StyleWidget& colour(math::uint8x4 colour) { m_colour = colour; return *this; }
+        StyleWidget& focus_colour(math::uint8x4 colour) { m_focus_colour = colour; return *this; }
+        StyleWidget& align(Align align) { set_align(align); return *this; }
+        StyleWidget& padding(Padding padding) { set_padding(padding); return *this; }
+        StyleWidget& rounding(float rounding) { m_rounding = rounding; return *this; }
+    };
+
     class TextWidget : public IWidget {
         const FontAtlas& m_font;
         utf8::StaticText m_text;
         math::uint8x4 m_colour = kColourWhite;
+        math::uint8x4 m_focus_colour = kColourGreen;
 
         // use a scale rather than changing the size of the font
         float m_scale = 1.f;
 
         BoxBounds impl_layout(LayoutInfo& info, BoxBounds bounds) const override;
+
+        const math::uint8x4& get_colour() const { return has_focus() ? m_focus_colour : m_colour; }
 
     public:
         TextWidget(const FontAtlas& font, utf8::StaticText text)
@@ -123,7 +164,46 @@ namespace sm::ui {
         TextWidget& text(utf8::StaticText text) { m_text = text; return *this; }
         TextWidget& scale(float scale) { m_scale = scale; return *this; }
         TextWidget& colour(math::uint8x4 colour) { m_colour = colour; return *this; }
+        TextWidget& focus_colour(math::uint8x4 colour) { m_focus_colour = colour; return *this; }
         TextWidget& align(Align align) { set_align(align); return *this; }
+        TextWidget& padding(Padding padding) { set_padding(padding); return *this; }
+    };
+
+    // swap out the child widget from a list of widgets
+    class SwapControlWidget : public IWidget {
+        sm::Vector<const IWidget*> m_children;
+        size_t m_index = 0;
+
+        BoxBounds impl_layout(LayoutInfo& info, BoxBounds bounds) const override;
+
+    public:
+        SwapControlWidget& add(const IWidget& widget, size_t& index) {
+            m_children.push_back(&widget);
+            index = m_children.size() - 1;
+            return *this;
+        }
+
+        SwapControlWidget& index(size_t index) {
+            m_index = index;
+            return *this;
+        }
+    };
+
+    // vertical stack of widgets
+    class ZStackWidget : public IWidget {
+        sm::Vector<const IWidget*> m_children;
+
+        BoxBounds impl_layout(LayoutInfo& info, BoxBounds bounds) const override;
+    public:
+        ZStackWidget& add(const IWidget& widget) {
+            m_children.push_back(&widget);
+            return *this;
+        }
+
+        ZStackWidget& align(Align align) {
+            set_align(align);
+            return *this;
+        }
     };
 
     class TextureWidget : public IWidget {
@@ -177,6 +257,8 @@ namespace sm::ui {
         void justify_left(CanvasDrawData& draw, LayoutResultSpan results, const BoxBounds& bounds) const;
         void justify_right(CanvasDrawData& draw, LayoutResultSpan results, const BoxBounds& bounds) const;
         void justify_center(CanvasDrawData& draw, LayoutResultSpan results, const BoxBounds& bounds) const;
+
+        void justify_fill(CanvasDrawData& draw, LayoutResultSpan results, const BoxBounds& bounds) const;
     public:
         HStackWidget& add(const IWidget& widget) {
             m_children.push_back(&widget);
@@ -209,7 +291,7 @@ namespace sm::ui {
     };
 
     class Canvas {
-        bool m_dirty = false;
+        bool m_need_repaint = false;
         CanvasDrawData m_draw;
         bundle::AssetBundle& m_bundle;
         FontAtlas& m_font;
@@ -220,10 +302,13 @@ namespace sm::ui {
         // user region, relative to screen bounds
         BoxBounds m_user = { { 0.f, 0.f }, { 0.f, 0.f } };
 
+        IWidget& m_root;
+
     public:
-        Canvas(bundle::AssetBundle& bundle, FontAtlas& font)
+        Canvas(bundle::AssetBundle& bundle, FontAtlas& font, IWidget& root)
             : m_bundle(bundle)
             , m_font(font)
+            , m_root(root)
         { }
 
         void set_screen(math::uint2 size) {
@@ -248,9 +333,9 @@ namespace sm::ui {
 
         const FontAtlas& get_font() const { return m_font; }
 
-        void layout(const IWidget& widget);
+        void layout();
 
-        bool is_dirty() const { return m_dirty; }
-        void clear_dirty() { m_dirty = false; }
+        bool needs_repaint() const { return m_need_repaint; }
+        void clear_repaint() { m_need_repaint = false; }
     };
 }

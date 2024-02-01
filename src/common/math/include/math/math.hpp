@@ -679,6 +679,11 @@ namespace sm::math {
     }
 
     template<typename T>
+    constexpr Vec2<T> clamp(const Vec2<T>& value, const Vec2<T>& low, const Vec2<T>& high) {
+        return { clamp(value.x, low.x, high.x), clamp(value.y, low.y, high.y) };
+    }
+
+    template<typename T>
     constexpr T dot(const Vec2<T>& lhs, const Vec2<T>& rhs) {
         return lhs.x * rhs.x + lhs.y * rhs.y;
     }

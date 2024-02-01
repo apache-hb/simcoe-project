@@ -14,6 +14,7 @@
 #include "system/system.hpp"
 #include "threads/threads.hpp"
 
+#include "ui/control.hpp"
 #include "ui/render.hpp"
 #include "base/panic.h"
 
@@ -408,36 +409,61 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
 
     ui::FontAtlas atlas{font, {1024, 1024}, {codepoints.begin(), codepoints.end() - 1}};
 
-    ui::Canvas canvas { assets, atlas };
-
     auto title_text = ui::TextWidget(atlas, u8"Priority Zero")
         .align({ ui::AlignH::eLeft, ui::AlignV::eTop })
-        .scale(2.f);
+        .focus_colour(ui::kColourBlack)
+        .padding({ 90.f, 30.f, 30.f, 30.f })
+        .scale(4.f);
 
     auto play_text = ui::TextWidget(atlas, u8"Play")
         .align({ ui::AlignH::eLeft, ui::AlignV::eMiddle })
+        .focus_colour(ui::kColourBlack)
         .scale(1.f);
 
     auto options_text = ui::TextWidget(atlas, u8"Options")
         .align({ ui::AlignH::eLeft, ui::AlignV::eMiddle })
+        .focus_colour(ui::kColourBlack)
         .scale(1.f);
 
     auto quit_text = ui::TextWidget(atlas, u8"Quit")
         .align({ ui::AlignH::eLeft, ui::AlignV::eMiddle })
+        .focus_colour(ui::kColourBlack)
         .scale(1.f);
 
     auto license_text = ui::TextWidget(atlas, u8"Licenses")
         .align({ ui::AlignH::eRight, ui::AlignV::eBottom })
+        .focus_colour(ui::kColourBlack)
         .scale(1.f);
+
+    auto play_box = ui::StyleWidget(play_text)
+        .colour(ui::kColourBlue)
+        .focus_colour(ui::kColourGreen)
+        .padding({ 0.f, 10.f, 20.f, 10.f });
+
+    auto options_box = ui::StyleWidget(options_text)
+        .colour(ui::kColourBlue)
+        .focus_colour(ui::kColourGreen)
+        .padding({ 0.f, 10.f, 20.f, 10.f });
+
+    auto quit_box = ui::StyleWidget(quit_text)
+        .colour(ui::kColourBlue)
+        .focus_colour(ui::kColourGreen)
+        .padding({ 0.f, 10.f, 20.f, 10.f });
+
+    auto license_box = ui::StyleWidget(license_text)
+        .colour(ui::kColourBlue)
+        .focus_colour(ui::kColourGreen)
+        .padding({ 30.f, 10.f, 20.f, 10.f });
 
     auto lower_bar = ui::HStackWidget()
         .align({ ui::AlignH::eLeft, ui::AlignV::eBottom })
         .spacing(25.f)
-        .padding({ 10.f, 10.f, 25.f, 25.f })
-        .add(play_text)
-        .add(options_text)
-        .add(quit_text)
-        .add(license_text);
+        .padding({ 150.f, 10.f, 25.f, 25.f })
+        .justify(ui::Justify::eFollowAlign)
+        .add(play_box)
+        .add(options_box)
+        .add(quit_box)
+        .add(license_box);
 
     auto stack = ui::VStackWidget()
         .padding({ 25.f, 25.f, 25.f, 25.f })
@@ -454,6 +480,7 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
 
     auto [left, top, right, bottom] = window.get_client_coords();
 
+    ui::Canvas canvas { assets, atlas, stack };
     input::InputService input;
     input.add_source(&desktop_input);
 
@@ -462,7 +489,13 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
 
     canvas.set_screen({width, height});
     canvas.set_user({50.f, 50.f}, { -50.f, -50.f });
-    canvas.layout(stack);
+
+    ui::NavControl nav{canvas, &play_box};
+    input.add_client(&nav);
+
+    nav.add_bidi_link(&play_box, input::Button::eKeyRight, &options_box, input::Button::eKeyLeft);
+    nav.add_bidi_link(&options_box, input::Button::eKeyRight, &quit_box, input::Button::eKeyLeft);
+    nav.add_bidi_link(&quit_box, input::Button::eKeyRight, &license_box, input::Button::eKeyLeft);
 
     // make imgui windows look more like native windows
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
@@ -505,10 +538,12 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
 
             if (done) break;
 
+            input.poll();
+
             if (size != events.get_client_size()) {
                 size = events.get_client_size();
                 canvas.set_screen(size.as<uint32_t>());
-                canvas.layout(stack);
+                canvas.layout();
             }
 
             ImGui_ImplWin32_NewFrame();

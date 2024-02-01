@@ -5,6 +5,7 @@ src = [
     'src/render.cpp',
     'src/atlas.cpp',
     'src/text.cpp',
+    'src/control.cpp',
     reflect.process('data/ui.ct')
 ]
 

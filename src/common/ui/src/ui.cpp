@@ -74,6 +74,16 @@ LayoutResult IWidget::layout(LayoutInfo& info, BoxBounds bounds) const {
     };
 }
 
+void IWidget::begin_focus() {
+    m_focus = true;
+    enter_focus();
+}
+
+void IWidget::end_focus() {
+    leave_focus();
+    m_focus = false;
+}
+
 void LayoutInfo::box(const BoxBounds& bounds, const math::uint8x4& colour) {
     if (bounds.min.x > bounds.max.x)
         std::printf("min x is greater than max x %f %f\n", bounds.min.x, bounds.max.x);
@@ -104,6 +114,72 @@ void LayoutInfo::box(const BoxBounds& bounds, const math::uint8x4& colour) {
     Index indices[6] = {
         Index(0u + offset), Index(1u + offset), Index(2u + offset),
         Index(2u + offset), Index(1u + offset), Index(3u + offset),
+    };
+
+    draw.vertices.insert(draw.vertices.end(), std::begin(vertices), std::end(vertices));
+    draw.indices.insert(draw.indices.end(), std::begin(indices), std::end(indices));
+}
+
+void LayoutInfo::rounded_box(const BoxBounds& bounds, float rounding, const math::uint8x4& colour) {
+    // draw a rounded box
+    // 8 vertices
+    // 24 indices
+
+    // TODO: this doesnt work
+
+    // top left
+    float2 tl = bounds.min;
+    float2 tr = { bounds.max.x, bounds.min.y };
+    float2 bl = { bounds.min.x, bounds.max.y };
+    float2 br = bounds.max;
+
+    float2 tl_round = tl + float2{ rounding, rounding };
+    float2 tr_round = tr + float2{ -rounding, rounding };
+    float2 bl_round = bl + float2{ rounding, -rounding };
+    float2 br_round = br + float2{ -rounding, -rounding };
+
+    const auto& white_uv = canvas.get_white_pixel_uv();
+
+    Vertex vertices[8] = {
+        // top left
+        { tl_round, white_uv, colour },
+
+        // top right
+        { tr_round, white_uv, colour },
+
+        // bottom left
+        { bl_round, white_uv, colour },
+
+        // bottom right
+        { br_round, white_uv, colour },
+
+        // top left
+        { tl_round, white_uv, colour },
+
+        // top right
+        { tr_round, white_uv, colour },
+
+        // bottom left
+        { bl_round, white_uv, colour },
+
+        // bottom right
+        { br_round, white_uv, colour },
+    };
+
+    size_t offset = draw.vertices.size();
+
+    Index indices[24] = {
+        Index(0u + offset), Index(1u + offset), Index(2u + offset),
+        Index(2u + offset), Index(1u + offset), Index(3u + offset),
+
+        Index(4u + offset), Index(5u + offset), Index(6u + offset),
+        Index(6u + offset), Index(5u + offset), Index(7u + offset),
+
+        Index(0u + offset), Index(4u + offset), Index(1u + offset),
+        Index(1u + offset), Index(4u + offset), Index(5u + offset),
+
+        Index(2u + offset), Index(6u + offset), Index(3u + offset),
+        Index(3u + offset), Index(6u + offset), Index(7u + offset),
     };
 
     draw.vertices.insert(draw.vertices.end(), std::begin(vertices), std::end(vertices));
@@ -142,6 +218,8 @@ BoxBounds TextWidget::impl_layout(LayoutInfo& info, BoxBounds bounds) const {
     // min and max extents of text relative to the bounding box
     float2 text_min = 0.f;
     float2 text_max = 0.f;
+
+    const auto& colour = get_colour();
 
     for (; gbegin != gend && tbegin != tend; ++gbegin, ++tbegin) {
         const auto& glyph = *gbegin;
@@ -186,16 +264,16 @@ BoxBounds TextWidget::impl_layout(LayoutInfo& info, BoxBounds bounds) const {
 
         Vertex vertices[4] = {
             // top left
-            { top_left, {tex_min.u, tex_max.v}, kColourWhite },
+            { top_left, {tex_min.u, tex_max.v}, colour },
 
             // top right
-            { { top_left.x, bottom_right.y }, { tex_min.u, tex_min.v }, kColourWhite },
+            { { top_left.x, bottom_right.y }, { tex_min.u, tex_min.v }, colour },
 
             // bottom left
-            { { bottom_right.x, top_left.y }, { tex_max.u, tex_max.v }, kColourWhite },
+            { { bottom_right.x, top_left.y }, { tex_max.u, tex_max.v }, colour },
 
             // bottom right
-            { bottom_right, { tex_max.u, tex_min.v }, kColourWhite },
+            { bottom_right, { tex_max.u, tex_min.v }, colour },
         };
 
         Index idx = Index(vtx_offset);
@@ -236,6 +314,36 @@ BoxBounds TextWidget::impl_layout(LayoutInfo& info, BoxBounds bounds) const {
     BoxBounds offset_bounds = { text_bounds.min + offset, text_bounds.max + offset };
 
     return offset_bounds;
+}
+
+BoxBounds StyleWidget::impl_layout(LayoutInfo& info, BoxBounds bounds) const {
+    size_t vtx_offset = info.draw.vertices.size();
+
+    // draw a box first so its behind the text
+    // take our rounded corners into account
+    info.box(bounds, get_colour());
+
+    size_t vtx_count = info.draw.vertices.size() - vtx_offset;
+
+    // apply padding
+    Padding pad = get_padding();
+    bounds.min += { pad.left, pad.bottom };
+    bounds.max -= { pad.right, pad.top };
+
+    auto child = m_child.layout(info, bounds);
+
+    // shrink our bounds to fit the child with padding
+    BoxBounds result = {
+        .min = child.bounds.min - float2{ pad.left, pad.bottom },
+        .max = child.bounds.max + float2{ pad.right, pad.top },
+    };
+
+    // shrink our vertices to fit the child with padding
+    for (size_t i = vtx_offset; i < vtx_offset + vtx_count; i++) {
+        info.draw.vertices[i].position = math::clamp(info.draw.vertices[i].position, result.min, result.max);
+    }
+
+    return child.bounds;
 }
 
 BoxBounds VStackWidget::impl_layout(LayoutInfo& info, BoxBounds bounds) const {
@@ -335,6 +443,39 @@ void HStackWidget::justify_center(CanvasDrawData& draw, LayoutResultSpan results
     }
 }
 
+void HStackWidget::justify_fill(CanvasDrawData& draw, LayoutResultSpan results, const BoxBounds& bounds) const {
+    // expand children to fill available space
+
+    // TODO: no way to expand children currently
+
+    // total width needed for all children
+    float total_width = 0.f;
+    for (auto& result : results) {
+        total_width += result.bounds.max.x - result.bounds.min.x;
+    }
+
+    // the space between each child
+    float spacing = m_spacing * float(results.size() - 1);
+
+    // the space left over on the left and right
+    float left_over = bounds.max.x - bounds.min.x - total_width - spacing;
+
+    // the offset to the left
+    float offset = left_over / float(results.size() + 1);
+
+    float2 min = bounds.min;
+
+    for (auto& result : results) {
+        BoxBounds result_bounds = result.bounds;
+        result_bounds.min.x = min.x + offset;
+        result_bounds.max.x = min.x + offset + (result_bounds.max.x - result_bounds.min.x);
+
+        result.offset(draw, result_bounds.min - result.bounds.min);
+
+        min.x = result_bounds.max.x + m_spacing + offset;
+    }
+}
+
 BoxBounds HStackWidget::impl_layout(LayoutInfo& info, BoxBounds bounds) const {
     size_t count = m_children.size();
     // split the bounds into equal horizontal slices
@@ -376,6 +517,8 @@ BoxBounds HStackWidget::impl_layout(LayoutInfo& info, BoxBounds bounds) const {
             justify_right(info.draw, results, bounds);
             break;
         }
+    } else if (m_justify == Justify::eFill) {
+        justify_fill(info.draw, results, bounds);
     }
 
     switch (align.v) {
@@ -410,11 +553,11 @@ BoxBounds HStackWidget::impl_layout(LayoutInfo& info, BoxBounds bounds) const {
     return layout_bounds;
 }
 
-void Canvas::layout(const IWidget& widget) {
+void Canvas::layout() {
     m_draw.indices.clear();
     m_draw.vertices.clear();
 
     LayoutInfo info = { m_draw, *this };
-    widget.layout(info, get_user());
-    m_dirty = true;
+    m_root.layout(info, get_user());
+    m_need_repaint = true;
 }

@@ -6,7 +6,7 @@
 using namespace sm;
 using namespace sm::ui;
 
-static constexpr math::float4 kBlack = { 0.0f, 0.0f, 0.0f, 1.0f };
+static constexpr math::float4 kWhiteFloat = { 1.0f, 1.0f, 1.0f, 1.0f };
 static constexpr math::uint8x4 kWhite = { 255, 255, 255, 255 };
 
 static constexpr char32_t kInvalidCodepoint = 0xFFFD;
@@ -43,7 +43,7 @@ FontAtlas::FontAtlas(bundle::Font& font, math::uint2 size, std::span<const char3
         math::uint2 point = { uint32_t(rect.x + 1), uint32_t(rect.y + 1) };
         math::uint2 size = { uint32_t(rect.w - 1), uint32_t(rect.h - 1) };
 
-        bundle::GlyphInfo info = m_font.draw_glyph(cp, point, m_image, kBlack);
+        bundle::GlyphInfo info = m_font.draw_glyph(cp, point, m_image, kWhiteFloat);
 
         // calculate uv coords
         float u0 = float(point.x) / float(m_image.size.width);

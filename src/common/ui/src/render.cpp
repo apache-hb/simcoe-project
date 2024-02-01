@@ -297,14 +297,14 @@ void CanvasCommands::destroy(render::Context& context) {
 void CanvasCommands::build(render::Context& context) {
     const auto& [vertices, indices] = m_canvas.get_draw_data();
 
-    if (m_canvas.is_dirty()) {
+    if (m_canvas.needs_repaint()) {
         setup_buffers(context, vertices.size(), indices.size());
         update_camera(m_canvas.get_screen());
 
         std::memcpy(m_vbo_data, vertices.data(), vertices.size() * sizeof(ui::Vertex));
         std::memcpy(m_ibo_data, indices.data(), indices.size() * sizeof(ui::Index));
 
-        m_canvas.clear_dirty();
+        m_canvas.clear_repaint();
     }
 
     auto& rhi = context.get_rhi();

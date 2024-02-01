@@ -37,4 +37,7 @@ variant Justify {
 
     // as far apart as possible
     case Fit = 1
+
+    // expand children to fill the container
+    case Fill = 2
 }
