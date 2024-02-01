@@ -22,7 +22,7 @@ namespace sm::logs {
     public:
         virtual ~ILogger() = default;
 
-        void log(Category category, Severity severity, std::string_view msg);
+        void log(Category category, Severity severity, std::string_view msg, uint32_t timestamp = 0);
 
         constexpr Severity get_severity() const { return m_severity; }
         constexpr bool will_accept(Severity severity) const { return severity >= m_severity; }

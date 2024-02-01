@@ -56,6 +56,8 @@ library_type = get_option('default_library')
 package_type = get_option('package_type')
 trace_time = get_option('trace_time')
 
+is_devel = package_type == 'devel'
+
 # the perfect library
 cthulhu = subproject('cthulhu')
 
@@ -317,8 +319,11 @@ game_bundle = custom_target('game_bundle',
     ] + debug_bundle
 )
 
+win_subsystem = not is_devel ? 'windows' : 'console'
+
 client = executable('client', 'src/client/src/main.cpp', game_bundle,
     install : true,
+    win_subsystem : win_subsystem,
     link_depends : [ manifest, res ],
     link_args : [
         # embed the resource file

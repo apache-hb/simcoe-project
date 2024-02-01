@@ -44,6 +44,11 @@ namespace sm::render {
 
         void setup_pipeline(render::Context& ctx);
 
+        rhi::ResourceObject m_background;
+        render::SrvHeapIndex m_background_index = render::SrvHeapIndex::eInvalid;
+
+        void setup_background(render::Context& context);
+
         // gpu resources
         rhi::ResourceObject m_vbo;
         D3D12_VERTEX_BUFFER_VIEW m_vbo_view{};
@@ -71,6 +76,7 @@ namespace sm::render {
             setup_pipeline(ctx);
             setup_assets(ctx);
             setup_camera(ctx);
+            setup_background(ctx);
             update_camera();
         }
 
@@ -89,7 +95,7 @@ namespace sm::render {
             direct.set_pipeline_state(m_pipeline);
 
             // use 2 tables in case the indices are not contiguous
-            direct->SetGraphicsRootDescriptorTable(0, heap.gpu_handle(m_texture_index));
+            direct->SetGraphicsRootDescriptorTable(0, heap.gpu_handle(m_background_index));
             direct->SetGraphicsRootDescriptorTable(1, heap.gpu_handle(m_camera_index));
             direct->RSSetViewports(1, &m_viewport);
             direct->RSSetScissorRects(1, &m_scissor);

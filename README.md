@@ -9,8 +9,11 @@
 # debug
 meson setup build -Dprefix=%cd%\bundle_debug --native-file data\meson\clang-cl.ini --native-file data\meson\devel.ini
 
+# private release
+meson setup build-private -Dprefix=%cd%\bundle_private --native-file data\meson\clang-cl.ini --native-file data\meson\private.ini
+
 # release
-meson setup build-shipping -Dprefix=%cd%\bundle_release--native-file data\meson\clang-cl.ini --native-file data\meson\shipping.ini
+meson setup build-release -Dprefix=%cd%\bundle_release --native-file data\meson\clang-cl.ini --native-file data\meson\shipping.ini
 
 # profiling compile time
 meson setup build-trace --native-file data\meson\clang-cl.ini --native-file data\meson\trace.ini

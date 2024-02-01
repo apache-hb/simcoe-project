@@ -27,16 +27,28 @@ void NavControl::add_bidi_link(IWidget *widget, input::Button to, IWidget *targe
     add_link(target, from, widget);
 }
 
+void NavControl::focus(IWidget *widget) {
+    m_current->end_focus();
+    m_current = widget;
+    m_current->begin_focus();
+
+    m_canvas.layout();
+}
+
 void NavControl::accept(const input::InputState& state) {
+    auto actions = m_actions.equal_range(m_current);
+    for (auto it = actions.first; it != actions.second; ++it) {
+        auto [widget, action] = *it;
+        if (state.buttons[action.button]) {
+            action.on_activate();
+        }
+    }
+
     auto range = m_links.equal_range(m_current);
     for (auto it = range.first; it != range.second; ++it) {
         auto [widget, link] = *it;
-        if (state.buttons[link.action.as_integral()]) {
-            m_current->end_focus();
-            m_current = link.widget;
-            m_current->begin_focus();
-
-            m_canvas.layout();
+        if (state.buttons[link.action]) {
+            focus(link.widget);
             return;
         }
     }

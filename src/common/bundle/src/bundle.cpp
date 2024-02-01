@@ -9,6 +9,8 @@
 
 #include "fs/fs.h"
 
+#include "stb/stb_image.h"
+
 using namespace sm;
 using namespace sm::bundle;
 
@@ -61,6 +63,37 @@ Font& AssetBundle::load_font(const char *path) {
     CTASSERTF(ok, "failed to insert font %s into cache", path);
 
     m_log.info("loaded font {} into cache", path);
+
+    return it->second;
+}
+
+const Image& AssetBundle::load_image(const char *path, math::uint2 size) {
+    if (auto it = m_images.find(path); it != m_images.end()) {
+        return it->second;
+    }
+
+    auto result = read_file(m_vfs, path);
+
+    int width, height;
+    stbi_uc *data = stbi_load_from_memory(result.data(), int(result.size()), &width, &height, nullptr, 4);
+    CTASSERTF(data != nullptr, "failed to load image %s", path);
+
+    sm::Vector<uint8_t> pixels;
+    pixels.resize(width * height * 4);
+    memcpy(pixels.data(), data, pixels.size());
+
+    Image image{
+        math::uint2{static_cast<unsigned int>(width), static_cast<unsigned int>(height)},
+        DataFormat::eRGBA8_UINT,
+        std::move(pixels)
+    };
+
+    stbi_image_free(data);
+
+    auto [it, ok] = m_images.emplace(path, std::move(image));
+    CTASSERTF(ok, "failed to insert image %s into cache", path);
+
+    m_log.info("loaded image {} into cache", path);
 
     return it->second;
 }

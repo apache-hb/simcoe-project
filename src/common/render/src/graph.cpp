@@ -57,6 +57,75 @@ void WorldCommands::setup_pipeline(render::Context &ctx) {
     m_pipeline.init(rhi, kPipelineConfig);
 }
 
+void WorldCommands::setup_background(render::Context& context) {
+    auto& rhi = context.get_rhi();
+    auto& heap = context.get_srv_heap();
+    auto& log = context.get_logger();
+    auto device = rhi.get_device();
+
+    auto& copy = rhi.open_copy_commands();
+    auto& direct = rhi.open_direct_commands();
+
+    const CD3DX12_HEAP_PROPERTIES kDefaultHeapProperties{ D3D12_HEAP_TYPE_DEFAULT };
+    const CD3DX12_HEAP_PROPERTIES kUploadHeapProperties{ D3D12_HEAP_TYPE_UPLOAD };
+
+    // create and upload texture
+
+    constexpr size_t kTextureWidth = 1024;
+    constexpr size_t kTextureHeight = 1024;
+    constexpr size_t kPixelSize = sizeof(math::uint8x4);
+
+    const auto& background = m_assets.load_image("textures/background.png", { kTextureWidth, kTextureHeight });
+
+    const auto kTextureDesc = CD3DX12_RESOURCE_DESC::Tex2D(
+        DXGI_FORMAT_R8G8B8A8_UNORM, background.size.width, background.size.height, 1, 1);
+
+    SM_ASSERT_HR(device->CreateCommittedResource(
+        &kDefaultHeapProperties, D3D12_HEAP_FLAG_CREATE_NOT_ZEROED, &kTextureDesc,
+        D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_background)));
+
+    const UINT64 kUploadSize = GetRequiredIntermediateSize(m_background.get(), 0, 1);
+    const auto kUploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kUploadSize);
+
+    rhi::ResourceObject texture_upload;
+    SM_ASSERT_HR(device->CreateCommittedResource(
+        &kUploadHeapProperties, D3D12_HEAP_FLAG_CREATE_NOT_ZEROED, &kUploadBufferDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&texture_upload)));
+
+    const auto kRowPitch = background.size.width * kPixelSize;
+    const auto kSlicePitch = kRowPitch * background.size.height;
+
+    const D3D12_SUBRESOURCE_DATA kTextureInfo = {
+        .pData = background.data.data(),
+        .RowPitch = static_cast<LONG_PTR>(kRowPitch),
+        .SlicePitch = static_cast<LONG_PTR>(kSlicePitch),
+    };
+
+    UpdateSubresources<1>(copy.get(), m_background.get(), texture_upload.get(), 0, 0, 1, &kTextureInfo);
+
+    const CD3DX12_RESOURCE_BARRIER kIntoTexture = CD3DX12_RESOURCE_BARRIER::Transition(
+        m_background.get(), D3D12_RESOURCE_STATE_COPY_DEST,
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+    direct->ResourceBarrier(1, &kIntoTexture);
+
+    const D3D12_SHADER_RESOURCE_VIEW_DESC kViewDesc = {
+        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+        .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
+        .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+        .Texture2D = { .MipLevels = 1 },
+    };
+
+    if (m_background_index == SrvHeapIndex::eInvalid) m_background_index = heap.bind_slot();
+
+    log.info("m_background_index index: {}", size_t(m_background_index));
+
+    device->CreateShaderResourceView(m_background.get(), &kViewDesc, heap.cpu_handle(m_background_index));
+
+    rhi.flush_copy_commands(copy);
+    rhi.flush_direct_commands(direct);
+}
+
 void WorldCommands::setup_assets(render::Context &ctx) {
     auto &rhi = ctx.get_rhi();
     auto &heap = ctx.get_srv_heap();
@@ -163,11 +232,18 @@ void WorldCommands::setup_assets(render::Context &ctx) {
     };
 
     // create vbo
+    // constexpr Vertex kVertexData[] = {
+    //     {{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f}},
+    //     {{-0.5f, 0.5f, 0.0f}, {0.0f, 1.0f}},
+    //     {{0.5f, -0.5f, 0.0f}, {1.0f, 0.0f}},
+    //     {{0.5f, 0.5f, 0.0f}, {1.0f, 1.0f}},
+    // };
+
     constexpr Vertex kVertexData[] = {
-        {{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f}},
-        {{-0.5f, 0.5f, 0.0f}, {0.0f, 1.0f}},
-        {{0.5f, -0.5f, 0.0f}, {1.0f, 0.0f}},
-        {{0.5f, 0.5f, 0.0f}, {1.0f, 1.0f}},
+        {{-1.f, -1.f, 0.0f}, {0.0f, 0.0f}},
+        {{-1.f, 1.f, 0.0f}, {0.0f, 1.0f}},
+        {{1.f, -1.f, 0.0f}, {1.0f, 0.0f}},
+        {{1.f, 1.f, 0.0f}, {1.0f, 1.0f}},
     };
 
     constexpr UINT kVboSize = sizeof(kVertexData);
@@ -242,11 +318,15 @@ void WorldCommands::setup_camera(render::Context &ctx) {
 }
 
 void WorldCommands::update_camera() {
-    float aspect = float(m_size.x) / float(m_size.y);
-    m_camera.view =
-        math::float4x4::lookAtRH({1.0f, 1.0f, 1.0f}, {0.1f, 0.1f, 0.1f}, kUpVector).transpose();
-    m_camera.projection = math::float4x4::perspectiveRH(90.0f * math::kDegToRad<float>, aspect,
-                                                        0.1f, 100.0f)
-                              .transpose();
+    // float aspect = float(m_size.x) / float(m_size.y);
+    // m_camera.view =
+    //     math::float4x4::lookAtRH({1.0f, 1.0f, 1.0f}, {0.1f, 0.1f, 0.1f}, kUpVector).transpose();
+    // m_camera.projection = math::float4x4::perspectiveRH(90.0f * math::kDegToRad<float>, aspect,
+    //                                                     0.1f, 100.0f)
+    //                           .transpose();
+
+    m_camera.model = math::float4x4::identity();
+    m_camera.view = math::float4x4::identity();
+    m_camera.projection = math::float4x4::identity();
     *m_camera_data = m_camera;
 }

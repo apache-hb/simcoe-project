@@ -201,7 +201,6 @@ void LayoutInfo::rect(const BoxBounds& bounds, float border, const math::uint8x4
 
 BoxBounds TextWidget::impl_layout(LayoutInfo& info, BoxBounds bounds) const {
     auto& shaper = m_font.get_shaper();
-    const auto& metrics = m_font.get_font_info();
     auto shaped = shaper.shape(m_text);
 
     auto tbegin = m_text.begin();
@@ -296,11 +295,12 @@ BoxBounds TextWidget::impl_layout(LayoutInfo& info, BoxBounds bounds) const {
     }
 
     // apply metrics ascender and descender
-    text_min.y += metrics.ascender * m_scale;
-    text_max.y += metrics.ascender * m_scale;
 
-    text_min.y -= metrics.descender * m_scale;
-    text_max.y -= metrics.descender * m_scale;
+    // TODO: these seem too agressive, maybe look at this later
+    // text_min.y += metrics.ascender * m_scale;
+    // text_max.y += metrics.ascender * m_scale;
+    // text_min.y -= metrics.descender * m_scale;
+    // text_max.y -= metrics.descender * m_scale;
 
     BoxBounds text_bounds = { text_min, text_max };
 

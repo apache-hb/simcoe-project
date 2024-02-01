@@ -7,7 +7,7 @@ src = [
     reflect.process('data/bundle.ct')
 ]
 
-deps = [ core, cthulhu.get_variable('fs'), logs, math, service, minizip ]
+deps = [ core, cthulhu.get_variable('fs'), logs, math, service, minizip, stb ]
 
 libbundle = library('bundle', src,
     cpp_args : [ '-DSM_BUNDLE_BUILD=1' ],

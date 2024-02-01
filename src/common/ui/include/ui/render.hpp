@@ -42,8 +42,6 @@ namespace sm::ui {
         uint32_t m_vbo_length = 0;
         uint32_t m_ibo_length = 0;
 
-        // font atlas resources
-
         // TODO: extract this out
         bundle::Texture m_font_atlas_texture;
         rhi::ResourceObject m_atlas;

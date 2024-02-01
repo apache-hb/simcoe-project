@@ -40,5 +40,6 @@ namespace sm::ui {
         void add_bidi_link(IWidget *widget, input::Button to, IWidget *target, input::Button from);
 
         void accept(const input::InputState& state) override;
+        void focus(IWidget *widget);
     };
 }

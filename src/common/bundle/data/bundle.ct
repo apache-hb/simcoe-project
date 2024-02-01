@@ -22,37 +22,40 @@ variant BundleVersion : uint16 {
 [[layout(export)]]
 variant DataFormat : uint16 {
     [[format("unknown")]]
-    default UNKNOWN = 0
+    default UNKNOWN
 
     [[format("rg32/float")]]
-    case RG32_FLOAT = 1
+    case RG32_FLOAT
 
     [[format("rgb32/float")]]
-    case RGB32_FLOAT = 2
+    case RGB32_FLOAT
 
     [[format("rgba32/float")]]
-    case RGBA32_FLOAT = 3
+    case RGBA32_FLOAT
 
     [[format("bc7/typeless")]]
-    case BC7_TYPELESS = 4
+    case BC7_TYPELESS
 
     [[format("bc7/unorm")]]
-    case BC7_UNORM = 5
+    case BC7_UNORM
 
     [[format("bc7/srgb")]]
-    case BC7_SRGB = 6
+    case BC7_SRGB
 
     [[format("rgba8/unorm")]]
-    case RGBA8_UNORM = 7
+    case RGBA8_UNORM
 
     [[format("rgba8/uint")]]
-    case RGBA8_UINT = 8
+    case RGBA8_UINT
+
+    [[format("rgb8/uint")]]
+    case RGB8_UINT
 
     [[format("uint16")]]
-    case UINT16 = 9
+    case UINT16
 
     [[format("uint32")]]
-    case UINT32 = 10
+    case UINT32
 }
 
 [[layout(export)]]

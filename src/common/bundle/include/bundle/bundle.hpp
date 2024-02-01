@@ -38,6 +38,14 @@ namespace sm::bundle {
             , data(size_t(sz.width * sz.height * 4))
         { }
 
+        Image(math::uint2 sz, DataFormat fmt, sm::Vector<uint8_t>&& data)
+            : format(fmt)
+            , size(sz)
+            , data(std::move(data))
+        { }
+
+        Image(Image&&) = default;
+
         uint8_t& get_pixel(size_t x, size_t y, size_t channel);
         math::uint8x4& get_pixel_rgba(size_t x, size_t y);
     };
@@ -90,6 +98,7 @@ namespace sm::bundle {
 
         sm::Map<sm::String, BinaryData> m_shaders;
         sm::Map<sm::String, Font> m_fonts;
+        sm::Map<sm::String, Image> m_images;
 
         // TODO: figure out zlib properly
         void extract_dirent(void *zip, const char *path);
@@ -111,5 +120,6 @@ namespace sm::bundle {
 
         BinarySpan load_shader(const char *path);
         Font& load_font(const char *path);
+        const Image& load_image(const char *path, math::uint2 size);
     };
 }
