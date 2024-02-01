@@ -9,7 +9,7 @@ using namespace sm::sys;
 static_assert(sizeof(FileHeader) == 20);
 static_assert(sizeof(RecordHeader) == 8);
 
-static constexpr uint32_t kFileMagic = 'CUM\0';
+static constexpr uint32_t kFileMagic = '\0MUC';
 static constexpr FileVersion kCurrentVersion = FileVersion::eVersion0;
 
 #define SM_CHECKF(sink, expr, ...) \

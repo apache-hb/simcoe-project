@@ -1,7 +1,8 @@
 #pragma once
 
-#include <limits>
+#include <simcoe_config.h>
 
+#include <limits>
 #include "core/text.hpp"
 #include "fmtlib/format.h"
 
@@ -109,11 +110,11 @@ namespace sm {
         static constexpr O kSrcMax = std::numeric_limits<O>::max();
 
         if constexpr (kDstMax > kSrcMax) {
-            SM_ASSERTF(value >= kSrcMin, "value {} would underflow (limit: {})", value, kSrcMin);
+            CTASSERTF(value >= kSrcMin, "value %s would underflow (limit: %s)", value, kSrcMin);
         }
 
         if constexpr (kDstMin < kSrcMin) {
-            SM_ASSERTF(value <= kSrcMax, "value {} would overflow (limit: {})", value, kSrcMax);
+            CTASSERTF(value <= kSrcMax, "value %s would overflow (limit: %s)", value, kSrcMax);
         }
 #endif
 

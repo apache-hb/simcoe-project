@@ -74,6 +74,9 @@ warp = subproject('d3d-warp')
 # than this one
 dxc = subproject('dxc').get_variable('dxc')
 
+zlib_ng = subproject('zlib-ng')
+minizip_ng = subproject('minizip-ng')
+
 minizip = dependency('minizip')
 windows = import('windows')
 

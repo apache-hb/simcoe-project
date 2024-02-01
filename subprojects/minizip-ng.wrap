@@ -1,0 +1,10 @@
+[wrap-file]
+directory = minizip-ng-4.0.4
+
+source_url = https://github.com/zlib-ng/minizip-ng/archive/refs/tags/4.0.4.zip
+source_filename = minizip-ng-4.0.4.zip
+source_hash = 11f4b9e6c4a7c6b99184c0f2887c2b89f0b3e78ef8200107240efd449b77dc39
+
+patch_directory = minizip-ng
+
+[provide]

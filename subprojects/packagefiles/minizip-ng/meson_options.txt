@@ -1,0 +1,35 @@
+option('zlib', type : 'feature',
+    description : 'Enable ZLIB compression',
+    value : 'auto'
+)
+
+option('bzip2', type : 'feature',
+    description : 'Enable BZIP2 compression',
+    value : 'auto'
+)
+
+option('lzma', type : 'feature',
+    description : 'Enable LZMA compression',
+    value : 'auto'
+)
+
+option('zstd', type : 'feature',
+    description : 'Enable ZSTD compression',
+    value : 'auto'
+)
+
+option('features', type : 'combo',
+    description : 'Choose feature set',
+    value : 'both',
+    choices : ['both', 'compression', 'decompression']
+)
+
+option('tests', type : 'feature',
+    description : 'Build unit tests',
+    value : 'auto'
+)
+
+option('example', type : 'feature',
+    description : 'Build example executable',
+    value : 'auto'
+)

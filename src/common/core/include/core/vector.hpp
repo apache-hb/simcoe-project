@@ -1,7 +1,6 @@
 #pragma once
 
 #include "core/arena.hpp"
-#include "core/traits.hpp"
 
 #include <vector>
 
@@ -15,7 +14,7 @@ namespace sm {
         size_t m_used = 0;
 
         constexpr void verify_index(size_t index) const {
-            SM_ASSERTF(index < N, "index out of bounds (%zu < %zu)", index, N);
+            CTASSERTF(index < N, "index out of bounds (%zu < %zu)", index, N);
         }
 
     public:
@@ -37,7 +36,7 @@ namespace sm {
         constexpr const T *end() const { return m_data + m_used; }
 
         constexpr T& emplace_back(auto&&... args) {
-            SM_ASSERTF(m_used < N, "vector overflow");
+            CTASSERTF(m_used < N, "vector would overflow (%zu < %zu)", m_used, N);
             return m_data[m_used++] = T{std::forward<decltype(args)>(args)...};
         }
     };

@@ -541,7 +541,7 @@ namespace sm::math {
             return { at(0, 3), at(1, 3), at(2, 3) };
         }
 
-        constexpr void setTranslation(const Row3Type& translation) {
+        constexpr void set_translation(const Row3Type& translation) {
             at(0, 3) = translation.x;
             at(1, 3) = translation.y;
             at(2, 3) = translation.z;
