@@ -1,6 +1,7 @@
 #pragma once
 
 #include <simcoe_config.h>
+#include <type_traits>
 
 #include "base/panic.h" // IWYU pragma: keep
 
@@ -25,8 +26,9 @@ namespace sm {
     public:
         SM_NOCOPY(UniqueHandle)
 
-        constexpr UniqueHandle(T handle = TEmpty)
+        constexpr UniqueHandle(T handle = TEmpty, TDelete del = TDelete{})
             : m_handle(handle)
+            , m_delete(del)
         { }
 
         constexpr UniqueHandle &operator=(T handle) {
@@ -39,13 +41,11 @@ namespace sm {
         }
 
         constexpr UniqueHandle(UniqueHandle &&other) {
-            reset(other.m_handle);
-            other.m_handle = TEmpty;
+            reset(other.release());
         }
 
         constexpr UniqueHandle &operator=(UniqueHandle &&other) {
-            reset(other.m_handle);
-            other.m_handle = TEmpty;
+            reset(other.release());
             return *this;
         }
 
@@ -60,6 +60,12 @@ namespace sm {
         constexpr const T& get() const { CTASSERT(is_valid()); return m_handle; }
         constexpr explicit operator bool() const { return m_handle != TEmpty; }
 
+        constexpr T& operator*() { return get(); }
+        constexpr const T& operator*() const { return get(); }
+
+        constexpr T *address() { return &m_handle; }
+        constexpr T *const address() const { return &m_handle; }
+
         constexpr bool is_valid() const { return m_handle != TEmpty; }
 
         constexpr void reset(T handle = TEmpty) {
@@ -67,6 +73,12 @@ namespace sm {
                 m_delete(m_handle);
             }
             m_handle = handle;
+        }
+
+        constexpr T release() {
+            T handle = m_handle;
+            m_handle = TEmpty;
+            return handle;
         }
     };
 
@@ -92,11 +104,17 @@ namespace sm {
         constexpr T *operator->() { return Super::get(); }
         constexpr const T *operator->() const { return Super::get(); }
 
+        constexpr T** operator&() { return Super::address(); }
+        constexpr T* const* operator&() const { return Super::address(); }
+
         constexpr void reset(T *data = nullptr) {
             Super::destroy();
             Super::reset(data);
         }
     };
+
+    template<typename T, void(*F)(T*)>
+    using FnUniquePtr = UniquePtr<T, decltype([](T* it) { F(it); })>;
 
     template<typename T, typename TDelete>
     class UniquePtr<T[], TDelete> : public UniquePtr<T, TDelete> {

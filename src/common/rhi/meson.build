@@ -17,7 +17,7 @@ deps = [ core, logs, system, bundle, math, d3d12, d3dx12 ]
 librhi = library('rhi', src,
     cpp_args : [ '-DSM_RHI_BUILD=1' ],
     include_directories : [ rhi_include, reflect_include ],
-    dependencies : deps
+    dependencies : [ deps, i18n ]
 )
 
 rhi = declare_dependency(

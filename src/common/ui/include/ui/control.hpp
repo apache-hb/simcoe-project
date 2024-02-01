@@ -6,14 +6,24 @@
 
 #include "ui/ui.hpp"
 
+#include <functional>
+
 namespace sm::ui {
     struct NavLink {
         IWidget *widget;
         input::Button action;
+
+        std::function<void()> on_activate;
+    };
+
+    struct NavAction {
+        input::Button button;
+        std::function<void()> on_activate;
     };
 
     class NavControl : public input::IClient {
         sm::MultiMap<IWidget*, NavLink> m_links;
+        sm::MultiMap<IWidget*, NavAction> m_actions;
 
         Canvas& m_canvas;
         IWidget *m_current = nullptr;
@@ -21,7 +31,8 @@ namespace sm::ui {
     public:
         NavControl(Canvas& canvas, IWidget *initial);
 
-        void add_link(IWidget *widget, input::Button action, IWidget *target);
+        NavLink& add_link(IWidget *widget, input::Button action, IWidget *target);
+        NavAction& add_action(IWidget *widget, input::Button button, std::function<void()> on_activate);
 
         // equivalent to
         // add_link(widget, to, target)

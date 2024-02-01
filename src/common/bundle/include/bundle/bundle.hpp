@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/unique.hpp"
 #include "core/vector.hpp"
 
 #include "logs/logs.hpp"
@@ -37,12 +38,6 @@ namespace sm::bundle {
             , data(size_t(sz.width * sz.height * 4))
         { }
 
-        Image(Image&& other)
-            : format(other.format)
-            , size(other.size)
-            , data(std::move(other.data))
-        { }
-
         uint8_t& get_pixel(size_t x, size_t y, size_t channel);
         math::uint8x4& get_pixel_rgba(size_t x, size_t y);
     };
@@ -60,10 +55,13 @@ namespace sm::bundle {
     class Font {
         friend class AssetBundle;
 
+        static void delete_face(FT_Face face);
+        using UniqueFace = sm::FnUniquePtr<FT_FaceRec, delete_face>;
+
         const AssetSink& m_log;
         const char *m_name;
         BinaryData m_data;
-        FT_Face m_face;
+        UniqueFace m_face;
 
         FontInfo m_info;
 
@@ -72,21 +70,12 @@ namespace sm::bundle {
     public:
         SM_NOCOPY(Font)
 
-        Font(Font&& other)
-            : m_log(other.m_log)
-            , m_name(other.m_name)
-            , m_data(std::move(other.m_data))
-            , m_face(other.m_face)
-        {
-            other.m_face = nullptr;
-        }
-
-        ~Font();
+        Font(Font&&) = default;
 
         // TODO: dont do this
         const AssetSink& get_logger() const { return m_log; }
         const FontInfo& get_info() const { return m_info; }
-        FT_Face get_face() const { return m_face; }
+        FT_Face get_face() const { return m_face.get(); }
 
         math::uint2 get_glyph_size(char32_t codepoint) const;
 
@@ -109,6 +98,9 @@ namespace sm::bundle {
         void open_fs();
 
     public:
+        SM_NOCOPY(AssetBundle)
+        SM_NOMOVE(AssetBundle)
+
         AssetBundle(const char *path, logs::ILogger& logger)
             : m_path(path)
             , m_log(logger)
@@ -116,9 +108,6 @@ namespace sm::bundle {
             open_fs();
             // inflate_zip(path);
         }
-
-        AssetBundle(const AssetBundle&) = delete;
-        AssetBundle(AssetBundle&&) = delete;
 
         BinarySpan load_shader(const char *path);
         Font& load_font(const char *path);

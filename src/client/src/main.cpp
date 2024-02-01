@@ -216,7 +216,6 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
 
     render::Context *m_context = nullptr;
     sys::DesktopInput *m_input = nullptr;
-    math::int2 m_size;
 
     LRESULT event(sys::Window &window, UINT message, WPARAM wparam, LPARAM lparam) override {
         if (m_input) m_input->window_event(message, wparam, lparam);
@@ -224,7 +223,6 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     }
 
     void resize(sys::Window &, math::int2 size) override {
-        m_size = size;
         if (m_context != nullptr) {
             m_context->resize(size.as<uint32_t>());
         }
@@ -244,13 +242,8 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     }
 
 public:
-    math::int2 get_client_size() const {
-        return m_size;
-    }
-
-    DefaultWindowEvents(sys::FileMapping &store, math::int2 size)
+    DefaultWindowEvents(sys::FileMapping &store)
         : m_store(store)
-        , m_size(size)
     {}
 
     void attach_render(render::Context *context) {
@@ -351,9 +344,7 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
         .logger = gConsoleLog,
     };
 
-    math::int2 size = { 1280, 720 };
-
-    DefaultWindowEvents events{store, size};
+    DefaultWindowEvents events{store};
 
     sys::Window window{window_config, &events};
     sys::DesktopInput desktop_input{window};
@@ -438,22 +429,22 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
     auto play_box = ui::StyleWidget(play_text)
         .colour(ui::kColourBlue)
         .focus_colour(ui::kColourGreen)
-        .padding({ 0.f, 10.f, 20.f, 10.f });
+        .padding({ 10.f, 10.f, 20.f, 10.f });
 
     auto options_box = ui::StyleWidget(options_text)
         .colour(ui::kColourBlue)
         .focus_colour(ui::kColourGreen)
-        .padding({ 0.f, 10.f, 20.f, 10.f });
+        .padding({ 10.f, 10.f, 20.f, 10.f });
 
     auto quit_box = ui::StyleWidget(quit_text)
         .colour(ui::kColourBlue)
         .focus_colour(ui::kColourGreen)
-        .padding({ 0.f, 10.f, 20.f, 10.f });
+        .padding({ 10.f, 10.f, 20.f, 10.f });
 
     auto license_box = ui::StyleWidget(license_text)
         .colour(ui::kColourBlue)
         .focus_colour(ui::kColourGreen)
-        .padding({ 30.f, 10.f, 20.f, 10.f });
+        .padding({ 10.f, 10.f, 20.f, 10.f });
 
     auto lower_bar = ui::HStackWidget()
         .align({ ui::AlignH::eLeft, ui::AlignV::eBottom })
@@ -465,30 +456,44 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
         .add(quit_box)
         .add(license_box);
 
-    auto stack = ui::VStackWidget()
+    auto main_menu = ui::VStackWidget()
         .padding({ 25.f, 25.f, 25.f, 25.f })
         .spacing(25.f)
         .add(title_text)
         .add(lower_bar);
 
-    // play_text.set_debug_draw(true, ui::kColourGreen);
-    // options_text.set_debug_draw(true, ui::kColourGreen);
-    // quit_text.set_debug_draw(true, ui::kColourGreen);
+    auto zlib_license = ui::TextWidget(atlas, u8"zlib")
+        .align({ ui::AlignH::eCenter, ui::AlignV::eTop })
+        .focus_colour(ui::kColourBlack)
+        .scale(1.f);
 
-    // lower_bar.set_debug_draw(true, ui::kColourBlack);
-    // stack.set_debug_draw(true, ui::kColourRed);
+    auto license_list = ui::VStackWidget()
+        .padding({ 25.f, 25.f, 25.f, 25.f })
+        .spacing(25.f)
+        .add(zlib_license);
+
+    title_text.set_debug_draw(true, ui::kColourGreen);
+    play_text.set_debug_draw(true, ui::kColourGreen);
+    options_text.set_debug_draw(true, ui::kColourGreen);
+    quit_text.set_debug_draw(true, ui::kColourGreen);
+    license_text.set_debug_draw(true, ui::kColourGreen);
+
+    play_box.set_debug_draw(true, ui::kColourRed);
+    options_box.set_debug_draw(true, ui::kColourRed);
+    quit_box.set_debug_draw(true, ui::kColourRed);
+    license_box.set_debug_draw(true, ui::kColourRed);
 
     auto [left, top, right, bottom] = window.get_client_coords();
 
-    ui::Canvas canvas { assets, atlas, stack };
+    ui::Canvas canvas { assets, atlas, &main_menu };
     input::InputService input;
     input.add_source(&desktop_input);
 
     auto width = unsigned(right - left);
     auto height = unsigned(bottom - top);
 
-    canvas.set_screen({width, height});
     canvas.set_user({50.f, 50.f}, { -50.f, -50.f });
+    canvas.set_screen({width, height});
 
     ui::NavControl nav{canvas, &play_box};
     input.add_client(&nav);
@@ -496,6 +501,20 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
     nav.add_bidi_link(&play_box, input::Button::eKeyRight, &options_box, input::Button::eKeyLeft);
     nav.add_bidi_link(&options_box, input::Button::eKeyRight, &quit_box, input::Button::eKeyLeft);
     nav.add_bidi_link(&quit_box, input::Button::eKeyRight, &license_box, input::Button::eKeyLeft);
+
+    nav.add_action(&license_list, input::Button::eEscape, [&] {
+        canvas.set_root(&main_menu);
+    });
+
+    nav.add_action(&license_box, input::Button::eSpace, [&] {
+        canvas.set_root(&license_list);
+    });
+
+    bool done = false;
+
+    nav.add_action(&quit_box, input::Button::eSpace, [&] {
+        done = true;
+    });
 
     // make imgui windows look more like native windows
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
@@ -515,13 +534,12 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
         SM_UNUSED auto &cmd_imgui = context.add_node<ImGuiCommands>();
         SM_UNUSED auto &cmd_begin = context.add_node<render::BeginCommands>();
         SM_UNUSED auto &cmd_world = context.add_node<render::WorldCommands>(assets);
-        SM_UNUSED auto &cmd_canvas = context.add_node<ui::CanvasCommands>(canvas, assets);
+        SM_UNUSED auto &cmd_canvas = context.add_node<ui::CanvasCommands>(&canvas, assets);
         SM_UNUSED auto &cmd_end = context.add_node<render::EndCommands>();
         SM_UNUSED auto &cmd_present = context.add_node<render::PresentCommands>();
 
         // context.connect(cmd_present, cmd_end.render_target);
 
-        bool done = false;
         while (!done) {
             // more complex message loop to avoid imgui
             // destroying the main window, then attempting to access it
@@ -539,12 +557,6 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
             if (done) break;
 
             input.poll();
-
-            if (size != events.get_client_size()) {
-                size = events.get_client_size();
-                canvas.set_screen(size.as<uint32_t>());
-                canvas.layout();
-            }
 
             ImGui_ImplWin32_NewFrame();
 

@@ -18,7 +18,7 @@ project('simcoe', [ 'c', 'cpp' ],
         'cthulhu:win32_trickery=enabled',
 
         # configure freetype before harfbuzz to pick up configuration
-        'freetype2:auto_features=enabled',
+        'freetype2:auto_features=disabled',
         'freetype2:zlib=disabled',
         'freetype2:png=disabled',
         'freetype2:harfbuzz=disabled',
@@ -212,6 +212,7 @@ config_include = include_directories('.')
 subdir('src/vendor/fmtlib')
 
 subdir('src/common/core')
+subdir('src/common/i18n')
 subdir('src/common/math')
 
 # vendor imgui here to have access to our own math library

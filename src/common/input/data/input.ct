@@ -1,14 +1,21 @@
 module sm::input;
 
+[[table]]
 variant InputDevice {
+    [[format("null")]]
     default None = 0 // null input
-    case XInput = 1 // xbox gamepad
-    case Desktop = 2 // mouse and keyboard
-    case Playback = 3 // file playback
 
-    case Count = 4
+    [[format("xinput gamepad")]]
+    case XInput = 1 // xbox gamepad
+
+    [[format("mouse & keyboard")]]
+    case Desktop = 2 // mouse and keyboard
+
+    [[format("demo playback")]]
+    case Playback = 3 // file playback
 }
 
+[[table]]
 variant Axis {
     case MouseX = 0
     case MouseY = 1
@@ -21,10 +28,9 @@ variant Axis {
 
     case GamepadTriggerL = 6
     case GamepadTriggerR = 7
-
-    case Count = 8
 }
 
+[[table]]
 variant Button {
     case PadButtonUp = 0
     case PadButtonDown = 1
@@ -104,6 +110,4 @@ variant Button {
     case KeyRight = 66
     case KeyUp = 67
     case KeyDown = 68
-
-    case Count = 69
 }

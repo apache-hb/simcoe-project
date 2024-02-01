@@ -120,7 +120,7 @@ void CanvasCommands::setup_buffers(render::Context& context, uint32_t vbo_length
 }
 
 void CanvasCommands::setup_font_atlas(render::Context& context) {
-    auto& font = m_canvas.get_font();
+    auto& font = m_canvas->get_font();
     auto& rhi = context.get_rhi();
     auto device = rhi.get_device();
     auto& heap = context.get_srv_heap();
@@ -286,8 +286,8 @@ void CanvasCommands::create(render::Context& context) {
     setup_camera(context);
     setup_font_atlas(context);
 
-    update_camera(m_canvas.get_screen());
-    update_viewport(m_canvas.get_screen());
+    update_camera(m_canvas->get_screen());
+    update_viewport(m_canvas->get_screen());
 }
 
 void CanvasCommands::destroy(render::Context& context) {
@@ -295,16 +295,16 @@ void CanvasCommands::destroy(render::Context& context) {
 }
 
 void CanvasCommands::build(render::Context& context) {
-    const auto& [vertices, indices] = m_canvas.get_draw_data();
+    const auto& [vertices, indices] = m_canvas->get_draw_data();
 
-    if (m_canvas.needs_repaint()) {
+    if (m_canvas->needs_repaint()) {
         setup_buffers(context, vertices.size(), indices.size());
-        update_camera(m_canvas.get_screen());
+        update_camera(m_canvas->get_screen());
 
         std::memcpy(m_vbo_data, vertices.data(), vertices.size() * sizeof(ui::Vertex));
         std::memcpy(m_ibo_data, indices.data(), indices.size() * sizeof(ui::Index));
 
-        m_canvas.clear_repaint();
+        m_canvas->clear_repaint();
     }
 
     auto& rhi = context.get_rhi();

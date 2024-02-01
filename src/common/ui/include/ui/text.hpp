@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/macros.hpp"
+#include "core/unique.hpp"
 #include "core/utf8.hpp"
 
 #include "bundle/bundle.hpp"
@@ -33,7 +34,8 @@ namespace sm::ui {
     };
 
     class ShapedText {
-        hb_buffer_t *m_buffer;
+        using UniqueHB = sm::FnUniquePtr<hb_buffer_t, hb_buffer_destroy>;
+        UniqueHB m_buffer;
 
         unsigned int m_glyph_count;
         hb_glyph_info_t *m_glyph_info;
@@ -43,31 +45,21 @@ namespace sm::ui {
         SM_NOCOPY(ShapedText)
 
         ShapedText(hb_buffer_t *buffer);
-        ~ShapedText();
-
-        ShapedText(ShapedText&& other) noexcept;
 
         ShapedTextIterator begin() const;
         ShapedTextIterator end() const;
     };
 
     class TextShaper {
-        hb_font_t *m_font;
+        using UniqueFont = sm::FnUniquePtr<hb_font_t, hb_font_destroy>;
+
+        UniqueFont m_font;
         hb_face_t *m_face;
 
     public:
         SM_NOCOPY(TextShaper)
 
-        TextShaper(TextShaper&& other)
-            : m_font(other.m_font)
-            , m_face(other.m_face)
-        {
-            other.m_font = nullptr;
-            other.m_face = nullptr;
-        }
-
         TextShaper(bundle::Font& font);
-        ~TextShaper();
 
         ShapedText shape(utf8::StaticText text) const;
     };

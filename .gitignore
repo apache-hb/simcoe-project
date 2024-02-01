@@ -29,5 +29,6 @@ subprojects/*
 !subprojects/stb
 !subprojects/packagefiles
 !subprojects/packagefiles/**
+!subprojects/.clang-tidy
 
 *[bB]uild*/

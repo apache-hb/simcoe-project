@@ -1,5 +1,7 @@
 #include "bundle/bundle.hpp"
 
+#include "math/format.hpp"
+
 using namespace sm;
 using namespace sm::bundle;
 
@@ -44,6 +46,10 @@ static void blit_glyph(const AssetSink& logs, Image& image, char32_t codepoint, 
     }
 }
 
+void Font::delete_face(FT_Face face) {
+    SM_ASSERT_FT2(FT_Done_Face(face), "failed to unload font {}", face->family_name);
+}
+
 Font::Font(const AssetSink& log, BinaryData data, const char *name)
     : m_log(log)
     , m_name(name)
@@ -53,38 +59,32 @@ Font::Font(const AssetSink& log, BinaryData data, const char *name)
 
     SM_ASSERT_FT2(FT_New_Memory_Face(ft.get_library(), m_data.data(), FT_Long(m_data.size()), 0, &m_face), "failed to load font {}", m_name);
 
-    SM_ASSERT_FT2(FT_Select_Charmap(m_face, FT_ENCODING_UNICODE), "failed to select unicode charmap for font {}", m_name);
+    SM_ASSERT_FT2(FT_Select_Charmap(*m_face, FT_ENCODING_UNICODE), "failed to select unicode charmap for font {}", m_name);
 
     m_log.info("loaded font {}", m_name);
     m_log.info("| family: {}", m_face->family_name);
     m_log.info("| style: {}", m_face->style_name);
     m_log.info("| glyphs: {}", m_face->num_glyphs);
 
-    SM_ASSERT_FT2(FT_Set_Char_Size(m_face, 0, 16 * 64, 300, 300), "failed to set font size for font {}", m_name);
+    SM_ASSERT_FT2(FT_Set_Char_Size(*m_face, 0, 16 * 64, 300, 300), "failed to set font size for font {}", m_name);
 
     FT_Size_Metrics metrics = m_face->size->metrics;
     m_info.ascender = float(metrics.ascender) / 64.f;
     m_info.descender = float(metrics.descender) / 64.f;
 }
 
-Font::~Font() {
-    if (m_face == nullptr) return;
-
-    m_log.info("unloading font {}", m_name);
-    SM_ASSERT_FT2(FT_Done_Face(m_face), "failed to unload font {}", m_name);
-    m_face = nullptr;
-}
-
 math::uint2 Font::get_glyph_size(char32_t codepoint) const {
-    SM_ASSERT_FT2(FT_Load_Char(m_face, codepoint, FT_LOAD_DEFAULT), "failed to load glyph for codepoint {}", int32_t(codepoint));
+    SM_ASSERT_FT2(FT_Load_Char(*m_face, codepoint, FT_LOAD_DEFAULT), "failed to load glyph for codepoint {}", int32_t(codepoint));
 
-    return math::uint2(m_face->glyph->bitmap.width, m_face->glyph->bitmap.rows);
+    FT_Bitmap& bitmap = m_face->glyph->bitmap;
+
+    return math::uint2(bitmap.width, bitmap.rows);
 }
 
 GlyphInfo Font::draw_glyph(char32_t codepoint, math::uint2 start, Image& image, const math::float4& color) const {
-    FT_Set_Transform(m_face, nullptr, nullptr);
+    FT_Set_Transform(*m_face, nullptr, nullptr);
 
-    SM_ASSERT_FT2(FT_Load_Char(m_face, codepoint, FT_LOAD_RENDER), "failed to load glyph for codepoint {}", int32_t(codepoint));
+    SM_ASSERT_FT2(FT_Load_Char(*m_face, codepoint, FT_LOAD_RENDER), "failed to load glyph for codepoint {}", int32_t(codepoint));
 
     FT_Bitmap *bitmap = &m_face->glyph->bitmap;
     blit_glyph(m_log, image, codepoint, m_face->family_name, bitmap, start.x, start.y, color);

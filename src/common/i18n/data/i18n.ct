@@ -1,0 +1,10 @@
+module sm::i18n;
+
+[[table]]
+variant Language {
+    [[format("British")]]
+    default British
+
+    [[format("Polski")]]
+    case Polish
+}

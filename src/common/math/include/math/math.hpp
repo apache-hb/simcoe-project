@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "base/panic.h"
+#include "core/macros.hpp"
 
 namespace sm::math {
     template<typename T>
@@ -14,6 +15,16 @@ namespace sm::math {
 
     template<typename T>
     constexpr inline T kDegToRad = kPi<T> / T(180);
+
+    template<typename T>
+    constexpr T to_radians(T degrees) {
+        return degrees * kDegToRad<T>;
+    }
+
+    template<typename T>
+    constexpr T to_degrees(T radians) {
+        return radians * kRadToDeg<T>;
+    }
 
     template<typename T>
     T clamp(T it, T low, T high) {
@@ -27,7 +38,7 @@ namespace sm::math {
     }
 
     /**
-     * vector types are organized like so
+     * vector types are (sort of) organized as follows:
      *
      * struct Type {
      *    fields...
@@ -85,7 +96,7 @@ namespace sm::math {
 
         bool isinf() const { return std::isinf(x) || std::isinf(y); }
 
-        constexpr bool isUniform() const { return x == y; }
+        constexpr bool is_uniform() const { return x == y; }
 
         constexpr Vec2 neg() const { return Vec2(-x, -y); }
         constexpr Vec2 abs() const { return Vec2(std::abs(x), std::abs(y)); }
@@ -110,7 +121,7 @@ namespace sm::math {
         }
 
         template<typename R>
-        constexpr Vec2 rotate(R angle, const Vec2& origin = Vec2()) const {
+        constexpr Vec2 rotate(R angle, const Vec2& origin = Vec2{}) const {
             auto [x, y] = *this - origin;
 
             auto sin = std::sin(radians(angle));
@@ -122,6 +133,12 @@ namespace sm::math {
             return Vec2(x1, y1) + origin;
         }
 
+        constexpr const T& operator[](size_t index) const { return at(index); }
+        constexpr T& operator[](size_t index) { return at(index); }
+
+        constexpr const T& at(size_t index) const { verify_index(index); return fields[index];}
+        constexpr T& at(size_t index) { verify_index(index); return fields[index]; }
+
         constexpr T *data() { return fields; }
         constexpr const T *data() const { return fields; }
 
@@ -130,6 +147,10 @@ namespace sm::math {
             if constexpr (I == 0) return x;
             else if constexpr (I == 1) return y;
             else static_assert(I < 2, "index out of bounds");
+        }
+
+        constexpr void verify_index(SM_UNUSED size_t index) const {
+            CTASSERTF(index < 2, "index out of bounds (%zu < 2)", index);
         }
     };
 
@@ -179,7 +200,7 @@ namespace sm::math {
 
         bool isinf() const { return std::isinf(x) || std::isinf(y) || std::isinf(z); }
 
-        constexpr bool isUniform() const { return x == y && y == z; }
+        constexpr bool is_uniform() const { return x == y && y == z; }
 
         constexpr Vec3 radians() const { return Vec3(x * kDegToRad<T>, y * kDegToRad<T>, z * kDegToRad<T>); }
         constexpr Vec3 degrees() const { return Vec3(x * kRadToDeg<T>, y * kRadToDeg<T>, z * kRadToDeg<T>); }
@@ -192,6 +213,12 @@ namespace sm::math {
             auto len = length();
             return Vec3(x / len, y / len, z / len);
         }
+
+        constexpr const T& operator[](size_t index) const { return at(index); }
+        constexpr T& operator[](size_t index) { return at(index); }
+
+        constexpr const T& at(size_t index) const { verify_index(index); return fields[index];}
+        constexpr T& at(size_t index) { verify_index(index); return fields[index]; }
 
         static constexpr Vec3 cross(const Vec3& lhs, const Vec3& rhs) {
             return Vec3(
@@ -239,6 +266,10 @@ namespace sm::math {
             else if constexpr (I == 2) return z;
             else static_assert(I < 3, "index out of bounds");
         }
+
+        constexpr void verify_index(SM_UNUSED size_t index) const {
+            CTASSERTF(index < 3, "index out of bounds (%zu < 3)", index);
+        }
     };
 
     template<typename T>
@@ -279,7 +310,7 @@ namespace sm::math {
         constexpr Vec3<T> xyz() const { return Vec3<T>(x, y, z); }
 
         bool isinf() const { return std::isinf(x) || std::isinf(y) || std::isinf(z) || std::isinf(w); }
-        constexpr bool isUniform() const { return x == y && y == z && z == w; }
+        constexpr bool is_uniform() const { return x == y && y == z && z == w; }
 
         constexpr T length() const { return std::sqrt(x * x + y * y + z * z + w * w); }
         constexpr Vec4 negate() const { return Vec4(-x, -y, -z, -w); }
@@ -292,8 +323,8 @@ namespace sm::math {
         constexpr const T& operator[](size_t index) const { return at(index); }
         constexpr T& operator[](size_t index) { return at(index); }
 
-        constexpr const T& at(size_t index) const { return fields[index];}
-        constexpr T& at(size_t index) { return fields[index]; }
+        constexpr const T& at(size_t index) const { verify_index(index); return fields[index];}
+        constexpr T& at(size_t index) { verify_index(index); return fields[index]; }
 
         constexpr T *data() { return fields; }
         constexpr const T *data() const { return fields; }
@@ -305,6 +336,10 @@ namespace sm::math {
             else if constexpr (I == 2) return z;
             else if constexpr (I == 3) return w;
             else static_assert(I < 4, "index out of bounds");
+        }
+
+        constexpr void verify_index(SM_UNUSED size_t index) const {
+            CTASSERTF(index < 4, "index out of bounds (%zu < 4)", index);
         }
     };
 

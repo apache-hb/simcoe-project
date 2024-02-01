@@ -65,8 +65,15 @@ namespace sm::ui {
     using LayoutResultList = sm::Vector<LayoutResult>;
     using LayoutResultSpan = std::span<LayoutResult>;
 
+    constexpr math::uint8x4 rgb(uint8_t r, uint8_t g, uint8_t b) {
+        return { r, g, b, 255 };
+    }
+
     static constexpr math::uint8x4 kColourWhite = { 255, 255, 255, 255 };
     static constexpr math::uint8x4 kColourBlack = { 0, 0, 0, 255 };
+    static constexpr math::uint8x4 kColourGrey = { 128, 128, 128, 255 };
+    static constexpr math::uint8x4 kColourLightGrey = rgb(144, 164, 174);
+    static constexpr math::uint8x4 kColourDarkGrey = rgb(31, 31, 31);
     static constexpr math::uint8x4 kColourRed = { 255, 0, 0, 255 };
     static constexpr math::uint8x4 kColourGreen = { 0, 255, 0, 255 };
     static constexpr math::uint8x4 kColourBlue = { 0, 0, 255, 255 };
@@ -195,8 +202,18 @@ namespace sm::ui {
 
         BoxBounds impl_layout(LayoutInfo& info, BoxBounds bounds) const override;
     public:
-        ZStackWidget& add(const IWidget& widget) {
+        ZStackWidget& push(const IWidget& widget) {
             m_children.push_back(&widget);
+            return *this;
+        }
+
+        ZStackWidget& pop() {
+            m_children.pop_back();
+            return *this;
+        }
+
+        ZStackWidget& padding(Padding padding) {
+            set_padding(padding);
             return *this;
         }
 
@@ -291,7 +308,7 @@ namespace sm::ui {
     };
 
     class Canvas {
-        bool m_need_repaint = false;
+        bool m_need_repaint = true;
         CanvasDrawData m_draw;
         bundle::AssetBundle& m_bundle;
         FontAtlas& m_font;
@@ -302,10 +319,10 @@ namespace sm::ui {
         // user region, relative to screen bounds
         BoxBounds m_user = { { 0.f, 0.f }, { 0.f, 0.f } };
 
-        IWidget& m_root;
+        IWidget *m_root;
 
     public:
-        Canvas(bundle::AssetBundle& bundle, FontAtlas& font, IWidget& root)
+        Canvas(bundle::AssetBundle& bundle, FontAtlas& font, IWidget *root)
             : m_bundle(bundle)
             , m_font(font)
             , m_root(root)
@@ -313,6 +330,7 @@ namespace sm::ui {
 
         void set_screen(math::uint2 size) {
             m_screen = { { 0.f, 0.f }, { float(size.x), float(size.y) } };
+            layout();
         }
 
         void set_user(math::float2 min, math::float2 max) {
@@ -337,5 +355,10 @@ namespace sm::ui {
 
         bool needs_repaint() const { return m_need_repaint; }
         void clear_repaint() { m_need_repaint = false; }
+
+        void set_root(IWidget *root) {
+            m_root = root;
+            layout();
+        }
     };
 }

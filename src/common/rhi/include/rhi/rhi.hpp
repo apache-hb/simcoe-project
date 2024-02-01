@@ -64,6 +64,10 @@ namespace sm::rhi {
 
         constexpr const DXGI_ADAPTER_DESC1& get_desc() const { return m_desc; }
         constexpr std::string_view get_adapter_name() const { return m_name; }
+        constexpr sm::Memory get_vidmem() const { return m_desc.DedicatedVideoMemory; }
+        constexpr sm::Memory get_sysmem() const { return m_desc.DedicatedSystemMemory; }
+        constexpr sm::Memory get_sharedmem() const { return m_desc.SharedSystemMemory; }
+        constexpr AdapterFlag get_flags() const { return AdapterFlag(m_desc.Flags); }
     };
 
     using DescriptorIndex = sm::BitMap::Index;

@@ -13,7 +13,7 @@ namespace sm::ui {
         bundle::AssetBundle& m_assets;
 
         // canvas data
-        ui::Canvas& m_canvas;
+        ui::Canvas *m_canvas;
 
         // canvas pipeline
         static constexpr inline const char *kVertexShader = "shaders/canvas.vs.cso";
@@ -44,7 +44,7 @@ namespace sm::ui {
 
         // font atlas resources
 
-        // TODO: extract this out, and also do rectpacking on it
+        // TODO: extract this out
         bundle::Texture m_font_atlas_texture;
         rhi::ResourceObject m_atlas;
         render::SrvHeapIndex m_font_atlas_index = render::SrvHeapIndex::eInvalid;
@@ -65,8 +65,8 @@ namespace sm::ui {
         void update_viewport(const ui::BoxBounds& bounds);
 
         void resize(render::Context& context, math::uint2 size) override {
-            m_canvas.set_screen(size);
-            auto bounds = m_canvas.get_screen();
+            m_canvas->set_screen(size);
+            auto bounds = m_canvas->get_screen();
 
             update_camera(bounds);
             update_viewport(bounds);
@@ -77,9 +77,13 @@ namespace sm::ui {
         void build(render::Context& context) override;
 
     public:
-        CanvasCommands(ui::Canvas& canvas, bundle::AssetBundle& assets)
+        CanvasCommands(ui::Canvas *canvas, bundle::AssetBundle& assets)
             : m_assets(assets)
             , m_canvas(canvas)
         { }
+
+        void change_canvas(ui::Canvas *canvas) {
+            m_canvas = canvas;
+        }
     };
 }

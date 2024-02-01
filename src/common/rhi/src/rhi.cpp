@@ -5,6 +5,10 @@
 
 #include "d3dx12/d3dx12_barriers.h"
 
+#include "core/reflect.hpp" // IWYU pragma: export
+#include "math/format.hpp"  // IWYU pragma: export
+#include "i18n/i18n.hpp"
+
 using namespace sm;
 using namespace sm::rhi;
 
@@ -193,14 +197,12 @@ void Device::setup_device() {
         if (HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(&dred)); SUCCEEDED(hr)) {
             dred->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
             dred->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-
-            m_log.info("enabled d3d12 dred");
         } else {
             m_log.error("failed to create d3d12 debug interface: {}", hresult_string(hr));
         }
     }
 
-    m_log.info("using adapter: {}", m_adapter.get_adapter_name());
+    m_log.info("| using adapter: {}", m_adapter.get_adapter_name());
 
     CTASSERTF(fl.is_valid(), "invalid feature level %s", refl.to_string(fl, 16).data());
 
@@ -315,19 +317,6 @@ void Device::setup_swapchain() {
 }
 
 void Device::init() {
-    auto config = get_config();
-    constexpr auto df_refl = ctu::reflect<DebugFlags>();
-    constexpr auto ap_refl = ctu::reflect<AdapterPreference>();
-    constexpr auto fl_refl = ctu::reflect<FeatureLevel>();
-
-    m_log.info("creating rhi context");
-    m_log.info(" - flags: {}", df_refl.to_string(config.debug_flags, 2).data());
-    m_log.info(" - rtv heap size: {}", config.rtv_heap_size);
-    m_log.info(" - adapter lookup: {}", ap_refl.to_string(config.adapter_lookup, 10).data());
-    m_log.info(" - adapter index: {}", config.adapter_index);
-    m_log.info(" - software adapter: {}", config.software_adapter);
-    m_log.info(" - feature level: {}", fl_refl.to_string(config.feature_level, 16).data());
-
     setup_device();
     query_features();
     setup_direct_queue();
@@ -351,8 +340,7 @@ void Device::query_features() {
         m_features.gpu_upload_heap = options.GPUUploadHeapSupported;
     }
 
-    m_log.info("features:");
-    m_log.info(" - gpu upload heap: {}", (bool)m_features.gpu_upload_heap);
+    m_log.info("|| gpu upload heap: {}", (bool)m_features.gpu_upload_heap);
 }
 
 void Device::record_commands() {
@@ -419,7 +407,7 @@ void Device::resize(math::uint2 size) {
         m_frames[i].fence_value = m_frames[m_frame_index].fence_value;
     }
 
-    m_log.info("resizing swapchain to {}x{}", size.x, size.y);
+    m_log.info("resizing swapchain to {}", size);
 
     SM_ASSERT_HR(m_swapchain->ResizeBuffers(config.buffer_count, size.x, size.y,
                                             get_data_format(config.buffer_format), 0));
@@ -467,7 +455,7 @@ void Factory::enum_adapters() {
     for (UINT i = 0; m_factory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; i++) {
         Adapter &handle = m_adapters.emplace_back(adapter);
 
-        m_log.info("found adapter: {}", handle.get_adapter_name());
+        m_log.info("|| {}: {}", i, handle.get_adapter_name());
     }
 }
 
@@ -475,28 +463,41 @@ void Factory::enum_warp_adapter() {
     IDXGIAdapter1 *adapter;
     SM_ASSERT_HR(m_factory->EnumWarpAdapter(IID_PPV_ARGS(&adapter)));
 
-    m_adapters.emplace_back(adapter);
+    Adapter& handle = m_adapters.emplace_back(adapter);
+
+    m_log.info("|| warp: {}", handle.get_adapter_name());
 }
 
 void Factory::init() {
     auto &config = get_config();
+
+    m_log.info("creating rhi context");
+    m_log.info("| flags: {:b}", config.debug_flags);
+    m_log.info("| rtv heap size: {}", config.rtv_heap_size);
+    m_log.info("| adapter lookup: {}", config.adapter_lookup);
+    m_log.info("| adapter index: {}", config.adapter_index);
+    m_log.info("| software adapter: {}", config.software_adapter);
+    m_log.info("| feature level: {:x}", config.feature_level);
+
     bool debug_factory = config.debug_flags.test(DebugFlags::eFactoryDebug);
 
     UINT flags = debug_factory ? DXGI_CREATE_FACTORY_DEBUG : 0u;
 
     SM_ASSERT_HR(CreateDXGIFactory2(flags, IID_PPV_ARGS(&m_factory)));
-    m_log.info("created dxgi factory with flags 0x{:x}", flags);
 
     if (debug_factory) {
         if (HRESULT hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&m_factory_debug)); SUCCEEDED(hr)) {
-            m_log.info("created dxgi debug interface");
             m_factory_debug->EnableLeakTrackingForThread();
         } else {
             m_log.error("failed to create dxgi debug interface: {}", hresult_string(hr));
         }
     }
 
-    if (config.software_adapter) {
+    bool warp = config.software_adapter;
+
+    m_log.info("enumerating {} {}", warp ? "warp" : "all", i18n::plural("adapter", !warp));
+
+    if (warp) {
         enum_warp_adapter();
     } else {
         enum_adapters();

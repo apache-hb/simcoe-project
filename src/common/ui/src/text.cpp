@@ -38,26 +38,10 @@ ShapedTextIterator& ShapedTextIterator::operator++() {
 
 ShapedText::ShapedText(hb_buffer_t *buffer)
     : m_buffer(buffer)
-    , m_glyph_count(hb_buffer_get_length(m_buffer))
-    , m_glyph_info(hb_buffer_get_glyph_infos(m_buffer, nullptr))
-    , m_glyph_position(hb_buffer_get_glyph_positions(m_buffer, nullptr))
+    , m_glyph_count(hb_buffer_get_length(m_buffer.get()))
+    , m_glyph_info(hb_buffer_get_glyph_infos(m_buffer.get(), nullptr))
+    , m_glyph_position(hb_buffer_get_glyph_positions(m_buffer.get(), nullptr))
 { }
-
-ShapedText::ShapedText(ShapedText&& other) noexcept
-    : m_buffer(other.m_buffer)
-    , m_glyph_count(other.m_glyph_count)
-    , m_glyph_info(other.m_glyph_info)
-    , m_glyph_position(other.m_glyph_position)
-{
-    other.m_buffer = nullptr;
-    other.m_glyph_count = 0;
-    other.m_glyph_info = nullptr;
-    other.m_glyph_position = nullptr;
-}
-
-ShapedText::~ShapedText() {
-    if (m_buffer) hb_buffer_destroy(m_buffer);
-}
 
 ShapedTextIterator ShapedText::begin() const {
     return { 0, m_glyph_info, m_glyph_position };
@@ -67,21 +51,12 @@ ShapedTextIterator ShapedText::end() const {
     return { m_glyph_count, m_glyph_info, m_glyph_position };
 }
 
-TextShaper::TextShaper(bundle::Font& font) {
-    hb_font_t *new_font = hb_ft_font_create_referenced(font.get_face());
-    hb_face_t *new_face = hb_font_get_face(new_font);
-
-    hb_ft_font_set_funcs(new_font);
-    hb_face_set_upem(new_face, 64);
-
-    m_font = new_font;
-    m_face = new_face;
-}
-
-TextShaper::~TextShaper() {
-    CTASSERTF(m_font != nullptr, "font was not destroyed");
-    hb_font_destroy(m_font);
-    m_font = nullptr;
+TextShaper::TextShaper(bundle::Font& font)
+    : m_font(hb_ft_font_create_referenced(font.get_face()))
+    , m_face(hb_font_get_face(m_font.get()))
+{
+    hb_ft_font_set_funcs(m_font.get());
+    hb_face_set_upem(m_face, 64);
 }
 
 ShapedText TextShaper::shape(utf8::StaticText text) const {
@@ -92,7 +67,7 @@ ShapedText TextShaper::shape(utf8::StaticText text) const {
     hb_buffer_set_script(buffer, HB_SCRIPT_LATIN);
     hb_buffer_set_language(buffer, hb_language_from_string("en", -1));
 
-    hb_shape(m_font, buffer, nullptr, 0);
+    hb_shape(m_font.get(), buffer, nullptr, 0);
 
     return ShapedText(buffer);
 }

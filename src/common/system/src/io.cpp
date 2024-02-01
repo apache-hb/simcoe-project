@@ -293,7 +293,10 @@ FileMapping::FileMapping(const MappingConfig& config)
 
     m_valid = create();
     if (m_valid) {
-        m_log.info("file mapping created, path: {}, size: {}, record count: {}", m_path, m_size, m_capacity);
+        m_log.info("file mapping created");
+        m_log.info("| path: {}", m_path);
+        m_log.info("| size: {}", m_size);
+        m_log.info("| records: {}", m_capacity);
     }
 }
 

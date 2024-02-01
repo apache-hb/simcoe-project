@@ -7,13 +7,19 @@
 #include "input.reflect.h"
 
 namespace sm::input {
-    using ButtonState = std::array<size_t, size_t(Button::eCount)>;
-    using AxisState = std::array<float, size_t(Axis::eCount)>;
+    using ButtonState = std::array<size_t, Button::kCount>;
+    using AxisState = std::array<float, Axis::kCount>;
 
     struct InputState {
         InputDevice device;
         ButtonState buttons;
         AxisState axes;
+
+        constexpr bool update_button(Button button, size_t next) {
+            bool updated = buttons[button] != next;
+            buttons[button] = next;
+            return updated;
+        }
     };
 
     class ISource {

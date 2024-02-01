@@ -91,8 +91,7 @@ static const std::map<int, input::Button> kButtons = {
 
 void DesktopInput::set_key(WORD key, size_t value) {
     if (auto it = kButtons.find(key); it != kButtons.end()) {
-        auto i = it->second.as_integral();
-        m_buttons[i] = value;
+        m_buttons[it->second] = value;
     }
 }
 
@@ -127,9 +126,8 @@ DesktopInput::DesktopInput(sys::Window& window)
 bool DesktopInput::poll(input::InputState& state) {
     bool dirty = false;
 
-    for (const auto& [vk, button] : kButtons) {
-        auto i = button.as_integral();
-        dirty |= update(state.buttons[i], m_buttons[i]);
+    for (const auto& [_, button] : kButtons) {
+        dirty |= state.update_button(button, m_buttons[button]);
     }
 
     return dirty;

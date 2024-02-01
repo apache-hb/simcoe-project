@@ -26,14 +26,6 @@ namespace sm::ui {
     public:
         SM_NOCOPY(FontAtlas)
 
-        FontAtlas(FontAtlas&& other)
-            : m_font(other.m_font)
-            , m_shaper(std::move(other.m_shaper))
-            , m_image(std::move(other.m_image))
-            , m_white_pixel_uv(other.m_white_pixel_uv)
-            , glyphs(std::move(other.glyphs))
-        { }
-
         // lookup info
         sm::Map<char32_t, GlyphInfo> glyphs;
 

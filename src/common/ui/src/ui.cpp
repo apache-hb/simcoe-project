@@ -346,6 +346,14 @@ BoxBounds StyleWidget::impl_layout(LayoutInfo& info, BoxBounds bounds) const {
     return child.bounds;
 }
 
+BoxBounds ZStackWidget::impl_layout(LayoutInfo& info, BoxBounds bounds) const {
+    for (auto& child : m_children) {
+        child->layout(info, bounds);
+    }
+
+    return bounds;
+}
+
 BoxBounds VStackWidget::impl_layout(LayoutInfo& info, BoxBounds bounds) const {
     size_t count = m_children.size();
     // split the bounds into equal vertical slices
@@ -558,6 +566,6 @@ void Canvas::layout() {
     m_draw.vertices.clear();
 
     LayoutInfo info = { m_draw, *this };
-    m_root.layout(info, get_user());
+    m_root->layout(info, get_user());
     m_need_repaint = true;
 }

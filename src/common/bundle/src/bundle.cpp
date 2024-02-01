@@ -17,10 +17,8 @@ static BinaryData read_file(fs_t *fs, const char *path) {
     io_t *io = fs_open(fs, path, eAccessRead);
     CTASSERTF(io != nullptr, "failed to open file %s", path);
 
-    IArena& pool = sm::get_pool(sm::Pool::eAssets);
-
     io_error_t err = io_error(io);
-    CTASSERTF(err == 0, "failed to open file %s: %s", path, os_error_string(err, &pool));
+    CTASSERTF(err == 0, "failed to open file %s: %s", path, os_error_string(err, &sm::get_pool(sm::Pool::eAssets)));
 
     size_t size = io_size(io);
     const void *data = io_map(io, eProtectRead);
