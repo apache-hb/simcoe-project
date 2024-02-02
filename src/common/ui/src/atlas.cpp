@@ -14,7 +14,7 @@ static constexpr char32_t kInvalidCodepoint = 0xFFFD;
 FontAtlas::FontAtlas(bundle::Font& font, math::uint2 size, std::span<const char32_t> codepoints)
     : m_font(font)
     , m_shaper(font)
-    , m_image(size)
+    , m_image(size, 0)
 {
     size_t len = codepoints.size();
     sm::UniquePtr<stbrp_node[]> nodes = len + 1;

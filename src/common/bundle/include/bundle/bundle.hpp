@@ -38,6 +38,12 @@ namespace sm::bundle {
             , data(size_t(sz.width * sz.height * 4))
         { }
 
+        Image(math::uint2 sz, uint8_t fill)
+            : Image(sz)
+        {
+            data.fill(fill);
+        }
+
         Image(math::uint2 sz, DataFormat fmt, sm::UniqueArray<uint8_t>&& data)
             : format(fmt)
             , size(sz)

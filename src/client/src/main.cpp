@@ -46,6 +46,8 @@ static constexpr auto enum_to_string(T value) {
     return refl.to_string(value);
 }
 
+// TODO: clean up loggers
+
 class FileLog final : public logs::ILogger {
     sm::FormatBuffer m_buffer;
     io_t *io;
@@ -169,7 +171,7 @@ class BroadcastLog final : public logs::ILogger {
 
     void accept(const logs::Message &message) override {
         for (ILogger *logger : m_loggers) {
-            logger->log(message.category, message.severity, message.message, message.timestamp);
+            logger->log(message);
         }
     }
 

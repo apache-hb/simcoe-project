@@ -67,5 +67,11 @@ namespace sm {
 
         constexpr T *end() { return Super::get() + m_size; }
         constexpr const T *end() const { return Super::get() + m_size; }
+
+        constexpr void fill(const T &value) {
+            for (auto& it : *this) {
+                it = value;
+            }
+        }
     };
 }
