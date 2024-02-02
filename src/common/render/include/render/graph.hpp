@@ -4,7 +4,6 @@
 
 namespace sm::render {
     class BeginCommands : public render::IRenderNode {
-
         void build(render::Context& ctx) override {
             ctx.begin_frame();
 
@@ -17,7 +16,6 @@ namespace sm::render {
     };
 
     class EndCommands : public render::IRenderNode {
-
         void build(render::Context& ctx) override {
             ctx.end_frame();
         }

@@ -13,6 +13,12 @@ project('simcoe', [ 'c', 'cpp' ],
 
         'default_library=static',
 
+        # nobody builds with clean warnings, so disable them per subproject
+        'fmt:warning_level=0',
+        'harfbuzz:warning_level=0',
+        'freetype2:warning_level=0',
+
+        # disable everything except reflect
         'cthulhu:auto_features=disabled',
         'cthulhu:tool_reflect=enabled',
         'cthulhu:win32_trickery=enabled',
@@ -27,17 +33,6 @@ project('simcoe', [ 'c', 'cpp' ],
         'harfbuzz:cpp_std=c++20',
         'harfbuzz:tests=disabled',
         'harfbuzz:freetype=enabled',
-
-        # we dont want zlib to use any file io
-        'zlib:solo=true',
-        'zlib:tests=disabled',
-
-        # nobody builds with clean warnings, so disable them per subproject
-        'fmt:warning_level=0',
-        'harfbuzz:warning_level=0',
-        'freetype2:warning_level=0',
-        'zlib:warning_level=0',
-        'minizip:warning_level=0',
     ]
 )
 
@@ -74,10 +69,6 @@ warp = subproject('d3d-warp')
 # than this one
 dxc = subproject('dxc').get_variable('dxc')
 
-zlib_ng = subproject('zlib-ng')
-minizip_ng = subproject('minizip-ng')
-
-minizip = dependency('minizip')
 windows = import('windows')
 
 stb = subproject('stb').get_variable('stb')

@@ -7,3 +7,4 @@ source_hash = d4458f21c756544a2dd44fa8bbe79fca88862a5f3f824d218c95b3e8fe7d8d01
 patch_directory = zlib-ng
 
 [provide]
+zlib-ng = zlib_ng_dep

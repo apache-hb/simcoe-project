@@ -122,7 +122,7 @@ namespace sm {
         using Super = UniquePtr<T, TDelete>;
         using Super::Super;
 
-        constexpr UniquePtr(T *data, SM_UNUSED size_t size)
+        constexpr UniquePtr(T *data, size_t size)
             : Super(data)
             , m_size(size)
         { }
@@ -135,7 +135,7 @@ namespace sm {
             : UniquePtr(new T[size], size)
         { }
 
-        constexpr void reset(SM_UNUSED size_t size) {
+        constexpr void reset(size_t size) {
             Super::destroy();
             Super::reset(new T[size]);
             SM_DBG_REF(m_size) = size;

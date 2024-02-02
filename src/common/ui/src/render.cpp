@@ -167,7 +167,7 @@ void CanvasCommands::setup_font_atlas(render::Context& context) {
     const UINT kSlicePitch = kRowPitch * atlas.size.height;
 
     const D3D12_SUBRESOURCE_DATA kTextureInfo{
-        .pData = atlas.data.data(),
+        .pData = atlas.data.get(),
         .RowPitch = kRowPitch,
         .SlicePitch = kSlicePitch,
     };

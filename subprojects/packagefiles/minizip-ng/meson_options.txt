@@ -1,21 +1,7 @@
-option('zlib', type : 'feature',
-    description : 'Enable ZLIB compression',
-    value : 'auto'
-)
-
-option('bzip2', type : 'feature',
-    description : 'Enable BZIP2 compression',
-    value : 'auto'
-)
-
-option('lzma', type : 'feature',
-    description : 'Enable LZMA compression',
-    value : 'auto'
-)
-
-option('zstd', type : 'feature',
-    description : 'Enable ZSTD compression',
-    value : 'auto'
+option('compressors', type : 'array',
+    description : 'Choose compressors to build',
+    value : ['zlib', 'bzip2', 'lzma', 'zstd'],
+    choices : ['zlib', 'bzip2', 'lzma', 'zstd']
 )
 
 option('features', type : 'combo',

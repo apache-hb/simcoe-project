@@ -8,3 +8,4 @@ source_hash = 11f4b9e6c4a7c6b99184c0f2887c2b89f0b3e78ef8200107240efd449b77dc39
 patch_directory = minizip-ng
 
 [provide]
+minizip_ng = minizip_ng_dep

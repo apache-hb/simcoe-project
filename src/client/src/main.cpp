@@ -1,7 +1,3 @@
-#define NOMINMAX
-#include <windows.h>
-#undef STRICT
-
 #include "core/arena.hpp"
 #include "core/backtrace.hpp"
 #include "core/format.hpp"
@@ -21,7 +17,6 @@
 #include "base/panic.h"
 #include "ui/control.hpp"
 #include "ui/render.hpp"
-
 
 #include "backtrace/backtrace.h"
 #include "format/backtrace.h"
@@ -339,6 +334,8 @@ constinit static DefaultSystemError gDefaultError{gGlobalArena};
 
 static BroadcastLog gGlobalLog{logs::Severity::eInfo};
 
+// i wont explain this
+extern "C" HWND WINAPI GetConsoleWindow(void);
 static bool is_console_app() {
     return GetConsoleWindow() != nullptr;
 }

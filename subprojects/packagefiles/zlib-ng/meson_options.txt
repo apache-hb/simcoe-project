@@ -2,6 +2,7 @@ option('gzfileop', type : 'feature',
     description : 'Compile with support for gzFile related functions',
     value : 'auto'
 )
+
 option('zlib_compat', type : 'feature',
     description : 'Compile with zlib compatible API',
     value : 'auto'
@@ -52,7 +53,7 @@ option('inflate_strict', type : 'feature',
     value : 'auto'
 )
 
-option('inflate_allow_invalid_dist', type : 'feature',
+option('inflate_invalid_dist', type : 'feature',
     description : 'Build with zero fill for inflate invalid distances',
     value : 'auto'
 )
@@ -62,92 +63,20 @@ option('unaligned', type : 'feature',
     value : 'auto'
 )
 
-option('with_acle', type : 'feature',
-    description : 'Build with ACLE',
-    value : 'auto'
-)
+option('extensions', type : 'array',
+    description : 'Enable architecture specific extensions',
+    choices : [
+        'acle', 'neon', 'armv6', 'altivec',
+        'power8', 'power9', 'rvv', 'dfltcc_deflate',
+        'dfltcc_inflate', 'crc32_vx', 'avx2', 'avx512',
+        'avx512vnni', 'sse2', 'ssse3', 'sse42',
+        'pclmulqdq', 'vpclmulqdq'
+    ],
+    value : [
+        'acle', 'neon', 'armv6', 'altivec',
+        'power8', 'power9', 'rvv', 'dfltcc_deflate',
+        'dfltcc_inflate', 'crc32_vx',
 
-option('with_neon', type : 'feature',
-    description : 'Build with NEON intrinsics',
-    value : 'auto'
-)
-
-option('with_armv6', type : 'feature',
-    description : 'Build with ARMv6 SIMD',
-    value : 'auto'
-)
-
-option('with_altivec', type : 'feature',
-    description : 'Build with AltiVec (VMX) optimisations for PowerPC',
-    value : 'auto'
-)
-
-option('with_power8', type : 'feature',
-    description : 'Build with optimisations for POWER8',
-    value : 'auto'
-)
-
-option('with_power9', type : 'feature',
-    description : 'Build with optimisations for POWER9',
-    value : 'auto'
-)
-
-option('with_rvv', type : 'feature',
-    description : 'Build with RVV intrinsics',
-    value : 'auto'
-)
-
-option('with_dfltcc_deflate', type : 'feature',
-    description : 'Build with DFLTCC intrinsics for compression on IBM Z',
-    value : 'auto'
-)
-
-option('with_dfltcc_inflate', type : 'feature',
-    description : 'Build with DFLTCC intrinsics for decompression on IBM Z',
-    value : 'auto'
-)
-
-option('with_crc32_vx', type : 'feature',
-    description : 'Build with vectorized CRC32 on IBM Z',
-    value : 'auto'
-)
-
-option('with_avx2', type : 'feature',
-    description : 'Build with AVX2',
-    value : 'auto'
-)
-
-option('with_avx512', type : 'feature',
-    description : 'Build with AVX512',
-    value : 'auto'
-)
-
-option('with_avx512vnni', type : 'feature',
-    description : 'Build with AVX512 VNNI extensions',
-    value : 'auto'
-)
-
-option('with_sse2', type : 'feature',
-    description : 'Build with SSE2',
-    value : 'auto'
-)
-
-option('with_ssse3', type : 'feature',
-    description : 'Build with SSSE3',
-    value : 'auto'
-)
-
-option('with_sse42', type : 'feature',
-    description : 'Build with SSE42',
-    value : 'auto'
-)
-
-option('with_pclmulqdq', type : 'feature',
-    description : 'Build with PCLMULQDQ',
-    value : 'auto'
-)
-
-option('with_vpclmulqdq', type : 'feature',
-    description : 'Build with VPCLMULQDQ',
-    value : 'auto'
+        'avx2', 'sse2', 'ssse3', 'sse42'
+    ]
 )

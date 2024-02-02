@@ -163,19 +163,19 @@ void WorldCommands::setup_assets(render::Context &ctx) {
     };
 
     // create vbo
-    // constexpr Vertex kVertexData[] = {
-    //     {{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f}},
-    //     {{-0.5f, 0.5f, 0.0f}, {0.0f, 1.0f}},
-    //     {{0.5f, -0.5f, 0.0f}, {1.0f, 0.0f}},
-    //     {{0.5f, 0.5f, 0.0f}, {1.0f, 1.0f}},
-    // };
-
     constexpr Vertex kVertexData[] = {
-        {{-1.f, -1.f, 0.0f}, {0.0f, 0.0f}},
-        {{-1.f, 1.f, 0.0f}, {0.0f, 1.0f}},
-        {{1.f, -1.f, 0.0f}, {1.0f, 0.0f}},
-        {{1.f, 1.f, 0.0f}, {1.0f, 1.0f}},
+        {{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f}},
+        {{-0.5f, 0.5f, 0.0f}, {0.0f, 1.0f}},
+        {{0.5f, -0.5f, 0.0f}, {1.0f, 0.0f}},
+        {{0.5f, 0.5f, 0.0f}, {1.0f, 1.0f}},
     };
+
+    // constexpr Vertex kVertexData[] = {
+    //     {{-1.f, -1.f, 0.0f}, {0.0f, 0.0f}},
+    //     {{-1.f, 1.f, 0.0f}, {0.0f, 1.0f}},
+    //     {{1.f, -1.f, 0.0f}, {1.0f, 0.0f}},
+    //     {{1.f, 1.f, 0.0f}, {1.0f, 1.0f}},
+    // };
 
     constexpr UINT kVboSize = sizeof(kVertexData);
 
@@ -249,15 +249,11 @@ void WorldCommands::setup_camera(render::Context &ctx) {
 }
 
 void WorldCommands::update_camera() {
-    // float aspect = float(m_size.x) / float(m_size.y);
-    // m_camera.view =
-    //     math::float4x4::lookAtRH({1.0f, 1.0f, 1.0f}, {0.1f, 0.1f, 0.1f}, kUpVector).transpose();
-    // m_camera.projection = math::float4x4::perspectiveRH(90.0f * math::kDegToRad<float>, aspect,
-    //                                                     0.1f, 100.0f)
-    //                           .transpose();
-
-    m_camera.model = math::float4x4::identity();
-    m_camera.view = math::float4x4::identity();
-    m_camera.projection = math::float4x4::identity();
+    float aspect = float(m_size.x) / float(m_size.y);
+    m_camera.view =
+        math::float4x4::lookAtRH({1.0f, 1.0f, 1.0f}, {0.1f, 0.1f, 0.1f}, kUpVector).transpose();
+    m_camera.projection = math::float4x4::perspectiveRH(90.0f * math::kDegToRad<float>, aspect,
+                                                        0.1f, 100.0f)
+                              .transpose();
     *m_camera_data = m_camera;
 }

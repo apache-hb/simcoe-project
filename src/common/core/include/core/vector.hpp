@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/arena.hpp"
+#include "core/unique.hpp"
 
 #include <vector>
 
@@ -39,5 +40,32 @@ namespace sm {
             CTASSERTF(m_used < N, "vector would overflow (%zu < %zu)", m_used, N);
             return m_data[m_used++] = T{std::forward<decltype(args)>(args)...};
         }
+    };
+
+    template<typename T, typename TDelete = DefaultDelete<T>>
+    class UniqueArray : public UniquePtr<T, TDelete> {
+        using Super = UniquePtr<T, TDelete>;
+        size_t m_size;
+
+    public:
+        constexpr UniqueArray(T *data, size_t capacity)
+            : Super(data)
+            , m_size(capacity)
+        { }
+
+        constexpr UniqueArray(size_t capacity)
+            : UniqueArray(new T[capacity], capacity)
+        { }
+
+        constexpr size_t size() const { return m_size; }
+
+        constexpr T &operator[](size_t index) { return Super::get()[index]; }
+        constexpr const T &operator[](size_t index) const { return Super::get()[index]; }
+
+        constexpr T *begin() { return Super::get(); }
+        constexpr const T *begin() const { return Super::get(); }
+
+        constexpr T *end() { return Super::get() + m_size; }
+        constexpr const T *end() const { return Super::get() + m_size; }
     };
 }

@@ -29,7 +29,7 @@ namespace sm::bundle {
     struct Image {
         DataFormat format = DataFormat::eRGBA8_UINT;
         math::uint2 size;
-        sm::Vector<uint8_t> data;
+        sm::UniqueArray<uint8_t> data;
 
         SM_NOCOPY(Image)
 
@@ -38,7 +38,7 @@ namespace sm::bundle {
             , data(size_t(sz.width * sz.height * 4))
         { }
 
-        Image(math::uint2 sz, DataFormat fmt, sm::Vector<uint8_t>&& data)
+        Image(math::uint2 sz, DataFormat fmt, sm::UniqueArray<uint8_t>&& data)
             : format(fmt)
             , size(sz)
             , data(std::move(data))
@@ -100,10 +100,6 @@ namespace sm::bundle {
         sm::Map<sm::String, Font> m_fonts;
         sm::Map<sm::String, Image> m_images;
 
-        // TODO: figure out zlib properly
-        void extract_dirent(void *zip, const char *path);
-        void inflate_zip(const char *path);
-
         void open_fs();
 
     public:
@@ -115,7 +111,6 @@ namespace sm::bundle {
             , m_log(logger)
         {
             open_fs();
-            // inflate_zip(path);
         }
 
         BinarySpan load_shader(const char *path);
