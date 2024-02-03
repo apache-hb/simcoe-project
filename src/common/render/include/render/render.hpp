@@ -8,7 +8,6 @@
 namespace sm::render {
     class Context;
     class IGraphNode;
-    class PassAttachment;
     class CommandList;
 
     using RenderSink = logs::Sink<logs::Category::eRender>;
@@ -16,17 +15,6 @@ namespace sm::render {
     static inline constexpr math::float3 kUpVector = { 0.0f, 0.0f, 1.0f };
     static inline constexpr math::float3 kForwardVector = { 0.0f, 1.0f, 0.0f };
     static inline constexpr math::float3 kRightVector = { 1.0f, 0.0f, 0.0f };
-
-    struct CBUFFER_ALIGN CameraBuffer {
-        math::float4x4 model;
-        math::float4x4 view;
-        math::float4x4 projection;
-    };
-
-    struct Vertex {
-        math::float3 position;
-        math::float2 uv;
-    };
 
     template<rhi::DescriptorHeapType::Inner T> requires (rhi::DescriptorHeapType{T}.is_valid())
     class DescriptorArena {
@@ -71,18 +59,42 @@ namespace sm::render {
     using RtvHeapIndex = RtvArena::Index;
 
     class GraphEdge {
+        friend class Context;
 
+        IGraphNode& m_node;
+        ResourceType m_type;
+        rhi::ResourceState m_state;
+
+        void set_state(rhi::ResourceState state) { m_state = state; }
+
+    protected:
+        GraphEdge(IGraphNode& node, ResourceType type, rhi::ResourceState state)
+            : m_node(node)
+            , m_type(type)
+            , m_state(state)
+        { }
+
+    public:
+        virtual ~GraphEdge() = default;
+
+        constexpr ResourceType get_type() const { return m_type; }
+        constexpr rhi::ResourceState get_state() const { return m_state; }
     };
 
-    class NodeInput : GraphEdge {
-        rhi::ResourceState m_expects;
+    class NodeInput : public GraphEdge {
+        friend class Context;
+
+        virtual void update(Context& context) = 0;
     };
 
-    class NodeOutput : GraphEdge {
+    class NodeOutput : public GraphEdge {
+        friend class Context;
 
+        virtual void update(Context& context) = 0;
     };
 
     using NodeInputPtr = sm::UniquePtr<NodeInput>;
+    using NodeOutputPtr = sm::UniquePtr<NodeOutput>;
 
     struct ResourceBinding {
         rhi::DescriptorHeapType heap;
@@ -100,19 +112,26 @@ namespace sm::render {
         friend class Context;
 
         sm::Vector<NodeInputPtr> m_inputs;
+        sm::Vector<NodeOutputPtr> m_outputs;
+
+        // runs before build to get resources for the nodes inputs
+        void prebuild(Context& context);
+
+        // runs after to wire any resources to the outputs
+        void postbuild(Context& context);
+
+        // internal node execution
+        void build(Context& context);
 
     protected:
-        NodeInput& add_input() {
-            auto& input = m_inputs.emplace_back();
-            return *input.get();
-        }
-
         virtual void create(Context& context) { }
         virtual void destroy(Context& context) { }
 
         virtual void resize(Context& context, math::uint2 size) { }
+        virtual void execute(Context& context) { }
 
-        virtual void build(Context& context) = 0;
+        NodeInput *add_input(ResourceType type, rhi::ResourceState state);
+        NodeOutput *add_output(ResourceType type, rhi::ResourceState state);
 
     public:
         virtual ~IGraphNode() = default;
@@ -134,10 +153,11 @@ namespace sm::render {
         SrvArena m_srv_arena;
         RtvArena m_rtv_arena;
 
-        // the render graph is just a tree of nodes like an ast
+        // all graph nodes
         sm::Vector<GraphNodePtr> m_nodes;
-        sm::Map<NodeInput*, IGraphNode*> m_edges;
-        sm::Map<IGraphNode*, bool> m_executed;
+
+        // edges between nodes
+        sm::MultiMap<NodeOutput*, NodeInput*> m_edges;
 
         void execute_inner(IGraphNode& node);
 
@@ -156,16 +176,30 @@ namespace sm::render {
             return *node;
         }
 
-        void connect(NodeInput* dst, IGraphNode* src);
-
         void execute_node(IGraphNode& node);
         void destroy_node(IGraphNode& node);
-
         void resize(math::uint2 size);
+
+        ///
+        /// render pass resource api
+        ///
+
+        void connect(NodeInput& input, NodeOutput& output);
+
+        rhi::ResourceObject get_input(const NodeInput& input);
+        void set_output(const NodeOutput& output, rhi::ResourceObject resource);
+
+        ///
+        /// stuff that needs to be deleted at some point
+        ///
 
         void begin_frame();
         void end_frame();
         void present();
+
+        ///
+        /// getters and setters
+        ///
 
         rhi::Device& get_rhi() { return m_device; }
         ID3D12Device1 *get_rhi_device() { return m_device.get_device(); }

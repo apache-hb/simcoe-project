@@ -1,7 +1,6 @@
 #pragma once
 
 #include <simcoe_config.h>
-#include <type_traits>
 
 #include "base/panic.h" // IWYU pragma: keep
 

@@ -50,7 +50,7 @@ logs::Severity MessageSeverity::get_log_severity() const {
 }
 
 D3D12_RESOURCE_STATES ResourceState::get_inner_state() const {
-    SM_UNUSED constexpr auto refl = ctu::reflect<ResourceState>();
+    using Reflect = ctu::TypeInfo<ResourceState>;
     using enum ResourceState::Inner;
     switch (m_value) {
     case ePresent: return D3D12_RESOURCE_STATE_PRESENT;
@@ -72,23 +72,23 @@ D3D12_RESOURCE_STATES ResourceState::get_inner_state() const {
     case eShaderResourceTextureRead: return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
     case eTextureWrite: return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 
-    default: NEVER("invalid resource state %s", refl.to_string(m_value).data());
+    default: NEVER("invalid resource state %s", Reflect::to_string(m_value).data());
     }
 }
 
 D3D12_DESCRIPTOR_RANGE_TYPE BindingType::get_range_type() const {
-    SM_UNUSED constexpr auto refl = ctu::reflect<BindingType>();
+    using Reflect = ctu::TypeInfo<BindingType>;
     using enum BindingType::Inner;
     switch (m_value) {
     case eTexture: return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
     case eUniform: return D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 
-    default: NEVER("invalid binding type %s", refl.to_string(m_value).data());
+    default: NEVER("invalid binding type %s", Reflect::to_string(m_value).data());
     }
 }
 
 DXGI_FORMAT rhi::get_data_format(bundle::DataFormat format) {
-    SM_UNUSED constexpr auto refl = ctu::reflect<bundle::DataFormat>();
+    using Reflect = ctu::TypeInfo<bundle::DataFormat>;
     using enum bundle::DataFormat::Inner;
     switch (format) {
     case eRGBA8_UNORM: return DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -99,7 +99,7 @@ DXGI_FORMAT rhi::get_data_format(bundle::DataFormat format) {
     case eUINT16: return DXGI_FORMAT_R16_UINT;
     case eUINT32: return DXGI_FORMAT_R32_UINT;
 
-    default: NEVER("invalid data format %s", refl.to_string(format).data());
+    default: NEVER("invalid data format %s", Reflect::to_string(format).data());
     }
 }
 
@@ -147,11 +147,7 @@ void Device::info_callback(D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERI
     MessageID msg{id};
     Device *device = reinterpret_cast<Device *>(user);
 
-    constexpr auto cat_refl = ctu::reflect<MessageCategory>();
-    constexpr auto id_refl = ctu::reflect<MessageID>();
-
-    device->m_log(sev.get_log_severity(), "{} {}: {}", cat_refl.to_string(cat).data(),
-               id_refl.to_string(msg).data(), desc);
+    device->m_log(sev.get_log_severity(), "{} {}: {}", cat, msg, desc);
 }
 
 Device::Device(const RenderConfig &config, Factory &factory)
@@ -202,7 +198,7 @@ void Device::setup_device() {
         }
     }
 
-    m_log.info("| using adapter: {}", m_adapter.get_adapter_name());
+    m_log.info("using adapter: {}", m_adapter.get_adapter_name());
 
     CTASSERTF(fl.is_valid(), "invalid feature level %s", refl.to_string(fl, 16).data());
 
@@ -340,7 +336,7 @@ void Device::query_features() {
         m_features.gpu_upload_heap = options.GPUUploadHeapSupported;
     }
 
-    m_log.info("|| gpu upload heap: {}", (bool)m_features.gpu_upload_heap);
+    m_log.info("| gpu upload heap: {}", (bool)m_features.gpu_upload_heap);
 }
 
 void Device::record_commands() {
@@ -455,7 +451,7 @@ void Factory::enum_adapters() {
     for (UINT i = 0; m_factory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; i++) {
         Adapter &handle = m_adapters.emplace_back(adapter);
 
-        m_log.info("|| {}: {}", i, handle.get_adapter_name());
+        m_log.info("| {}: {}", i, handle.get_adapter_name());
     }
 }
 
@@ -465,7 +461,7 @@ void Factory::enum_warp_adapter() {
 
     Adapter& handle = m_adapters.emplace_back(adapter);
 
-    m_log.info("|| warp: {}", handle.get_adapter_name());
+    m_log.info("| warp: {}", handle.get_adapter_name());
 }
 
 void Factory::init() {

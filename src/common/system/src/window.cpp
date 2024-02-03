@@ -64,12 +64,12 @@ LRESULT CALLBACK Window::proc(HWND window, UINT message, WPARAM wparam, LPARAM l
 }
 
 void Window::create(const WindowConfig &info) {
-    SM_UNUSED constexpr auto refl = ctu::reflect<WindowMode>();
+    using Reflect = ctu::TypeInfo<WindowMode>;
     CTASSERTF(gInstance != nullptr, "system::create() not called before Window::create()");
     CTASSERTF(gWindowClass != nullptr, "system::create() not called before Window::create()");
 
     CTASSERTF(info.mode.is_valid(), "Window::create() invalid mode: %s",
-              refl.to_string(info.mode, 16).data());
+              Reflect::to_string(info.mode, 16).data());
 
     m_window = CreateWindowExA(
         /* dwExStyle = */ 0,
@@ -143,10 +143,10 @@ WindowCoords Window::get_client_coords() const {
 }
 
 bool Window::center_window(MultiMonitor monitor, bool topmost) {
-    SM_UNUSED constexpr auto refl = ctu::reflect<MultiMonitor>();
+    using Reflect = ctu::TypeInfo<MultiMonitor>;
     CTASSERTF(m_window != nullptr, "Window::center_window() called before Window::create()");
     CTASSERTF(monitor.is_valid(), "Window::center_window() invalid monitor: %s",
-              refl.to_string(monitor).data());
+              Reflect::to_string(monitor).data());
 
     // get current monitor
     HMONITOR hmonitor = MonitorFromWindow(m_window, monitor.as_integral());

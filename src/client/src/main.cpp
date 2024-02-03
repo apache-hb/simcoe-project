@@ -42,8 +42,8 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 
 template <ctu::Reflected T>
 static constexpr auto enum_to_string(T value) {
-    constexpr auto refl = ctu::reflect<T>();
-    return refl.to_string(value);
+    using Reflect = ctu::TypeInfo<T>;
+    return Reflect::to_string(value);
 }
 
 // TODO: clean up loggers

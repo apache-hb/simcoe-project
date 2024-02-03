@@ -9,6 +9,11 @@ namespace sm::ui {
     };
 
     class CanvasCommands : public render::IRenderNode {
+    public:
+        render::NodeInput *m_rtv_in = add_input(render::ResourceType::eRenderTarget, rhi::ResourceState::eRenderTarget);
+
+        render::NodeOutput *m_rtv_out = add_output(render::ResourceType::eRenderTarget, rhi::ResourceState::eRenderTarget);
+    private:
         // external data
         bundle::AssetBundle& m_assets;
 
@@ -72,7 +77,7 @@ namespace sm::ui {
 
         void create(render::Context& context) override;
         void destroy(render::Context& context) override;
-        void build(render::Context& context) override;
+        void execute(render::Context& context) override;
 
     public:
         CanvasCommands(ui::Canvas *canvas, bundle::AssetBundle& assets)

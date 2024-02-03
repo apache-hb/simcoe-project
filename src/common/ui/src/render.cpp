@@ -294,7 +294,7 @@ void CanvasCommands::destroy(render::Context& context) {
 
 }
 
-void CanvasCommands::build(render::Context& context) {
+void CanvasCommands::execute(render::Context& context) {
     const auto& [vertices, indices] = m_canvas->get_draw_data();
 
     if (m_canvas->needs_repaint()) {

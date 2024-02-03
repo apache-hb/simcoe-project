@@ -3,6 +3,20 @@
 using namespace sm;
 using namespace sm::render;
 
+void IGraphNode::prebuild(Context& context) {
+
+}
+
+void IGraphNode::postbuild(Context& context) {
+
+}
+
+void IGraphNode::build(Context& context) {
+    prebuild(context);
+    execute(context);
+    postbuild(context);
+}
+
 void Context::create_node(IGraphNode& node) {
     node.create(*this);
     m_nodes.emplace_back(&node);
@@ -13,29 +27,19 @@ void Context::destroy_node(IGraphNode& node) {
 }
 
 void Context::execute_inner(IGraphNode& node) {
-    if (m_executed.contains(&node))
-        return;
-
-    for (auto& input : node.m_inputs) {
-        auto it = m_edges.find(input.get());
-        if (it == m_edges.end())
-            continue;
-
-        auto& output = *it->second;
-        execute_inner(output);
-    }
-
     node.build(*this);
-    m_executed.emplace(&node, true);
+
+    for (auto& input : node.m_outputs) {
+        auto [first, second] = m_edges.equal_range(input.get());
+        for (auto it = first; it != second; ++it) {
+            auto& input = *it->second;
+            execute_inner(input.m_node);
+        }
+    }
 }
 
 void Context::execute_node(IGraphNode& node) {
-    m_executed.clear();
     execute_inner(node);
-}
-
-void Context::connect(NodeInput* dst, IGraphNode* src) {
-    m_edges.emplace(dst, src);
 }
 
 void Context::resize(math::uint2 size) {

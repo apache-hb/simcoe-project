@@ -4,7 +4,7 @@
 
 #include "fmtlib/format.h"
 
-template<ctu::Reflected T>
+template<ctu::Reflected T> requires (ctu::is_enum<T>())
 struct fmt::formatter<T> {
     int base = 10;
 
@@ -26,22 +26,23 @@ struct fmt::formatter<T> {
     }
 
     auto format(const T& value, fmt::format_context& ctx) const {
-        return fmt::format_to(ctx.out(), "{}", ctu::reflect<T>().to_string(value, base).data());
+        using Reflect = ctu::TypeInfo<T>;
+        return fmt::format_to(ctx.out(), "{}", Reflect::to_string(value, base).data());
     }
 };
 
 template<>
 struct fmt::formatter<ctu::ObjectName> : formatter<std::string_view> {
-    using super = formatter<std::string_view>;
+    using Super = formatter<std::string_view>;
     auto format(const ctu::ObjectName& value, fmt::format_context& ctx) const {
-        return super::format(value.data(), ctx);
+        return Super::format(value.data(), ctx);
     }
 };
 
 template<size_t N>
 struct fmt::formatter<ctu::SmallString<N>> : formatter<std::string_view> {
-    using super = formatter<std::string_view>;
+    using Super = formatter<std::string_view>;
     auto format(const ctu::SmallString<N>& value, fmt::format_context& ctx) const {
-        return super::format(value.data(), ctx);
+        return Super::format(value.data(), ctx);
     }
 };

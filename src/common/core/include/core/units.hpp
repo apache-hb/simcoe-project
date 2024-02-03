@@ -3,6 +3,7 @@
 #include <simcoe_config.h>
 
 #include <limits>
+
 #include "core/text.hpp"
 #include "fmtlib/format.h"
 

@@ -19,7 +19,7 @@ struct WindowConfig {
     mode: WindowMode;
     width: int;
     height: int;
-    title: string;
+    title: cstring;
     logger: &opaque("sm::logs::ILogger");
 }
 
@@ -32,7 +32,7 @@ variant FileVersion : uint32 {
 }
 
 struct MappingConfig {
-    path: string;
+    path: cstring;
     size: opaque("sm::Memory");
     record_count: fast16;
     logger: &opaque("sm::logs::ILogger");

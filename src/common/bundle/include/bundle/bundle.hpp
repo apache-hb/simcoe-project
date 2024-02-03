@@ -33,24 +33,24 @@ namespace sm::bundle {
 
         SM_NOCOPY(Image)
 
-        Image(math::uint2 sz)
+        constexpr Image(math::uint2 sz)
             : size(sz)
             , data(size_t(sz.width * sz.height * 4))
         { }
 
-        Image(math::uint2 sz, uint8_t fill)
+        constexpr Image(math::uint2 sz, uint8_t fill)
             : Image(sz)
         {
             data.fill(fill);
         }
 
-        Image(math::uint2 sz, DataFormat fmt, sm::UniqueArray<uint8_t>&& data)
+        constexpr Image(math::uint2 sz, DataFormat fmt, sm::UniqueArray<uint8_t>&& data)
             : format(fmt)
             , size(sz)
             , data(std::move(data))
         { }
 
-        Image(Image&&) = default;
+        constexpr Image(Image&&) = default;
 
         uint8_t& get_pixel(size_t x, size_t y, size_t channel);
         math::uint8x4& get_pixel_rgba(size_t x, size_t y);

@@ -15,7 +15,13 @@ static logs::ILogger *gFreeTypeLogger = nullptr;
 static FreeType gFreeType;
 
 CT_NORETURN
-service::assert_ft2(source_info_t info, FT_Error error, const char *expr, const char *msg) {
+service::assert_ft2(source_info_t info, FT_Error error, const char *expr, const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    sm::IArena& arena = sm::get_pool(sm::Pool::eDebug);
+    char *msg = str_vformat(&arena, fmt, args);
+    va_end(args);
+
     const char *str = FT_Error_String(error);
     ctu_panic(info, "| freetype2 error: %s\n| expr: %s\n| error: %s (%d)", msg, expr, str, error);
 }

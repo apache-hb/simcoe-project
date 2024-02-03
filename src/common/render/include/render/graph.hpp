@@ -3,8 +3,23 @@
 #include "render/render.hpp"
 
 namespace sm::render {
+    struct CBUFFER_ALIGN CameraBuffer {
+        math::float4x4 model;
+        math::float4x4 view;
+        math::float4x4 projection;
+    };
+
+    struct Vertex {
+        math::float3 position;
+        math::float2 uv;
+    };
+
     class BeginCommands : public render::IRenderNode {
-        void build(render::Context& ctx) override {
+    public:
+        NodeOutput *m_swapchain = add_output(ResourceType::eRenderTarget, rhi::ResourceState::ePresent);
+
+    private:
+        void execute(render::Context& ctx) override {
             ctx.begin_frame();
 
             auto& commands = ctx.get_direct_commands();
@@ -16,12 +31,24 @@ namespace sm::render {
     };
 
     class EndCommands : public render::IRenderNode {
-        void build(render::Context& ctx) override {
+    public:
+        NodeInput *m_swapchain = add_input(ResourceType::eRenderTarget, rhi::ResourceState::ePresent);
+
+    private:
+        void execute(render::Context& ctx) override {
             ctx.end_frame();
         }
     };
 
     class WorldCommands : public render::IRenderNode {
+    public:
+        NodeInput *m_rtv_in = add_input(ResourceType::eRenderTarget, rhi::ResourceState::eRenderTarget);
+        NodeInput *m_dsv_in = add_input(ResourceType::eDepthStencil, rhi::ResourceState::eDepthWrite);
+
+        NodeOutput *m_rtv_out = add_output(ResourceType::eRenderTarget, rhi::ResourceState::eRenderTarget);
+        NodeOutput *m_dsv_out = add_output(ResourceType::eDepthStencil, rhi::ResourceState::eDepthWrite);
+
+    private:
         static constexpr inline const char *kVertexShader = "shaders/object.vs.cso";
         static constexpr inline const char *kPixelShader = "shaders/object.ps.cso";
 
@@ -78,7 +105,7 @@ namespace sm::render {
             update_viewport();
         }
 
-        void build(render::Context& context) override {
+        void execute(render::Context& context) override {
             auto& rhi = context.get_rhi();
             auto& heap = context.get_srv_heap();
             auto& direct = rhi.get_direct_commands();
@@ -105,7 +132,7 @@ namespace sm::render {
     };
 
     class PresentCommands : public render::IRenderNode {
-        void build(render::Context& ctx) override {
+        void execute(render::Context& ctx) override {
             ctx.present();
         }
     };

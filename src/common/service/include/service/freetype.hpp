@@ -13,13 +13,13 @@ typedef struct arena_t arena_t;
 #define SM_ASSERT_FT2(expr, ...) \
     do { \
         if (FT_Error error = (expr)) { \
-            sm::service::assert_ft2(CT_SOURCE_HERE, error, #expr, fmt::format(__VA_ARGS__).c_str()); \
+            sm::service::assert_ft2(CT_SOURCE_HERE, error, #expr, __VA_ARGS__); \
         } \
     } while (0)
 
 namespace sm::service {
     CT_NORETURN
-    assert_ft2(source_info_t info, FT_Error error, const char *expr, const char *msg);
+    assert_ft2(source_info_t info, FT_Error error, const char *expr, const char *fmt, ...);
 
     class FreeType {
         arena_t *m_arena = nullptr;

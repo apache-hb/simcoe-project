@@ -98,8 +98,8 @@ constinit static DefaultArena gGlobalPools[] = {
 };
 
 IArena& sm::get_pool(Pool pool) {
-    SM_UNUSED constexpr auto refl = ctu::reflect<Pool>();
-    CTASSERTF(pool.is_valid(), "invalid pool %s", refl.to_string(pool).data());
+    using Reflect = ctu::TypeInfo<Pool>;
+    CTASSERTF(pool.is_valid(), "invalid pool %s", Reflect::to_string(pool).data());
 
     return gGlobalPools[pool.as_integral()];
 }

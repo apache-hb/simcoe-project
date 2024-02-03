@@ -11,6 +11,7 @@ project('simcoe', [ 'c', 'cpp' ],
         'warning_level=3',
         'werror=true',
 
+        'unity=subprojects',
         'default_library=static',
 
         # nobody builds with clean warnings, so disable them per subproject
@@ -18,9 +19,8 @@ project('simcoe', [ 'c', 'cpp' ],
         'harfbuzz:warning_level=0',
         'freetype2:warning_level=0',
 
-        # disable everything except reflect
+        # disable everything in cthulhu by default
         'cthulhu:auto_features=disabled',
-        'cthulhu:tool_reflect=enabled',
         'cthulhu:win32_trickery=enabled',
 
         # configure freetype before harfbuzz to pick up configuration
@@ -89,9 +89,6 @@ hlsl = generator(compile_hlsl,
     output : [ '@BASENAME@.vs.cso', '@BASENAME@.ps.cso' ],
     arguments : [ dxc.full_path(), '@INPUT@', '@BUILD_DIR@/@BASENAME@', '@BUILD_DIR@', 'vs,ps', '6_0' ] + extra_hlsl_args
 )
-
-reflect_include = cthulhu.get_variable('reflect_include')
-reflect = cthulhu.get_variable('reflect')
 
 args = cpp.get_supported_arguments(
     '/GS-',
@@ -203,6 +200,8 @@ simcoe_config = configure_file(
 )
 
 config_include = include_directories('.')
+
+subdir('src/vendor/reflect')
 
 # we vendor fmtlib via a small shim header to hook FMT_THROW(x) into cthulhu's error handling
 subdir('src/vendor/fmtlib')

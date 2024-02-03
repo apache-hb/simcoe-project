@@ -61,7 +61,7 @@ variant AdapterPreference : opaque(DXGI_GPU_PREFERENCE) {
 }
 
 [[facade, bitflags]]
-variant AdapterFlag : opaque(DXGI_ADAPTER_FLAG) {
+variant AdapterFlag : uint {
     [[format("none")]] default None = opaque(DXGI_ADAPTER_FLAG_NONE)
     [[format("remote")]] case Remote = opaque(DXGI_ADAPTER_FLAG_REMOTE)
     [[format("software")]] case Software = opaque(DXGI_ADAPTER_FLAG_SOFTWARE)
@@ -98,24 +98,24 @@ struct DescriptorHeapConfig {
 using InnerResourceState = opaque(D3D12_RESOURCE_STATES)
 
 variant ResourceState {
-    default Invalid = 0
+    default Invalid
 
-    case Present = 1
-    case RenderTarget = 2
+    case Present
+    case RenderTarget
 
-    case IndexBuffer = 3
-    case VertexBuffer = 4
-    case ConstBuffer = 5
+    case IndexBuffer
+    case VertexBuffer
+    case ConstBuffer
 
-    case CopySource = 6
-    case CopyTarget = 7
+    case CopySource
+    case CopyTarget
 
-    case DepthRead = 8
-    case DepthWrite = 9
+    case DepthRead
+    case DepthWrite
 
-    case PixelShaderTextureRead = 10
-    case ShaderResourceTextureRead = 11
-    case TextureWrite = 12
+    case PixelShaderTextureRead
+    case ShaderResourceTextureRead
+    case TextureWrite
 
     const def get_inner_state(): InnerResourceState;
 }
@@ -164,7 +164,7 @@ struct StaticSampler {
 
 // thin layer over D3D12_INPUT_ELEMENT_DESC
 struct InputElement {
-    name: string; // SemanticName
+    name: cstring; // SemanticName
     format: DataFormat; // Format
     offset: uint; // AlignedByteOffset
 }
@@ -173,7 +173,7 @@ struct InputElement {
 // need them for more complex root parameters
 
 struct ResourceBinding {
-    name: string;
+    name: cstring;
     visibility: ShaderVisibility;
     binding: BindingType;
     reg: uint;

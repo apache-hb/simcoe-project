@@ -2,9 +2,20 @@
 // Distributed under the Boost Software License, Version 1.0.
 // See accompanying file LICENSE or copy at http://www.boost.org/LICENSE_1_0.txt
 
+#ifndef _DLG_SRC
+#define _DLG_SRC
+
+#ifndef _XOPEN_SOURCE
 #define _XOPEN_SOURCE 600
+#endif
+
+#ifndef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 200809L
+#endif
+
+#ifndef _WIN32_WINNT
 #define _WIN32_WINNT 0x0600
+#endif
 
 // Needed on windows so that we can use sprintf without warning.
 #ifndef _CRT_SECURE_NO_WARNINGS
@@ -803,3 +814,5 @@ const char* dlg__strip_root_path(const char* file, const char* base) {
 
 	return file;
 }
+
+#endif

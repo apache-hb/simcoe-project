@@ -9,6 +9,9 @@
 !*.h
 !*.hlsl
 !*.ct
+!*.def
+!*.l
+!*.y
 
 # scripts
 !*.py
