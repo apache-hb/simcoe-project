@@ -11,8 +11,8 @@ namespace sm::sys {
         input::ButtonState m_buttons{};
         size_t m_index = 0;
 
-        math::int2 m_mouse_origin;
-        math::int2 m_mouse_position;
+        SM_UNUSED math::int2 m_mouse_origin;
+        SM_UNUSED math::int2 m_mouse_position;
 
         SM_UNUSED sys::Window& m_window;
 

@@ -3,18 +3,16 @@
 using namespace sm;
 using namespace sm::render;
 
-void IGraphNode::prebuild(Context& context) {
-
-}
-
-void IGraphNode::postbuild(Context& context) {
-
-}
-
 void IGraphNode::build(Context& context) {
-    prebuild(context);
+    for (auto& input : m_inputs) {
+        input->update(context);
+    }
+
     execute(context);
-    postbuild(context);
+
+    for (auto& output : m_outputs) {
+        output->update(context);
+    }
 }
 
 void Context::create_node(IGraphNode& node) {

@@ -33,7 +33,7 @@ void CanvasCommands::setup_pipeline(render::Context& context) {
 
     static constexpr rhi::ResourceBinding kShaderBindings[] = {
         {kFontAtlasSlot, rhi::ShaderVisibility::ePixel, rhi::BindingType::eTexture, 0, 0},
-        {kCameraSlot, rhi::ShaderVisibility::eVertex, rhi::BindingType::eUniform, 0, 0},
+        {kCameraSlot, rhi::ShaderVisibility::eVertex, rhi::BindingType::eConstBuffer, 0, 0},
     };
 
     auto vs = m_assets.load_shader(kVertexShader);

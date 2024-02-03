@@ -83,12 +83,20 @@ namespace sm::render {
 
     class NodeInput : public GraphEdge {
         friend class Context;
+        friend class IGraphNode;
 
         virtual void update(Context& context) = 0;
+
+    protected:
+        void set_resource(rhi::ResourceObject resource);
+
+    public:
+        rhi::ResourceObject get_resource() const;
     };
 
     class NodeOutput : public GraphEdge {
         friend class Context;
+        friend class IGraphNode;
 
         virtual void update(Context& context) = 0;
     };
@@ -113,12 +121,6 @@ namespace sm::render {
 
         sm::Vector<NodeInputPtr> m_inputs;
         sm::Vector<NodeOutputPtr> m_outputs;
-
-        // runs before build to get resources for the nodes inputs
-        void prebuild(Context& context);
-
-        // runs after to wire any resources to the outputs
-        void postbuild(Context& context);
 
         // internal node execution
         void build(Context& context);

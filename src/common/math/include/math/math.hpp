@@ -39,7 +39,7 @@ namespace sm::math {
 
     /**
      * vector types are (sort of) organized as follows:
-     *
+     * all vectors are default uninitialized to satisfy std::is_trivial
      * struct Type {
      *    fields...
      *
@@ -67,7 +67,8 @@ namespace sm::math {
             struct { T width; T height; };
         };
 
-        constexpr Vec2() : Vec2(T(0)) { }
+        constexpr Vec2() = default;
+
         constexpr Vec2(T x, T y) : x(x), y(y) { }
         constexpr Vec2(T it) : Vec2(it, it) { }
         constexpr Vec2(const T *pData) : Vec2(pData[0], pData[1]) { }
@@ -165,7 +166,8 @@ namespace sm::math {
             struct { T roll; T pitch; T yaw; };
         };
 
-        constexpr Vec3() : Vec3(T(0)) { }
+        constexpr Vec3() = default;
+
         constexpr Vec3(T x, T y, T z) : x(x), y(y), z(z) { }
         constexpr Vec3(T it) : Vec3(it, it, it){ }
         constexpr Vec3(const Vec2<T>& xy, T z) : Vec3(xy.x, xy.y, z) { }
@@ -282,7 +284,8 @@ namespace sm::math {
             struct { T r; T g; T b; T a; };
         };
 
-        constexpr Vec4() : Vec4(T(0)) { }
+        constexpr Vec4() = default;
+
         constexpr Vec4(T x, T y, T z, T w) : x(x), y(y), z(z), w(w) { }
         constexpr Vec4(T it) : Vec4(it, it, it, it) { }
         constexpr Vec4(Vec3<T> xyz, T w) : Vec4(xyz.x, xyz.y, xyz.z, w) { }
@@ -354,7 +357,7 @@ namespace sm::math {
 
         RowType rows[3];
 
-        constexpr Mat3x3() : Mat3x3(T(0)) { }
+        constexpr Mat3x3() = default;
         constexpr Mat3x3(T it) : Mat3x3(RowType(it)) { }
         constexpr Mat3x3(const RowType& row) : Mat3x3(row, row, row) { }
         constexpr Mat3x3(const RowType& row0, const RowType& row1, const RowType& row2) : rows{ row0, row1, row2 } { }
@@ -384,7 +387,8 @@ namespace sm::math {
 
         RowType rows[4];
 
-        constexpr Mat4x4() : Mat4x4(T(0)) { }
+        constexpr Mat4x4() = default;
+
         constexpr Mat4x4(T it) : Mat4x4(RowType(it)) { }
         constexpr Mat4x4(const RowType& row) : Mat4x4(row, row, row, row) { }
         constexpr Mat4x4(const RowType& row0, const RowType& row1, const RowType& row2, const RowType& row3) : rows{ row0, row1, row2, row3 } { }
@@ -765,7 +769,6 @@ namespace sm::math {
     using uint16x2 = Vec2<uint16_t>;
     using uint16x3 = Vec3<uint16_t>;
     using uint16x4 = Vec4<uint16_t>;
-
     static_assert(sizeof(uint16x2) == sizeof(uint16_t) * 2);
     static_assert(sizeof(uint16x3) == sizeof(uint16_t) * 3);
     static_assert(sizeof(uint16x4) == sizeof(uint16_t) * 4);

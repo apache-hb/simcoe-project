@@ -458,3 +458,9 @@ ref_ast_t *ref_config_tag(scan_t *scan, where_t where, ref_config_tag_t tag, ref
     ast->expr = expr;
     return ast;
 }
+
+ref_ast_t *ref_config_math(scan_t *scan, where_t where, bool enabled)
+{
+    CTASSERTF(enabled, "config.math = false is not supported");
+    return ref_config_tag(scan, where, eRefConfigMath, ref_bool(scan, where, enabled));
+}

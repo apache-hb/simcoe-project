@@ -1,9 +1,11 @@
 #pragma once
 
+#include "rhi/rhi.hpp"
+
 #include "render/render.hpp"
 
 namespace sm::render {
-    struct CBUFFER_ALIGN CameraBuffer {
+    struct alignas(CBUFFER_ALIGN) CameraBuffer {
         math::float4x4 model;
         math::float4x4 view;
         math::float4x4 projection;

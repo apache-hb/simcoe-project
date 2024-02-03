@@ -74,6 +74,7 @@ ESCAPES (\\(['"\?\\abfnrtv]|[0-7]{1,3}|x[a-fA-F0-9]+))
 <CONFIG>"array" { return TOK_CFG_ARRAY; }
 <CONFIG>"string" { return TOK_CFG_STRING; }
 <CONFIG>"string_view" { return TOK_CFG_STRING_VIEW; }
+<CONFIG>"math" { return TOK_CFG_MATH; }
 <CONFIG>";" { yy_pop_state(yyscanner); return TOK_END_CONFIG; }
 
 <*>"module" { return TOK_MODULE; }

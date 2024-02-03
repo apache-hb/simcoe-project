@@ -81,7 +81,7 @@ D3D12_DESCRIPTOR_RANGE_TYPE BindingType::get_range_type() const {
     using enum BindingType::Inner;
     switch (m_value) {
     case eTexture: return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-    case eUniform: return D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+    case eConstBuffer: return D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 
     default: NEVER("invalid binding type %s", Reflect::to_string(m_value).data());
     }

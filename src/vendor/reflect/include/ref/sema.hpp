@@ -221,6 +221,7 @@ namespace refl {
         const char *m_array;
         const char *m_string;
         const char *m_string_view;
+        bool m_has_math = false;
 
         vector_str_t imports { 32, get_global_arena() };
 

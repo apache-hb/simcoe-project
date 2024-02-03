@@ -139,6 +139,7 @@ typedef enum ref_config_tag_t
     eRefConfigSpan,
     eRefConfigString,
     eRefConfigStringView,
+    eRefConfigMath,
 
     eRefConfigCount
 } ref_config_tag_t;
@@ -359,6 +360,7 @@ ref_ast_t *ref_ctor(scan_t *scan, where_t where, vector_t *params, ref_ast_t *bo
 
 ref_ast_t *ref_pointer(scan_t *scan, where_t where, ref_ast_t *type);
 ref_ast_t *ref_reference(scan_t *scan, where_t where, ref_ast_t *type);
+ref_ast_t *ref_config_math(scan_t *scan, where_t where, bool enabled);
 
 // non-owning view over a range of values
 ref_ast_t *ref_span(scan_t *scan, where_t where, ref_ast_t *type);

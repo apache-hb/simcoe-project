@@ -44,6 +44,9 @@ void referror(where_t *where, void *state, scan_t *scan, const char *msg);
     mpz_t integer;
 }
 
+%type<boolean>
+    boolean
+
 %type<config>
     config_key
 
@@ -222,6 +225,7 @@ void referror(where_t *where, void *state, scan_t *scan, const char *msg);
     TOK_CFG_ARRAY "array (config option)"
     TOK_CFG_STRING "string (config option)"
     TOK_CFG_STRING_VIEW "string_view (config option)"
+    TOK_CFG_MATH "math (config option)"
 
     TOK_NULL "null"
     TOK_TRUE "true"
@@ -264,6 +268,7 @@ config: TOK_CONFIG config_body TOK_END_CONFIG { $$ = $2; }
     ;
 
 config_body: config_key TOK_ASSIGN config_value { $$ = ref_config_tag(x, @$, $1, $3); }
+    | TOK_CFG_MATH TOK_ASSIGN boolean { $$ = ref_config_math(x, @$, $3); }
     ;
 
 config_key: TOK_CFG_API { $$ = eRefConfigSerialize; }
@@ -492,12 +497,15 @@ string_list: TOK_STRING { $$ = stringlist_begin(x, @$, $1); }
     | string_list TOK_STRING { $$ = stringlist_append($1, $2); }
     ;
 
+boolean: TOK_TRUE { $$ = true; }
+    | TOK_FALSE { $$ = false; }
+    ;
+
 primary_expression: TOK_IDENT { $$ = ref_ident(x, @$, $1); }
     | string_list { $$ = ref_string(x, @$, $1); }
     | TOK_LPAREN expr TOK_RPAREN { $$ = $2; }
     | TOK_INTEGER { $$ = ref_integer(x, @$, $1); }
-    | TOK_TRUE { $$ = ref_bool(x, @$, true); }
-    | TOK_FALSE { $$ = ref_bool(x, @$, false); }
+    | boolean { $$ = ref_bool(x, @$, $1); }
     ;
 
 postfix_expression: primary_expression { $$ = $1; }

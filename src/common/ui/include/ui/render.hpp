@@ -4,7 +4,7 @@
 #include "render/render.hpp"
 
 namespace sm::ui {
-    struct CBUFFER_ALIGN CanvasProjection {
+    struct alignas(CBUFFER_ALIGN) CanvasProjection {
         math::float4x4 projection;
     };
 

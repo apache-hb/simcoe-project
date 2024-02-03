@@ -365,7 +365,7 @@ public:
         srv_heap.unbind_slot(imgui_index);
     }
 
-    void build(render::Context &ctx) override {
+    void execute(render::Context &ctx) override {
         auto &commands = ctx.get_direct_commands();
         ImGui_ImplDX12_NewFrame();
         ImGui::NewFrame();

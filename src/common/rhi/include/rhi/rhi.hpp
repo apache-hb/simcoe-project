@@ -22,7 +22,7 @@
 /// * d3d12 device, swapchain, queues, lists, fences, heaps, etc.
 ///
 
-#define CBUFFER_ALIGN alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT)
+#define CBUFFER_ALIGN D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT
 
 #define SM_ASSERT_HR(expr)                                 \
     do {                                                   \

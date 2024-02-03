@@ -150,7 +150,7 @@ using DescriptorRangeType = opaque(D3D12_DESCRIPTOR_RANGE_TYPE)
 
 variant BindingType {
     case Texture = 0
-    case Uniform = 1
+    case ConstBuffer = 1
 
     const def get_range_type(): DescriptorRangeType;
 }
