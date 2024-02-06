@@ -68,8 +68,8 @@ D3D12_RESOURCE_STATES ResourceState::get_inner_state() const {
     case eDepthWrite: return D3D12_RESOURCE_STATE_DEPTH_WRITE;
     case eDepthRead: return D3D12_RESOURCE_STATE_DEPTH_READ;
 
-    case ePixelShaderTextureRead: return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-    case eShaderResourceTextureRead: return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+    case eTextureRead: return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+    case eShaderTextureRead: return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
     case eTextureWrite: return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 
     default: NEVER("invalid resource state %s", Reflect::to_string(m_value).data());

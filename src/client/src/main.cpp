@@ -22,7 +22,6 @@
 #include "format/backtrace.h"
 #include "format/colour.h"
 #include "io/console.h"
-#include "os/os.h"
 
 #include "imgui/backends/imgui_impl_dx12.h"
 #include "imgui/backends/imgui_impl_win32.h"
@@ -163,7 +162,8 @@ class ConsoleLog final : public logs::ILogger {
 public:
     constexpr ConsoleLog(IArena &arena, logs::Severity severity)
         : ILogger(severity)
-        , m_buffer(arena) {}
+        , m_buffer(arena)
+    { }
 };
 
 class BroadcastLog final : public logs::ILogger {

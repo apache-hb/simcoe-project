@@ -132,8 +132,8 @@ namespace sm::render {
         virtual void resize(Context& context, math::uint2 size) { }
         virtual void execute(Context& context) { }
 
-        NodeInput *add_input(ResourceType type, rhi::ResourceState state);
-        NodeOutput *add_output(ResourceType type, rhi::ResourceState state);
+        NodeInput *add_input(ResourceType type, rhi::ResourceState state) { return nullptr; }
+        NodeOutput *add_output(ResourceType type, rhi::ResourceState state) { return nullptr; }
 
     public:
         virtual ~IGraphNode() = default;

@@ -1,4 +1,5 @@
 #include "logs/logs.hpp"
+#include "logs/panic.hpp"
 
 #include <chrono>
 
@@ -18,3 +19,19 @@ void ILogger::log(const Message& message) {
         accept(message);
     }
 }
+
+#if 0
+#if SMC_ENABLE_LOGDB
+
+static std::unordered_map<uint32_t, std::string> gMessages;
+
+void logdb::add_message(const char *str, uint32_t hash) {
+    if (auto it = gMessages.find(hash); it != gMessages.end()) {
+        CTASSERTF(it->second == str, "hash collision between %s and %s", it->second.c_str(), str);
+    }
+
+    gMessages[hash] = str;
+}
+
+#endif
+#endif

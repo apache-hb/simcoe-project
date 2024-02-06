@@ -10,23 +10,25 @@ namespace sm::render {
         { T::kInputLayout } -> std::convertible_to<rhi::InputLayout>;
     };
 
-    template<typename T>
-    concept IndexInput = requires {
-        { T::kIndexType } -> std::convertible_to<bundle::DataFormat>;
-    };
-
     class IResource {
+        friend class Context;
+
         ResourceType m_type;
 
+        virtual rhi::ResourceObject& get() = 0;
+
+        virtual void create(Context& context) = 0;
+        virtual void destroy(Context& context) = 0;
+
     protected:
-        IResource(ResourceType type) : m_type(type) { }
+        constexpr IResource(ResourceType type)
+            : m_type(type)
+        { }
 
     public:
         virtual ~IResource() = default;
 
         constexpr ResourceType get_type() const { return m_type; }
-
-        virtual rhi::ResourceObject get() = 0;
     };
 
     class IConstBuffer : public IResource {
@@ -35,12 +37,13 @@ namespace sm::render {
         size_t size;
 
     protected:
-        IConstBuffer(ResourceType type, size_t size)
+        IConstBuffer(ResourceType type, rhi::ResourceObject&& resource, size_t size)
             : IResource(type)
+            , m_resource(std::move(resource))
             , size(size)
         { }
 
-        void map_resource(rhi::ResourceObject resource);
+        void map_resource();
         void unmap_resource();
         void update_resource(const void *data, size_t size);
     };
@@ -63,6 +66,26 @@ namespace sm::render {
         constexpr math::float4 get_clear_colour() const { return m_clear_colour; }
     };
 
+    class IDepthStencil : public IResource {
+        float m_clear_depth;
+        uint8_t m_clear_stencil;
+
+    protected:
+        IDepthStencil(ResourceType type, float clear_depth, uint8_t clear_stencil)
+            : IResource(type)
+            , m_clear_depth(clear_depth)
+            , m_clear_stencil(clear_stencil)
+        { }
+
+    public:
+        constexpr float get_clear_depth() const { return m_clear_depth; }
+        constexpr uint8_t get_clear_stencil() const { return m_clear_stencil; }
+    };
+
+    class ITexture : public IResource {
+
+    };
+
     class IVertexBuffer : public IResource {
         rhi::ResourceObject m_resource;
         rhi::InputLayout m_layout;
@@ -73,7 +96,10 @@ namespace sm::render {
 
     template<VertexInput T>
     class VertexBuffer : public IVertexBuffer {
+        void destroy(Context& context) override;
+        void create(Context& context) override;
 
+        rhi::ResourceObject &get() override;
     };
 
     class IIndexBuffer : public IResource {
@@ -84,8 +110,16 @@ namespace sm::render {
         constexpr bundle::DataFormat get_format() const { return m_format; }
     };
 
-    template<IndexInput T>
+    template<typename T>
     class IndexBuffer : public IIndexBuffer {
+        void destroy(Context& context) override;
+        void create(Context& context) override;
 
+        rhi::ResourceObject &get() override;
+    };
+
+    class SwapChain : public IResource {
+    public:
+        void present();
     };
 }

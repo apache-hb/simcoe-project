@@ -36,3 +36,17 @@ variant ResourceType {
     case VertexBuffer = (1 << 4)
     case IndexBuffer = (1 << 5)
 }
+
+[[bitflags]]
+variant StateDependency {
+    // no dependencies
+    case None = 0
+
+    // dependency on the device context
+    // basically any api object
+    default Device = (1 << 0)
+
+    // dependency on the swapchain in some way
+    // changes in backbuffer count, format, etc
+    case SwapChain = (1 << 1)
+}

@@ -122,7 +122,7 @@ struct tool_t
         io_t *io = io_file(path, access, m_arena);
         if (io_error_t err = io_error(io); err != 0)
         {
-            msg_notify(m_logger, diag, node_builtin(), "failed to open '%s': %s", path,
+            msg_notify(m_logger, diag, get_builtin_node(), "failed to open '%s': %s", path,
                        os_error_string(err, m_arena));
             return nullptr;
         }
@@ -255,7 +255,7 @@ int main(int argc, const char **argv)
     size_t source_count = vector_len(paths);
     if (source_count != 1)
     {
-        msg_notify(logger, &kEvent_ExactlyOneSourceFile, node_builtin(), "expected exactly one source file");
+        msg_notify(logger, &kEvent_ExactlyOneSourceFile, get_builtin_node(), "expected exactly one source file");
     }
 
     CHECK_LOG(logger, "initializing");

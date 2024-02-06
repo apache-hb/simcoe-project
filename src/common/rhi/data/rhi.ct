@@ -113,8 +113,11 @@ variant ResourceState {
     case DepthRead
     case DepthWrite
 
-    case PixelShaderTextureRead
-    case ShaderResourceTextureRead
+    // pixel shader texture read
+    case TextureRead
+
+    // any other shader texture read
+    case ShaderTextureRead
     case TextureWrite
 
     const def get_inner_state(): InnerResourceState;
@@ -153,6 +156,22 @@ variant BindingType {
     case ConstBuffer = 1
 
     const def get_range_type(): DescriptorRangeType;
+}
+
+struct Viewport {
+    x: float;
+    y: float;
+    width: float;
+    height: float;
+    min: float;
+    max: float;
+}
+
+struct Scissor {
+    left: int;
+    top: int;
+    right: int;
+    bottom: int;
 }
 
 // D3D12_STATIC_SAMPLER_DESC

@@ -3,6 +3,8 @@ render_include = include_directories('.', 'include')
 src = [
     'src/render.cpp',
     'src/graph.cpp',
+    'src/commands.cpp',
+    'src/passes.cpp',
     reflect.process('data/render.ct')
 ]
 

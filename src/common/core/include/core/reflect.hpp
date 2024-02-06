@@ -1,9 +1,12 @@
 #pragma once
 
+#include <simcoe_config.h>
+
 #include "reflect/reflect.h"
 
 #include "fmtlib/format.h"
 
+#if SMC_DEBUG
 template<ctu::Reflected T> requires (ctu::is_enum<T>())
 struct fmt::formatter<T> {
     int base = 10;
@@ -30,19 +33,12 @@ struct fmt::formatter<T> {
         return fmt::format_to(ctx.out(), "{}", Reflect::to_string(value, base).data());
     }
 };
-
-template<>
-struct fmt::formatter<ctu::ObjectName> : formatter<std::string_view> {
-    using Super = formatter<std::string_view>;
-    auto format(const ctu::ObjectName& value, fmt::format_context& ctx) const {
-        return Super::format(value.data(), ctx);
+#else
+template<ctu::Reflected T> requires (ctu::is_enum<T>())
+struct fmt::formatter<T> : fmt::formatter<T::Underlying> {
+    using Super = fmt::formatter<T::Underlying>;
+    auto format(const T& value, fmt::format_context& ctx) const {
+        return Super::format(value.as_integral(), ctx);
     }
 };
-
-template<size_t N>
-struct fmt::formatter<ctu::SmallString<N>> : formatter<std::string_view> {
-    using Super = formatter<std::string_view>;
-    auto format(const ctu::SmallString<N>& value, fmt::format_context& ctx) const {
-        return Super::format(value.data(), ctx);
-    }
-};
+#endif

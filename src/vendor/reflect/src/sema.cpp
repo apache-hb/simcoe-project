@@ -10,6 +10,14 @@
 
 using namespace refl;
 
+static node_t *gBuiltinNode = NULL;
+node_t *get_builtin_node() {
+    if (gBuiltinNode == NULL) {
+        gBuiltinNode = node_builtin("reflect", get_global_arena());
+    }
+    return gBuiltinNode;
+}
+
 bool ResolveStack::enter_decl(Sema& sema, Decl *decl)
 {
     if (m_stack.find(decl) != SIZE_MAX)
@@ -981,7 +989,7 @@ static size_t digit_alignof(digit_t digit)
 }
 
 IntType::IntType(const char *name, digit_t digit, sign_t sign)
-    : Type(node_builtin(), eKindTypeInt, name, digit_sizeof(digit), digit_alignof(digit))
+    : Type(get_builtin_node(), eKindTypeInt, name, digit_sizeof(digit), digit_alignof(digit))
     , m_digit(digit)
     , m_sign(sign)
 { }
@@ -1635,7 +1643,7 @@ size_t Variant::max_tostring() const {
 
     m_cases.foreach([&](auto c)
     {
-        size_t len = strlen(c->get_name());
+        size_t len = ctu_strlen(c->get_name());
         if (len > max)
             max = len;
     });
@@ -1649,7 +1657,7 @@ size_t Variant::max_tostring_bitflags() const {
 
     m_cases.foreach([&](auto c)
     {
-        size_t len = strlen(c->get_name());
+        size_t len = ctu_strlen(c->get_name());
         max += len + 2;
     });
 

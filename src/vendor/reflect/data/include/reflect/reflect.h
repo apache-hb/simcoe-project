@@ -118,6 +118,11 @@ namespace ctu {
             m_size += len;
         }
 
+        constexpr void append(char c) {
+            m_data[m_size] = c;
+            m_size++;
+        }
+
         constexpr void append(const ObjectName& name) {
             for (size_t i = 0; i < name.size(); i++) {
                 m_data[m_size + i] = name[i];
@@ -151,7 +156,28 @@ namespace ctu {
         constexpr const char *data() const { return m_data; }
         constexpr const char *begin() const { return m_data; }
         constexpr const char *end() const { return m_data + m_size; }
+
+        constexpr char operator[](size_t index) const {
+            return m_data[index];
+        }
+
+        template<size_t M>
+        constexpr bool operator==(const SmallString<M>& other) const {
+            if (m_size != other.size()) {
+                return false;
+            }
+
+            for (size_t i = 0; i < m_size; i++) {
+                if (m_data[i] != other[i]) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
     };
+
+    template<size_t N> SmallString(const char (&str)[N]) -> SmallString<N>;
 
     class Empty {};
 

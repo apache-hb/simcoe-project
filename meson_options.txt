@@ -26,3 +26,8 @@ option('freetype_logging', type : 'feature',
     description : 'Enable freetype logging',
     value : 'disabled'
 )
+
+option('log_database', type : 'feature',
+    description : 'Build logging database',
+    value : 'disabled'
+)

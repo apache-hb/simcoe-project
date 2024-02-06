@@ -29,11 +29,6 @@ void WorldCommands::update_viewport() {
 void WorldCommands::setup_pipeline(render::Context &ctx) {
     auto &rhi = ctx.get_rhi();
 
-    static constexpr rhi::InputElement kInputLayout[] = {
-        {"POSITION", bundle::DataFormat::eRGB32_FLOAT, offsetof(Vertex, position)},
-        {"TEXCOORD", bundle::DataFormat::eRG32_FLOAT, offsetof(Vertex, uv)},
-    };
-
     static constexpr rhi::StaticSampler kStaticSamplers[] = {
         {.filter = rhi::Filter::eMinMagMipLinear, .address = rhi::AddressMode::eBorder},
     };
@@ -47,7 +42,7 @@ void WorldCommands::setup_pipeline(render::Context &ctx) {
     auto ps = m_assets.load_shader(kPixelShader);
 
     const rhi::GraphicsPipelineConfig kPipelineConfig = {
-        .elements = {kInputLayout, std::size(kInputLayout)},
+        .elements = Vertex::kInputLayout,
         .resources = {kShaderBindings, std::size(kShaderBindings)},
         .samplers = {kStaticSamplers, std::size(kStaticSamplers)},
         .vs = {vs.data(), vs.size()},

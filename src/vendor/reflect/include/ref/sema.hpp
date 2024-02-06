@@ -25,6 +25,8 @@ typedef struct ref_ast_t ref_ast_t;
 typedef struct io_t io_t;
 typedef struct arena_t arena_t;
 
+node_t *get_builtin_node();
+
 typedef struct ref_emit_t
 {
     const char *file;
@@ -455,7 +457,7 @@ namespace refl {
     class FloatType : public Type {
     public:
         FloatType(const char *name)
-            : Type(node_builtin(), eKindTypeFloat, name, sizeof(float), alignof(float))
+            : Type(get_builtin_node(), eKindTypeFloat, name, sizeof(float), alignof(float))
         { }
 
         const char* get_cxx_name(Sema&, const char *name) const override
@@ -470,7 +472,7 @@ namespace refl {
     class BoolType : public Type {
     public:
         BoolType(const char *name)
-            : Type(node_builtin(), eKindTypeBool, name, sizeof(bool), alignof(bool))
+            : Type(get_builtin_node(), eKindTypeBool, name, sizeof(bool), alignof(bool))
         { }
 
         const char* get_cxx_name(Sema&, const char *name) const override
@@ -485,7 +487,7 @@ namespace refl {
     class StringType : public Type {
     public:
         StringType(const char *name)
-            : Type(node_builtin(), eKindTypeString, name, sizeof(const char*), alignof(const char*))
+            : Type(get_builtin_node(), eKindTypeString, name, sizeof(const char*), alignof(const char*))
         { }
 
         void resolve(Sema&) override { finish_resolve(); }
@@ -500,7 +502,7 @@ namespace refl {
     class StringViewType : public Type {
     public:
         StringViewType(const char *name)
-            : Type(node_builtin(), eKindTypeString, name, sizeof(const char*), alignof(const char*))
+            : Type(get_builtin_node(), eKindTypeString, name, sizeof(const char*), alignof(const char*))
         { }
 
         void resolve(Sema&) override { finish_resolve(); }
@@ -515,7 +517,7 @@ namespace refl {
     class VoidType : public Type {
     public:
         VoidType(const char *name)
-            : Type(node_builtin(), eKindTypeVoid, name, 0, 0)
+            : Type(get_builtin_node(), eKindTypeVoid, name, 0, 0)
         { }
 
         const char* get_cxx_name(Sema&, const char *name) const override
@@ -529,7 +531,7 @@ namespace refl {
     class MemoryType : public Type {
     public:
         MemoryType(const char *name)
-            : Type(node_builtin(), eKindTypeMemory, name, sizeof(void*), alignof(void*))
+            : Type(get_builtin_node(), eKindTypeMemory, name, sizeof(void*), alignof(void*))
         { }
 
         const char* get_cxx_name(Sema&, const char *name) const override

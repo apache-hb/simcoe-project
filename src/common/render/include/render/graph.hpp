@@ -14,7 +14,17 @@ namespace sm::render {
     struct Vertex {
         math::float3 position;
         math::float2 uv;
+
+        static const rhi::InputElement kInputElements[2];
+        static constexpr rhi::InputLayout kInputLayout = { kInputElements, std::size(kInputElements) };
     };
+
+    constexpr rhi::InputElement Vertex::kInputElements[2] = {
+        { "POSITION", bundle::DataFormat::eRGB32_FLOAT, offsetof(Vertex, position) },
+        { "TEXCOORD", bundle::DataFormat::eRG32_FLOAT, offsetof(Vertex, uv) },
+    };
+
+    static_assert(std::is_trivial_v<Vertex> && std::is_standard_layout_v<Vertex>);
 
     class BeginCommands : public render::IRenderNode {
     public:

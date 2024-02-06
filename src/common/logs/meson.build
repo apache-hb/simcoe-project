@@ -2,6 +2,7 @@ logs_include = include_directories('.', 'include')
 
 src = [
     'src/logs.cpp',
+    'src/panic.cpp',
     reflect.process('data/logs.ct')
 ]
 
