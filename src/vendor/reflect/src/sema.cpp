@@ -1151,7 +1151,7 @@ void Variant::emit_impl(Sema& sema, cxx_emit_t *out) const
         if (const char *opaque = m_parent->get_opaque_name())
         {
             ty = refl_fmt("%s_underlying_t", get_name());
-            cxx_writeln(out, "using %s_underlying_t = std::underlying_type_t<%s>;", get_name(), opaque);
+            cxx_writeln(out, "using %s_underlying_t = __underlying_type(%s);", get_name(), opaque);
             cxx_writeln(out, "enum class %s : %s_underlying_t {", get_name(), get_name());
         }
         else
@@ -1213,7 +1213,7 @@ void Variant::emit_impl(Sema& sema, cxx_emit_t *out) const
     if (!m_parent)
     {
         ty = refl_fmt("%s_underlying_t", get_name());
-        cxx_writeln(out, "using %s_underlying_t = std::underlying_type_t<%s>;", get_name(), get_name());
+        cxx_writeln(out, "using %s_underlying_t = __underlying_type(%s);", get_name(), get_name());
     }
     if (is_arithmatic || is_iterator || is_ordered) cxx_writeln(out, "REFLECT_ENUM_COMPARE(%s, %s)", get_name(), ty);
     if (is_bitflags) cxx_writeln(out, "REFLECT_ENUM_BITFLAGS(%s, %s);", get_name(), ty);
@@ -1229,7 +1229,7 @@ void Variant::emit_impl(Sema& sema, cxx_emit_t *out) const
     emit_begin_record(out, false);
     cxx_privacy(out, "public");
     // underlying is the true integral type of the enum
-    cxx_writeln(out, "using underlying_t = std::underlying_type_t<impl::%s>;", get_name());
+    cxx_writeln(out, "using underlying_t = __underlying_type(impl::%s);", get_name());
 
     bool facade_type_clash = false;
 

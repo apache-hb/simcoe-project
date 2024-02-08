@@ -4,7 +4,6 @@
 
 #include "base/panic.h" // IWYU pragma: keep
 
-#include "core/macros.hpp"
 #include "core/debug.hpp"
 
 namespace sm {
@@ -36,7 +35,7 @@ namespace sm {
         }
 
         constexpr ~UniqueHandle() {
-            destroy();
+            reset(TEmpty);
         }
 
         constexpr UniqueHandle(UniqueHandle &&other) {
@@ -46,13 +45,6 @@ namespace sm {
         constexpr UniqueHandle &operator=(UniqueHandle &&other) {
             reset(other.release());
             return *this;
-        }
-
-        constexpr void destroy() {
-            if (m_handle != TEmpty) {
-                m_delete(m_handle);
-                m_handle = TEmpty;
-            }
         }
 
         constexpr T& get() { CTASSERT(is_valid()); return m_handle; }
@@ -107,7 +99,6 @@ namespace sm {
         constexpr T* const* operator&() const { return Super::address(); }
 
         constexpr void reset(T *data = nullptr) {
-            Super::destroy();
             Super::reset(data);
         }
     };
@@ -135,7 +126,6 @@ namespace sm {
         { }
 
         constexpr void reset(size_t size) {
-            Super::destroy();
             Super::reset(new T[size]);
             SM_DBG_REF(m_size) = size;
         }

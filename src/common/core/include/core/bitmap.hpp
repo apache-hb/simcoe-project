@@ -1,8 +1,8 @@
 #pragma once
 
-#include "core/traits.hpp" // IWYU pragma: export
-#include "core/unique.hpp"
+#include "core/vector.hpp"
 
+#include <atomic>
 #include <bit>
 
 namespace sm {
@@ -10,32 +10,30 @@ namespace sm {
         /// @brief bitmap backing storage
         /// @tparam T the type of the backing storage
         /// @tparam Super crtp superclass
-        template<Integral T, typename Super>
-        struct BitMapStorage {
+        template<typename T, typename Super>
+        struct BitSetStorage {
             enum Index : size_t { eInvalid = SIZE_MAX };
-            using IndexType = std::underlying_type_t<Index>;
+            using IndexType = __underlying_type(Index);
 
-            constexpr BitMapStorage() = default;
+            constexpr BitSetStorage() = default;
 
-            constexpr BitMapStorage(size_t length)
-                : m_size(length)
-            {
-                resize(length);
-            }
+            constexpr BitSetStorage(size_t bitcount)
+                : m_data(bitcount / kBitsPerWord + 1)
+            { }
 
-            constexpr void resize(size_t length) {
-                if (length > m_size) {
-                    m_size = length;
-                    m_bits.reset(word_count());
+            constexpr void resize(size_t bitcount) {
+                size_t words = bitcount / kBitsPerWord + 1;
+                if (words > m_data.length()) {
+                    m_data.resize(words);
                 }
 
-                reset();
+                clear();
             }
 
             constexpr size_t popcount() const {
                 size_t count = 0;
-                for (size_t i = 0; i < word_count(); i++) {
-                    count += std::popcount(m_bits[i]);
+                for (auto word : m_data) {
+                    count += std::popcount(word);
                 }
                 return count;
             }
@@ -44,12 +42,9 @@ namespace sm {
                 return get_capacity() - popcount();
             }
 
-            constexpr size_t get_total_bits() const { return m_size; }
-            constexpr size_t get_capacity() const { return word_count() * kBitsPerWord; }
-
             constexpr Index scan_set_first() {
                 Super *self = static_cast<Super*>(this);
-                for (uint32_t i = 0; i < get_total_bits(); i++) {
+                for (uint32_t i = 0; i < get_capacity(); i++) {
                     if (self->test_set(Index{i})) {
                         return Index{i};
                     }
@@ -58,11 +53,11 @@ namespace sm {
                 return Index::eInvalid;
             }
 
-            constexpr bool is_valid() const { return m_bits.is_valid(); }
+            constexpr size_t get_capacity() const { return m_data.length() * kBitsPerWord; }
+            constexpr bool is_valid() const { return m_data.is_valid(); }
 
-            constexpr void reset() {
-                CTASSERT(is_valid());
-                std::memset(m_bits.get(), 0, word_count());
+            constexpr void clear() {
+                m_data.fill(0);
             }
 
             constexpr void release(Index index) {
@@ -70,35 +65,33 @@ namespace sm {
                 clear(index);
             }
 
-            constexpr static inline size_t kBitsPerWord = sizeof(T) * CHAR_BIT;
+            constexpr static size_t kBitsPerWord = sizeof(T) * CHAR_BIT;
 
             constexpr bool test(Index index) const {
                 verify_index(index);
 
-                return m_bits[get_word(index)] & get_mask(index);
+                return m_data[get_word(index)] & get_mask(index);
             }
 
             constexpr void set(Index index) {
                 verify_index(index);
-                m_bits[get_word(index)] |= get_mask(index);
+                m_data[get_word(index)] |= get_mask(index);
             }
 
             constexpr void clear(Index index) {
                 verify_index(index);
-                m_bits[get_word(index)] &= ~get_mask(index);
+                m_data[get_word(index)] &= ~get_mask(index);
             }
 
         protected:
             constexpr T get_mask(Index bit) const { return T(1) << (bit % kBitsPerWord); }
             constexpr size_t get_word(Index bit) const { return bit / kBitsPerWord; }
-            constexpr size_t word_count() const { return (get_total_bits() / kBitsPerWord) + 1; }
 
-            size_t m_size = 0;
-            sm::UniquePtr<T[]> m_bits;
+            sm::UniqueArray<T> m_data;
 
-            constexpr void verify_index(Index index) const {
-                CTASSERTF(index != Index::eInvalid, "invalid index");
-                CTASSERTF(index <= get_total_bits(), "bit %zu is out of bounds", index);
+            constexpr void verify_index(Index bit) const {
+                CTASSERTF(bit != Index::eInvalid, "invalid index");
+                CTASSERTF(bit <= get_capacity(), "bit %zu is out of bounds", bit);
             }
         };
     }
@@ -106,9 +99,9 @@ namespace sm {
     // TODO: these shouldnt handle allocation, thats a seperate concern
     // these should just be the underlying storage
 
-    struct BitMap final : detail::BitMapStorage<std::uint64_t, BitMap> {
-        using Super = detail::BitMapStorage<std::uint64_t, BitMap>;
-        using Super::BitMapStorage;
+    struct BitMap final : detail::BitSetStorage<std::uint64_t, BitMap> {
+        using Super = detail::BitSetStorage<std::uint64_t, BitMap>;
+        using Super::BitSetStorage;
 
         // no way to garuntee that this is done atomically
         // so put it in BitMap instead of AtomicBitMap
@@ -135,7 +128,7 @@ namespace sm {
         }
 
         constexpr Index scan_set_range(Index size) {
-            for (uint32_t i = 0; i <= get_total_bits(); i++) {
+            for (uint32_t i = 0; i <= get_capacity(); i++) {
                 Index front{i};
                 Index back{i + size - 1};
                 if (test_range(front, back)) {
@@ -157,9 +150,9 @@ namespace sm {
         }
     };
 
-    struct AtomicBitMap final : detail::BitMapStorage<std::atomic_uint64_t, AtomicBitMap> {
-        using Super = detail::BitMapStorage<std::atomic_uint64_t, AtomicBitMap>;
-        using Super::BitMapStorage;
+    struct AtomicBitMap final : detail::BitSetStorage<std::atomic_uint64_t, AtomicBitMap> {
+        using Super = detail::BitSetStorage<std::atomic_uint64_t, AtomicBitMap>;
+        using Super::BitSetStorage;
 
         bool test_set(Index index);
 

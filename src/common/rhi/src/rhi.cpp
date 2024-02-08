@@ -1,7 +1,7 @@
 #include "rhi/rhi.hpp"
 #include "base/panic.h"
 #include "core/arena.hpp"
-#include "os/os.h"
+#include "os/core.h"
 
 #include "d3dx12/d3dx12_barriers.h"
 
@@ -136,7 +136,7 @@ void DescriptorArena::release_index(DescriptorIndex index) {
 DescriptorIndex DescriptorArena::alloc_index() {
     DescriptorIndex index = m_slots.scan_set_first();
     CTASSERTF(index != DescriptorIndex::eInvalid, "descriptor heap exhausted %zu",
-              m_slots.get_total_bits());
+              m_slots.get_capacity());
     return index;
 }
 

@@ -21,7 +21,7 @@ CT_BEGIN_API
 #include "ref_flex.h" // IWYU pragma: keep
 CT_END_API
 
-CTU_CALLBACKS(kCallbacks, ref);
+CT_CALLBACKS(kCallbacks, ref);
 
 static const cfg_info_t kConfigInfo = {
     .name = "reflect",

@@ -162,8 +162,7 @@ class ConsoleLog final : public logs::ILogger {
 public:
     constexpr ConsoleLog(IArena &arena, logs::Severity severity)
         : ILogger(severity)
-        , m_buffer(arena)
-    { }
+        , m_buffer(arena) {}
 };
 
 class BroadcastLog final : public logs::ILogger {

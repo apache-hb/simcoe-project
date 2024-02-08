@@ -198,7 +198,7 @@ void FileMapping::destroy() {
     // reset the size
     m_size = 0;
 
-    m_space.reset();
+    m_space.clear();
 }
 
 RecordLookup FileMapping::get_record(uint32_t id, void **data, uint16_t size) {
@@ -323,7 +323,7 @@ void FileMapping::reset() {
 
     // reset the space bitmap
     if (m_space.is_valid())
-        m_space.reset();
+        m_space.clear();
     else
         m_space.resize(get_public_size() / 8);
 

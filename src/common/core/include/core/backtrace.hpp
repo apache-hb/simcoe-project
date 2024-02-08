@@ -2,7 +2,7 @@
 
 #include "backtrace/backtrace.h"
 
-#include "os/os.h"
+#include "os/core.h"
 
 namespace sm {
     class ISystemError : public bt_error_t {

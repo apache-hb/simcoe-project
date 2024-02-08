@@ -43,7 +43,7 @@ namespace sm::render {
 
         Index bind_slot() {
             auto index = m_arena.scan_set_first();
-            CTASSERTF(index != BitMap::eInvalid, "Descriptor heap is full (size = %zu)", m_arena.get_total_bits());
+            CTASSERTF(index != BitMap::eInvalid, "Descriptor heap is full (size = %zu)", m_arena.get_capacity());
             return Index(index);
         }
 

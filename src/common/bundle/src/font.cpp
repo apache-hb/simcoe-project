@@ -6,7 +6,7 @@ using namespace sm::bundle;
 static void blit_glyph(const AssetSink& logs, Image& image, char32_t codepoint, FT_String *name, FT_Bitmap *bitmap, FT_UInt x, FT_UInt y, const math::float4& colour) {
     auto write_pixel = [&](size_t x, size_t y, uint8_t alpha, math::float4 col) {
         size_t index = (y * image.size.width + x) * 4;
-        if (index + 3 > image.data.size()) return;
+        if (index + 3 > image.data.length()) return;
 
         image.data[index + 0] = uint8_t(col.r * 255.f);
         image.data[index + 1] = uint8_t(col.g * 255.f);
