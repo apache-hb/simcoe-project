@@ -135,7 +135,7 @@ namespace sm::rhi {
         friend class Device;
 
         // TODO: maybe use a slotmap for more resource safety
-        sm::BitMap m_slots{};
+        BitMap m_slots{};
         DescriptorHeap m_heap{};
 
         void init(Device& device, const DescriptorHeapConfig& config);

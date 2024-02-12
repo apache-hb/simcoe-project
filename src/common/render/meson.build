@@ -1,6 +1,7 @@
 render_include = include_directories('.', 'include')
 
 src = [
+    'src/framegraph.cpp',
     'src/render.cpp',
     'src/graph.cpp',
     'src/commands.cpp',

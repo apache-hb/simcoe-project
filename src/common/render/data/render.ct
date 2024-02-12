@@ -20,11 +20,6 @@ struct RenderConfig {
     [[transient]] logger: &ILogger;
 }
 
-[[iterator]]
-variant ResourceIndex : usize {
-    default Invalid = opaque(SIZE_MAX)
-}
-
 [[bitflags]]
 variant ResourceType {
     default Invalid = 0
@@ -49,4 +44,9 @@ variant StateDependency {
     // dependency on the swapchain in some way
     // changes in backbuffer count, format, etc
     case SwapChain = (1 << 1)
+}
+
+variant ResourceKind {
+    case Transient // resources lifetime is bound to the frame
+    case Persistent // resources lifetime is outside of the frame
 }

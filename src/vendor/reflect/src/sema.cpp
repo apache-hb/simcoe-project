@@ -1391,12 +1391,12 @@ void Variant::emit_impl(Sema& sema, cxx_emit_t *out) const
         cxx_writeln(out, "constexpr %s operator-(const %s& other) const { return m_value - other.m_value; }", get_name(), get_name());
         cxx_writeln(out, "constexpr %s operator*(const %s& other) const { return m_value * other.m_value; }", get_name(), get_name());
         cxx_writeln(out, "constexpr %s operator/(const %s& other) const { return m_value / other.m_value; }", get_name(), get_name());
-        cxx_writeln(out, "constexpr %s operator%(const %s& other) const { return m_value %% other.m_value; }", get_name(), get_name());
+        cxx_writeln(out, "constexpr %s operator%%(const %s& other) const { return m_value %% other.m_value; }", get_name(), get_name());
         cxx_writeln(out, "constexpr %s& operator+=(const %s& other) { m_value = m_value + other.m_value; return *this; }", get_name(), get_name());
         cxx_writeln(out, "constexpr %s& operator-=(const %s& other) { m_value = m_value - other.m_value; return *this; }", get_name(), get_name());
         cxx_writeln(out, "constexpr %s& operator*=(const %s& other) { m_value = m_value * other.m_value; return *this; }", get_name(), get_name());
         cxx_writeln(out, "constexpr %s& operator/=(const %s& other) { m_value = m_value / other.m_value; return *this; }", get_name(), get_name());
-        cxx_writeln(out, "constexpr %s& operator%=(const %s& other) { m_value = m_value %% other.m_value; return *this; }", get_name(), get_name());
+        cxx_writeln(out, "constexpr %s& operator%%=(const %s& other) { m_value = m_value %% other.m_value; return *this; }", get_name(), get_name());
 
         // is_valid is not defined for arithmatic types
     }

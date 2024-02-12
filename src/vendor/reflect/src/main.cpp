@@ -8,7 +8,7 @@
 #include "io/io.h"
 #include "memory/memory.h"
 #include "notify/notify.h"
-#include "os/os.h"
+#include "os/core.h"
 #include "ref/scan.h"
 
 #include "interop/compile.h"
