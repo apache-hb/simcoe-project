@@ -340,7 +340,7 @@ BoxBounds StyleWidget::impl_layout(LayoutInfo& info, BoxBounds bounds) const {
 
     // shrink our vertices to fit the child with padding
     for (size_t i = vtx_offset; i < vtx_offset + vtx_count; i++) {
-        info.draw.vertices[i].position = math::clamp(info.draw.vertices[i].position, result.min, result.max);
+        info.draw.vertices[i].position = info.draw.vertices[i].position.clamp(result.min, result.max);
     }
 
     return child.bounds;

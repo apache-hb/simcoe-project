@@ -48,5 +48,15 @@ variant StateDependency {
 
 variant ResourceKind {
     case Transient // resources lifetime is bound to the frame
-    case Persistent // resources lifetime is outside of the frame
+    case Imported // resources lifetime is outside of the frame
+}
+
+[[arithmatic]]
+variant ResourceId : uint {
+    default Invalid = 0xFFFFFFFF
+}
+
+[[arithmatic]]
+variant ResourceVersion : uint {
+    default Invalid = 0xFFFFFFFF
 }

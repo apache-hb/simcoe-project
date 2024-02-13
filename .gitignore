@@ -12,6 +12,7 @@
 !*.def
 !*.l
 !*.y
+!*.inl
 
 # scripts
 !*.py

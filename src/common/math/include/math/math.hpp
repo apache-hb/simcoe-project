@@ -4,7 +4,6 @@
 #include <cstdint>
 
 #include "base/panic.h"
-#include "core/macros.hpp"
 
 namespace sm::math {
     template<typename T>
@@ -37,6 +36,16 @@ namespace sm::math {
         return it;
     }
 
+    template<typename T>
+    constexpr T min(const T& lhs, const T& rhs) {
+        return lhs < rhs ? lhs : rhs;
+    }
+
+    template<typename T>
+    constexpr T max(const T& lhs, const T& rhs) {
+        return lhs > rhs ? lhs : rhs;
+    }
+
     /**
      * vector types are (sort of) organized as follows:
      * all vectors are default uninitialized to satisfy std::is_trivial
@@ -56,8 +65,11 @@ namespace sm::math {
     template<typename T> struct Vec3;
     template<typename T> struct Vec4;
 
+    template<typename T> struct Mat4x4;
+
     template<typename T>
     struct Vec2 {
+        static constexpr size_t kSize = 2;
         using Type = T;
 
         union {
@@ -71,10 +83,9 @@ namespace sm::math {
 
         constexpr Vec2(T x, T y) : x(x), y(y) { }
         constexpr Vec2(T it) : Vec2(it, it) { }
-        constexpr Vec2(const T *pData) : Vec2(pData[0], pData[1]) { }
+        constexpr Vec2(const T *data) : Vec2(data[0], data[1]) { }
 
         constexpr static Vec2 zero() { return Vec2(T(0)); }
-        constexpr static Vec2 unit() { return Vec2(T(1)); }
 
         constexpr bool operator==(const Vec2& other) const { return x == other.x && y == other.y; }
         constexpr bool operator!=(const Vec2& other) const { return x != other.x || y != other.y; }
@@ -83,7 +94,7 @@ namespace sm::math {
         constexpr Vec2 operator+() const { return abs(); }
 
         constexpr Vec2 operator+(const Vec2& other) const { return Vec2(x + other.x, y + other.y); }
-        constexpr Vec2 operator-(const Vec2 &other) const { return Vec2(x - other.x, y - other.y); }
+        constexpr Vec2 operator-(const Vec2& other) const { return Vec2(x - other.x, y - other.y); }
         constexpr Vec2 operator*(const Vec2& other) const { return Vec2(x * other.x, y * other.y); }
         constexpr Vec2 operator/(const Vec2& other) const { return Vec2(x / other.x, y / other.y); }
 
@@ -103,7 +114,7 @@ namespace sm::math {
         constexpr Vec2 abs() const { return Vec2(std::abs(x), std::abs(y)); }
         constexpr T length() const { return std::sqrt(x * x + y * y); }
 
-        constexpr Vec2 normal() const {
+        constexpr Vec2 normalized() const {
             auto len = length();
             return Vec2(x / len, y / len);
         }
@@ -125,13 +136,17 @@ namespace sm::math {
         constexpr Vec2 rotate(R angle, const Vec2& origin = Vec2{}) const {
             auto [x, y] = *this - origin;
 
-            auto sin = std::sin(radians(angle));
-            auto cos = std::cos(radians(angle));
+            auto sin = std::sin(to_radians(angle));
+            auto cos = std::cos(to_radians(angle));
 
             auto x1 = x * cos - y * sin;
             auto y1 = x * sin + y * cos;
 
             return Vec2(x1, y1) + origin;
+        }
+
+        static constexpr T dot(const Vec2& lhs, const Vec2& rhs) {
+            return lhs.x * rhs.x + lhs.y * rhs.y;
         }
 
         constexpr const T& operator[](size_t index) const { return at(index); }
@@ -144,19 +159,20 @@ namespace sm::math {
         constexpr const T *data() const { return fields; }
 
         template<size_t I>
-        constexpr decltype(auto) get() const noexcept {
+        constexpr decltype(auto) get() const {
             if constexpr (I == 0) return x;
             else if constexpr (I == 1) return y;
             else static_assert(I < 2, "index out of bounds");
         }
 
-        constexpr void verify_index(SM_UNUSED size_t index) const {
+        constexpr void verify_index([[maybe_unused]] size_t index) const {
             CTASSERTF(index < 2, "index out of bounds (%zu < 2)", index);
         }
     };
 
     template<typename T>
     struct Vec3 {
+        static constexpr size_t kSize = 3;
         using Type = T;
 
         union {
@@ -172,10 +188,9 @@ namespace sm::math {
         constexpr Vec3(T it) : Vec3(it, it, it){ }
         constexpr Vec3(const Vec2<T>& xy, T z) : Vec3(xy.x, xy.y, z) { }
         constexpr Vec3(T x, const Vec2<T>& yz) : Vec3(x, yz.x, yz.y) { }
-        constexpr Vec3(const T *pData) : Vec3(pData[0], pData[1], pData[2]) { }
+        constexpr Vec3(const T *data) : Vec3(data[0], data[1], data[2]) { }
 
         static constexpr Vec3 zero() { return Vec3(T(0)); }
-        static constexpr Vec3 unit() { return Vec3(T(1)); }
 
         constexpr bool operator==(const Vec3& other) const { return x == other.x && y == other.y && z == other.z; }
         constexpr bool operator!=(const Vec3& it) const { return x != it.x || y != it.y || z != it.z; }
@@ -204,14 +219,11 @@ namespace sm::math {
 
         constexpr bool is_uniform() const { return x == y && y == z; }
 
-        constexpr Vec3 radians() const { return Vec3(x * kDegToRad<T>, y * kDegToRad<T>, z * kDegToRad<T>); }
-        constexpr Vec3 degrees() const { return Vec3(x * kRadToDeg<T>, y * kRadToDeg<T>, z * kRadToDeg<T>); }
-
         constexpr Vec3 negate() const { return Vec3(-x, -y, -z); }
         constexpr Vec3 abs() const { return Vec3(std::abs(x), std::abs(y), std::abs(z)); }
         constexpr T length() const { return std::sqrt(x * x + y * y + z * z); }
 
-        constexpr Vec3 normal() const {
+        constexpr Vec3 normalized() const {
             auto len = length();
             return Vec3(x / len, y / len, z / len);
         }
@@ -221,6 +233,14 @@ namespace sm::math {
 
         constexpr const T& at(size_t index) const { verify_index(index); return fields[index];}
         constexpr T& at(size_t index) { verify_index(index); return fields[index]; }
+
+        constexpr Vec3 clamp(const Vec3& low, const Vec3& high) const {
+            return Vec3(
+                math::clamp(x, low.x, high.x),
+                math::clamp(y, low.y, high.y),
+                math::clamp(z, low.z, high.z)
+            );
+        }
 
         static constexpr Vec3 cross(const Vec3& lhs, const Vec3& rhs) {
             return Vec3(
@@ -262,20 +282,21 @@ namespace sm::math {
         constexpr const T *data() const { return fields; }
 
         template<size_t I>
-        constexpr decltype(auto) get() const noexcept {
+        constexpr decltype(auto) get() const {
             if constexpr (I == 0) return x;
             else if constexpr (I == 1) return y;
             else if constexpr (I == 2) return z;
             else static_assert(I < 3, "index out of bounds");
         }
 
-        constexpr void verify_index(SM_UNUSED size_t index) const {
+        constexpr void verify_index([[maybe_unused]] size_t index) const {
             CTASSERTF(index < 3, "index out of bounds (%zu < 3)", index);
         }
     };
 
     template<typename T>
     struct Vec4 {
+        static constexpr size_t kSize = 4;
         using Type = T;
 
         union {
@@ -288,11 +309,10 @@ namespace sm::math {
 
         constexpr Vec4(T x, T y, T z, T w) : x(x), y(y), z(z), w(w) { }
         constexpr Vec4(T it) : Vec4(it, it, it, it) { }
-        constexpr Vec4(Vec3<T> xyz, T w) : Vec4(xyz.x, xyz.y, xyz.z, w) { }
-        constexpr Vec4(const T *pData) : Vec4(pData[0], pData[1], pData[2], pData[3]) { }
+        constexpr Vec4(const Vec3<T>& xyz, T w) : Vec4(xyz.x, xyz.y, xyz.z, w) { }
+        constexpr Vec4(const T *data) : Vec4(data[0], data[1], data[2], data[3]) { }
 
         static constexpr Vec4 zero() { return Vec4(T(0)); }
-        static constexpr Vec4 unit() { return Vec4(T(1)); }
 
         constexpr bool operator==(const Vec4& other) const { return x == other.x && y == other.y && z == other.z && w == other.w; }
         constexpr bool operator!=(const Vec4& other) const { return x != other.x || y != other.y || z != other.z || w != other.w; }
@@ -318,9 +338,18 @@ namespace sm::math {
         constexpr T length() const { return std::sqrt(x * x + y * y + z * z + w * w); }
         constexpr Vec4 negate() const { return Vec4(-x, -y, -z, -w); }
 
-        constexpr Vec4 normal() const {
+        constexpr Vec4 normalized() const {
             auto len = length();
             return Vec4(x / len, y / len, z / len, w / len);
+        }
+
+        constexpr Vec4 clamp(const Vec4& low, const Vec4& high) const {
+            return Vec4(
+                math::clamp(x, low.x, high.x),
+                math::clamp(y, low.y, high.y),
+                math::clamp(z, low.z, high.z),
+                math::clamp(w, low.w, high.w)
+            );
         }
 
         constexpr const T& operator[](size_t index) const { return at(index); }
@@ -333,7 +362,7 @@ namespace sm::math {
         constexpr const T *data() const { return fields; }
 
         template<size_t I>
-        constexpr decltype(auto) get() const noexcept {
+        constexpr decltype(auto) get() const {
             if constexpr (I == 0) return x;
             else if constexpr (I == 1) return y;
             else if constexpr (I == 2) return z;
@@ -341,14 +370,12 @@ namespace sm::math {
             else static_assert(I < 4, "index out of bounds");
         }
 
-        constexpr void verify_index(SM_UNUSED size_t index) const {
+        constexpr void verify_index([[maybe_unused]] size_t index) const {
             CTASSERTF(index < 4, "index out of bounds (%zu < 4)", index);
         }
     };
 
-    template<typename T>
-    struct Mat4x4;
-
+#if 0
     template<typename T>
     struct Mat3x3 {
         using Type = T;
@@ -377,48 +404,42 @@ namespace sm::math {
 
         constexpr RowType at(size_t it) const { return rows[it]; }
     };
+#endif
 
     template<typename T>
     struct Mat4x4 {
         using Type = T;
-        using RowType = Vec4<T>;
-        using Row3Type = Vec3<T>;
-        using Mat3x3Type = Mat3x3<T>;
+        using Row = Vec4<T>;
+        using Row3 = Vec3<T>;
 
-        RowType rows[4];
+        union {
+            T fields[16];
+            Row rows[4];
+        };
 
         constexpr Mat4x4() = default;
 
-        constexpr Mat4x4(T it) : Mat4x4(RowType(it)) { }
-        constexpr Mat4x4(const RowType& row) : Mat4x4(row, row, row, row) { }
-        constexpr Mat4x4(const RowType& row0, const RowType& row1, const RowType& row2, const RowType& row3) : rows{ row0, row1, row2, row3 } { }
-        constexpr Mat4x4(const T *pData) : Mat4x4(RowType(pData), RowType(pData + 4), RowType(pData + 8), RowType(pData + 12)) { }
+        constexpr Mat4x4(T it) : Mat4x4(Row(it)) { }
+        constexpr Mat4x4(const Row& row) : Mat4x4(row, row, row, row) { }
+        constexpr Mat4x4(const Row& row0, const Row& row1, const Row& row2, const Row& row3) : rows{ row0, row1, row2, row3 } { }
+        constexpr Mat4x4(const T *data) : Mat4x4(Row(data), Row(data + 4), Row(data + 8), Row(data + 12)) { }
 
-        constexpr Mat4x4(const Mat3x3Type& other) : Mat4x4(
-            RowType(other.at(0), 0),
-            RowType(other.at(1), 0),
-            RowType(other.at(2), 0),
-            RowType(0, 0, 0, 1)
-        ) { }
-
-        constexpr RowType column(size_t column) const {
+        constexpr Row column(size_t column) const {
             return { at(column, 0), at(column, 1), at(column, 2), at(column, 3) };
         }
 
-        constexpr RowType row(size_t row) const {
-            return at(row);
-        }
+        constexpr Row row(size_t row) const { return at(row); }
 
-        constexpr const RowType& at(size_t it) const { return rows[it]; }
-        constexpr RowType& at(size_t it) { return rows[it]; }
+        constexpr const Row& at(size_t it) const { return rows[it]; }
+        constexpr Row& at(size_t it) { return rows[it]; }
 
-        constexpr const RowType& operator[](size_t row) const { return rows[row];}
-        constexpr RowType& operator[](size_t row) { return rows[row]; }
+        constexpr const Row& operator[](size_t row) const { return rows[row];}
+        constexpr Row& operator[](size_t row) { return rows[row]; }
 
         constexpr const T &at(size_t it, size_t col) const { return at(it).at(col); }
         constexpr T &at(size_t it, size_t col) { return at(it).at(col); }
 
-        constexpr RowType mul(const RowType& other) const {
+        constexpr Row mul(const Row& other) const {
             auto row0 = at(0);
             auto row1 = at(1);
             auto row2 = at(2);
@@ -443,28 +464,28 @@ namespace sm::math {
             auto other2 = other.at(2);
             auto other3 = other.at(3);
 
-            RowType out0 = {
+            Row out0 = {
                 (other0.x * row0.x) + (other1.x * row0.y) + (other2.x * row0.z) + (other3.x * row0.w),
                 (other0.y * row0.x) + (other1.y * row0.y) + (other2.y * row0.z) + (other3.y * row0.w),
                 (other0.z * row0.x) + (other1.z * row0.y) + (other2.z * row0.z) + (other3.z * row0.w),
                 (other0.w * row0.x) + (other1.w * row0.y) + (other2.w * row0.z) + (other3.w * row0.w)
             };
 
-            RowType out1 = {
+            Row out1 = {
                 (other0.x * row1.x) + (other1.x * row1.y) + (other2.x * row1.z) + (other3.x * row1.w),
                 (other0.y * row1.x) + (other1.y * row1.y) + (other2.y * row1.z) + (other3.y * row1.w),
                 (other0.z * row1.x) + (other1.z * row1.y) + (other2.z * row1.z) + (other3.z * row1.w),
                 (other0.w * row1.x) + (other1.w * row1.y) + (other2.w * row1.z) + (other3.w * row1.w)
             };
 
-            RowType out2 = {
+            Row out2 = {
                 (other0.x * row2.x) + (other1.x * row2.y) + (other2.x * row2.z) + (other3.x * row2.w),
                 (other0.y * row2.x) + (other1.y * row2.y) + (other2.y * row2.z) + (other3.y * row2.w),
                 (other0.z * row2.x) + (other1.z * row2.y) + (other2.z * row2.z) + (other3.z * row2.w),
                 (other0.w * row2.x) + (other1.w * row2.y) + (other2.w * row2.z) + (other3.w * row2.w)
             };
 
-            RowType out3 = {
+            Row out3 = {
                 (other0.x * row3.x) + (other1.x * row3.y) + (other2.x * row3.z) + (other3.x * row3.w),
                 (other0.y * row3.x) + (other1.y * row3.y) + (other2.y * row3.z) + (other3.y * row3.w),
                 (other0.z * row3.x) + (other1.z * row3.y) + (other2.z * row3.z) + (other3.z * row3.w),
@@ -503,23 +524,23 @@ namespace sm::math {
         /// scale related functions
         ///
 
-        static constexpr Mat4x4 scale(const Row3Type& scale) {
+        static constexpr Mat4x4 scale(const Row3& scale) {
             return Mat4x4::scale(scale.x, scale.y, scale.z);
         }
 
         static constexpr Mat4x4 scale(T x, T y, T z) {
-            RowType row0 = { x, 0, 0, 0 };
-            RowType row1 = { 0, y, 0, 0 };
-            RowType row2 = { 0, 0, z, 0 };
-            RowType row3 = { 0, 0, 0, 1 };
+            Row row0 = { x, 0, 0, 0 };
+            Row row1 = { 0, y, 0, 0 };
+            Row row2 = { 0, 0, z, 0 };
+            Row row3 = { 0, 0, 0, 1 };
             return { row0, row1, row2, row3 };
         }
 
-        constexpr Row3Type getScale() const {
+        constexpr Row3 getScale() const {
             return { at(0, 0), at(1, 1), at(2, 2) };
         }
 
-        constexpr void setScale(const Row3Type& scale) {
+        constexpr void setScale(const Row3& scale) {
             at(0, 0) = scale.x;
             at(1, 1) = scale.y;
             at(2, 2) = scale.z;
@@ -529,23 +550,23 @@ namespace sm::math {
         /// translation related functions
         ///
 
-        static constexpr Mat4x4 translation(const Row3Type& translation) {
+        static constexpr Mat4x4 translation(const Row3& translation) {
             return Mat4x4::translation(translation.x, translation.y, translation.z);
         }
 
         static constexpr Mat4x4 translation(T x, T y, T z) {
-            RowType row0 = { 1, 0, 0, x };
-            RowType row1 = { 0, 1, 0, y };
-            RowType row2 = { 0, 0, 1, z };
-            RowType row3 = { 0, 0, 0, 1 };
+            Row row0 = { 1, 0, 0, x };
+            Row row1 = { 0, 1, 0, y };
+            Row row2 = { 0, 0, 1, z };
+            Row row3 = { 0, 0, 0, 1 };
             return { row0, row1, row2, row3 };
         }
 
-        constexpr Row3Type getTranslation() const {
+        constexpr Row3 translation() const {
             return { at(0, 3), at(1, 3), at(2, 3) };
         }
 
-        constexpr void set_translation(const Row3Type& translation) {
+        constexpr void set_translation(const Row3& translation) {
             at(0, 3) = translation.x;
             at(1, 3) = translation.y;
             at(2, 3) = translation.z;
@@ -557,7 +578,7 @@ namespace sm::math {
         /// @note the vector is expected to be in radians
         /// @param rotation the rotation vector
         /// @return the rotation matrix
-        static constexpr Mat4x4 rotation(const Row3Type& rotation) {
+        static constexpr Mat4x4 rotation(const Row3& rotation) {
             const auto& [pitch, yaw, roll] = rotation;
             const T cp = std::cos(pitch);
             const T sp = std::sin(pitch);
@@ -568,85 +589,85 @@ namespace sm::math {
             const T cr = std::cos(roll);
             const T sr = std::sin(roll);
 
-            RowType r0 = {
+            Row r0 = {
                 cr * cy + sr * sp * sy,
                 sr * cp,
                 sr * sp * cy - cr * sy,
                 0
             };
 
-            RowType r1 = {
+            Row r1 = {
                 cr * sp * sy - sr * cy,
                 cr * cp,
                 sr * sy + cr * sp * cy,
                 0
             };
 
-            RowType r2 = {
+            Row r2 = {
                 cp * sy,
                 -sp,
                 cp * cy,
                 0
             };
 
-            RowType r3 = { 0, 0, 0, 1 };
+            Row r3 = { 0, 0, 0, 1 };
 
             return { r0, r1, r2, r3 };
         }
 
         // full transform
-        static constexpr Mat4x4 transform(const Row3Type& translation, const Row3Type& rotation, const Row3Type& scale) {
+        static constexpr Mat4x4 transform(const Row3& translation, const Row3& rotation, const Row3& scale) {
             return Mat4x4::translation(translation) * Mat4x4::rotation(rotation) * Mat4x4::scale(scale);
         }
 
         constexpr Mat4x4 transpose() const {
-            RowType r0 = { rows[0].x, rows[1].x, rows[2].x, rows[3].x };
-            RowType r1 = { rows[0].y, rows[1].y, rows[2].y, rows[3].y };
-            RowType r2 = { rows[0].z, rows[1].z, rows[2].z, rows[3].z };
-            RowType r3 = { rows[0].w, rows[1].w, rows[2].w, rows[3].w };
+            Row r0 = { rows[0].x, rows[1].x, rows[2].x, rows[3].x };
+            Row r1 = { rows[0].y, rows[1].y, rows[2].y, rows[3].y };
+            Row r2 = { rows[0].z, rows[1].z, rows[2].z, rows[3].z };
+            Row r3 = { rows[0].w, rows[1].w, rows[2].w, rows[3].w };
             return { r0, r1, r2, r3 };
         }
 
         static constexpr Mat4x4 identity() {
-            RowType row0 = { 1, 0, 0, 0 };
-            RowType row1 = { 0, 1, 0, 0 };
-            RowType row2 = { 0, 0, 1, 0 };
-            RowType row3 = { 0, 0, 0, 1 };
+            Row row0 = { 1, 0, 0, 0 };
+            Row row1 = { 0, 1, 0, 0 };
+            Row row2 = { 0, 0, 1, 0 };
+            Row row3 = { 0, 0, 0, 1 };
             return { row0, row1, row2, row3 };
         }
 
         // camera related functions
 
-        static constexpr Mat4x4 lookToLH(const Row3Type& eye, const Row3Type& dir, const Row3Type& up) {
-            CTASSERT(eye != Row3Type::zero());
-            CTASSERT(up != Row3Type::zero());
+        static constexpr Mat4x4 lookToLH(const Row3& eye, const Row3& dir, const Row3& up) {
+            CTASSERT(eye != Row3::zero());
+            CTASSERT(up != Row3::zero());
 
             CTASSERT(!eye.isinf());
             CTASSERT(!up.isinf());
 
-            auto r2 = dir.normal();
-            auto r0 = Row3Type::cross(up, r2).normal();
-            auto r1 = Row3Type::cross(r2, r0);
+            auto r2 = dir.normalized();
+            auto r0 = Row3::cross(up, r2).normalized();
+            auto r1 = Row3::cross(r2, r0);
 
             auto negEye = eye.negate();
 
-            auto d0 = Row3Type::dot(r0, negEye);
-            auto d1 = Row3Type::dot(r1, negEye);
-            auto d2 = Row3Type::dot(r2, negEye);
+            auto d0 = Row3::dot(r0, negEye);
+            auto d1 = Row3::dot(r1, negEye);
+            auto d2 = Row3::dot(r2, negEye);
 
-            RowType s0 = { r0, d0 };
-            RowType s1 = { r1, d1 };
-            RowType s2 = { r2, d2 };
-            RowType s3 = { 0, 0, 0, 1 };
+            Row s0 = { r0, d0 };
+            Row s1 = { r1, d1 };
+            Row s2 = { r2, d2 };
+            Row s3 = { 0, 0, 0, 1 };
 
             return Mat4x4(s0, s1, s2, s3).transpose();
         }
 
-        static constexpr Mat4x4 lookToRH(const Row3Type& eye, const Row3Type& dir, const Row3Type& up) {
+        static constexpr Mat4x4 lookToRH(const Row3& eye, const Row3& dir, const Row3& up) {
             return Mat4x4::lookToLH(eye, dir.negate(), up);
         }
 
-        static constexpr Mat4x4 lookAtRH(const Row3Type& eye, const Row3Type& focus, const Row3Type& up) {
+        static constexpr Mat4x4 lookAtRH(const Row3& eye, const Row3& focus, const Row3& up) {
             return Mat4x4::lookToLH(eye, eye - focus, up);
         }
 
@@ -658,20 +679,20 @@ namespace sm::math {
             auto width = height / aspect;
             auto range = farLimit / (nearLimit - farLimit);
 
-            RowType r0 = { width, 0,      0,                 0 };
-            RowType r1 = { 0,     height, 0,                 0 };
-            RowType r2 = { 0,     0,      range,            -1 };
-            RowType r3 = { 0,     0,      range * nearLimit, 0 };
+            Row r0 = { width, 0,      0,                 0 };
+            Row r1 = { 0,     height, 0,                 0 };
+            Row r2 = { 0,     0,      range,            -1 };
+            Row r3 = { 0,     0,      range * nearLimit, 0 };
             return { r0, r1, r2, r3 };
         }
 
         static constexpr Mat4x4 orthographicRH(T width, T height, T nearLimit, T farLimit) {
             T range = 1 / (nearLimit - farLimit);
 
-            RowType r0 = { 2 / width, 0,          0,                 0 };
-            RowType r1 = { 0,         2 / height, 0,                 0 };
-            RowType r2 = { 0,         0,          range,             0 };
-            RowType r3 = { 0,         0,          range * nearLimit, 1 };
+            Row r0 = { 2 / width, 0,          0,                 0 };
+            Row r1 = { 0,         2 / height, 0,                 0 };
+            Row r2 = { 0,         0,          range,             0 };
+            Row r3 = { 0,         0,          range * nearLimit, 1 };
 
             return { r0, r1, r2, r3 };
         }
@@ -682,11 +703,11 @@ namespace sm::math {
             T rWidth = 1.f / (right - left);
             T rHeight = 1.f / (top - bottom);
 
-            RowType r0 = { rWidth + rWidth, 0.f, 0.f, 0.f };
-            RowType r1 = { 0.f, rHeight + rHeight, 0.f, 0.f };
-            RowType r2 = { 0.f, 0.f, range, 0.f };
+            Row r0 = { rWidth + rWidth, 0.f, 0.f, 0.f };
+            Row r1 = { 0.f, rHeight + rHeight, 0.f, 0.f };
+            Row r2 = { 0.f, 0.f, range, 0.f };
 
-            RowType r3 = {
+            Row r3 = {
                 -(left + right) * rWidth,
                 -(top + bottom) * rHeight,
                 range * nearLimit,
@@ -698,33 +719,27 @@ namespace sm::math {
     };
 
     template<typename T>
+    concept IsVector = requires (T it) {
+        { T::kSize } -> std::convertible_to<size_t>;
+        { it.fields } -> std::convertible_to<typename T::Type*>;
+    };
+
+    template<IsVector T>
     constexpr T min(const T& lhs, const T& rhs) {
-        return lhs < rhs ? lhs : rhs;
+        T out;
+        for (size_t i = 0; i < T::kSize; i++) {
+            out.at(i) = math::min(lhs.fields[i], rhs.fields[i]);
+        }
+        return out;
     }
 
-    template<typename T>
+    template<IsVector T>
     constexpr T max(const T& lhs, const T& rhs) {
-        return lhs > rhs ? lhs : rhs;
-    }
-
-    template<typename T>
-    constexpr Vec2<T> min(const Vec2<T>& lhs, const Vec2<T>& rhs) {
-        return Vec2<T>(min(lhs.x, rhs.x), min(lhs.y, rhs.y));
-    }
-
-    template<typename T>
-    constexpr Vec2<T> max(const Vec2<T>& lhs, const Vec2<T>& rhs) {
-        return Vec2<T>(max(lhs.x, rhs.x), max(lhs.y, rhs.y));
-    }
-
-    template<typename T>
-    constexpr Vec2<T> clamp(const Vec2<T>& value, const Vec2<T>& low, const Vec2<T>& high) {
-        return { clamp(value.x, low.x, high.x), clamp(value.y, low.y, high.y) };
-    }
-
-    template<typename T>
-    constexpr T dot(const Vec2<T>& lhs, const Vec2<T>& rhs) {
-        return lhs.x * rhs.x + lhs.y * rhs.y;
+        T out;
+        for (size_t i = 0; i < T::kSize; i++) {
+            out.at(i) = math::max(lhs.fields[i], rhs.fields[i]);
+        }
+        return out;
     }
 
     using int2 = Vec2<int>;
@@ -751,12 +766,10 @@ namespace sm::math {
     using float2 = Vec2<float>;
     using float3 = Vec3<float>;
     using float4 = Vec4<float>;
-    using float3x3 = Mat3x3<float>;
     using float4x4 = Mat4x4<float>;
     static_assert(sizeof(float2) == sizeof(float) * 2);
     static_assert(sizeof(float3) == sizeof(float) * 3);
     static_assert(sizeof(float4) == sizeof(float) * 4);
-    static_assert(sizeof(float3x3) == sizeof(float) * 3 * 3);
     static_assert(sizeof(float4x4) == sizeof(float) * 4 * 4);
 
     using uint8x2 = Vec2<uint8_t>;

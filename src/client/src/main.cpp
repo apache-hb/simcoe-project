@@ -2,26 +2,30 @@
 #include "core/backtrace.hpp"
 #include "core/format.hpp"
 #include "core/text.hpp"
-
+#include "core/reflect.hpp" // IWYU pragma: keep
 #include "core/units.hpp"
-#include "io/io.h"
+
 #include "logs/logs.hpp"
 #include "rhi/rhi.hpp"
+
 #include "service/freetype.hpp"
-#include "std/str.h"
+
 #include "system/input.hpp"
 #include "system/io.hpp"
 #include "system/system.hpp"
+
 #include "threads/threads.hpp"
 
-#include "base/panic.h"
 #include "ui/control.hpp"
 #include "ui/render.hpp"
 
+#include "std/str.h"
+#include "base/panic.h"
 #include "backtrace/backtrace.h"
 #include "format/backtrace.h"
 #include "format/colour.h"
 #include "io/console.h"
+#include "io/io.h"
 
 #include "imgui/backends/imgui_impl_dx12.h"
 #include "imgui/backends/imgui_impl_win32.h"
@@ -30,7 +34,6 @@
 
 #include "render/graph.hpp"
 #include "render/render.hpp"
-#include <array>
 
 using namespace sm;
 
@@ -39,11 +42,6 @@ using GlobalSink = logs::Sink<logs::Category::eGlobal>;
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
                                                              LPARAM lParam);
 
-template <ctu::Reflected T>
-static constexpr auto enum_to_string(T value) {
-    using Reflect = ctu::TypeInfo<T>;
-    return Reflect::to_string(value);
-}
 
 // TODO: clean up loggers
 
@@ -52,9 +50,6 @@ class FileLog final : public logs::ILogger {
     io_t *io;
 
     void accept(const logs::Message &message) override {
-        const auto c = enum_to_string(message.category);
-        const auto s = enum_to_string(message.severity);
-
         // we dont have fmt/chrono.h because we use it in header only mode
         // so pull out the hours/minutes/seconds/milliseconds manually
 
@@ -63,8 +58,8 @@ class FileLog final : public logs::ILogger {
         auto seconds = (message.timestamp / 1000) % 60;
         auto milliseconds = message.timestamp % 1000;
 
-        fmt::format_to(std::back_inserter(m_buffer), "[{}][{:02}:{:02}:{:02}.{:03}] {}:", s.data(),
-                       hours, minutes, seconds, milliseconds, c.data());
+        fmt::format_to(std::back_inserter(m_buffer), "[{}][{:02}:{:02}:{:02}.{:03}] {}:", message.severity,
+                       hours, minutes, seconds, milliseconds, message.category);
 
         std::string_view header{m_buffer.data(), m_buffer.size()};
 
@@ -102,7 +97,8 @@ class ConsoleLog final : public logs::ILogger {
     sm::FormatBuffer m_buffer;
 
     static constexpr colour_t get_colour(logs::Severity severity) {
-        CTASSERTF(severity.is_valid(), "invalid severity: %s", enum_to_string(severity).data());
+        using Reflect = ctu::TypeInfo<logs::Severity>;
+        CTASSERTF(severity.is_valid(), "invalid severity: %s", Reflect::to_string(severity).data());
 
         using logs::Severity;
         switch (severity) {
@@ -116,9 +112,6 @@ class ConsoleLog final : public logs::ILogger {
     }
 
     void accept(const logs::Message &message) override {
-        const auto c = enum_to_string(message.category);
-        const auto s = enum_to_string(message.severity);
-
         const auto pallete = &kColourDefault;
 
         const char *colour = colour_get(pallete, get_colour(message.severity));
@@ -133,8 +126,8 @@ class ConsoleLog final : public logs::ILogger {
         auto milliseconds = message.timestamp % 1000;
 
         fmt::format_to(std::back_inserter(m_buffer),
-                       "{}[{}]{}[{:02}:{:02}:{:02}.{:03}] {}:", colour, s.data(), reset, hours,
-                       minutes, seconds, milliseconds, c.data());
+                       "{}[{}]{}[{:02}:{:02}:{:02}.{:03}] {}:", colour, message.severity, reset, hours,
+                       minutes, seconds, milliseconds, message.category);
 
         std::string_view header{m_buffer.data(), m_buffer.size()};
 
