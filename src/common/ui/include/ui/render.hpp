@@ -9,11 +9,6 @@ namespace sm::ui {
     };
 
     class CanvasCommands : public render::IRenderNode {
-    public:
-        render::NodeInput *m_rtv_in = add_input(render::ResourceType::eRenderTarget, rhi::ResourceState::eRenderTarget);
-
-        render::NodeOutput *m_rtv_out = add_output(render::ResourceType::eRenderTarget, rhi::ResourceState::eRenderTarget);
-    private:
         // external data
         bundle::AssetBundle& m_assets;
 

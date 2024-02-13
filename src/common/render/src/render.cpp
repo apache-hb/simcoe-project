@@ -4,15 +4,7 @@ using namespace sm;
 using namespace sm::render;
 
 void IGraphNode::build(Context& context) {
-    for (auto& input : m_inputs) {
-        input->update(context);
-    }
-
     execute(context);
-
-    for (auto& output : m_outputs) {
-        output->update(context);
-    }
 }
 
 void Context::create_node(IGraphNode& node) {
@@ -26,14 +18,6 @@ void Context::destroy_node(IGraphNode& node) {
 
 void Context::execute_inner(IGraphNode& node) {
     node.build(*this);
-
-    for (auto& input : node.m_outputs) {
-        auto [first, second] = m_edges.equal_range(input.get());
-        for (auto it = first; it != second; ++it) {
-            auto& input = *it->second;
-            execute_inner(input.m_node);
-        }
-    }
 }
 
 void Context::execute_node(IGraphNode& node) {

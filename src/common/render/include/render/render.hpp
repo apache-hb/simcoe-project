@@ -58,69 +58,8 @@ namespace sm::render {
     using SrvHeapIndex = SrvArena::Index;
     using RtvHeapIndex = RtvArena::Index;
 
-    class GraphEdge {
-        friend class Context;
-
-        IGraphNode& m_node;
-        ResourceType m_type;
-        rhi::ResourceState m_state;
-
-        void set_state(rhi::ResourceState state) { m_state = state; }
-
-    protected:
-        GraphEdge(IGraphNode& node, ResourceType type, rhi::ResourceState state)
-            : m_node(node)
-            , m_type(type)
-            , m_state(state)
-        { }
-
-    public:
-        virtual ~GraphEdge() = default;
-
-        constexpr ResourceType get_type() const { return m_type; }
-        constexpr rhi::ResourceState get_state() const { return m_state; }
-    };
-
-    class NodeInput : public GraphEdge {
-        friend class Context;
-        friend class IGraphNode;
-
-        virtual void update(Context& context) = 0;
-
-    protected:
-        void set_resource(rhi::ResourceObject resource);
-
-    public:
-        rhi::ResourceObject get_resource() const;
-    };
-
-    class NodeOutput : public GraphEdge {
-        friend class Context;
-        friend class IGraphNode;
-
-        virtual void update(Context& context) = 0;
-    };
-
-    using NodeInputPtr = sm::UniquePtr<NodeInput>;
-    using NodeOutputPtr = sm::UniquePtr<NodeOutput>;
-
-    struct ResourceBinding {
-        rhi::DescriptorHeapType heap;
-        union {
-            SrvHeapIndex srv;
-            RtvHeapIndex rtv;
-        };
-
-        constexpr ResourceBinding(rhi::DescriptorHeapType heap)
-            : heap(heap)
-        { }
-    };
-
     class IGraphNode {
         friend class Context;
-
-        sm::Vector<NodeInputPtr> m_inputs;
-        sm::Vector<NodeOutputPtr> m_outputs;
 
         // internal node execution
         void build(Context& context);
@@ -131,9 +70,6 @@ namespace sm::render {
 
         virtual void resize(Context& context, math::uint2 size) { }
         virtual void execute(Context& context) { }
-
-        NodeInput *add_input(ResourceType type, rhi::ResourceState state) { return nullptr; }
-        NodeOutput *add_output(ResourceType type, rhi::ResourceState state) { return nullptr; }
 
     public:
         virtual ~IGraphNode() = default;
@@ -158,9 +94,6 @@ namespace sm::render {
         // all graph nodes
         sm::Vector<GraphNodePtr> m_nodes;
 
-        // edges between nodes
-        sm::MultiMap<NodeOutput*, NodeInput*> m_edges;
-
         void execute_inner(IGraphNode& node);
 
         void create_node(IGraphNode& node);
@@ -181,15 +114,6 @@ namespace sm::render {
         void execute_node(IGraphNode& node);
         void destroy_node(IGraphNode& node);
         void resize(math::uint2 size);
-
-        ///
-        /// render pass resource api
-        ///
-
-        void connect(NodeInput& input, NodeOutput& output);
-
-        rhi::ResourceObject get_input(const NodeInput& input);
-        void set_output(const NodeOutput& output, rhi::ResourceObject resource);
 
         ///
         /// stuff that needs to be deleted at some point

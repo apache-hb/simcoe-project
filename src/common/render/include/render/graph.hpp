@@ -27,10 +27,6 @@ namespace sm::render {
     static_assert(std::is_trivial_v<Vertex> && std::is_standard_layout_v<Vertex>);
 
     class BeginCommands : public render::IRenderNode {
-    public:
-        NodeOutput *m_swapchain = add_output(ResourceType::eRenderTarget, rhi::ResourceState::ePresent);
-
-    private:
         void execute(render::Context& ctx) override {
             ctx.begin_frame();
 
@@ -43,24 +39,12 @@ namespace sm::render {
     };
 
     class EndCommands : public render::IRenderNode {
-    public:
-        NodeInput *m_swapchain = add_input(ResourceType::eRenderTarget, rhi::ResourceState::ePresent);
-
-    private:
         void execute(render::Context& ctx) override {
             ctx.end_frame();
         }
     };
 
     class WorldCommands : public render::IRenderNode {
-    public:
-        NodeInput *m_rtv_in = add_input(ResourceType::eRenderTarget, rhi::ResourceState::eRenderTarget);
-        NodeInput *m_dsv_in = add_input(ResourceType::eDepthStencil, rhi::ResourceState::eDepthWrite);
-
-        NodeOutput *m_rtv_out = add_output(ResourceType::eRenderTarget, rhi::ResourceState::eRenderTarget);
-        NodeOutput *m_dsv_out = add_output(ResourceType::eDepthStencil, rhi::ResourceState::eDepthWrite);
-
-    private:
         static constexpr inline const char *kVertexShader = "shaders/object.vs.cso";
         static constexpr inline const char *kPixelShader = "shaders/object.ps.cso";
 
