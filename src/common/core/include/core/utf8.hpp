@@ -1,7 +1,6 @@
 #pragma once
 
-#include <cstdlib>
-#include <iterator>
+#include <stdlib.h>
 
 namespace sm::utf8 {
     // utf8 codepoint iterator, doesnt handle invalid utf8, surrogates, etc
@@ -10,11 +9,10 @@ namespace sm::utf8 {
         size_t m_offset;
 
     public:
-        using difference_type = ptrdiff_t;
-        using reference = char32_t;
-        using value_type = char32_t;
-        using pointer = const char32_t*;
-        using iterator_category = std::forward_iterator_tag;
+        using difference_type = ptrdiff_t; // NOLINT
+        using reference = char32_t; // NOLINT
+        using value_type = char32_t; // NOLINT
+        using pointer = const char32_t*; // NOLINT
 
         TextIterator(const char8_t *text, size_t offset);
 

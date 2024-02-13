@@ -29,7 +29,10 @@ public:
     SM_NOCOPY(Object)
 
     constexpr Object(T *object = nullptr)
-        : m_object(object) {}
+        : m_object(object)
+    {
+        std::printf("Object::Object\n");
+    }
     ~Object() {
         try_release();
     }

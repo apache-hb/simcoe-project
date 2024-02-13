@@ -44,6 +44,8 @@ bool RecordLookup::has_valid_data() const {
 }
 
 bool FileMapping::create() {
+    IArena& arena = sm::get_pool(sm::Pool::eDebug);
+
     // do first time initialization of file header
     auto setup_file = [&] {
         FileHeader data = {
@@ -87,46 +89,36 @@ bool FileMapping::create() {
         return true;
     };
 
-    m_file = CreateFileA(
-        /* lpFileName = */ m_path,
-        /* dwDesiredAccess = */ GENERIC_READ | GENERIC_WRITE,
-        /* dwShareMode = */ FILE_SHARE_READ,
-        /* lpSecurityAttributes = */ nullptr,
-        /* dwCreationDisposition = */ OPEN_ALWAYS,
-        /* dwFlagsAndAttributes = */ FILE_ATTRIBUTE_NORMAL,
-        /* hTemplateFile = */ nullptr);
+    static constexpr os_access_t kAccess = os_access_t(eAccessRead | eAccessWrite);
 
-    if (!SM_CHECK_WIN32(m_file != INVALID_HANDLE_VALUE, m_log)) return false;
+    if (os_error_t err = os_file_open(m_path, kAccess, &m_file)) {
+        m_log.error("unable to open file, {}", os_error_string(err, &arena));
+        return false;
+    }
 
     // resize file to the desired size
 
     CTASSERTF(m_size <= UINT32_MAX, "file size too large: %s", m_size.to_string().c_str());
-    LARGE_INTEGER file_size = {.QuadPart = LONGLONG(m_size.as_bytes())};
 
-    if (!SM_CHECK_WIN32(SetFilePointerEx(m_file, file_size, nullptr, FILE_BEGIN), m_log))
+    size_t size_as_bytes = m_size.as_bytes();
+
+    if (os_error_t err = os_file_expand(&m_file, size_as_bytes)) {
+        m_log.error("unable to expand file, {}", os_error_string(err, &arena));
         return false;
-    if (!SM_CHECK_WIN32(SetEndOfFile(m_file), m_log)) return false;
+    }
 
     // map the file into memory
 
-    m_mapping = CreateFileMappingA(
-        /* hFile = */ m_file,
-        /* lpFileMappingAttributes = */ nullptr,
-        /* flProtect = */ PAGE_READWRITE,
-        /* dwMaximumSizeHigh = */ 0,
-        /* dwMaximumSizeLow = */ DWORD(m_size.as_bytes()),
-        /* lpName = */ nullptr);
+    static constexpr os_protect_t kProtect = os_protect_t(eProtectRead | eProtectWrite);
 
-    if (!SM_CHECK_WIN32(m_mapping != nullptr, m_log)) return false;
+    if (os_error_t err = os_file_map(&m_file, kProtect, size_as_bytes, &m_mapping)) {
+        m_log.error("unable to map file, {}", os_error_string(err, &arena));
+        return false;
+    }
 
-    m_memory = MapViewOfFile(
-        /* hFileMappingObject = */ m_mapping,
-        /* dwDesiredAccess = */ FILE_MAP_READ | FILE_MAP_WRITE,
-        /* dwFileOffsetHigh = */ 0,
-        /* dwFileOffsetLow = */ 0,
-        /* dwNumberOfBytesToMap = */ m_size.as_bytes());
+    CTASSERTF(os_mapping_active(&m_mapping), "mapping for %s not active", m_path);
 
-    if (!SM_CHECK_WIN32(m_memory != nullptr, m_log)) return false;
+    m_memory = os_mapping_data(&m_mapping);
 
     // read in the file header
 
@@ -178,22 +170,14 @@ void FileMapping::destroy() {
         // only update the header if the file is valid
         // we dont want to trample over a file that we didnt create
         if (is_valid()) update_header();
-
-        SM_CHECK_WIN32(UnmapViewOfFile(m_memory), m_log);
         m_memory = nullptr;
     }
 
-    // close the file mapping
-    if (m_mapping != nullptr) {
-        SM_CHECK_WIN32(CloseHandle(m_mapping), m_log);
-        m_mapping = nullptr;
+    if (os_mapping_active(&m_mapping)) {
+        os_file_unmap(&m_mapping);
     }
 
-    // close the file
-    if (m_file != nullptr) {
-        SM_CHECK_WIN32(CloseHandle(m_file), m_log);
-        m_file = nullptr;
-    }
+    os_file_close(&m_file);
 
     // reset the size
     m_size = 0;

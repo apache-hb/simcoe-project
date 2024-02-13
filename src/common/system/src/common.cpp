@@ -2,8 +2,9 @@
 
 #include "core/arena.hpp"
 
-#include "os/os.h"
 #include "common.hpp"
+
+#include "os/core.h"
 
 #include <errhandlingapi.h>
 

@@ -2,6 +2,7 @@
 
 #include "core/bitmap.hpp"
 
+#include "os/os.h"
 #include "system/system.hpp"
 
 namespace sm::sys {
@@ -12,8 +13,9 @@ namespace sm::sys {
         SystemSink m_log;
 
         // mapping data
-        HANDLE m_file = nullptr;
-        HANDLE m_mapping = nullptr;
+        os_file_t m_file;
+        os_mapping_t m_mapping;
+
         void *m_memory = nullptr;
         sm::Memory m_size = 0;
         bool m_valid;

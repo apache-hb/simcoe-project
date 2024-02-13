@@ -1,14 +1,13 @@
 #pragma once
 
-#include <array>
-
 #include "core/vector.hpp"
+#include "core/array.hpp"
 
 #include "input.reflect.h"
 
 namespace sm::input {
-    using ButtonState = std::array<size_t, Button::kCount>;
-    using AxisState = std::array<float, Axis::kCount>;
+    using ButtonState = sm::Array<size_t, Button::kCount>;
+    using AxisState = sm::Array<float, Axis::kCount>;
 
     struct InputState {
         InputDevice device;

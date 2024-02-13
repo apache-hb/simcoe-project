@@ -1,7 +1,5 @@
 #include "system/input.hpp"
 
-#include <map>
-
 using namespace sm;
 using namespace sm::sys;
 
@@ -23,7 +21,18 @@ static DWORD remap_keycode(WPARAM wparam, LPARAM lparam) {
     return vk;
 }
 
-static const std::map<int, input::Button> kButtons = {
+struct ButtonMap { unsigned key; input::Button button; };
+
+template<size_t N>
+static consteval auto make_table(const ButtonMap(&data)[N]) {
+    Array<input::Button, 256> table{};
+    for (const auto& entry : data) {
+        table[entry.key] = entry.button;
+    }
+    return table;
+}
+
+static constexpr auto kButtons = make_table({
     { 'A', input::Button::eA },
     { 'B', input::Button::eB },
     { 'C', input::Button::eC },
@@ -87,11 +96,11 @@ static const std::map<int, input::Button> kButtons = {
 
     { VK_XBUTTON1, input::Button::eMouseExtra1 },
     { VK_XBUTTON2, input::Button::eMouseExtra2 }
-};
+});
 
 void DesktopInput::set_key(WORD key, size_t value) {
-    if (auto it = kButtons.find(key); it != kButtons.end()) {
-        m_buttons[it->second] = value;
+    if (auto button = kButtons[key]) {
+        m_buttons[button] = value;
     }
 }
 
@@ -126,8 +135,10 @@ DesktopInput::DesktopInput(sys::Window& window)
 bool DesktopInput::poll(input::InputState& state) {
     bool dirty = false;
 
-    for (const auto& [_, button] : kButtons) {
-        dirty |= state.update_button(button, m_buttons[button]);
+    for (unsigned i = 0; i < kButtons.length(); ++i) {
+        if (auto button = kButtons[i]; button.is_valid()) {
+            dirty |= update(state.buttons[button], m_buttons[button]);
+        }
     }
 
     return dirty;

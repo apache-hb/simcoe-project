@@ -31,8 +31,6 @@ namespace sm::ui {
         rhi::ResourceObject m_vbo;
         rhi::ResourceObject m_ibo;
 
-        /// !!! DO NOT READ FROM THESE POINTERS
-        /// !!! MAY BE GPU UPLOAD HEAP, SLOW
         ui::Vertex *m_vbo_data = nullptr;
         ui::Index *m_ibo_data = nullptr;
 

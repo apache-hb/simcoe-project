@@ -5,7 +5,6 @@
 #include <limits>
 
 #include "core/text.hpp"
-#include "fmtlib/format.h"
 
 #include "core.reflect.h"
 
@@ -142,6 +141,7 @@ namespace sm {
     }
 }
 
+#if SM_FORMAT
 template<>
 struct fmt::formatter<sm::Memory> {
     constexpr auto parse(format_parse_context& ctx) {
@@ -153,3 +153,4 @@ struct fmt::formatter<sm::Memory> {
         return fmt::format_to(ctx.out(), "{}", value.to_string());
     }
 };
+#endif

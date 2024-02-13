@@ -9,3 +9,5 @@
 #define FMT_STATIC_THOUSANDS_SEPARATOR '\''
 
 #include "fmt/format.h" // IWYU pragma: export
+
+#define SM_FORMAT 1

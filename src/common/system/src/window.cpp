@@ -1,7 +1,7 @@
 #include "system/window.hpp"
+
 #include "common.hpp"
 
-#include "base/panic.h"
 #include "resource.h"
 
 #include <winbase.h>

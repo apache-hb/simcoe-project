@@ -2,8 +2,8 @@
 #include "core/macros.h"
 #include "core/macros.hpp"
 
-#include <cstring>
-#include <cstdlib>
+#include <string.h>
+#include <stdlib.h>
 
 using namespace sm;
 
@@ -72,19 +72,19 @@ class DefaultArena final : public IArena {
     using IArena::IArena;
 
     void *impl_alloc(size_t size) override {
-        return std::malloc(size);
+        return ::malloc(size);
     }
 
     void *impl_resize(void *ptr, size_t new_size, size_t old_size) override {
         CT_UNUSED(old_size);
 
-        return std::realloc(ptr, new_size);
+        return ::realloc(ptr, new_size);
     }
 
     void impl_release(void *ptr, size_t size) override {
         CT_UNUSED(size);
 
-        std::free(ptr);
+        ::free(ptr);
     }
 };
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/vector.hpp"
+#include "core/array.hpp"
 
 #include <atomic>
 #include <bit>
@@ -96,15 +96,10 @@ namespace sm {
         };
     }
 
-    // TODO: these shouldnt handle allocation, thats a seperate concern
-    // these should just be the underlying storage
-
     struct BitMap final : detail::BitSetStorage<std::uint64_t, BitMap> {
         using Super = detail::BitSetStorage<std::uint64_t, BitMap>;
         using Super::BitSetStorage;
 
-        // no way to garuntee that this is done atomically
-        // so put it in BitMap instead of AtomicBitMap
         constexpr void set_range(Index front, Index back) {
             verify_index(front);
             verify_index(back);

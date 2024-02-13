@@ -218,16 +218,15 @@ subdir('src/vendor/imgui')
 subdir('src/common/logs')
 subdir('src/common/service')
 
-subdir('src/common/bundle')
+# subdir('src/common/bundle')
 
 subdir('src/common/input')
 subdir('src/common/system')
 subdir('src/common/threads')
 
-subdir('src/common/rhi')
 subdir('src/common/render')
 
-subdir('src/common/ui')
+#subdir('src/common/ui')
 
 default_ico = custom_target('default_icon',
     input : [ 'data/assets/icon/icon_circle.png' ],
@@ -328,7 +327,7 @@ client = executable('client', 'src/client/src/main.cpp', game_bundle,
         '/manifest:embed', '/manifestinput:' + manifest
     ],
     dependencies : [
-        core, system, rhi, logs, threads, imgui, service, render, bundle, input, ui,
+        core, system, logs, threads, imgui, service, render, input,
         cthulhu.get_variable('backtrace'),
         cthulhu.get_variable('format_core'),
         cthulhu.get_variable('io')

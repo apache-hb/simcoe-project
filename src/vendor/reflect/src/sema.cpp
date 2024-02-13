@@ -386,6 +386,7 @@ static const char *get_attrib_string(vector_t *attribs, ref_attrib_tag_t tag)
     return nullptr;
 }
 
+#if 0
 static const char *get_doc(vector_t *attribs, const char *key)
 {
     ref_ast_t *docs = get_attrib(attribs, eAstAttribDocs);
@@ -398,6 +399,7 @@ static const char *get_doc(vector_t *attribs, const char *key)
 
     return doc;
 }
+#endif
 
 void Decl::find_layout(const ref_ast_t *ast, logger_t *logger)
 {

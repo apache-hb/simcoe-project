@@ -1,8 +1,10 @@
 #include "system/system.hpp"
 #include "system/window.hpp"
+
 #include "common.hpp"
 
 #include "base/panic.h"
+
 #include "resource.h"
 
 #include <winbase.h>
@@ -11,8 +13,9 @@ using namespace sm;
 using namespace sm::sys;
 
 static constexpr const char *kClassName = "simcoe";
-static constexpr size_t kPathMax = 512;
 
+#if 0
+static constexpr size_t kPathMax = 512;
 static TCHAR gExecutablePath[kPathMax];
 static DWORD gExecutablePathLength = 0;
 
@@ -21,6 +24,7 @@ const char *sys::get_exe_path() {
 
     return gExecutablePath;
 }
+#endif
 
 void sys::create(HINSTANCE hInstance, logs::ILogger &logger) {
     CTASSERTF(hInstance != nullptr, "system::create() invalid hInstance");
@@ -63,6 +67,7 @@ void sys::create(HINSTANCE hInstance, logs::ILogger &logger) {
         gWindowClass = MAKEINTATOM(atom);
     }
 
+#if 0
     gExecutablePathLength = GetModuleFileNameA(
         /* hModule = */ nullptr,
         /* lpFilename = */ gExecutablePath,
@@ -75,6 +80,7 @@ void sys::create(HINSTANCE hInstance, logs::ILogger &logger) {
     if (gExecutablePathLength == kPathMax) {
         sink.warn("executable path longer than {}, may be truncated", kPathMax);
     }
+#endif
 }
 
 void sys::destroy(void) {

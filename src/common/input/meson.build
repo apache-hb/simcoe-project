@@ -5,7 +5,7 @@ src = [
     reflect.process('data/input.ct')
 ]
 
-deps = [ core, logs, math, bundle ]
+deps = [ core, logs, math ]
 
 libinput = library('input', src,
     cpp_args : [ '-DSM_INPUT_BUILD=1' ],
