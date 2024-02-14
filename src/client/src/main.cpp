@@ -334,6 +334,13 @@ struct System {
     }
 };
 
+static std::atomic_bool gShouldExit = false;
+
+static int ctrlc_handler(DWORD signal) {
+    gShouldExit = true;
+    return TRUE;
+}
+
 static void common_init(void) {
     bt_init();
     os_init();
@@ -354,6 +361,8 @@ static void common_init(void) {
 
         std::exit(CT_EXIT_INTERNAL); // NOLINT
     };
+
+    SetConsoleCtrlHandler(ctrlc_handler, TRUE);
 }
 
 static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
@@ -385,15 +394,26 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
         .adapter_preference = render::AdapterPreference::eMinimumPower,
         .feature_level = render::FeatureLevel::eLevel_11_0,
         .debug_flags = flags,
+
         .frame_count = 2,
-        .command_pool_size = 16,
+        .swapchain_format = render::DataFormat::eR8G8B8A8_UNORM,
+
+        .direct_command_pool_size = 4,
+        .copy_command_pool_size = 4,
+        .compute_command_pool_size = 4,
         .resource_pool_size = 256,
+
+        .rtv_heap_size = 4,
+        .dsv_heap_size = 4,
+        .srv_heap_size = 16,
     };
 
     render::Context context{config};
 
     bool done = false;
     while (!done) {
+        if (gShouldExit) PostQuitMessage(0);
+
         // more complex message loop to avoid imgui
         // destroying the main window, then attempting to access it
         // in RenderPlatformWindowsDefault.
@@ -410,6 +430,9 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
         if (done) break;
 
         input.poll();
+
+        context.begin_frame();
+        context.end_frame();
     }
 }
 

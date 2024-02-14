@@ -10,7 +10,14 @@
 namespace sm::sys {
 using WindowPlacement = WINDOWPLACEMENT;
 using Point = POINT;
-using WindowCoords = RECT;
+
+struct WindowCoords : RECT {
+    constexpr WindowCoords(RECT rect) : RECT(rect) {}
+
+    constexpr math::int2 size() const {
+        return {right - left, bottom - top};
+    }
+};
 
 class IWindowEvents {
     friend class Window;

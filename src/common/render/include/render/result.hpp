@@ -11,10 +11,10 @@ namespace sm::render {
     public:
         constexpr Result(HRESULT value) : mValue(value) {}
 
-        constexpr operator HRESULT() const { return mValue; }
-
         constexpr operator bool() const { return SUCCEEDED(mValue); }
         constexpr bool success() const { return SUCCEEDED(mValue); }
+
+        constexpr explicit operator HRESULT() const { return mValue; }
 
         char *to_string() const;
     };

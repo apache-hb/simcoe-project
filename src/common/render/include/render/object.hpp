@@ -3,7 +3,8 @@
 #include "core/unique.hpp"
 #include "core/text.hpp"
 
-#include "core/win32.hpp" // IWYU pragma: export
+#include "render/result.hpp"
+
 #include <d3d12.h>
 
 namespace sm::render {
@@ -25,7 +26,7 @@ public:
     using Super::Super;
 
     template <ComObject O>
-    HRESULT query(O **out) const {
+    Result query(O **out) const {
         return Super::get()->QueryInterface(IID_PPV_ARGS(out));
     }
 

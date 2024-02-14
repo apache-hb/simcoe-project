@@ -5,6 +5,7 @@ src = [
     'src/common.cpp',
     'src/context.cpp',
     'src/instance.cpp',
+    'src/objects.cpp',
 
     reflect.process('data/render.ct')
 ]

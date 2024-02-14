@@ -26,7 +26,7 @@ namespace sm::math {
     }
 
     template<typename T>
-    T clamp(T it, T low, T high) {
+    constexpr T clamp(T it, T low, T high) {
         if (it < low)
             return low;
 
