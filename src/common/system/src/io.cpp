@@ -2,6 +2,8 @@
 
 #include "core/reflect.hpp" // IWYU pragma: keep
 
+#include "logs/sink.inl" // IWYU pragma: keep
+
 #include <winbase.h>
 
 using namespace sm::sys;

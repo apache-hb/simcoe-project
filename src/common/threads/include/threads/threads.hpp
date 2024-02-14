@@ -1,10 +1,10 @@
 #pragma once
 
 #include "core/macros.hpp"
-#include "threads.reflect.h"
-
-#include "logs/logs.hpp"
 #include "core/vector.hpp"
+#include "logs/sink.hpp"
+
+#include "threads.reflect.h"
 
 namespace sm::threads {
     enum struct SubcoreIndex : uint16_t { eInvalid = UINT16_MAX };

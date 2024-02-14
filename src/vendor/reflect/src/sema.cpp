@@ -1378,7 +1378,7 @@ void Variant::emit_impl(Sema& sema, cxx_emit_t *out) const
         cxx_writeln(out, "constexpr bool all(wrapper_t other) const { return (m_value & other) == other; }");
         cxx_writeln(out, "constexpr bool none(wrapper_t other) const { return (m_value & other) == none(); }");
         cxx_writeln(out, "constexpr %s& set(wrapper_t other) { m_value = m_value | other; return *this; }", get_name());
-        cxx_writeln(out, "constexpr %s& reset(wrapper_t other) { m_value = m_value & ~other; return *this; }", get_name());
+        cxx_writeln(out, "constexpr %s& clear(wrapper_t other) { m_value = m_value & ~other; return *this; }", get_name());
         cxx_writeln(out, "constexpr %s& flip(wrapper_t other) { m_value = m_value ^ other; return *this; }", get_name());
 
         // is_valid is defined as no invalid flags set

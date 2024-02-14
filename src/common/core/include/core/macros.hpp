@@ -1,7 +1,5 @@
 #pragma once
 
-#include "core/macros.h" // IWYU pragma: export
-
 #define SM_UNUSED [[maybe_unused]]
 
 #define SM_NOCOPY(CLS)         \

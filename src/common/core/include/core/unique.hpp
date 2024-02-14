@@ -7,7 +7,6 @@
 #include "core/debug.hpp"
 
 namespace sm {
-    // TODO: arena support
     /// @brief A handle to a resource that is automatically destroyed when it goes out of scope.
     /// @tparam T The type of the handle.
     /// @tparam TDelete the deleter function that is called to destroy the handle.
@@ -22,8 +21,6 @@ namespace sm {
         SM_NO_UNIQUE_ADDRESS TDelete m_delete{};
 
     public:
-        SM_NOCOPY(UniqueHandle)
-
         constexpr UniqueHandle(T handle = TEmpty, TDelete del = TDelete{})
             : m_handle(handle)
             , m_delete(del)
@@ -35,7 +32,7 @@ namespace sm {
         }
 
         constexpr ~UniqueHandle() {
-            reset(TEmpty);
+            reset();
         }
 
         constexpr UniqueHandle(UniqueHandle &&other) {
@@ -49,7 +46,6 @@ namespace sm {
 
         constexpr T& get() { CTASSERT(is_valid()); return m_handle; }
         constexpr const T& get() const { CTASSERT(is_valid()); return m_handle; }
-        constexpr explicit operator bool() const { return m_handle != TEmpty; }
 
         constexpr T& operator*() { return get(); }
         constexpr const T& operator*() const { return get(); }
@@ -58,6 +54,7 @@ namespace sm {
         constexpr T *const address() const { return &m_handle; }
 
         constexpr bool is_valid() const { return m_handle != TEmpty; }
+        constexpr explicit operator bool() const { return m_handle != TEmpty; }
 
         constexpr void reset(T handle = TEmpty) {
             if (m_handle != TEmpty) {
@@ -88,8 +85,8 @@ namespace sm {
 
     template<typename T, typename TDelete = DefaultDelete<T>>
     class UniquePtr : public UniqueHandle<T*, TDelete, nullptr> {
-    public:
         using Super = UniqueHandle<T*, TDelete, nullptr>;
+    public:
         using Super::Super;
 
         constexpr T *operator->() { return Super::get(); }
@@ -108,8 +105,8 @@ namespace sm {
 
     template<typename T, typename TDelete>
     class UniquePtr<T[], TDelete> : public UniquePtr<T, TDelete> {
-    public:
         using Super = UniquePtr<T, TDelete>;
+    public:
         using Super::Super;
 
         constexpr UniquePtr(T *data, size_t size)
@@ -121,6 +118,7 @@ namespace sm {
             : UniquePtr(nullptr, 0)
         { }
 
+        // TODO: arena aware allocation
         constexpr UniquePtr(size_t size)
             : UniquePtr(new T[size], size)
         { }

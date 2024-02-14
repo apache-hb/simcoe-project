@@ -2,7 +2,9 @@
 
 #include <simcoe_config.h>
 
-#include "base/panic.h"
+#include "core/source_info.h"
+
+#include "logs/sink.hpp"
 
 #include "system.reflect.h" // IWYU pragma: export
 
@@ -15,7 +17,7 @@ class IArena;
 #define SM_ASSERT_WIN32(expr)                                  \
     do {                                                       \
         if (auto result = (expr); !result) {                   \
-            sm::sys::assert_last_error(CT_SOURCE_HERE, #expr); \
+            sm::sys::assert_last_error(CT_SOURCE_CURRENT, #expr); \
         }                                                      \
     } while (0)
 
@@ -28,8 +30,8 @@ class IArena;
             return false;                                                                          \
         }                                                                                          \
         return true;                                                                               \
-    }(CT_SOURCE_HERE)
-// pass CT_SOURCE_HERE as an arg to preserve source location
+    }(CT_SOURCE_CURRENT)
+// pass CT_SOURCE_CURRENT as an arg to preserve source location
 
 namespace sm::sys {
 using SystemSink = logs::Sink<logs::Category::eSystem>;

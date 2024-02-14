@@ -1,9 +1,11 @@
 #include "threads/threads.hpp"
 
 #include "core/unique.hpp"
+#include "core/span.hpp"
+
 #include "system/system.hpp"
 
-#include <span>
+#include "logs/sink.inl" // IWYU pragma: keep
 
 #include <errhandlingapi.h>
 #include <processthreadsapi.h>
@@ -149,7 +151,7 @@ struct GeometryBuilder : CpuGeometry {
 
     // TODO: de-template this to save binary space
     template <typename Index, typename Item>
-    void get_item_with_mask(sm::Vector<Index> &ids, std::span<const Item> items,
+    void get_item_with_mask(sm::Vector<Index> &ids, Span<const Item> items,
                             GROUP_AFFINITY affinity) {
         for (size_t i = 0; i < items.size(); ++i)
             if (should_add_item(items[i].mask, affinity))

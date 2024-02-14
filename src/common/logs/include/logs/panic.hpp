@@ -1,7 +1,8 @@
 #pragma once
 
-#include "logs/logs.hpp" // IWYU pragma: export
 #include "base/panic.h"
+
+#include "core/format.hpp" // IWYU pragma: export
 
 namespace sm {
 CT_NORETURN panic(source_info_t info, std::string_view msg);

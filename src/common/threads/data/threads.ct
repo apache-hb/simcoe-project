@@ -1,6 +1,6 @@
 module sm::threads;
 
-import "core/win32.h";
+import "core/win32.hpp";
 import "<windef.h>";
 import "<winbase.h>";
 

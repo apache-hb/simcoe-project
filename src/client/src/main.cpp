@@ -1,11 +1,12 @@
 #include "core/arena.hpp"
 #include "core/backtrace.hpp"
 #include "core/format.hpp"
+#include "core/macros.h"
 #include "core/reflect.hpp" // IWYU pragma: keep
 #include "core/text.hpp"
 #include "core/units.hpp"
 
-#include "logs/logs.hpp"
+#include "logs/sink.inl" // IWYU pragma: keep
 
 #include "service/freetype.hpp"
 
@@ -15,6 +16,8 @@
 
 #include "threads/threads.hpp"
 
+#include "render/render.hpp"
+
 #include "backtrace/backtrace.h"
 #include "base/panic.h"
 #include "format/backtrace.h"
@@ -22,8 +25,6 @@
 #include "io/console.h"
 #include "io/io.h"
 #include "std/str.h"
-
-#include <consoleapi.h>
 
 using namespace sm;
 
@@ -308,7 +309,8 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
 
 public:
     DefaultWindowEvents(sys::FileMapping &store)
-        : m_store(store) {}
+        : m_store(store)
+    { }
 
     // void attach_render(render::Context *context) {
     //     m_context = context;
@@ -332,12 +334,6 @@ struct System {
     }
 };
 
-// i wont explain this
-extern "C" HWND WINAPI GetConsoleWindow(void);
-static bool is_console_app() {
-    return GetConsoleWindow() != nullptr;
-}
-
 static void common_init(void) {
     bt_init();
     os_init();
@@ -345,8 +341,7 @@ static void common_init(void) {
     gSystemError = gDefaultError;
 
     gPanicHandler = [](source_info_t info, const char *msg, va_list args) {
-        io_t *io = is_console_app() ? io_stderr()
-                                    : io_file("crash.log", eAccessWrite, &gGlobalArena);
+        io_t *io = io_stderr();
 
         const print_backtrace_t kPrintOptions = print_options_make(&gGlobalArena, io);
 
@@ -380,8 +375,24 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
 
     window.show_window(show);
 
-    bool done = false;
+    render::DebugFlags flags = render::DebugFlags::mask();
+    flags.clear(render::DebugFlags::eWarpAdapter);
 
+    render::RenderConfig config = {
+        .window = window,
+        .logger = gConsoleLog,
+        .adapter_index = 0,
+        .adapter_preference = render::AdapterPreference::eMinimumPower,
+        .feature_level = render::FeatureLevel::eLevel_11_0,
+        .debug_flags = flags,
+        .frame_count = 2,
+        .command_pool_size = 16,
+        .resource_pool_size = 256,
+    };
+
+    render::Context context{config};
+
+    bool done = false;
     while (!done) {
         // more complex message loop to avoid imgui
         // destroying the main window, then attempting to access it

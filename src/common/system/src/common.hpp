@@ -1,7 +1,6 @@
 #pragma once
 
-#include "core/win32.h" // IWYU pragma: export
-#include <minwindef.h>
+#include "core/win32.hpp" // IWYU pragma: export
 
 extern HINSTANCE gInstance;
 extern LPTSTR gWindowClass;

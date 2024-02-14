@@ -1,4 +1,5 @@
 #include "system/window.hpp"
+#include "logs/sink.inl" // IWYU pragma: keep
 
 #include "common.hpp"
 

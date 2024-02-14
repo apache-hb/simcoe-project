@@ -6,6 +6,12 @@ src = [
     'src/D3D12MemAlloc.cpp'
 ]
 
+cpp = meson.get_compiler('cpp')
+
+args = cpp.get_supported_arguments('-Wno-switch', '-Wno-tautological-undefined-compare')
+
+add_project_arguments(args, language : 'cpp')
+
 include = include_directories('include')
 
 d3d12 = dependency('d3d12')

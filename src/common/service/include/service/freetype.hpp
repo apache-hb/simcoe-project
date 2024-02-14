@@ -2,6 +2,9 @@
 
 #include <simcoe_config.h>
 
+#include "core/source_info.h"
+#include "core/compiler.h"
+
 #include "logs/logs.hpp"
 
 #include <ft2build.h>
@@ -13,7 +16,7 @@ typedef struct arena_t arena_t;
 #define SM_ASSERT_FT2(expr, ...) \
     do { \
         if (FT_Error error = (expr)) { \
-            sm::service::assert_ft2(CT_SOURCE_HERE, error, #expr, __VA_ARGS__); \
+            sm::service::assert_ft2(CT_SOURCE_CURRENT, error, #expr, __VA_ARGS__); \
         } \
     } while (0)
 

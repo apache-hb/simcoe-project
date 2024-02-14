@@ -1,9 +1,8 @@
 #include "service/freetype.hpp"
 
-#include "arena/arena.h"
-#include "base/panic.h"
-#include "core/arena.hpp"
 #include "core/macros.hpp"
+#include "logs/sink.inl"
+
 #include "std/str.h"
 
 #include <freetype/ftlogging.h>

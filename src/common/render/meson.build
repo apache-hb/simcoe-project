@@ -1,14 +1,17 @@
 render_include = include_directories('.', 'include')
 
 src = [
-    'src/render.cpp',
+    'src/vendor.cpp',
+    'src/common.cpp',
+    'src/context.cpp',
+    'src/instance.cpp',
 
     reflect.process('data/render.ct')
 ]
 
 deps = [
     core, logs, system, math,
-    d3d12, d3dx12, i18n
+    d3d12, d3dx12, d3d12ma, i18n
 ]
 
 librender = library('render', src,

@@ -18,6 +18,7 @@ project('simcoe', [ 'c', 'cpp' ],
         'fmt:warning_level=0',
         'harfbuzz:warning_level=0',
         'freetype2:warning_level=0',
+        'd3d12ma:warning_level=0',
 
         # disable everything in cthulhu by default
         'cthulhu:auto_features=disabled',
@@ -75,6 +76,7 @@ stb = subproject('stb').get_variable('stb')
 
 d3d12 = dependency('d3d12')
 d3dx12 = dependency('d3dx12')
+d3d12ma = dependency('d3d12ma')
 
 debug_render = get_option('debug_render').disable_auto_if(package_type == 'release')
 enable_agility = get_option('enable_agility').allowed()

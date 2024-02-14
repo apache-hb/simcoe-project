@@ -8,7 +8,8 @@ CheckOptions:
   - { key: readability-identifier-naming.VariableCase, value: lower_case }
   - { key: readability-identifier-naming.ParameterCase, value: aNy_CasE }
   - { key: readability-identifier-naming.LocalVariableCase, value: aNy_CasE }
-  - { key: readability-identifier-naming.MemberCase, value: lower_case }
+  - { key: readability-identifier-naming.ClassMemberCase, value: CamelCase }
+  - { key: readability-identifier-naming.ClassMemberPrefix, value: m }
   - { key: readability-identifier-naming.UnionCase, value: CamelCase }
   - { key: readability-identifier-naming.StructCase, value: CamelCase }
   - { key: readability-identifier-naming.ClassCase, value: CamelCase }

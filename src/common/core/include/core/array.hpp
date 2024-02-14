@@ -38,7 +38,7 @@ namespace sm {
         return result;
     }
 
-    template<typename T, typename TDelete = DefaultDelete<T>>
+    template<typename T, typename TDelete = DefaultDelete<T[]>>
     class UniqueArray : public UniquePtr<T, TDelete> {
         using Super = UniquePtr<T, TDelete>;
         size_t m_length = 0;
@@ -52,14 +52,14 @@ namespace sm {
         { }
 
         constexpr UniqueArray(size_t capacity)
-            : UniqueArray(new T[capacity], capacity)
+            : UniqueArray(new T[capacity](), capacity)
         { }
 
         constexpr void resize(size_t capacity) {
             if (m_length >= capacity)
                 return;
 
-            Super::reset(new T[capacity]);
+            Super::reset(new T[capacity]());
             m_length = capacity;
         }
 

@@ -62,7 +62,7 @@ void sys::create(HINSTANCE hInstance, logs::ILogger &logger) {
     };
 
     if (ATOM atom = RegisterClassExA(&kClass); atom == 0) {
-        assert_last_error(CT_SOURCE_HERE, "RegisterClassExA");
+        assert_last_error(CT_SOURCE_CURRENT, "RegisterClassExA");
     } else {
         gWindowClass = MAKEINTATOM(atom);
     }
@@ -74,7 +74,7 @@ void sys::create(HINSTANCE hInstance, logs::ILogger &logger) {
         /* nSize = */ kPathMax);
 
     if (gExecutablePathLength == 0) {
-        assert_last_error(CT_SOURCE_HERE, "GetModuleFileNameA");
+        assert_last_error(CT_SOURCE_CURRENT, "GetModuleFileNameA");
     }
 
     if (gExecutablePathLength == kPathMax) {
