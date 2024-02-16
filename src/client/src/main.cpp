@@ -1,3 +1,4 @@
+#include "archive/io.hpp"
 #include "core/arena.hpp"
 #include "core/backtrace.hpp"
 #include "core/format.hpp"
@@ -5,7 +6,7 @@
 #include "core/reflect.hpp" // IWYU pragma: keep
 #include "core/text.hpp"
 #include "core/units.hpp"
-
+#include "math/format.hpp"
 #include "logs/sink.inl" // IWYU pragma: keep
 
 #include "service/freetype.hpp"
@@ -283,7 +284,7 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     sys::WindowPlacement *m_placement = nullptr;
     sys::RecordLookup m_lookup;
 
-    // render::Context *m_context = nullptr;
+    render::Context *m_context = nullptr;
     sys::DesktopInput *m_input = nullptr;
 
     LRESULT event(sys::Window &window, UINT message, WPARAM wparam, LPARAM lparam) override {
@@ -292,9 +293,9 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     }
 
     void resize(sys::Window &, math::int2 size) override {
-        // if (m_context != nullptr) {
-        //     m_context->resize(size.as<uint32_t>());
-        // }
+        if (m_context != nullptr) {
+            m_context->resize((uint)size.width, (uint)size.height);
+        }
     }
 
     void create(sys::Window &window) override {
@@ -315,9 +316,9 @@ public:
         : m_store(store)
     { }
 
-    // void attach_render(render::Context *context) {
-    //     m_context = context;
-    // }
+    void attach_render(render::Context *context) {
+        m_context = context;
+    }
 
     void attach_input(sys::DesktopInput *input) {
         m_input = input;
@@ -407,7 +408,7 @@ public:
         ImGui::DestroyContext();
     }
 
-    void begin_frame(render::Context& context) {
+    void begin_frame() {
         ImGui_ImplDX12_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
@@ -417,23 +418,48 @@ public:
         ImGui::Render();
     }
 
-    void render(render::Context& context) {
-        ImGui::Render();
-        auto& commands = context.acquire_direct_list();
+    void render(render::Context& context, CommandList& commands) {
         ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commands.get());
-        context.submit_direct_list(commands);
-        ImGui::UpdatePlatformWindows();
-        ImGui::RenderPlatformWindowsDefault(NULL, commands.get());
+
+        ImGuiIO& io = ImGui::GetIO();
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault(NULL, commands.get());
+        }
     }
 };
 
 struct RenderObject {
+    // TODO: lifetime management
+    DeviceResource vbo_upload;
+    DeviceResource ibo_upload;
+
     DeviceResource vbo_data;
     DeviceResource ibo_data;
 
     VertexBufferView vbo;
     IndexBufferView ibo;
+    uint32 length;
 };
+
+static sm::Vector<uint8> load_shader_bytecode(const char *path) {
+    GlobalSink general{gConsoleLog};
+    auto file = Io::file(path, eAccessRead);
+    if (auto err = file.error()) {
+        general.error("failed to open {}: {}", file.name(), err);
+        return {};
+    }
+
+    sm::Vector<uint8> data;
+    auto size = file.size();
+    data.resize(size);
+    if (file.read_bytes(data.data(), size) != size) {
+        general.error("failed to read {} bytes from {}: {}", size, file.name(), file.error());
+        return {};
+    }
+
+    return data;
+}
 
 class SceneRenderPass {
     draw::Scene mScene;
@@ -441,7 +467,11 @@ class SceneRenderPass {
 
     draw::Camera mCamera;
 
+    RootSignature mRootSignature;
     PipelineState mPipelineState;
+
+    D3D12_VIEWPORT mViewport;
+    D3D12_RECT mScissorRect;
 
     constexpr static RootSignatureFlags kFlags =
         RootSignatureFlags::eAllowInputAssemblerInputLayout |
@@ -457,17 +487,72 @@ class SceneRenderPass {
     };
 
     constexpr static RootParameter kParams[] = {
-        RootParameter::consts(0, 0, sizeof(float4x4), ShaderVisibility::eVertex)
+        RootParameter::consts(0, 0, 16, ShaderVisibility::eVertex)
     };
 
-    constexpr static render::PipelineConfig kPipelineInfo = {
+    constexpr static render::RootSignatureConfig kSignatureInfo = {
         .flags = kFlags,
-        .input = kVertexLayout,
         .params = kParams,
     };
 
-    void render_node(uint16_t index, const float4x4& transform) const {
-        //const auto& node = mScene.nodes[index];
+    void render_node(uint16_t index, CommandList& commands, const float4x4& transform) const {
+        const auto& node = mScene.nodes[index];
+
+        // float4x4 local = transform * node.transform.matrix();
+
+        ImGui::Begin("Debug");
+
+        static float3 position = {3.f, 3.f, 3.f};
+        ImGui::SliderFloat3("Position", &position.x, -10.f, 10.f);
+
+        static float3 focus = {0.1f, 0.1f, 0.1f};
+        ImGui::SliderFloat3("Focus", &focus.x, -10.f, 10.f);
+
+        static float fov = math::to_radians(90.f);
+        ImGui::SliderAngle("FOV", &fov, 50.f, 180.f);
+
+        auto view = float4x4::lookAtRH(position, focus, float3(0.f, 0.f, 1.f));
+        auto proj = float4x4::perspectiveRH(fov, 800.f / 600.f, 0.1f, 100.f);
+        float4x4 mvp = (transform * view * proj).transpose();
+
+        ImGui::SeparatorText("Model");
+        ImGui::Text("%f %f %f %f", transform[0][0], transform[0][1], transform[0][2], transform[0][3]);
+        ImGui::Text("%f %f %f %f", transform[1][0], transform[1][1], transform[1][2], transform[1][3]);
+        ImGui::Text("%f %f %f %f", transform[2][0], transform[2][1], transform[2][2], transform[2][3]);
+        ImGui::Text("%f %f %f %f", transform[3][0], transform[3][1], transform[3][2], transform[3][3]);
+
+        ImGui::SeparatorText("View");
+        ImGui::Text("%f %f %f %f", view[0][0], view[0][1], view[0][2], view[0][3]);
+        ImGui::Text("%f %f %f %f", view[1][0], view[1][1], view[1][2], view[1][3]);
+        ImGui::Text("%f %f %f %f", view[2][0], view[2][1], view[2][2], view[2][3]);
+        ImGui::Text("%f %f %f %f", view[3][0], view[3][1], view[3][2], view[3][3]);
+
+        ImGui::SeparatorText("Projection");
+        ImGui::Text("%f %f %f %f", proj[0][0], proj[0][1], proj[0][2], proj[0][3]);
+        ImGui::Text("%f %f %f %f", proj[1][0], proj[1][1], proj[1][2], proj[1][3]);
+        ImGui::Text("%f %f %f %f", proj[2][0], proj[2][1], proj[2][2], proj[2][3]);
+        ImGui::Text("%f %f %f %f", proj[3][0], proj[3][1], proj[3][2], proj[3][3]);
+
+        ImGui::SeparatorText("MVP");
+        ImGui::Text("%f %f %f %f", mvp[0][0], mvp[0][1], mvp[0][2], mvp[0][3]);
+        ImGui::Text("%f %f %f %f", mvp[1][0], mvp[1][1], mvp[1][2], mvp[1][3]);
+        ImGui::Text("%f %f %f %f", mvp[2][0], mvp[2][1], mvp[2][2], mvp[2][3]);
+        ImGui::Text("%f %f %f %f", mvp[3][0], mvp[3][1], mvp[3][2], mvp[3][3]);
+
+        ImGui::End();
+
+        auto *cmd = commands.get();
+        cmd->SetGraphicsRoot32BitConstants(0, 16, &mvp, 0);
+
+        for (uint16_t mesh_id : node.meshes) {
+            //const auto& mesh = mScene.meshes[mesh_id];
+            const auto& resource = mResources[mesh_id];
+
+            commands.set_index_buffer(resource.ibo);
+            commands.set_vertex_buffer(resource.vbo);
+
+            cmd->DrawIndexedInstanced(resource.length, 1, 0, 0, 0);
+        }
     }
 
 public:
@@ -476,15 +561,27 @@ public:
     { }
 
     void create(const render::RenderConfig& config, render::Context& context) {
-        mPipelineState.create(context.device(), kPipelineInfo);
+
+        // TODO: get bundles working already
+        auto ps = load_shader_bytecode("build/bundle/shaders/primitive.ps.cso");
+        auto vs = load_shader_bytecode("build/bundle/shaders/primitive.vs.cso");
+
+        const render::PipelineConfig kPipelineInfo = {
+            .input = kVertexLayout,
+            .vs = {vs},
+            .ps = {ps},
+        };
+
+        mRootSignature.create(context, kSignatureInfo);
+        mPipelineState.create(context, mRootSignature, kPipelineInfo);
 
         sm::Vector<Barrier> barriers;
 
-        auto& copy = context.acquire_copy_list();
-        auto& direct = context.acquire_direct_list();
+        auto& copy = context.acquire_copy_list("scene upload");
+        auto& direct = context.acquire_direct_list("scene upload");
 
         for (auto& info : mScene.meshes) {
-            auto [bounds, indices, vertices] = draw::primitive(info);
+            auto [bounds, vertices, indices] = draw::primitive(info);
             uint vbo_size = uint(vertices.size() * sizeof(draw::Vertex));
             uint ibo_size = uint(indices.size() * sizeof(uint16_t));
 
@@ -507,22 +604,49 @@ public:
             auto ibo_view = render::ibo_view(ibo, ibo_size, DataFormat::eR16_UINT);
 
             mResources.push_back({
+                .vbo_upload = std::move(vbo_upload),
+                .ibo_upload = std::move(ibo_upload),
                 .vbo_data = std::move(vbo),
                 .ibo_data = std::move(ibo),
                 .vbo = vbo_view,
                 .ibo = ibo_view,
+                .length = uint32(indices.size()),
             });
         }
 
         context.submit_copy_list(copy);
         context.submit_direct_list(direct);
+
+        auto size = config.window.get_client_coords().size();
+
+        mViewport = {
+            .TopLeftX = 0.f,
+            .TopLeftY = 0.f,
+            .Width = float(size.width),
+            .Height = float(size.height),
+            .MinDepth = 0.f,
+            .MaxDepth = 1.f,
+        };
+
+        mScissorRect = {
+            .left = 0,
+            .top = 0,
+            .right = LONG(size.width),
+            .bottom = LONG(size.height),
+        };
     }
 
-    void render(render::Context& context) {
-        auto& commands = context.acquire_direct_list();
+    void render(render::Context& context, CommandList& commands) {
+        commands.bind_signature(mRootSignature);
         commands.bind_pipeline(mPipelineState);
 
-        render_node(mScene.root, float4x4::identity());
+        auto *cmd = commands.get();
+        cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+        cmd->RSSetViewports(1, &mViewport);
+        cmd->RSSetScissorRects(1, &mScissorRect);
+
+        render_node(mScene.root, commands, float4x4::identity());
     }
 };
 
@@ -590,8 +714,13 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
     ImGuiRenderPass imgui;
     SceneRenderPass scene{draw};
 
+    events.attach_render(&context);
+
     imgui.create(window.get_handle(), config, context);
     scene.create(config, context);
+
+    context.flush_copy_queue();
+    context.flush_direct_queue();
 
     bool done = false;
     while (!done) {
@@ -613,15 +742,22 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
         if (done) break;
         input.poll();
 
-        imgui.begin_frame(context);
+        // dear imgui rendering
+
+        imgui.begin_frame();
 
         ImGui::ShowDemoWindow();
 
-        imgui.end_frame();
+        // actual rendering
 
         context.begin_frame();
-        scene.render(context);
-        imgui.render(context);
+
+        auto& commands = context.current_frame_list();
+        scene.render(context, commands);
+
+        imgui.end_frame();
+        imgui.render(context, commands);
+
         context.end_frame();
     }
 

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "core/bitmap.hpp"
+#include "core/slotmap.hpp"
 #include "core/core.hpp"
-#include "core/map.hpp"
 #include "core/queue.hpp"
 #include "core/span.hpp"
 #include "core/vector.hpp"
@@ -14,6 +14,46 @@
 #include <D3D12MemAlloc.h>
 
 #include "render.reflect.h"
+
+namespace sm::render {
+constexpr int sm_strcmp(const char *lhs, const char *rhs) {
+    while (*lhs && *rhs && *lhs == *rhs) {
+        lhs++;
+        rhs++;
+    }
+
+    return *lhs - *rhs;
+}
+
+struct ResourceId {
+    const char *name = nullptr;
+
+    constexpr ResourceId() = default;
+    constexpr ResourceId(const char *name)
+        : name(name)
+    { }
+
+    constexpr auto operator<=>(const ResourceId &other) const {
+        return sm_strcmp(c_str(), other.c_str()) <=> 0;
+    }
+
+    constexpr auto operator==(const ResourceId &other) const {
+        return sm_strcmp(c_str(), other.c_str()) == 0;
+    }
+
+    constexpr const char *c_str() const { return name != nullptr ? name : "unnamed"; }
+};
+}
+template<>
+struct fmt::formatter<sm::render::ResourceId> {
+    constexpr auto parse(format_parse_context &ctx) const {
+        return ctx.begin();
+    }
+
+    auto format(const sm::render::ResourceId &id, format_context &ctx) const {
+        return format_to(ctx.out(), "{}", id.c_str());
+    }
+};
 
 namespace sm::render {
 class Context;
@@ -121,8 +161,9 @@ IndexBufferView ibo_view(DeviceResource &resource, uint size, DataFormat type);
 
 struct DescriptorRange {
     DescriptorRangeType type;
+    DescriptorRangeFlags flags;
     uint count;
-    uint base;
+    uint reg;
     uint space;
     uint offset;
 };
@@ -139,7 +180,7 @@ struct RootParameter {
 
     union {
         sm::Span<const DescriptorRange> ranges;
-        RootData root;
+        RootData info;
     };
 
     static constexpr RootParameter table(sm::Span<const DescriptorRange> table,
@@ -154,9 +195,9 @@ struct RootParameter {
     static constexpr RootParameter consts(uint reg, uint space, uint count,
                                           ShaderVisibility visibility) {
         return {
-            .type = RootParameterType::eRootData,
+            .type = RootParameterType::eRootConsts,
             .visibility = visibility,
-            .root = {reg, space, count},
+            .info = {reg, space, count},
         };
     }
 
@@ -165,7 +206,7 @@ struct RootParameter {
         return {
             .type = RootParameterType::eConstBuffer,
             .visibility = visibility,
-            .root = {reg, space, count},
+            .info = {reg, space, count},
         };
     }
 
@@ -174,7 +215,7 @@ struct RootParameter {
         return {
             .type = RootParameterType::eShaderResource,
             .visibility = visibility,
-            .root = {reg, space, count},
+            .info = {reg, space, count},
         };
     }
 
@@ -183,7 +224,7 @@ struct RootParameter {
         return {
             .type = RootParameterType::eUnorderedAccess,
             .visibility = visibility,
-            .root = {reg, space, count},
+            .info = {reg, space, count},
         };
     }
 };
@@ -201,30 +242,30 @@ struct ShaderBytecode {
 };
 
 struct PipelineConfig {
-    RootSignatureFlags flags;
     sm::Span<const InputElement> input;
-    sm::Span<const RootParameter> params;
-    sm::Span<const Sampler> samplers;
-
     ShaderBytecode vs;
     ShaderBytecode ps;
 };
 
-class PipelineState {
-    Object<ID3D12RootSignature> mSignature;
-    Object<ID3D12PipelineState> mState;
+struct RootSignatureConfig {
+    RootSignatureFlags flags;
+    sm::Span<const RootParameter> params;
+    sm::Span<const Sampler> samplers;
+};
 
-public:
-    PipelineState() = default;
+struct RootSignature : public Object<ID3D12RootSignature> {
+    void create(Context& context, const RootSignatureConfig &config);
+};
 
-    void create(DeviceHandle &device, const PipelineConfig &config);
+struct PipelineState : public Object<ID3D12PipelineState> {
+    void create(Context& context, RootSignature& signature, const PipelineConfig &config);
+};
 
-    ID3D12PipelineState *pso() const {
-        return mState.get();
-    }
-    ID3D12RootSignature *signature() const {
-        return mSignature.get();
-    }
+struct Blob : public Object<ID3DBlob> {
+    std::string_view as_string() const;
+
+    const void *data() const;
+    size_t size() const;
 };
 
 using Barrier = D3D12_RESOURCE_BARRIER;
@@ -238,9 +279,12 @@ struct CommandList {
 
     void create(DeviceHandle &device, CommandListType type);
 
+    void bind_signature(const RootSignature &signature) {
+        list->SetGraphicsRootSignature(signature.get());
+    }
+
     void bind_pipeline(const PipelineState &state) {
-        list->SetPipelineState(state.pso());
-        list->SetGraphicsRootSignature(state.signature());
+        list->SetPipelineState(state.get());
     }
 
     bool is_valid() const {
@@ -249,6 +293,9 @@ struct CommandList {
 
     void close();
     void reset();
+
+    void set_index_buffer(const IndexBufferView &view);
+    void set_vertex_buffer(const VertexBufferView &view);
 
     void copy_buffer(DeviceResource& src, DeviceResource& dst, uint size);
 
@@ -270,9 +317,7 @@ struct Fence {
     void create(DeviceHandle &device, const char *name = nullptr);
 
     void wait(uint64 pending);
-    uint64 value() {
-        return fence->GetCompletedValue();
-    }
+    uint64 value();
 };
 
 struct CommandQueue {
@@ -319,29 +364,45 @@ struct FrameData {
 
 template <typename T>
 class ResourcePool {
-    sm::BitMap mArena;
+    using Alloc = sm::SlotMap<ResourceId>;
+    using Index = Alloc::Index;
+    using ConstIterator = typename Alloc::ConstIterator;
+    Alloc mArena;
 
 protected:
-    sm::UniqueArray<T> mStorage;
+    using Storage = sm::UniqueArray<T>;
+    Storage mStorage;
 
 public:
     constexpr ResourcePool(size_t size)
         : mArena(size)
-        , mStorage(size) {}
+        , mStorage(size)
+    { }
 
-    size_t length() const {
+    constexpr size_t length() const {
         return mStorage.length();
     }
 
-    T *acquire() {
-        auto index = mArena.scan_set_first();
-        CTASSERTF(index != sm::BitMap::eInvalid, "Out of space in bitmap arena");
+    T *acquire(ResourceId id) {
+        auto index = mArena.alloc(length(), id);
+
+        if (index == Index::eInvalid)
+            return nullptr;
+
         return &mStorage[index];
     }
 
     void release(T *ptr) {
         auto index = ptr - mStorage.get();
-        mArena.release(BitMap::Index(index));
+        mArena.release(Index(index));
+    }
+
+    constexpr ResourceId get_id(size_t index) const {
+        return mArena[index];
+    }
+
+    constexpr const T &get_resource(size_t index) {
+        return mStorage[index];
     }
 };
 
@@ -355,41 +416,49 @@ public:
 
     void create(DeviceHandle &device);
 
-    CommandList *acquire();
+    CommandList *acquire(ResourceId id);
 };
 
-class PendingObject {
-    // std::priority_queue is not very well designed
-    // https://stackoverflow.com/questions/20149471/move-out-element-of-std-priority-queue-in-c11
-    mutable void *mObject;
-    void (*mDispose)(void *, Context &);
-    uint64 mValue;
+template<typename T>
+class PendingQueue {
+    struct Entry {
+        mutable T object;
+        uint64 fence;
+
+        constexpr auto operator<=>(const Entry &other) const {
+            return fence <=> other.fence;
+        }
+    };
+
+    sm::PriorityQueue<Entry, std::greater<Entry>> mQueue;
 
 public:
-    template <typename T>
-    PendingObject(auto &&dispose, T *object, uint64 value)
-        : mObject((void *)object)
-        , mDispose([](void *object, Context &ctx) {
-            using Dispose = decltype(dispose);
-            std::invoke(Dispose{}, (T *)object, ctx);
-        })
-        , mValue(value) {}
-
-    void dispose(Context &ctx) const;
-
-    constexpr auto operator<=>(const PendingObject &other) const {
-        return mValue <=> other.mValue;
+    void dispose(uint64 value, auto&& fn) {
+        while (!mQueue.is_empty() && mQueue.top().fence <= value) {
+            fn(mQueue.top().object);
+            mQueue.pop();
+        }
     }
 
-    constexpr uint64 value() const {
-        return mValue;
+    void push(T object, uint64 fence) {
+        mQueue.emplace(std::move(object), fence);
     }
+
+    constexpr uint64 min_value() const {
+        return mQueue.is_empty() ? UINT64_MAX : mQueue.top().fence;
+    }
+
+    constexpr size_t length() const { return mQueue.length(); }
+    constexpr Entry& operator[](size_t index) { return mQueue[index]; }
+    constexpr const Entry& operator[](size_t index) const { return mQueue[index]; }
 };
 
-using PendingQueue =
-    sm::PriorityQueue<PendingObject, sm::Vector<PendingObject>, std::greater<PendingObject>>;
+using PendingCommandsQueue = PendingQueue<CommandList*>;
 
 class Context {
+    friend RootSignature;
+    friend PipelineState;
+
     Sink mSink;
     Instance mInstance;
 
@@ -427,16 +496,23 @@ class Context {
     CommandListPool mComputeCommandLists;
 
     // lists that havent been submitted yet
-    sm::Vector<CommandList *> mPendingLists[CommandListType::kCount];
+    sm::Vector<CommandList *> mPendingDirectCommands;
+    sm::Vector<CommandList *> mPendingCopyCommands;
+    sm::Vector<CommandList *> mPendingComputeCommands;
 
     // objects that have been submitted but not finished execution
-    sm::HashMap<Fence *, PendingQueue> mPendingObjects;
+    PendingCommandsQueue mWaitingDirectCommands;
+    PendingCommandsQueue mWaitingCopyCommands;
+    PendingCommandsQueue mWaitingComputeCommands;
 
     ResourcePool<DeviceResource> mResources;
 
     Fence mPresentFence;
 
+    uint64 mDirectFenceValue = 1;
     Fence mDirectFence;
+
+    uint64 mCopyFenceValue = 1;
     Fence mCopyFence;
 
     void enable_debug_layer(bool gbv, bool rename);
@@ -450,27 +526,14 @@ class Context {
 
     void create_allocator();
 
-    void create_backbuffers(const RenderConfig &config);
+    void create_backbuffers(uint count);
 
-    void flush_direct_queue();
+    void flush_present_queue();
     void next_frame();
 
-    void reclaim_live_objects(Fence &fence);
+    void reclaim_live_objects();
 
-    static void reclaim_direct_list(CommandList *list, Context &ctx);
-    constexpr static auto kReclaimDirectList = [](CommandList *list, Context &ctx) {
-        Context::reclaim_direct_list(list, ctx);
-    };
-
-    static void reclaim_copy_list(CommandList *list, Context &ctx);
-    constexpr static auto kReclaimCopyList = [](CommandList *list, Context &ctx) {
-        Context::reclaim_copy_list(list, ctx);
-    };
-
-    static void reclaim_resource(DeviceResource *resource, Context &ctx);
-    constexpr static auto kReclaimResource = [](DeviceResource *resource, Context &ctx) {
-        Context::reclaim_resource(resource, ctx);
-    };
+    void reclaim_resource(DeviceResource resource);
 
     DeviceResource create_resource(D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc,
                                    D3D12_RESOURCE_STATES state);
@@ -489,10 +552,17 @@ public:
         return mDevice;
     }
 
-    CommandList& acquire_copy_list();
+    void flush_copy_queue();
+    void flush_direct_queue();
+
+    void resize(uint width, uint height);
+
+    CommandList& current_frame_list();
+
+    CommandList& acquire_copy_list(ResourceId id);
     void submit_copy_list(CommandList &list);
 
-    CommandList &acquire_direct_list();
+    CommandList &acquire_direct_list(ResourceId id);
     void submit_direct_list(CommandList &list);
 
     DeviceResource create_staging_buffer(uint size);

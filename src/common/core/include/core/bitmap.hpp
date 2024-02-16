@@ -18,13 +18,13 @@ namespace sm {
             constexpr BitSetStorage() = default;
 
             constexpr BitSetStorage(size_t bitcount)
-                : m_data(bitcount / kBitsPerWord + 1)
+                : mStorage(bitcount / kBitsPerWord + 1)
             { }
 
             constexpr void resize(size_t bitcount) {
                 size_t words = bitcount / kBitsPerWord + 1;
-                if (words > m_data.length()) {
-                    m_data.resize(words);
+                if (words > mStorage.length()) {
+                    mStorage.resize(words);
                 }
 
                 clear();
@@ -32,7 +32,7 @@ namespace sm {
 
             constexpr size_t popcount() const {
                 size_t count = 0;
-                for (auto word : m_data) {
+                for (auto word : mStorage) {
                     count += std::popcount(word);
                 }
                 return count;
@@ -42,9 +42,9 @@ namespace sm {
                 return get_capacity() - popcount();
             }
 
-            constexpr Index scan_set_first() {
+            constexpr Index scan_set_first(size_t limit) {
                 Super *self = static_cast<Super*>(this);
-                for (uint32_t i = 0; i < get_capacity(); i++) {
+                for (uint32_t i = 0; i < limit; i++) {
                     if (self->test_set(Index{i})) {
                         return Index{i};
                     }
@@ -53,11 +53,15 @@ namespace sm {
                 return Index::eInvalid;
             }
 
-            constexpr size_t get_capacity() const { return m_data.length() * kBitsPerWord; }
-            constexpr bool is_valid() const { return m_data.is_valid(); }
+            constexpr Index scan_set_first() {
+                return scan_set_first(get_capacity());
+            }
+
+            constexpr size_t get_capacity() const { return mStorage.length() * kBitsPerWord; }
+            constexpr bool is_valid() const { return mStorage.is_valid(); }
 
             constexpr void clear() {
-                m_data.fill(0);
+                mStorage.fill(0);
             }
 
             constexpr void release(Index index) {
@@ -70,24 +74,24 @@ namespace sm {
             constexpr bool test(Index index) const {
                 verify_index(index);
 
-                return m_data[get_word(index)] & get_mask(index);
+                return mStorage[get_word(index)] & get_mask(index);
             }
 
             constexpr void set(Index index) {
                 verify_index(index);
-                m_data[get_word(index)] |= get_mask(index);
+                mStorage[get_word(index)] |= get_mask(index);
             }
 
             constexpr void clear(Index index) {
                 verify_index(index);
-                m_data[get_word(index)] &= ~get_mask(index);
+                mStorage[get_word(index)] &= ~get_mask(index);
             }
 
         protected:
             constexpr T get_mask(Index bit) const { return T(1) << (bit % kBitsPerWord); }
             constexpr size_t get_word(Index bit) const { return bit / kBitsPerWord; }
 
-            sm::UniqueArray<T> m_data;
+            sm::UniqueArray<T> mStorage;
 
             constexpr void verify_index(Index bit) const {
                 CTASSERTF(bit != Index::eInvalid, "invalid index");

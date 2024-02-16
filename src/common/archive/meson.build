@@ -2,7 +2,10 @@ archive_include = include_directories('.', 'include')
 
 src = [
     'src/archive.cpp',
-    reflect.process('data/archive.ct')
+    'src/io.cpp',
+
+    reflect.process('data/archive.ct'),
+    reflect.process('data/io.ct')
 ]
 
 deps = [ core, cthulhu.get_variable('fs'), logs, math ]

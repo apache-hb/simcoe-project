@@ -7,5 +7,5 @@ using namespace sm;
 bool AtomicBitMap::test_set(Index index) {
     auto mask = get_mask(index);
 
-    return !(m_data[get_word(index)].fetch_or(mask) & mask);
+    return !(mStorage[get_word(index)].fetch_or(mask) & mask);
 }

@@ -44,6 +44,9 @@ namespace sm {
         size_t m_length = 0;
 
     public:
+        using Iterator = T *;
+        using ConstIterator = const T *;
+
         constexpr UniqueArray() = default;
 
         constexpr UniqueArray(T *data, size_t capacity)
@@ -52,8 +55,14 @@ namespace sm {
         { }
 
         constexpr UniqueArray(size_t capacity)
-            : UniqueArray(new T[capacity](), capacity)
+            : UniqueArray(new T[capacity], capacity)
         { }
+
+        constexpr UniqueArray(size_t capacity, T init)
+            : UniqueArray(new T[capacity], capacity)
+        {
+            fill(init);
+        }
 
         constexpr void resize(size_t capacity) {
             if (m_length >= capacity)
@@ -61,6 +70,15 @@ namespace sm {
 
             Super::reset(new T[capacity]());
             m_length = capacity;
+        }
+
+        constexpr void resize(size_t capacity, T init) {
+            if (m_length >= capacity)
+                return;
+
+            Super::reset(new T[capacity]);
+            m_length = capacity;
+            fill(init);
         }
 
         constexpr size_t length() const { return m_length; }

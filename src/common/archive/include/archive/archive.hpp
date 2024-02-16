@@ -4,16 +4,14 @@
 #include "core/core.hpp"
 #include "core/span.hpp"
 #include "core/vector.hpp"
-#include "core/unique.hpp"
 #include "core/text.hpp"
 
-#include "io/io.h"
+#include "archive/io.hpp"
 
 #include <stdint.h>
 
 namespace sm {
     class Archive {
-        using IoHandle = sm::FnUniquePtr<io_t, io_close>;
         IoHandle mStream;
 
     public:

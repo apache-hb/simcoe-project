@@ -26,11 +26,11 @@ Context::Context(RenderConfig config)
     create_allocator();
     create_device_objects(config);
     create_swapchain(config);
-    create_backbuffers(config);
+    create_backbuffers(config.frame_count);
 }
 
 Context::~Context() {
-    flush_direct_queue();
+    flush_present_queue();
 }
 
 static logs::Severity get_severity(MessageSeverity sev) {
@@ -236,10 +236,10 @@ void Context::create_swapchain(const RenderConfig& config) {
     mSink.info("| backbuffer count: {}", config.frame_count);
 }
 
-void Context::create_backbuffers(const RenderConfig& config) {
-    mFrames.resize(config.frame_count);
+void Context::create_backbuffers(uint count) {
+    mFrames.resize(count);
 
-    for (size_t i = 0; i < config.frame_count; ++i) {
+    for (size_t i = 0; i < count; i++) {
         auto& frame = mFrames[i];
         SM_ASSERT_HR(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&frame.buffer)));
         frame.rtv = mRenderTargetHeap.acquire();
@@ -251,24 +251,24 @@ void Context::create_backbuffers(const RenderConfig& config) {
     }
 }
 
-void Context::flush_direct_queue() {
+void Context::flush_present_queue() {
     auto value = mFrames[mFrameIndex].value++;
     mDirectQueue.signal(mPresentFence, value);
     mPresentFence.wait(value);
 }
 
 void Context::next_frame() {
-    auto current_value = mFrames[mFrameIndex].value;
-    mDirectQueue.signal(mPresentFence, current_value);
+    auto current = mFrames[mFrameIndex].value;
+    mDirectQueue.signal(mPresentFence, current);
 
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
     mPresentFence.wait(mFrames[mFrameIndex].value);
 
-    mFrames[mFrameIndex].value = current_value + 1;
+    mFrames[mFrameIndex].value = current + 1;
 }
 
 void Context::begin_frame() {
-    reclaim_live_objects(mPresentFence);
+    reclaim_live_objects();
     mAllocator->SetCurrentFrameIndex(mFrameIndex);
 
     auto& frame = mFrames[mFrameIndex];
@@ -285,11 +285,22 @@ void Context::begin_frame() {
 
     cmd->ResourceBarrier(1, &into_render);
 
+    ID3D12DescriptorHeap *heaps[] = {
+        mShaderResourceHeap.get(),
+    };
+
+    cmd->SetDescriptorHeaps(1, heaps);
+
     const D3D12_CPU_DESCRIPTOR_HANDLE rtv = mRenderTargetHeap.cpu(frame.rtv);
 
     constexpr float kClearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
     cmd->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
     cmd->ClearRenderTargetView(rtv, kClearColor, 0, nullptr);
+}
+
+void Context::end_frame() {
+    auto& frame = mFrames[mFrameIndex];
+    auto *cmd = frame.commands.get();
 
     const CD3DX12_RESOURCE_BARRIER into_present = CD3DX12_RESOURCE_BARRIER::Transition(
         frame.buffer.get(),
@@ -300,73 +311,95 @@ void Context::begin_frame() {
     cmd->ResourceBarrier(1, &into_present);
 
     frame.commands.close();
-}
 
-void Context::reclaim_direct_list(CommandList *list, Context& ctx) {
-    list->reset();
-    ctx.mDirectCommandLists.release(list);
-}
-
-void Context::end_frame() {
     sm::SmallVector<ID3D12CommandList*, 4> lists;
     lists.push_back(mFrames[mFrameIndex].commands.get());
 
-    auto& pending_direct = mPendingLists[uint(CommandListType::eDirect)];
-
     // take all the pending submit lists and execute them
-    for (auto *list : pending_direct)
+    for (auto *list : mPendingDirectCommands)
         lists.push_back(list->get());
 
     mDirectQueue.execute((uint)lists.size(), lists.data());
 
     // move now executing commands into the reclaim queue
-    auto& executing = mPendingObjects[&mPresentFence];
     uint64 value = mFrames[mFrameIndex].value;
-    for (auto *list : pending_direct)
-        executing.emplace(PendingObject{ kReclaimDirectList, list, value });
+    for (auto *list : mPendingDirectCommands)
+        mWaitingDirectCommands.push(list, value);
 
     // remove the submitted lists from the pending list
-    pending_direct.clear();
+    mPendingDirectCommands.clear();
 
     SM_ASSERT_HR(mSwapChain->Present(1, 0));
 
     next_frame();
 }
 
-CommandList& Context::acquire_copy_list() {
-    CommandList *list = mCopyCommandLists.acquire();
-    CTASSERTF(list, "Copy pool exhausted %zu", mCopyCommandLists.length());
-    return *list;
+CommandList& Context::current_frame_list() {
+    return mFrames[mFrameIndex].commands;
+}
+
+CommandList& Context::acquire_copy_list(ResourceId id) {
+    if (CommandList *list = mCopyCommandLists.acquire(id))
+        return *list;
+
+    mSink.warn("direct command list pool exhausted");
+    for (size_t i = 0; i < mDirectCommandLists.length(); i++) {
+        const auto& id = mDirectCommandLists.get_id(i);
+        mSink.warn("| slot {}: {}", i, id.c_str());
+    }
+
+    for (size_t i = 0; i < mWaitingDirectCommands.length(); i++) {
+        const auto& it = mWaitingDirectCommands[i];
+        mSink.warn("| waiting slot {}: {}", i, it.fence);
+    }
+
+    mSink.warn("fence value: {}", mCopyFence.value());
+
+    SM_NEVER("copy list pool exhausted");
 }
 
 void Context::submit_copy_list(CommandList &list) {
     list.close();
-    mPendingLists[uint(CommandListType::eCopy)].push_back(&list);
+    mPendingCopyCommands.push_back(&list);
 }
 
-CommandList& Context::acquire_direct_list() {
-    CommandList *list = mDirectCommandLists.acquire();
-    CTASSERTF(list, "Direct pool exhausted %zu", mDirectCommandLists.length());
-    return *list;
+CommandList& Context::acquire_direct_list(ResourceId id) {
+    if (CommandList *list = mDirectCommandLists.acquire(id))
+        return *list;
+
+    mSink.warn("direct command list pool exhausted");
+    for (size_t i = 0; i < mDirectCommandLists.length(); i++) {
+        const auto& id = mDirectCommandLists.get_id(i);
+        mSink.warn("| slot {}: {}", i, id.c_str());
+    }
+
+    for (size_t i = 0; i < mWaitingDirectCommands.length(); i++) {
+        const auto& it = mWaitingDirectCommands[i];
+        mSink.warn("| waiting slot {}: {}", i, it.fence);
+    }
+
+    mSink.warn("fence value: {}", mDirectFence.value());
+
+    SM_NEVER("direct list pool exhausted");
 }
 
 void Context::submit_direct_list(CommandList& list) {
     list.close();
-    mPendingLists[uint(CommandListType::eDirect)].push_back(&list);
+    mPendingDirectCommands.push_back(&list);
 }
 
-void Context::reclaim_live_objects(Fence& fence) {
-    auto& pending = mPendingObjects[&fence];
-    auto now = fence.value();
+void Context::reclaim_live_objects() {
+    mWaitingDirectCommands.dispose(mDirectFence.value(), [&](CommandList *list) {
+        mSink.info("reclaiming direct list");
+        list->reset();
+        mDirectCommandLists.release(list);
+    });
 
-    while (!pending.empty()) {
-        if (auto& top = pending.top(); top.value() <= now) {
-            top.dispose(*this);
-            pending.pop();
-        } else {
-            break;
-        }
-    }
+    mWaitingCopyCommands.dispose(mCopyFence.value(), [&](CommandList *list) {
+        mSink.info("reclaiming copy list");
+        list->reset();
+        mCopyCommandLists.release(list);
+    });
 }
 
 DeviceResource Context::create_resource(D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state) {
@@ -388,5 +421,55 @@ DeviceResource Context::create_staging_buffer(uint size) {
 
 DeviceResource Context::create_buffer(uint size) {
     const auto desc = CD3DX12_RESOURCE_DESC::Buffer(size);
-    return create_resource(D3D12_HEAP_TYPE_DEFAULT, desc, D3D12_RESOURCE_STATE_COPY_DEST);
+    return create_resource(D3D12_HEAP_TYPE_DEFAULT, desc, D3D12_RESOURCE_STATE_COMMON);
+}
+
+void Context::flush_copy_queue() {
+    sm::SmallVector<ID3D12CommandList*, 4> lists;
+    for (auto *list : mPendingCopyCommands)
+        lists.push_back(list->get());
+
+    mPendingCopyCommands.clear();
+
+    mCopyQueue.execute((uint)lists.size(), lists.data());
+
+    mCopyQueue.signal(mCopyFence, mCopyFenceValue);
+    mCopyFence.wait(mCopyFenceValue);
+
+    mCopyFenceValue += 1;
+}
+
+void Context::flush_direct_queue() {
+    sm::SmallVector<ID3D12CommandList*, 4> lists;
+    for (auto *list : mPendingDirectCommands)
+        lists.push_back(list->get());
+
+    mPendingDirectCommands.clear();
+
+    mDirectQueue.execute((uint)lists.size(), lists.data());
+
+    mDirectQueue.signal(mDirectFence, mDirectFenceValue);
+    mDirectFence.wait(mDirectFenceValue);
+
+    mDirectFenceValue += 1;
+}
+
+void Context::resize(uint width, uint height) {
+    for (auto& frame : mFrames) {
+        frame.buffer.reset();
+        mRenderTargetHeap.release(frame.rtv);
+    }
+
+    DXGI_SWAP_CHAIN_DESC desc;
+    SM_ASSERT_HR(mSwapChain->GetDesc(&desc));
+
+    SM_ASSERT_HR(mSwapChain->ResizeBuffers(desc.BufferCount, width, height, desc.BufferDesc.Format, desc.Flags));
+
+    mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
+
+    for (size_t i = 0; i < desc.BufferCount; i++) {
+        SM_ASSERT_HR(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&mFrames[i].buffer)));
+        mFrames[i].rtv = mRenderTargetHeap.acquire();
+        mDevice->CreateRenderTargetView(mFrames[i].buffer.get(), nullptr, mRenderTargetHeap.cpu(mFrames[i].rtv));
+    }
 }

@@ -119,10 +119,20 @@ variant MessageID : opaque(D3D12_MESSAGE_ID) {
 [[facade]]
 variant RootParameterType : opaque(D3D12_ROOT_PARAMETER_TYPE) {
     case Table = opaque(D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE)
-    case RootData = opaque(D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS)
+    case RootConsts = opaque(D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS)
     case ConstBuffer = opaque(D3D12_ROOT_PARAMETER_TYPE_CBV)
     case ShaderResource = opaque(D3D12_ROOT_PARAMETER_TYPE_SRV)
     case UnorderedAccess = opaque(D3D12_ROOT_PARAMETER_TYPE_UAV)
+}
+
+[[bitflags, facade]]
+variant DescriptorRangeFlags : opaque(D3D12_DESCRIPTOR_RANGE_FLAGS) {
+    default None = opaque(D3D12_DESCRIPTOR_RANGE_FLAG_NONE)
+    case VolatileDescriptors = opaque(D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE)
+    case VolatileData = opaque(D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE)
+    case StaticData = opaque(D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC)
+    case StaticAtExecute = opaque(D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE)
+    case StaticBoundsChecked = opaque(D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_STATIC_KEEPING_BUFFER_BOUNDS_CHECKS)
 }
 
 [[facade]]

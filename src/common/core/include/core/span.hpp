@@ -1,6 +1,13 @@
 #pragma once
 
+// std::begin, std::end
+#include <span>
+
 namespace sm {
+    template<typename T, size_t N = std::dynamic_extent>
+    using Span = std::span<T, N>;
+
+#if 0
     template<typename T>
     class Span {
         T *m_front;
@@ -17,8 +24,8 @@ namespace sm {
 
         template<typename C>
         constexpr Span(C &container)
-            : m_front(container.data())
-            , m_back(container.data() + container.size())
+            : m_front(std::begin(container))
+            , m_back(std::end(container))
         { }
 
         constexpr T *begin() const {
@@ -57,4 +64,5 @@ namespace sm {
             return *(m_back - 1);
         }
     };
+#endif
 }

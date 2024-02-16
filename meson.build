@@ -94,7 +94,6 @@ hlsl = generator(compile_hlsl,
 )
 
 args = cpp.get_supported_arguments(
-    '/GS-',
     '-fstrict-aliasing',
     '-fno-threadsafe-statics',
     '-fno-keep-static-consts',
@@ -330,7 +329,7 @@ client = executable('client', 'src/client/src/main.cpp', game_bundle,
         '/manifest:embed', '/manifestinput:' + manifest
     ],
     dependencies : [
-        core, system, logs, threads, imgui, service, render, input,
+        core, system, logs, threads, imgui, service, render, input, archive,
         cthulhu.get_variable('backtrace'),
         cthulhu.get_variable('format_core'),
         cthulhu.get_variable('io')

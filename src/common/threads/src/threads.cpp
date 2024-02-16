@@ -153,7 +153,7 @@ struct GeometryBuilder : CpuGeometry {
     template <typename Index, typename Item>
     void get_item_with_mask(sm::Vector<Index> &ids, Span<const Item> items,
                             GROUP_AFFINITY affinity) {
-        for (size_t i = 0; i < items.length(); ++i)
+        for (size_t i = 0; i < items.size(); ++i)
             if (should_add_item(items[i].mask, affinity))
                 ids.push_back(sm::enum_cast<Index>(i));
 
