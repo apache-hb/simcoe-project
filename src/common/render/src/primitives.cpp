@@ -83,17 +83,17 @@ static Mesh cube(const Cube &cube) {
 
     PrimitiveBuilder builder;
 
-    builder.quad({{-w, -h, -d}}, {{-w, -h, d}}, {{-w, h, d}}, {{-w, h, -d}});
+    builder.quad({{-w, h, -d}}, {{-w, h, d}}, {{-w, -h, d}}, {{-w, -h, -d}});
 
-    builder.quad({{w, -h, -d}}, {{w, -h, d}}, {{w, h, d}}, {{w, h, -d}});
+    builder.quad({{w, -h, -d}}, {{w, -h, d}}, {{w, h, d}}, {{w, h, -d}}); // correct?
 
-    builder.quad({{-w, -h, -d}}, {{-w, -h, d}}, {{w, -h, d}}, {{w, -h, -d}});
+    builder.quad({{-w, -h, -d}}, {{-w, -h, d}}, {{w, -h, d}}, {{w, -h, -d}}); // correct
 
-    builder.quad({{-w, h, -d}}, {{-w, h, d}}, {{w, h, d}}, {{w, h, -d}});
+    builder.quad({{w, h, -d}}, {{w, h, d}}, {{-w, h, d}}, {{-w, h, -d}}); // correct
 
-    builder.quad({{-w, -h, -d}}, {{-w, h, -d}}, {{w, h, -d}}, {{w, -h, -d}});
+    builder.quad({{w, -h, -d}}, {{w, h, -d}}, {{-w, h, -d}}, {{-w, -h, -d}}); // correct
 
-    builder.quad({{-w, -h, d}}, {{-w, h, d}}, {{w, h, d}}, {{w, -h, d}});
+    builder.quad({{-w, -h, d}}, {{-w, h, d}}, {{w, h, d}}, {{w, -h, d}}); // correct
 
     return builder.build();
 }
