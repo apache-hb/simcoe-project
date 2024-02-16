@@ -46,6 +46,11 @@ namespace sm::math {
         return lhs > rhs ? lhs : rhs;
     }
 
+    template<typename T>
+    constexpr bool nearly_equal(T lhs, T rhs, T epsilon = T(1e-5)) {
+        return std::abs(lhs - rhs) < epsilon;
+    }
+
     /**
      * vector types are (sort of) organized as follows:
      * all vectors are default uninitialized to satisfy std::is_trivial
@@ -740,6 +745,11 @@ namespace sm::math {
             out.at(i) = math::max(lhs.fields[i], rhs.fields[i]);
         }
         return out;
+    }
+
+    template<IsVector T>
+    constexpr bool nearly_equal(const T& lhs, const T& rhs, typename T::Type epsilon) {
+        return (lhs - rhs).length() < epsilon;
     }
 
     using int2 = Vec2<int>;

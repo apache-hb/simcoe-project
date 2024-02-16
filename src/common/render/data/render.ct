@@ -20,6 +20,8 @@ variant DataFormat : opaque(DXGI_FORMAT) {
     case R32G32_FLOAT = opaque(DXGI_FORMAT_R32G32_FLOAT)
     case R32G32B32_FLOAT = opaque(DXGI_FORMAT_R32G32B32_FLOAT)
     case R32G32B32A32_FLOAT = opaque(DXGI_FORMAT_R32G32B32A32_FLOAT)
+
+    case R16_UINT = opaque(DXGI_FORMAT_R16_UINT)
 }
 
 [[facade]]
@@ -47,24 +49,28 @@ variant AdapterFlag : uint {
 
 [[facade]]
 variant RootSignatureVersion : opaque(D3D_ROOT_SIGNATURE_VERSION) {
-    [[format("version.1.0")]] case Version_1_0 = opaque(D3D_ROOT_SIGNATURE_VERSION_1_0)
-    [[format("version.1.1")]] case Version_1_1 = opaque(D3D_ROOT_SIGNATURE_VERSION_1_1)
+    [[format("version 1.0")]] default Version_1_0 = opaque(D3D_ROOT_SIGNATURE_VERSION_1_0)
+    [[format("version 1.1")]] case Version_1_1 = opaque(D3D_ROOT_SIGNATURE_VERSION_1_1)
+    [[format("version 1.2")]] case Version_1_2 = opaque(D3D_ROOT_SIGNATURE_VERSION_1_2)
 }
 
 [[facade]]
 variant DescriptorHeapType : opaque(D3D12_DESCRIPTOR_HEAP_TYPE) {
-    [[format("cbv/srv/uav")]] case CBV_SRV_UAV = opaque(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
+    [[format("cbv/srv/uav")]] case Resource = opaque(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
     [[format("sampler")]] case Sampler = opaque(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
     [[format("rtv")]] case RTV = opaque(D3D12_DESCRIPTOR_HEAP_TYPE_RTV)
     [[format("dsv")]] case DSV = opaque(D3D12_DESCRIPTOR_HEAP_TYPE_DSV)
 }
 
-[[facade]]
+[[facade, table]]
 variant CommandListType : opaque(D3D12_COMMAND_LIST_TYPE) {
-    [[format("direct")]] case Direct = opaque(D3D12_COMMAND_LIST_TYPE_DIRECT)
-    [[format("bundle")]] case Bundle = opaque(D3D12_COMMAND_LIST_TYPE_BUNDLE)
-    [[format("compute")]] case Compute = opaque(D3D12_COMMAND_LIST_TYPE_COMPUTE)
-    [[format("copy")]] case Copy = opaque(D3D12_COMMAND_LIST_TYPE_COPY)
+    [[format("direct")]] case Direct = 0
+    [[format("bundle")]] case Bundle = 1
+    [[format("compute")]] case Compute = 2
+    [[format("copy")]] case Copy = 3
+    [[format("video decode")]] case VideoDecode = 4
+    [[format("video process")]] case VideoProcess = 5
+    [[format("video encode")]] case VideoEncode = 6
 }
 
 [[bitflags]]
@@ -108,6 +114,93 @@ variant MessageID : opaque(D3D12_MESSAGE_ID) {
     default Unknown = opaque(D3D12_MESSAGE_ID_UNKNOWN)
     // dont fill in the rest, theres over 1000 of them
     // we'll add them as we need them
+}
+
+[[facade]]
+variant RootParameterType : opaque(D3D12_ROOT_PARAMETER_TYPE) {
+    case Table = opaque(D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE)
+    case RootData = opaque(D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS)
+    case ConstBuffer = opaque(D3D12_ROOT_PARAMETER_TYPE_CBV)
+    case ShaderResource = opaque(D3D12_ROOT_PARAMETER_TYPE_SRV)
+    case UnorderedAccess = opaque(D3D12_ROOT_PARAMETER_TYPE_UAV)
+}
+
+[[facade]]
+variant DescriptorRangeType : opaque(D3D12_DESCRIPTOR_RANGE_TYPE) {
+    case SRV = opaque(D3D12_DESCRIPTOR_RANGE_TYPE_SRV)
+    case UAV = opaque(D3D12_DESCRIPTOR_RANGE_TYPE_UAV)
+    case CBV = opaque(D3D12_DESCRIPTOR_RANGE_TYPE_CBV)
+    case Sampler = opaque(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER)
+}
+
+[[facade]]
+variant ShaderVisibility : opaque(D3D12_SHADER_VISIBILITY) {
+    case All = opaque(D3D12_SHADER_VISIBILITY_ALL)
+    case Vertex = opaque(D3D12_SHADER_VISIBILITY_VERTEX)
+    case Hull = opaque(D3D12_SHADER_VISIBILITY_HULL)
+    case Domain = opaque(D3D12_SHADER_VISIBILITY_DOMAIN)
+    case Geometry = opaque(D3D12_SHADER_VISIBILITY_GEOMETRY)
+    case Pixel = opaque(D3D12_SHADER_VISIBILITY_PIXEL)
+    case Amplification = opaque(D3D12_SHADER_VISIBILITY_AMPLIFICATION)
+    case Mesh = opaque(D3D12_SHADER_VISIBILITY_MESH)
+}
+
+[[bitflags, facade]]
+variant RootSignatureFlags : opaque(D3D12_ROOT_SIGNATURE_FLAGS) {
+    [[format("none")]] default None = opaque(D3D12_ROOT_SIGNATURE_FLAG_NONE)
+    [[format("allow input layout")]] case AllowInputAssemblerInputLayout = opaque(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT)
+    [[format("deny vs root access")]] case DenyVertexShaderRootAccess = opaque(D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS)
+    [[format("deny hs root access")]] case DenyHullShaderRootAccess = opaque(D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS)
+    [[format("deny ds root access")]] case DenyDomainShaderRootAccess = opaque(D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS)
+    [[format("deny gs root access")]] case DenyGeometryShaderRootAccess = opaque(D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS)
+    [[format("deny ps root access")]] case DenyPixelShaderRootAccess = opaque(D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS)
+    [[format("deny as root access")]] case DenyAmplificationShaderRootAccess = opaque(D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS)
+    [[format("deny ms root access")]] case DenyMeshShaderRootAccess = opaque(D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS)
+}
+
+[[facade]]
+variant Filter : opaque(D3D12_FILTER) {
+    case MinMagMipPoint = opaque(D3D12_FILTER_MIN_MAG_MIP_POINT)
+}
+
+[[facade]]
+variant AddressMode : opaque(D3D12_TEXTURE_ADDRESS_MODE) {
+    case Wrap = opaque(D3D12_TEXTURE_ADDRESS_MODE_WRAP)
+    case Mirror = opaque(D3D12_TEXTURE_ADDRESS_MODE_MIRROR)
+    case Clamp = opaque(D3D12_TEXTURE_ADDRESS_MODE_CLAMP)
+    case Border = opaque(D3D12_TEXTURE_ADDRESS_MODE_BORDER)
+    case MirrorOnce = opaque(D3D12_TEXTURE_ADDRESS_MODE_MIRROR_ONCE)
+}
+
+[[facade]]
+variant GpuAddress : uint64 {
+    default Invalid = 0xFFFFFFFFFFFFFFFF
+}
+
+variant ResourceState {
+    case CopySource
+    case CopyTarget
+    case IndexBuffer
+    case VertexBuffer
+    case ConstBuffer
+}
+
+struct IndexBufferView {
+    address: GpuAddress;
+    size: uint;
+    format: DataFormat;
+}
+
+struct VertexBufferView {
+    address: GpuAddress;
+    size: uint;
+    stride: uint;
+}
+
+struct InputElement {
+    name: cstring;
+    format: DataFormat;
+    offset: uint;
 }
 
 struct RenderConfig {

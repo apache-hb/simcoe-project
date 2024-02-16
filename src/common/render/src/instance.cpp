@@ -92,11 +92,9 @@ Instance::Instance(InstanceConfig config)
         enum_adapters();
 }
 
-static constexpr DXGI_DEBUG_RLO_FLAGS kReportFlags = static_cast<DXGI_DEBUG_RLO_FLAGS>(DXGI_DEBUG_RLO_SUMMARY | DXGI_DEBUG_RLO_DETAIL);
-
 Instance::~Instance() {
     if (mDebug) {
         mSink.info("reporting live dxgi/d3d objects");
-        mDebug->ReportLiveObjects(DXGI_DEBUG_ALL, kReportFlags);
+        mDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
     }
 }

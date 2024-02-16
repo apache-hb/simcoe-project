@@ -463,8 +463,6 @@ attrib: TOK_DEPRECATED TOK_LPAREN string_list TOK_RPAREN { $$ = ref_attrib_depre
     | TOK_FORMAT TOK_LPAREN string_list TOK_RPAREN { $$ = ref_attrib_string(x, @$, eAttribFormat, ref_make_string($3)); }
     | simple_attrib { $$ = ref_attrib_tag(x, @$, $1); }
     | TOK_DOC TOK_LPAREN doc_body TOK_RPAREN { $$ = ref_attrib_docs(x, @$, $3); }
-    | TOK_SERIALIZE { $$ = ref_attrib_tag(x, @$, eAttribSerialize); }
-    | TOK_CHECKSUM { $$ = ref_attrib_tag(x, @$, eAttribChecksum); }
     ;
 
 doc_body: doc_item { $$ = map_new(32, kTypeInfoString, BISON_ARENA(x)); map_set($$, $1.ident, $1.body); }
@@ -483,6 +481,8 @@ simple_attrib: TOK_TRANSIENT { $$ = eAttribTransient; }
     | TOK_FACADE { $$ = eAttribFacade; }
     | TOK_EXTERNAL { $$ = eAttribExternal; }
     | TOK_LOOKUP { $$ = eAttribLookupKey; }
+    | TOK_SERIALIZE { $$ = eAttribSerialize; }
+    | TOK_CHECKSUM { $$ = eAttribChecksum; }
     ;
 
 layout_attrib: TOK_SYSTEM { $$ = eAttribLayoutSystem; }

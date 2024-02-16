@@ -4,6 +4,7 @@
 #include "logs/sink.inl" // IWYU pragma: keep
 #include "core/reflect.hpp" // IWYU pragma: keep
 
+#include "d3dx12/d3dx12_core.h"
 #include "d3dx12/d3dx12_barriers.h"
 
 using namespace sm;
@@ -15,12 +16,13 @@ Context::Context(RenderConfig config)
     , mAdapterIndex(config.adapter_index)
     , mFeatureLevel(config.feature_level)
     , mFrames(config.frame_count)
-    , mDirectCommandLists(config.direct_command_pool_size)
-    , mCopyCommandLists(config.copy_command_pool_size)
-    , mComputeCommandLists(config.compute_command_pool_size)
+    , mDirectCommandLists(CommandListType::eDirect, config.direct_command_pool_size)
+    , mCopyCommandLists(CommandListType::eCopy, config.copy_command_pool_size)
+    , mComputeCommandLists(CommandListType::eCompute, config.compute_command_pool_size)
     , mResources(config.resource_pool_size)
 {
     create_device();
+    query_root_signature_version();
     create_allocator();
     create_device_objects(config);
     create_swapchain(config);
@@ -131,6 +133,21 @@ void Context::create_device() {
     mSink.info("| flags: {}", flags);
 }
 
+void Context::query_root_signature_version() {
+    D3D12_FEATURE_DATA_ROOT_SIGNATURE feature = {
+        .HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_2,
+    };
+
+    if (Result hr = mDevice->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &feature, sizeof(feature))) {
+        mSink.error("failed to query root signature version: {}", hr);
+        mRootSignatureVersion = RootSignatureVersion::eVersion_1_0;
+    } else {
+        mRootSignatureVersion = feature.HighestVersion;
+    }
+
+    mSink.info("root signature version: {}", mRootSignatureVersion);
+}
+
 void Context::create_device_objects(const RenderConfig& config) {
     mDirectQueue.create(mDevice, CommandListType::eDirect);
     mCopyQueue.create(mDevice, CommandListType::eCopy);
@@ -158,9 +175,17 @@ void Context::create_device_objects(const RenderConfig& config) {
 
     mRenderTargetHeap.create(mDevice, DescriptorHeapType::eRTV, rtv_heap_size, false);
     mDepthStencilHeap.create(mDevice, DescriptorHeapType::eDSV, dsv_heap_size, false);
-    mShaderResourceHeap.create(mDevice, DescriptorHeapType::eCBV_SRV_UAV, srv_heap_size, true);
+    mShaderResourceHeap.create(mDevice, DescriptorHeapType::eResource, srv_heap_size, true);
+
+    mSink.info("| pools: direct={}, copy={}, compute={}", config.direct_command_pool_size, config.copy_command_pool_size, config.compute_command_pool_size);
+
+    mDirectCommandLists.create(mDevice);
+    mCopyCommandLists.create(mDevice);
+    mComputeCommandLists.create(mDevice);
 
     mPresentFence.create(mDevice, "present");
+    mDirectFence.create(mDevice, "direct");
+    mCopyFence.create(mDevice, "copy");
 }
 
 static constexpr D3D12MA::ALLOCATOR_FLAGS kAllocatorFlags = D3D12MA::ALLOCATOR_FLAG_DEFAULT_POOLS_NOT_ZEROED | D3D12MA::ALLOCATOR_FLAG_SINGLETHREADED;
@@ -243,42 +268,125 @@ void Context::next_frame() {
 }
 
 void Context::begin_frame() {
+    reclaim_live_objects(mPresentFence);
+    mAllocator->SetCurrentFrameIndex(mFrameIndex);
+
     auto& frame = mFrames[mFrameIndex];
 
     frame.commands.reset();
 
     auto *cmd = frame.commands.get();
 
-    CD3DX12_RESOURCE_BARRIER become_render_target = CD3DX12_RESOURCE_BARRIER::Transition(
+    const CD3DX12_RESOURCE_BARRIER into_render = CD3DX12_RESOURCE_BARRIER::Transition(
         frame.buffer.get(),
         D3D12_RESOURCE_STATE_PRESENT,
         D3D12_RESOURCE_STATE_RENDER_TARGET
     );
 
-    cmd->ResourceBarrier(1, &become_render_target);
+    cmd->ResourceBarrier(1, &into_render);
 
-    D3D12_CPU_DESCRIPTOR_HANDLE rtv = mRenderTargetHeap.cpu(frame.rtv);
+    const D3D12_CPU_DESCRIPTOR_HANDLE rtv = mRenderTargetHeap.cpu(frame.rtv);
 
     constexpr float kClearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
     cmd->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
     cmd->ClearRenderTargetView(rtv, kClearColor, 0, nullptr);
 
-    CD3DX12_RESOURCE_BARRIER become_present = CD3DX12_RESOURCE_BARRIER::Transition(
+    const CD3DX12_RESOURCE_BARRIER into_present = CD3DX12_RESOURCE_BARRIER::Transition(
         frame.buffer.get(),
         D3D12_RESOURCE_STATE_RENDER_TARGET,
         D3D12_RESOURCE_STATE_PRESENT
     );
 
-    cmd->ResourceBarrier(1, &become_present);
+    cmd->ResourceBarrier(1, &into_present);
 
     frame.commands.close();
 }
 
+void Context::reclaim_direct_list(CommandList *list, Context& ctx) {
+    list->reset();
+    ctx.mDirectCommandLists.release(list);
+}
+
 void Context::end_frame() {
-    ID3D12CommandList *lists[] = { mFrames[mFrameIndex].commands.get() };
-    mDirectQueue.execute(1, lists);
+    sm::SmallVector<ID3D12CommandList*, 4> lists;
+    lists.push_back(mFrames[mFrameIndex].commands.get());
+
+    auto& pending_direct = mPendingLists[uint(CommandListType::eDirect)];
+
+    // take all the pending submit lists and execute them
+    for (auto *list : pending_direct)
+        lists.push_back(list->get());
+
+    mDirectQueue.execute((uint)lists.size(), lists.data());
+
+    // move now executing commands into the reclaim queue
+    auto& executing = mPendingObjects[&mPresentFence];
+    uint64 value = mFrames[mFrameIndex].value;
+    for (auto *list : pending_direct)
+        executing.emplace(PendingObject{ kReclaimDirectList, list, value });
+
+    // remove the submitted lists from the pending list
+    pending_direct.clear();
 
     SM_ASSERT_HR(mSwapChain->Present(1, 0));
 
     next_frame();
+}
+
+CommandList& Context::acquire_copy_list() {
+    CommandList *list = mCopyCommandLists.acquire();
+    CTASSERTF(list, "Copy pool exhausted %zu", mCopyCommandLists.length());
+    return *list;
+}
+
+void Context::submit_copy_list(CommandList &list) {
+    list.close();
+    mPendingLists[uint(CommandListType::eCopy)].push_back(&list);
+}
+
+CommandList& Context::acquire_direct_list() {
+    CommandList *list = mDirectCommandLists.acquire();
+    CTASSERTF(list, "Direct pool exhausted %zu", mDirectCommandLists.length());
+    return *list;
+}
+
+void Context::submit_direct_list(CommandList& list) {
+    list.close();
+    mPendingLists[uint(CommandListType::eDirect)].push_back(&list);
+}
+
+void Context::reclaim_live_objects(Fence& fence) {
+    auto& pending = mPendingObjects[&fence];
+    auto now = fence.value();
+
+    while (!pending.empty()) {
+        if (auto& top = pending.top(); top.value() <= now) {
+            top.dispose(*this);
+            pending.pop();
+        } else {
+            break;
+        }
+    }
+}
+
+DeviceResource Context::create_resource(D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state) {
+    const D3D12MA::ALLOCATION_DESC alloc = {
+        .HeapType = heap,
+    };
+
+    DeviceResource res{};
+
+    SM_ASSERT_HR(mAllocator->CreateResource(&alloc, &desc, state, nullptr, &res.allocation, IID_PPV_ARGS(&res.resource)));
+
+    return res;
+}
+
+DeviceResource Context::create_staging_buffer(uint size) {
+    const auto desc = CD3DX12_RESOURCE_DESC::Buffer(size);
+    return create_resource(D3D12_HEAP_TYPE_UPLOAD, desc, D3D12_RESOURCE_STATE_COPY_SOURCE);
+}
+
+DeviceResource Context::create_buffer(uint size) {
+    const auto desc = CD3DX12_RESOURCE_DESC::Buffer(size);
+    return create_resource(D3D12_HEAP_TYPE_DEFAULT, desc, D3D12_RESOURCE_STATE_COPY_DEST);
 }

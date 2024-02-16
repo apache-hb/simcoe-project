@@ -7,7 +7,7 @@ namespace sm {
         T *m_back;
 
     public:
-        constexpr Span(T *front, T *back)
+        constexpr Span(T *front = nullptr, T *back = nullptr)
             : m_front(front), m_back(back) {
         }
 
@@ -29,8 +29,20 @@ namespace sm {
             return m_back;
         }
 
-        constexpr size_t size() const {
+        constexpr T *data() const {
+            return m_front;
+        }
+
+        constexpr size_t length() const {
             return m_back - m_front;
+        }
+
+        constexpr size_t size_bytes() const {
+            return length() * sizeof(T);
+        }
+
+        constexpr size_t size() const {
+            return length();
         }
 
         constexpr T &operator[](size_t index) const {

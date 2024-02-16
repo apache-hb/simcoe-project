@@ -1,0 +1,42 @@
+module sm::archive;
+
+variant Version : uint16 {
+    default Current = 0
+    [[format("2024/02/15")]] case Version1 = 0
+}
+
+variant Format : uint16 {
+    [[format("unknown")]]
+    default Unknown
+
+    [[format("rg/float32")]]
+    case RG32_float
+
+    [[format("rgb/float32")]]
+    case RGB32_float
+
+    [[format("rgba/float32")]]
+    case RGBA32_float
+
+    [[format("rg/uint8")]]
+    case RG8_uint8
+
+    [[format("rgb/uint8")]]
+    case RGB8_uint8
+
+    [[format("rgba/uint8")]]
+    case RGBA8_uint8
+
+    [[format("uint16")]]
+    case uint16
+
+    [[format("uint32")]]
+    case uint32
+}
+
+struct Header {
+    magic: uint32; // 'DAT\0'
+    checksum: uint32;
+    timestamp: uint64;
+    version: Version;
+}

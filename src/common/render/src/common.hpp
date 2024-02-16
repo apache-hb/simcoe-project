@@ -6,8 +6,8 @@
 
 #define SM_ASSERT_HR(expr)                                 \
     do {                                                   \
-        if (auto result = (expr); FAILED(result)) {        \
-            ::assert_hresult(CT_SOURCE_CURRENT, #expr, result); \
+        if (auto check_result = (expr); FAILED(check_result)) {        \
+            ::assert_hresult(CT_SOURCE_CURRENT, #expr, check_result); \
         }                                                  \
     } while (0)
 

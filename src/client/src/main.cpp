@@ -17,6 +17,11 @@
 #include "threads/threads.hpp"
 
 #include "render/render.hpp"
+#include "render/draw.hpp"
+
+#include "imgui/imgui.h"
+#include "imgui/backends/imgui_impl_win32.h"
+#include "imgui/backends/imgui_impl_dx12.h"
 
 #include "backtrace/backtrace.h"
 #include "base/panic.h"
@@ -27,6 +32,8 @@
 #include "std/str.h"
 
 using namespace sm;
+using namespace render;
+using namespace math;
 
 using GlobalSink = logs::Sink<logs::Category::eGlobal>;
 
@@ -46,10 +53,8 @@ using GlobalSink = logs::Sink<logs::Category::eGlobal>;
 //     NEVER("operator delete[] called");
 // }
 
-#if 0
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
                                                              LPARAM lParam);
-#endif
 
 // TODO: clean up loggers
 
@@ -283,9 +288,7 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
 
     LRESULT event(sys::Window &window, UINT message, WPARAM wparam, LPARAM lparam) override {
         if (m_input) m_input->window_event(message, wparam, lparam);
-
-        return 0;
-        //return ImGui_ImplWin32_WndProcHandler(window.get_handle(), message, wparam, lparam);
+        return ImGui_ImplWin32_WndProcHandler(window.get_handle(), message, wparam, lparam);
     }
 
     void resize(sys::Window &, math::int2 size) override {
@@ -365,6 +368,164 @@ static void common_init(void) {
     SetConsoleCtrlHandler(ctrlc_handler, TRUE);
 }
 
+class ImGuiRenderPass {
+    render::DescriptorIndex mSrvIndex = render::DescriptorIndex::eInvalid;
+
+public:
+    ImGuiRenderPass() = default;
+
+    void create(HWND hwnd, const render::RenderConfig& config, render::Context& context) {
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGui::StyleColorsDark();
+
+        ImGuiIO& io = ImGui::GetIO();
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+        io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+
+        ImGuiStyle& style = ImGui::GetStyle();
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+            style.WindowRounding = 0.0f;
+            style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+        }
+
+        auto& heap = context.srv_heap();
+        mSrvIndex = heap.acquire();
+
+        ImGui_ImplWin32_Init(hwnd);
+        ImGui_ImplDX12_Init(*context.device(), config.frame_count, DXGI_FORMAT_R8G8B8A8_UNORM, heap.get(), heap.cpu(mSrvIndex), heap.gpu(mSrvIndex));
+    }
+
+    void destroy(render::Context& context) {
+        auto& heap = context.srv_heap();
+        heap.release(mSrvIndex);
+
+        ImGui_ImplDX12_Shutdown();
+        ImGui_ImplWin32_Shutdown();
+        ImGui::DestroyContext();
+    }
+
+    void begin_frame(render::Context& context) {
+        ImGui_ImplDX12_NewFrame();
+        ImGui_ImplWin32_NewFrame();
+        ImGui::NewFrame();
+    }
+
+    void end_frame() {
+        ImGui::Render();
+    }
+
+    void render(render::Context& context) {
+        ImGui::Render();
+        auto& commands = context.acquire_direct_list();
+        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commands.get());
+        context.submit_direct_list(commands);
+        ImGui::UpdatePlatformWindows();
+        ImGui::RenderPlatformWindowsDefault(NULL, commands.get());
+    }
+};
+
+struct RenderObject {
+    DeviceResource vbo_data;
+    DeviceResource ibo_data;
+
+    VertexBufferView vbo;
+    IndexBufferView ibo;
+};
+
+class SceneRenderPass {
+    draw::Scene mScene;
+    sm::Vector<RenderObject> mResources;
+
+    draw::Camera mCamera;
+
+    PipelineState mPipelineState;
+
+    constexpr static RootSignatureFlags kFlags =
+        RootSignatureFlags::eAllowInputAssemblerInputLayout |
+        RootSignatureFlags::eDenyAmplificationShaderRootAccess |
+        RootSignatureFlags::eDenyMeshShaderRootAccess |
+        RootSignatureFlags::eDenyDomainShaderRootAccess |
+        RootSignatureFlags::eDenyHullShaderRootAccess |
+        RootSignatureFlags::eDenyGeometryShaderRootAccess;
+
+    constexpr static InputElement kVertexLayout[] = {
+        { "POSITION", DataFormat::eR32G32B32_FLOAT, offsetof(draw::Vertex, position) },
+        { "TEXCOORD", DataFormat::eR32G32_FLOAT, offsetof(draw::Vertex, uv) },
+    };
+
+    constexpr static RootParameter kParams[] = {
+        RootParameter::consts(0, 0, sizeof(float4x4), ShaderVisibility::eVertex)
+    };
+
+    constexpr static render::PipelineConfig kPipelineInfo = {
+        .flags = kFlags,
+        .input = kVertexLayout,
+        .params = kParams,
+    };
+
+    void render_node(uint16_t index, const float4x4& transform) const {
+        //const auto& node = mScene.nodes[index];
+    }
+
+public:
+    SceneRenderPass(draw::Scene scene)
+        : mScene(std::move(scene))
+    { }
+
+    void create(const render::RenderConfig& config, render::Context& context) {
+        mPipelineState.create(context.device(), kPipelineInfo);
+
+        sm::Vector<Barrier> barriers;
+
+        auto& copy = context.acquire_copy_list();
+        auto& direct = context.acquire_direct_list();
+
+        for (auto& info : mScene.meshes) {
+            auto [bounds, indices, vertices] = draw::primitive(info);
+            uint vbo_size = uint(vertices.size() * sizeof(draw::Vertex));
+            uint ibo_size = uint(indices.size() * sizeof(uint16_t));
+
+            auto vbo_upload = context.create_staging_buffer(vbo_size);
+            auto ibo_upload = context.create_staging_buffer(ibo_size);
+
+            vbo_upload.write(vertices.data(), vbo_size);
+            ibo_upload.write(indices.data(), ibo_size);
+
+            auto vbo = context.create_buffer(vbo_size);
+            auto ibo = context.create_buffer(ibo_size);
+
+            copy.copy_buffer(vbo_upload, vbo, vbo_size);
+            copy.copy_buffer(ibo_upload, ibo, ibo_size);
+
+            barriers.push_back(transition_barrier(vbo, ResourceState::eCopyTarget, ResourceState::eVertexBuffer));
+            barriers.push_back(transition_barrier(ibo, ResourceState::eCopyTarget, ResourceState::eIndexBuffer));
+
+            auto vbo_view = render::vbo_view(vbo, sizeof(draw::Vertex), vbo_size);
+            auto ibo_view = render::ibo_view(ibo, ibo_size, DataFormat::eR16_UINT);
+
+            mResources.push_back({
+                .vbo_data = std::move(vbo),
+                .ibo_data = std::move(ibo),
+                .vbo = vbo_view,
+                .ibo = ibo_view,
+            });
+        }
+
+        context.submit_copy_list(copy);
+        context.submit_direct_list(direct);
+    }
+
+    void render(render::Context& context) {
+        auto& commands = context.acquire_direct_list();
+        commands.bind_pipeline(mPipelineState);
+
+        render_node(mScene.root, float4x4::identity());
+    }
+};
+
 static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
     sys::WindowConfig window_config = {
         .mode = sys::WindowMode::eWindowed,
@@ -408,7 +569,29 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
         .srv_heap_size = 16,
     };
 
+    draw::Scene draw;
+    draw.root = 0;
+    draw.nodes.push_back({
+        .transform = {
+            .scale = 1.f,
+        },
+        .meshes = {0}
+    });
+    draw.meshes.push_back({
+        .type = draw::MeshType::eCube,
+        .cube = {
+            .width = 1.f,
+            .height = 1.f,
+            .depth = 1.f,
+        }
+    });
+
     render::Context context{config};
+    ImGuiRenderPass imgui;
+    SceneRenderPass scene{draw};
+
+    imgui.create(window.get_handle(), config, context);
+    scene.create(config, context);
 
     bool done = false;
     while (!done) {
@@ -428,12 +611,21 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
         }
 
         if (done) break;
-
         input.poll();
 
+        imgui.begin_frame(context);
+
+        ImGui::ShowDemoWindow();
+
+        imgui.end_frame();
+
         context.begin_frame();
+        scene.render(context);
+        imgui.render(context);
         context.end_frame();
     }
+
+    imgui.destroy(context);
 }
 
 static int common_main(sys::ShowWindow show) {

@@ -387,6 +387,7 @@ namespace refl {
         bool is_record_type() const { return get_kind() == eKindClass || get_kind() == eKindVariant; }
         virtual bool is_trivial() const { return false; }
         virtual const char *get_opaque_name() const { return nullptr; }
+        virtual const char *get_literal_suffix() const { return ""; }
     };
 
     class OpaqueType : public Type {
@@ -452,6 +453,7 @@ namespace refl {
         digit_t get_digit() const { return m_digit; }
         sign_t get_sign() const { return m_sign; }
         bool is_trivial() const override { return false; }
+        const char *get_literal_suffix() const override;
     };
 
     class FloatType : public Type {
@@ -488,6 +490,21 @@ namespace refl {
     public:
         StringType(const char *name)
             : Type(get_builtin_node(), eKindTypeString, name, sizeof(const char*), alignof(const char*))
+        { }
+
+        void resolve(Sema&) override { finish_resolve(); }
+
+        const char* get_cxx_name(Sema& sema, const char *name) const override
+        {
+            return (name == nullptr) ? "const char*" : refl_fmt("const char *%s", name);
+        }
+    };
+
+    class ManagedStringType : public Type {
+    public:
+        ManagedStringType(const char *name)
+        // TODO: hardcoded sizeof(std::string) may not be correct
+            : Type(get_builtin_node(), eKindTypeString, name, 24, 8)
         { }
 
         void resolve(Sema&) override { finish_resolve(); }

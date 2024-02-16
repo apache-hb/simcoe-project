@@ -218,6 +218,7 @@ subdir('src/common/math')
 subdir('src/vendor/imgui')
 
 subdir('src/common/logs')
+subdir('src/common/archive')
 subdir('src/common/service')
 
 # subdir('src/common/bundle')

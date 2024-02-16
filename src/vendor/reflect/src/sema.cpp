@@ -7,6 +7,7 @@
 #include "std/str.h"
 #include "std/vector.h"
 #include <climits>
+#include <cstdio>
 
 using namespace refl;
 
@@ -52,8 +53,9 @@ declmap_t refl::get_builtin_types()
 
     decls.set("memory", new MemoryType("memory"));
     decls.set("void", new VoidType("void"));
-    decls.set("cstring", new StringViewType("string_view"));
-    decls.set("string", new StringType("string"));
+    decls.set("string_view", new StringViewType("string_view"));
+    decls.set("cstring", new StringType("cstring"));
+    decls.set("string", new ManagedStringType("string"));
     decls.set("bool", new BoolType("bool"));
     decls.set("byte", new IntType("byte", eDigit8, eSignUnsigned));
     decls.set("int", new IntType("int", eDigitInt, eSignSigned));
@@ -151,7 +153,7 @@ void Sema::forward_module(ref_ast_t *mod)
     if (m_vector == nullptr) m_vector = "std::vector";
     if (m_array == nullptr) m_array = "std::array";
     if (m_string == nullptr) m_string = "std::string";
-    if (m_string_view == nullptr) m_string_view = "const char*";
+    if (m_string_view == nullptr) m_string_view = "std::string_view";
 
     vec_foreach<ref_ast_t*>(mod->imports, [&](auto import) {
         imports.push(import->ident);
@@ -354,7 +356,7 @@ Field::Field(ref_ast_t *ast)
     : TreeBackedDecl(ast, eKindField)
 { }
 
-static ref_ast_t *get_attrib(vector_t *attribs, ref_kind_t kind)
+static ref_ast_t *get_attrib(const vector_t *attribs, ref_kind_t kind)
 {
     CTASSERT(attribs != nullptr);
 
@@ -363,7 +365,9 @@ static ref_ast_t *get_attrib(vector_t *attribs, ref_kind_t kind)
     {
         ref_ast_t *attrib = (ref_ast_t*)vector_get(attribs, i);
         if (attrib->kind == kind)
+        {
             return attrib;
+        }
     }
     return nullptr;
 }
@@ -519,12 +523,19 @@ bool Case::get_integer(mpz_t out) const {
     return false;
 }
 
-static bool has_attrib_tag(vector_t *attribs, ref_attrib_tag_t tag)
+static bool has_attrib_tag(const vector_t *attribs, ref_attrib_tag_t tag)
 {
-    ref_ast_t *attrib = get_attrib(attribs, eAstAttribTag);
-    if (!attrib) return false;
+    for (size_t i = 0; i < vector_len(attribs); i++)
+    {
+        ref_ast_t *attrib = (ref_ast_t*)vector_get(attribs, i);
+        if (attrib->kind != eAstAttribTag)
+            continue;
 
-    return attrib->attrib == tag;
+        if (attrib->attrib == tag)
+            return true;
+    }
+
+    return false;
 }
 
 void Method::resolve(Sema& sema) {
@@ -1002,6 +1013,21 @@ const char* IntType::get_cxx_name(Sema& sema, const char *name) const
     return (name == nullptr) ? type : refl_fmt("%s %s", type, name);
 }
 
+const char *IntType::get_literal_suffix() const
+{
+    switch (m_digit)
+    {
+    case eDigitLeast64:
+    case eDigitFast64:
+    case eDigitLong:
+    case eDigitLongLong:
+    case eDigit64:
+        return (m_sign == eSignUnsigned) ? "ull" : "ll";
+
+    default: return (m_sign == eSignUnsigned) ? "u" : "";
+    }
+}
+
 void Field::emit_impl(Sema& sema, cxx_emit_t *out) const
 {
     const char *privacy = ::get_privacy(m_ast->privacy);
@@ -1131,15 +1157,15 @@ void Variant::emit_default_is_valid(cxx_emit_t *out) const
 
 void Variant::emit_impl(Sema& sema, cxx_emit_t *out) const
 {
-    bool is_ordered = has_attrib_tag(m_ast->attributes, eAttribOrdered);
-    bool is_bitflags = has_attrib_tag(m_ast->attributes, eAttribBitflags);
-    bool is_arithmatic = has_attrib_tag(m_ast->attributes, eAttribArithmatic);
-    bool is_iterator = has_attrib_tag(m_ast->attributes, eAttribIterator);
-    bool is_lookup = has_attrib_tag(m_ast->attributes, eAttribLookupKey);
+    const bool is_ordered = has_attrib_tag(m_ast->attributes, eAttribOrdered);
+    const bool is_bitflags = has_attrib_tag(m_ast->attributes, eAttribBitflags);
+    const bool is_arithmatic = has_attrib_tag(m_ast->attributes, eAttribArithmatic);
+    const bool is_iterator = has_attrib_tag(m_ast->attributes, eAttribIterator);
+    const bool is_lookup = has_attrib_tag(m_ast->attributes, eAttribLookupKey);
+    const bool is_external = has_attrib_tag(m_ast->attributes, eAttribExternal);
+    const bool is_facade = has_attrib_tag(m_ast->attributes, eAttribFacade);
 
     const char *ty = nullptr;
-    bool is_external = type_is_external(m_ast);
-    bool is_facade = type_is_facade(m_ast);
     if (is_external || is_facade)
     {
         CTASSERTF(m_parent != nullptr, "enum %s must have a parent because it is not implemented internally", get_name());
@@ -1152,9 +1178,8 @@ void Variant::emit_impl(Sema& sema, cxx_emit_t *out) const
     {
         if (const char *opaque = m_parent->get_opaque_name())
         {
-            ty = refl_fmt("%s_underlying_t", get_name());
-            cxx_writeln(out, "using %s_underlying_t = __underlying_type(%s);", get_name(), opaque);
-            cxx_writeln(out, "enum class %s : %s_underlying_t {", get_name(), get_name());
+            ty = refl_fmt("__underlying_type(%s)", opaque);
+            cxx_writeln(out, "enum class %s : __underlying_type(%s) {", get_name(), opaque);
         }
         else
         {
@@ -1177,6 +1202,8 @@ void Variant::emit_impl(Sema& sema, cxx_emit_t *out) const
 
     bool has_opaque_cases = false;
 
+    const char *suffix = (m_parent == nullptr || m_parent->get_opaque_name() != nullptr) ? "" : m_parent->get_literal_suffix();
+
     cxx_enter(out);
     m_cases.foreach([&](auto c)
     {
@@ -1192,7 +1219,7 @@ void Variant::emit_impl(Sema& sema, cxx_emit_t *out) const
             CTASSERTF(!has_opaque_cases, "cannot generate case values in a variant %s with opaque cases", get_name());
 
             mpz_add_ui(current, current, 1);
-            cxx_writeln(out, "e%s = %s,", c->get_name(), mpz_get_str(nullptr, 10, current));
+            cxx_writeln(out, "e%s = %s%s,", c->get_name(), mpz_get_str(nullptr, 10, current), suffix);
 
             if (mpz_cmp(current, lowest) < 0)
                 mpz_set(lowest, current);
@@ -1207,7 +1234,7 @@ void Variant::emit_impl(Sema& sema, cxx_emit_t *out) const
                 mpz_set(highest, value);
 
             mpz_set(current, value);
-            cxx_writeln(out, "e%s = %s,", c->get_name(), c->get_case_value());
+            cxx_writeln(out, "e%s = %s%s,", c->get_name(), c->get_case_value(), suffix);
         }
     });
     cxx_leave(out);

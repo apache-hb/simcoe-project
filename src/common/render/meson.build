@@ -6,8 +6,11 @@ src = [
     'src/context.cpp',
     'src/instance.cpp',
     'src/objects.cpp',
+    'src/primitives.cpp',
+    'src/draw.cpp',
 
-    reflect.process('data/render.ct')
+    reflect.process('data/render.ct'),
+    reflect.process('data/draw.ct'),
 ]
 
 deps = [
