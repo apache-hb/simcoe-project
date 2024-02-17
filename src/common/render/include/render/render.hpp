@@ -68,10 +68,15 @@ namespace sm::render {
         Object<ID3D12RootSignature> mRootSignature;
         Object<ID3D12PipelineState> mPipelineState;
         Object<ID3D12GraphicsCommandList1> mCommandList;
+
         Object<ID3D12DescriptorHeap> mRtvHeap;
         uint mRtvDescriptorSize = 0;
 
+        Object<ID3D12DescriptorHeap> mSrvHeap;
+        uint mSrvDescriptorSize = 0;
+
         void create_pipeline_state();
+
 
         /// copy queue and commands
         Object<ID3D12CommandQueue> mCopyQueue;

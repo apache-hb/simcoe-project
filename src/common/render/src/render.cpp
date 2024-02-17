@@ -174,14 +174,24 @@ void Context::create_pipeline() {
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
 
     {
-        const D3D12_DESCRIPTOR_HEAP_DESC kRtvHeapDesc = {
+        const D3D12_DESCRIPTOR_HEAP_DESC kHeapDesc = {
             .Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
             .NumDescriptors = mConfig.swapchain_length,
         };
 
-        SM_ASSERT_HR(mDevice->CreateDescriptorHeap(&kRtvHeapDesc, IID_PPV_ARGS(&mRtvHeap)));
-
+        SM_ASSERT_HR(mDevice->CreateDescriptorHeap(&kHeapDesc, IID_PPV_ARGS(&mRtvHeap)));
         mRtvDescriptorSize = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    }
+
+    {
+        const D3D12_DESCRIPTOR_HEAP_DESC kHeapDesc = {
+            .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+            .NumDescriptors = 1,
+            .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
+        };
+
+        SM_ASSERT_HR(mDevice->CreateDescriptorHeap(&kHeapDesc, IID_PPV_ARGS(&mSrvHeap)));
+        mSrvDescriptorSize = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     }
 
     uint count = mConfig.swapchain_length;
