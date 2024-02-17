@@ -40,7 +40,7 @@ namespace sm::render {
     };
 
     struct Context {
-        RenderConfig mConfig;
+        const RenderConfig mConfig;
 
         Sink mSink;
         Instance mInstance;
@@ -72,9 +72,11 @@ namespace sm::render {
         /// presentation objects
         Object<IDXGISwapChain3> mSwapChain;
         math::uint2 mSwapChainSize;
+        uint mSwapChainLength;
 
         sm::UniqueArray<FrameData> mFrames;
         void create_frame_allocators();
+        void create_render_targets();
 
         /// graphics pipeline objects
         Object<ID3D12CommandQueue> mDirectQueue;
@@ -84,6 +86,8 @@ namespace sm::render {
 
         Object<ID3D12DescriptorHeap> mRtvHeap;
         uint mRtvDescriptorSize = 0;
+
+        void create_rtv_heap(uint count);
 
         Object<ID3D12DescriptorHeap> mSrvHeap;
         uint mSrvDescriptorSize = 0;
@@ -110,8 +114,6 @@ namespace sm::render {
         D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
         void create_triangle();
 
-        void create_size_dependent_resources();
-
         void create_pipeline();
         void create_assets();
 
@@ -129,6 +131,8 @@ namespace sm::render {
 
         void update_imgui();
         void render_imgui();
+
+        void update_swapchain_length(uint length);
 
     public:
         Context(const RenderConfig& config);

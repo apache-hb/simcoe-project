@@ -158,13 +158,14 @@ void Context::create_pipeline() {
 
     bool tearing = mInstance.tearing_support();
     mSwapChainSize = mConfig.swapchain_size;
+    mSwapChainLength = mConfig.swapchain_length;
     const DXGI_SWAP_CHAIN_DESC1 kSwapChainDesc = {
         .Width = mSwapChainSize.width,
         .Height = mSwapChainSize.height,
         .Format = mConfig.swapchain_format,
         .SampleDesc = { 1, 0 },
         .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
-        .BufferCount = mConfig.swapchain_length,
+        .BufferCount = mSwapChainLength,
         .SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
         .Flags = get_swapchain_flags(mInstance),
     };
@@ -183,15 +184,7 @@ void Context::create_pipeline() {
     SM_ASSERT_HR(swapchain1.query(&mSwapChain));
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
 
-    {
-        const D3D12_DESCRIPTOR_HEAP_DESC kHeapDesc = {
-            .Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
-            .NumDescriptors = mConfig.swapchain_length,
-        };
-
-        SM_ASSERT_HR(mDevice->CreateDescriptorHeap(&kHeapDesc, IID_PPV_ARGS(&mRtvHeap)));
-        mRtvDescriptorSize = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-    }
+    create_rtv_heap(mSwapChainLength);
 
     {
         const D3D12_DESCRIPTOR_HEAP_DESC kHeapDesc = {
@@ -204,26 +197,32 @@ void Context::create_pipeline() {
         mSrvDescriptorSize = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     }
 
-    uint count = mConfig.swapchain_length;
-    mFrames.resize(count);
-    // mCommandAllocators.resize(count);
-    // mFenceValues.resize(count);
-    // mRenderTargets.resize(count);
+    mFrames.resize(mSwapChainLength);
 
-    create_size_dependent_resources();
+    update_viewport_scissor();
+    create_render_targets();
+    create_frame_allocators();
 
-    for (uint i = 0; i < count; i++) {
+    for (uint i = 0; i < mSwapChainLength; i++) {
         mFrames[i].mFenceValue = 0;
     }
-
-    create_frame_allocators();
 }
 
-void Context::create_size_dependent_resources() {
-    update_viewport_scissor();
+void Context::create_rtv_heap(uint count) {
+    mRtvHeap.reset();
 
+    const D3D12_DESCRIPTOR_HEAP_DESC kHeapDesc = {
+        .Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+        .NumDescriptors = count,
+    };
+
+    SM_ASSERT_HR(mDevice->CreateDescriptorHeap(&kHeapDesc, IID_PPV_ARGS(&mRtvHeap)));
+    mRtvDescriptorSize = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+}
+
+void Context::create_render_targets() {
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
-    for (uint i = 0; i < mConfig.swapchain_length; i++) {
+    for (uint i = 0; i < mSwapChainLength; i++) {
         auto& backbuffer = mFrames[i].mRenderTarget;
         SM_ASSERT_HR(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&backbuffer)));
         mDevice->CreateRenderTargetView(*backbuffer, nullptr, rtvHandle);
@@ -232,7 +231,7 @@ void Context::create_size_dependent_resources() {
 }
 
 void Context::create_frame_allocators() {
-    for (uint i = 0; i < mConfig.swapchain_length; i++) {
+    for (uint i = 0; i < mSwapChainLength; i++) {
         SM_ASSERT_HR(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&mFrames[i].mCommandAllocator)));
     }
 }
@@ -498,21 +497,48 @@ void Context::render() {
     move_to_next_frame();
 }
 
+void Context::update_swapchain_length(uint length) {
+    wait_for_gpu();
+
+    uint64 current = mFrames[mFrameIndex].mFenceValue;
+
+    for (uint i = 0; i < mSwapChainLength; i++) {
+        mFrames[i].mRenderTarget.reset();
+        mFrames[i].mCommandAllocator.reset();
+    }
+
+    const uint flags = get_swapchain_flags(mInstance);
+    SM_ASSERT_HR(mSwapChain->ResizeBuffers(length, mSwapChainSize.width, mSwapChainSize.height, mConfig.swapchain_format, flags));
+    mSwapChainLength = length;
+
+    mFrames.resize(length);
+    for (uint i = 0; i < length; i++) {
+        mFrames[i].mFenceValue = current;
+    }
+
+    create_rtv_heap(length);
+    create_render_targets();
+    create_frame_allocators();
+
+    mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
+}
+
 void Context::resize(math::uint2 size) {
     wait_for_gpu();
 
-    for (uint i = 0; i < mConfig.swapchain_length; i++) {
+    for (uint i = 0; i < mSwapChainLength; i++) {
         mFrames[i].mRenderTarget.reset();
         mFrames[i].mFenceValue = mFrames[mFrameIndex].mFenceValue;
     }
 
     const uint flags = get_swapchain_flags(mInstance);
-    SM_ASSERT_HR(mSwapChain->ResizeBuffers(mConfig.swapchain_length, size.width, size.height, mConfig.swapchain_format, flags));
+    SM_ASSERT_HR(mSwapChain->ResizeBuffers(mSwapChainLength, size.width, size.height, mConfig.swapchain_format, flags));
     mSwapChainSize = size;
 
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
 
-    create_size_dependent_resources();
+    update_viewport_scissor();
+    create_render_targets();
     create_triangle();
 }
 

@@ -43,6 +43,14 @@ void Context::update_imgui() {
     ImGui::NewFrame();
 
     ImGui::ShowDemoWindow();
+
+    if (ImGui::Begin("Render Config")) {
+        int swapchain_length = int_cast<int>(mSwapChainLength);
+        if (ImGui::SliderInt("Swapchain Length", &swapchain_length, 2, DXGI_MAX_SWAP_CHAIN_BUFFERS)) {
+            update_swapchain_length(int_cast<uint>(swapchain_length));
+        }
+    }
+    ImGui::End();
 }
 
 void Context::render_imgui() {
