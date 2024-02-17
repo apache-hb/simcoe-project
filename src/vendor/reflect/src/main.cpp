@@ -168,7 +168,7 @@ struct tool_t
     int emit_output(ref_ast_t *ast, const char *file)
     {
         const char *header_path = cfg_string_value(m_output_header);
-        io_t *header = open_file(header_path, eAccessWrite, &kEvent_FailedToCreateOutputFile);
+        io_t *header = open_file(header_path, os_access_t(eAccessWrite | eAccessTruncate), &kEvent_FailedToCreateOutputFile);
         if (header == nullptr) return CT_EXIT_ERROR;
 
         text_config_t text_config = {

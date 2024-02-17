@@ -1,42 +1,46 @@
-#if 0
 #pragma once
-
-#include "core/bitmap.hpp"
 
 #include "os/os.h"
 
-namespace sm {
+#include "core/bitmap.hpp"
+
+#include "logs/sink.hpp"
+
+#include "record.reflect.h"
+
+namespace sm::archive {
     // memory mapped file
     class RecordStore {
-        using AssetSink = logs::Sink<logs::Category::eAsset>;
+        using AssetSink = logs::Sink<logs::Category::eAssets>;
 
         // file path
-        const char *m_path = nullptr;
-        AssetSink m_log;
+        const char *mFilePath = nullptr;
+        AssetSink mSink;
 
         // mapping data
-        os_file_t m_file;
-        os_mapping_t m_mapping;
+        os_file_t mFileHandle;
+        os_mapping_t mMapHandle;
 
-        void *m_memory = nullptr;
-        sm::Memory m_size = 0;
-        bool m_valid;
+        void *mMemory = nullptr;
+        sm::Memory mSize = 0;
+        bool mValid;
 
         // allocation info
 
         // bitmap of allocated space
         // is divided into 8 byte blocks starting from the user region
         // doesnt include the file or record headers
-        sm::BitMap m_space;
+        sm::BitMap mAllocator;
 
         // number of records
-        uint_fast16_t m_capacity = 0;
+        uint_fast16_t mCapacity = 0;
 
         // number of used records
-        uint_fast16_t m_used = 0;
+        uint_fast16_t mUsed = 0;
+
+        bool check(bool expr, std::string_view fmt, auto&&... args) const;
 
         void init_alloc_info();
-
         void update_header();
 
         bool create();
@@ -49,8 +53,8 @@ namespace sm {
         // file header region
         // includes base file header and record headers
         uint8_t *get_private_region() const;
-        FileHeader *get_private_header() const;
-        RecordHeader *get_record_header(uint32_t index) const;
+        RecordStoreHeader *get_private_header() const;
+        RecordEntryHeader *get_record_header(uint32_t index) const;
         void *get_record_data(uint32_t offset) const;
 
         uint32_t get_record_count() const;
@@ -71,21 +75,18 @@ namespace sm {
         RecordLookup get_record(uint32_t id, void **data, uint16_t size);
 
     public:
-        SM_NOCOPY(FileMapping)
-        SM_NOMOVE(FileMapping)
-
-        FileMapping(const MappingConfig& info);
-        ~FileMapping();
+        RecordStore(const RecordStoreConfig& info);
+        ~RecordStore();
 
         // erase all data in the file and reset the header
         // with the given record count
         void reset();
 
-        bool is_data_mapped() const { return m_memory != nullptr; }
+        bool is_data_mapped() const { return mMemory != nullptr; }
 
         // getters
-        const char *get_path() const { return m_path; }
-        bool is_valid() const { return m_valid && is_data_mapped(); }
+        const char *get_path() const { return mFilePath; }
+        bool is_valid() const { return mValid && is_data_mapped(); }
 
         template<ctu::Reflected T>
         RecordLookup get_record(T **record) {
@@ -97,4 +98,3 @@ namespace sm {
         }
     };
 }
-#endif

@@ -3,9 +3,11 @@ archive_include = include_directories('.', 'include')
 src = [
     'src/archive.cpp',
     'src/io.cpp',
+    'src/record.cpp',
 
     reflect.process('data/archive.ct'),
-    reflect.process('data/io.ct')
+    reflect.process('data/io.ct'),
+    reflect.process('data/record.ct')
 ]
 
 deps = [ core, cthulhu.get_variable('fs'), logs, math ]

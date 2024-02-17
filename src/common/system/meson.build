@@ -15,9 +15,6 @@ src = [
     # windowing
     'src/window.cpp',
 
-    # memory mapped files conflated with persistent storage
-    'src/io.cpp',
-
     # win32 input source
     'src/input.cpp',
     reflect.process('data/system.ct')

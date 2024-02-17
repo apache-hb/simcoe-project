@@ -11,7 +11,7 @@ src = [
 
 deps = [
     core, logs, system, math,
-    d3d12, d3dx12, d3d12ma
+    d3d12, d3dx12, d3d12ma, imgui
 ]
 
 librender = library('render', src,

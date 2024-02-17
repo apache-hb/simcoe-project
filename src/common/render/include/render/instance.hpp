@@ -1,8 +1,11 @@
 #pragma once
 
+#include "core/vector.hpp"
+
 #include "render.reflect.h"
 
 namespace sm::render {
+using Sink = logs::Sink<logs::Category::eRender>;
 
 struct InstanceConfig {
     DebugFlags flags;
@@ -62,20 +65,10 @@ public:
     void enum_warp_adapter();
     void enum_adapters();
 
-    Adapter &warp_adapter() {
-        return mWarpAdapter;
-    }
-    Adapter &get_adapter(size_t index) {
-        return mAdapters[index];
-    }
-
-    Object<IDXGIFactory4> &factory() {
-        return mFactory;
-    }
-
-    const DebugFlags &flags() const {
-        return mFlags;
-    }
+    Adapter &warp_adapter();
+    Adapter &get_adapter(size_t index);
+    Object<IDXGIFactory4> &factory();
+    const DebugFlags &flags() const;
 };
 
 } // namespace sm::render

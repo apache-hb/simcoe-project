@@ -260,7 +260,7 @@ typedef struct ref_ast_t
 
             /* eAstClass, eAstStruct, eAstVariant */
             ref_flags_t flags;
-            vector_t *attributes;
+            const vector_t *attributes;
             vector_t *tparams;
             char *name;
 

@@ -23,48 +23,6 @@ struct WindowConfig {
     logger: &opaque("sm::logs::ILogger");
 }
 
-// TODO: make this a smaller type than uint32
-// we dont need 4 billion versions
-[[layout(export)]]
-variant FileVersion : uint32 {
-    default CurrentVersion = 0
-    [[format("v0")]] case Version0 = 0
-}
-
-struct MappingConfig {
-    path: cstring;
-    size: opaque("sm::Memory");
-    record_count: fast16;
-    logger: &opaque("sm::logs::ILogger");
-}
-
-[[layout(export)]]
-struct FileHeader {
-    magic: uint32; // 'CUM\0'
-    version: FileVersion;
-    size: uint32;
-    checksum: uint32;
-    count: uint16; // number of records
-    used: uint16; // number of records slots used
-}
-
-[[layout(export)]]
-struct RecordHeader {
-    id: uint32; // matches typeid of the record
-    offset: uint16; // offset from the start of the data region
-    size: uint16; // size of the record
-}
-
-variant RecordLookup {
-    case Created = 0
-    case Opened = 1
-    case RecordTableExhausted = 2
-    case DataRegionExhausted = 3
-    default RecordInvalid = 4
-
-    const def has_valid_data(): bool;
-}
-
 // win32 types
 
 [[facade]]

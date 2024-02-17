@@ -8,8 +8,8 @@
 #include "core/units.hpp"
 
 // #include "archive/io.hpp"
+#include "archive/record.hpp"
 #include "system/input.hpp"
-#include "system/io.hpp"
 #include "system/system.hpp"
 
 #include "threads/threads.hpp"
@@ -17,6 +17,8 @@
 // #include "imgui/imgui.h"
 // #include "imgui/backends/imgui_impl_win32.h"
 // #include "imgui/backends/imgui_impl_dx12.h"
+
+#include "render/render.hpp"
 
 #include "backtrace/backtrace.h"
 #include "base/panic.h"
@@ -242,12 +244,12 @@ class DefaultSystemError final : public ISystemError {
 };
 
 class DefaultWindowEvents final : public sys::IWindowEvents {
-    sys::FileMapping &m_store;
+    archive::RecordStore &m_store;
 
     sys::WindowPlacement *m_placement = nullptr;
-    sys::RecordLookup m_lookup;
+    archive::RecordLookup m_lookup;
 
-    //render::Context *m_context = nullptr;
+    render::Context *m_context = nullptr;
     sys::DesktopInput *m_input = nullptr;
 
     LRESULT event(sys::Window &window, UINT message, WPARAM wparam, LPARAM lparam) override {
@@ -258,13 +260,13 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     }
 
     void resize(sys::Window &, math::int2 size) override {
-        // if (m_context != nullptr) {
-        //     m_context->resize((uint)size.width, (uint)size.height);
-        // }
+        if (m_context != nullptr) {
+            m_context->resize(size.as<uint>());
+        }
     }
 
     void create(sys::Window &window) override {
-        if (m_lookup = m_store.get_record(&m_placement); m_lookup == sys::RecordLookup::eOpened) {
+        if (m_lookup = m_store.get_record(&m_placement); m_lookup == archive::RecordLookup::eOpened) {
             window.set_placement(*m_placement);
         } else {
             window.center_window(sys::MultiMonitor::ePrimary);
@@ -277,13 +279,13 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     }
 
 public:
-    DefaultWindowEvents(sys::FileMapping &store)
+    DefaultWindowEvents(archive::RecordStore &store)
         : m_store(store)
     { }
 
-    // void attach_render(render::Context *context) {
-    //     m_context = context;
-    // }
+    void attach_render(render::Context *context) {
+        m_context = context;
+    }
 
     void attach_input(sys::DesktopInput *input) {
         m_input = input;
@@ -663,7 +665,7 @@ public:
 };
 #endif
 
-static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
+static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     sys::WindowConfig window_config = {
         .mode = sys::WindowMode::eWindowed,
         .width = 1280,
@@ -681,6 +683,26 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
     input.add_source(&desktop_input);
 
     window.show_window(show);
+
+    auto client = window.get_client_coords().size();
+
+    render::RenderConfig render_config = {
+        .flags = render::DebugFlags::mask(),
+        .preference = render::AdapterPreference::eMinimumPower,
+        .feature_level = render::FeatureLevel::eLevel_11_0,
+        .adapter_index = 0,
+
+        .swapchain_length = 2,
+        .swapchain_format = DXGI_FORMAT_R8G8B8A8_UNORM,
+        .swapchain_size = client.as<uint>(),
+
+        .logger = gConsoleLog,
+        .window = window,
+    };
+
+    render::Context context{render_config};
+
+    events.attach_render(&context);
 
 #if 0
     render::DebugFlags flags = render::DebugFlags::mask();
@@ -728,6 +750,8 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
     events.attach_render(&context);
 #endif
 
+    context.create();
+
     {
 #if 0
         //ImGuiRenderPass imgui;
@@ -759,6 +783,9 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
             if (done) break;
             input.poll();
 
+            context.update();
+            context.render();
+
 #if 0
             // dear imgui rendering
 
@@ -784,17 +811,19 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
 
         //imgui.destroy(context);
     }
+
+    context.destroy();
 }
 
 static int client_main(GlobalSink& sink, sys::ShowWindow show) {
-    sys::MappingConfig store_config = {
+    archive::RecordStoreConfig store_config = {
         .path = "client.bin",
         .size = {1, Memory::eMegabytes},
         .record_count = 256,
         .logger = gConsoleLog,
     };
 
-    sys::FileMapping store{store_config};
+    archive::RecordStore store{store_config};
 
     threads::CpuGeometry geometry = threads::global_cpu_geometry(gConsoleLog);
 

@@ -7,6 +7,10 @@ import "render/object.hpp";
 using Window = opaque("sm::sys::Window")
 using ILogger = opaque("sm::logs::ILogger")
 
+///
+/// device creation + adapter enumeration
+///
+
 [[facade]]
 variant FeatureLevel : opaque(D3D_FEATURE_LEVEL) {
     [[format("level 11.0")]] case Level_11_0 = opaque(D3D_FEATURE_LEVEL_11_0)
@@ -21,4 +25,58 @@ variant AdapterPreference : opaque(DXGI_GPU_PREFERENCE) {
     [[format("default")]] default Default = opaque(DXGI_GPU_PREFERENCE_UNSPECIFIED)
     [[format("low_power")]] case MinimumPower = opaque(DXGI_GPU_PREFERENCE_MINIMUM_POWER)
     [[format("high_performance")]] case HighPerformance = opaque(DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE)
+}
+
+[[bitflags]]
+variant DebugFlags {
+    [[format("none")]] default None = 0
+    [[format("device")]] case DeviceDebugLayer = (1 << 0) // d3d12 debug layer
+    [[format("factory")]] case FactoryDebug = (1 << 1) // dxgi debug layer
+    [[format("dred")]] case DeviceRemovedInfo = (1 << 2) // dred
+    [[format("queue")]] case InfoQueue = (1 << 3) // d3d12 debug layer
+    [[format("auto name")]] case AutoName = (1 << 4) // automatically name objects
+    [[format("warp adapter")]] case WarpAdapter = (1 << 5) // use software renderer
+    [[format("gpu validation")]] case GpuValidation = (1 << 6) // gpu validation
+}
+
+[[facade, bitflags]]
+variant AdapterFlag : uint {
+    [[format("none")]] default None = opaque(DXGI_ADAPTER_FLAG_NONE)
+    [[format("remote")]] case Remote = opaque(DXGI_ADAPTER_FLAG_REMOTE)
+    [[format("software")]] case Software = opaque(DXGI_ADAPTER_FLAG_SOFTWARE)
+}
+
+///
+/// info queue logging
+///
+
+[[facade]]
+variant MessageCategory : opaque(D3D12_MESSAGE_CATEGORY) {
+    case App = opaque(D3D12_MESSAGE_CATEGORY_APPLICATION_DEFINED)
+    case Other = opaque(D3D12_MESSAGE_CATEGORY_MISCELLANEOUS)
+    case Init = opaque(D3D12_MESSAGE_CATEGORY_INITIALIZATION)
+    case Cleanup = opaque(D3D12_MESSAGE_CATEGORY_CLEANUP)
+    case Compile = opaque(D3D12_MESSAGE_CATEGORY_COMPILATION)
+    case StateCreation = opaque(D3D12_MESSAGE_CATEGORY_STATE_CREATION)
+    case StateSetting = opaque(D3D12_MESSAGE_CATEGORY_STATE_SETTING)
+    case StateGetting = opaque(D3D12_MESSAGE_CATEGORY_STATE_GETTING)
+    case ResourceUpdate = opaque(D3D12_MESSAGE_CATEGORY_RESOURCE_MANIPULATION)
+    case Execution = opaque(D3D12_MESSAGE_CATEGORY_EXECUTION)
+    case Shader = opaque(D3D12_MESSAGE_CATEGORY_SHADER)
+}
+
+[[facade]]
+variant MessageSeverity : opaque(D3D12_MESSAGE_SEVERITY) {
+    case Corruption = opaque(D3D12_MESSAGE_SEVERITY_CORRUPTION)
+    case Error = opaque(D3D12_MESSAGE_SEVERITY_ERROR)
+    case Warning = opaque(D3D12_MESSAGE_SEVERITY_WARNING)
+    case Info = opaque(D3D12_MESSAGE_SEVERITY_INFO)
+    case Message = opaque(D3D12_MESSAGE_SEVERITY_MESSAGE)
+}
+
+[[facade]]
+variant MessageID : opaque(D3D12_MESSAGE_ID) {
+    default Unknown = opaque(D3D12_MESSAGE_ID_UNKNOWN)
+    // dont fill in the rest, theres over 1000 of them
+    // we'll add them as we need them
 }

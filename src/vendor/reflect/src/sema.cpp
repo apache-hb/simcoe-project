@@ -372,7 +372,7 @@ static ref_ast_t *get_attrib(const vector_t *attribs, ref_kind_t kind)
     return nullptr;
 }
 
-static const char *get_attrib_string(vector_t *attribs, ref_attrib_tag_t tag)
+static const char *get_attrib_string(const vector_t *attribs, ref_attrib_tag_t tag)
 {
     CTASSERT(attribs != nullptr);
 
@@ -407,7 +407,7 @@ static const char *get_doc(vector_t *attribs, const char *key)
 
 void Decl::find_layout(const ref_ast_t *ast, logger_t *logger)
 {
-    vector_t *attribs = ast->attributes;
+    const vector_t *attribs = ast->attributes;
     ref_ast_t *layout_ast = NULL;
     ref_attrib_tag_t layout_tag = get_layout();
 

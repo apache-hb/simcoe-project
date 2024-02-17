@@ -9,7 +9,7 @@ using namespace sm;
 using namespace sm::render;
 
 CT_NORETURN
-assert_hresult(source_info_t source, const char *expr, Result hr) {
+sm::assert_hresult(source_info_t source, const char *expr, Result hr) {
     sm::vpanic(source, "hresult {}: {}", hr, expr);
 }
 

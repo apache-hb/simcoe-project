@@ -249,7 +249,7 @@ program: module opt_header_seq decl_seq { scan_set(x, ref_program(x, @$, $1, $2,
 module: TOK_MODULE path TOK_SEMICOLON { $$ = $2; }
     ;
 
-opt_header_seq: %empty { $$ = &kEmptyVector; }
+opt_header_seq: %empty { $$ = &gEmptyVector; }
     | header_seq { $$ = $1; }
     ;
 
@@ -367,7 +367,7 @@ case_value: expr { $$ = $1; }
 class_decl: TOK_CLASS TOK_IDENT opt_tparams opt_inherit TOK_LBRACE class_body_seq TOK_RBRACE { $$ = ref_class(x, @$, $2, $3, $4, $6); }
     ;
 
-opt_tparams: %empty { $$ = &kEmptyVector; }
+opt_tparams: %empty { $$ = &gEmptyVector; }
     | TOK_BEGIN_TEMPLATE ident_list TOK_END_TEMPLATE { $$ = $2; }
     ;
 
@@ -399,7 +399,7 @@ privacy_spec: TOK_PRIVATE { $$ = ePrivacyPrivate; }
     | TOK_PUBLIC { $$ = ePrivacyPublic; }
     ;
 
-ctor_decl: TOK_NEW TOK_LPAREN TOK_RPAREN { $$ = ref_ctor(x, @$, &kEmptyVector, NULL); }
+ctor_decl: TOK_NEW TOK_LPAREN TOK_RPAREN { $$ = ref_ctor(x, @$, &gEmptyVector, NULL); }
     ;
 
 method_decl: TOK_DEF TOK_IDENT opt_params opt_return_type opt_assign { $$ = ref_method(x, @$, eDeclNone, $2, $3, $4, $5); }
@@ -409,7 +409,7 @@ opt_return_type: %empty { $$ = NULL; }
     | TOK_COLON type { $$ = $2; }
     ;
 
-opt_params: TOK_LPAREN TOK_RPAREN { $$ = &kEmptyVector; }
+opt_params: TOK_LPAREN TOK_RPAREN { $$ = &gEmptyVector; }
     | TOK_LPAREN param_list TOK_RPAREN { $$ = $2; }
     ;
 
@@ -446,7 +446,7 @@ path: TOK_IDENT { $$ = vector_init($1, BISON_ARENA(x)); }
     | path TOK_COLON2 TOK_IDENT { vector_push(&$1, $3); $$ = $1; }
     ;
 
-opt_attrib_seq: %empty { $$ = &kEmptyVector; }
+opt_attrib_seq: %empty { $$ = &gEmptyVector; }
     | TOK_BEGIN_ATTRIBUTE attrib_seq TOK_END_ATTRIBUTE { $$ = $2; }
     ;
 

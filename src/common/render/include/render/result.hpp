@@ -20,6 +20,11 @@ namespace sm::render {
     };
 }
 
+namespace sm {
+    CT_NORETURN
+    assert_hresult(source_info_t source, const char *expr, render::Result hr);
+}
+
 template<>
 struct fmt::formatter<sm::render::Result> {
     constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
@@ -28,3 +33,10 @@ struct fmt::formatter<sm::render::Result> {
         return format_to(ctx.out(), "{}", result.to_string());
     }
 };
+
+#define SM_ASSERT_HR(expr)                                 \
+    do {                                                   \
+        if (sm::render::Result check_result = (expr); !check_result) {        \
+            sm::assert_hresult(CT_SOURCE_CURRENT, #expr, check_result); \
+        }                                                  \
+    } while (0)
