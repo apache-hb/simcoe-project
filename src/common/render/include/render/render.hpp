@@ -28,6 +28,17 @@ namespace sm::render {
         uint64 mFenceValue;
     };
 
+    struct Resource {
+        Object<ID3D12Resource> mHandle;
+        Object<D3D12MA::Allocation> mAllocation;
+
+        Result map(const D3D12_RANGE *range, void **data);
+        void unmap(const D3D12_RANGE *range);
+
+        D3D12_GPU_VIRTUAL_ADDRESS get_gpu_address();
+        void reset();
+    };
+
     struct Context {
         RenderConfig mConfig;
 
@@ -55,6 +66,8 @@ namespace sm::render {
         // resource allocator
         Object<D3D12MA::Allocator> mAllocator;
         void create_allocator();
+
+        Result create_resource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state);
 
         /// presentation objects
         Object<IDXGISwapChain3> mSwapChain;
@@ -93,8 +106,7 @@ namespace sm::render {
         void update_viewport_scissor();
 
         // assets
-        Object<ID3D12Resource> mVertexBufferUpload;
-        Object<ID3D12Resource> mVertexBuffer;
+        Resource mVertexBuffer;
         D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
         void create_triangle();
 

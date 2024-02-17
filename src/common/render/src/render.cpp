@@ -307,6 +307,14 @@ void Context::create_pipeline_state() {
     }
 }
 
+Result Context::create_resource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state) {
+    const D3D12MA::ALLOCATION_DESC kAllocDesc = {
+        .HeapType = heap,
+    };
+
+    return mAllocator->CreateResource(&kAllocDesc, &desc, state, nullptr, &resource.mAllocation, IID_PPV_ARGS(&resource.mHandle));
+}
+
 static const D3D12_HEAP_PROPERTIES kDefaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 static const D3D12_HEAP_PROPERTIES kUploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 
@@ -318,7 +326,8 @@ void Context::create_triangle() {
     SM_ASSERT_HR(mCopyAllocator->Reset());
     SM_ASSERT_HR(mCopyCommands->Reset(mCopyAllocator.get(), nullptr));
 
-    mVertexBufferUpload.reset();
+    Resource upload;
+
     mVertexBuffer.reset();
     auto [width, height] = mSwapChainSize.as<float>();
     const float kAspectRatio = width / height;
@@ -331,37 +340,23 @@ void Context::create_triangle() {
     const uint kBufferSize = sizeof(kTriangle);
     const auto kBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kBufferSize);
 
-    SM_ASSERT_HR(mDevice->CreateCommittedResource(
-        &kUploadHeap,
-        D3D12_HEAP_FLAG_NONE,
-        &kBufferDesc,
-        D3D12_RESOURCE_STATE_COMMON,
-        nullptr,
-        IID_PPV_ARGS(&mVertexBufferUpload)
-    ));
+    SM_ASSERT_HR(create_resource(upload, D3D12_HEAP_TYPE_UPLOAD, kBufferDesc, D3D12_RESOURCE_STATE_COMMON));
 
     void *data;
     D3D12_RANGE read{0, 0};
-    SM_ASSERT_HR(mVertexBufferUpload->Map(0, &read, &data));
+    SM_ASSERT_HR(upload.map(&read, &data));
     std::memcpy(data, kTriangle, kBufferSize);
-    mVertexBufferUpload->Unmap(0, nullptr);
+    upload.unmap(&read);
 
-    SM_ASSERT_HR(mDevice->CreateCommittedResource(
-        &kDefaultHeap,
-        D3D12_HEAP_FLAG_NONE,
-        &kBufferDesc,
-        D3D12_RESOURCE_STATE_COMMON,
-        nullptr,
-        IID_PPV_ARGS(&mVertexBuffer)
-    ));
+    SM_ASSERT_HR(create_resource(mVertexBuffer, D3D12_HEAP_TYPE_DEFAULT, kBufferDesc, D3D12_RESOURCE_STATE_COMMON));
 
     const auto kBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
-        *mVertexBuffer,
+        *mVertexBuffer.mHandle,
         D3D12_RESOURCE_STATE_COPY_DEST,
         D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
     );
 
-    mCopyCommands->CopyBufferRegion(*mVertexBuffer, 0, *mVertexBufferUpload, 0, kBufferSize);
+    mCopyCommands->CopyBufferRegion(*mVertexBuffer.mHandle, 0, *upload.mHandle, 0, kBufferSize);
     mCommandList->ResourceBarrier(1, &kBarrier);
 
     SM_ASSERT_HR(mCopyCommands->Close());
@@ -379,7 +374,7 @@ void Context::create_triangle() {
     mDirectQueue->ExecuteCommandLists(1, direct_lists);
 
     const D3D12_VERTEX_BUFFER_VIEW kBufferView = {
-        .BufferLocation = mVertexBuffer->GetGPUVirtualAddress(),
+        .BufferLocation = mVertexBuffer.get_gpu_address(),
         .SizeInBytes = kBufferSize,
         .StrideInBytes = sizeof(draw::Vertex),
     };
