@@ -126,12 +126,31 @@ void Context::create_allocator() {
     SM_ASSERT_HR(D3D12MA::CreateAllocator(&kAllocatorDesc, &mAllocator));
 }
 
+void Context::create_copy_queue() {
+    constexpr D3D12_COMMAND_QUEUE_DESC kQueueDesc = {
+        .Type = D3D12_COMMAND_LIST_TYPE_COPY,
+    };
+
+    SM_ASSERT_HR(mDevice->CreateCommandQueue(&kQueueDesc, IID_PPV_ARGS(&mCopyQueue)));
+
+    SM_ASSERT_HR(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS(&mCopyAllocator)));
+    SM_ASSERT_HR(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, mCopyAllocator.get(), nullptr, IID_PPV_ARGS(&mCopyCommands)));
+    SM_ASSERT_HR(mCopyCommands->Close());
+}
+
+void Context::create_copy_fence() {
+    SM_ASSERT_HR(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mCopyFence)));
+    mCopyFenceValue = 1;
+
+    SM_ASSERT_WIN32(mCopyFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr));
+}
+
 void Context::create_pipeline() {
     constexpr D3D12_COMMAND_QUEUE_DESC kQueueDesc = {
         .Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
     };
 
-    SM_ASSERT_HR(mDevice->CreateCommandQueue(&kQueueDesc, IID_PPV_ARGS(&mQueue)));
+    SM_ASSERT_HR(mDevice->CreateCommandQueue(&kQueueDesc, IID_PPV_ARGS(&mDirectQueue)));
 
     mSwapChainSize = mConfig.swapchain_size;
     const DXGI_SWAP_CHAIN_DESC1 kSwapChainDesc = {
@@ -148,7 +167,7 @@ void Context::create_pipeline() {
     HWND hwnd = mConfig.window.get_handle();
 
     Object<IDXGISwapChain1> swapchain1;
-    SM_ASSERT_HR(factory->CreateSwapChainForHwnd(mQueue.get(), hwnd, &kSwapChainDesc, nullptr, nullptr, &swapchain1));
+    SM_ASSERT_HR(factory->CreateSwapChainForHwnd(mDirectQueue.get(), hwnd, &kSwapChainDesc, nullptr, nullptr, &swapchain1));
     SM_ASSERT_HR(factory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER));
 
     SM_ASSERT_HR(swapchain1.query(&mSwapChain));
@@ -250,7 +269,7 @@ void Context::create_pipeline_state() {
         auto ps = load_shader_bytecode(mSink, "build/bundle/shaders/simple.ps.cso");
         auto vs = load_shader_bytecode(mSink, "build/bundle/shaders/simple.vs.cso");
 
-        const D3D12_INPUT_ELEMENT_DESC kInputElements[] = {
+        constexpr D3D12_INPUT_ELEMENT_DESC kInputElements[] = {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(draw::Vertex, position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
             { "COLOUR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(draw::Vertex, colour), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         };
@@ -280,6 +299,9 @@ void Context::create_triangle() {
     auto& allocator = mCommandAllocators[mFrameIndex];
     SM_ASSERT_HR(allocator->Reset());
     SM_ASSERT_HR(mCommandList->Reset(allocator.get(), *mPipelineState));
+
+    SM_ASSERT_HR(mCopyAllocator->Reset());
+    SM_ASSERT_HR(mCopyCommands->Reset(mCopyAllocator.get(), nullptr));
 
     mVertexBufferUpload.reset();
     mVertexBuffer.reset();
@@ -324,13 +346,24 @@ void Context::create_triangle() {
         D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
     );
 
-    mCommandList->CopyBufferRegion(*mVertexBuffer, 0, *mVertexBufferUpload, 0, kBufferSize);
+    mCopyCommands->CopyBufferRegion(*mVertexBuffer, 0, *mVertexBufferUpload, 0, kBufferSize);
     mCommandList->ResourceBarrier(1, &kBarrier);
 
+    SM_ASSERT_HR(mCopyCommands->Close());
     SM_ASSERT_HR(mCommandList->Close());
 
-    ID3D12CommandList *lists[] = { mCommandList.get() };
-    mQueue->ExecuteCommandLists(1, lists);
+    ID3D12CommandList *copy_lists[] = { mCopyCommands.get() };
+    mCopyQueue->ExecuteCommandLists(1, copy_lists);
+
+    // once we're done copying, signal the fence so the direct queue
+    // can transition the resource
+    mCopyQueue->Signal(*mCopyFence, mCopyFenceValue);
+
+
+    ID3D12CommandList *direct_lists[] = { mCommandList.get() };
+    // wait for copy queue to finish before transitioning the resource
+    mDirectQueue->Wait(*mCopyFence, mCopyFenceValue);
+    mDirectQueue->ExecuteCommandLists(1, direct_lists);
 
     const D3D12_VERTEX_BUFFER_VIEW kBufferView = {
         .BufferLocation = mVertexBuffer->GetGPUVirtualAddress(),
@@ -341,6 +374,7 @@ void Context::create_triangle() {
     mVertexBufferView = kBufferView;
 
     wait_for_gpu();
+    flush_copy_queue();
 }
 
 void Context::create_assets() {
@@ -406,6 +440,8 @@ Context::Context(const RenderConfig& config)
 void Context::create() {
     create_device();
     create_allocator();
+    create_copy_queue();
+    create_copy_fence();
     create_pipeline();
     create_assets();
 }
@@ -424,7 +460,7 @@ void Context::render() {
     build_command_list();
 
     ID3D12CommandList *lists[] = { mCommandList.get() };
-    mQueue->ExecuteCommandLists(1, lists);
+    mDirectQueue->ExecuteCommandLists(1, lists);
 
     SM_ASSERT_HR(mSwapChain->Present(1, 0));
 
@@ -451,7 +487,7 @@ void Context::resize(math::uint2 size) {
 
 void Context::move_to_next_frame() {
     const uint64 current = mFenceValues[mFrameIndex];
-    SM_ASSERT_HR(mQueue->Signal(*mFence, current));
+    SM_ASSERT_HR(mDirectQueue->Signal(*mFence, current));
 
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
 
@@ -464,10 +500,19 @@ void Context::move_to_next_frame() {
 }
 
 void Context::wait_for_gpu() {
-    SM_ASSERT_HR(mQueue->Signal(*mFence, mFenceValues[mFrameIndex]));
+    const uint64 current = mFenceValues[mFrameIndex]++;
+    SM_ASSERT_HR(mDirectQueue->Signal(*mFence, current));
 
-    SM_ASSERT_HR(mFence->SetEventOnCompletion(mFenceValues[mFrameIndex], mFenceEvent));
+    SM_ASSERT_HR(mFence->SetEventOnCompletion(current, mFenceEvent));
     WaitForSingleObjectEx(mFenceEvent, INFINITE, false);
+}
 
-    mFenceValues[mFrameIndex] += 1;
+void Context::flush_copy_queue() {
+    const uint64 current = mCopyFenceValue++;
+    SM_ASSERT_HR(mCopyQueue->Signal(*mCopyFence, current));
+
+    if (mCopyFence->GetCompletedValue() < current) {
+        SM_ASSERT_HR(mCopyFence->SetEventOnCompletion(current, mCopyFenceEvent));
+        WaitForSingleObjectEx(mCopyFenceEvent, INFINITE, false);
+    }
 }

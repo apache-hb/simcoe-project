@@ -53,14 +53,14 @@ namespace sm::render {
         /// presentation objects
         Object<IDXGISwapChain3> mSwapChain;
         math::uint2 mSwapChainSize;
-        sm::UniqueArray<Object<ID3D12Resource>> mRenderTargets;
 
+        sm::UniqueArray<Object<ID3D12Resource>> mRenderTargets;
         sm::UniqueArray<Object<ID3D12CommandAllocator>> mCommandAllocators;
         sm::UniqueArray<uint64> mFenceValues;
         void create_frame_allocators();
 
         /// graphics pipeline objects
-        Object<ID3D12CommandQueue> mQueue;
+        Object<ID3D12CommandQueue> mDirectQueue;
         Object<ID3D12RootSignature> mRootSignature;
         Object<ID3D12PipelineState> mPipelineState;
         Object<ID3D12GraphicsCommandList1> mCommandList;
@@ -69,10 +69,20 @@ namespace sm::render {
 
         void create_pipeline_state();
 
+        /// copy queue and commands
+        Object<ID3D12CommandQueue> mCopyQueue;
+        Object<ID3D12CommandAllocator> mCopyAllocator;
+        Object<ID3D12GraphicsCommandList1> mCopyCommands;
+        void create_copy_queue();
+
+        Object<ID3D12Fence> mCopyFence;
+        HANDLE mCopyFenceEvent;
+        uint64 mCopyFenceValue;
+        void create_copy_fence();
+
         // scissor + viewport
         D3D12_VIEWPORT mViewport;
         D3D12_RECT mScissorRect;
-
         void update_viewport_scissor();
 
         // assets
@@ -82,7 +92,6 @@ namespace sm::render {
         void create_triangle();
 
         void create_size_dependent_resources();
-        void create_resolution_dependent_resources();
 
         void create_pipeline();
         void create_assets();
@@ -94,6 +103,7 @@ namespace sm::render {
         void build_command_list();
         void move_to_next_frame();
         void wait_for_gpu();
+        void flush_copy_queue();
 
     public:
         Context(const RenderConfig& config);
