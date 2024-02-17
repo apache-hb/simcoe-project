@@ -1,8 +1,8 @@
 #include "system/io.hpp"
 
-#include "core/arena.hpp"
-#include "core/reflect.hpp" // IWYU pragma: keep
+#include "core/format.hpp" // IWYU pragma: keep
 
+using namespace sm;
 using namespace sm::sys;
 
 static_assert(sizeof(FileHeader) == 20);
@@ -27,8 +27,8 @@ static constexpr size_t header_size(size_t record_count) {
 
 // fletcher32 checksum
 static constexpr uint32_t checksum(const uint8_t *data, size_t size) {
-    uint32_t sum1 = 0;
-    uint32_t sum2 = 0;
+    uint32 sum1 = 0;
+    uint32 sum2 = 0;
 
     for (size_t i = 0; i < size; i++) {
         sum1 = (sum1 + data[i]) % UINT16_MAX;
@@ -43,17 +43,15 @@ bool RecordLookup::has_valid_data() const {
 }
 
 bool FileMapping::create() {
-    arena_t *arena = sm::global_arena();
-
     // do first time initialization of file header
     auto setup_file = [&] {
         FileHeader data = {
             .magic = kFileMagic,
             .version = kCurrentVersion,
-            .size = uint32_t(m_size.as_bytes()),
+            .size = int_cast<uint32>(m_size.as_bytes()),
             .checksum = 0, // we calculate checksum at closing
-            .count = uint16_t(m_capacity),
-            .used = uint16_t(m_used),
+            .count = int_cast<uint16>(m_capacity),
+            .used = int_cast<uint16>(m_used),
         };
 
         FileHeader *header = get_private_header();
@@ -90,8 +88,8 @@ bool FileMapping::create() {
 
     static constexpr os_access_t kAccess = os_access_t(eAccessRead | eAccessWrite);
 
-    if (os_error_t err = os_file_open(m_path, kAccess, &m_file)) {
-        m_log.error("unable to open file, {}", os_error_string(err, arena));
+    if (OsError err = os_file_open(m_path, kAccess, &m_file)) {
+        m_log.error("unable to open file, {}", err);
         return false;
     }
 
@@ -101,8 +99,8 @@ bool FileMapping::create() {
 
     size_t size_as_bytes = m_size.as_bytes();
 
-    if (os_error_t err = os_file_expand(&m_file, size_as_bytes)) {
-        m_log.error("unable to expand file, {}", os_error_string(err, arena));
+    if (OsError err = os_file_expand(&m_file, size_as_bytes)) {
+        m_log.error("unable to expand file, {}", err);
         return false;
     }
 
@@ -110,8 +108,8 @@ bool FileMapping::create() {
 
     static constexpr os_protect_t kProtect = os_protect_t(eProtectRead | eProtectWrite);
 
-    if (os_error_t err = os_file_map(&m_file, kProtect, size_as_bytes, &m_mapping)) {
-        m_log.error("unable to map file, {}", os_error_string(err, arena));
+    if (OsError err = os_file_map(&m_file, kProtect, size_as_bytes, &m_mapping)) {
+        m_log.error("unable to map file, {}", err);
         return false;
     }
 
@@ -156,6 +154,7 @@ bool FileMapping::create() {
     for (uint32_t i = 0; i < m_used; i++) {
         const RecordHeader *record = get_record_header(i);
         if (record->id == 0) continue;
+
         m_space.set_range(BitMap::Index(record->offset),
                           BitMap::Index(record->offset + record->size));
     }

@@ -1,5 +1,7 @@
 #include "archive/archive.hpp"
 
+#include "core/units.hpp"
+
 using namespace sm;
 
 void Archive::write_bytes(const void *data, size_t size) {
@@ -11,9 +13,9 @@ size_t Archive::read_bytes(void *data, size_t size) {
 }
 
 void Archive::write_string(StringView str) {
-    uint32_t length = static_cast<uint32_t>(str.size());
+    uint32_t length = int_cast<uint32_t>(str.size());
     write(length);
-    write_bytes(str.data(), str.size());
+    write_bytes(str.data(), length);
 }
 
 bool Archive::read_string(String& str) {

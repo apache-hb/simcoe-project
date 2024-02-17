@@ -2,7 +2,7 @@
 #include "core/error.hpp"
 // #include "core/format.hpp"
 #include "core/macros.h"
-#include "core/reflect.hpp" // IWYU pragma: keep
+#include "core/format.hpp" // IWYU pragma: keep
 #include "core/span.hpp"
 #include "core/text.hpp"
 #include "core/units.hpp"
@@ -85,7 +85,7 @@ class FileLog final : public logs::ILogger {
 
         while (it != end) {
             auto next = std::find(it, end, '\n');
-            auto line = std::string_view{&*it, static_cast<size_t>(std::distance(it, next))};
+            auto line = std::string_view{&*it, int_cast<size_t>(std::distance(it, next))};
             it = next;
 
             io_write(io, header.data(), header.size());
@@ -136,7 +136,7 @@ class ConsoleLog final : public logs::ILogger {
 
         while (it != end) {
             auto next = std::find(it, end, '\n');
-            auto line = std::string_view{&*it, static_cast<size_t>(std::distance(it, next))};
+            auto line = std::string_view{&*it, int_cast<size_t>(std::distance(it, next))};
             it = next;
 
             fmt::println("{} {}", header, line);
@@ -786,14 +786,7 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
     }
 }
 
-static int common_main(sys::ShowWindow show) {
-    GlobalSink general{gConsoleLog};
-    general.info("SMC_DEBUG = {}", SMC_DEBUG);
-    general.info("CTU_DEBUG = {}", CTU_DEBUG);
-
-    //TraceArena ft_arena{"freetype", gGlobalArena, gConsoleLog};
-    //service::init_freetype(&ft_arena, &gConsoleLog);
-
+static int client_main(GlobalSink& sink, sys::ShowWindow show) {
     sys::MappingConfig store_config = {
         .path = "client.bin",
         .size = {1, Memory::eMegabytes},
@@ -817,8 +810,19 @@ static int common_main(sys::ShowWindow show) {
 
     message_loop(show, store);
 
-    //service::deinit_freetype();
     return 0;
+}
+
+static int common_main(sys::ShowWindow show) {
+    GlobalSink general{gConsoleLog};
+    general.info("SMC_DEBUG = {}", SMC_DEBUG);
+    general.info("CTU_DEBUG = {}", CTU_DEBUG);
+
+    int result =  client_main(general, show);
+
+    general.info("client exiting with {}", result);
+
+    return result;
 }
 
 int main(int argc, const char **argv) {

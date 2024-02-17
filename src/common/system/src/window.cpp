@@ -1,4 +1,5 @@
 #include "system/window.hpp"
+#include "core/format.hpp" // IWYU pragma: keep
 
 #include "common.hpp"
 
@@ -63,12 +64,10 @@ LRESULT CALLBACK Window::proc(HWND window, UINT message, WPARAM wparam, LPARAM l
 }
 
 void Window::create(const WindowConfig &info) {
-    using Reflect = ctu::TypeInfo<WindowMode>;
     CTASSERTF(gInstance != nullptr, "system::create() not called before Window::create()");
     CTASSERTF(gWindowClass != nullptr, "system::create() not called before Window::create()");
 
-    CTASSERTF(info.mode.is_valid(), "Window::create() invalid mode: %s",
-              Reflect::to_string(info.mode, 16).data());
+    SM_ASSERTF(info.mode.is_valid(), "invalid mode: {}", info.mode);
 
     m_window = CreateWindowExA(
         /* dwExStyle = */ 0,
@@ -112,7 +111,7 @@ void Window::set_placement(const WindowPlacement &placement) {
 
 void Window::show_window(ShowWindow show) {
     CTASSERTF(m_window != nullptr, "Window::show_window() called before Window::create()");
-    CTASSERTF(show.is_valid(), "Window::show_window() invalid show: %d", show.as_integral());
+    SM_ASSERTF(show.is_valid(), "invalid show: {}", show);
     ::ShowWindow(m_window, show.as_integral());
 }
 
@@ -142,10 +141,8 @@ WindowCoords Window::get_client_coords() const {
 }
 
 bool Window::center_window(MultiMonitor monitor, bool topmost) {
-    using Reflect = ctu::TypeInfo<MultiMonitor>;
     CTASSERTF(m_window != nullptr, "Window::center_window() called before Window::create()");
-    CTASSERTF(monitor.is_valid(), "Window::center_window() invalid monitor: %s",
-              Reflect::to_string(monitor).data());
+    SM_ASSERTF(monitor.is_valid(), "invalid monitor {}", monitor);
 
     // get current monitor
     HMONITOR hmonitor = MonitorFromWindow(m_window, monitor.as_integral());

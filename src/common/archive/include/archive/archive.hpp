@@ -33,7 +33,7 @@ namespace sm {
 
         template<StandardLayout T>
         void write_many(sm::Span<const T> data) {
-            uint32_t count = static_cast<uint32_t>(data.size());
+            uint32_t count = int_cast<uint32_t>(data.size());
             write(count);
             write_bytes(data.data(), data.size_bytes());
         }

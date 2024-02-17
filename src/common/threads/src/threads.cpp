@@ -153,7 +153,7 @@ struct GeometryBuilder : CpuGeometry {
                             GROUP_AFFINITY affinity) {
         for (size_t i = 0; i < items.size(); ++i)
             if (should_add_item(items[i].mask, affinity))
-                ids.push_back(sm::enum_cast<Index>(i));
+                ids.push_back(enum_cast<Index>(i));
 
         unique.clear();
     }
@@ -198,7 +198,7 @@ struct ProcessorInfoLayout {
 
                 m_builder->subcores.push_back({ .mask = groupAffinity });
 
-                subcore_ids.push_back(sm::enum_cast<SubcoreIndex>(m_builder->subcores.size() - 1));
+                subcore_ids.push_back(enum_cast<SubcoreIndex>(m_builder->subcores.size() - 1));
             }
         }
 

@@ -62,7 +62,7 @@ namespace sm {
                 Super *super = static_cast<Super*>(this);
                 for (size_t i = 0; i < limit; i++) {
                     if (super->cmpxchg(i, TEmpty, value) == TEmpty) {
-                        return Index(i);
+                        return enum_cast<Index>(i);
                     }
                 }
 

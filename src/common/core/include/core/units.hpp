@@ -4,11 +4,86 @@
 
 #include <limits>
 
+#include "core/core.hpp"
 #include "core/text.hpp"
 
 #include "core.reflect.h"
 
 namespace sm {
+    template<typename T, typename O>
+    struct CastResult {
+        using From = O;
+        using To = T;
+
+        static constexpr T dst_min() { return std::numeric_limits<T>::min(); }
+        static constexpr T dst_max() { return std::numeric_limits<T>::max(); }
+
+        static constexpr O src_min() { return std::numeric_limits<O>::min(); }
+        static constexpr O src_max() { return std::numeric_limits<O>::max(); }
+
+        T value;
+        CastError error = CastError::eNone;
+    };
+
+    template<typename T, typename O>
+    CastResult<T, O> checked_cast(O value) {
+        using C = CastResult<T, O>;
+
+        if constexpr (C::kDstMax > C::kSrcMax) {
+            if (value < C::kSrcMin) {
+                return { C::kDstMin, CastError::eUnderflow };
+            }
+        }
+
+        if constexpr (C::kDstMin < C::kSrcMin) {
+            if (value > C::kSrcMax) {
+                return { C::kDstMax, CastError::eOverflow };
+            }
+        }
+
+        return { static_cast<T>(value), CastError::eNone };
+    }
+
+    template<typename T, typename O>
+    T int_cast(O value) {
+#if SMC_DEBUG
+        using C = CastResult<T, O>;
+
+        constexpr O kSrcMin = C::src_min();
+        constexpr O kSrcMax = C::src_max();
+
+        if constexpr (C::dst_max() > kSrcMax) {
+            SM_ASSERTF(value >= kSrcMin, "value {} would underflow (limit: {})", value, kSrcMin);
+        }
+
+        if constexpr (C::dst_min() < kSrcMin) {
+            SM_ASSERTF(value <= kSrcMax, "value {} would overflow (limit: {})", value, kSrcMax);
+        }
+#endif
+
+        return static_cast<T>(value);
+    }
+
+    template<typename T, typename O> requires IsEnum<T> || IsEnum<O>
+    T enum_cast(O value) {
+        if constexpr (IsEnum<T>) {
+            using U = __underlying_type(T);
+            return T(int_cast<U>(value));
+        } else {
+            return T(value);
+        }
+    }
+
+    template<typename T>
+    constexpr T roundup_pow2(T value) {
+        T result = 1;
+        while (result < value) {
+            result <<= 1;
+        }
+
+        return result;
+    }
+
     struct Memory {
         // dont use reflection enums here, this does quite bespoke to_string behaviour
         enum Unit {
@@ -39,7 +114,7 @@ namespace sm {
         };
 
         constexpr Memory(std::integral auto memory = 0, Unit unit = eBytes)
-            : m_bytes(memory * kSizes[unit])
+            : m_bytes(int_cast<size_t>(memory * kSizes[unit]))
         { }
 
         constexpr size_t b() const { return m_bytes; }
@@ -67,81 +142,8 @@ namespace sm {
     constexpr Memory megabytes(size_t megabytes) { return Memory(megabytes, Memory::eMegabytes); }
     constexpr Memory gigabytes(size_t gigabytes) { return Memory(gigabytes, Memory::eGigabytes); }
     constexpr Memory terabytes(size_t terabytes) { return Memory(terabytes, Memory::eTerabytes); }
-
-    template<typename T, typename O>
-    struct CastResult {
-        static inline constexpr T kDstMin = std::numeric_limits<T>::min();
-        static inline constexpr T kDstMax = std::numeric_limits<T>::max();
-
-        static inline constexpr O kSrcMin = std::numeric_limits<O>::min();
-        static inline constexpr O kSrcMax = std::numeric_limits<O>::max();
-
-        T value;
-        CastError error = CastError::eNone;
-    };
-
-    template<typename T, typename O>
-    CastResult<T, O> checked_cast(O value) {
-        using C = CastResult<T, O>;
-
-        if constexpr (C::kDstMax > C::kSrcMax) {
-            if (value < C::kSrcMin) {
-                return { C::kDstMin, CastError::eUnderflow };
-            }
-        }
-
-        if constexpr (C::kDstMin < C::kSrcMin) {
-            if (value > C::kSrcMax) {
-                return { C::kDstMax, CastError::eOverflow };
-            }
-        }
-
-        return { static_cast<T>(value), CastError::eNone };
-    }
-
-    template<typename T, typename O>
-    T int_cast(O value) {
-        /* paranoia */
-#if SMC_DEBUG
-        static constexpr T kDstMin = std::numeric_limits<T>::min();
-        static constexpr T kDstMax = std::numeric_limits<T>::max();
-
-        static constexpr O kSrcMin = std::numeric_limits<O>::min();
-        static constexpr O kSrcMax = std::numeric_limits<O>::max();
-
-        if constexpr (kDstMax > kSrcMax) {
-            CTASSERTF(value >= kSrcMin, "value %s would underflow (limit: %s)", value, kSrcMin);
-        }
-
-        if constexpr (kDstMin < kSrcMin) {
-            CTASSERTF(value <= kSrcMax, "value %s would overflow (limit: %s)", value, kSrcMax);
-        }
-#endif
-
-        return static_cast<T>(value);
-    }
-
-    template<typename T, typename O> requires std::is_enum_v<T> || std::is_enum_v<O>
-    T enum_cast(O value) {
-        if constexpr (std::is_enum_v<T>) {
-            return T(int_cast<std::underlying_type_t<T>>(value));
-        } else {
-            return T(value);
-        }
-    }
-
-    template<typename T>
-    constexpr T roundup_pow2(T value) {
-        T result = 1;
-        while (result < value) {
-            result <<= 1;
-        }
-
-        return result;
-    }
 }
 
-#if SM_FORMAT
 template<>
 struct fmt::formatter<sm::Memory> {
     constexpr auto parse(format_parse_context& ctx) {
@@ -153,4 +155,3 @@ struct fmt::formatter<sm::Memory> {
         return fmt::format_to(ctx.out(), "{}", value.to_string());
     }
 };
-#endif

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <simcoe_config.h>
+
 #include "backtrace/backtrace.h"
 #include "core/source_info.h"
 
@@ -82,13 +84,11 @@ struct fmt::formatter<sm::OsError> {
     } while (0)
 
 #if SMC_DEBUG
-#   define SM_ASSERTF(expr, msg, ...) SM_ASSERTF_ALWAYS(expr, msg, __VA_ARGS__)
+#   define SM_ASSERTF(expr, ...) SM_ASSERTF_ALWAYS(expr, __VA_ARGS__)
 #else
-#   define SM_ASSERTF(expr) CT_ASSUME(expr)
+#   define SM_ASSERTF(expr, ...) CT_ASSUME(expr)
 #endif
 
 #define SM_ASSERTM(expr, msg) SM_ASSERTF(expr, "{}", msg)
-
 #define SM_ASSERT(expr) SM_ASSERTM(expr, #expr)
-
-#define SM_NEVER(...) SM_ASSERTF_ALWAYS(false, __VA_ARGS__)
+#define SM_NEVER(...) SM_ASSERTF(false, __VA_ARGS__)

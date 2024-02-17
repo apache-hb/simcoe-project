@@ -23,6 +23,9 @@ namespace sm {
     concept StandardLayout = __is_standard_layout(T);
 
     template<typename T>
+    concept IsEnum = __is_enum(T);
+
+    template<typename T>
     struct Empty {
         constexpr Empty() noexcept = default;
         constexpr Empty(const T&) noexcept { }
