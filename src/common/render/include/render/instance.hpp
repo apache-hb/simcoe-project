@@ -54,21 +54,24 @@ class Instance {
     Object<IDXGIDebug1> mDebug;
     sm::Vector<Adapter> mAdapters;
     Adapter mWarpAdapter;
+    bool mTearingSupport = false;
 
     void enable_leak_tracking();
-
-public:
-    Instance(InstanceConfig config);
-    ~Instance();
+    void query_tearing_support();
 
     bool enum_by_preference();
     void enum_warp_adapter();
     void enum_adapters();
 
+public:
+    Instance(InstanceConfig config);
+    ~Instance();
+
     Adapter &warp_adapter();
     Adapter &get_adapter(size_t index);
     Object<IDXGIFactory4> &factory();
     const DebugFlags &flags() const;
+    bool tearing_support() const;
 };
 
 } // namespace sm::render

@@ -27,11 +27,11 @@ Adapter::Adapter(IDXGIAdapter1 *adapter)
 bool Instance::enum_by_preference() {
     Object<IDXGIFactory6> factory6;
     if (Result hr = mFactory.query(&factory6); !hr) {
-        mSink.warn("failed to query factory6, update to v1803: {}", hr);
+        mSink.warn("failed to query factory6: {}", hr);
         return false;
     }
 
-    mSink.info("query by {}", mAdapterSearch);
+    mSink.info("querying for {} adapter", mAdapterSearch);
 
     IDXGIAdapter1 *adapter;
     for (UINT i = 0;
@@ -71,6 +71,22 @@ void Instance::enable_leak_tracking() {
     }
 }
 
+void Instance::query_tearing_support() {
+    Object<IDXGIFactory6> factory;
+    if (Result hr = mFactory.query(&factory); !hr) {
+        mSink.warn("failed to query factory6: {}", hr);
+        return;
+    }
+
+    BOOL tearing = FALSE;
+    if (Result hr = factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &tearing, sizeof(tearing)); !hr) {
+        mSink.warn("failed to query tearing support: {}", hr);
+        return;
+    }
+
+    mTearingSupport = tearing;
+}
+
 Instance::Instance(InstanceConfig config)
     : mSink(config.logger)
     , mFlags(config.flags)
@@ -78,6 +94,9 @@ Instance::Instance(InstanceConfig config)
     bool debug = mFlags.test(DebugFlags::eFactoryDebug);
     const UINT flags = debug ? DXGI_CREATE_FACTORY_DEBUG : 0;
     SM_ASSERT_HR(CreateDXGIFactory2(flags, IID_PPV_ARGS(&mFactory)));
+
+    query_tearing_support();
+    mSink.info("tearing support: {}", mTearingSupport);
 
     if (debug) enable_leak_tracking();
 
@@ -109,4 +128,8 @@ Object<IDXGIFactory4> &Instance::factory() {
 
 const DebugFlags &Instance::flags() const {
     return mFlags;
+}
+
+bool Instance::tearing_support() const {
+    return mTearingSupport;
 }

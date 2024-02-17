@@ -17,7 +17,7 @@ void ISystemError::wrap_end(void *user) {
 }
 
 void sm::panic(source_info_t info, std::string_view msg) {
-    ctu_panic(info, "%*.s", (int)msg.size(), msg.data());
+    ctu_panic(info, "%.*s", (int)msg.size(), msg.data());
 }
 
 char *OsError::to_string() const {

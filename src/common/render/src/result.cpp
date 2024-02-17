@@ -9,8 +9,8 @@ using namespace sm;
 using namespace sm::render;
 
 CT_NORETURN
-sm::assert_hresult(source_info_t source, const char *expr, Result hr) {
-    sm::vpanic(source, "hresult {}: {}", hr, expr);
+sm::assert_hresult(source_info_t source, Result hr, std::string_view msg) {
+    sm::vpanic(source, "hresult {}: {}", hr, msg);
 }
 
 char *sm::render::Result::to_string() const {

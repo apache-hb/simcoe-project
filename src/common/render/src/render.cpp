@@ -12,6 +12,10 @@
 using namespace sm;
 using namespace sm::render;
 
+static uint get_swapchain_flags(const Instance& instance) {
+    return instance.tearing_support() ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
+}
+
 static logs::Severity get_severity(MessageSeverity sev) {
     using enum MessageSeverity::Inner;
 
@@ -152,6 +156,7 @@ void Context::create_pipeline() {
 
     SM_ASSERT_HR(mDevice->CreateCommandQueue(&kQueueDesc, IID_PPV_ARGS(&mDirectQueue)));
 
+    bool tearing = mInstance.tearing_support();
     mSwapChainSize = mConfig.swapchain_size;
     const DXGI_SWAP_CHAIN_DESC1 kSwapChainDesc = {
         .Width = mSwapChainSize.width,
@@ -161,6 +166,7 @@ void Context::create_pipeline() {
         .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
         .BufferCount = mConfig.swapchain_length,
         .SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
+        .Flags = get_swapchain_flags(mInstance),
     };
 
     auto& factory = mInstance.factory();
@@ -168,7 +174,11 @@ void Context::create_pipeline() {
 
     Object<IDXGISwapChain1> swapchain1;
     SM_ASSERT_HR(factory->CreateSwapChainForHwnd(mDirectQueue.get(), hwnd, &kSwapChainDesc, nullptr, nullptr, &swapchain1));
-    SM_ASSERT_HR(factory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER));
+
+    if (tearing)
+    {
+        SM_ASSERT_HR(factory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER));
+    }
 
     SM_ASSERT_HR(swapchain1.query(&mSwapChain));
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
@@ -407,7 +417,6 @@ void Context::build_command_list() {
     SM_ASSERT_HR(allocator->Reset());
     SM_ASSERT_HR(mCommandList->Reset(allocator.get(), *mPipelineState));
 
-
     mCommandList->SetGraphicsRootSignature(*mRootSignature);
     mCommandList->RSSetViewports(1, &mViewport);
     mCommandList->RSSetScissorRects(1, &mScissorRect);
@@ -481,7 +490,10 @@ void Context::render() {
     ID3D12CommandList *lists[] = { mCommandList.get() };
     mDirectQueue->ExecuteCommandLists(1, lists);
 
-    SM_ASSERT_HR(mSwapChain->Present(1, 0));
+    bool tearing = mInstance.tearing_support();
+    uint flags = tearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
+
+    SM_ASSERT_HR(mSwapChain->Present(0, flags));
 
     move_to_next_frame();
 }
@@ -494,8 +506,8 @@ void Context::resize(math::uint2 size) {
         mFrames[i].mFenceValue = mFrames[mFrameIndex].mFenceValue;
     }
 
-    // TODO: DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
-    SM_ASSERT_HR(mSwapChain->ResizeBuffers(mConfig.swapchain_length, size.width, size.height, mConfig.swapchain_format, 0));
+    const uint flags = get_swapchain_flags(mInstance);
+    SM_ASSERT_HR(mSwapChain->ResizeBuffers(mConfig.swapchain_length, size.width, size.height, mConfig.swapchain_format, flags));
     mSwapChainSize = size;
 
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();

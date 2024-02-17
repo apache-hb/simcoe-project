@@ -20,11 +20,11 @@ variant FeatureLevel : opaque(D3D_FEATURE_LEVEL) {
     [[format("level 12.2")]] case Level_12_2 = opaque(D3D_FEATURE_LEVEL_12_2)
 }
 
-[[facade, bitflags]]
+[[facade]]
 variant AdapterPreference : opaque(DXGI_GPU_PREFERENCE) {
-    [[format("default")]] default Default = opaque(DXGI_GPU_PREFERENCE_UNSPECIFIED)
-    [[format("low_power")]] case MinimumPower = opaque(DXGI_GPU_PREFERENCE_MINIMUM_POWER)
-    [[format("high_performance")]] case HighPerformance = opaque(DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE)
+    [[format("any")]] default Default = opaque(DXGI_GPU_PREFERENCE_UNSPECIFIED)
+    [[format("low power")]] case MinimumPower = opaque(DXGI_GPU_PREFERENCE_MINIMUM_POWER)
+    [[format("high performance")]] case HighPerformance = opaque(DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE)
 }
 
 [[bitflags]]
