@@ -152,16 +152,19 @@ void Context::create_pipeline() {
 
     {
         mRenderTargets.resize(mConfig.swapchain_length);
-        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
-
-        for (uint i = 0; i < mConfig.swapchain_length; i++) {
-            SM_ASSERT_HR(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&mRenderTargets[i])));
-            mDevice->CreateRenderTargetView(*mRenderTargets[i], nullptr, rtvHandle);
-            rtvHandle.Offset(1, mRtvDescriptorSize);
-        }
+        create_render_targets();
     }
 
     SM_ASSERT_HR(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&mAllocator)));
+}
+
+void Context::create_render_targets() {
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
+    for (uint i = 0; i < mConfig.swapchain_length; i++) {
+        SM_ASSERT_HR(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&mRenderTargets[i])));
+        mDevice->CreateRenderTargetView(*mRenderTargets[i], nullptr, rtvHandle);
+        rtvHandle.Offset(1, mRtvDescriptorSize);
+    }
 }
 
 void Context::create_assets() {
@@ -211,7 +214,20 @@ void Context::render() {
 }
 
 void Context::resize(math::uint2 size) {
+    wait_for_previous_frame();
 
+    for (uint i = 0; i < mConfig.swapchain_length; i++) {
+        mRenderTargets[i].reset();
+    }
+
+    // TODO: DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
+    SM_ASSERT_HR(mSwapChain->ResizeBuffers(mConfig.swapchain_length, size.width, size.height, mConfig.swapchain_format, 0));
+
+    create_render_targets();
+
+    mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
+
+    mConfig.swapchain_size = size;
 }
 
 void Context::build_command_list() {

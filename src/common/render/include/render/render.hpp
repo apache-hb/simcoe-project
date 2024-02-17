@@ -44,14 +44,17 @@ namespace sm::render {
         void enable_info_queue();
         void create_device();
 
-        /// pipeline objects
+        /// presentation objects
         Object<IDXGISwapChain3> mSwapChain;
+        sm::UniqueArray<Object<ID3D12Resource>> mRenderTargets;
+        void create_render_targets();
+
+        /// graphics pipeline objects
         Object<ID3D12CommandQueue> mQueue;
         Object<ID3D12CommandAllocator> mAllocator;
         Object<ID3D12GraphicsCommandList1> mCommandList;
         Object<ID3D12DescriptorHeap> mRtvHeap;
         uint mRtvDescriptorSize = 0;
-        sm::UniqueArray<Object<ID3D12Resource>> mRenderTargets;
 
         void create_pipeline();
         void create_assets();
