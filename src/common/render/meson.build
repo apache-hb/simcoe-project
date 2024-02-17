@@ -6,6 +6,7 @@ src = [
     'src/instance.cpp',
     'src/render.cpp',
     'src/object.cpp',
+    'src/imgui.cpp',
 
     'src/draw.cpp',
 

@@ -74,9 +74,7 @@ namespace sm::render {
 
         Object<ID3D12DescriptorHeap> mSrvHeap;
         uint mSrvDescriptorSize = 0;
-
         void create_pipeline_state();
-
 
         /// copy queue and commands
         Object<ID3D12CommandQueue> mCopyQueue;
@@ -113,6 +111,12 @@ namespace sm::render {
         void move_to_next_frame();
         void wait_for_gpu();
         void flush_copy_queue();
+
+        void create_imgui();
+        void destroy_imgui();
+
+        void update_imgui();
+        void render_imgui();
 
     public:
         Context(const RenderConfig& config);

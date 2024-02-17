@@ -373,7 +373,6 @@ void Context::create_triangle() {
     mCopyQueue->ExecuteCommandLists(1, copy_lists);
     mCopyQueue->Signal(*mCopyFence, mCopyFenceValue);
 
-
     // wait for copy queue to finish before transitioning the resource
     ID3D12CommandList *direct_lists[] = { mCommandList.get() };
     mDirectQueue->Wait(*mCopyFence, mCopyFenceValue);
@@ -413,6 +412,7 @@ void Context::build_command_list() {
     SM_ASSERT_HR(allocator->Reset());
     SM_ASSERT_HR(mCommandList->Reset(allocator.get(), *mPipelineState));
 
+
     mCommandList->SetGraphicsRootSignature(*mRootSignature);
     mCommandList->RSSetViewports(1, &mViewport);
     mCommandList->RSSetScissorRects(1, &mScissorRect);
@@ -434,6 +434,11 @@ void Context::build_command_list() {
     mCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     mCommandList->IASetVertexBuffers(0, 1, &mVertexBufferView);
     mCommandList->DrawInstanced(3, 1, 0, 0);
+
+    ID3D12DescriptorHeap *heaps[] = { mSrvHeap.get() };
+    mCommandList->SetDescriptorHeaps(1, heaps);
+
+    render_imgui();
 
     const auto kIntoPresent = CD3DX12_RESOURCE_BARRIER::Transition(
         *backbuffer,
@@ -459,16 +464,20 @@ void Context::create() {
     create_copy_fence();
     create_pipeline();
     create_assets();
+
+    create_imgui();
 }
 
 void Context::destroy() {
     wait_for_gpu();
 
+    destroy_imgui();
+
     SM_ASSERT_WIN32(CloseHandle(mFenceEvent));
 }
 
 void Context::update() {
-
+    update_imgui();
 }
 
 void Context::render() {
@@ -508,7 +517,7 @@ void Context::move_to_next_frame() {
 
     if (mFence->GetCompletedValue() < mFrames[mFrameIndex].mFenceValue) {
         SM_ASSERT_HR(mFence->SetEventOnCompletion(mFrames[mFrameIndex].mFenceValue, mFenceEvent));
-        WaitForSingleObjectEx(mFenceEvent, INFINITE, false);
+        WaitForSingleObject(mFenceEvent, INFINITE);
     }
 
     mFrames[mFrameIndex].mFenceValue = current + 1;
@@ -519,7 +528,7 @@ void Context::wait_for_gpu() {
     SM_ASSERT_HR(mDirectQueue->Signal(*mFence, current));
 
     SM_ASSERT_HR(mFence->SetEventOnCompletion(current, mFenceEvent));
-    WaitForSingleObjectEx(mFenceEvent, INFINITE, false);
+    WaitForSingleObject(mFenceEvent, INFINITE);
 }
 
 void Context::flush_copy_queue() {
@@ -528,6 +537,6 @@ void Context::flush_copy_queue() {
 
     if (mCopyFence->GetCompletedValue() < current) {
         SM_ASSERT_HR(mCopyFence->SetEventOnCompletion(current, mCopyFenceEvent));
-        WaitForSingleObjectEx(mCopyFenceEvent, INFINITE, false);
+        WaitForSingleObject(mCopyFenceEvent, INFINITE);
     }
 }

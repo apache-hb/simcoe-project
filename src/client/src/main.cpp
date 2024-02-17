@@ -14,7 +14,7 @@
 
 #include "threads/threads.hpp"
 
-// #include "imgui/imgui.h"
+#include "imgui/imgui.h"
 // #include "imgui/backends/imgui_impl_win32.h"
 // #include "imgui/backends/imgui_impl_dx12.h"
 
@@ -50,10 +50,8 @@ using GlobalSink = logs::Sink<logs::Category::eGlobal>;
 //     NEVER("operator delete[] called");
 // }
 
-#if 0
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
                                                              LPARAM lParam);
-#endif
 
 // TODO: clean up loggers
 
@@ -254,9 +252,7 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
 
     LRESULT event(sys::Window &window, UINT message, WPARAM wparam, LPARAM lparam) override {
         if (m_input) m_input->window_event(message, wparam, lparam);
-
-        return 0;
-        //return ImGui_ImplWin32_WndProcHandler(window.get_handle(), message, wparam, lparam);
+        return ImGui_ImplWin32_WndProcHandler(window.get_handle(), message, wparam, lparam);
     }
 
     void resize(sys::Window &, math::int2 size) override {
@@ -686,8 +682,17 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     auto client = window.get_client_coords().size();
 
+    // enabling gpu based validation on the warp adapter
+    // absolutely tanks performance
+    render::DebugFlags flags = render::DebugFlags::eWarpAdapter
+        | render::DebugFlags::eDeviceDebugLayer
+        | render::DebugFlags::eFactoryDebug
+        | render::DebugFlags::eDeviceRemovedInfo
+        | render::DebugFlags::eInfoQueue
+        | render::DebugFlags::eAutoName;
+
     render::RenderConfig render_config = {
-        .flags = render::DebugFlags::mask(),
+        .flags = flags,
         .preference = render::AdapterPreference::eMinimumPower,
         .feature_level = render::FeatureLevel::eLevel_11_0,
         .adapter_index = 0,
