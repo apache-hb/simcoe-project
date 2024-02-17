@@ -114,6 +114,18 @@ void Context::create_device() {
     mSink.info("| flags: {}", flags);
 }
 
+static constexpr D3D12MA::ALLOCATOR_FLAGS kAllocatorFlags = D3D12MA::ALLOCATOR_FLAG_DEFAULT_POOLS_NOT_ZEROED | D3D12MA::ALLOCATOR_FLAG_SINGLETHREADED;
+
+void Context::create_allocator() {
+    const D3D12MA::ALLOCATOR_DESC kAllocatorDesc = {
+        .Flags = kAllocatorFlags,
+        .pDevice = mDevice.get(),
+        .pAdapter = mAdapter->get(),
+    };
+
+    SM_ASSERT_HR(D3D12MA::CreateAllocator(&kAllocatorDesc, &mAllocator));
+}
+
 void Context::create_pipeline() {
     constexpr D3D12_COMMAND_QUEUE_DESC kQueueDesc = {
         .Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
@@ -154,16 +166,19 @@ void Context::create_pipeline() {
     }
 
     uint count = mConfig.swapchain_length;
-    mAllocators.resize(count);
+    mCommandAllocators.resize(count);
     mFenceValues.resize(count);
     mRenderTargets.resize(count);
 
-    create_render_targets();
-    create_frame_objects();
-    update_viewport_scissor();
+    create_size_dependent_resources();
+
+    mFenceValues.fill(0);
+    create_frame_allocators();
 }
 
-void Context::create_render_targets() {
+void Context::create_size_dependent_resources() {
+    update_viewport_scissor();
+
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
     for (uint i = 0; i < mConfig.swapchain_length; i++) {
         SM_ASSERT_HR(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&mRenderTargets[i])));
@@ -172,11 +187,9 @@ void Context::create_render_targets() {
     }
 }
 
-void Context::create_frame_objects() {
-    mFenceValues.fill(0);
-
+void Context::create_frame_allocators() {
     for (uint i = 0; i < mConfig.swapchain_length; i++) {
-        SM_ASSERT_HR(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&mAllocators[i])));
+        SM_ASSERT_HR(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&mCommandAllocators[i])));
     }
 }
 
@@ -260,9 +273,15 @@ void Context::create_pipeline_state() {
     }
 }
 
+static const D3D12_HEAP_PROPERTIES kDefaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 static const D3D12_HEAP_PROPERTIES kUploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 
 void Context::create_triangle() {
+    auto& allocator = mCommandAllocators[mFrameIndex];
+    SM_ASSERT_HR(allocator->Reset());
+    SM_ASSERT_HR(mCommandList->Reset(allocator.get(), *mPipelineState));
+
+    mVertexBufferUpload.reset();
     mVertexBuffer.reset();
     auto [width, height] = mSwapChainSize.as<float>();
     const float kAspectRatio = width / height;
@@ -273,22 +292,45 @@ void Context::create_triangle() {
     };
 
     const uint kBufferSize = sizeof(kTriangle);
-    const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(kBufferSize);
+    const auto kBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kBufferSize);
 
     SM_ASSERT_HR(mDevice->CreateCommittedResource(
         &kUploadHeap,
         D3D12_HEAP_FLAG_NONE,
-        &buffer,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
+        &kBufferDesc,
+        D3D12_RESOURCE_STATE_COMMON,
         nullptr,
-        IID_PPV_ARGS(&mVertexBuffer)
+        IID_PPV_ARGS(&mVertexBufferUpload)
     ));
 
     void *data;
     D3D12_RANGE read{0, 0};
-    SM_ASSERT_HR(mVertexBuffer->Map(0, &read, &data));
+    SM_ASSERT_HR(mVertexBufferUpload->Map(0, &read, &data));
     std::memcpy(data, kTriangle, kBufferSize);
-    mVertexBuffer->Unmap(0, nullptr);
+    mVertexBufferUpload->Unmap(0, nullptr);
+
+    SM_ASSERT_HR(mDevice->CreateCommittedResource(
+        &kDefaultHeap,
+        D3D12_HEAP_FLAG_NONE,
+        &kBufferDesc,
+        D3D12_RESOURCE_STATE_COMMON,
+        nullptr,
+        IID_PPV_ARGS(&mVertexBuffer)
+    ));
+
+    const auto kBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
+        *mVertexBuffer,
+        D3D12_RESOURCE_STATE_COPY_DEST,
+        D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
+    );
+
+    mCommandList->CopyBufferRegion(*mVertexBuffer, 0, *mVertexBufferUpload, 0, kBufferSize);
+    mCommandList->ResourceBarrier(1, &kBarrier);
+
+    SM_ASSERT_HR(mCommandList->Close());
+
+    ID3D12CommandList *lists[] = { mCommandList.get() };
+    mQueue->ExecuteCommandLists(1, lists);
 
     const D3D12_VERTEX_BUFFER_VIEW kBufferView = {
         .BufferLocation = mVertexBuffer->GetGPUVirtualAddress(),
@@ -297,20 +339,14 @@ void Context::create_triangle() {
     };
 
     mVertexBufferView = kBufferView;
-}
 
-void Context::create_size_dependent_resources() {
-    update_viewport_scissor();
-    create_render_targets();
-    create_triangle();
+    wait_for_gpu();
 }
 
 void Context::create_assets() {
     create_pipeline_state();
-    create_triangle();
 
-    SM_ASSERT_HR(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mAllocators[mFrameIndex].get(), nullptr, IID_PPV_ARGS(&mCommandList)));
-
+    SM_ASSERT_HR(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCommandAllocators[mFrameIndex].get(), nullptr, IID_PPV_ARGS(&mCommandList)));
     SM_ASSERT_HR(mCommandList->Close());
 
     SM_ASSERT_HR(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
@@ -318,11 +354,13 @@ void Context::create_assets() {
 
     SM_ASSERT_WIN32(mFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr));
 
-    wait_for_gpu();
+    create_triangle();
 }
 
 void Context::build_command_list() {
-    auto& allocator = mAllocators[mFrameIndex];
+    mAllocator->SetCurrentFrameIndex(mFrameIndex);
+
+    auto& allocator = mCommandAllocators[mFrameIndex];
     SM_ASSERT_HR(allocator->Reset());
     SM_ASSERT_HR(mCommandList->Reset(allocator.get(), *mPipelineState));
 
@@ -367,6 +405,7 @@ Context::Context(const RenderConfig& config)
 
 void Context::create() {
     create_device();
+    create_allocator();
     create_pipeline();
     create_assets();
 }
@@ -404,9 +443,10 @@ void Context::resize(math::uint2 size) {
     SM_ASSERT_HR(mSwapChain->ResizeBuffers(mConfig.swapchain_length, size.width, size.height, mConfig.swapchain_format, 0));
     mSwapChainSize = size;
 
-    create_size_dependent_resources();
-
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
+
+    create_size_dependent_resources();
+    create_triangle();
 }
 
 void Context::move_to_next_frame() {

@@ -3,6 +3,8 @@
 #include "core/array.hpp"
 #include "render/instance.hpp"
 
+#include <D3D12MemAlloc.h>
+
 namespace sm::render {
     using DeviceHandle = Object<ID3D12Device1>;
 
@@ -44,15 +46,18 @@ namespace sm::render {
         void enable_info_queue();
         void create_device();
 
+        // resource allocator
+        Object<D3D12MA::Allocator> mAllocator;
+        void create_allocator();
+
         /// presentation objects
         Object<IDXGISwapChain3> mSwapChain;
         math::uint2 mSwapChainSize;
         sm::UniqueArray<Object<ID3D12Resource>> mRenderTargets;
-        void create_render_targets();
 
-        sm::UniqueArray<Object<ID3D12CommandAllocator>> mAllocators;
+        sm::UniqueArray<Object<ID3D12CommandAllocator>> mCommandAllocators;
         sm::UniqueArray<uint64> mFenceValues;
-        void create_frame_objects();
+        void create_frame_allocators();
 
         /// graphics pipeline objects
         Object<ID3D12CommandQueue> mQueue;
@@ -63,7 +68,6 @@ namespace sm::render {
         uint mRtvDescriptorSize = 0;
 
         void create_pipeline_state();
-        void create_triangle();
 
         // scissor + viewport
         D3D12_VIEWPORT mViewport;
@@ -72,10 +76,14 @@ namespace sm::render {
         void update_viewport_scissor();
 
         // assets
+        Object<ID3D12Resource> mVertexBufferUpload;
         Object<ID3D12Resource> mVertexBuffer;
         D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
+        void create_triangle();
 
         void create_size_dependent_resources();
+        void create_resolution_dependent_resources();
+
         void create_pipeline();
         void create_assets();
 
