@@ -22,6 +22,12 @@ namespace sm::render {
         sys::Window &window;
     };
 
+    struct FrameData {
+        Object<ID3D12Resource> mRenderTarget;
+        Object<ID3D12CommandAllocator> mCommandAllocator;
+        uint64 mFenceValue;
+    };
+
     struct Context {
         RenderConfig mConfig;
 
@@ -54,9 +60,7 @@ namespace sm::render {
         Object<IDXGISwapChain3> mSwapChain;
         math::uint2 mSwapChainSize;
 
-        sm::UniqueArray<Object<ID3D12Resource>> mRenderTargets;
-        sm::UniqueArray<Object<ID3D12CommandAllocator>> mCommandAllocators;
-        sm::UniqueArray<uint64> mFenceValues;
+        sm::UniqueArray<FrameData> mFrames;
         void create_frame_allocators();
 
         /// graphics pipeline objects

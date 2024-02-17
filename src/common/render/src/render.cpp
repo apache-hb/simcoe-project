@@ -185,13 +185,17 @@ void Context::create_pipeline() {
     }
 
     uint count = mConfig.swapchain_length;
-    mCommandAllocators.resize(count);
-    mFenceValues.resize(count);
-    mRenderTargets.resize(count);
+    mFrames.resize(count);
+    // mCommandAllocators.resize(count);
+    // mFenceValues.resize(count);
+    // mRenderTargets.resize(count);
 
     create_size_dependent_resources();
 
-    mFenceValues.fill(0);
+    for (uint i = 0; i < count; i++) {
+        mFrames[i].mFenceValue = 0;
+    }
+
     create_frame_allocators();
 }
 
@@ -200,15 +204,16 @@ void Context::create_size_dependent_resources() {
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
     for (uint i = 0; i < mConfig.swapchain_length; i++) {
-        SM_ASSERT_HR(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&mRenderTargets[i])));
-        mDevice->CreateRenderTargetView(*mRenderTargets[i], nullptr, rtvHandle);
+        auto& backbuffer = mFrames[i].mRenderTarget;
+        SM_ASSERT_HR(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&backbuffer)));
+        mDevice->CreateRenderTargetView(*backbuffer, nullptr, rtvHandle);
         rtvHandle.Offset(1, mRtvDescriptorSize);
     }
 }
 
 void Context::create_frame_allocators() {
     for (uint i = 0; i < mConfig.swapchain_length; i++) {
-        SM_ASSERT_HR(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&mCommandAllocators[i])));
+        SM_ASSERT_HR(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&mFrames[i].mCommandAllocator)));
     }
 }
 
@@ -296,7 +301,7 @@ static const D3D12_HEAP_PROPERTIES kDefaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_
 static const D3D12_HEAP_PROPERTIES kUploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 
 void Context::create_triangle() {
-    auto& allocator = mCommandAllocators[mFrameIndex];
+    auto& allocator = mFrames[mFrameIndex].mCommandAllocator;
     SM_ASSERT_HR(allocator->Reset());
     SM_ASSERT_HR(mCommandList->Reset(allocator.get(), *mPipelineState));
 
@@ -352,16 +357,15 @@ void Context::create_triangle() {
     SM_ASSERT_HR(mCopyCommands->Close());
     SM_ASSERT_HR(mCommandList->Close());
 
-    ID3D12CommandList *copy_lists[] = { mCopyCommands.get() };
-    mCopyQueue->ExecuteCommandLists(1, copy_lists);
-
     // once we're done copying, signal the fence so the direct queue
     // can transition the resource
+    ID3D12CommandList *copy_lists[] = { mCopyCommands.get() };
+    mCopyQueue->ExecuteCommandLists(1, copy_lists);
     mCopyQueue->Signal(*mCopyFence, mCopyFenceValue);
 
 
-    ID3D12CommandList *direct_lists[] = { mCommandList.get() };
     // wait for copy queue to finish before transitioning the resource
+    ID3D12CommandList *direct_lists[] = { mCommandList.get() };
     mDirectQueue->Wait(*mCopyFence, mCopyFenceValue);
     mDirectQueue->ExecuteCommandLists(1, direct_lists);
 
@@ -380,11 +384,11 @@ void Context::create_triangle() {
 void Context::create_assets() {
     create_pipeline_state();
 
-    SM_ASSERT_HR(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCommandAllocators[mFrameIndex].get(), nullptr, IID_PPV_ARGS(&mCommandList)));
+    SM_ASSERT_HR(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, *mFrames[mFrameIndex].mCommandAllocator, nullptr, IID_PPV_ARGS(&mCommandList)));
     SM_ASSERT_HR(mCommandList->Close());
 
     SM_ASSERT_HR(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
-    mFenceValues[mFrameIndex] += 1;
+    mFrames[mFrameIndex].mFenceValue += 1;
 
     SM_ASSERT_WIN32(mFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr));
 
@@ -394,7 +398,8 @@ void Context::create_assets() {
 void Context::build_command_list() {
     mAllocator->SetCurrentFrameIndex(mFrameIndex);
 
-    auto& allocator = mCommandAllocators[mFrameIndex];
+    auto& [backbuffer, allocator, _] = mFrames[mFrameIndex];
+
     SM_ASSERT_HR(allocator->Reset());
     SM_ASSERT_HR(mCommandList->Reset(allocator.get(), *mPipelineState));
 
@@ -403,7 +408,7 @@ void Context::build_command_list() {
     mCommandList->RSSetScissorRects(1, &mScissorRect);
 
     const auto kIntoRenderTarget = CD3DX12_RESOURCE_BARRIER::Transition(
-        *mRenderTargets[mFrameIndex],
+        *backbuffer,
         D3D12_RESOURCE_STATE_PRESENT,
         D3D12_RESOURCE_STATE_RENDER_TARGET
     );
@@ -421,7 +426,7 @@ void Context::build_command_list() {
     mCommandList->DrawInstanced(3, 1, 0, 0);
 
     const auto kIntoPresent = CD3DX12_RESOURCE_BARRIER::Transition(
-        *mRenderTargets[mFrameIndex],
+        *backbuffer,
         D3D12_RESOURCE_STATE_RENDER_TARGET,
         D3D12_RESOURCE_STATE_PRESENT
     );
@@ -471,8 +476,8 @@ void Context::resize(math::uint2 size) {
     wait_for_gpu();
 
     for (uint i = 0; i < mConfig.swapchain_length; i++) {
-        mRenderTargets[i].reset();
-        mFenceValues[i] = mFenceValues[mFrameIndex];
+        mFrames[i].mRenderTarget.reset();
+        mFrames[i].mFenceValue = mFrames[mFrameIndex].mFenceValue;
     }
 
     // TODO: DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
@@ -486,21 +491,21 @@ void Context::resize(math::uint2 size) {
 }
 
 void Context::move_to_next_frame() {
-    const uint64 current = mFenceValues[mFrameIndex];
+    const uint64 current = mFrames[mFrameIndex].mFenceValue;
     SM_ASSERT_HR(mDirectQueue->Signal(*mFence, current));
 
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
 
-    if (mFence->GetCompletedValue() < mFenceValues[mFrameIndex]) {
-        SM_ASSERT_HR(mFence->SetEventOnCompletion(mFenceValues[mFrameIndex], mFenceEvent));
+    if (mFence->GetCompletedValue() < mFrames[mFrameIndex].mFenceValue) {
+        SM_ASSERT_HR(mFence->SetEventOnCompletion(mFrames[mFrameIndex].mFenceValue, mFenceEvent));
         WaitForSingleObjectEx(mFenceEvent, INFINITE, false);
     }
 
-    mFenceValues[mFrameIndex] = current + 1;
+    mFrames[mFrameIndex].mFenceValue = current + 1;
 }
 
 void Context::wait_for_gpu() {
-    const uint64 current = mFenceValues[mFrameIndex]++;
+    const uint64 current = mFrames[mFrameIndex].mFenceValue++;
     SM_ASSERT_HR(mDirectQueue->Signal(*mFence, current));
 
     SM_ASSERT_HR(mFence->SetEventOnCompletion(current, mFenceEvent));
