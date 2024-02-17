@@ -12,6 +12,7 @@ struct std::hash<Vertex> {
     constexpr auto operator()(const Vertex &vertex) const {
         size_t hash = 0;
         sm::hash_combine(hash, vertex.position);
+        sm::hash_combine(hash, vertex.uv);
         return hash;
     }
 };
@@ -19,7 +20,7 @@ struct std::hash<Vertex> {
 template<>
 struct std::equal_to<Vertex> {
     constexpr bool operator()(const Vertex &lhs, const Vertex &rhs) const {
-        return lhs.position == rhs.position;
+        return lhs.position == rhs.position && lhs.uv == rhs.uv;
     }
 };
 
@@ -83,17 +84,17 @@ static Mesh cube(const Cube &cube) {
 
     PrimitiveBuilder builder;
 
-    builder.quad({{-w, h, -d}}, {{-w, h, d}}, {{-w, -h, d}}, {{-w, -h, -d}});
+    builder.quad({{-w, h, -d}}, {{-w, h, d}}, {{-w, -h, d}}, {{-w, -h, -d}}); // back
 
-    builder.quad({{w, -h, -d}}, {{w, -h, d}}, {{w, h, d}}, {{w, h, -d}}); // correct?
+    builder.quad({{w, -h, -d}}, {{w, -h, d}}, {{w, h, d}}, {{w, h, -d}}); // front
 
-    builder.quad({{-w, -h, -d}}, {{-w, -h, d}}, {{w, -h, d}}, {{w, -h, -d}}); // correct
+    builder.quad({{-w, -h, -d}}, {{-w, -h, d}}, {{w, -h, d}}, {{w, -h, -d}}); // left
 
-    builder.quad({{w, h, -d}}, {{w, h, d}}, {{-w, h, d}}, {{-w, h, -d}}); // correct
+    builder.quad({{w, h, -d}}, {{w, h, d}}, {{-w, h, d}}, {{-w, h, -d}}); // right
 
-    builder.quad({{w, -h, -d}}, {{w, h, -d}}, {{-w, h, -d}}, {{-w, -h, -d}}); // correct
+    builder.quad({{w, -h, -d}}, {{w, h, -d}}, {{-w, h, -d}}, {{-w, -h, -d}}); // bottom
 
-    builder.quad({{-w, -h, d}}, {{-w, h, d}}, {{w, h, d}}, {{w, -h, d}}); // correct
+    builder.quad({{-w, -h, d}}, {{-w, h, d}}, {{w, h, d}}, {{w, -h, d}}); // top
 
     return builder.build();
 }

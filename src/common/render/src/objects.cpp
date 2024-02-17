@@ -16,6 +16,7 @@ void CommandQueue::create(DeviceHandle &device, CommandListType type) {
 }
 
 void CommandQueue::signal(Fence &fence, uint64 value) {
+    fmt::println("signaling fence: {}", value);
     SM_ASSERT_HR(queue->Signal(fence.fence.get(), value));
 }
 
@@ -79,9 +80,11 @@ void Fence::create(DeviceHandle &device, const char *name) {
 }
 
 void Fence::wait(uint64 pending) {
-    if (value() < pending) {
+    auto current = value();
+    fmt::println("waiting for fence: {} < {}", current, pending);
+    if (current < pending) {
         SM_ASSERT_HR(fence->SetEventOnCompletion(pending, *event));
-        WaitForSingleObject(*event, INFINITE);
+        WaitForSingleObjectEx(*event, INFINITE, false);
     }
 }
 

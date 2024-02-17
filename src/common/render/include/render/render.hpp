@@ -485,7 +485,7 @@ class Context {
 
     CommandQueue mDirectQueue;
     CommandQueue mCopyQueue;
-    CommandQueue mComputeQueue;
+    //CommandQueue mComputeQueue;
 
     DescriptorArena mRenderTargetHeap;
     DescriptorArena mDepthStencilHeap;
@@ -493,24 +493,24 @@ class Context {
 
     CommandListPool mDirectCommandLists;
     CommandListPool mCopyCommandLists;
-    CommandListPool mComputeCommandLists;
+    //CommandListPool mComputeCommandLists;
 
     // lists that havent been submitted yet
     sm::Vector<CommandList *> mPendingDirectCommands;
     sm::Vector<CommandList *> mPendingCopyCommands;
-    sm::Vector<CommandList *> mPendingComputeCommands;
+    //sm::Vector<CommandList *> mPendingComputeCommands;
 
     // objects that have been submitted but not finished execution
-    PendingCommandsQueue mWaitingDirectCommands;
-    PendingCommandsQueue mWaitingCopyCommands;
-    PendingCommandsQueue mWaitingComputeCommands;
+    //PendingCommandsQueue mWaitingDirectCommands;
+    //PendingCommandsQueue mWaitingCopyCommands;
+    //PendingCommandsQueue mWaitingComputeCommands;
 
-    ResourcePool<DeviceResource> mResources;
+    //ResourcePool<DeviceResource> mResources;
 
     Fence mPresentFence;
 
-    uint64 mDirectFenceValue = 1;
-    Fence mDirectFence;
+    //uint64 mDirectFenceValue = 1;
+    //Fence mDirectFence;
 
     uint64 mCopyFenceValue = 1;
     Fence mCopyFence;
@@ -528,10 +528,9 @@ class Context {
 
     void create_backbuffers(uint count);
 
-    void flush_present_queue();
     void next_frame();
 
-    void reclaim_live_objects();
+    //void reclaim_live_objects();
 
     void reclaim_resource(DeviceResource resource);
 
@@ -553,7 +552,8 @@ public:
     }
 
     void flush_copy_queue();
-    void flush_direct_queue();
+    void wait_for_gpu();
+    //void flush_direct_queue();
 
     void resize(uint width, uint height);
 

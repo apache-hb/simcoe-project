@@ -6,7 +6,7 @@
 #include "core/reflect.hpp" // IWYU pragma: keep
 #include "core/text.hpp"
 #include "core/units.hpp"
-#include "math/format.hpp"
+// #include "math/format.hpp"
 #include "logs/sink.inl" // IWYU pragma: keep
 
 #include "service/freetype.hpp"
@@ -340,10 +340,12 @@ struct System {
 
 static std::atomic_bool gShouldExit = false;
 
+#if 0
 static int ctrlc_handler(DWORD signal) {
     gShouldExit = true;
     return TRUE;
 }
+#endif
 
 static void common_init(void) {
     bt_init();
@@ -366,7 +368,7 @@ static void common_init(void) {
         std::exit(CT_EXIT_INTERNAL); // NOLINT
     };
 
-    SetConsoleCtrlHandler(ctrlc_handler, TRUE);
+    //SetConsoleCtrlHandler(ctrlc_handler, TRUE);
 }
 
 class ImGuiRenderPass {
@@ -495,51 +497,94 @@ class SceneRenderPass {
         .params = kParams,
     };
 
+    static const ImGuiTableFlags kSceneTreeTableFlags
+        = ImGuiTableFlags_BordersV
+        | ImGuiTableFlags_BordersOuterH
+        | ImGuiTableFlags_Resizable
+        | ImGuiTableFlags_RowBg
+        | ImGuiTableFlags_NoHostExtendX
+        | ImGuiTableFlags_NoBordersInBody;
+
+    static const ImGuiTreeNodeFlags kGroupNodeFlags
+        = ImGuiTreeNodeFlags_SpanAllColumns
+        | ImGuiTreeNodeFlags_AllowOverlap;
+
+    static const ImGuiTreeNodeFlags kLeafNodeFlags
+        = kGroupNodeFlags
+        | ImGuiTreeNodeFlags_Leaf
+        | ImGuiTreeNodeFlags_Bullet
+        | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+
+    void draw_group_node(const draw::RenderNode& node) {
+        bool is_open = ImGui::TreeNodeEx((void*)&node, kGroupNodeFlags, "node (%zu children, %zu meshes)", node.children.size(), node.meshes.size());
+
+        ImGui::TableNextColumn();
+
+        ImGui::TableNextColumn();
+        ImGui::Text("%s", "node");
+
+        bool visible = true; // TODO: get from node
+        ImGui::Checkbox("##visible", &visible);
+
+        if (is_open) {
+            for (uint16_t child : node.children) {
+                draw_item(child);
+            }
+
+            ImGui::TreePop();
+        }
+    }
+
+    void draw_leaf_node(const draw::RenderNode& node) {
+        ImGui::TreeNodeEx((void*)&node, kLeafNodeFlags, "node (%zu meshes)", node.meshes.size());
+        bool visible = true; // TODO: get from node
+
+        ImGui::TableNextColumn();
+        ImGui::Text("node (%zu meshes)", node.meshes.size());
+
+        ImGui::TableNextColumn();
+        ImGui::Checkbox("##visible", &visible);
+    }
+
+    void draw_item(uint16_t index) {
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
+
+        auto& node = mScene.nodes[index];
+        if (node.children.size() > 0) {
+            draw_group_node(node);
+        } else {
+            draw_leaf_node(node);
+        }
+    }
+
+    void imgui_draw() {
+        if (ImGui::Begin("Scene")) {
+            if (ImGui::BeginTable("Scene", 3, kSceneTreeTableFlags)) {
+                ImGui::TableSetupColumn("Name");
+                ImGui::TableSetupColumn("Type");
+                ImGui::TableSetupColumn("Visible");
+                ImGui::TableHeadersRow();
+
+                draw_item(mScene.root);
+
+                ImGui::EndTable();
+            }
+        }
+        ImGui::End();
+    }
+
     void render_node(uint16_t index, CommandList& commands, const float4x4& transform) const {
         const auto& node = mScene.nodes[index];
 
-        // float4x4 local = transform * node.transform.matrix();
-
-        ImGui::Begin("Debug");
-
         static float3 position = {3.f, 3.f, 3.f};
-        ImGui::SliderFloat3("Position", &position.x, -10.f, 10.f);
-
         static float3 focus = {0.1f, 0.1f, 0.1f};
-        ImGui::SliderFloat3("Focus", &focus.x, -10.f, 10.f);
-
         static float fov = math::to_radians(90.f);
-        ImGui::SliderAngle("FOV", &fov, 50.f, 180.f);
 
         auto view = float4x4::lookAtRH(position, focus, float3(0.f, 0.f, 1.f));
         auto proj = float4x4::perspectiveRH(fov, 800.f / 600.f, 0.1f, 100.f);
         float4x4 mvp = (transform * view * proj).transpose();
-
-        ImGui::SeparatorText("Model");
-        ImGui::Text("%f %f %f %f", transform[0][0], transform[0][1], transform[0][2], transform[0][3]);
-        ImGui::Text("%f %f %f %f", transform[1][0], transform[1][1], transform[1][2], transform[1][3]);
-        ImGui::Text("%f %f %f %f", transform[2][0], transform[2][1], transform[2][2], transform[2][3]);
-        ImGui::Text("%f %f %f %f", transform[3][0], transform[3][1], transform[3][2], transform[3][3]);
-
-        ImGui::SeparatorText("View");
-        ImGui::Text("%f %f %f %f", view[0][0], view[0][1], view[0][2], view[0][3]);
-        ImGui::Text("%f %f %f %f", view[1][0], view[1][1], view[1][2], view[1][3]);
-        ImGui::Text("%f %f %f %f", view[2][0], view[2][1], view[2][2], view[2][3]);
-        ImGui::Text("%f %f %f %f", view[3][0], view[3][1], view[3][2], view[3][3]);
-
-        ImGui::SeparatorText("Projection");
-        ImGui::Text("%f %f %f %f", proj[0][0], proj[0][1], proj[0][2], proj[0][3]);
-        ImGui::Text("%f %f %f %f", proj[1][0], proj[1][1], proj[1][2], proj[1][3]);
-        ImGui::Text("%f %f %f %f", proj[2][0], proj[2][1], proj[2][2], proj[2][3]);
-        ImGui::Text("%f %f %f %f", proj[3][0], proj[3][1], proj[3][2], proj[3][3]);
-
-        ImGui::SeparatorText("MVP");
-        ImGui::Text("%f %f %f %f", mvp[0][0], mvp[0][1], mvp[0][2], mvp[0][3]);
-        ImGui::Text("%f %f %f %f", mvp[1][0], mvp[1][1], mvp[1][2], mvp[1][3]);
-        ImGui::Text("%f %f %f %f", mvp[2][0], mvp[2][1], mvp[2][2], mvp[2][3]);
-        ImGui::Text("%f %f %f %f", mvp[3][0], mvp[3][1], mvp[3][2], mvp[3][3]);
-
-        ImGui::End();
 
         auto *cmd = commands.get();
         cmd->SetGraphicsRoot32BitConstants(0, 16, &mvp, 0);
@@ -561,7 +606,6 @@ public:
     { }
 
     void create(const render::RenderConfig& config, render::Context& context) {
-
         // TODO: get bundles working already
         auto ps = load_shader_bytecode("build/bundle/shaders/primitive.ps.cso");
         auto vs = load_shader_bytecode("build/bundle/shaders/primitive.vs.cso");
@@ -647,6 +691,8 @@ public:
         cmd->RSSetScissorRects(1, &mScissorRect);
 
         render_node(mScene.root, commands, float4x4::identity());
+
+        //imgui_draw();
     }
 };
 
@@ -711,57 +757,61 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
     });
 
     render::Context context{config};
-    ImGuiRenderPass imgui;
-    SceneRenderPass scene{draw};
-
     events.attach_render(&context);
 
-    imgui.create(window.get_handle(), config, context);
-    scene.create(config, context);
+    {
+        //ImGuiRenderPass imgui;
+        SceneRenderPass scene{draw};
 
-    context.flush_copy_queue();
-    context.flush_direct_queue();
+        //imgui.create(window.get_handle(), config, context);
+        scene.create(config, context);
 
-    bool done = false;
-    while (!done) {
-        if (gShouldExit) PostQuitMessage(0);
+        context.flush_copy_queue();
+        context.wait_for_gpu();
 
-        // more complex message loop to avoid imgui
-        // destroying the main window, then attempting to access it
-        // in RenderPlatformWindowsDefault.
-        // fun thing to debug
-        MSG msg = {};
-        while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)) {
-            TranslateMessage(&msg);
-            DispatchMessageA(&msg);
-            if (msg.message == WM_QUIT) {
-                done = true;
+        bool done = false;
+        while (!done) {
+            if (gShouldExit) PostQuitMessage(0);
+
+            // more complex message loop to avoid imgui
+            // destroying the main window, then attempting to access it
+            // in RenderPlatformWindowsDefault.
+            // fun thing to debug
+            MSG msg = {};
+            while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)) {
+                TranslateMessage(&msg);
+                DispatchMessageA(&msg);
+                if (msg.message == WM_QUIT) {
+                    done = true;
+                }
             }
+
+            if (done) break;
+            input.poll();
+
+            // dear imgui rendering
+
+            //imgui.begin_frame();
+
+            //ImGui::ShowDemoWindow();
+
+            // actual rendering
+
+            context.begin_frame();
+
+            auto& commands = context.current_frame_list();
+            scene.render(context, commands);
+
+            //imgui.end_frame();
+            //imgui.render(context, commands);
+
+            context.end_frame();
         }
 
-        if (done) break;
-        input.poll();
+        context.wait_for_gpu();
 
-        // dear imgui rendering
-
-        imgui.begin_frame();
-
-        ImGui::ShowDemoWindow();
-
-        // actual rendering
-
-        context.begin_frame();
-
-        auto& commands = context.current_frame_list();
-        scene.render(context, commands);
-
-        imgui.end_frame();
-        imgui.render(context, commands);
-
-        context.end_frame();
+        //imgui.destroy(context);
     }
-
-    imgui.destroy(context);
 }
 
 static int common_main(sys::ShowWindow show) {

@@ -18,8 +18,8 @@ Context::Context(RenderConfig config)
     , mFrames(config.frame_count)
     , mDirectCommandLists(CommandListType::eDirect, config.direct_command_pool_size)
     , mCopyCommandLists(CommandListType::eCopy, config.copy_command_pool_size)
-    , mComputeCommandLists(CommandListType::eCompute, config.compute_command_pool_size)
-    , mResources(config.resource_pool_size)
+    //, mComputeCommandLists(CommandListType::eCompute, config.compute_command_pool_size)
+    //, mResources(config.resource_pool_size)
 {
     create_device();
     query_root_signature_version();
@@ -30,7 +30,7 @@ Context::Context(RenderConfig config)
 }
 
 Context::~Context() {
-    flush_present_queue();
+    wait_for_gpu();
 }
 
 static logs::Severity get_severity(MessageSeverity sev) {
@@ -151,7 +151,7 @@ void Context::query_root_signature_version() {
 void Context::create_device_objects(const RenderConfig& config) {
     mDirectQueue.create(mDevice, CommandListType::eDirect);
     mCopyQueue.create(mDevice, CommandListType::eCopy);
-    mComputeQueue.create(mDevice, CommandListType::eCompute);
+    //mComputeQueue.create(mDevice, CommandListType::eCompute);
 
     UINT rtv_heap_size = config.rtv_heap_size;
     UINT dsv_heap_size = config.dsv_heap_size;
@@ -181,10 +181,10 @@ void Context::create_device_objects(const RenderConfig& config) {
 
     mDirectCommandLists.create(mDevice);
     mCopyCommandLists.create(mDevice);
-    mComputeCommandLists.create(mDevice);
+    //mComputeCommandLists.create(mDevice);
 
     mPresentFence.create(mDevice, "present");
-    mDirectFence.create(mDevice, "direct");
+    //mDirectFence.create(mDevice, "direct");
     mCopyFence.create(mDevice, "copy");
 }
 
@@ -251,25 +251,39 @@ void Context::create_backbuffers(uint count) {
     }
 }
 
-void Context::flush_present_queue() {
-    auto value = mFrames[mFrameIndex].value++;
+void Context::wait_for_gpu() {
+    fmt::print("wait_for_gpu: mFrameIndex: {}\n", mFrameIndex);
+    fmt::print("0 mFrames[{}].value: {}\n", mFrameIndex, mFrames[mFrameIndex].value);
+    auto value = mFrames[mFrameIndex].value;
     mDirectQueue.signal(mPresentFence, value);
+    fmt::print("3 mFrames[{}].value: {}\n", mFrameIndex, mFrames[mFrameIndex].value);
     mPresentFence.wait(value);
+    fmt::print("4 mFrames[{}].value: {}\n", mFrameIndex, mFrames[mFrameIndex].value);
+
+    mFrames[mFrameIndex].value += 1;
+    fmt::print("1 mFrames[{}].value: {}\n", mFrameIndex, mFrames[mFrameIndex].value);
 }
 
 void Context::next_frame() {
+    fmt::print("next_frame: mFrameIndex: {}\n", mFrameIndex);
+    fmt::print("5 mFrames[{}].value: {}\n", mFrameIndex, mFrames[mFrameIndex].value);
     auto current = mFrames[mFrameIndex].value;
+    fmt::print("6 mFrames[{}].value: {}\n", mFrameIndex, mFrames[mFrameIndex].value);
     mDirectQueue.signal(mPresentFence, current);
 
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
+    fmt::print("8 mFrames[{}].value: {}\n", mFrameIndex, mFrames[mFrameIndex].value);
     mPresentFence.wait(mFrames[mFrameIndex].value);
 
+    fmt::print("9 mFrames[{}].value: {}\n", mFrameIndex, mFrames[mFrameIndex].value);
     mFrames[mFrameIndex].value = current + 1;
+    fmt::print("2 mFrames[{}].value: {}\n", mFrameIndex, mFrames[mFrameIndex].value);
+
+    mAllocator->SetCurrentFrameIndex(mFrameIndex);
 }
 
 void Context::begin_frame() {
-    reclaim_live_objects();
-    mAllocator->SetCurrentFrameIndex(mFrameIndex);
+    //reclaim_live_objects();
 
     auto& frame = mFrames[mFrameIndex];
 
@@ -319,17 +333,12 @@ void Context::end_frame() {
     for (auto *list : mPendingDirectCommands)
         lists.push_back(list->get());
 
-    mDirectQueue.execute((uint)lists.size(), lists.data());
-
-    // move now executing commands into the reclaim queue
-    uint64 value = mFrames[mFrameIndex].value;
-    for (auto *list : mPendingDirectCommands)
-        mWaitingDirectCommands.push(list, value);
-
     // remove the submitted lists from the pending list
     mPendingDirectCommands.clear();
 
-    SM_ASSERT_HR(mSwapChain->Present(1, 0));
+    mDirectQueue.execute((uint)lists.size(), lists.data());
+
+    SM_ASSERT_HR(mSwapChain->Present(3, 0));
 
     next_frame();
 }
@@ -348,10 +357,10 @@ CommandList& Context::acquire_copy_list(ResourceId id) {
         mSink.warn("| slot {}: {}", i, id.c_str());
     }
 
-    for (size_t i = 0; i < mWaitingDirectCommands.length(); i++) {
-        const auto& it = mWaitingDirectCommands[i];
-        mSink.warn("| waiting slot {}: {}", i, it.fence);
-    }
+    // for (size_t i = 0; i < mWaitingDirectCommands.length(); i++) {
+    //     const auto& it = mWaitingDirectCommands[i];
+    //     mSink.warn("| waiting slot {}: {}", i, it.fence);
+    // }
 
     mSink.warn("fence value: {}", mCopyFence.value());
 
@@ -373,12 +382,12 @@ CommandList& Context::acquire_direct_list(ResourceId id) {
         mSink.warn("| slot {}: {}", i, id.c_str());
     }
 
-    for (size_t i = 0; i < mWaitingDirectCommands.length(); i++) {
-        const auto& it = mWaitingDirectCommands[i];
-        mSink.warn("| waiting slot {}: {}", i, it.fence);
-    }
+    // for (size_t i = 0; i < mWaitingDirectCommands.length(); i++) {
+    //     const auto& it = mWaitingDirectCommands[i];
+    //     mSink.warn("| waiting slot {}: {}", i, it.fence);
+    // }
 
-    mSink.warn("fence value: {}", mDirectFence.value());
+    //mSink.warn("fence value: {}", mDirectFence.value());
 
     SM_NEVER("direct list pool exhausted");
 }
@@ -388,6 +397,7 @@ void Context::submit_direct_list(CommandList& list) {
     mPendingDirectCommands.push_back(&list);
 }
 
+#if 0
 void Context::reclaim_live_objects() {
     mWaitingDirectCommands.dispose(mDirectFence.value(), [&](CommandList *list) {
         mSink.info("reclaiming direct list");
@@ -401,6 +411,7 @@ void Context::reclaim_live_objects() {
         mCopyCommandLists.release(list);
     });
 }
+#endif
 
 DeviceResource Context::create_resource(D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state) {
     const D3D12MA::ALLOCATION_DESC alloc = {
@@ -439,6 +450,7 @@ void Context::flush_copy_queue() {
     mCopyFenceValue += 1;
 }
 
+#if 0
 void Context::flush_direct_queue() {
     sm::SmallVector<ID3D12CommandList*, 4> lists;
     for (auto *list : mPendingDirectCommands)
@@ -453,8 +465,12 @@ void Context::flush_direct_queue() {
 
     mDirectFenceValue += 1;
 }
+#endif
 
 void Context::resize(uint width, uint height) {
+    fmt::println("resizing to {}x{}", width, height);
+    wait_for_gpu();
+
     for (auto& frame : mFrames) {
         frame.buffer.reset();
         mRenderTargetHeap.release(frame.rtv);
@@ -465,7 +481,9 @@ void Context::resize(uint width, uint height) {
 
     SM_ASSERT_HR(mSwapChain->ResizeBuffers(desc.BufferCount, width, height, desc.BufferDesc.Format, desc.Flags));
 
+    fmt::print("old frame index: {}\n", mFrameIndex);
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
+    fmt::print("new frame index: {}\n", mFrameIndex);
 
     for (size_t i = 0; i < desc.BufferCount; i++) {
         SM_ASSERT_HR(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&mFrames[i].buffer)));

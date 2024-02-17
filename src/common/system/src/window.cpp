@@ -36,7 +36,6 @@ LRESULT CALLBACK Window::proc(HWND window, UINT message, WPARAM wparam, LPARAM l
         self->m_events->resize(*self, {width, height});
         break;
     }
-
     case WM_CLOSE:
         // we may not have a window so use DestroyWindow directly
         if (self != nullptr) {
