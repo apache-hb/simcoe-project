@@ -119,9 +119,10 @@ void Context::create_pipeline() {
 
     SM_ASSERT_HR(mDevice->CreateCommandQueue(&kQueueDesc, IID_PPV_ARGS(&mQueue)));
 
+    mSwapChainSize = mConfig.swapchain_size;
     const DXGI_SWAP_CHAIN_DESC1 kSwapChainDesc = {
-        .Width = mConfig.swapchain_size.width,
-        .Height = mConfig.swapchain_size.height,
+        .Width = mSwapChainSize.width,
+        .Height = mSwapChainSize.height,
         .Format = mConfig.swapchain_format,
         .SampleDesc = { 1, 0 },
         .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
@@ -150,12 +151,13 @@ void Context::create_pipeline() {
         mRtvDescriptorSize = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     }
 
-    {
-        mRenderTargets.resize(mConfig.swapchain_length);
-        create_render_targets();
-    }
+    uint count = mConfig.swapchain_length;
+    mAllocators.resize(count);
+    mFenceValues.resize(count);
+    mRenderTargets.resize(count);
 
-    SM_ASSERT_HR(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&mAllocator)));
+    create_render_targets();
+    create_frame_objects();
 }
 
 void Context::create_render_targets() {
@@ -167,17 +169,27 @@ void Context::create_render_targets() {
     }
 }
 
+void Context::create_frame_objects() {
+    mFenceValues.fill(0);
+
+    for (uint i = 0; i < mConfig.swapchain_length; i++) {
+        SM_ASSERT_HR(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&mAllocators[i])));
+    }
+}
+
 void Context::create_assets() {
-    SM_ASSERT_HR(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mAllocator.get(), nullptr, IID_PPV_ARGS(&mCommandList)));
+    SM_ASSERT_HR(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mAllocators[mFrameIndex].get(), nullptr, IID_PPV_ARGS(&mCommandList)));
 
     SM_ASSERT_HR(mCommandList->Close());
 
     {
         SM_ASSERT_HR(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
-        mFenceValue = 1;
+        mFenceValues[mFrameIndex] += 1;
 
         SM_ASSERT_WIN32(mFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr));
     }
+
+    wait_for_gpu();
 }
 
 Context::Context(const RenderConfig& config)
@@ -193,7 +205,7 @@ void Context::create() {
 }
 
 void Context::destroy() {
-    wait_for_previous_frame();
+    wait_for_gpu();
 
     SM_ASSERT_WIN32(CloseHandle(mFenceEvent));
 }
@@ -210,29 +222,30 @@ void Context::render() {
 
     SM_ASSERT_HR(mSwapChain->Present(1, 0));
 
-    wait_for_previous_frame();
+    move_to_next_frame();
 }
 
 void Context::resize(math::uint2 size) {
-    wait_for_previous_frame();
+    wait_for_gpu();
 
     for (uint i = 0; i < mConfig.swapchain_length; i++) {
         mRenderTargets[i].reset();
+        mFenceValues[i] = mFenceValues[mFrameIndex];
     }
 
     // TODO: DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
     SM_ASSERT_HR(mSwapChain->ResizeBuffers(mConfig.swapchain_length, size.width, size.height, mConfig.swapchain_format, 0));
+    mSwapChainSize = size;
 
     create_render_targets();
 
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
-
-    mConfig.swapchain_size = size;
 }
 
 void Context::build_command_list() {
-    SM_ASSERT_HR(mAllocator->Reset());
-    SM_ASSERT_HR(mCommandList->Reset(mAllocator.get(), nullptr));
+    auto& allocator = mAllocators[mFrameIndex];
+    SM_ASSERT_HR(allocator->Reset());
+    SM_ASSERT_HR(mCommandList->Reset(allocator.get(), nullptr));
 
     const auto kIntoRenderTarget = CD3DX12_RESOURCE_BARRIER::Transition(
         *mRenderTargets[mFrameIndex],
@@ -258,14 +271,25 @@ void Context::build_command_list() {
     SM_ASSERT_HR(mCommandList->Close());
 }
 
-void Context::wait_for_previous_frame() {
-    const uint64 value = mFenceValue++;
-    SM_ASSERT_HR(mQueue->Signal(*mFence, value));
-
-    if (mFence->GetCompletedValue() < value) {
-        SM_ASSERT_HR(mFence->SetEventOnCompletion(value, mFenceEvent));
-        WaitForSingleObject(mFenceEvent, INFINITE);
-    }
+void Context::move_to_next_frame() {
+    const uint64 current = mFenceValues[mFrameIndex];
+    SM_ASSERT_HR(mQueue->Signal(*mFence, current));
 
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
+
+    if (mFence->GetCompletedValue() < mFenceValues[mFrameIndex]) {
+        SM_ASSERT_HR(mFence->SetEventOnCompletion(mFenceValues[mFrameIndex], mFenceEvent));
+        WaitForSingleObjectEx(mFenceEvent, INFINITE, false);
+    }
+
+    mFenceValues[mFrameIndex] = current + 1;
+}
+
+void Context::wait_for_gpu() {
+    SM_ASSERT_HR(mQueue->Signal(*mFence, mFenceValues[mFrameIndex]));
+
+    SM_ASSERT_HR(mFence->SetEventOnCompletion(mFenceValues[mFrameIndex], mFenceEvent));
+    WaitForSingleObjectEx(mFenceEvent, INFINITE, false);
+
+    mFenceValues[mFrameIndex] += 1;
 }

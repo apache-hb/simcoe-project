@@ -46,12 +46,16 @@ namespace sm::render {
 
         /// presentation objects
         Object<IDXGISwapChain3> mSwapChain;
+        math::uint2 mSwapChainSize;
         sm::UniqueArray<Object<ID3D12Resource>> mRenderTargets;
         void create_render_targets();
 
+        sm::UniqueArray<Object<ID3D12CommandAllocator>> mAllocators;
+        sm::UniqueArray<uint64> mFenceValues;
+        void create_frame_objects();
+
         /// graphics pipeline objects
         Object<ID3D12CommandQueue> mQueue;
-        Object<ID3D12CommandAllocator> mAllocator;
         Object<ID3D12GraphicsCommandList1> mCommandList;
         Object<ID3D12DescriptorHeap> mRtvHeap;
         uint mRtvDescriptorSize = 0;
@@ -62,10 +66,10 @@ namespace sm::render {
         uint mFrameIndex;
         HANDLE mFenceEvent;
         Object<ID3D12Fence> mFence;
-        uint64_t mFenceValue;
 
         void build_command_list();
-        void wait_for_previous_frame();
+        void move_to_next_frame();
+        void wait_for_gpu();
 
     public:
         Context(const RenderConfig& config);
