@@ -39,4 +39,11 @@ public:
         Super::get()->SetName(sm::widen(name).c_str());
     }
 };
+
+struct Blob : public Object<ID3DBlob> {
+    std::string_view as_string() const;
+
+    const void *data() const;
+    size_t size() const;
+};
 } // namespace sm::render

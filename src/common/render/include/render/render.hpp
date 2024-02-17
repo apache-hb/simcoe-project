@@ -56,10 +56,26 @@ namespace sm::render {
 
         /// graphics pipeline objects
         Object<ID3D12CommandQueue> mQueue;
+        Object<ID3D12RootSignature> mRootSignature;
+        Object<ID3D12PipelineState> mPipelineState;
         Object<ID3D12GraphicsCommandList1> mCommandList;
         Object<ID3D12DescriptorHeap> mRtvHeap;
         uint mRtvDescriptorSize = 0;
 
+        void create_pipeline_state();
+        void create_triangle();
+
+        // scissor + viewport
+        D3D12_VIEWPORT mViewport;
+        D3D12_RECT mScissorRect;
+
+        void update_viewport_scissor();
+
+        // assets
+        Object<ID3D12Resource> mVertexBuffer;
+        D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
+
+        void create_size_dependent_resources();
         void create_pipeline();
         void create_assets();
 

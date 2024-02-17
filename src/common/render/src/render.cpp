@@ -2,8 +2,10 @@
 
 #include "core/format.hpp" // IWYU pragma: export
 
-#include "math/math.hpp"
+#include "render/draw.hpp" // IWYU pragma: export
+#include "archive/io.hpp"
 
+#include "d3dx12/d3dx12_core.h"
 #include "d3dx12/d3dx12_root_signature.h"
 #include "d3dx12/d3dx12_barriers.h"
 
@@ -158,6 +160,7 @@ void Context::create_pipeline() {
 
     create_render_targets();
     create_frame_objects();
+    update_viewport_scissor();
 }
 
 void Context::create_render_targets() {
@@ -177,19 +180,183 @@ void Context::create_frame_objects() {
     }
 }
 
+void Context::update_viewport_scissor() {
+    auto [width, height] = mSwapChainSize.as<float>();
+    mViewport = {
+        .TopLeftX = 0.f,
+        .TopLeftY = 0.f,
+        .Width = width,
+        .Height = height,
+        .MinDepth = 0.f,
+        .MaxDepth = 1.f,
+    };
+
+    mScissorRect = {
+        .left = 0,
+        .top = 0,
+        .right = (LONG)width,
+        .bottom = (LONG)height,
+    };
+}
+
+static sm::Vector<uint8> load_shader_bytecode(Sink& sink, const char *path) {
+    auto file = Io::file(path, eAccessRead);
+    if (auto err = file.error()) {
+        sink.error("failed to open {}: {}", file.name(), err);
+        return {};
+    }
+
+    sm::Vector<uint8> data;
+    auto size = file.size();
+    data.resize(size);
+    if (file.read_bytes(data.data(), size) != size) {
+        sink.error("failed to read {} bytes from {}: {}", size, file.name(), file.error());
+        return {};
+    }
+
+    return data;
+}
+
+void Context::create_pipeline_state() {
+    {
+        CD3DX12_ROOT_SIGNATURE_DESC desc;
+        desc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+        Blob signature;
+        Blob error;
+        if (Result hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error); !hr) {
+            mSink.error("failed to serialize root signature: {}", hr);
+            mSink.error("| error: {}", error.as_string());
+            SM_ASSERT_HR(hr);
+        }
+
+        SM_ASSERT_HR(mDevice->CreateRootSignature(0, signature.data(), signature.size(), IID_PPV_ARGS(&mRootSignature)));
+    }
+
+    {
+        auto ps = load_shader_bytecode(mSink, "build/bundle/shaders/simple.ps.cso");
+        auto vs = load_shader_bytecode(mSink, "build/bundle/shaders/simple.vs.cso");
+
+        const D3D12_INPUT_ELEMENT_DESC kInputElements[] = {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(draw::Vertex, position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "COLOUR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(draw::Vertex, colour), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        };
+
+        const D3D12_GRAPHICS_PIPELINE_STATE_DESC kDesc = {
+            .pRootSignature = mRootSignature.get(),
+            .VS = CD3DX12_SHADER_BYTECODE(vs.data(), vs.size()),
+            .PS = CD3DX12_SHADER_BYTECODE(ps.data(), ps.size()),
+            .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
+            .SampleMask = UINT_MAX,
+            .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
+            .InputLayout = { kInputElements, _countof(kInputElements) },
+            .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+            .NumRenderTargets = 1,
+            .RTVFormats = { mConfig.swapchain_format },
+            .SampleDesc = { 1, 0 },
+        };
+
+        SM_ASSERT_HR(mDevice->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&mPipelineState)));
+    }
+}
+
+static const D3D12_HEAP_PROPERTIES kUploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+
+void Context::create_triangle() {
+    mVertexBuffer.reset();
+    auto [width, height] = mSwapChainSize.as<float>();
+    const float kAspectRatio = width / height;
+    const draw::Vertex kTriangle[] = {
+        { { 0.f, 0.25f * kAspectRatio, 0.f }, { 1.f, 0.f, 0.f, 1.f } },
+        { { 0.25f, -0.25f * kAspectRatio, 0.f }, { 0.f, 1.f, 0.f, 1.f } },
+        { { -0.25f, -0.25f * kAspectRatio, 0.f }, { 0.f, 0.f, 1.f, 1.f } },
+    };
+
+    const uint kBufferSize = sizeof(kTriangle);
+    const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(kBufferSize);
+
+    SM_ASSERT_HR(mDevice->CreateCommittedResource(
+        &kUploadHeap,
+        D3D12_HEAP_FLAG_NONE,
+        &buffer,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&mVertexBuffer)
+    ));
+
+    void *data;
+    D3D12_RANGE read{0, 0};
+    SM_ASSERT_HR(mVertexBuffer->Map(0, &read, &data));
+    std::memcpy(data, kTriangle, kBufferSize);
+    mVertexBuffer->Unmap(0, nullptr);
+
+    const D3D12_VERTEX_BUFFER_VIEW kBufferView = {
+        .BufferLocation = mVertexBuffer->GetGPUVirtualAddress(),
+        .SizeInBytes = kBufferSize,
+        .StrideInBytes = sizeof(draw::Vertex),
+    };
+
+    mVertexBufferView = kBufferView;
+}
+
+void Context::create_size_dependent_resources() {
+    update_viewport_scissor();
+    create_render_targets();
+    create_triangle();
+}
+
 void Context::create_assets() {
+    create_pipeline_state();
+    create_triangle();
+
     SM_ASSERT_HR(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mAllocators[mFrameIndex].get(), nullptr, IID_PPV_ARGS(&mCommandList)));
 
     SM_ASSERT_HR(mCommandList->Close());
 
-    {
-        SM_ASSERT_HR(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
-        mFenceValues[mFrameIndex] += 1;
+    SM_ASSERT_HR(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
+    mFenceValues[mFrameIndex] += 1;
 
-        SM_ASSERT_WIN32(mFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr));
-    }
+    SM_ASSERT_WIN32(mFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr));
 
     wait_for_gpu();
+}
+
+void Context::build_command_list() {
+    auto& allocator = mAllocators[mFrameIndex];
+    SM_ASSERT_HR(allocator->Reset());
+    SM_ASSERT_HR(mCommandList->Reset(allocator.get(), *mPipelineState));
+
+    mCommandList->SetGraphicsRootSignature(*mRootSignature);
+    mCommandList->RSSetViewports(1, &mViewport);
+    mCommandList->RSSetScissorRects(1, &mScissorRect);
+
+    const auto kIntoRenderTarget = CD3DX12_RESOURCE_BARRIER::Transition(
+        *mRenderTargets[mFrameIndex],
+        D3D12_RESOURCE_STATE_PRESENT,
+        D3D12_RESOURCE_STATE_RENDER_TARGET
+    );
+
+    mCommandList->ResourceBarrier(1, &kIntoRenderTarget);
+
+    const auto kRtvHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mRtvHeap->GetCPUDescriptorHandleForHeapStart(), (int)mFrameIndex, mRtvDescriptorSize);
+
+    mCommandList->OMSetRenderTargets(1, &kRtvHandle, false, nullptr);
+
+    constexpr math::float4 kClearColour = { 0.0f, 0.2f, 0.4f, 1.0f };
+    mCommandList->ClearRenderTargetView(kRtvHandle, kClearColour.data(), 0, nullptr);
+    mCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    mCommandList->IASetVertexBuffers(0, 1, &mVertexBufferView);
+    mCommandList->DrawInstanced(3, 1, 0, 0);
+
+    const auto kIntoPresent = CD3DX12_RESOURCE_BARRIER::Transition(
+        *mRenderTargets[mFrameIndex],
+        D3D12_RESOURCE_STATE_RENDER_TARGET,
+        D3D12_RESOURCE_STATE_PRESENT
+    );
+
+    mCommandList->ResourceBarrier(1, &kIntoPresent);
+
+    SM_ASSERT_HR(mCommandList->Close());
 }
 
 Context::Context(const RenderConfig& config)
@@ -237,38 +404,9 @@ void Context::resize(math::uint2 size) {
     SM_ASSERT_HR(mSwapChain->ResizeBuffers(mConfig.swapchain_length, size.width, size.height, mConfig.swapchain_format, 0));
     mSwapChainSize = size;
 
-    create_render_targets();
+    create_size_dependent_resources();
 
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
-}
-
-void Context::build_command_list() {
-    auto& allocator = mAllocators[mFrameIndex];
-    SM_ASSERT_HR(allocator->Reset());
-    SM_ASSERT_HR(mCommandList->Reset(allocator.get(), nullptr));
-
-    const auto kIntoRenderTarget = CD3DX12_RESOURCE_BARRIER::Transition(
-        *mRenderTargets[mFrameIndex],
-        D3D12_RESOURCE_STATE_PRESENT,
-        D3D12_RESOURCE_STATE_RENDER_TARGET
-    );
-
-    mCommandList->ResourceBarrier(1, &kIntoRenderTarget);
-
-    const auto kRtvHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mRtvHeap->GetCPUDescriptorHandleForHeapStart(), (int)mFrameIndex, mRtvDescriptorSize);
-
-    constexpr math::float4 kClearColour = { 0.0f, 0.2f, 0.4f, 1.0f };
-    mCommandList->ClearRenderTargetView(kRtvHandle, kClearColour.data(), 0, nullptr);
-
-    const auto kIntoPresent = CD3DX12_RESOURCE_BARRIER::Transition(
-        *mRenderTargets[mFrameIndex],
-        D3D12_RESOURCE_STATE_RENDER_TARGET,
-        D3D12_RESOURCE_STATE_PRESENT
-    );
-
-    mCommandList->ResourceBarrier(1, &kIntoPresent);
-
-    SM_ASSERT_HR(mCommandList->Close());
 }
 
 void Context::move_to_next_frame() {

@@ -78,6 +78,14 @@
                 { "entry": "vs_main", "target": "vs" },
                 { "entry": "ps_main", "target": "ps" }
             ]
+        },
+        {
+            "name": "simple",
+            "path": "shaders/simple.hlsl",
+            "targets": [
+                { "entry": "vs_main", "target": "vs" },
+                { "entry": "ps_main", "target": "ps" }
+            ]
         }
     ],
     "fonts": [

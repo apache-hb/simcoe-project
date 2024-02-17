@@ -5,12 +5,15 @@ src = [
     'src/result.cpp',
     'src/instance.cpp',
     'src/render.cpp',
+    'src/object.cpp',
+
+    'src/draw.cpp',
 
     reflect.process('data/render.ct'),
 ]
 
 deps = [
-    core, logs, system, math,
+    core, logs, system, math, archive,
     d3d12, d3dx12, d3d12ma, imgui
 ]
 

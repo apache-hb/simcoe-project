@@ -261,13 +261,6 @@ struct PipelineState : public Object<ID3D12PipelineState> {
     void create(Context& context, RootSignature& signature, const PipelineConfig &config);
 };
 
-struct Blob : public Object<ID3DBlob> {
-    std::string_view as_string() const;
-
-    const void *data() const;
-    size_t size() const;
-};
-
 using Barrier = D3D12_RESOURCE_BARRIER;
 
 Barrier transition_barrier(DeviceResource &resource, ResourceState before,
