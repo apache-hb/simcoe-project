@@ -3,11 +3,7 @@
 
 #include "common.hpp"
 
-#include "base/panic.h"
-
 #include "resource.h"
-
-#include <winbase.h>
 
 using namespace sm;
 using namespace sm::sys;
@@ -39,7 +35,7 @@ void sys::create(HINSTANCE hInstance, logs::ILogger &logger) {
         /* name = */ MAKEINTRESOURCEA(IDI_DEFAULT_ICON));
 
     if (hIcon == nullptr) {
-        sink.warn("failed to load icon {}", last_error_string());
+        sink.warn("failed to load icon {}", get_last_error());
     }
 
     HCURSOR hCursor = LoadCursorA(
@@ -47,7 +43,7 @@ void sys::create(HINSTANCE hInstance, logs::ILogger &logger) {
         /* name = */ IDC_ARROW);
 
     if (hCursor == nullptr) {
-        sink.warn("failed to load cursor {}", last_error_string());
+        sink.warn("failed to load cursor {}", get_last_error());
     }
 
     const WNDCLASSEXA kClass = {

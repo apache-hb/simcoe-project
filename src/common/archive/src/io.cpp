@@ -1,13 +1,13 @@
 #include "archive/io.hpp"
+#include "core/arena.hpp"
 
 using namespace sm;
 
 Io Io::file(const char *path, archive::IoAccess access) {
-    auto& pool = get_pool(Pool::eAssets);
-    return Io(io_file(path, access.as_facade(), &pool));
+    return Io(io_file(path, access.as_facade(), sm::global_arena()));
 }
 
-IoError Io::error() const {
+OsError Io::error() const {
     return io_error(get());
 }
 

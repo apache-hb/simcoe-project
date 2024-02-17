@@ -1,28 +1,22 @@
-#include "archive/io.hpp"
 #include "core/arena.hpp"
-#include "core/backtrace.hpp"
-#include "core/format.hpp"
+#include "core/error.hpp"
+// #include "core/format.hpp"
 #include "core/macros.h"
 #include "core/reflect.hpp" // IWYU pragma: keep
+#include "core/span.hpp"
 #include "core/text.hpp"
 #include "core/units.hpp"
-// #include "math/format.hpp"
-#include "logs/sink.inl" // IWYU pragma: keep
 
-#include "service/freetype.hpp"
-
+// #include "archive/io.hpp"
 #include "system/input.hpp"
 #include "system/io.hpp"
 #include "system/system.hpp"
 
 #include "threads/threads.hpp"
 
-#include "render/render.hpp"
-#include "render/draw.hpp"
-
-#include "imgui/imgui.h"
-#include "imgui/backends/imgui_impl_win32.h"
-#include "imgui/backends/imgui_impl_dx12.h"
+// #include "imgui/imgui.h"
+// #include "imgui/backends/imgui_impl_win32.h"
+// #include "imgui/backends/imgui_impl_dx12.h"
 
 #include "backtrace/backtrace.h"
 #include "base/panic.h"
@@ -30,10 +24,10 @@
 #include "format/colour.h"
 #include "io/console.h"
 #include "io/io.h"
-#include "std/str.h"
+
+#include "fmt/ranges.h"
 
 using namespace sm;
-using namespace render;
 using namespace math;
 
 using GlobalSink = logs::Sink<logs::Category::eGlobal>;
@@ -54,13 +48,14 @@ using GlobalSink = logs::Sink<logs::Category::eGlobal>;
 //     NEVER("operator delete[] called");
 // }
 
+#if 0
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
                                                              LPARAM lParam);
+#endif
 
 // TODO: clean up loggers
 
-static std::string_view format_log(sm::FormatBuffer &buffer, const logs::Message &message,
-                                   const char *colour, const char *reset) {
+static std::string format_log(const logs::Message &message, const char *colour, const char *reset) {
     // we dont have fmt/chrono.h because we use it in header only mode
     // so pull out the hours/minutes/seconds/milliseconds manually
 
@@ -69,21 +64,18 @@ static std::string_view format_log(sm::FormatBuffer &buffer, const logs::Message
     auto seconds = (message.timestamp / 1000) % 60;
     auto milliseconds = message.timestamp % 1000;
 
-    fmt::format_to(std::back_inserter(buffer), "{}[{}]{}[{:02}:{:02}:{:02}.{:03}] {}:", colour,
+    auto header = fmt::format("{}[{}]{}[{:02}:{:02}:{:02}.{:03}] {}:", colour,
                    message.severity, reset, hours, minutes, seconds, milliseconds,
                    message.category);
-
-    std::string_view header{buffer.data(), buffer.size()};
 
     return header;
 }
 
 class FileLog final : public logs::ILogger {
-    sm::FormatBuffer m_buffer;
     io_t *io;
 
     void accept(const logs::Message &message) override {
-        std::string_view header = format_log(m_buffer, message, "", "");
+        auto header = format_log(message, "", "");
 
         // ranges is impossible to use without going through a bunch of hoops
         // just iterate over the message split by newlines
@@ -104,20 +96,15 @@ class FileLog final : public logs::ILogger {
                 ++it;
             }
         }
-
-        m_buffer.clear();
     }
 
 public:
-    constexpr FileLog(IArena &arena, io_t *io)
+    constexpr FileLog(io_t *io)
         : ILogger(logs::Severity::eInfo)
-        , m_buffer(arena)
         , io(io) {}
 };
 
 class ConsoleLog final : public logs::ILogger {
-    sm::FormatBuffer m_buffer;
-
     static constexpr colour_t get_colour(logs::Severity severity) {
         using Reflect = ctu::TypeInfo<logs::Severity>;
         CTASSERTF(severity.is_valid(), "invalid severity: %s", Reflect::to_string(severity).data());
@@ -139,7 +126,7 @@ class ConsoleLog final : public logs::ILogger {
         const char *colour = colour_get(pallete, get_colour(message.severity));
         const char *reset = colour_reset(pallete);
 
-        std::string_view header = format_log(m_buffer, message, colour, reset);
+        auto header = format_log(message, colour, reset);
 
         // ranges is impossible to use without going through a bunch of hoops
         // just iterate over the message split by newlines
@@ -158,16 +145,14 @@ class ConsoleLog final : public logs::ILogger {
                 ++it;
             }
         }
-
-        m_buffer.clear();
     }
 
 public:
-    constexpr ConsoleLog(IArena &arena, logs::Severity severity)
-        : ILogger(severity)
-        , m_buffer(arena) {}
+    constexpr ConsoleLog(logs::Severity severity)
+        : ILogger(severity) {}
 };
 
+#if 0
 class BroadcastLog final : public logs::ILogger {
     sm::Vector<logs::ILogger *> m_loggers;
 
@@ -185,27 +170,8 @@ public:
         m_loggers.push_back(logger);
     }
 };
-
-class DefaultArena final : public IArena {
-    using IArena::IArena;
-
-    void *impl_alloc(size_t size) override {
-        return std::malloc(size);
-    }
-
-    void *impl_resize(void *ptr, size_t new_size, size_t old_size) override {
-        CT_UNUSED(old_size);
-
-        return std::realloc(ptr, new_size);
-    }
-
-    void impl_release(void *ptr, size_t size) override {
-        CT_UNUSED(size);
-
-        std::free(ptr);
-    }
-};
-
+#endif
+#if 0
 class TraceArena final : public IArena {
     logs::Sink<logs::Category::eDebug> m_log;
     IArena &m_source;
@@ -242,9 +208,11 @@ public:
         , m_source(source) {}
 };
 
-static print_backtrace_t print_options_make(arena_t *arena, io_t *io) {
+#endif
+
+static print_backtrace_t print_options_make(io_t *io) {
     print_backtrace_t print = {
-        .options = {.arena = arena, .io = io, .pallete = &kColourDefault},
+        .options = {.arena = sm::global_arena(), .io = io, .pallete = &kColourDefault},
         .heading_style = eHeadingGeneric,
         .zero_indexed_lines = false,
         .project_source_path = SMC_SOURCE_DIR,
@@ -254,13 +222,12 @@ static print_backtrace_t print_options_make(arena_t *arena, io_t *io) {
 }
 
 class DefaultSystemError final : public ISystemError {
-    IArena &m_arena;
     bt_report_t *m_report = nullptr;
 
-    void error_begin(os_error_t error) override {
-        m_report = bt_report_new(&m_arena);
+    void error_begin(OsError error) override {
+        m_report = bt_report_new(sm::global_arena());
         io_t *io = io_stderr();
-        io_printf(io, "System error detected: (%s)\n", os_error_string(error, &m_arena));
+        io_printf(io, "System error detected: (%s)\n", error.to_string());
     }
 
     void error_frame(const bt_frame_t *it) override {
@@ -268,14 +235,10 @@ class DefaultSystemError final : public ISystemError {
     }
 
     void error_end() override {
-        const print_backtrace_t kPrintOptions = print_options_make(&m_arena, io_stderr());
+        const print_backtrace_t kPrintOptions = print_options_make(io_stderr());
         print_backtrace(kPrintOptions, m_report);
         std::exit(CT_EXIT_INTERNAL); // NOLINT
     }
-
-public:
-    constexpr DefaultSystemError(IArena &arena)
-        : m_arena(arena) {}
 };
 
 class DefaultWindowEvents final : public sys::IWindowEvents {
@@ -284,18 +247,20 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     sys::WindowPlacement *m_placement = nullptr;
     sys::RecordLookup m_lookup;
 
-    render::Context *m_context = nullptr;
+    //render::Context *m_context = nullptr;
     sys::DesktopInput *m_input = nullptr;
 
     LRESULT event(sys::Window &window, UINT message, WPARAM wparam, LPARAM lparam) override {
         if (m_input) m_input->window_event(message, wparam, lparam);
-        return ImGui_ImplWin32_WndProcHandler(window.get_handle(), message, wparam, lparam);
+
+        return 0;
+        //return ImGui_ImplWin32_WndProcHandler(window.get_handle(), message, wparam, lparam);
     }
 
     void resize(sys::Window &, math::int2 size) override {
-        if (m_context != nullptr) {
-            m_context->resize((uint)size.width, (uint)size.height);
-        }
+        // if (m_context != nullptr) {
+        //     m_context->resize((uint)size.width, (uint)size.height);
+        // }
     }
 
     void create(sys::Window &window) override {
@@ -316,18 +281,17 @@ public:
         : m_store(store)
     { }
 
-    void attach_render(render::Context *context) {
-        m_context = context;
-    }
+    // void attach_render(render::Context *context) {
+    //     m_context = context;
+    // }
 
     void attach_input(sys::DesktopInput *input) {
         m_input = input;
     }
 };
 
-constinit static DefaultArena gGlobalArena{"default"};
-constinit static DefaultSystemError gDefaultError{gGlobalArena};
-static constinit ConsoleLog gConsoleLog{gGlobalArena, logs::Severity::eInfo};
+constinit static DefaultSystemError gDefaultError{};
+static constinit ConsoleLog gConsoleLog{logs::Severity::eInfo};
 
 struct System {
     System(HINSTANCE hInstance) {
@@ -355,14 +319,15 @@ static void common_init(void) {
 
     gPanicHandler = [](source_info_t info, const char *msg, va_list args) {
         io_t *io = io_stderr();
+        arena_t *arena = global_arena();
 
-        const print_backtrace_t kPrintOptions = print_options_make(&gGlobalArena, io);
+        const print_backtrace_t kPrintOptions = print_options_make(io);
 
         auto message = sm::vformat(msg, args);
 
         gConsoleLog.log(logs::Category::eGlobal, logs::Severity::ePanic, message.data());
 
-        bt_report_t *report = bt_report_collect(&gGlobalArena);
+        bt_report_t *report = bt_report_collect(arena);
         print_backtrace(kPrintOptions, report);
 
         std::exit(CT_EXIT_INTERNAL); // NOLINT
@@ -371,6 +336,7 @@ static void common_init(void) {
     //SetConsoleCtrlHandler(ctrlc_handler, TRUE);
 }
 
+#if 0
 class ImGuiRenderPass {
     render::DescriptorIndex mSrvIndex = render::DescriptorIndex::eInvalid;
 
@@ -695,6 +661,7 @@ public:
         //imgui_draw();
     }
 };
+#endif
 
 static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
     sys::WindowConfig window_config = {
@@ -715,6 +682,7 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
 
     window.show_window(show);
 
+#if 0
     render::DebugFlags flags = render::DebugFlags::mask();
     flags.clear(render::DebugFlags::eWarpAdapter);
 
@@ -758,8 +726,10 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
 
     render::Context context{config};
     events.attach_render(&context);
+#endif
 
     {
+#if 0
         //ImGuiRenderPass imgui;
         SceneRenderPass scene{draw};
 
@@ -768,7 +738,7 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
 
         context.flush_copy_queue();
         context.wait_for_gpu();
-
+#endif
         bool done = false;
         while (!done) {
             if (gShouldExit) PostQuitMessage(0);
@@ -789,6 +759,7 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
             if (done) break;
             input.poll();
 
+#if 0
             // dear imgui rendering
 
             //imgui.begin_frame();
@@ -806,9 +777,10 @@ static void message_loop(sys::ShowWindow show, sys::FileMapping &store) {
             //imgui.render(context, commands);
 
             context.end_frame();
+#endif
         }
 
-        context.wait_for_gpu();
+        //context.wait_for_gpu();
 
         //imgui.destroy(context);
     }
@@ -819,8 +791,8 @@ static int common_main(sys::ShowWindow show) {
     general.info("SMC_DEBUG = {}", SMC_DEBUG);
     general.info("CTU_DEBUG = {}", CTU_DEBUG);
 
-    TraceArena ft_arena{"freetype", gGlobalArena, gConsoleLog};
-    service::init_freetype(&ft_arena, &gConsoleLog);
+    //TraceArena ft_arena{"freetype", gGlobalArena, gConsoleLog};
+    //service::init_freetype(&ft_arena, &gConsoleLog);
 
     sys::MappingConfig store_config = {
         .path = "client.bin",
@@ -845,7 +817,7 @@ static int common_main(sys::ShowWindow show) {
 
     message_loop(show, store);
 
-    service::deinit_freetype();
+    //service::deinit_freetype();
     return 0;
 }
 
@@ -853,16 +825,8 @@ int main(int argc, const char **argv) {
     GlobalSink general{gConsoleLog};
     common_init();
 
-    FormatBuffer args{gGlobalArena};
-    auto it = std::back_inserter(args);
-    fmt::format_to(it, "args[{}] = {{", argc);
-    for (int i = 0; i < argc; ++i) {
-        if (i != 0) fmt::format_to(it, ", ");
-        fmt::format_to(it, "[{}] = \"{}\"", i, argv[i]);
-    }
-    fmt::format_to(it, "}}\0");
-
-    general.info("{}", std::string_view{args.data(), args.size()});
+    sm::Span<const char*> args{argv, size_t(argc)};
+    general.info("args = [{}]", fmt::join(args, ", "));
 
     System sys{GetModuleHandleA(nullptr)};
 

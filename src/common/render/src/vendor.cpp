@@ -1,4 +1,4 @@
-#include "render/render.hpp" // IWYU pragma: keep
+#include "core/win32.hpp" // IWYU pragma: export
 
 extern "C" {
 	// ask for the discrete gpu on laptops

@@ -1,10 +1,9 @@
 #pragma once
 
-#include <simcoe_config.h>
-
 #include "base/panic.h" // IWYU pragma: keep
 
-#include "core/debug.hpp"
+#include "core/core.hpp"
+#include "core/macros.hpp"
 
 namespace sm {
     /// @brief A handle to a resource that is automatically destroyed when it goes out of scope.
@@ -143,10 +142,10 @@ namespace sm {
             SM_DBG_ASSERT(index < m_size, "index out of bounds (%zu < %zu)", index, m_size);
         }
 
-        SM_DBG_MEMBER(size_t) m_size;
+        DBG_MEMBER(size_t) m_size;
     };
 
-    SM_REL_STATIC_ASSERT(sizeof(sm::UniquePtr<int>) == sizeof(int*),
+    DBG_STATIC_ASSERT(sizeof(sm::UniquePtr<int>) == sizeof(int*),
         "UniquePtr<T> should be the same size as T* in release"
         "a compiler that supports [[no_unique_address]] or [[msvc::no_unique_address]] is required");
 }

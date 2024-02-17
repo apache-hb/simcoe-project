@@ -1,16 +1,12 @@
 #pragma once
 
-#include "core/arena.hpp"
-
-#include <cstdarg>
-
 #include <string>
 
+#include <stdarg.h>
+
 namespace sm {
-    using StringArena = StandardArena<char>;
-    using WideStringArena = StandardArena<wchar_t>;
-    using String = std::basic_string<char, std::char_traits<char>, StringArena>;
-    using WideString = std::basic_string<wchar_t, std::char_traits<wchar_t>, WideStringArena>;
+    using String = std::string;
+    using WideString = std::wstring;
 
     using StringView = std::string_view;
     using WideStringView = std::wstring_view;

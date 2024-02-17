@@ -1,5 +1,4 @@
 #include "logs/logs.hpp"
-#include "logs/panic.hpp"
 
 #include <chrono>
 

@@ -1,6 +1,7 @@
 #pragma once
 
-#include "math/math.hpp"
+#include "math.hpp"
+
 #include "fmtlib/format.h"
 
 template<typename T>

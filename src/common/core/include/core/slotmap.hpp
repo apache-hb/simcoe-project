@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/array.hpp"
-#include "core/backtrace.hpp"
+#include "core/error.hpp"
 
 #include <atomic>
 #include <stdint.h>

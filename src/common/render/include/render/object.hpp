@@ -5,7 +5,11 @@
 
 #include "render/result.hpp"
 
+#include "core/win32.hpp" // IWYU pragma: export
+
 #include <d3d12.h>
+#include <dxgi1_6.h>
+#include <dxgidebug.h>
 
 namespace sm::render {
 
@@ -22,6 +26,7 @@ constexpr auto kComRelease = [](IUnknown *object) {
 template <ComObject T>
 class Object : public sm::UniquePtr<T, decltype(kComRelease)> {
     using Super = sm::UniquePtr<T, decltype(kComRelease)>;
+
 public:
     using Super::Super;
 
@@ -30,7 +35,7 @@ public:
         return Super::get()->QueryInterface(IID_PPV_ARGS(out));
     }
 
-    void rename(std::string_view name) requires(D3DObject<T>) {
+    void rename(std::string_view name) requires D3DObject<T> {
         Super::get()->SetName(sm::widen(name).c_str());
     }
 };

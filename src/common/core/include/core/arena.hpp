@@ -1,9 +1,6 @@
 #pragma once
 
 #include "arena/arena.h"
-#include "base/panic.h"
-
-#include "core.reflect.h"
 
 namespace sm {
 class IArena : public arena_t {
@@ -44,91 +41,5 @@ public:
     void reparent(const void *ptr, const void *parent);
 };
 
-IArena &get_pool(Pool pool);
-
-template <typename T>
-class StandardArena {
-    IArena &m_arena;
-
-public:
-    constexpr IArena &get_arena() const {
-        return m_arena;
-    }
-    using value_type = T; // NOLINT
-
-    constexpr bool operator==(const StandardArena &) const {
-        return true;
-    }
-    constexpr bool operator!=(const StandardArena &) const {
-        return false;
-    }
-
-    T *allocate(size_t n) const {
-        if (n > SIZE_MAX / sizeof(T)) {
-            return nullptr;
-        }
-
-        if (auto p = static_cast<T *>(m_arena.alloc(n * sizeof(T)))) {
-            return p;
-        }
-
-        NEVER("Arena %s failed to allocate %zu bytes", m_arena.name, n * sizeof(T));
-    }
-
-    void deallocate(T *const p, size_t n) const {
-        m_arena.release(p, n * sizeof(T));
-    }
-
-    constexpr StandardArena(const StandardArena &) = default;
-    constexpr StandardArena(StandardArena &&) = default;
-
-    template <typename O>
-    constexpr StandardArena(const StandardArena<O> &o)
-        : m_arena(o.get_arena()) {}
-
-    StandardArena(Pool poll = Pool::eGlobal)
-        : m_arena(get_pool(poll)) {}
-
-    constexpr StandardArena(IArena &arena)
-        : m_arena(arena) {}
-};
-
-template <typename T, Pool::Inner P>
-    requires(Pool{P}.is_valid())
-struct StandardPool {
-    using value_type = T; // NOLINT
-
-    constexpr IArena &get_arena() const {
-        return sm::get_pool(P);
-    }
-
-    constexpr bool operator==(const StandardPool &) const {
-        return true;
-    }
-    constexpr bool operator!=(const StandardPool &) const {
-        return false;
-    }
-
-    T *allocate(size_t n) const {
-        if (n > SIZE_MAX / sizeof(T)) {
-            return nullptr;
-        }
-
-        if (auto p = static_cast<T *>(get_arena().alloc(n * sizeof(T)))) {
-            return p;
-        }
-
-        NEVER("Arena %s failed to allocate %zu bytes", get_arena().name, n * sizeof(T));
-    }
-
-    void deallocate(T *const p, size_t n) const {
-        get_arena().release(p, n * sizeof(T));
-    }
-
-    constexpr StandardPool() = default;
-    constexpr StandardPool(const StandardPool &) = default;
-
-    template <typename O>
-    constexpr StandardPool(const StandardPool<O, P> &) {}
-};
+arena_t *global_arena();
 } // namespace sm

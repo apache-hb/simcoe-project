@@ -2,17 +2,13 @@
 
 #include <simcoe_config.h>
 
+#include "core/compiler.h"
 #include "core/source_info.h"
 
+#include "core/error.hpp"
 #include "logs/sink.hpp"
 
 #include "system.reflect.h" // IWYU pragma: export
-
-typedef struct arena_t arena_t;
-
-namespace sm {
-class IArena;
-}
 
 #define SM_ASSERT_WIN32(expr)                                  \
     do {                                                       \
@@ -26,7 +22,7 @@ class IArena;
     [&](source_info_t where) -> bool {                                                             \
         if (auto result = (expr); !result) {                                                       \
             (sink).error("[{}:{}] {}: " #expr " = {}. {}", where.file, where.line, where.function, \
-                         result, sm::sys::last_error_string());                                       \
+                         result, sm::sys::get_last_error());                                       \
             return false;                                                                          \
         }                                                                                          \
         return true;                                                                               \
@@ -39,7 +35,7 @@ using SystemSink = logs::Sink<logs::Category::eSystem>;
 CT_NORETURN
 assert_last_error(source_info_t panic, const char *expr);
 
-char *last_error_string();
+OsError get_last_error();
 
 //const char *get_exe_path();
 

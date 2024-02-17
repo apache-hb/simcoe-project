@@ -752,6 +752,8 @@ namespace sm::math {
         return (lhs - rhs).length() < epsilon;
     }
 
+    // NOLINTBEGIN
+
     using int2 = Vec2<int>;
     using int3 = Vec3<int>;
     using int4 = Vec4<int>;
@@ -795,7 +797,11 @@ namespace sm::math {
     static_assert(sizeof(uint16x2) == sizeof(uint16_t) * 2);
     static_assert(sizeof(uint16x3) == sizeof(uint16_t) * 3);
     static_assert(sizeof(uint16x4) == sizeof(uint16_t) * 4);
+
+    // NOLINTEND
 }
+
+// NOLINTBEGIN
 
 namespace std {
     template<typename T>
@@ -814,3 +820,5 @@ namespace std {
     template<size_t I, typename T>
     struct tuple_element<I, sm::math::Vec4<T>> { using type = T; };
 }
+
+// NOLINTEND

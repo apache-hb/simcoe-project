@@ -2,7 +2,7 @@
 
 #include "logs/logs.hpp"
 
-#include "core/format.hpp"
+#include "fmtlib/format.h"
 
 namespace sm::logs {
 
@@ -11,8 +11,6 @@ namespace sm::logs {
 /// @warning this class is not thread-safe
 template <Category::Inner C> requires(Category{C}.is_valid())
 class Sink final {
-    mutable FormatPoolBuffer<Pool::eLogging> m_buffer;
-
     ILogger &m_logger;
 
 public:
@@ -24,7 +22,15 @@ public:
         : m_logger(other.m_logger)
     { }
 
-    void log(Severity severity, std::string_view msg, auto &&...args) const;
+    void log(Severity severity, std::string_view msg, auto &&...args) const {
+        // while ILogger will reject the message, still do an early return
+        // to avoid formatting if we don't need to
+        if (m_logger.will_accept(severity)) {
+            auto text = fmt::vformat(msg, fmt::make_format_args(args...));
+
+            m_logger.log(C, severity, text);
+        }
+    }
 
     void operator()(Severity severity, std::string_view msg, auto &&...args) const {
         log(severity, msg, std::forward<decltype(args)>(args)...);

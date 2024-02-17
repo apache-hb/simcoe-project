@@ -1,10 +1,7 @@
 #include "system/io.hpp"
 
+#include "core/arena.hpp"
 #include "core/reflect.hpp" // IWYU pragma: keep
-
-#include "logs/sink.inl" // IWYU pragma: keep
-
-#include <winbase.h>
 
 using namespace sm::sys;
 
@@ -46,7 +43,7 @@ bool RecordLookup::has_valid_data() const {
 }
 
 bool FileMapping::create() {
-    IArena& arena = sm::get_pool(sm::Pool::eDebug);
+    arena_t *arena = sm::global_arena();
 
     // do first time initialization of file header
     auto setup_file = [&] {
@@ -94,7 +91,7 @@ bool FileMapping::create() {
     static constexpr os_access_t kAccess = os_access_t(eAccessRead | eAccessWrite);
 
     if (os_error_t err = os_file_open(m_path, kAccess, &m_file)) {
-        m_log.error("unable to open file, {}", os_error_string(err, &arena));
+        m_log.error("unable to open file, {}", os_error_string(err, arena));
         return false;
     }
 
@@ -105,7 +102,7 @@ bool FileMapping::create() {
     size_t size_as_bytes = m_size.as_bytes();
 
     if (os_error_t err = os_file_expand(&m_file, size_as_bytes)) {
-        m_log.error("unable to expand file, {}", os_error_string(err, &arena));
+        m_log.error("unable to expand file, {}", os_error_string(err, arena));
         return false;
     }
 
@@ -114,7 +111,7 @@ bool FileMapping::create() {
     static constexpr os_protect_t kProtect = os_protect_t(eProtectRead | eProtectWrite);
 
     if (os_error_t err = os_file_map(&m_file, kProtect, size_as_bytes, &m_mapping)) {
-        m_log.error("unable to map file, {}", os_error_string(err, &arena));
+        m_log.error("unable to map file, {}", os_error_string(err, arena));
         return false;
     }
 

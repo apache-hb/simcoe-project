@@ -4,10 +4,6 @@
 
 #include "logs.reflect.h"
 
-namespace sm {
-class IArena;
-}
-
 namespace sm::logs {
 class ILogger {
     Severity m_severity;

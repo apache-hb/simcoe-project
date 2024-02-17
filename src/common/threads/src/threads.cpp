@@ -5,8 +5,6 @@
 
 #include "system/system.hpp"
 
-#include "logs/sink.inl" // IWYU pragma: keep
-
 #include <errhandlingapi.h>
 #include <processthreadsapi.h>
 #include <sysinfoapi.h>

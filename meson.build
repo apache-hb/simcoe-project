@@ -204,31 +204,22 @@ simcoe_config = configure_file(
 
 config_include = include_directories('.')
 
-subdir('src/vendor/reflect')
-
 # we vendor fmtlib via a small shim header to hook FMT_THROW(x) into cthulhu's error handling
 subdir('src/vendor/fmtlib')
+subdir('src/vendor/reflect')
 
 subdir('src/common/core')
-subdir('src/common/i18n')
 subdir('src/common/math')
-
-# vendor imgui here to have access to our own math library
-subdir('src/vendor/imgui')
-
 subdir('src/common/logs')
 subdir('src/common/archive')
-subdir('src/common/service')
-
-# subdir('src/common/bundle')
-
 subdir('src/common/input')
 subdir('src/common/system')
 subdir('src/common/threads')
 
-subdir('src/common/render')
+# vendor imgui here to have access to our own math library
+subdir('src/vendor/imgui')
 
-#subdir('src/common/ui')
+subdir('src/common/render')
 
 default_ico = custom_target('default_icon',
     input : [ 'data/assets/icon/icon_circle.png' ],
@@ -329,7 +320,7 @@ client = executable('client', 'src/client/src/main.cpp', game_bundle,
         '/manifest:embed', '/manifestinput:' + manifest
     ],
     dependencies : [
-        core, system, logs, threads, imgui, service, render, input, archive,
+        core, system, logs, threads, imgui, render, input, archive,
         cthulhu.get_variable('backtrace'),
         cthulhu.get_variable('format_core'),
         cthulhu.get_variable('io')

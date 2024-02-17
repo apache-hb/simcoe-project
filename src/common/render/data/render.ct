@@ -1,0 +1,24 @@
+module sm::render;
+
+import "system/window.hpp";
+import "logs/logs.hpp";
+import "render/object.hpp";
+
+using Window = opaque("sm::sys::Window")
+using ILogger = opaque("sm::logs::ILogger")
+
+[[facade]]
+variant FeatureLevel : opaque(D3D_FEATURE_LEVEL) {
+    [[format("level 11.0")]] case Level_11_0 = opaque(D3D_FEATURE_LEVEL_11_0)
+    [[format("level 11.1")]] case Level_11_1 = opaque(D3D_FEATURE_LEVEL_11_1)
+    [[format("level 12.0")]] case Level_12_0 = opaque(D3D_FEATURE_LEVEL_12_0)
+    [[format("level 12.1")]] case Level_12_1 = opaque(D3D_FEATURE_LEVEL_12_1)
+    [[format("level 12.2")]] case Level_12_2 = opaque(D3D_FEATURE_LEVEL_12_2)
+}
+
+[[facade, bitflags]]
+variant AdapterPreference : opaque(DXGI_GPU_PREFERENCE) {
+    [[format("default")]] default Default = opaque(DXGI_GPU_PREFERENCE_UNSPECIFIED)
+    [[format("low_power")]] case MinimumPower = opaque(DXGI_GPU_PREFERENCE_MINIMUM_POWER)
+    [[format("high_performance")]] case HighPerformance = opaque(DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE)
+}
