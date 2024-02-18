@@ -123,7 +123,7 @@ namespace sm::render {
         D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
         void create_triangle();
 
-        struct {
+        struct Cube {
             Object<ID3D12RootSignature> mRootSignature;
             Object<ID3D12PipelineState> mPipelineState;
 
@@ -154,6 +154,8 @@ namespace sm::render {
 
             float4x4 mvp(float aspect) const;
         } mCamera;
+
+        void update_camera();
 
         void create_pipeline();
         void create_assets();

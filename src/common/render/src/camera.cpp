@@ -8,7 +8,7 @@ float4x4 Context::Camera::model() const {
 }
 
 float4x4 Context::Camera::view() const {
-    return float4x4::lookToRH(position, direction, kVectorUp);
+    return float4x4::lookAtRH(position, direction, kVectorUp);
 }
 
 float4x4 Context::Camera::projection(float aspect) const {

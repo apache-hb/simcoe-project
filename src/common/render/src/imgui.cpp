@@ -56,6 +56,15 @@ void Context::destroy_imgui_device() {
     ImGui_ImplWin32_Shutdown();
 }
 
+void Context::update_camera() {
+    ImGui::SeparatorText("Camera");
+
+    ImGui::SliderFloat("fov", &mCamera.fov, 0.1f, 3.14f);
+    ImGui::SliderFloat3("position", &mCamera.position.x, -10.f, 10.f);
+    ImGui::SliderFloat3("direction", &mCamera.direction.x, -1.f, 1.f);
+    ImGui::SliderFloat("speed", &mCamera.speed, 0.1f, 10.f);
+}
+
 void Context::update_imgui() {
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
@@ -88,6 +97,11 @@ void Context::update_imgui() {
                 ImGui::TreePop();
             }
         }
+    }
+    ImGui::End();
+
+    if (ImGui::Begin("World Settings")) {
+        update_camera();
     }
     ImGui::End();
 

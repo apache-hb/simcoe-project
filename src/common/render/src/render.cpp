@@ -620,7 +620,7 @@ void Context::build_command_list() {
     /// cube
 
     auto [width, height] = mSwapChainSize.as<float>();
-    const float4x4 mvp = mCamera.mvp(width / height);
+    const float4x4 mvp = mCamera.mvp(width / height).transpose();
 
     mCommandList->SetGraphicsRootSignature(*mCube.mRootSignature);
     mCommandList->SetPipelineState(*mCube.mPipelineState);
