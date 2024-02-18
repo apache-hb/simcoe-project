@@ -1,5 +1,6 @@
 module sm::draw;
 
+[[table, iterator]]
 variant MeshType {
     [[format("Unknown")]] default None
     [[format("Cube")]] case Cube

@@ -5,7 +5,29 @@
 #include "imgui/backends/imgui_impl_win32.h"
 
 using namespace sm;
+using namespace sm::draw;
 using namespace sm::render;
+
+static constexpr MeshInfo get_default_info(MeshType type) {
+    switch (type.as_enum()) {
+    case MeshType::eCube:
+        return { .type = type, .cube = {1.f, 1.f, 1.f} };
+    case MeshType::eSphere:
+        return { .type = type, .sphere = {1.f, 6, 6} };
+    case MeshType::eCylinder:
+        return { .type = type, .cylinder = {1.f, 1.f, 8} };
+    case MeshType::ePlane:
+        return { .type = type, .plane = {1.f, 1.f} };
+    case MeshType::eWedge:
+        return { .type = type, .wedge = {1.f, 1.f, 1.f} };
+    case MeshType::eCapsule:
+        return { .type = type, .capsule = {1.f, 5.f} };
+    case MeshType::eGeoSphere:
+        return { .type = type, .geosphere = {1.f, 2} };
+    default:
+        return { .type = type };
+    }
+}
 
 void Context::create_imgui() {
     IMGUI_CHECKVERSION();
@@ -29,6 +51,12 @@ void Context::create_imgui() {
                         mConfig.swapchain_format, *mSrvHeap,
                         mSrvHeap->GetCPUDescriptorHandleForHeapStart(),
                         mSrvHeap->GetGPUDescriptorHandleForHeapStart());
+
+
+    auto cases = MeshType::cases();
+    for (MeshType i : cases) {
+        mMeshCreateInfo[i] = get_default_info(i);
+    }
 }
 
 void Context::destroy_imgui() {
@@ -63,6 +91,26 @@ void Context::update_camera() {
     ImGui::SliderFloat3("position", &mCamera.position.x, -10.f, 10.f);
     ImGui::SliderFloat3("direction", &mCamera.direction.x, -1.f, 1.f);
     ImGui::SliderFloat("speed", &mCamera.speed, 0.1f, 10.f);
+}
+
+template<ctu::Reflected T> requires (ctu::is_enum<T>())
+static bool EnumCombo(const char *label, typename ctu::TypeInfo<T>::Type &choice) {
+    using Reflect = ctu::TypeInfo<T>;
+    const auto id = Reflect::to_string(choice);
+    if (ImGui::BeginCombo(label, id.c_str())) {
+        for (size_t i = 0; i < std::size(Reflect::kCases); i++) {
+            const auto &[name, value] = Reflect::kCases[i];
+            bool selected = choice == value;
+            if (ImGui::Selectable(name.c_str(), selected)) {
+                choice = value;
+            }
+            if (selected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+    return true;
 }
 
 void Context::update_imgui() {
@@ -108,13 +156,69 @@ void Context::update_imgui() {
 
         ImGui::SeparatorText("Scene");
 
+        if (ImGui::Button("Create new primitive")) {
+            ImGui::OpenPopup("New Primitive");
+        }
+
+        if (ImGui::BeginPopup("New Primitive")) {
+            static draw::MeshType type = draw::MeshType::eCube;
+            EnumCombo<draw::MeshType>("Type", type);
+
+            auto& info = mMeshCreateInfo[type];
+
+            switch (type.as_enum()) {
+            case draw::MeshType::eCube:
+                ImGui::SliderFloat("Width", &info.cube.width, 0.1f, 10.f);
+                ImGui::SliderFloat("Height", &info.cube.height, 0.1f, 10.f);
+                ImGui::SliderFloat("Depth", &info.cube.depth, 0.1f, 10.f);
+                break;
+            case draw::MeshType::eSphere:
+                ImGui::SliderFloat("Radius", &info.sphere.radius, 0.1f, 10.f);
+                ImGui::SliderInt("Slices", &info.sphere.slices, 3, 32);
+                ImGui::SliderInt("Stacks", &info.sphere.stacks, 3, 32);
+                break;
+            case draw::MeshType::eCylinder:
+                ImGui::SliderFloat("Radius", &info.cylinder.radius, 0.1f, 10.f);
+                ImGui::SliderFloat("Height", &info.cylinder.height, 0.1f, 10.f);
+                ImGui::SliderInt("Slices", &info.cylinder.slices, 3, 32);
+                break;
+            case draw::MeshType::ePlane:
+                ImGui::SliderFloat("Width", &info.plane.width, 0.1f, 10.f);
+                ImGui::SliderFloat("Depth", &info.plane.depth, 0.1f, 10.f);
+                break;
+            case draw::MeshType::eWedge:
+                ImGui::SliderFloat("Width", &info.wedge.width, 0.1f, 10.f);
+                ImGui::SliderFloat("Depth", &info.wedge.depth, 0.1f, 10.f);
+                ImGui::SliderFloat("Height", &info.wedge.height, 0.1f, 10.f);
+                break;
+            case draw::MeshType::eCapsule:
+                ImGui::SliderFloat("Radius", &info.capsule.radius, 0.1f, 10.f);
+                ImGui::SliderFloat("Height", &info.capsule.height, 0.1f, 10.f);
+                break;
+            case draw::MeshType::eGeoSphere:
+                ImGui::SliderFloat("Radius", &info.geosphere.radius, 0.1f, 10.f);
+                ImGui::SliderInt("Subdivisions", &info.geosphere.subdivisions, 1, 8);
+                break;
+            default:
+                ImGui::Text("Unimplemented primitive type");
+                break;
+            }
+
+            if (ImGui::Button("Create")) {
+                mPrimitives.push_back(create_mesh(info));
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::EndPopup();
+        }
+
         for (auto& primitive : mPrimitives) {
             const auto& info = primitive.mInfo;
             using Reflect = ctu::TypeInfo<draw::MeshType>;
             auto name = Reflect::to_string(info.type);
             if (ImGui::TreeNodeEx((void*)&primitive, ImGuiTreeNodeFlags_DefaultOpen, "%s", name.data())) {
-                switch (info.type) {
-                case draw::MeshType::eCube:
+                switch (info.type.as_enum()) {
+                case MeshType::eCube:
                     ImGui::Text("Width: %f", info.cube.width);
                     ImGui::Text("Height: %f", info.cube.height);
                     ImGui::Text("Depth: %f", info.cube.depth);

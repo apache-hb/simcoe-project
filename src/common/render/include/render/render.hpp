@@ -186,6 +186,8 @@ namespace sm::render {
         void wait_for_gpu();
         void flush_copy_queue();
 
+        draw::MeshInfo mMeshCreateInfo[draw::MeshType::kCount];
+
         void create_imgui();
         void destroy_imgui();
 

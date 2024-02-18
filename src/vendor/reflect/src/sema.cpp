@@ -6,8 +6,7 @@
 #include "std/map.h"
 #include "std/str.h"
 #include "std/vector.h"
-#include <climits>
-#include <cstdio>
+#include "core/macros.h"
 
 using namespace refl;
 
@@ -1369,6 +1368,11 @@ void Variant::emit_impl(Sema& sema, cxx_emit_t *out) const
         cxx_writeln(out, "constexpr operator underlying_t() const { return as_integral(); }");
     }
 
+    if (is_lookup && is_iterator)
+    {
+        cxx_writeln(out, "static constexpr Range cases() { return Range((wrapper_t)kMin, (wrapper_t)kMax); }");
+    }
+
     cxx_nl(out);
     cxx_writeln(out, "constexpr bool operator==(wrapper_t other) const { return m_value == other; }");
     cxx_writeln(out, "constexpr bool operator!=(wrapper_t other) const { return m_value != other; }");
@@ -1677,8 +1681,10 @@ size_t Variant::max_tostring() const {
     m_cases.foreach([&](auto c)
     {
         size_t len = ctu_strlen(c->get_name());
-        if (len > max)
-            max = len;
+        max = CT_MAX(max, len);
+
+        len = ctu_strlen(c->get_repr());
+        max = CT_MAX(max, len);
     });
 
     return max + 1;

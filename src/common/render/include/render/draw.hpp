@@ -23,6 +23,8 @@ namespace sm::draw {
 
     struct Sphere {
         float radius;
+        int slices;
+        int stacks;
     };
 
     struct Cylinder {

@@ -100,7 +100,7 @@ static Mesh cube(const Cube &cube) {
 }
 
 Mesh draw::primitive(const MeshInfo &info) {
-    switch (info.type) {
+    switch (info.type.as_enum()) {
     case MeshType::eCube:
         return cube(info.cube);
 
