@@ -84,11 +84,9 @@ void Context::enable_dred() {
     }
 }
 
-void Context::create_device() {
+void Context::create_device(size_t index) {
     auto flags = mInstance.flags();
-    auto& adapter = flags.test(DebugFlags::eWarpAdapter)
-        ? mInstance.warp_adapter()
-        : mInstance.get_adapter(mAdapterIndex);
+    auto& adapter = mInstance.get_adapter(index);
 
     if (flags.test(DebugFlags::eDeviceDebugLayer))
         enable_debug_layer(flags.test(DebugFlags::eGpuValidation), flags.test(DebugFlags::eAutoName));
@@ -98,15 +96,15 @@ void Context::create_device() {
 
     auto fl = get_feature_level();
 
-    mAdapter = std::addressof(adapter);
+    mAdapterIndex = index;
     if (Result hr = D3D12CreateDevice(adapter.get(), fl.as_facade(), IID_PPV_ARGS(&mDevice)); !hr) {
         mSink.error("failed to create device `{}` at feature level `{}`", adapter.name(), fl, hr);
         mSink.error("| hresult: {}", hr);
         mSink.error("falling back to warp adapter...");
 
-        auto& warp = mInstance.warp_adapter();
-        SM_ASSERT_HR(D3D12CreateDevice(warp.get(), fl.as_facade(), IID_PPV_ARGS(&mDevice)));
-        mAdapter = std::addressof(warp);
+        mAdapterIndex = mInstance.warp_adapter_index();
+        auto& warp_adapter = mInstance.get_adapter(mAdapterIndex);
+        SM_ASSERT_HR(D3D12CreateDevice(warp_adapter.get(), fl.as_facade(), IID_PPV_ARGS(&mDevice)));
     }
 
     mSink.info("device created: {}", adapter.name());
@@ -124,7 +122,7 @@ void Context::create_allocator() {
     const D3D12MA::ALLOCATOR_DESC kAllocatorDesc = {
         .Flags = kAllocatorFlags,
         .pDevice = mDevice.get(),
-        .pAdapter = mAdapter->get(),
+        .pAdapter = *mInstance.get_adapter(mAdapterIndex),
     };
 
     SM_ASSERT_HR(D3D12MA::CreateAllocator(&kAllocatorDesc, &mAllocator));
@@ -174,7 +172,7 @@ void Context::create_pipeline() {
     HWND hwnd = mConfig.window.get_handle();
 
     Object<IDXGISwapChain1> swapchain1;
-    SM_ASSERT_HR(factory->CreateSwapChainForHwnd(mDirectQueue.get(), hwnd, &kSwapChainDesc, nullptr, nullptr, &swapchain1));
+    SM_ASSERT_HR(factory->CreateSwapChainForHwnd(*mDirectQueue, hwnd, &kSwapChainDesc, nullptr, nullptr, &swapchain1));
 
     if (tearing)
     {
@@ -454,6 +452,49 @@ void Context::build_command_list() {
     SM_ASSERT_HR(mCommandList->Close());
 }
 
+void Context::destroy_device() {
+    // release frame resources
+    for (uint i = 0; i < mSwapChainLength; i++) {
+        mFrames[i].mRenderTarget.reset();
+        mFrames[i].mCommandAllocator.reset();
+    }
+
+    // release sync objects
+    mFence.reset();
+    mCopyFence.reset();
+
+    // assets
+    mVertexBuffer.reset();
+
+    // pipeline state
+    mRootSignature.reset();
+    mPipelineState.reset();
+
+    // copy commands
+    mCopyCommands.reset();
+    mCopyAllocator.reset();
+    mCopyQueue.reset();
+
+    // direct commands
+    mDirectQueue.reset();
+    mCommandList.reset();
+
+    // allocator
+    mAllocator.reset();
+
+    // descriptor heaps
+    mRtvHeap.reset();
+    mSrvHeap.reset();
+
+    // swapchain
+    mSwapChain.reset();
+
+    // device
+    mDebug.reset();
+    mInfoQueue.reset();
+    mDevice.reset();
+}
+
 Context::Context(const RenderConfig& config)
     : mConfig(config)
     , mSink(config.logger)
@@ -461,7 +502,11 @@ Context::Context(const RenderConfig& config)
 { }
 
 void Context::create() {
-    create_device();
+    size_t index = mConfig.flags.test(DebugFlags::eWarpAdapter)
+        ? mInstance.warp_adapter_index()
+        : mConfig.adapter_index;
+
+    create_device(index);
     create_allocator();
     create_copy_queue();
     create_copy_fence();
@@ -495,6 +540,31 @@ void Context::render() {
     SM_ASSERT_HR(mSwapChain->Present(0, flags));
 
     move_to_next_frame();
+}
+
+void Context::update_adapter(size_t index) {
+    if (index == mAdapterIndex) return;
+
+    wait_for_gpu();
+    destroy_imgui_device();
+    destroy_device();
+
+    create_device(index);
+    mSink.info("adapter changed to `{}`", mInstance.get_adapter(index).name());
+    create_allocator();
+    mSink.info("allocator created");
+    create_copy_queue();
+    mSink.info("copy queue created");
+    create_copy_fence();
+    mSink.info("copy fence created");
+    create_pipeline();
+    mSink.info("pipeline created");
+    create_assets();
+    mSink.info("assets created");
+
+    create_imgui_device();
+    mSink.info("imgui device created");
+    update_imgui();
 }
 
 void Context::update_swapchain_length(uint length) {

@@ -45,15 +45,6 @@ bool Instance::enum_by_preference() {
     return true;
 }
 
-void Instance::enum_warp_adapter() {
-    IDXGIAdapter1 *adapter;
-    SM_ASSERT_HR(mFactory->EnumWarpAdapter(IID_PPV_ARGS(&adapter)));
-    mWarpAdapter = adapter;
-
-    mSink.info("| warp adapter: {}", mWarpAdapter.name());
-    log_adapter(mWarpAdapter, mSink);
-}
-
 void Instance::enum_adapters() {
     IDXGIAdapter1 *adapter;
     for (UINT i = 0; mFactory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; ++i) {
@@ -72,9 +63,9 @@ void Instance::enable_leak_tracking() {
 }
 
 void Instance::query_tearing_support() {
-    Object<IDXGIFactory6> factory;
+    Object<IDXGIFactory5> factory;
     if (Result hr = mFactory.query(&factory); !hr) {
-        mSink.warn("failed to query factory6: {}", hr);
+        mSink.warn("failed to query factory5: {}", hr);
         return;
     }
 
@@ -103,8 +94,6 @@ Instance::Instance(InstanceConfig config)
     mSink.info("instance config");
     mSink.info("| flags: {}", config.flags);
 
-    enum_warp_adapter();
-
     if (!enum_by_preference()) enum_adapters();
 }
 
@@ -115,11 +104,19 @@ Instance::~Instance() {
     }
 }
 
-Adapter &Instance::warp_adapter() {
-    return mWarpAdapter;
+size_t Instance::warp_adapter_index() {
+    for (size_t i = 0; i < mAdapters.size(); i++) {
+        if (mAdapters[i].flags().test(AdapterFlag::eSoftware)) return i;
+    }
+    return SIZE_MAX;
 }
+
 Adapter &Instance::get_adapter(size_t index) {
     return mAdapters[index];
+}
+
+sm::Vector<Adapter> &Instance::get_adapters() {
+    return mAdapters;
 }
 
 Object<IDXGIFactory4> &Instance::factory() {

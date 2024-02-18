@@ -50,7 +50,6 @@ namespace sm::render {
 
         /// device creation and physical adapters
         size_t mAdapterIndex;
-        Adapter *mAdapter = nullptr;
         DeviceHandle mDevice;
         Object<ID3D12Debug1> mDebug;
         Object<ID3D12InfoQueue1> mInfoQueue;
@@ -61,7 +60,7 @@ namespace sm::render {
         void enable_debug_layer(bool gbv, bool rename);
         void enable_dred();
         void enable_info_queue();
-        void create_device();
+        void create_device(size_t adapter);
 
         // resource allocator
         Object<D3D12MA::Allocator> mAllocator;
@@ -129,10 +128,16 @@ namespace sm::render {
         void create_imgui();
         void destroy_imgui();
 
+        void create_imgui_device();
+        void destroy_imgui_device();
+
         void update_imgui();
         void render_imgui();
 
+        void update_adapter(size_t index);
         void update_swapchain_length(uint length);
+
+        void destroy_device();
 
     public:
         Context(const RenderConfig& config);

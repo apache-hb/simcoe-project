@@ -25,7 +25,7 @@ void Context::create_imgui() {
     }
 
     ImGui_ImplWin32_Init(mConfig.window.get_handle());
-    ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mConfig.swapchain_length),
+    ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mSwapChainLength),
                         mConfig.swapchain_format, *mSrvHeap,
                         mSrvHeap->GetCPUDescriptorHandleForHeapStart(),
                         mSrvHeap->GetGPUDescriptorHandleForHeapStart());
@@ -37,6 +37,25 @@ void Context::destroy_imgui() {
     ImGui::DestroyContext();
 }
 
+void Context::create_imgui_device() {
+    mSink.info("creating imgui device");
+    ImGui_ImplWin32_Init(mConfig.window.get_handle());
+    ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mSwapChainLength),
+                        mConfig.swapchain_format, *mSrvHeap,
+                        mSrvHeap->GetCPUDescriptorHandleForHeapStart(),
+                        mSrvHeap->GetGPUDescriptorHandleForHeapStart());
+
+    ImGui_ImplDX12_CreateDeviceObjects();
+    ImGui_ImplDX12_NewFrame();
+}
+
+void Context::destroy_imgui_device() {
+    mSink.info("destroying imgui device");
+    ImGui_ImplDX12_InvalidateDeviceObjects();
+    ImGui_ImplDX12_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+}
+
 void Context::update_imgui() {
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
@@ -44,22 +63,47 @@ void Context::update_imgui() {
 
     ImGui::ShowDemoWindow();
 
+    int current = int_cast<int>(mAdapterIndex);
     if (ImGui::Begin("Render Config")) {
-        int swapchain_length = int_cast<int>(mSwapChainLength);
-        if (ImGui::SliderInt("Swapchain Length", &swapchain_length, 2, DXGI_MAX_SWAP_CHAIN_BUFFERS)) {
-            update_swapchain_length(int_cast<uint>(swapchain_length));
+        int backbuffers = int_cast<int>(mSwapChainLength);
+        if (ImGui::SliderInt("Swapchain Length", &backbuffers, 2, DXGI_MAX_SWAP_CHAIN_BUFFERS)) {
+            update_swapchain_length(int_cast<uint>(backbuffers));
+        }
+
+        ImGui::SeparatorText("Adapters");
+        const auto& adapters = mInstance.get_adapters();
+        for (size_t i = 0; i < adapters.size(); i++) {
+            auto& adapter = adapters[i];
+            auto name = adapter.name();
+            using Reflect = ctu::TypeInfo<AdapterFlag>;
+
+            ImGui::RadioButton(name.data(), &current, int_cast<int>(i));
+            ImGui::SameLine();
+
+            if (ImGui::TreeNodeEx((void*)name.data(), ImGuiTreeNodeFlags_DefaultOpen, "")) {
+                ImGui::Text("video memory: %s", adapter.vidmem().to_string().c_str());
+                ImGui::Text("system memory: %s", adapter.sysmem().to_string().c_str());
+                ImGui::Text("shared memory: %s", adapter.sharedmem().to_string().c_str());
+                ImGui::Text("flags: %s", Reflect::to_string(adapter.flags()).data());
+                ImGui::TreePop();
+            }
         }
     }
     ImGui::End();
-}
 
-void Context::render_imgui() {
     ImGui::Render();
-    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), *mCommandList);
 
     ImGuiIO& io = ImGui::GetIO();
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
         ImGui::UpdatePlatformWindows();
         ImGui::RenderPlatformWindowsDefault(nullptr, *mCommandList);
     }
+
+    if (current != (int)mAdapterIndex) {
+        update_adapter(current);
+    }
+}
+
+void Context::render_imgui() {
+    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), *mCommandList);
 }
