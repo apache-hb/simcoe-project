@@ -86,10 +86,13 @@ void Context::update_imgui() {
             auto name = adapter.name();
             using Reflect = ctu::TypeInfo<AdapterFlag>;
 
-            ImGui::RadioButton(name.data(), &current, int_cast<int>(i));
+            char label[32];
+            (void)snprintf(label, sizeof(label), "##%zu", i);
+
+            ImGui::RadioButton(label, &current, int_cast<int>(i));
             ImGui::SameLine();
 
-            if (ImGui::TreeNodeEx((void*)name.data(), ImGuiTreeNodeFlags_DefaultOpen, "")) {
+            if (ImGui::TreeNodeEx((void*)name.data(), ImGuiTreeNodeFlags_DefaultOpen, "%s", name.data())) {
                 ImGui::Text("video memory: %s", adapter.vidmem().to_string().c_str());
                 ImGui::Text("system memory: %s", adapter.sysmem().to_string().c_str());
                 ImGui::Text("shared memory: %s", adapter.sharedmem().to_string().c_str());
