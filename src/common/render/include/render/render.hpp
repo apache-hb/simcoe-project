@@ -11,7 +11,6 @@ namespace sm::render {
     struct Context;
 
     using DeviceHandle = Object<ID3D12Device1>;
-    using FenceHandle = Object<ID3D12Fence>;
 
     constexpr float3 kVectorForward = {1.f, 0.f, 0.f};
     constexpr float3 kVectorRight = {0.f, 1.f, 0.f};
@@ -168,24 +167,12 @@ namespace sm::render {
         void init_simple_pipeline();
 
         /// copy queue and commands
-        struct CopyCommands final : IDependency {
-            Object<ID3D12CommandQueue> mQueue;
-            Object<ID3D12CommandAllocator> mAllocator;
-            Object<ID3D12GraphicsCommandList1> mCommands;
+        Object<ID3D12CommandQueue> mCopyQueue;
+        Object<ID3D12CommandAllocator> mCopyAllocator;
+        Object<ID3D12GraphicsCommandList1> mCopyCommands;
+        void create_copy_queue();
 
-            constexpr CopyCommands()
-                : IDependency(DependsOn::eDevice)
-            { }
-
-            void do_create(Context& context, DependsOn reason) override;
-            void do_destroy(Context& context, DependsOn reason) override;
-
-            Result signal(FenceHandle& fence, uint64 value);
-        } mCopy;
-
-        void init_copy_queue();
-
-        FenceHandle mCopyFence;
+        Object<ID3D12Fence> mCopyFence;
         HANDLE mCopyFenceEvent;
         uint64 mCopyFenceValue;
         void create_copy_fence();
@@ -248,7 +235,7 @@ namespace sm::render {
 
         uint mFrameIndex;
         HANDLE mFenceEvent;
-        FenceHandle mFence;
+        Object<ID3D12Fence> mFence;
 
         void copy_buffer(Object<ID3D12GraphicsCommandList1>& list, Resource& dst, Resource& src, size_t size);
 
