@@ -478,6 +478,21 @@ void Field::resolve_type(Sema& sema)
     set_type(ty);
 }
 
+static bool has_attrib_tag(const vector_t *attribs, ref_attrib_tag_t tag)
+{
+    for (size_t i = 0; i < vector_len(attribs); i++)
+    {
+        ref_ast_t *attrib = (ref_ast_t*)vector_get(attribs, i);
+        if (attrib->kind != eAstAttribTag)
+            continue;
+
+        if (attrib->attrib == tag)
+            return true;
+    }
+
+    return false;
+}
+
 Case::Case(ref_ast_t *ast)
     : TreeBackedDecl(ast, eKindCase)
 { }
@@ -509,6 +524,10 @@ bool Case::is_opaque_case() const {
     return m_eval == eEvalOpaque;
 }
 
+bool Case::is_empty_case() const {
+    return has_attrib_tag(m_ast->attributes, eAttribEmpty);
+}
+
 bool Case::is_blank_case() const {
     return m_ast->value == nullptr;
 }
@@ -518,21 +537,6 @@ bool Case::get_integer(mpz_t out) const {
     {
         mpz_init_set(out, digit_value);
         return true;
-    }
-
-    return false;
-}
-
-static bool has_attrib_tag(const vector_t *attribs, ref_attrib_tag_t tag)
-{
-    for (size_t i = 0; i < vector_len(attribs); i++)
-    {
-        ref_ast_t *attrib = (ref_ast_t*)vector_get(attribs, i);
-        if (attrib->kind != eAstAttribTag)
-            continue;
-
-        if (attrib->attrib == tag)
-            return true;
     }
 
     return false;
@@ -1706,6 +1710,10 @@ Case *Variant::get_zero_case() const
         {
             if (mpz_cmp_ui(id, 0) == 0)
                 return c;
+        }
+        else if (c->is_empty_case())
+        {
+            return c;
         }
     }
 

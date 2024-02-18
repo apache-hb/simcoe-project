@@ -183,8 +183,6 @@ void Context::create_pipeline() {
     SM_ASSERT_HR(mDevice->CreateCommandQueue(&kQueueDesc, IID_PPV_ARGS(&mDirectQueue)));
 
     bool tearing = mInstance.tearing_support();
-    mSwapChainSize = mConfig.swapchain_size;
-    mSwapChainLength = mConfig.swapchain_length;
     const DXGI_SWAP_CHAIN_DESC1 kSwapChainDesc = {
         .Width = mSwapChainSize.width,
         .Height = mSwapChainSize.height,
@@ -415,7 +413,7 @@ void Context::create_triangle() {
     flush_copy_queue();
 }
 
-void Context::create_cube_pipeline() {
+void Context::create_primitive_pipeline() {
     {
         // mvp matrix
         CD3DX12_ROOT_PARAMETER1 params[1];
@@ -424,7 +422,7 @@ void Context::create_cube_pipeline() {
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
         desc.Init_1_1(1, params, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-        serialize_root_signature(mCube.mRootSignature, desc);
+        serialize_root_signature(mPrimitive.mRootSignature, desc);
     }
 
     {
@@ -437,7 +435,7 @@ void Context::create_cube_pipeline() {
         };
 
         const D3D12_GRAPHICS_PIPELINE_STATE_DESC kDesc = {
-            .pRootSignature = mCube.mRootSignature.get(),
+            .pRootSignature = mPrimitive.mRootSignature.get(),
             .VS = CD3DX12_SHADER_BYTECODE(vs.data(), vs.size()),
             .PS = CD3DX12_SHADER_BYTECODE(ps.data(), ps.size()),
             .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
@@ -450,7 +448,7 @@ void Context::create_cube_pipeline() {
             .SampleDesc = { 1, 0 },
         };
 
-        SM_ASSERT_HR(mDevice->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&mCube.mPipelineState)));
+        SM_ASSERT_HR(mDevice->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&mPrimitive.mPipelineState)));
     }
 }
 
@@ -558,16 +556,19 @@ void Context::create_cube() {
     mCube.mIndexCount = mesh.indices.size();
 }
 
+void Context::destroy_primitive_pipeline() {
+    mPrimitive.mPipelineState.reset();
+    mPrimitive.mRootSignature.reset();
+}
+
 void Context::destroy_cube() {
-    mCube.mRootSignature.reset();
-    mCube.mPipelineState.reset();
     mCube.mVertexBuffer.reset();
     mCube.mIndexBuffer.reset();
 }
 
 void Context::create_assets() {
     create_pipeline_state();
-    create_cube_pipeline();
+    create_primitive_pipeline();
 
     SM_ASSERT_HR(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, *mFrames[mFrameIndex].mCommandAllocator, nullptr, IID_PPV_ARGS(&mCommandList)));
     SM_ASSERT_HR(mCommandList->Close());
@@ -622,8 +623,8 @@ void Context::build_command_list() {
     auto [width, height] = mSwapChainSize.as<float>();
     const float4x4 mvp = mCamera.mvp(width / height).transpose();
 
-    mCommandList->SetGraphicsRootSignature(*mCube.mRootSignature);
-    mCommandList->SetPipelineState(*mCube.mPipelineState);
+    mCommandList->SetGraphicsRootSignature(*mPrimitive.mRootSignature);
+    mCommandList->SetPipelineState(*mPrimitive.mPipelineState);
 
     mCommandList->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
 
@@ -631,7 +632,6 @@ void Context::build_command_list() {
     mCommandList->IASetIndexBuffer(&mCube.mIndexBufferView);
 
     mCommandList->DrawIndexedInstanced(mCube.mIndexCount, 1, 0, 0, 0);
-
 
     /// imgui
 
@@ -670,6 +670,7 @@ void Context::destroy_device() {
     // pipeline state
     mRootSignature.reset();
     mPipelineState.reset();
+    destroy_primitive_pipeline();
 
     // copy commands
     mCopyCommands.reset();
@@ -700,6 +701,8 @@ Context::Context(const RenderConfig& config)
     : mConfig(config)
     , mSink(config.logger)
     , mInstance({ config.flags, config.preference, config.logger })
+    , mSwapChainSize(config.swapchain_size)
+    , mSwapChainLength(config.swapchain_length)
 { }
 
 void Context::create() {

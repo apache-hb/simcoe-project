@@ -41,7 +41,7 @@ variant DebugFlags {
 
 [[facade, bitflags]]
 variant AdapterFlag : uint {
-    [[format("none")]] default None = opaque(DXGI_ADAPTER_FLAG_NONE)
+    [[format("none"), empty]] default None = opaque(DXGI_ADAPTER_FLAG_NONE)
     [[format("remote")]] case Remote = opaque(DXGI_ADAPTER_FLAG_REMOTE)
     [[format("software")]] case Software = opaque(DXGI_ADAPTER_FLAG_SOFTWARE)
 }

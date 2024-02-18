@@ -122,6 +122,9 @@ typedef enum ref_attrib_tag_t
     // generate d3d12 input element description
     eAttribVertexInput,
 
+    // the empty value of an enum
+    eAttribEmpty,
+
     ///
     /// these have a string arg
     ///

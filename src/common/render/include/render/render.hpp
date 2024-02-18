@@ -123,10 +123,15 @@ namespace sm::render {
         D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
         void create_triangle();
 
-        struct Cube {
+        struct {
             Object<ID3D12RootSignature> mRootSignature;
             Object<ID3D12PipelineState> mPipelineState;
+        } mPrimitive;
 
+        void create_primitive_pipeline();
+        void destroy_primitive_pipeline();
+
+        struct Primitive {
             Resource mVertexBuffer;
             D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
 
@@ -136,10 +141,9 @@ namespace sm::render {
             uint32 mIndexCount;
         } mCube;
 
+        void create_cube();
         void destroy_cube();
 
-        void create_cube_pipeline();
-        void create_cube();
 
         struct Camera {
             float3 position = {3.f, 0.f, 0.f};

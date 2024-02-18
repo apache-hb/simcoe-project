@@ -215,6 +215,7 @@ void referror(where_t *where, void *state, scan_t *scan, const char *msg);
     TOK_LOOKUP "lookup"
     TOK_SERIALIZE "serialize"
     TOK_CHECKSUM "checksum"
+    TOK_EMPTY "empty"
 
     /* config only keywords */
     TOK_CONFIG "config"
@@ -483,6 +484,7 @@ simple_attrib: TOK_TRANSIENT { $$ = eAttribTransient; }
     | TOK_LOOKUP { $$ = eAttribLookupKey; }
     | TOK_SERIALIZE { $$ = eAttribSerialize; }
     | TOK_CHECKSUM { $$ = eAttribChecksum; }
+    | TOK_EMPTY { $$ = eAttribEmpty; }
     ;
 
 layout_attrib: TOK_SYSTEM { $$ = eAttribLayoutSystem; }
