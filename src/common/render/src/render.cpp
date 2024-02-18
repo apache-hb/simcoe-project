@@ -254,13 +254,16 @@ Result Context::create_descriptor_heap(DescriptorHeap& heap, D3D12_DESCRIPTOR_HE
     return mDevice->CreateDescriptorHeap(&kHeapDesc, IID_PPV_ARGS(&heap));
 }
 
+static const D3D12_HEAP_PROPERTIES kDefaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+static const D3D12_HEAP_PROPERTIES kUploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+
 void Context::create_depth_stencil() {
     const D3D12_CLEAR_VALUE kClearValue = {
         .Format = kDepthFormat,
         .DepthStencil = { 1.0f, 0 },
     };
 
-    const auto kDepthBufferDesc = CD3DX12_RESOURCE_DESC::Tex2D(kDepthFormat, mSwapChainSize.width, mSwapChainSize.height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+    const auto kDepthBufferDesc = CD3DX12_RESOURCE_DESC::Tex2D(kDepthFormat, mSwapChainSize.width, mSwapChainSize.height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 
     SM_ASSERT_HR(create_resource(mDepthStencil, D3D12_HEAP_TYPE_DEFAULT, kDepthBufferDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &kClearValue));
 
@@ -274,12 +277,13 @@ void Context::create_depth_stencil() {
 }
 
 void Context::create_render_targets() {
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
+    CTASSERTF(mSwapChainLength <= DXGI_MAX_SWAP_CHAIN_BUFFERS, "too many swap chain buffers (%u > %u)", mSwapChainLength, DXGI_MAX_SWAP_CHAIN_BUFFERS);
+
     for (uint i = 0; i < mSwapChainLength; i++) {
         auto& backbuffer = mFrames[i].mRenderTarget;
+        auto rtv = mRtvHeap.cpu_descriptor_handle(int_cast<int>(i));
         SM_ASSERT_HR(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&backbuffer)));
-        mDevice->CreateRenderTargetView(*backbuffer, nullptr, rtvHandle);
-        rtvHandle.Offset(1, mRtvHeap.mDescriptorSize);
+        mDevice->CreateRenderTargetView(*backbuffer, nullptr, rtv);
     }
 }
 
@@ -338,9 +342,6 @@ void Context::copy_buffer(Object<ID3D12GraphicsCommandList1>& list, Resource& ds
     list->CopyBufferRegion(*dst.mResource, 0, *src.mResource, 0, size);
 }
 
-static const D3D12_HEAP_PROPERTIES kDefaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-static const D3D12_HEAP_PROPERTIES kUploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-
 static const D3D12_ROOT_SIGNATURE_FLAGS kPrimitiveRootFlags
     = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS
@@ -377,10 +378,12 @@ void Context::create_primitive_pipeline() {
             .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
             .SampleMask = UINT_MAX,
             .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
+            .DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT),
             .InputLayout = { kInputElements, _countof(kInputElements) },
             .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
             .NumRenderTargets = 1,
             .RTVFormats = { mConfig.swapchain_format },
+            .DSVFormat = kDepthFormat,
             .SampleDesc = { 1, 0 },
         };
 
@@ -400,12 +403,12 @@ static constexpr draw::MeshInfo kInfo = {
 };
 
 void Context::init_scene() {
-    mPrimitives.push_back(create_mesh(kInfo));
+    mPrimitives.push_back(create_mesh(kInfo, float3(1.f, 0.f, 0.f)));
 }
 
 void Context::create_scene() {
     for (auto& primitive : mPrimitives) {
-        primitive = create_mesh(primitive.mInfo);
+        primitive = create_mesh(primitive.mInfo, float3(1.f, 0.f, 0.f));
     }
 }
 
@@ -421,8 +424,12 @@ void Context::destroy_primitive_pipeline() {
     mPrimitivePipeline.mRootSignature.reset();
 }
 
-Context::Primitive Context::create_mesh(const draw::MeshInfo& info) {
+Context::Primitive Context::create_mesh(const draw::MeshInfo& info, const float3& colour) {
     auto mesh = draw::primitive(info);
+
+    for (auto& v : mesh.vertices) {
+        v.colour = float4(colour, 1.0f);
+    }
 
     Resource vbo_upload;
     Resource ibo_upload;
@@ -548,12 +555,14 @@ void Context::build_command_list() {
     /// render target setup
 
     const auto kRtvHandle = mRtvHeap.cpu_descriptor_handle(int_cast<int>(mFrameIndex));
+    const auto kDsvHandle = mDsvHeap->GetCPUDescriptorHandleForHeapStart();
     mCommandList->RSSetViewports(1, &mViewport);
     mCommandList->RSSetScissorRects(1, &mScissorRect);
-    mCommandList->OMSetRenderTargets(1, &kRtvHandle, false, nullptr);
+    mCommandList->OMSetRenderTargets(1, &kRtvHandle, false, &kDsvHandle);
 
     constexpr math::float4 kClearColour = { 0.0f, 0.2f, 0.4f, 1.0f };
     mCommandList->ClearRenderTargetView(kRtvHandle, kClearColour.data(), 0, nullptr);
+    mCommandList->ClearDepthStencilView(kDsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
     /// shared render code
 
@@ -563,9 +572,6 @@ void Context::build_command_list() {
 
     auto [width, height] = mSwapChainSize.as<float>();
     const float4x4 mvp = mCamera.mvp(width / height).transpose();
-
-    mCommandList->SetGraphicsRootSignature(*mPrimitivePipeline.mRootSignature);
-    mCommandList->SetPipelineState(*mPrimitivePipeline.mPipelineState);
 
     mCommandList->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
 

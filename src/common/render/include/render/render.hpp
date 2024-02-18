@@ -164,7 +164,7 @@ namespace sm::render {
 
         sm::PriorityQueue<Upload, std::greater<Upload>> mUploads;
 
-        Primitive create_mesh(const draw::MeshInfo& info);
+        Primitive create_mesh(const draw::MeshInfo& info, const float3& colour);
 
         void init_scene();
         void create_scene();

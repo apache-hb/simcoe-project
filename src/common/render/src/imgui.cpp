@@ -219,6 +219,7 @@ bool Context::update_imgui() {
 
         if (ImGui::BeginPopup("New Primitive")) {
             static draw::MeshType type = draw::MeshType::eCube;
+            static float3 colour = {1.f, 1.f, 1.f};
             EnumCombo<draw::MeshType>("Type", type);
 
             auto& info = mMeshCreateInfo[type];
@@ -261,8 +262,10 @@ bool Context::update_imgui() {
                 break;
             }
 
+            ImGui::ColorEdit3("Colour", colour.data(), ImGuiColorEditFlags_Float);
+
             if (ImGui::Button("Create")) {
-                mPrimitives.push_back(create_mesh(info));
+                mPrimitives.push_back(create_mesh(info, colour));
                 ImGui::CloseCurrentPopup();
             }
 
