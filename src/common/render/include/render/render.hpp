@@ -50,13 +50,16 @@ namespace sm::render {
     struct IDependency {
         DependsOn depends;
 
-        constexpr IDependency(DependsOn deps)
+        constexpr IDependency(DependsOn deps = DependsOn::none())
             : depends(deps)
         { }
 
         virtual ~IDependency() = default;
         void create(Context& context, DependsOn reason = DependsOn::none());
         void destroy(Context& context, DependsOn reason);
+
+    protected:
+        void depend(DependsOn dep);
 
     private:
         virtual void do_create(Context& context, DependsOn reason) = 0;
@@ -110,24 +113,44 @@ namespace sm::render {
         Object<ID3D12CommandQueue> mDirectQueue;
         Object<ID3D12GraphicsCommandList1> mCommandList;
 
-        struct RtvDescriptorHeap final : IDependency {
+        struct DescriptorHeap : IDependency {
             Object<ID3D12DescriptorHeap> mHeap;
             uint mDescriptorSize = 0;
 
-            constexpr RtvDescriptorHeap()
-                : IDependency(DependsOn::eDevice | DependsOn::eBackBufferCount)
-            { }
+            constexpr DescriptorHeap() {
+                depend(DependsOn::eDevice);
+            }
 
-            void do_create(Context& context, DependsOn reason) override;
+            void init(Context& context, const D3D12_DESCRIPTOR_HEAP_DESC& desc);
+
             void do_destroy(Context& context, DependsOn reason) override;
 
             D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle(uint index);
+        };
+
+        struct RtvDescriptorHeap final : DescriptorHeap {
+            using DescriptorHeap::DescriptorHeap;
+
+            constexpr RtvDescriptorHeap() {
+                depend(DependsOn::eBackBufferCount);
+            }
+
+            void do_create(Context& context, DependsOn reason) override;
         } mRtvHeap;
 
         void init_rtv_heap();
 
-        Object<ID3D12DescriptorHeap> mSrvHeap;
-        uint mSrvDescriptorSize = 0;
+        struct SrvDescriptorHeap final : DescriptorHeap {
+            using DescriptorHeap::DescriptorHeap;
+
+            constexpr SrvDescriptorHeap() {
+                depend(DependsOn::eDevice);
+            }
+
+            void do_create(Context& context, DependsOn reason) override;
+        } mSrvHeap;
+
+        void init_srv_heap();
 
         struct SimplePipeline final : IDependency {
             Object<ID3D12RootSignature> mRootSignature;

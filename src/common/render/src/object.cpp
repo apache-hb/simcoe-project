@@ -40,3 +40,7 @@ void IDependency::create(Context& context, DependsOn reason) {
 void IDependency::destroy(Context& context, DependsOn reason) {
     do_destroy(context, reason);
 }
+
+void IDependency::depend(DependsOn dep) {
+    depends |= dep;
+}
