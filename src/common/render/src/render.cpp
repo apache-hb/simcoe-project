@@ -168,6 +168,11 @@ void Context::create_copy_queue() {
     SM_ASSERT_HR(mCopyCommands->Close());
 }
 
+void Context::reset_copy_commands() {
+    SM_ASSERT_HR(mCopyAllocator->Reset());
+    SM_ASSERT_HR(mCopyCommands->Reset(*mCopyAllocator, nullptr));
+}
+
 void Context::create_copy_fence() {
     SM_ASSERT_HR(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mCopyFence)));
     mCopyFenceValue = 1;
@@ -297,40 +302,6 @@ static sm::Vector<uint8> load_shader_bytecode(Sink& sink, const char *path) {
     return data;
 }
 
-void Context::create_pipeline_state() {
-    {
-        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
-        desc.Init_1_1(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-        serialize_root_signature(mRootSignature, desc);
-    }
-
-    {
-        auto ps = load_shader_bytecode(mSink, "build/bundle/shaders/simple.ps.cso");
-        auto vs = load_shader_bytecode(mSink, "build/bundle/shaders/simple.vs.cso");
-
-        constexpr D3D12_INPUT_ELEMENT_DESC kInputElements[] = {
-            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(draw::Vertex, position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-            { "COLOUR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(draw::Vertex, colour), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        };
-
-        const D3D12_GRAPHICS_PIPELINE_STATE_DESC kDesc = {
-            .pRootSignature = mRootSignature.get(),
-            .VS = CD3DX12_SHADER_BYTECODE(vs.data(), vs.size()),
-            .PS = CD3DX12_SHADER_BYTECODE(ps.data(), ps.size()),
-            .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
-            .SampleMask = UINT_MAX,
-            .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
-            .InputLayout = { kInputElements, _countof(kInputElements) },
-            .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
-            .NumRenderTargets = 1,
-            .RTVFormats = { mConfig.swapchain_format },
-            .SampleDesc = { 1, 0 },
-        };
-
-        SM_ASSERT_HR(mDevice->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&mPipelineState)));
-    }
-}
-
 Result Context::create_resource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state) {
     const D3D12MA::ALLOCATION_DESC kAllocDesc = {
         .HeapType = heap,
@@ -345,73 +316,6 @@ void Context::copy_buffer(Object<ID3D12GraphicsCommandList1>& list, Resource& ds
 
 static const D3D12_HEAP_PROPERTIES kDefaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 static const D3D12_HEAP_PROPERTIES kUploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-
-void Context::create_triangle() {
-    auto& allocator = mFrames[mFrameIndex].mCommandAllocator;
-    SM_ASSERT_HR(allocator->Reset());
-    SM_ASSERT_HR(mCommandList->Reset(allocator.get(), *mPipelineState));
-
-    SM_ASSERT_HR(mCopyAllocator->Reset());
-    SM_ASSERT_HR(mCopyCommands->Reset(mCopyAllocator.get(), nullptr));
-
-    Resource upload;
-
-    mVertexBuffer.reset();
-    auto [width, height] = mSwapChainSize.as<float>();
-    const float kAspectRatio = width / height;
-    const draw::Vertex kTriangle[] = {
-        { { 0.f, 0.25f * kAspectRatio, 0.f }, { 1.f, 0.f, 0.f, 1.f } },
-        { { 0.25f, -0.25f * kAspectRatio, 0.f }, { 0.f, 1.f, 0.f, 1.f } },
-        { { -0.25f, -0.25f * kAspectRatio, 0.f }, { 0.f, 0.f, 1.f, 1.f } },
-    };
-
-    const uint kBufferSize = sizeof(kTriangle);
-    const auto kBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kBufferSize);
-
-    SM_ASSERT_HR(create_resource(upload, D3D12_HEAP_TYPE_UPLOAD, kBufferDesc, D3D12_RESOURCE_STATE_COMMON));
-
-    void *data;
-    D3D12_RANGE read{0, 0};
-    SM_ASSERT_HR(upload.map(&read, &data));
-    std::memcpy(data, kTriangle, kBufferSize);
-    upload.unmap(&read);
-
-    SM_ASSERT_HR(create_resource(mVertexBuffer, D3D12_HEAP_TYPE_DEFAULT, kBufferDesc, D3D12_RESOURCE_STATE_COMMON));
-
-    const auto kBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
-        *mVertexBuffer.mHandle,
-        D3D12_RESOURCE_STATE_COPY_DEST,
-        D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
-    );
-
-    copy_buffer(mCopyCommands, mVertexBuffer, upload, kBufferSize);
-    mCommandList->ResourceBarrier(1, &kBarrier);
-
-    SM_ASSERT_HR(mCopyCommands->Close());
-    SM_ASSERT_HR(mCommandList->Close());
-
-    // once we're done copying, signal the fence so the direct queue
-    // can transition the resource
-    ID3D12CommandList *copy_lists[] = { mCopyCommands.get() };
-    mCopyQueue->ExecuteCommandLists(1, copy_lists);
-    mCopyQueue->Signal(*mCopyFence, mCopyFenceValue);
-
-    // wait for copy queue to finish before transitioning the resource
-    ID3D12CommandList *direct_lists[] = { mCommandList.get() };
-    mDirectQueue->Wait(*mCopyFence, mCopyFenceValue);
-    mDirectQueue->ExecuteCommandLists(1, direct_lists);
-
-    const D3D12_VERTEX_BUFFER_VIEW kBufferView = {
-        .BufferLocation = mVertexBuffer.get_gpu_address(),
-        .SizeInBytes = kBufferSize,
-        .StrideInBytes = sizeof(draw::Vertex),
-    };
-
-    mVertexBufferView = kBufferView;
-
-    wait_for_gpu();
-    flush_copy_queue();
-}
 
 void Context::create_primitive_pipeline() {
     {
@@ -463,20 +367,44 @@ static constexpr draw::MeshInfo kInfo = {
     .cube = kCube,
 };
 
-void Context::create_cube() {
-    draw::Mesh mesh = draw::primitive(kInfo);
+void Context::init_scene() {
+    mPrimitives.push_back(create_mesh(kInfo));
+}
+
+void Context::create_scene() {
+    for (auto& primitive : mPrimitives) {
+        primitive = create_mesh(primitive.mInfo);
+    }
+}
+
+void Context::destroy_scene() {
+    for (auto& primitive : mPrimitives) {
+        primitive.mVertexBuffer.reset();
+        primitive.mIndexBuffer.reset();
+    }
+}
+
+void Context::destroy_primitive_pipeline() {
+    mPrimitive.mPipelineState.reset();
+    mPrimitive.mRootSignature.reset();
+}
+
+Context::Primitive Context::create_mesh(const draw::MeshInfo& info) {
+    auto mesh = draw::primitive(info);
 
     Resource vbo_upload;
     Resource ibo_upload;
-
-    mCube.mVertexBuffer.reset();
-    mCube.mIndexBuffer.reset();
 
     const uint kVertexBufferSize = mesh.vertices.size() * sizeof(draw::Vertex);
     const uint kIndexBufferSize = mesh.indices.size() * sizeof(uint16);
 
     const auto kVertexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kVertexBufferSize);
     const auto kIndexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kIndexBufferSize);
+
+    Primitive primitive = {
+        .mInfo = info,
+        .mIndexCount = int_cast<uint>(mesh.indices.size()),
+    };
 
     SM_ASSERT_HR(create_resource(vbo_upload, D3D12_HEAP_TYPE_UPLOAD, kVertexBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ));
     SM_ASSERT_HR(create_resource(ibo_upload, D3D12_HEAP_TYPE_UPLOAD, kIndexBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ));
@@ -497,27 +425,26 @@ void Context::create_cube() {
         ibo_upload.unmap(&read);
     }
 
-    SM_ASSERT_HR(create_resource(mCube.mVertexBuffer, D3D12_HEAP_TYPE_DEFAULT, kVertexBufferDesc, D3D12_RESOURCE_STATE_COMMON));
-    SM_ASSERT_HR(create_resource(mCube.mIndexBuffer, D3D12_HEAP_TYPE_DEFAULT, kIndexBufferDesc, D3D12_RESOURCE_STATE_COMMON));
+    SM_ASSERT_HR(create_resource(primitive.mVertexBuffer, D3D12_HEAP_TYPE_DEFAULT, kVertexBufferDesc, D3D12_RESOURCE_STATE_COMMON));
+    SM_ASSERT_HR(create_resource(primitive.mIndexBuffer, D3D12_HEAP_TYPE_DEFAULT, kIndexBufferDesc, D3D12_RESOURCE_STATE_COMMON));
 
     auto& allocator = mFrames[mFrameIndex].mCommandAllocator;
     SM_ASSERT_HR(allocator->Reset());
-    SM_ASSERT_HR(mCommandList->Reset(allocator.get(), *mPipelineState));
+    SM_ASSERT_HR(mCommandList->Reset(allocator.get(), nullptr));
 
-    SM_ASSERT_HR(mCopyAllocator->Reset());
-    SM_ASSERT_HR(mCopyCommands->Reset(mCopyAllocator.get(), nullptr));
+    reset_copy_commands();
 
-    copy_buffer(mCopyCommands, mCube.mVertexBuffer, vbo_upload, kVertexBufferSize);
-    copy_buffer(mCopyCommands, mCube.mIndexBuffer, ibo_upload, kIndexBufferSize);
+    copy_buffer(mCopyCommands, primitive.mVertexBuffer, vbo_upload, kVertexBufferSize);
+    copy_buffer(mCopyCommands, primitive.mIndexBuffer, ibo_upload, kIndexBufferSize);
 
     const D3D12_RESOURCE_BARRIER kBarriers[2] = {
         CD3DX12_RESOURCE_BARRIER::Transition(
-            *mCube.mVertexBuffer.mHandle,
+            *primitive.mVertexBuffer.mHandle,
             D3D12_RESOURCE_STATE_COPY_DEST,
             D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
         ),
         CD3DX12_RESOURCE_BARRIER::Transition(
-            *mCube.mIndexBuffer.mHandle,
+            *primitive.mIndexBuffer.mHandle,
             D3D12_RESOURCE_STATE_COPY_DEST,
             D3D12_RESOURCE_STATE_INDEX_BUFFER
         )
@@ -536,38 +463,28 @@ void Context::create_cube() {
     mDirectQueue->Wait(*mCopyFence, mCopyFenceValue);
     mDirectQueue->ExecuteCommandLists(1, direct_lists);
 
-    flush_copy_queue();
-    wait_for_gpu();
-
-    const D3D12_VERTEX_BUFFER_VIEW kVertexBufferView = {
-        .BufferLocation = mCube.mVertexBuffer.get_gpu_address(),
+    primitive.mVertexBufferView = {
+        .BufferLocation = primitive.mVertexBuffer.get_gpu_address(),
         .SizeInBytes = kVertexBufferSize,
         .StrideInBytes = sizeof(draw::Vertex),
     };
 
-    const D3D12_INDEX_BUFFER_VIEW kIndexBufferView = {
-        .BufferLocation = mCube.mIndexBuffer.get_gpu_address(),
+    primitive.mIndexBufferView = {
+        .BufferLocation = primitive.mIndexBuffer.get_gpu_address(),
         .SizeInBytes = kIndexBufferSize,
         .Format = DXGI_FORMAT_R16_UINT,
     };
 
-    mCube.mVertexBufferView = kVertexBufferView;
-    mCube.mIndexBufferView = kIndexBufferView;
-    mCube.mIndexCount = mesh.indices.size();
-}
+    mUploads.emplace(Upload{ std::move(vbo_upload), mCopyFenceValue });
+    mUploads.emplace(Upload{ std::move(ibo_upload), mCopyFenceValue });
 
-void Context::destroy_primitive_pipeline() {
-    mPrimitive.mPipelineState.reset();
-    mPrimitive.mRootSignature.reset();
-}
+    wait_for_gpu();
+    flush_copy_queue();
 
-void Context::destroy_cube() {
-    mCube.mVertexBuffer.reset();
-    mCube.mIndexBuffer.reset();
+    return primitive;
 }
 
 void Context::create_assets() {
-    create_pipeline_state();
     create_primitive_pipeline();
 
     SM_ASSERT_HR(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, *mFrames[mFrameIndex].mCommandAllocator, nullptr, IID_PPV_ARGS(&mCommandList)));
@@ -577,9 +494,6 @@ void Context::create_assets() {
     mFrames[mFrameIndex].mFenceValue += 1;
 
     SM_ASSERT_WIN32(mFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr));
-
-    create_triangle();
-    create_cube();
 }
 
 void Context::build_command_list() {
@@ -588,8 +502,8 @@ void Context::build_command_list() {
     auto& [backbuffer, allocator, _] = mFrames[mFrameIndex];
 
     SM_ASSERT_HR(allocator->Reset());
-    SM_ASSERT_HR(mCommandList->Reset(allocator.get(), *mPipelineState));
-    mCommandList->SetGraphicsRootSignature(*mRootSignature);
+    SM_ASSERT_HR(mCommandList->Reset(allocator.get(), *mPrimitive.mPipelineState));
+    mCommandList->SetGraphicsRootSignature(*mPrimitive.mRootSignature);
 
     const auto kIntoRenderTarget = CD3DX12_RESOURCE_BARRIER::Transition(
         *backbuffer,
@@ -613,11 +527,6 @@ void Context::build_command_list() {
 
     mCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    /// triangle
-
-    mCommandList->IASetVertexBuffers(0, 1, &mVertexBufferView);
-    mCommandList->DrawInstanced(3, 1, 0, 0);
-
     /// cube
 
     auto [width, height] = mSwapChainSize.as<float>();
@@ -628,10 +537,12 @@ void Context::build_command_list() {
 
     mCommandList->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
 
-    mCommandList->IASetVertexBuffers(0, 1, &mCube.mVertexBufferView);
-    mCommandList->IASetIndexBuffer(&mCube.mIndexBufferView);
+    for (auto& primitive : mPrimitives) {
+        mCommandList->IASetVertexBuffers(0, 1, &primitive.mVertexBufferView);
+        mCommandList->IASetIndexBuffer(&primitive.mIndexBufferView);
 
-    mCommandList->DrawIndexedInstanced(mCube.mIndexCount, 1, 0, 0, 0);
+        mCommandList->DrawIndexedInstanced(primitive.mIndexCount, 1, 0, 0, 0);
+    }
 
     /// imgui
 
@@ -663,13 +574,9 @@ void Context::destroy_device() {
     mCopyFence.reset();
 
     // assets
-    destroy_cube();
-
-    mVertexBuffer.reset();
+    destroy_scene();
 
     // pipeline state
-    mRootSignature.reset();
-    mPipelineState.reset();
     destroy_primitive_pipeline();
 
     // copy commands
@@ -717,6 +624,7 @@ void Context::create() {
     create_pipeline();
     create_assets();
 
+    init_scene();
     create_imgui();
 }
 
@@ -760,6 +668,7 @@ void Context::update_adapter(size_t index) {
     create_pipeline();
     create_assets();
 
+    create_scene();
     create_imgui_device();
     update_imgui();
 }
@@ -806,7 +715,6 @@ void Context::resize(math::uint2 size) {
 
     update_viewport_scissor();
     create_render_targets();
-    create_triangle();
 }
 
 void Context::move_to_next_frame() {
@@ -829,13 +737,27 @@ void Context::wait_for_gpu() {
 
     SM_ASSERT_HR(mFence->SetEventOnCompletion(current, mFenceEvent));
     WaitForSingleObject(mFenceEvent, INFINITE);
+
+    // TODO: currently this is correct as all copies are followed by
+    // a direct state transition. but at some point that may not be the case
+    // come back here when that happens.
+
+    const uint64 completed = mFence->GetCompletedValue();
+    while (!mUploads.is_empty()) {
+        auto& upload = mUploads.top();
+        if (completed < upload.value) break;
+
+        mUploads.pop();
+    }
 }
 
 void Context::flush_copy_queue() {
     const uint64 current = mCopyFenceValue++;
     SM_ASSERT_HR(mCopyQueue->Signal(*mCopyFence, current));
 
-    if (mCopyFence->GetCompletedValue() < current) {
+    const uint64 completed = mCopyFence->GetCompletedValue();
+
+    if (completed < current) {
         SM_ASSERT_HR(mCopyFence->SetEventOnCompletion(current, mCopyFenceEvent));
         WaitForSingleObject(mCopyFenceEvent, INFINITE);
     }

@@ -3,6 +3,10 @@
 #include "core/array.hpp"
 #include "render/instance.hpp"
 
+#include "render/draw.hpp"
+
+#include "core/queue.hpp"
+
 #include <D3D12MemAlloc.h>
 
 namespace sm::render {
@@ -98,15 +102,12 @@ namespace sm::render {
         Object<ID3D12DescriptorHeap> mSrvHeap;
         uint mSrvDescriptorSize = 0;
 
-        Object<ID3D12RootSignature> mRootSignature;
-        Object<ID3D12PipelineState> mPipelineState;
-        void create_pipeline_state();
-
         /// copy queue and commands
         Object<ID3D12CommandQueue> mCopyQueue;
         Object<ID3D12CommandAllocator> mCopyAllocator;
         Object<ID3D12GraphicsCommandList1> mCopyCommands;
         void create_copy_queue();
+        void reset_copy_commands();
 
         Object<ID3D12Fence> mCopyFence;
         HANDLE mCopyFenceEvent;
@@ -118,11 +119,6 @@ namespace sm::render {
         D3D12_RECT mScissorRect;
         void update_viewport_scissor();
 
-        // assets
-        Resource mVertexBuffer;
-        D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
-        void create_triangle();
-
         struct {
             Object<ID3D12RootSignature> mRootSignature;
             Object<ID3D12PipelineState> mPipelineState;
@@ -132,6 +128,8 @@ namespace sm::render {
         void destroy_primitive_pipeline();
 
         struct Primitive {
+            draw::MeshInfo mInfo;
+
             Resource mVertexBuffer;
             D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
 
@@ -139,11 +137,24 @@ namespace sm::render {
             D3D12_INDEX_BUFFER_VIEW mIndexBufferView;
 
             uint32 mIndexCount;
-        } mCube;
+        };
 
-        void create_cube();
-        void destroy_cube();
+        sm::Vector<Primitive> mPrimitives;
 
+        struct Upload {
+            Resource resource;
+            uint64 value;
+
+            constexpr auto operator<=>(const Upload& other) const { return value <=> other.value; }
+        };
+
+        sm::PriorityQueue<Upload, std::greater<Upload>> mUploads;
+
+        Primitive create_mesh(const draw::MeshInfo& info);
+
+        void init_scene();
+        void create_scene();
+        void destroy_scene();
 
         struct Camera {
             float3 position = {3.f, 0.f, 0.f};

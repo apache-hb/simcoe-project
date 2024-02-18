@@ -1,6 +1,7 @@
 module sm::draw;
 
 variant MeshType {
+    default None
     case Cube
     case Sphere
     case Cylinder
