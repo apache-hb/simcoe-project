@@ -234,7 +234,7 @@ void Context::create_frame_data() {
 
 using RtvDescriptorHeap = Context::RtvDescriptorHeap;
 
-void RtvDescriptorHeap::create(Context& ctx) {
+void RtvDescriptorHeap::do_create(Context& ctx, DependsOn reason) {
     auto& device = ctx.mDevice;
     const D3D12_DESCRIPTOR_HEAP_DESC kHeapDesc = {
         .Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
@@ -245,7 +245,7 @@ void RtvDescriptorHeap::create(Context& ctx) {
     mDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 }
 
-void RtvDescriptorHeap::destroy(Context& ctx) {
+void RtvDescriptorHeap::do_destroy(Context& context, DependsOn reason) {
     mHeap.reset();
 }
 
@@ -315,7 +315,7 @@ static sm::Vector<uint8> load_shader_bytecode(Sink& sink, const char *path) {
 
 using SimplePipeline = Context::SimplePipeline;
 
-void SimplePipeline::create(Context& ctx) {
+void SimplePipeline::do_create(Context& ctx, DependsOn) {
     {
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
         desc.Init_1_1(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
@@ -352,7 +352,7 @@ void SimplePipeline::create(Context& ctx) {
     }
 }
 
-void SimplePipeline::destroy(Context& ctx) {
+void SimplePipeline::do_destroy(Context&, DependsOn) {
     mPipelineState.reset();
     mRootSignature.reset();
 }
@@ -451,7 +451,7 @@ void Context::init_primitive_pipeline() {
 
 using PrimitivePipeline = Context::PrimitivePipeline;
 
-void PrimitivePipeline::create(Context& ctx) {
+void PrimitivePipeline::do_create(Context& ctx, DependsOn) {
     {
         // mvp matrix
         CD3DX12_ROOT_PARAMETER1 params[1];
@@ -493,7 +493,7 @@ void PrimitivePipeline::create(Context& ctx) {
     }
 }
 
-void PrimitivePipeline::destroy(Context&) {
+void PrimitivePipeline::do_destroy(Context&, DependsOn) {
     mPipelineState.reset();
     mRootSignature.reset();
 }
@@ -600,10 +600,6 @@ void Context::create_cube() {
     mCube.mVertexBufferView = kVertexBufferView;
     mCube.mIndexBufferView = kIndexBufferView;
     mCube.mIndexCount = mesh.indices.size();
-}
-
-void Context::destroy_primitive_pipeline() {
-    mPrimitivePipeline.destroy(*this);
 }
 
 void Context::destroy_cube() {
@@ -894,7 +890,7 @@ void Context::flush_copy_queue() {
 void Context::destroy_all(DependsOn depends) {
     for (auto& resource : mResources) {
         if (resource->depends.test(depends)) {
-            resource->destroy(*this);
+            resource->destroy(*this, depends);
         }
     }
 }
@@ -902,7 +898,7 @@ void Context::destroy_all(DependsOn depends) {
 void Context::create_all(DependsOn depends) {
     for (auto& resource : mResources) {
         if (resource->depends.test(depends)) {
-            resource->create(*this);
+            resource->create(*this, depends);
         }
     }
 }

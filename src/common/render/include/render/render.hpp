@@ -55,8 +55,12 @@ namespace sm::render {
         { }
 
         virtual ~IDependency() = default;
-        virtual void create(Context&) = 0;
-        virtual void destroy(Context&) = 0;
+        void create(Context& context, DependsOn reason = DependsOn::none());
+        void destroy(Context& context, DependsOn reason);
+
+    private:
+        virtual void do_create(Context& context, DependsOn reason) = 0;
+        virtual void do_destroy(Context& context, DependsOn reason) = 0;
     };
 
     struct Context {
@@ -114,8 +118,8 @@ namespace sm::render {
                 : IDependency(DependsOn::eDevice | DependsOn::eBackBufferCount)
             { }
 
-            void create(Context&) override;
-            void destroy(Context&) override;
+            void do_create(Context& context, DependsOn reason) override;
+            void do_destroy(Context& context, DependsOn reason) override;
 
             D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle(uint index);
         } mRtvHeap;
@@ -133,8 +137,8 @@ namespace sm::render {
                 : IDependency(DependsOn::eDevice)
             { }
 
-            void create(Context&) override;
-            void destroy(Context&) override;
+            void do_create(Context& context, DependsOn reason) override;
+            void do_destroy(Context& context, DependsOn reason) override;
         } mSimplePipeline;
 
         void init_simple_pipeline();
@@ -168,12 +172,11 @@ namespace sm::render {
                 : IDependency(DependsOn::eDevice)
             { }
 
-            void create(Context&) override;
-            void destroy(Context&) override;
+            void do_create(Context& context, DependsOn reason) override;
+            void do_destroy(Context& context, DependsOn reason) override;
         } mPrimitivePipeline;
 
         void init_primitive_pipeline();
-        void destroy_primitive_pipeline();
 
         struct Primitive {
             Resource mVertexBuffer;
