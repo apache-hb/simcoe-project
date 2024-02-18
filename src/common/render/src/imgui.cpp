@@ -267,7 +267,36 @@ void Context::update_imgui() {
                     ImGui::Text("Height: %f", info.cube.height);
                     ImGui::Text("Depth: %f", info.cube.depth);
                     break;
-
+                case MeshType::eSphere:
+                    ImGui::Text("Radius: %f", info.sphere.radius);
+                    ImGui::Text("Slices: %d", info.sphere.slices);
+                    ImGui::Text("Stacks: %d", info.sphere.stacks);
+                    break;
+                case MeshType::eCylinder:
+                    ImGui::Text("Radius: %f", info.cylinder.radius);
+                    ImGui::Text("Height: %f", info.cylinder.height);
+                    ImGui::Text("Slices: %d", info.cylinder.slices);
+                    break;
+                case MeshType::ePlane:
+                    ImGui::Text("Width: %f", info.plane.width);
+                    ImGui::Text("Depth: %f", info.plane.depth);
+                    break;
+                case MeshType::eWedge:
+                    ImGui::Text("Width: %f", info.wedge.width);
+                    ImGui::Text("Height: %f", info.wedge.height);
+                    ImGui::Text("Depth: %f", info.wedge.depth);
+                    break;
+                case MeshType::eCapsule:
+                    ImGui::Text("Radius: %f", info.capsule.radius);
+                    ImGui::Text("Height: %f", info.capsule.height);
+                    break;
+                case MeshType::eGeoSphere:
+                    ImGui::Text("Radius: %f", info.geosphere.radius);
+                    ImGui::Text("Subdivisions: %d", info.geosphere.subdivisions);
+                    break;
+                case MeshType::eImported:
+                    ImGui::Text("Imported");
+                    break;
                 default:
                     ImGui::Text("Unknown primitive type");
                     break;

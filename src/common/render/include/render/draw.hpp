@@ -40,8 +40,8 @@ namespace sm::draw {
 
     struct Wedge {
         float width;
-        float depth;
         float height;
+        float depth;
     };
 
     struct Capsule {
