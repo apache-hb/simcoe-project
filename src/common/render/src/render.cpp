@@ -156,16 +156,34 @@ void Context::create_allocator() {
     SM_ASSERT_HR(D3D12MA::CreateAllocator(&kAllocatorDesc, &mAllocator));
 }
 
-void Context::create_copy_queue() {
+using CopyCommands = Context::CopyCommands;
+
+void CopyCommands::do_create(Context& ctx, DependsOn) {
+    auto& device = ctx.mDevice;
     constexpr D3D12_COMMAND_QUEUE_DESC kQueueDesc = {
         .Type = D3D12_COMMAND_LIST_TYPE_COPY,
     };
 
-    SM_ASSERT_HR(mDevice->CreateCommandQueue(&kQueueDesc, IID_PPV_ARGS(&mCopyQueue)));
+    SM_ASSERT_HR(device->CreateCommandQueue(&kQueueDesc, IID_PPV_ARGS(&mQueue)));
 
-    SM_ASSERT_HR(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS(&mCopyAllocator)));
-    SM_ASSERT_HR(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, mCopyAllocator.get(), nullptr, IID_PPV_ARGS(&mCopyCommands)));
-    SM_ASSERT_HR(mCopyCommands->Close());
+    SM_ASSERT_HR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS(&mAllocator)));
+    SM_ASSERT_HR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, *mAllocator, nullptr, IID_PPV_ARGS(&mCommands)));
+    SM_ASSERT_HR(mCommands->Close());
+}
+
+void CopyCommands::do_destroy(Context&, DependsOn) {
+    mCommands.reset();
+    mAllocator.reset();
+    mQueue.reset();
+}
+
+Result CopyCommands::signal(FenceHandle& fence, uint64 value) {
+    return mQueue->Signal(*fence, value);
+}
+
+void Context::init_copy_queue() {
+    mCopy.create(*this);
+    mResources.push_back(&mCopy);
 }
 
 void Context::create_copy_fence() {
@@ -394,8 +412,8 @@ void Context::create_triangle() {
     SM_ASSERT_HR(allocator->Reset());
     SM_ASSERT_HR(mCommandList->Reset(allocator.get(), nullptr));
 
-    SM_ASSERT_HR(mCopyAllocator->Reset());
-    SM_ASSERT_HR(mCopyCommands->Reset(mCopyAllocator.get(), nullptr));
+    SM_ASSERT_HR(mCopy.mAllocator->Reset());
+    SM_ASSERT_HR(mCopy.mCommands->Reset(mCopy.mAllocator.get(), nullptr));
 
     Resource upload;
 
@@ -427,17 +445,17 @@ void Context::create_triangle() {
         D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
     );
 
-    copy_buffer(mCopyCommands, mVertexBuffer, upload, kBufferSize);
+    copy_buffer(mCopy.mCommands, mVertexBuffer, upload, kBufferSize);
     mCommandList->ResourceBarrier(1, &kBarrier);
 
-    SM_ASSERT_HR(mCopyCommands->Close());
+    SM_ASSERT_HR(mCopy.mCommands->Close());
     SM_ASSERT_HR(mCommandList->Close());
 
     // once we're done copying, signal the fence so the direct queue
     // can transition the resource
-    ID3D12CommandList *copy_lists[] = { mCopyCommands.get() };
-    mCopyQueue->ExecuteCommandLists(1, copy_lists);
-    mCopyQueue->Signal(*mCopyFence, mCopyFenceValue);
+    ID3D12CommandList *copy_lists[] = { mCopy.mCommands.get() };
+    mCopy.mQueue->ExecuteCommandLists(1, copy_lists);
+    mCopy.mQueue->Signal(*mCopyFence, mCopyFenceValue);
 
     // wait for copy queue to finish before transitioning the resource
     ID3D12CommandList *direct_lists[] = { mCommandList.get() };
@@ -562,11 +580,11 @@ void Context::create_cube() {
     SM_ASSERT_HR(allocator->Reset());
     SM_ASSERT_HR(mCommandList->Reset(allocator.get(), nullptr));
 
-    SM_ASSERT_HR(mCopyAllocator->Reset());
-    SM_ASSERT_HR(mCopyCommands->Reset(mCopyAllocator.get(), nullptr));
+    SM_ASSERT_HR(mCopy.mAllocator->Reset());
+    SM_ASSERT_HR(mCopy.mCommands->Reset(mCopy.mAllocator.get(), nullptr));
 
-    copy_buffer(mCopyCommands, mCube.mVertexBuffer, vbo_upload, kVertexBufferSize);
-    copy_buffer(mCopyCommands, mCube.mIndexBuffer, ibo_upload, kIndexBufferSize);
+    copy_buffer(mCopy.mCommands, mCube.mVertexBuffer, vbo_upload, kVertexBufferSize);
+    copy_buffer(mCopy.mCommands, mCube.mIndexBuffer, ibo_upload, kIndexBufferSize);
 
     const D3D12_RESOURCE_BARRIER kBarriers[2] = {
         CD3DX12_RESOURCE_BARRIER::Transition(
@@ -583,12 +601,12 @@ void Context::create_cube() {
 
     mCommandList->ResourceBarrier(_countof(kBarriers), kBarriers);
 
-    SM_ASSERT_HR(mCopyCommands->Close());
+    SM_ASSERT_HR(mCopy.mCommands->Close());
     SM_ASSERT_HR(mCommandList->Close());
 
-    ID3D12CommandList *copy_lists[] = { mCopyCommands.get() };
-    mCopyQueue->ExecuteCommandLists(1, copy_lists);
-    mCopyQueue->Signal(*mCopyFence, mCopyFenceValue);
+    ID3D12CommandList *copy_lists[] = { mCopy.mCommands.get() };
+    mCopy.mQueue->ExecuteCommandLists(1, copy_lists);
+    mCopy.mQueue->Signal(*mCopyFence, mCopyFenceValue);
 
     ID3D12CommandList *direct_lists[] = { mCommandList.get() };
     mDirectQueue->Wait(*mCopyFence, mCopyFenceValue);
@@ -717,13 +735,7 @@ void Context::destroy_device() {
 
     mVertexBuffer.reset();
 
-    // pipeline state
     destroy_all(DependsOn::eDevice);
-
-    // copy commands
-    mCopyCommands.reset();
-    mCopyAllocator.reset();
-    mCopyQueue.reset();
 
     // direct commands
     mDirectQueue.reset();
@@ -756,7 +768,7 @@ void Context::init() {
 
     create_device(index);
     create_allocator();
-    create_copy_queue();
+    init_copy_queue();
     create_copy_fence();
     create_pipeline();
     init_rtv_heap();
@@ -806,10 +818,9 @@ void Context::update_adapter(size_t index) {
 
     create_device(index);
     create_allocator();
-    create_copy_queue();
+    create_all(DependsOn::eDevice);
     create_copy_fence();
     create_pipeline();
-    create_all(DependsOn::eDevice);
     create_frame_data();
     create_assets();
 
@@ -889,7 +900,7 @@ void Context::wait_for_gpu() {
 
 void Context::flush_copy_queue() {
     const uint64 current = mCopyFenceValue++;
-    SM_ASSERT_HR(mCopyQueue->Signal(*mCopyFence, current));
+    SM_ASSERT_HR(mCopy.signal(mCopyFence, current));
 
     if (mCopyFence->GetCompletedValue() < current) {
         SM_ASSERT_HR(mCopyFence->SetEventOnCompletion(current, mCopyFenceEvent));
