@@ -540,6 +540,29 @@ void Context::create_cube() {
 
     flush_copy_queue();
     wait_for_gpu();
+
+    const D3D12_VERTEX_BUFFER_VIEW kVertexBufferView = {
+        .BufferLocation = mCube.mVertexBuffer.get_gpu_address(),
+        .SizeInBytes = kVertexBufferSize,
+        .StrideInBytes = sizeof(draw::Vertex),
+    };
+
+    const D3D12_INDEX_BUFFER_VIEW kIndexBufferView = {
+        .BufferLocation = mCube.mIndexBuffer.get_gpu_address(),
+        .SizeInBytes = kIndexBufferSize,
+        .Format = DXGI_FORMAT_R16_UINT,
+    };
+
+    mCube.mVertexBufferView = kVertexBufferView;
+    mCube.mIndexBufferView = kIndexBufferView;
+    mCube.mIndexCount = mesh.indices.size();
+}
+
+void Context::destroy_cube() {
+    mCube.mRootSignature.reset();
+    mCube.mPipelineState.reset();
+    mCube.mVertexBuffer.reset();
+    mCube.mIndexBuffer.reset();
 }
 
 void Context::create_assets() {
@@ -565,10 +588,7 @@ void Context::build_command_list() {
 
     SM_ASSERT_HR(allocator->Reset());
     SM_ASSERT_HR(mCommandList->Reset(allocator.get(), *mPipelineState));
-
     mCommandList->SetGraphicsRootSignature(*mRootSignature);
-    mCommandList->RSSetViewports(1, &mViewport);
-    mCommandList->RSSetScissorRects(1, &mScissorRect);
 
     const auto kIntoRenderTarget = CD3DX12_RESOURCE_BARRIER::Transition(
         *backbuffer,
@@ -578,15 +598,42 @@ void Context::build_command_list() {
 
     mCommandList->ResourceBarrier(1, &kIntoRenderTarget);
 
-    const auto kRtvHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mRtvHeap->GetCPUDescriptorHandleForHeapStart(), (int)mFrameIndex, mRtvDescriptorSize);
+    /// render target setup
 
+    const auto kRtvHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mRtvHeap->GetCPUDescriptorHandleForHeapStart(), (int)mFrameIndex, mRtvDescriptorSize);
+    mCommandList->RSSetViewports(1, &mViewport);
+    mCommandList->RSSetScissorRects(1, &mScissorRect);
     mCommandList->OMSetRenderTargets(1, &kRtvHandle, false, nullptr);
 
     constexpr math::float4 kClearColour = { 0.0f, 0.2f, 0.4f, 1.0f };
     mCommandList->ClearRenderTargetView(kRtvHandle, kClearColour.data(), 0, nullptr);
+
+    /// shared render code
+
     mCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    /// triangle
+
     mCommandList->IASetVertexBuffers(0, 1, &mVertexBufferView);
     mCommandList->DrawInstanced(3, 1, 0, 0);
+
+    /// cube
+
+    auto [width, height] = mSwapChainSize.as<float>();
+    const float4x4 mvp = mCamera.mvp(width / height);
+
+    mCommandList->SetGraphicsRootSignature(*mCube.mRootSignature);
+    mCommandList->SetPipelineState(*mCube.mPipelineState);
+
+    mCommandList->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
+
+    mCommandList->IASetVertexBuffers(0, 1, &mCube.mVertexBufferView);
+    mCommandList->IASetIndexBuffer(&mCube.mIndexBufferView);
+
+    mCommandList->DrawIndexedInstanced(mCube.mIndexCount, 1, 0, 0, 0);
+
+
+    /// imgui
 
     ID3D12DescriptorHeap *heaps[] = { mSrvHeap.get() };
     mCommandList->SetDescriptorHeaps(1, heaps);
@@ -616,6 +663,8 @@ void Context::destroy_device() {
     mCopyFence.reset();
 
     // assets
+    destroy_cube();
+
     mVertexBuffer.reset();
 
     // pipeline state

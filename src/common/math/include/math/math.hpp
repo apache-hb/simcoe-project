@@ -444,6 +444,9 @@ namespace sm::math {
         constexpr const T &at(size_t it, size_t col) const { return at(it).at(col); }
         constexpr T &at(size_t it, size_t col) { return at(it).at(col); }
 
+        constexpr T *data() { return fields; }
+        constexpr const T *data() const { return fields; }
+
         constexpr Row mul(const Row& other) const {
             auto row0 = at(0);
             auto row1 = at(1);

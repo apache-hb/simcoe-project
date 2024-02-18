@@ -132,7 +132,11 @@ namespace sm::render {
 
             Resource mIndexBuffer;
             D3D12_INDEX_BUFFER_VIEW mIndexBufferView;
+
+            uint32 mIndexCount;
         } mCube;
+
+        void destroy_cube();
 
         void create_cube_pipeline();
         void create_cube();
