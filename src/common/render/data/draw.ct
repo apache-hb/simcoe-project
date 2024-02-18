@@ -1,0 +1,14 @@
+module sm::draw;
+
+variant MeshType {
+    case Cube
+    case Sphere
+    case Cylinder
+    case Plane
+    case Wedge
+    case Capsule
+    case Diamond
+    case GeoSphere
+
+    case Imported
+}

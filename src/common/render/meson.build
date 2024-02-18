@@ -9,8 +9,10 @@ src = [
     'src/imgui.cpp',
 
     'src/draw.cpp',
+    'src/primitives.cpp',
 
     reflect.process('data/render.ct'),
+    reflect.process('data/draw.ct')
 ]
 
 deps = [

@@ -46,6 +46,12 @@ variant AdapterFlag : uint {
     [[format("software")]] case Software = opaque(DXGI_ADAPTER_FLAG_SOFTWARE)
 }
 
+[[facade]]
+variant RootSignatureVersion : opaque(D3D_ROOT_SIGNATURE_VERSION) {
+    [[format("version 1.0")]] default Version_1_0 = opaque(D3D_ROOT_SIGNATURE_VERSION_1_0)
+    [[format("version 1.1")]] case Version_1_1 = opaque(D3D_ROOT_SIGNATURE_VERSION_1_1)
+    [[format("version 1.2")]] case Version_1_2 = opaque(D3D_ROOT_SIGNATURE_VERSION_1_2)
+}
 ///
 /// info queue logging
 ///

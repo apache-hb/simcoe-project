@@ -84,6 +84,32 @@ void Context::enable_dred() {
     }
 }
 
+void Context::query_root_signature_version() {
+    D3D12_FEATURE_DATA_ROOT_SIGNATURE feature = {
+        .HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1,
+    };
+
+    if (Result hr = mDevice->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &feature, sizeof(feature)); !hr) {
+        mSink.warn("failed to query root signature version: {}", hr);
+        mRootSignatureVersion = RootSignatureVersion::eVersion_1_0;
+    } else {
+        mRootSignatureVersion = feature.HighestVersion;
+        mSink.info("root signature version: {}", mRootSignatureVersion);
+    }
+}
+
+void Context::serialize_root_signature(Object<ID3D12RootSignature>& signature, const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& desc) {
+    Blob serialized;
+    Blob error;
+    if (Result hr = D3DX12SerializeVersionedRootSignature(&desc, mRootSignatureVersion.as_facade(), &serialized, &error); !hr) {
+        mSink.error("failed to serialize root signature: {}", hr);
+        mSink.error("| error: {}", error.as_string());
+        SM_ASSERT_HR(hr);
+    }
+
+    SM_ASSERT_HR(mDevice->CreateRootSignature(0, serialized.data(), serialized.size(), IID_PPV_ARGS(&signature)));
+}
+
 void Context::create_device(size_t index) {
     auto flags = mInstance.flags();
     auto& adapter = mInstance.get_adapter(index);
@@ -111,6 +137,8 @@ void Context::create_device(size_t index) {
 
     if (flags.test(DebugFlags::eInfoQueue))
         enable_info_queue();
+
+    query_root_signature_version();
 
     mSink.info("| feature level: {}", fl);
     mSink.info("| flags: {}", flags);
@@ -273,18 +301,9 @@ static sm::Vector<uint8> load_shader_bytecode(Sink& sink, const char *path) {
 
 void Context::create_pipeline_state() {
     {
-        CD3DX12_ROOT_SIGNATURE_DESC desc;
-        desc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-
-        Blob signature;
-        Blob error;
-        if (Result hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error); !hr) {
-            mSink.error("failed to serialize root signature: {}", hr);
-            mSink.error("| error: {}", error.as_string());
-            SM_ASSERT_HR(hr);
-        }
-
-        SM_ASSERT_HR(mDevice->CreateRootSignature(0, signature.data(), signature.size(), IID_PPV_ARGS(&mRootSignature)));
+        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
+        desc.Init_1_1(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+        serialize_root_signature(mRootSignature, desc);
     }
 
     {
@@ -392,8 +411,52 @@ void Context::create_triangle() {
     flush_copy_queue();
 }
 
+void Context::create_cube_pipeline() {
+    {
+        // mvp matrix
+        CD3DX12_ROOT_PARAMETER1 params[1];
+        params[0].InitAsConstants(16, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+
+        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
+        desc.Init_1_1(1, params, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+        serialize_root_signature(mCube.mRootSignature, desc);
+    }
+
+    {
+        auto ps = load_shader_bytecode(mSink, "build/bundle/shaders/primitive.ps.cso");
+        auto vs = load_shader_bytecode(mSink, "build/bundle/shaders/primitive.vs.cso");
+
+        constexpr D3D12_INPUT_ELEMENT_DESC kInputElements[] = {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(draw::Vertex, position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "COLOUR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(draw::Vertex, colour), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        };
+
+        const D3D12_GRAPHICS_PIPELINE_STATE_DESC kDesc = {
+            .pRootSignature = mCube.mRootSignature.get(),
+            .VS = CD3DX12_SHADER_BYTECODE(vs.data(), vs.size()),
+            .PS = CD3DX12_SHADER_BYTECODE(ps.data(), ps.size()),
+            .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
+            .SampleMask = UINT_MAX,
+            .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
+            .InputLayout = { kInputElements, _countof(kInputElements) },
+            .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+            .NumRenderTargets = 1,
+            .RTVFormats = { mConfig.swapchain_format },
+            .SampleDesc = { 1, 0 },
+        };
+
+        SM_ASSERT_HR(mDevice->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&mCube.mPipelineState)));
+    }
+}
+
+void Context::create_cube() {
+
+}
+
 void Context::create_assets() {
     create_pipeline_state();
+    create_cube_pipeline();
 
     SM_ASSERT_HR(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, *mFrames[mFrameIndex].mCommandAllocator, nullptr, IID_PPV_ARGS(&mCommandList)));
     SM_ASSERT_HR(mCommandList->Close());
@@ -404,6 +467,7 @@ void Context::create_assets() {
     SM_ASSERT_WIN32(mFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr));
 
     create_triangle();
+    create_cube();
 }
 
 void Context::build_command_list() {
@@ -550,20 +614,13 @@ void Context::update_adapter(size_t index) {
     destroy_device();
 
     create_device(index);
-    mSink.info("adapter changed to `{}`", mInstance.get_adapter(index).name());
     create_allocator();
-    mSink.info("allocator created");
     create_copy_queue();
-    mSink.info("copy queue created");
     create_copy_fence();
-    mSink.info("copy fence created");
     create_pipeline();
-    mSink.info("pipeline created");
     create_assets();
-    mSink.info("assets created");
 
     create_imgui_device();
-    mSink.info("imgui device created");
     update_imgui();
 }
 

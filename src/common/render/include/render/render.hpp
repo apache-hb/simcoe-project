@@ -6,7 +6,13 @@
 #include <D3D12MemAlloc.h>
 
 namespace sm::render {
+    using namespace math;
+
     using DeviceHandle = Object<ID3D12Device1>;
+
+    constexpr float3 kVectorForward = {1.f, 0.f, 0.f};
+    constexpr float3 kVectorRight = {0.f, 1.f, 0.f};
+    constexpr float3 kVectorUp = {0.f, 0.f, 1.f};
 
     struct RenderConfig {
         DebugFlags flags;
@@ -51,6 +57,7 @@ namespace sm::render {
         /// device creation and physical adapters
         size_t mAdapterIndex;
         DeviceHandle mDevice;
+        RootSignatureVersion mRootSignatureVersion;
         Object<ID3D12Debug1> mDebug;
         Object<ID3D12InfoQueue1> mInfoQueue;
         DWORD mCookie = ULONG_MAX;
@@ -60,6 +67,7 @@ namespace sm::render {
         void enable_debug_layer(bool gbv, bool rename);
         void enable_dred();
         void enable_info_queue();
+        void query_root_signature_version();
         void create_device(size_t adapter);
 
         // resource allocator
@@ -67,6 +75,8 @@ namespace sm::render {
         void create_allocator();
 
         Result create_resource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state);
+
+        void serialize_root_signature(Object<ID3D12RootSignature>& signature, const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& desc);
 
         /// presentation objects
         Object<IDXGISwapChain3> mSwapChain;
@@ -79,17 +89,17 @@ namespace sm::render {
 
         /// graphics pipeline objects
         Object<ID3D12CommandQueue> mDirectQueue;
-        Object<ID3D12RootSignature> mRootSignature;
-        Object<ID3D12PipelineState> mPipelineState;
         Object<ID3D12GraphicsCommandList1> mCommandList;
 
         Object<ID3D12DescriptorHeap> mRtvHeap;
         uint mRtvDescriptorSize = 0;
-
         void create_rtv_heap(uint count);
 
         Object<ID3D12DescriptorHeap> mSrvHeap;
         uint mSrvDescriptorSize = 0;
+
+        Object<ID3D12RootSignature> mRootSignature;
+        Object<ID3D12PipelineState> mPipelineState;
         void create_pipeline_state();
 
         /// copy queue and commands
@@ -112,6 +122,28 @@ namespace sm::render {
         Resource mVertexBuffer;
         D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
         void create_triangle();
+
+        struct {
+            Object<ID3D12RootSignature> mRootSignature;
+            Object<ID3D12PipelineState> mPipelineState;
+
+            Object<ID3D12Resource> mVertexBuffer;
+            D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
+
+            Object<ID3D12Resource> mIndexBuffer;
+            D3D12_INDEX_BUFFER_VIEW mIndexBufferView;
+        } mCube;
+
+        void create_cube_pipeline();
+        void create_cube();
+
+        struct {
+            float3 position = {3.f, 0.f, 0.f};
+            float3 direction = kVectorForward;
+
+            float fov = to_radians(75.f);
+            float speed = 3.f;
+        } mCamera;
 
         void create_pipeline();
         void create_assets();

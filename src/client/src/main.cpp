@@ -153,25 +153,6 @@ public:
 };
 
 #if 0
-class BroadcastLog final : public logs::ILogger {
-    sm::Vector<logs::ILogger *> m_loggers;
-
-    void accept(const logs::Message &message) override {
-        for (ILogger *logger : m_loggers) {
-            logger->log(message);
-        }
-    }
-
-public:
-    constexpr BroadcastLog(logs::Severity severity)
-        : ILogger(severity) {}
-
-    void add_logger(logs::ILogger *logger) {
-        m_loggers.push_back(logger);
-    }
-};
-#endif
-#if 0
 class TraceArena final : public IArena {
     logs::Sink<logs::Category::eDebug> m_log;
     IArena &m_source;
@@ -291,24 +272,6 @@ public:
 constinit static DefaultSystemError gDefaultError{};
 static constinit ConsoleLog gConsoleLog{logs::Severity::eInfo};
 
-struct System {
-    System(HINSTANCE hInstance) {
-        sys::create(hInstance, gConsoleLog);
-    }
-    ~System() {
-        sys::destroy();
-    }
-};
-
-static std::atomic_bool gShouldExit = false;
-
-#if 0
-static int ctrlc_handler(DWORD signal) {
-    gShouldExit = true;
-    return TRUE;
-}
-#endif
-
 static void common_init(void) {
     bt_init();
     os_init();
@@ -330,71 +293,9 @@ static void common_init(void) {
 
         std::exit(CT_EXIT_INTERNAL); // NOLINT
     };
-
-    //SetConsoleCtrlHandler(ctrlc_handler, TRUE);
 }
 
 #if 0
-class ImGuiRenderPass {
-    render::DescriptorIndex mSrvIndex = render::DescriptorIndex::eInvalid;
-
-public:
-    ImGuiRenderPass() = default;
-
-    void create(HWND hwnd, const render::RenderConfig& config, render::Context& context) {
-        IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
-        ImGui::StyleColorsDark();
-
-        ImGuiIO& io = ImGui::GetIO();
-        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-        io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
-        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-        io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-
-        ImGuiStyle& style = ImGui::GetStyle();
-        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-            style.WindowRounding = 0.0f;
-            style.Colors[ImGuiCol_WindowBg].w = 1.0f;
-        }
-
-        auto& heap = context.srv_heap();
-        mSrvIndex = heap.acquire();
-
-        ImGui_ImplWin32_Init(hwnd);
-        ImGui_ImplDX12_Init(*context.device(), config.frame_count, DXGI_FORMAT_R8G8B8A8_UNORM, heap.get(), heap.cpu(mSrvIndex), heap.gpu(mSrvIndex));
-    }
-
-    void destroy(render::Context& context) {
-        auto& heap = context.srv_heap();
-        heap.release(mSrvIndex);
-
-        ImGui_ImplDX12_Shutdown();
-        ImGui_ImplWin32_Shutdown();
-        ImGui::DestroyContext();
-    }
-
-    void begin_frame() {
-        ImGui_ImplDX12_NewFrame();
-        ImGui_ImplWin32_NewFrame();
-        ImGui::NewFrame();
-    }
-
-    void end_frame() {
-        ImGui::Render();
-    }
-
-    void render(render::Context& context, CommandList& commands) {
-        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commands.get());
-
-        ImGuiIO& io = ImGui::GetIO();
-        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-            ImGui::UpdatePlatformWindows();
-            ImGui::RenderPlatformWindowsDefault(NULL, commands.get());
-        }
-    }
-};
-
 struct RenderObject {
     // TODO: lifetime management
     DeviceResource vbo_upload;
@@ -407,25 +308,6 @@ struct RenderObject {
     IndexBufferView ibo;
     uint32 length;
 };
-
-static sm::Vector<uint8> load_shader_bytecode(const char *path) {
-    GlobalSink general{gConsoleLog};
-    auto file = Io::file(path, eAccessRead);
-    if (auto err = file.error()) {
-        general.error("failed to open {}: {}", file.name(), err);
-        return {};
-    }
-
-    sm::Vector<uint8> data;
-    auto size = file.size();
-    data.resize(size);
-    if (file.read_bytes(data.data(), size) != size) {
-        general.error("failed to read {} bytes from {}: {}", size, file.name(), file.error());
-        return {};
-    }
-
-    return data;
-}
 
 class SceneRenderPass {
     draw::Scene mScene;
@@ -709,112 +591,24 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     events.attach_render(&context);
 
-#if 0
-    render::DebugFlags flags = render::DebugFlags::mask();
-    flags.clear(render::DebugFlags::eWarpAdapter);
-
-    render::RenderConfig config = {
-        .window = window,
-        .logger = gConsoleLog,
-        .adapter_index = 0,
-        .adapter_preference = render::AdapterPreference::eMinimumPower,
-        .feature_level = render::FeatureLevel::eLevel_11_0,
-        .debug_flags = flags,
-
-        .frame_count = 2,
-        .swapchain_format = render::DataFormat::eR8G8B8A8_UNORM,
-
-        .direct_command_pool_size = 4,
-        .copy_command_pool_size = 4,
-        .compute_command_pool_size = 4,
-        .resource_pool_size = 256,
-
-        .rtv_heap_size = 4,
-        .dsv_heap_size = 4,
-        .srv_heap_size = 16,
-    };
-
-    draw::Scene draw;
-    draw.root = 0;
-    draw.nodes.push_back({
-        .transform = {
-            .scale = 1.f,
-        },
-        .meshes = {0}
-    });
-    draw.meshes.push_back({
-        .type = draw::MeshType::eCube,
-        .cube = {
-            .width = 1.f,
-            .height = 1.f,
-            .depth = 1.f,
-        }
-    });
-
-    render::Context context{config};
-    events.attach_render(&context);
-#endif
-
     context.create();
 
-    {
-#if 0
-        //ImGuiRenderPass imgui;
-        SceneRenderPass scene{draw};
-
-        //imgui.create(window.get_handle(), config, context);
-        scene.create(config, context);
-
-        context.flush_copy_queue();
-        context.wait_for_gpu();
-#endif
-        bool done = false;
-        while (!done) {
-            if (gShouldExit) PostQuitMessage(0);
-
-            // more complex message loop to avoid imgui
-            // destroying the main window, then attempting to access it
-            // in RenderPlatformWindowsDefault.
-            // fun thing to debug
-            MSG msg = {};
-            while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)) {
-                TranslateMessage(&msg);
-                DispatchMessageA(&msg);
-                if (msg.message == WM_QUIT) {
-                    done = true;
-                }
+    bool done = false;
+    while (!done) {
+        MSG msg = {};
+        while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)) {
+            TranslateMessage(&msg);
+            DispatchMessageA(&msg);
+            if (msg.message == WM_QUIT) {
+                done = true;
             }
-
-            if (done) break;
-            input.poll();
-
-            context.update();
-            context.render();
-
-#if 0
-            // dear imgui rendering
-
-            //imgui.begin_frame();
-
-            //ImGui::ShowDemoWindow();
-
-            // actual rendering
-
-            context.begin_frame();
-
-            auto& commands = context.current_frame_list();
-            scene.render(context, commands);
-
-            //imgui.end_frame();
-            //imgui.render(context, commands);
-
-            context.end_frame();
-#endif
         }
 
-        //context.wait_for_gpu();
+        if (done) break;
+        input.poll();
 
-        //imgui.destroy(context);
+        context.update();
+        context.render();
     }
 
     context.destroy();
@@ -858,6 +652,15 @@ static int common_main(sys::ShowWindow show) {
 
     return result;
 }
+
+struct System {
+    System(HINSTANCE hInstance) {
+        sys::create(hInstance, gConsoleLog);
+    }
+    ~System() {
+        sys::destroy();
+    }
+};
 
 int main(int argc, const char **argv) {
     GlobalSink general{gConsoleLog};
