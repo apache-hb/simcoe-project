@@ -113,6 +113,24 @@ static bool EnumCombo(const char *label, typename ctu::TypeInfo<T>::Type &choice
     return true;
 }
 
+static void display_mem_budget(const D3D12MA::Budget &budget) {
+    sm::Memory usage_bytes = budget.UsageBytes;
+    sm::Memory budget_bytes = budget.BudgetBytes;
+    ImGui::Text("Usage: %s", usage_bytes.to_string().c_str());
+    ImGui::Text("Budget: %s", budget_bytes.to_string().c_str());
+
+    uint64 alloc_count = budget.Stats.AllocationCount;
+    sm::Memory alloc_bytes = budget.Stats.AllocationBytes;
+    uint64 block_count = budget.Stats.BlockCount;
+    sm::Memory block_bytes = budget.Stats.BlockBytes;
+
+    ImGui::Text("Allocated blocks: %llu", alloc_count);
+    ImGui::Text("Allocated: %s", alloc_bytes.to_string().c_str());
+
+    ImGui::Text("Block count: %llu", block_count);
+    ImGui::Text("Block: %s", block_bytes.to_string().c_str());
+}
+
 void Context::update_imgui() {
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
@@ -141,12 +159,38 @@ void Context::update_imgui() {
             ImGui::SameLine();
 
             if (ImGui::TreeNodeEx((void*)name.data(), ImGuiTreeNodeFlags_DefaultOpen, "%s", name.data())) {
-                ImGui::Text("video memory: %s", adapter.vidmem().to_string().c_str());
-                ImGui::Text("system memory: %s", adapter.sysmem().to_string().c_str());
-                ImGui::Text("shared memory: %s", adapter.sharedmem().to_string().c_str());
-                ImGui::Text("flags: %s", Reflect::to_string(adapter.flags()).data());
+                ImGui::Text("Video memory: %s", adapter.vidmem().to_string().c_str());
+                ImGui::Text("System memory: %s", adapter.sysmem().to_string().c_str());
+                ImGui::Text("Shared memory: %s", adapter.sharedmem().to_string().c_str());
+                ImGui::Text("Flags: %s", Reflect::to_string(adapter.flags()).data());
                 ImGui::TreePop();
             }
+        }
+
+        ImGui::SeparatorText("Render Status");
+        if (ImGui::CollapsingHeader("Allocator info")) {
+            ImGui::SeparatorText("Memory segment capacity");
+            sm::Memory local = mAllocator->GetMemoryCapacity(DXGI_MEMORY_SEGMENT_GROUP_LOCAL);
+            sm::Memory nonlocal = mAllocator->GetMemoryCapacity(DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL);
+
+            ImGui::Text("Local: %s", local.to_string().c_str());
+            ImGui::Text("Non-Local: %s", nonlocal.to_string().c_str());
+
+            bool uma = mAllocator->IsUMA();
+            bool cache_coherent_uma = mAllocator->IsCacheCoherentUMA();
+
+            ImGui::Text("UMA: %s", uma ? "true" : "false");
+            ImGui::Text("Cache Coherent UMA: %s", cache_coherent_uma ? "true" : "false");
+
+            D3D12MA::Budget local_budget;
+            D3D12MA::Budget nonlocal_budget;
+            mAllocator->GetBudget(&local_budget, &nonlocal_budget);
+
+            ImGui::SeparatorText("Local Budget");
+            display_mem_budget(local_budget);
+
+            ImGui::SeparatorText("Non-Local Budget");
+            display_mem_budget(nonlocal_budget);
         }
     }
     ImGui::End();
