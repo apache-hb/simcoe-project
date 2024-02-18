@@ -8,6 +8,37 @@ using namespace sm;
 using namespace sm::draw;
 using namespace sm::render;
 
+namespace MyGui {
+template<ctu::Reflected T> requires (ctu::is_enum<T>())
+static bool EnumCombo(const char *label, typename ctu::TypeInfo<T>::Type &choice) {
+    using Reflect = ctu::TypeInfo<T>;
+    const auto id = Reflect::to_string(choice);
+    if (ImGui::BeginCombo(label, id.c_str())) {
+        for (size_t i = 0; i < std::size(Reflect::kCases); i++) {
+            const auto &[name, value] = Reflect::kCases[i];
+            bool selected = choice == value;
+            if (ImGui::Selectable(name.c_str(), selected)) {
+                choice = value;
+            }
+            if (selected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+    return true;
+}
+
+static bool SliderAngle3(const char *label, float3 &value, float min, float max) {
+    float3 degrees = to_degrees(value);
+    if (ImGui::SliderFloat3(label, &degrees.x, min, max)) {
+        value = to_radians(degrees);
+        return true;
+    }
+    return false;
+}
+} // namespace MyGui
+
 static constexpr MeshInfo get_default_info(MeshType type) {
     switch (type.as_enum()) {
     case MeshType::eCube:
@@ -52,7 +83,6 @@ void Context::create_imgui() {
                         mSrvHeap->GetCPUDescriptorHandleForHeapStart(),
                         mSrvHeap->GetGPUDescriptorHandleForHeapStart());
 
-
     auto cases = MeshType::cases();
     for (MeshType i : cases) {
         mMeshCreateInfo[i] = get_default_info(i);
@@ -89,35 +119,6 @@ void Context::update_camera() {
     ImGui::SliderFloat3("position", &mCamera.position.x, -10.f, 10.f);
     ImGui::SliderFloat3("direction", &mCamera.direction.x, -1.f, 1.f);
     ImGui::SliderFloat("speed", &mCamera.speed, 0.1f, 10.f);
-}
-
-template<ctu::Reflected T> requires (ctu::is_enum<T>())
-static bool EnumCombo(const char *label, typename ctu::TypeInfo<T>::Type &choice) {
-    using Reflect = ctu::TypeInfo<T>;
-    const auto id = Reflect::to_string(choice);
-    if (ImGui::BeginCombo(label, id.c_str())) {
-        for (size_t i = 0; i < std::size(Reflect::kCases); i++) {
-            const auto &[name, value] = Reflect::kCases[i];
-            bool selected = choice == value;
-            if (ImGui::Selectable(name.c_str(), selected)) {
-                choice = value;
-            }
-            if (selected) {
-                ImGui::SetItemDefaultFocus();
-            }
-        }
-        ImGui::EndCombo();
-    }
-    return true;
-}
-
-static bool SliderAngle3(const char *label, float3 &value, float min, float max) {
-    float3 degrees = to_degrees(value);
-    if (ImGui::SliderFloat3(label, &degrees.x, min, max)) {
-        value = to_radians(degrees);
-        return true;
-    }
-    return false;
 }
 
 static void display_mem_budget(const D3D12MA::Budget &budget) {
@@ -174,6 +175,7 @@ bool Context::update_imgui() {
             }
         }
 
+
         ImGui::SeparatorText("Render Status");
         if (ImGui::CollapsingHeader("Allocator")) {
             ImGui::SeparatorText("Memory");
@@ -202,17 +204,29 @@ bool Context::update_imgui() {
                 D3D12MA::Budget nolocal;
                 mAllocator->GetBudget(&local, &nolocal);
 
-                ImGui::SeparatorText("Local Budget");
-                display_mem_budget(local);
+                ImVec2 avail = ImGui::GetContentRegionAvail();
+                ImGuiStyle& style = ImGui::GetStyle();
 
-                ImGui::SeparatorText("Non-Local Budget");
+                float width = avail.x / 2.f - style.ItemSpacing.x;
+
+                ImGui::BeginChild("Local Budget", ImVec2(width, 150), ImGuiChildFlags_Border);
+                ImGui::SeparatorText("Local");
+                display_mem_budget(local);
+                ImGui::EndChild();
+
+                ImGui::SameLine();
+
+                ImGui::BeginChild("Non-Local Budget", ImVec2(width, 150), ImGuiChildFlags_Border);
+                ImGui::SeparatorText("Non-Local");
                 display_mem_budget(nolocal);
+                ImGui::EndChild();
             }
         }
 
-        if (ImGui::CollapsingHeader("Descriptors")) {
-            ImGui::SeparatorText("RTV");
-
+        if (ImGui::CollapsingHeader("Descriptor heaps")) {
+            ImGui::Text("RTV capacity: %u", mRtvHeap.mCapacity);
+            ImGui::Text("DSV capacity: %u", mDsvHeap.mCapacity);
+            ImGui::Text("SRV capacity: %u", mSrvHeap.mCapacity);
         }
     }
     ImGui::End();
@@ -229,7 +243,7 @@ bool Context::update_imgui() {
         if (ImGui::BeginPopup("New Primitive")) {
             static draw::MeshType type = draw::MeshType::eCube;
             static float3 colour = {1.f, 1.f, 1.f};
-            EnumCombo<draw::MeshType>("Type", type);
+            MyGui::EnumCombo<draw::MeshType>("Type", type);
 
             auto& info = mMeshCreateInfo[type];
 
@@ -288,7 +302,7 @@ bool Context::update_imgui() {
             if (ImGui::TreeNodeEx((void*)&primitive, ImGuiTreeNodeFlags_DefaultOpen, "%s", name.data())) {
                 auto& [position, rotation, scale] = primitive.mTransform;
                 ImGui::SliderFloat3("Position", position.data(), -10.f, 10.f);
-                SliderAngle3("Rotation", rotation, -3.14f, 3.14f);
+                MyGui::SliderAngle3("Rotation", rotation, -3.14f, 3.14f);
                 ImGui::SliderFloat3("Scale", scale.data(), 0.1f, 10.f);
 
                 switch (info.type.as_enum()) {
