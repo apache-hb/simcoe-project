@@ -65,8 +65,7 @@ void Context::destroy_imgui() {
     ImGui::DestroyContext();
 }
 
-void Context::create_imgui_device() {
-    mSink.info("creating imgui device");
+void Context::create_imgui_backend() {
     ImGui_ImplWin32_Init(mConfig.window.get_handle());
     ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mSwapChainLength),
                         mConfig.swapchain_format, *mSrvHeap,
@@ -77,8 +76,7 @@ void Context::create_imgui_device() {
     ImGui_ImplDX12_NewFrame();
 }
 
-void Context::destroy_imgui_device() {
-    mSink.info("destroying imgui device");
+void Context::destroy_imgui_backend() {
     ImGui_ImplDX12_InvalidateDeviceObjects();
     ImGui_ImplDX12_Shutdown();
     ImGui_ImplWin32_Shutdown();
@@ -131,7 +129,7 @@ static void display_mem_budget(const D3D12MA::Budget &budget) {
     ImGui::Text("Block: %s", block_bytes.to_string().c_str());
 }
 
-void Context::update_imgui() {
+bool Context::update_imgui() {
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
@@ -158,7 +156,7 @@ void Context::update_imgui() {
             ImGui::RadioButton(label, &current, int_cast<int>(i));
             ImGui::SameLine();
 
-            if (ImGui::TreeNodeEx((void*)name.data(), ImGuiTreeNodeFlags_DefaultOpen, "%s", name.data())) {
+            if (ImGui::TreeNodeEx((void*)name.data(), ImGuiTreeNodeFlags_None, "%s", name.data())) {
                 ImGui::Text("Video memory: %s", adapter.vidmem().to_string().c_str());
                 ImGui::Text("System memory: %s", adapter.sysmem().to_string().c_str());
                 ImGui::Text("Shared memory: %s", adapter.sharedmem().to_string().c_str());
@@ -168,29 +166,44 @@ void Context::update_imgui() {
         }
 
         ImGui::SeparatorText("Render Status");
-        if (ImGui::CollapsingHeader("Allocator info")) {
-            ImGui::SeparatorText("Memory segment capacity");
-            sm::Memory local = mAllocator->GetMemoryCapacity(DXGI_MEMORY_SEGMENT_GROUP_LOCAL);
-            sm::Memory nonlocal = mAllocator->GetMemoryCapacity(DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL);
+        if (ImGui::CollapsingHeader("Allocator")) {
+            ImGui::SeparatorText("Memory");
 
-            ImGui::Text("Local: %s", local.to_string().c_str());
-            ImGui::Text("Non-Local: %s", nonlocal.to_string().c_str());
+            {
+                sm::Memory local = mAllocator->GetMemoryCapacity(DXGI_MEMORY_SEGMENT_GROUP_LOCAL);
+                sm::Memory nonlocal = mAllocator->GetMemoryCapacity(DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL);
 
-            bool uma = mAllocator->IsUMA();
-            bool cache_coherent_uma = mAllocator->IsCacheCoherentUMA();
+                ImGui::Text("Local: %s", local.to_string().c_str());
+                ImGui::Text("Non-Local: %s", nonlocal.to_string().c_str());
+            }
 
-            ImGui::Text("UMA: %s", uma ? "true" : "false");
-            ImGui::Text("Cache Coherent UMA: %s", cache_coherent_uma ? "true" : "false");
+            {
+                const char *mode = mAllocator->IsCacheCoherentUMA()
+                    ? "Cache Coherent UMA"
+                    : mAllocator->IsUMA()
+                        ? "Unified Memory Architecture"
+                        : "Non-UMA";
 
-            D3D12MA::Budget local_budget;
-            D3D12MA::Budget nonlocal_budget;
-            mAllocator->GetBudget(&local_budget, &nonlocal_budget);
+                ImGui::Text("UMA: %s", mode);
+            }
 
-            ImGui::SeparatorText("Local Budget");
-            display_mem_budget(local_budget);
+            ImGui::SeparatorText("Budget");
+            {
+                D3D12MA::Budget local;
+                D3D12MA::Budget nolocal;
+                mAllocator->GetBudget(&local, &nolocal);
 
-            ImGui::SeparatorText("Non-Local Budget");
-            display_mem_budget(nonlocal_budget);
+                ImGui::SeparatorText("Local Budget");
+                display_mem_budget(local);
+
+                ImGui::SeparatorText("Non-Local Budget");
+                display_mem_budget(nolocal);
+            }
+        }
+
+        if (ImGui::CollapsingHeader("Descriptors")) {
+            ImGui::SeparatorText("RTV");
+
         }
     }
     ImGui::End();
@@ -317,7 +330,10 @@ void Context::update_imgui() {
 
     if (current != (int)mAdapterIndex) {
         update_adapter(current);
+        return false;
     }
+
+    return true;
 }
 
 void Context::render_imgui() {

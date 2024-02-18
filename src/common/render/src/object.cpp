@@ -1,6 +1,8 @@
 #include "render/object.hpp"
 #include "render/render.hpp"
 
+#include "d3dx12/d3dx12_root_signature.h"
+
 using namespace sm;
 using namespace sm::render;
 
@@ -17,18 +19,22 @@ size_t Blob::size() const {
 }
 
 Result Resource::map(const D3D12_RANGE *range, void **data) {
-    return mHandle->Map(0, range, data);
+    return mResource->Map(0, range, data);
 }
 
 void Resource::unmap(const D3D12_RANGE *range) {
-    mHandle->Unmap(0, range);
+    mResource->Unmap(0, range);
 }
 
 D3D12_GPU_VIRTUAL_ADDRESS Resource::get_gpu_address() {
-    return mHandle->GetGPUVirtualAddress();
+    return mResource->GetGPUVirtualAddress();
 }
 
 void Resource::reset() {
-    mHandle.reset();
+    mResource.reset();
     mAllocation.reset();
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE DescriptorHeap::cpu_descriptor_handle(int index) {
+    return CD3DX12_CPU_DESCRIPTOR_HANDLE(get()->GetCPUDescriptorHandleForHeapStart(), index, mDescriptorSize);
 }

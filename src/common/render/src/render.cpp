@@ -216,15 +216,14 @@ void Context::create_pipeline() {
     create_rtv_heap(mSwapChainLength);
 
     {
-        const D3D12_DESCRIPTOR_HEAP_DESC kHeapDesc = {
-            .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-            .NumDescriptors = 1,
-            .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
-        };
-
-        SM_ASSERT_HR(mDevice->CreateDescriptorHeap(&kHeapDesc, IID_PPV_ARGS(&mSrvHeap)));
-        mSrvDescriptorSize = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        SM_ASSERT_HR(create_descriptor_heap(mSrvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1, true));
     }
+
+    {
+        SM_ASSERT_HR(create_descriptor_heap(mDsvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false));
+    }
+
+    create_depth_stencil();
 
     mFrames.resize(mSwapChainLength);
 
@@ -240,13 +239,38 @@ void Context::create_pipeline() {
 void Context::create_rtv_heap(uint count) {
     mRtvHeap.reset();
 
+    SM_ASSERT_HR(create_descriptor_heap(mRtvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, count, false));
+}
+
+Result Context::create_descriptor_heap(DescriptorHeap& heap, D3D12_DESCRIPTOR_HEAP_TYPE type, uint capacity, bool shader_visible) {
     const D3D12_DESCRIPTOR_HEAP_DESC kHeapDesc = {
-        .Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
-        .NumDescriptors = count,
+        .Type = type,
+        .NumDescriptors = capacity,
+        .Flags = shader_visible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
     };
 
-    SM_ASSERT_HR(mDevice->CreateDescriptorHeap(&kHeapDesc, IID_PPV_ARGS(&mRtvHeap)));
-    mRtvDescriptorSize = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    heap.mDescriptorSize = mDevice->GetDescriptorHandleIncrementSize(type);
+    heap.mCapacity = capacity;
+    return mDevice->CreateDescriptorHeap(&kHeapDesc, IID_PPV_ARGS(&heap));
+}
+
+void Context::create_depth_stencil() {
+    const D3D12_CLEAR_VALUE kClearValue = {
+        .Format = kDepthFormat,
+        .DepthStencil = { 1.0f, 0 },
+    };
+
+    const auto kDepthBufferDesc = CD3DX12_RESOURCE_DESC::Tex2D(kDepthFormat, mSwapChainSize.width, mSwapChainSize.height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+
+    SM_ASSERT_HR(create_resource(mDepthStencil, D3D12_HEAP_TYPE_DEFAULT, kDepthBufferDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &kClearValue));
+
+    const D3D12_DEPTH_STENCIL_VIEW_DESC kDesc = {
+        .Format = kDepthFormat,
+        .ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
+        .Flags = D3D12_DSV_FLAG_NONE,
+    };
+
+    mDevice->CreateDepthStencilView(*mDepthStencil.mResource, &kDesc, mDsvHeap->GetCPUDescriptorHandleForHeapStart());
 }
 
 void Context::create_render_targets() {
@@ -255,7 +279,7 @@ void Context::create_render_targets() {
         auto& backbuffer = mFrames[i].mRenderTarget;
         SM_ASSERT_HR(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&backbuffer)));
         mDevice->CreateRenderTargetView(*backbuffer, nullptr, rtvHandle);
-        rtvHandle.Offset(1, mRtvDescriptorSize);
+        rtvHandle.Offset(1, mRtvHeap.mDescriptorSize);
     }
 }
 
@@ -302,20 +326,28 @@ static sm::Vector<uint8> load_shader_bytecode(Sink& sink, const char *path) {
     return data;
 }
 
-Result Context::create_resource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state) {
+Result Context::create_resource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state, const D3D12_CLEAR_VALUE *clear) {
     const D3D12MA::ALLOCATION_DESC kAllocDesc = {
         .HeapType = heap,
     };
 
-    return mAllocator->CreateResource(&kAllocDesc, &desc, state, nullptr, &resource.mAllocation, IID_PPV_ARGS(&resource.mHandle));
+    return mAllocator->CreateResource(&kAllocDesc, &desc, state, clear, &resource.mAllocation, IID_PPV_ARGS(&resource.mResource));
 }
 
 void Context::copy_buffer(Object<ID3D12GraphicsCommandList1>& list, Resource& dst, Resource& src, size_t size) {
-    list->CopyBufferRegion(*dst.mHandle, 0, *src.mHandle, 0, size);
+    list->CopyBufferRegion(*dst.mResource, 0, *src.mResource, 0, size);
 }
 
 static const D3D12_HEAP_PROPERTIES kDefaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 static const D3D12_HEAP_PROPERTIES kUploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+
+static const D3D12_ROOT_SIGNATURE_FLAGS kPrimitiveRootFlags
+    = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
+    | D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS
+    | D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS
+    | D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS
+    | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS
+    | D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
 
 void Context::create_primitive_pipeline() {
     {
@@ -324,9 +356,9 @@ void Context::create_primitive_pipeline() {
         params[0].InitAsConstants(16, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
 
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
-        desc.Init_1_1(1, params, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+        desc.Init_1_1(1, params, 0, nullptr, kPrimitiveRootFlags);
 
-        serialize_root_signature(mPrimitive.mRootSignature, desc);
+        serialize_root_signature(mPrimitivePipeline.mRootSignature, desc);
     }
 
     {
@@ -339,7 +371,7 @@ void Context::create_primitive_pipeline() {
         };
 
         const D3D12_GRAPHICS_PIPELINE_STATE_DESC kDesc = {
-            .pRootSignature = mPrimitive.mRootSignature.get(),
+            .pRootSignature = mPrimitivePipeline.mRootSignature.get(),
             .VS = CD3DX12_SHADER_BYTECODE(vs.data(), vs.size()),
             .PS = CD3DX12_SHADER_BYTECODE(ps.data(), ps.size()),
             .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
@@ -352,7 +384,7 @@ void Context::create_primitive_pipeline() {
             .SampleDesc = { 1, 0 },
         };
 
-        SM_ASSERT_HR(mDevice->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&mPrimitive.mPipelineState)));
+        SM_ASSERT_HR(mDevice->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&mPrimitivePipeline.mPipelineState)));
     }
 }
 
@@ -385,8 +417,8 @@ void Context::destroy_scene() {
 }
 
 void Context::destroy_primitive_pipeline() {
-    mPrimitive.mPipelineState.reset();
-    mPrimitive.mRootSignature.reset();
+    mPrimitivePipeline.mPipelineState.reset();
+    mPrimitivePipeline.mRootSignature.reset();
 }
 
 Context::Primitive Context::create_mesh(const draw::MeshInfo& info) {
@@ -439,12 +471,12 @@ Context::Primitive Context::create_mesh(const draw::MeshInfo& info) {
 
     const D3D12_RESOURCE_BARRIER kBarriers[2] = {
         CD3DX12_RESOURCE_BARRIER::Transition(
-            *primitive.mVertexBuffer.mHandle,
+            *primitive.mVertexBuffer.mResource,
             D3D12_RESOURCE_STATE_COPY_DEST,
             D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
         ),
         CD3DX12_RESOURCE_BARRIER::Transition(
-            *primitive.mIndexBuffer.mHandle,
+            *primitive.mIndexBuffer.mResource,
             D3D12_RESOURCE_STATE_COPY_DEST,
             D3D12_RESOURCE_STATE_INDEX_BUFFER
         )
@@ -502,8 +534,8 @@ void Context::build_command_list() {
     auto& [backbuffer, allocator, _] = mFrames[mFrameIndex];
 
     SM_ASSERT_HR(allocator->Reset());
-    SM_ASSERT_HR(mCommandList->Reset(allocator.get(), *mPrimitive.mPipelineState));
-    mCommandList->SetGraphicsRootSignature(*mPrimitive.mRootSignature);
+    SM_ASSERT_HR(mCommandList->Reset(allocator.get(), *mPrimitivePipeline.mPipelineState));
+    mCommandList->SetGraphicsRootSignature(*mPrimitivePipeline.mRootSignature);
 
     const auto kIntoRenderTarget = CD3DX12_RESOURCE_BARRIER::Transition(
         *backbuffer,
@@ -515,7 +547,7 @@ void Context::build_command_list() {
 
     /// render target setup
 
-    const auto kRtvHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mRtvHeap->GetCPUDescriptorHandleForHeapStart(), (int)mFrameIndex, mRtvDescriptorSize);
+    const auto kRtvHandle = mRtvHeap.cpu_descriptor_handle(int_cast<int>(mFrameIndex));
     mCommandList->RSSetViewports(1, &mViewport);
     mCommandList->RSSetScissorRects(1, &mScissorRect);
     mCommandList->OMSetRenderTargets(1, &kRtvHandle, false, nullptr);
@@ -532,8 +564,8 @@ void Context::build_command_list() {
     auto [width, height] = mSwapChainSize.as<float>();
     const float4x4 mvp = mCamera.mvp(width / height).transpose();
 
-    mCommandList->SetGraphicsRootSignature(*mPrimitive.mRootSignature);
-    mCommandList->SetPipelineState(*mPrimitive.mPipelineState);
+    mCommandList->SetGraphicsRootSignature(*mPrimitivePipeline.mRootSignature);
+    mCommandList->SetPipelineState(*mPrimitivePipeline.mPipelineState);
 
     mCommandList->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
 
@@ -569,6 +601,9 @@ void Context::destroy_device() {
         mFrames[i].mCommandAllocator.reset();
     }
 
+    // depth stencil
+    mDepthStencil.reset();
+
     // release sync objects
     mFence.reset();
     mCopyFence.reset();
@@ -593,6 +628,7 @@ void Context::destroy_device() {
 
     // descriptor heaps
     mRtvHeap.reset();
+    mDsvHeap.reset();
     mSrvHeap.reset();
 
     // swapchain
@@ -638,8 +674,8 @@ void Context::destroy() {
     SM_ASSERT_WIN32(CloseHandle(mFenceEvent));
 }
 
-void Context::update() {
-    update_imgui();
+bool Context::update() {
+    return update_imgui();
 }
 
 void Context::render() {
@@ -660,7 +696,7 @@ void Context::update_adapter(size_t index) {
     if (index == mAdapterIndex) return;
 
     wait_for_gpu();
-    destroy_imgui_device();
+    destroy_imgui_backend();
     destroy_device();
 
     create_device(index);
@@ -671,8 +707,7 @@ void Context::update_adapter(size_t index) {
     create_assets();
 
     create_scene();
-    create_imgui_device();
-    update_imgui();
+    create_imgui_backend();
 }
 
 void Context::update_swapchain_length(uint length) {
@@ -709,6 +744,8 @@ void Context::resize(math::uint2 size) {
         mFrames[i].mFenceValue = mFrames[mFrameIndex].mFenceValue;
     }
 
+    mDepthStencil.reset();
+
     const uint flags = get_swapchain_flags(mInstance);
     SM_ASSERT_HR(mSwapChain->ResizeBuffers(mSwapChainLength, size.width, size.height, mConfig.swapchain_format, flags));
     mSwapChainSize = size;
@@ -717,6 +754,7 @@ void Context::resize(math::uint2 size) {
 
     update_viewport_scissor();
     create_render_targets();
+    create_depth_stencil();
 }
 
 void Context::move_to_next_frame() {

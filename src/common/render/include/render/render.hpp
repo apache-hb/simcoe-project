@@ -39,7 +39,7 @@ namespace sm::render {
     };
 
     struct Resource {
-        Object<ID3D12Resource> mHandle;
+        Object<ID3D12Resource> mResource;
         Object<D3D12MA::Allocation> mAllocation;
 
         Result map(const D3D12_RANGE *range, void **data);
@@ -49,7 +49,16 @@ namespace sm::render {
         void reset();
     };
 
+    struct DescriptorHeap : Object<ID3D12DescriptorHeap> {
+        uint mDescriptorSize;
+        uint mCapacity;
+
+        D3D12_CPU_DESCRIPTOR_HANDLE cpu_descriptor_handle(int index);
+    };
+
     struct Context {
+        static constexpr DXGI_FORMAT kDepthFormat = DXGI_FORMAT_D32_FLOAT;
+
         const RenderConfig mConfig;
 
         Sink mSink;
@@ -78,7 +87,7 @@ namespace sm::render {
         Object<D3D12MA::Allocator> mAllocator;
         void create_allocator();
 
-        Result create_resource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state);
+        Result create_resource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state, const D3D12_CLEAR_VALUE *clear = nullptr);
 
         void serialize_root_signature(Object<ID3D12RootSignature>& signature, const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& desc);
 
@@ -95,12 +104,17 @@ namespace sm::render {
         Object<ID3D12CommandQueue> mDirectQueue;
         Object<ID3D12GraphicsCommandList1> mCommandList;
 
-        Object<ID3D12DescriptorHeap> mRtvHeap;
-        uint mRtvDescriptorSize = 0;
+        DescriptorHeap mRtvHeap;
         void create_rtv_heap(uint count);
 
-        Object<ID3D12DescriptorHeap> mSrvHeap;
-        uint mSrvDescriptorSize = 0;
+        DescriptorHeap mDsvHeap;
+
+        Resource mDepthStencil;
+        void create_depth_stencil();
+
+        DescriptorHeap mSrvHeap;
+
+        Result create_descriptor_heap(DescriptorHeap& heap, D3D12_DESCRIPTOR_HEAP_TYPE type, uint capacity, bool shader_visible);
 
         /// copy queue and commands
         Object<ID3D12CommandQueue> mCopyQueue;
@@ -122,7 +136,7 @@ namespace sm::render {
         struct {
             Object<ID3D12RootSignature> mRootSignature;
             Object<ID3D12PipelineState> mPipelineState;
-        } mPrimitive;
+        } mPrimitivePipeline;
 
         void create_primitive_pipeline();
         void destroy_primitive_pipeline();
@@ -191,10 +205,10 @@ namespace sm::render {
         void create_imgui();
         void destroy_imgui();
 
-        void create_imgui_device();
-        void destroy_imgui_device();
+        void create_imgui_backend();
+        void destroy_imgui_backend();
 
-        void update_imgui();
+        bool update_imgui();
         void render_imgui();
 
         void update_adapter(size_t index);
@@ -208,7 +222,7 @@ namespace sm::render {
         void create();
         void destroy();
 
-        void update();
+        bool update();
         void render();
         void resize(math::uint2 size);
     };

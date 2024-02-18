@@ -607,8 +607,8 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         if (done) break;
         input.poll();
 
-        context.update();
-        context.render();
+        if (context.update())
+            context.render();
     }
 
     context.destroy();
