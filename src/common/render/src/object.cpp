@@ -32,11 +32,3 @@ void Resource::reset() {
     mHandle.reset();
     mAllocation.reset();
 }
-
-void IDependency::create(Context& context, DependsOn reason) {
-    do_create(context, reason);
-}
-
-void IDependency::destroy(Context& context, DependsOn reason) {
-    do_destroy(context, reason);
-}
