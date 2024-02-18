@@ -70,6 +70,13 @@ namespace sm::render {
         Viewport(math::uint2 size);
     };
 
+    struct Pipeline {
+        Object<ID3D12RootSignature> mRootSignature;
+        Object<ID3D12PipelineState> mPipelineState;
+
+        void reset();
+    };
+
     struct Context {
         static constexpr DXGI_FORMAT kDepthFormat = DXGI_FORMAT_D32_FLOAT;
 
@@ -77,6 +84,7 @@ namespace sm::render {
 
         Sink mSink;
         Instance mInstance;
+        WindowState mWindowState;
 
         static void CALLBACK on_info(D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERITY severity,
                                  D3D12_MESSAGE_ID id, LPCSTR desc, void *user);
@@ -160,13 +168,15 @@ namespace sm::render {
         Viewport mSceneViewport;
         Viewport mPostViewport;
 
-        struct {
-            Object<ID3D12RootSignature> mRootSignature;
-            Object<ID3D12PipelineState> mPipelineState;
-        } mPrimitivePipeline;
+        Pipeline mPrimitivePipeline;
 
         void create_primitive_pipeline();
         void destroy_primitive_pipeline();
+
+        Pipeline mBlitPipeline;
+
+        void create_blit_pipeline();
+        void destroy_blit_pipeline();
 
         struct Primitive {
             draw::MeshInfo mInfo;

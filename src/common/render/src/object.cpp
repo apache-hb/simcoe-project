@@ -62,3 +62,8 @@ Viewport::Viewport(math::uint2 size) {
         .bottom = int_cast<LONG>(h),
     };
 }
+
+void Pipeline::reset() {
+    mRootSignature.reset();
+    mPipelineState.reset();
+}

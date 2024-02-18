@@ -86,3 +86,16 @@ variant MessageID : opaque(D3D12_MESSAGE_ID) {
     // dont fill in the rest, theres over 1000 of them
     // we'll add them as we need them
 }
+
+///
+/// render state
+///
+
+variant WindowState {
+    default Unknown // window state is unknown
+
+    case Windowed // window is visible, and active, but not fullscreen
+    case Fullscreen // window is visible, and active, and fullscreen
+    case Unfocused // window is visible, but not active
+    case Minimized // window is not visible
+}

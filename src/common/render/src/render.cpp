@@ -12,6 +12,20 @@
 using namespace sm;
 using namespace sm::render;
 
+namespace blit {
+    struct Vertex {
+        float2 position;
+        float2 uv;
+    };
+
+    SM_UNUSED static constexpr Vertex kScreenQuad[] = {
+        { { -1.f, -1.f }, { 0.f, 1.f } },
+        { { -1.f,  1.f }, { 0.f, 0.f } },
+        { {  1.f, -1.f }, { 1.f, 1.f } },
+        { {  1.f,  1.f }, { 1.f, 0.f } },
+    };
+}
+
 static uint get_swapchain_flags(const Instance& instance) {
     return instance.tearing_support() ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 }
@@ -387,6 +401,79 @@ void Context::create_primitive_pipeline() {
     }
 }
 
+void Context::destroy_primitive_pipeline() {
+    mPrimitivePipeline.reset();
+}
+
+static constexpr D3D12_ROOT_SIGNATURE_FLAGS kPostRootFlags
+    = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
+    | D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS
+    | D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS
+    | D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS
+    | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS
+    | D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
+
+void Context::create_blit_pipeline() {
+    {
+        CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
+        CD3DX12_ROOT_PARAMETER1 params[1];
+
+        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+        params[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
+
+        const D3D12_STATIC_SAMPLER_DESC kSampler = {
+            .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+            .AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            .AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            .AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            .ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
+            .BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
+            .MinLOD = 0.f,
+            .MaxLOD = D3D12_FLOAT32_MAX,
+            .ShaderRegister = 0,
+            .RegisterSpace = 0,
+            .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL,
+        };
+
+        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
+        desc.Init_1_1(_countof(params), params, 1, &kSampler, kPostRootFlags);
+
+        serialize_root_signature(mBlitPipeline.mRootSignature, desc);
+    }
+
+    {
+        auto ps = load_shader_bytecode(mSink, "build/bundle/shaders/blit.ps.cso");
+        auto vs = load_shader_bytecode(mSink, "build/bundle/shaders/blit.vs.cso");
+
+        constexpr D3D12_INPUT_ELEMENT_DESC kInputElements[] = {
+            { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(blit::Vertex, position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(blit::Vertex, uv), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        };
+
+        const D3D12_GRAPHICS_PIPELINE_STATE_DESC kDesc = {
+            .pRootSignature = mBlitPipeline.mRootSignature.get(),
+            .VS = CD3DX12_SHADER_BYTECODE(vs.data(), vs.size()),
+            .PS = CD3DX12_SHADER_BYTECODE(ps.data(), ps.size()),
+            .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
+            .SampleMask = UINT_MAX,
+            .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
+            .DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT),
+            .InputLayout = { kInputElements, _countof(kInputElements) },
+            .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+            .NumRenderTargets = 1,
+            .RTVFormats = { mConfig.swapchain_format },
+            .DSVFormat = kDepthFormat,
+            .SampleDesc = { 1, 0 },
+        };
+
+        SM_ASSERT_HR(mDevice->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&mBlitPipeline.mPipelineState)));
+    }
+}
+
+void Context::destroy_blit_pipeline() {
+    mBlitPipeline.reset();
+}
+
 static constexpr draw::Cube kCube = {
     .width = 1.f,
     .height = 1.f,
@@ -413,11 +500,6 @@ void Context::destroy_scene() {
         primitive.mVertexBuffer.reset();
         primitive.mIndexBuffer.reset();
     }
-}
-
-void Context::destroy_primitive_pipeline() {
-    mPrimitivePipeline.mPipelineState.reset();
-    mPrimitivePipeline.mRootSignature.reset();
 }
 
 Context::Primitive Context::create_mesh(const draw::MeshInfo& info, const float3& colour) {
@@ -521,6 +603,7 @@ Context::Primitive Context::create_mesh(const draw::MeshInfo& info, const float3
 
 void Context::create_assets() {
     create_primitive_pipeline();
+    create_blit_pipeline();
 
     SM_ASSERT_HR(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, *mFrames[mFrameIndex].mCommandAllocator, nullptr, IID_PPV_ARGS(&mCommandList)));
     SM_ASSERT_HR(mCommandList->Close());
@@ -616,6 +699,7 @@ void Context::destroy_device() {
 
     // pipeline state
     destroy_primitive_pipeline();
+    destroy_blit_pipeline();
 
     // copy commands
     mCopyCommands.reset();
