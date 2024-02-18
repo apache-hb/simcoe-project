@@ -170,6 +170,12 @@ void Context::create_allocator() {
     SM_ASSERT_HR(D3D12MA::CreateAllocator(&kAllocatorDesc, &mAllocator));
 }
 
+void Context::reset_direct_commands(ID3D12PipelineState *pso) {
+    auto& allocator = mFrames[mFrameIndex].mCommandAllocator;
+    SM_ASSERT_HR(allocator->Reset());
+    SM_ASSERT_HR(mCommandList->Reset(allocator.get(), pso));
+}
+
 void Context::create_copy_queue() {
     constexpr D3D12_COMMAND_QUEUE_DESC kQueueDesc = {
         .Type = D3D12_COMMAND_LIST_TYPE_COPY,
@@ -474,6 +480,32 @@ void Context::destroy_blit_pipeline() {
     mBlitPipeline.reset();
 }
 
+void Context::create_screen_quad() {
+    const auto kBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(blit::kScreenQuad));
+    const auto kVertexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(blit::kScreenQuad));
+
+    Resource upload;
+
+    SM_ASSERT_HR(create_resource(upload, D3D12_HEAP_TYPE_UPLOAD, kBufferDesc, D3D12_RESOURCE_STATE_COMMON));
+
+    SM_ASSERT_HR(create_resource(mScreenQuad, D3D12_HEAP_TYPE_DEFAULT, kVertexBufferDesc, D3D12_RESOURCE_STATE_COPY_DEST));
+
+    void *data;
+    D3D12_RANGE read{0, 0};
+    SM_ASSERT_HR(upload.map(&read, &data));
+    std::memcpy(data, blit::kScreenQuad, sizeof(blit::kScreenQuad));
+    upload.unmap(&read);
+
+    reset_copy_commands();
+
+    copy_buffer(mCopyCommands, mScreenQuad, upload, sizeof(blit::kScreenQuad));
+
+}
+
+void Context::destroy_screen_quad() {
+
+}
+
 static constexpr draw::Cube kCube = {
     .width = 1.f,
     .height = 1.f,
@@ -545,10 +577,7 @@ Context::Primitive Context::create_mesh(const draw::MeshInfo& info, const float3
     SM_ASSERT_HR(create_resource(primitive.mVertexBuffer, D3D12_HEAP_TYPE_DEFAULT, kVertexBufferDesc, D3D12_RESOURCE_STATE_COMMON));
     SM_ASSERT_HR(create_resource(primitive.mIndexBuffer, D3D12_HEAP_TYPE_DEFAULT, kIndexBufferDesc, D3D12_RESOURCE_STATE_COMMON));
 
-    auto& allocator = mFrames[mFrameIndex].mCommandAllocator;
-    SM_ASSERT_HR(allocator->Reset());
-    SM_ASSERT_HR(mCommandList->Reset(allocator.get(), nullptr));
-
+    reset_direct_commands();
     reset_copy_commands();
 
     copy_buffer(mCopyCommands, primitive.mVertexBuffer, vbo_upload, kVertexBufferSize);
@@ -619,8 +648,7 @@ void Context::build_command_list() {
 
     auto& [backbuffer, allocator, _] = mFrames[mFrameIndex];
 
-    SM_ASSERT_HR(allocator->Reset());
-    SM_ASSERT_HR(mCommandList->Reset(allocator.get(), *mPrimitivePipeline.mPipelineState));
+    reset_direct_commands(*mPrimitivePipeline.mPipelineState);
     mCommandList->SetGraphicsRootSignature(*mPrimitivePipeline.mRootSignature);
 
     const auto kIntoRenderTarget = CD3DX12_RESOURCE_BARRIER::Transition(

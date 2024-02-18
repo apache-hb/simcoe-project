@@ -126,6 +126,8 @@ namespace sm::render {
         Object<ID3D12CommandQueue> mDirectQueue;
         Object<ID3D12GraphicsCommandList1> mCommandList;
 
+        void reset_direct_commands(ID3D12PipelineState *pso = nullptr);
+
         DescriptorHeap mRtvHeap;
         void create_rtv_heap();
         void resize_rtv_heap(uint length);
@@ -166,17 +168,21 @@ namespace sm::render {
         void update_viewport_scissor();
 
         Viewport mSceneViewport;
-        Viewport mPostViewport;
 
         Pipeline mPrimitivePipeline;
 
         void create_primitive_pipeline();
         void destroy_primitive_pipeline();
 
+        Viewport mPostViewport;
         Pipeline mBlitPipeline;
+        Resource mScreenQuad;
 
         void create_blit_pipeline();
         void destroy_blit_pipeline();
+
+        void create_screen_quad();
+        void destroy_screen_quad();
 
         struct Primitive {
             draw::MeshInfo mInfo;
