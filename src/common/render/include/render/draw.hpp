@@ -72,6 +72,14 @@ namespace sm::draw {
         float3 max;
     };
 
+    struct Transform {
+        float3 position;
+        float3 rotation;
+        float3 scale = 1.f;
+
+        float4x4 matrix() const;
+    };
+
     struct Mesh {
         BoxBounds bounds;
         sm::Vector<Vertex> vertices;

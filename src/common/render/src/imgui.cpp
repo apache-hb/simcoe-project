@@ -111,6 +111,15 @@ static bool EnumCombo(const char *label, typename ctu::TypeInfo<T>::Type &choice
     return true;
 }
 
+static bool SliderAngle3(const char *label, float3 &value, float min, float max) {
+    float3 degrees = to_degrees(value);
+    if (ImGui::SliderFloat3(label, &degrees.x, min, max)) {
+        value = to_radians(degrees);
+        return true;
+    }
+    return false;
+}
+
 static void display_mem_budget(const D3D12MA::Budget &budget) {
     sm::Memory usage_bytes = budget.UsageBytes;
     sm::Memory budget_bytes = budget.BudgetBytes;
@@ -277,6 +286,11 @@ bool Context::update_imgui() {
             using Reflect = ctu::TypeInfo<draw::MeshType>;
             auto name = Reflect::to_string(info.type);
             if (ImGui::TreeNodeEx((void*)&primitive, ImGuiTreeNodeFlags_DefaultOpen, "%s", name.data())) {
+                auto& [position, rotation, scale] = primitive.mTransform;
+                ImGui::SliderFloat3("Position", position.data(), -10.f, 10.f);
+                SliderAngle3("Rotation", rotation, -3.14f, 3.14f);
+                ImGui::SliderFloat3("Scale", scale.data(), 0.1f, 10.f);
+
                 switch (info.type.as_enum()) {
                 case MeshType::eCube:
                     ImGui::Text("Width: %f", info.cube.width);

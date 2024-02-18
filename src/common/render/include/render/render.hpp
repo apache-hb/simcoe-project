@@ -143,6 +143,7 @@ namespace sm::render {
 
         struct Primitive {
             draw::MeshInfo mInfo;
+            draw::Transform mTransform;
 
             Resource mVertexBuffer;
             D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
@@ -181,7 +182,7 @@ namespace sm::render {
             float4x4 view() const;
             float4x4 projection(float aspect) const;
 
-            float4x4 mvp(float aspect) const;
+            float4x4 mvp(float aspect, const float4x4& object) const;
         } mCamera;
 
         void update_camera();

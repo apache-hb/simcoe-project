@@ -571,11 +571,12 @@ void Context::build_command_list() {
     /// cube
 
     auto [width, height] = mSwapChainSize.as<float>();
-    const float4x4 mvp = mCamera.mvp(width / height).transpose();
-
-    mCommandList->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
 
     for (auto& primitive : mPrimitives) {
+        const float4x4 model = primitive.mTransform.matrix().transpose();
+        const float4x4 mvp = mCamera.mvp(width / height, model).transpose();
+        mCommandList->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
+
         mCommandList->IASetVertexBuffers(0, 1, &primitive.mVertexBufferView);
         mCommandList->IASetIndexBuffer(&primitive.mIndexBufferView);
 
