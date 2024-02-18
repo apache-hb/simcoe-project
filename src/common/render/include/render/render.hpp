@@ -141,14 +141,13 @@ namespace sm::render {
         uint min_srv_heap_size() const { return eDescriptorCount; }
 
         DescriptorHeap mDsvHeap;
+        DescriptorHeap mSrvHeap;
 
         Resource mDepthStencil;
         void create_depth_stencil();
 
         Resource mSceneTarget;
         void create_scene_target();
-
-        DescriptorHeap mSrvHeap;
 
         Result create_descriptor_heap(DescriptorHeap& heap, D3D12_DESCRIPTOR_HEAP_TYPE type, uint capacity, bool shader_visible);
 
@@ -167,7 +166,7 @@ namespace sm::render {
         Viewport mViewport;
         void update_viewport_scissor();
 
-        Viewport mSceneViewport;
+        // Viewport mSceneViewport;
 
         Pipeline mPrimitivePipeline;
 

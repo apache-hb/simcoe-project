@@ -486,9 +486,9 @@ void Context::create_screen_quad() {
 
     Resource upload;
 
-    SM_ASSERT_HR(create_resource(upload, D3D12_HEAP_TYPE_UPLOAD, kBufferDesc, D3D12_RESOURCE_STATE_COMMON));
+    SM_ASSERT_HR(create_resource(upload, D3D12_HEAP_TYPE_UPLOAD, kBufferDesc, D3D12_RESOURCE_STATE_COPY_SOURCE));
 
-    SM_ASSERT_HR(create_resource(mScreenQuad, D3D12_HEAP_TYPE_DEFAULT, kVertexBufferDesc, D3D12_RESOURCE_STATE_COPY_DEST));
+    SM_ASSERT_HR(create_resource(mScreenQuad, D3D12_HEAP_TYPE_DEFAULT, kVertexBufferDesc, D3D12_RESOURCE_STATE_COMMON));
 
     void *data;
     D3D12_RANGE read{0, 0};
@@ -496,14 +496,38 @@ void Context::create_screen_quad() {
     std::memcpy(data, blit::kScreenQuad, sizeof(blit::kScreenQuad));
     upload.unmap(&read);
 
+    reset_direct_commands();
     reset_copy_commands();
 
     copy_buffer(mCopyCommands, mScreenQuad, upload, sizeof(blit::kScreenQuad));
 
+    const D3D12_RESOURCE_BARRIER kBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
+        *mScreenQuad.mResource,
+        D3D12_RESOURCE_STATE_COPY_DEST,
+        D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
+    );
+
+    mCommandList->ResourceBarrier(1, &kBarrier);
+
+    SM_ASSERT_HR(mCopyCommands->Close());
+    SM_ASSERT_HR(mCommandList->Close());
+
+    ID3D12CommandList *copy_lists[] = { mCopyCommands.get() };
+    mCopyQueue->ExecuteCommandLists(1, copy_lists);
+    mCopyQueue->Signal(*mCopyFence, mCopyFenceValue);
+
+    ID3D12CommandList *direct_lists[] = { mCommandList.get() };
+    mDirectQueue->Wait(*mCopyFence, mCopyFenceValue);
+    mDirectQueue->ExecuteCommandLists(1, direct_lists);
+
+    mUploads.emplace(Upload{ std::move(upload), mCopyFenceValue });
+
+    wait_for_gpu();
+    flush_copy_queue();
 }
 
 void Context::destroy_screen_quad() {
-
+    mScreenQuad.reset();
 }
 
 static constexpr draw::Cube kCube = {
@@ -724,6 +748,7 @@ void Context::destroy_device() {
 
     // assets
     destroy_scene();
+    destroy_screen_quad();
 
     // pipeline state
     destroy_primitive_pipeline();
@@ -763,7 +788,7 @@ Context::Context(const RenderConfig& config)
     , mSwapChainLength(config.swapchain_length)
     , mViewport(config.swapchain_size)
 
-    , mSceneViewport(0.f)
+    //, mSceneViewport(0.f)
     , mPostViewport(0.f)
 { }
 
@@ -779,6 +804,7 @@ void Context::create() {
     create_pipeline();
     create_assets();
 
+    create_screen_quad();
     init_scene();
     create_imgui();
 }
@@ -825,7 +851,9 @@ void Context::update_adapter(size_t index) {
     create_pipeline();
     create_assets();
 
+    create_screen_quad();
     create_scene();
+
     create_imgui_backend();
 }
 
