@@ -105,6 +105,28 @@ void Context::update_imgui() {
 
     if (ImGui::Begin("World Settings")) {
         update_camera();
+
+        ImGui::SeparatorText("Scene");
+
+        for (auto& primitive : mPrimitives) {
+            const auto& info = primitive.mInfo;
+            using Reflect = ctu::TypeInfo<draw::MeshType>;
+            auto name = Reflect::to_string(info.type);
+            if (ImGui::TreeNodeEx((void*)&primitive, ImGuiTreeNodeFlags_DefaultOpen, "%s", name.data())) {
+                switch (info.type) {
+                case draw::MeshType::eCube:
+                    ImGui::Text("Width: %f", info.cube.width);
+                    ImGui::Text("Height: %f", info.cube.height);
+                    ImGui::Text("Depth: %f", info.cube.depth);
+                    break;
+
+                default:
+                    ImGui::Text("Unknown primitive type");
+                    break;
+                }
+                ImGui::TreePop();
+            }
+        }
     }
     ImGui::End();
 

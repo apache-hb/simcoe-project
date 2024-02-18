@@ -629,10 +629,12 @@ void Context::create() {
 }
 
 void Context::destroy() {
+    flush_copy_queue();
     wait_for_gpu();
 
     destroy_imgui();
 
+    SM_ASSERT_WIN32(CloseHandle(mCopyFenceEvent));
     SM_ASSERT_WIN32(CloseHandle(mFenceEvent));
 }
 
