@@ -127,22 +127,28 @@ namespace sm::render {
             Object<ID3D12RootSignature> mRootSignature;
             Object<ID3D12PipelineState> mPipelineState;
 
-            Object<ID3D12Resource> mVertexBuffer;
+            Resource mVertexBuffer;
             D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
 
-            Object<ID3D12Resource> mIndexBuffer;
+            Resource mIndexBuffer;
             D3D12_INDEX_BUFFER_VIEW mIndexBufferView;
         } mCube;
 
         void create_cube_pipeline();
         void create_cube();
 
-        struct {
+        struct Camera {
             float3 position = {3.f, 0.f, 0.f};
             float3 direction = kVectorForward;
 
             float fov = to_radians(75.f);
             float speed = 3.f;
+
+            float4x4 model() const;
+            float4x4 view() const;
+            float4x4 projection(float aspect) const;
+
+            float4x4 mvp(float aspect) const;
         } mCamera;
 
         void create_pipeline();
@@ -151,6 +157,8 @@ namespace sm::render {
         uint mFrameIndex;
         HANDLE mFenceEvent;
         Object<ID3D12Fence> mFence;
+
+        void copy_buffer(Object<ID3D12GraphicsCommandList1>& list, Resource& dst, Resource& src, size_t size);
 
         void build_command_list();
         void move_to_next_frame();

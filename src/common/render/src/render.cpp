@@ -341,6 +341,10 @@ Result Context::create_resource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_
     return mAllocator->CreateResource(&kAllocDesc, &desc, state, nullptr, &resource.mAllocation, IID_PPV_ARGS(&resource.mHandle));
 }
 
+void Context::copy_buffer(Object<ID3D12GraphicsCommandList1>& list, Resource& dst, Resource& src, size_t size) {
+    list->CopyBufferRegion(*dst.mHandle, 0, *src.mHandle, 0, size);
+}
+
 static const D3D12_HEAP_PROPERTIES kDefaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 static const D3D12_HEAP_PROPERTIES kUploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 
@@ -382,7 +386,7 @@ void Context::create_triangle() {
         D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
     );
 
-    mCopyCommands->CopyBufferRegion(*mVertexBuffer.mHandle, 0, *upload.mHandle, 0, kBufferSize);
+    copy_buffer(mCopyCommands, mVertexBuffer, upload, kBufferSize);
     mCommandList->ResourceBarrier(1, &kBarrier);
 
     SM_ASSERT_HR(mCopyCommands->Close());
@@ -450,8 +454,92 @@ void Context::create_cube_pipeline() {
     }
 }
 
-void Context::create_cube() {
+static constexpr draw::Cube kCube = {
+    .width = 1.f,
+    .height = 1.f,
+    .depth = 1.f,
+};
 
+static constexpr draw::MeshInfo kInfo = {
+    .type = draw::MeshType::eCube,
+    .cube = kCube,
+};
+
+void Context::create_cube() {
+    draw::Mesh mesh = draw::primitive(kInfo);
+
+    Resource vbo_upload;
+    Resource ibo_upload;
+
+    mCube.mVertexBuffer.reset();
+    mCube.mIndexBuffer.reset();
+
+    const uint kVertexBufferSize = mesh.vertices.size() * sizeof(draw::Vertex);
+    const uint kIndexBufferSize = mesh.indices.size() * sizeof(uint16);
+
+    const auto kVertexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kVertexBufferSize);
+    const auto kIndexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kIndexBufferSize);
+
+    SM_ASSERT_HR(create_resource(vbo_upload, D3D12_HEAP_TYPE_UPLOAD, kVertexBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ));
+    SM_ASSERT_HR(create_resource(ibo_upload, D3D12_HEAP_TYPE_UPLOAD, kIndexBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ));
+
+    D3D12_RANGE read{0, 0};
+
+    {
+        void *data;
+        SM_ASSERT_HR(vbo_upload.map(&read, &data));
+        std::memcpy(data, mesh.vertices.data(), kVertexBufferSize);
+        vbo_upload.unmap(&read);
+    }
+
+    {
+        void *data;
+        SM_ASSERT_HR(ibo_upload.map(&read, &data));
+        std::memcpy(data, mesh.indices.data(), kIndexBufferSize);
+        ibo_upload.unmap(&read);
+    }
+
+    SM_ASSERT_HR(create_resource(mCube.mVertexBuffer, D3D12_HEAP_TYPE_DEFAULT, kVertexBufferDesc, D3D12_RESOURCE_STATE_COMMON));
+    SM_ASSERT_HR(create_resource(mCube.mIndexBuffer, D3D12_HEAP_TYPE_DEFAULT, kIndexBufferDesc, D3D12_RESOURCE_STATE_COMMON));
+
+    auto& allocator = mFrames[mFrameIndex].mCommandAllocator;
+    SM_ASSERT_HR(allocator->Reset());
+    SM_ASSERT_HR(mCommandList->Reset(allocator.get(), *mPipelineState));
+
+    SM_ASSERT_HR(mCopyAllocator->Reset());
+    SM_ASSERT_HR(mCopyCommands->Reset(mCopyAllocator.get(), nullptr));
+
+    copy_buffer(mCopyCommands, mCube.mVertexBuffer, vbo_upload, kVertexBufferSize);
+    copy_buffer(mCopyCommands, mCube.mIndexBuffer, ibo_upload, kIndexBufferSize);
+
+    const D3D12_RESOURCE_BARRIER kBarriers[2] = {
+        CD3DX12_RESOURCE_BARRIER::Transition(
+            *mCube.mVertexBuffer.mHandle,
+            D3D12_RESOURCE_STATE_COPY_DEST,
+            D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
+        ),
+        CD3DX12_RESOURCE_BARRIER::Transition(
+            *mCube.mIndexBuffer.mHandle,
+            D3D12_RESOURCE_STATE_COPY_DEST,
+            D3D12_RESOURCE_STATE_INDEX_BUFFER
+        )
+    };
+
+    mCommandList->ResourceBarrier(_countof(kBarriers), kBarriers);
+
+    SM_ASSERT_HR(mCopyCommands->Close());
+    SM_ASSERT_HR(mCommandList->Close());
+
+    ID3D12CommandList *copy_lists[] = { mCopyCommands.get() };
+    mCopyQueue->ExecuteCommandLists(1, copy_lists);
+    mCopyQueue->Signal(*mCopyFence, mCopyFenceValue);
+
+    ID3D12CommandList *direct_lists[] = { mCommandList.get() };
+    mDirectQueue->Wait(*mCopyFence, mCopyFenceValue);
+    mDirectQueue->ExecuteCommandLists(1, direct_lists);
+
+    flush_copy_queue();
+    wait_for_gpu();
 }
 
 void Context::create_assets() {
