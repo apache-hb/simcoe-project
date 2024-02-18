@@ -277,8 +277,7 @@ static Mesh geosphere(const GeoSphere& geosphere) {
 	vertices.push_back({ .position = float3(z, -x, 0) * radius });
 	vertices.push_back({ .position = float3(-z, -x, 0) * radius });
 
-	uint16 k[60] =
-	{
+	uint16 k[60] = {
 		1,4,0,  4,9,0,  4,5,9,  8,5,4,  1,8,4,
 		1,10,8, 10,3,8, 8,3,5,  3,2,5,  3,7,2,
 		3,10,7, 10,6,7, 6,11,7, 6,0,11, 6,1,0,
@@ -295,8 +294,7 @@ static Mesh geosphere(const GeoSphere& geosphere) {
 	for (int i = 0; i < tessellation; i++)
 		subdivide(mesh);
 
-	for (auto& v : mesh.vertices)
-	{
+	for (auto& v : mesh.vertices) {
 		//v.normal = v.position.normalized();
 		v.position = v.position.normalized() * radius;
 	}
