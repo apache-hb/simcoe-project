@@ -100,6 +100,7 @@ namespace sm::render {
         sm::UniqueArray<FrameData> mFrames;
         void create_frame_allocators();
         void create_render_targets();
+        void create_frame_data();
 
         /// graphics pipeline objects
         Object<ID3D12CommandQueue> mDirectQueue;
@@ -117,16 +118,26 @@ namespace sm::render {
             void destroy(Context&) override;
 
             D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle(uint index);
-        } mRtvHeapDependency;
+        } mRtvHeap;
 
         void init_rtv_heap();
 
         Object<ID3D12DescriptorHeap> mSrvHeap;
         uint mSrvDescriptorSize = 0;
 
-        Object<ID3D12RootSignature> mRootSignature;
-        Object<ID3D12PipelineState> mPipelineState;
-        void create_pipeline_state();
+        struct SimplePipeline final : IDependency {
+            Object<ID3D12RootSignature> mRootSignature;
+            Object<ID3D12PipelineState> mPipelineState;
+
+            constexpr SimplePipeline()
+                : IDependency(DependsOn::eDevice)
+            { }
+
+            void create(Context&) override;
+            void destroy(Context&) override;
+        } mSimplePipeline;
+
+        void init_simple_pipeline();
 
         /// copy queue and commands
         Object<ID3D12CommandQueue> mCopyQueue;
@@ -159,7 +170,7 @@ namespace sm::render {
 
             void create(Context&) override;
             void destroy(Context&) override;
-        } mPrimitive;
+        } mPrimitivePipeline;
 
         void init_primitive_pipeline();
         void destroy_primitive_pipeline();
@@ -230,7 +241,7 @@ namespace sm::render {
     public:
         Context(const RenderConfig& config);
 
-        void create();
+        void init();
         void destroy();
 
         void update();
