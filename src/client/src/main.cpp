@@ -591,7 +591,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     events.attach_render(&context);
 
-    context.init();
+    context.create();
 
     bool done = false;
     while (!done) {

@@ -208,6 +208,8 @@ void Context::create_pipeline() {
     SM_ASSERT_HR(swapchain1.query(&mSwapChain));
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
 
+    init_rtv_heap();
+
     {
         const D3D12_DESCRIPTOR_HEAP_DESC kHeapDesc = {
             .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
@@ -218,9 +220,7 @@ void Context::create_pipeline() {
         SM_ASSERT_HR(mDevice->CreateDescriptorHeap(&kHeapDesc, IID_PPV_ARGS(&mSrvHeap)));
         mSrvDescriptorSize = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     }
-}
 
-void Context::create_frame_data() {
     mFrames.resize(mSwapChainLength);
 
     update_viewport_scissor();
@@ -254,13 +254,13 @@ D3D12_CPU_DESCRIPTOR_HANDLE RtvDescriptorHeap::cpu_handle(uint index) {
 }
 
 void Context::init_rtv_heap() {
-    mRtvHeap.create(*this);
-    mResources.push_back(&mRtvHeap);
+    mRtvHeapDependency.create(*this);
+    mResources.push_back(&mRtvHeapDependency);
 }
 
 void Context::create_render_targets() {
-    auto& heap = mRtvHeap.mHeap;
-    auto size = mRtvHeap.mDescriptorSize;
+    auto& heap = mRtvHeapDependency.mHeap;
+    auto size = mRtvHeapDependency.mDescriptorSize;
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(heap->GetCPUDescriptorHandleForHeapStart());
     for (uint i = 0; i < mSwapChainLength; i++) {
         auto& backbuffer = mFrames[i].mRenderTarget;
@@ -313,26 +313,21 @@ static sm::Vector<uint8> load_shader_bytecode(Sink& sink, const char *path) {
     return data;
 }
 
-using SimplePipeline = Context::SimplePipeline;
-
-void SimplePipeline::create(Context& ctx) {
+void Context::create_pipeline_state() {
     {
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
         desc.Init_1_1(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-        ctx.serialize_root_signature(mRootSignature, desc);
+        serialize_root_signature(mRootSignature, desc);
     }
 
     {
-        auto ps = load_shader_bytecode(ctx.mSink, "build/bundle/shaders/simple.ps.cso");
-        auto vs = load_shader_bytecode(ctx.mSink, "build/bundle/shaders/simple.vs.cso");
+        auto ps = load_shader_bytecode(mSink, "build/bundle/shaders/simple.ps.cso");
+        auto vs = load_shader_bytecode(mSink, "build/bundle/shaders/simple.vs.cso");
 
         constexpr D3D12_INPUT_ELEMENT_DESC kInputElements[] = {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(draw::Vertex, position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
             { "COLOUR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(draw::Vertex, colour), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         };
-
-        auto format = ctx.mConfig.swapchain_format;
-        auto& device = ctx.mDevice;
 
         const D3D12_GRAPHICS_PIPELINE_STATE_DESC kDesc = {
             .pRootSignature = mRootSignature.get(),
@@ -344,22 +339,12 @@ void SimplePipeline::create(Context& ctx) {
             .InputLayout = { kInputElements, _countof(kInputElements) },
             .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
             .NumRenderTargets = 1,
-            .RTVFormats = { format },
+            .RTVFormats = { mConfig.swapchain_format },
             .SampleDesc = { 1, 0 },
         };
 
-        SM_ASSERT_HR(device->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&mPipelineState)));
+        SM_ASSERT_HR(mDevice->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&mPipelineState)));
     }
-}
-
-void SimplePipeline::destroy(Context& ctx) {
-    mPipelineState.reset();
-    mRootSignature.reset();
-}
-
-void Context::init_simple_pipeline() {
-    mSimplePipeline.create(*this);
-    mResources.push_back(&mSimplePipeline);
 }
 
 Result Context::create_resource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state) {
@@ -380,7 +365,7 @@ static const D3D12_HEAP_PROPERTIES kUploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_H
 void Context::create_triangle() {
     auto& allocator = mFrames[mFrameIndex].mCommandAllocator;
     SM_ASSERT_HR(allocator->Reset());
-    SM_ASSERT_HR(mCommandList->Reset(allocator.get(), nullptr));
+    SM_ASSERT_HR(mCommandList->Reset(allocator.get(), *mPipelineState));
 
     SM_ASSERT_HR(mCopyAllocator->Reset());
     SM_ASSERT_HR(mCopyCommands->Reset(mCopyAllocator.get(), nullptr));
@@ -445,8 +430,8 @@ void Context::create_triangle() {
 }
 
 void Context::init_primitive_pipeline() {
-    mPrimitivePipeline.create(*this);
-    mResources.push_back(&mPrimitivePipeline);
+    mPrimitive.create(*this);
+    mResources.push_back(&mPrimitive);
 }
 
 using PrimitivePipeline = Context::PrimitivePipeline;
@@ -548,7 +533,7 @@ void Context::create_cube() {
 
     auto& allocator = mFrames[mFrameIndex].mCommandAllocator;
     SM_ASSERT_HR(allocator->Reset());
-    SM_ASSERT_HR(mCommandList->Reset(allocator.get(), nullptr));
+    SM_ASSERT_HR(mCommandList->Reset(allocator.get(), *mPipelineState));
 
     SM_ASSERT_HR(mCopyAllocator->Reset());
     SM_ASSERT_HR(mCopyCommands->Reset(mCopyAllocator.get(), nullptr));
@@ -603,7 +588,7 @@ void Context::create_cube() {
 }
 
 void Context::destroy_primitive_pipeline() {
-    mPrimitivePipeline.destroy(*this);
+    mPrimitive.destroy(*this);
 }
 
 void Context::destroy_cube() {
@@ -612,6 +597,9 @@ void Context::destroy_cube() {
 }
 
 void Context::create_assets() {
+    create_pipeline_state();
+    init_primitive_pipeline();
+
     SM_ASSERT_HR(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, *mFrames[mFrameIndex].mCommandAllocator, nullptr, IID_PPV_ARGS(&mCommandList)));
     SM_ASSERT_HR(mCommandList->Close());
 
@@ -630,8 +618,8 @@ void Context::build_command_list() {
     auto& [backbuffer, allocator, _] = mFrames[mFrameIndex];
 
     SM_ASSERT_HR(allocator->Reset());
-    SM_ASSERT_HR(mCommandList->Reset(allocator.get(), *mSimplePipeline.mPipelineState));
-    mCommandList->SetGraphicsRootSignature(*mSimplePipeline.mRootSignature);
+    SM_ASSERT_HR(mCommandList->Reset(allocator.get(), *mPipelineState));
+    mCommandList->SetGraphicsRootSignature(*mRootSignature);
 
     const auto kIntoRenderTarget = CD3DX12_RESOURCE_BARRIER::Transition(
         *backbuffer,
@@ -643,7 +631,7 @@ void Context::build_command_list() {
 
     /// render target setup
 
-    const auto kRtvHandle = mRtvHeap.cpu_handle(mFrameIndex);
+    const auto kRtvHandle = mRtvHeapDependency.cpu_handle(mFrameIndex);
     mCommandList->RSSetViewports(1, &mViewport);
     mCommandList->RSSetScissorRects(1, &mScissorRect);
     mCommandList->OMSetRenderTargets(1, &kRtvHandle, false, nullptr);
@@ -665,8 +653,8 @@ void Context::build_command_list() {
     auto [width, height] = mSwapChainSize.as<float>();
     const float4x4 mvp = mCamera.mvp(width / height).transpose();
 
-    mCommandList->SetGraphicsRootSignature(*mPrimitivePipeline.mRootSignature);
-    mCommandList->SetPipelineState(*mPrimitivePipeline.mPipelineState);
+    mCommandList->SetGraphicsRootSignature(*mPrimitive.mRootSignature);
+    mCommandList->SetPipelineState(*mPrimitive.mPipelineState);
 
     mCommandList->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
 
@@ -710,7 +698,10 @@ void Context::destroy_device() {
     mVertexBuffer.reset();
 
     // pipeline state
-    destroy_all(DependsOn::eDevice);
+    mRootSignature.reset();
+    mPipelineState.reset();
+
+    destroy_primitive_pipeline();
 
     // copy commands
     mCopyCommands.reset();
@@ -725,6 +716,7 @@ void Context::destroy_device() {
     mAllocator.reset();
 
     // descriptor heaps
+    mRtvHeapDependency.destroy(*this);
     mSrvHeap.reset();
 
     // swapchain
@@ -744,7 +736,7 @@ Context::Context(const RenderConfig& config)
     , mSwapChainLength(config.swapchain_length)
 { }
 
-void Context::init() {
+void Context::create() {
     size_t index = mConfig.flags.test(DebugFlags::eWarpAdapter)
         ? mInstance.warp_adapter_index()
         : mConfig.adapter_index;
@@ -754,12 +746,6 @@ void Context::init() {
     create_copy_queue();
     create_copy_fence();
     create_pipeline();
-    init_rtv_heap();
-    create_frame_data();
-
-    init_simple_pipeline();
-    init_primitive_pipeline();
-
     create_assets();
 
     create_imgui();
@@ -803,8 +789,6 @@ void Context::update_adapter(size_t index) {
     create_copy_queue();
     create_copy_fence();
     create_pipeline();
-    create_all(DependsOn::eDevice);
-    create_frame_data();
     create_assets();
 
     create_imgui_device();
