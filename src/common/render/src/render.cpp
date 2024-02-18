@@ -213,10 +213,11 @@ void Context::create_pipeline() {
     SM_ASSERT_HR(swapchain1.query(&mSwapChain));
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
 
-    create_rtv_heap(mSwapChainLength);
+    create_rtv_heap();
 
     {
-        SM_ASSERT_HR(create_descriptor_heap(mSrvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1, true));
+        uint count = min_srv_heap_size();
+        SM_ASSERT_HR(create_descriptor_heap(mSrvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, count, true));
     }
 
     {
@@ -236,10 +237,20 @@ void Context::create_pipeline() {
     }
 }
 
-void Context::create_rtv_heap(uint count) {
+void Context::create_rtv_heap() {
     mRtvHeap.reset();
 
+    uint count = min_rtv_heap_size();
+
     SM_ASSERT_HR(create_descriptor_heap(mRtvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, count, false));
+}
+
+void Context::resize_rtv_heap(uint length) {
+    if (mRtvHeap.mCapacity >= length) return;
+
+    mRtvHeap.reset();
+
+    SM_ASSERT_HR(create_descriptor_heap(mRtvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, length, false));
 }
 
 Result Context::create_descriptor_heap(DescriptorHeap& heap, D3D12_DESCRIPTOR_HEAP_TYPE type, uint capacity, bool shader_visible) {
@@ -294,22 +305,7 @@ void Context::create_frame_allocators() {
 }
 
 void Context::update_viewport_scissor() {
-    auto [width, height] = mSwapChainSize.as<float>();
-    mViewport = {
-        .TopLeftX = 0.f,
-        .TopLeftY = 0.f,
-        .Width = width,
-        .Height = height,
-        .MinDepth = 0.f,
-        .MaxDepth = 1.f,
-    };
-
-    mScissorRect = {
-        .left = 0,
-        .top = 0,
-        .right = (LONG)width,
-        .bottom = (LONG)height,
-    };
+    mViewport = Viewport{mSwapChainSize};
 }
 
 static sm::Vector<uint8> load_shader_bytecode(Sink& sink, const char *path) {
@@ -556,8 +552,8 @@ void Context::build_command_list() {
 
     const auto kRtvHandle = mRtvHeap.cpu_descriptor_handle(int_cast<int>(mFrameIndex));
     const auto kDsvHandle = mDsvHeap->GetCPUDescriptorHandleForHeapStart();
-    mCommandList->RSSetViewports(1, &mViewport);
-    mCommandList->RSSetScissorRects(1, &mScissorRect);
+    mCommandList->RSSetViewports(1, &mViewport.mViewport);
+    mCommandList->RSSetScissorRects(1, &mViewport.mScissorRect);
     mCommandList->OMSetRenderTargets(1, &kRtvHandle, false, &kDsvHandle);
 
     constexpr math::float4 kClearColour = { 0.0f, 0.2f, 0.4f, 1.0f };
@@ -653,6 +649,10 @@ Context::Context(const RenderConfig& config)
     , mInstance({ config.flags, config.preference, config.logger })
     , mSwapChainSize(config.swapchain_size)
     , mSwapChainLength(config.swapchain_length)
+    , mViewport(config.swapchain_size)
+
+    , mSceneViewport(0.f)
+    , mPostViewport(0.f)
 { }
 
 void Context::create() {
@@ -736,7 +736,7 @@ void Context::update_swapchain_length(uint length) {
         mFrames[i].mFenceValue = current;
     }
 
-    create_rtv_heap(length);
+    resize_rtv_heap(min_rtv_heap_size());
     create_render_targets();
     create_frame_allocators();
 

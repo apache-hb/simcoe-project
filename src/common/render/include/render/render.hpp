@@ -54,6 +54,20 @@ namespace sm::render {
         uint mCapacity;
 
         D3D12_CPU_DESCRIPTOR_HANDLE cpu_descriptor_handle(int index);
+        D3D12_GPU_DESCRIPTOR_HANDLE gpu_descriptor_handle(int index);
+    };
+
+    enum : int {
+        eDescriptorScene,
+        eDescriptorImGui,
+        eDescriptorCount
+    };
+
+    struct Viewport {
+        D3D12_VIEWPORT mViewport;
+        D3D12_RECT mScissorRect;
+
+        Viewport(math::uint2 size);
     };
 
     struct Context {
@@ -105,12 +119,24 @@ namespace sm::render {
         Object<ID3D12GraphicsCommandList1> mCommandList;
 
         DescriptorHeap mRtvHeap;
-        void create_rtv_heap(uint count);
+        void create_rtv_heap();
+        void resize_rtv_heap(uint length);
+
+        // +1 for the scene target
+        uint min_rtv_heap_size() const { return mSwapChainLength + 1; }
+        uint scene_rtv_index() const { return mSwapChainLength; }
+
+        // +1 for dear imgui
+        // +1 for the scene target
+        uint min_srv_heap_size() const { return eDescriptorCount; }
 
         DescriptorHeap mDsvHeap;
 
         Resource mDepthStencil;
         void create_depth_stencil();
+
+        Resource mSceneTarget;
+        void create_scene_target();
 
         DescriptorHeap mSrvHeap;
 
@@ -128,10 +154,11 @@ namespace sm::render {
         uint64 mCopyFenceValue;
         void create_copy_fence();
 
-        // scissor + viewport
-        D3D12_VIEWPORT mViewport;
-        D3D12_RECT mScissorRect;
+        Viewport mViewport;
         void update_viewport_scissor();
+
+        Viewport mSceneViewport;
+        Viewport mPostViewport;
 
         struct {
             Object<ID3D12RootSignature> mRootSignature;
