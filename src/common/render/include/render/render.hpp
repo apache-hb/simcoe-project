@@ -8,8 +8,6 @@
 namespace sm::render {
     using namespace math;
 
-    struct Context;
-
     using DeviceHandle = Object<ID3D12Device1>;
 
     constexpr float3 kVectorForward = {1.f, 0.f, 0.f};
@@ -45,18 +43,6 @@ namespace sm::render {
 
         D3D12_GPU_VIRTUAL_ADDRESS get_gpu_address();
         void reset();
-    };
-
-    struct IDependency {
-        DependsOn depends;
-
-        constexpr IDependency(DependsOn deps)
-            : depends(deps)
-        { }
-
-        virtual ~IDependency() = default;
-        virtual void create(Context&) = 0;
-        virtual void destroy(Context&) = 0;
     };
 
     struct Context {
@@ -105,21 +91,9 @@ namespace sm::render {
         Object<ID3D12CommandQueue> mDirectQueue;
         Object<ID3D12GraphicsCommandList1> mCommandList;
 
-        struct RtvDescriptorHeap final : IDependency {
-            Object<ID3D12DescriptorHeap> mHeap;
-            uint mDescriptorSize = 0;
-
-            constexpr RtvDescriptorHeap()
-                : IDependency(DependsOn::eDevice | DependsOn::eBackBufferCount)
-            { }
-
-            void create(Context&) override;
-            void destroy(Context&) override;
-
-            D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle(uint index);
-        } mRtvHeapDependency;
-
-        void init_rtv_heap();
+        Object<ID3D12DescriptorHeap> mRtvHeap;
+        uint mRtvDescriptorSize = 0;
+        void create_rtv_heap(uint count);
 
         Object<ID3D12DescriptorHeap> mSrvHeap;
         uint mSrvDescriptorSize = 0;
@@ -149,19 +123,12 @@ namespace sm::render {
         D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
         void create_triangle();
 
-        struct PrimitivePipeline final : IDependency {
+        struct {
             Object<ID3D12RootSignature> mRootSignature;
             Object<ID3D12PipelineState> mPipelineState;
-
-            constexpr PrimitivePipeline()
-                : IDependency(DependsOn::eDevice)
-            { }
-
-            void create(Context&) override;
-            void destroy(Context&) override;
         } mPrimitive;
 
-        void init_primitive_pipeline();
+        void create_primitive_pipeline();
         void destroy_primitive_pipeline();
 
         struct Primitive {
@@ -176,6 +143,7 @@ namespace sm::render {
 
         void create_cube();
         void destroy_cube();
+
 
         struct Camera {
             float3 position = {3.f, 0.f, 0.f};
@@ -201,12 +169,6 @@ namespace sm::render {
         Object<ID3D12Fence> mFence;
 
         void copy_buffer(Object<ID3D12GraphicsCommandList1>& list, Resource& dst, Resource& src, size_t size);
-
-        sm::Vector<IDependency*> mResources;
-
-        void destroy_all(DependsOn depends);
-        void create_all(DependsOn depends);
-        void reset_all(DependsOn depends);
 
         void build_command_list();
         void move_to_next_frame();

@@ -52,7 +52,6 @@ variant RootSignatureVersion : opaque(D3D_ROOT_SIGNATURE_VERSION) {
     [[format("version 1.1")]] case Version_1_1 = opaque(D3D_ROOT_SIGNATURE_VERSION_1_1)
     [[format("version 1.2")]] case Version_1_2 = opaque(D3D_ROOT_SIGNATURE_VERSION_1_2)
 }
-
 ///
 /// info queue logging
 ///
@@ -86,17 +85,4 @@ variant MessageID : opaque(D3D12_MESSAGE_ID) {
     default Unknown = opaque(D3D12_MESSAGE_ID_UNKNOWN)
     // dont fill in the rest, theres over 1000 of them
     // we'll add them as we need them
-}
-
-///
-/// lifetime management
-///
-
-[[bitflags]]
-variant DependsOn {
-    [[format("device")]] default Device = (1 << 0) // depends on the device (nearly everything)
-    [[format("swapchain size")]] case PresentSize = (1 << 1) // depends on swapchain resolution
-    [[format("swapchain length")]] case BackBufferCount = (1 << 2) // depends on the swapchains back buffer count
-    [[format("swapchain format")]] case SwapChainFormat = (1 << 3) // depends on the swapchains format
-    [[format("render size")]] case RenderSize = (1 << 4) // depends on the internal render resolution
 }
