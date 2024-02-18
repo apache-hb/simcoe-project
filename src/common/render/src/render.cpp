@@ -207,6 +207,17 @@ void Context::create_pipeline() {
 
     SM_ASSERT_HR(swapchain1.query(&mSwapChain));
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
+
+    {
+        const D3D12_DESCRIPTOR_HEAP_DESC kHeapDesc = {
+            .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+            .NumDescriptors = 1,
+            .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
+        };
+
+        SM_ASSERT_HR(mDevice->CreateDescriptorHeap(&kHeapDesc, IID_PPV_ARGS(&mSrvHeap)));
+        mSrvDescriptorSize = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    }
 }
 
 void Context::create_frame_data() {
@@ -221,53 +232,30 @@ void Context::create_frame_data() {
     }
 }
 
-using DescriptorHeap = Context::DescriptorHeap;
-
-void DescriptorHeap::init(Context& context, const D3D12_DESCRIPTOR_HEAP_DESC& desc) {
-    auto& device = context.mDevice;
-    SM_ASSERT_HR(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&mHeap)));
-    mDescriptorSize = device->GetDescriptorHandleIncrementSize(desc.Type);
-}
-
-void DescriptorHeap::do_destroy(Context& context, DependsOn reason) {
-    mHeap.reset();
-}
-
-D3D12_CPU_DESCRIPTOR_HANDLE DescriptorHeap::cpu_handle(uint index) {
-    return CD3DX12_CPU_DESCRIPTOR_HANDLE(mHeap->GetCPUDescriptorHandleForHeapStart(), int_cast<int>(index), mDescriptorSize);
-}
-
 using RtvDescriptorHeap = Context::RtvDescriptorHeap;
 
 void RtvDescriptorHeap::do_create(Context& ctx, DependsOn reason) {
+    auto& device = ctx.mDevice;
     const D3D12_DESCRIPTOR_HEAP_DESC kHeapDesc = {
         .Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
         .NumDescriptors = ctx.mSwapChainLength,
     };
 
-    init(ctx, kHeapDesc);
+    SM_ASSERT_HR(device->CreateDescriptorHeap(&kHeapDesc, IID_PPV_ARGS(&mHeap)));
+    mDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 }
 
-using SrvDescriptorHeap = Context::SrvDescriptorHeap;
+void RtvDescriptorHeap::do_destroy(Context& context, DependsOn reason) {
+    mHeap.reset();
+}
 
-void SrvDescriptorHeap::do_create(Context& ctx, DependsOn reason) {
-    const D3D12_DESCRIPTOR_HEAP_DESC kHeapDesc = {
-        .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-        .NumDescriptors = 1,
-        .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
-    };
-
-    init(ctx, kHeapDesc);
+D3D12_CPU_DESCRIPTOR_HANDLE RtvDescriptorHeap::cpu_handle(uint index) {
+    return CD3DX12_CPU_DESCRIPTOR_HANDLE(mHeap->GetCPUDescriptorHandleForHeapStart(), int_cast<int>(index), mDescriptorSize);
 }
 
 void Context::init_rtv_heap() {
     mRtvHeap.create(*this);
     mResources.push_back(&mRtvHeap);
-}
-
-void Context::init_srv_heap() {
-    mSrvHeap.create(*this);
-    mResources.push_back(&mSrvHeap);
 }
 
 void Context::create_render_targets() {
@@ -685,7 +673,7 @@ void Context::build_command_list() {
 
     /// imgui
 
-    ID3D12DescriptorHeap *heaps[] = { mSrvHeap.mHeap.get() };
+    ID3D12DescriptorHeap *heaps[] = { mSrvHeap.get() };
     mCommandList->SetDescriptorHeaps(1, heaps);
 
     render_imgui();
@@ -732,6 +720,9 @@ void Context::destroy_device() {
     // allocator
     mAllocator.reset();
 
+    // descriptor heaps
+    mSrvHeap.reset();
+
     // swapchain
     mSwapChain.reset();
 
@@ -760,7 +751,6 @@ void Context::init() {
     create_copy_fence();
     create_pipeline();
     init_rtv_heap();
-    init_srv_heap();
     create_frame_data();
 
     init_simple_pipeline();

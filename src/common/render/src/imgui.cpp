@@ -24,13 +24,11 @@ void Context::create_imgui() {
         style.Colors[ImGuiCol_WindowBg].w = 1.0f;
     }
 
-    auto& heap = *mSrvHeap.mHeap;
-
     ImGui_ImplWin32_Init(mConfig.window.get_handle());
     ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mSwapChainLength),
-                        mConfig.swapchain_format, heap,
-                        heap->GetCPUDescriptorHandleForHeapStart(),
-                        heap->GetGPUDescriptorHandleForHeapStart());
+                        mConfig.swapchain_format, *mSrvHeap,
+                        mSrvHeap->GetCPUDescriptorHandleForHeapStart(),
+                        mSrvHeap->GetGPUDescriptorHandleForHeapStart());
 }
 
 void Context::destroy_imgui() {
@@ -40,13 +38,12 @@ void Context::destroy_imgui() {
 }
 
 void Context::create_imgui_device() {
+    mSink.info("creating imgui device");
     ImGui_ImplWin32_Init(mConfig.window.get_handle());
-
-    auto& heap = *mSrvHeap.mHeap;
     ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mSwapChainLength),
-                        mConfig.swapchain_format, heap,
-                        heap->GetCPUDescriptorHandleForHeapStart(),
-                        heap->GetGPUDescriptorHandleForHeapStart());
+                        mConfig.swapchain_format, *mSrvHeap,
+                        mSrvHeap->GetCPUDescriptorHandleForHeapStart(),
+                        mSrvHeap->GetGPUDescriptorHandleForHeapStart());
 
     ImGui_ImplDX12_CreateDeviceObjects();
     ImGui_ImplDX12_NewFrame();
