@@ -63,6 +63,11 @@ void sys::create(HINSTANCE hInstance, logs::ILogger &logger) {
         gWindowClass = MAKEINTATOM(atom);
     }
 
+    LARGE_INTEGER frequency;
+    SM_ASSERT_WIN32(QueryPerformanceFrequency(&frequency));
+
+    gTimerFrequency = frequency.QuadPart;
+
 #if 0
     gExecutablePathLength = GetModuleFileNameA(
         /* hModule = */ nullptr,

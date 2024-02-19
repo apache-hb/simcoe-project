@@ -108,11 +108,6 @@ void Context::destroy_imgui_backend() {
     ImGui_ImplWin32_Shutdown();
 }
 
-void Context::update_camera() {
-    ImGui::SeparatorText("Camera");
-    mCamera.update();
-}
-
 static void display_mem_budget(const D3D12MA::Budget &budget) {
     sm::Memory usage_bytes = budget.UsageBytes;
     sm::Memory budget_bytes = budget.BudgetBytes;
@@ -228,7 +223,8 @@ bool Context::update_imgui() {
     ImGui::End();
 
     if (ImGui::Begin("World Settings")) {
-        update_camera();
+        ImGui::SeparatorText("Camera");
+        camera.update();
 
         ImGui::SeparatorText("Scene");
 

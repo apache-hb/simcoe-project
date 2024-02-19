@@ -63,3 +63,9 @@ namespace sm {
 #else
 #   define DBG_STATIC_ASSERT(...) static_assert(true)
 #endif
+
+#if defined(__clang__)
+#   define undefined(T) [] { T ud = __builtin_nondeterministic_value(ud); return ud; }()
+#else
+#   define undefined(T) (T{})
+#endif

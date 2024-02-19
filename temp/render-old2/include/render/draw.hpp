@@ -34,7 +34,7 @@ namespace sm::draw {
     };
 
     struct Camera {
-        float3 position;
+        float3 mPosition;
         float3 forward;
         float3 up;
 

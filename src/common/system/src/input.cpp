@@ -100,7 +100,7 @@ static constexpr auto kButtons = make_table({
 
 void DesktopInput::set_key(WORD key, size_t value) {
     if (auto button = kButtons[key]) {
-        m_buttons[button] = value;
+        mButtons[button] = value;
     }
 }
 
@@ -119,25 +119,47 @@ void DesktopInput::set_xbutton(WORD key, size_t value) {
 }
 
 template<typename T>
-bool update(T& value, T next) {
+static bool update(T& value, T next) {
     bool bUpdated = value != next;
     value = next;
     return bUpdated;
 }
 
-DesktopInput::DesktopInput(sys::Window& window)
-    : input::ISource(input::InputDevice::eDesktop)
-    , m_window(window)
-{
-    m_buttons.fill(0);
+static math::int2 get_mouse_position(HWND hwnd) {
+    POINT p;
+    GetCursorPos(&p);
+    ScreenToClient(hwnd, &p);
+    return {p.x, p.y};
 }
 
+static constexpr auto kMouseX = (size_t)input::Axis::eMouseX;
+static constexpr auto kMouseY = (size_t)input::Axis::eMouseY;
+
+bool DesktopInput::poll_mouse(input::InputState& state) {
+    auto pos = get_mouse_position(mWindow.get_handle());
+    if (pos == mMousePosition) return false;
+
+    auto delta = pos - mMousePosition;
+    mMousePosition = pos;
+
+    state.axes[kMouseX] = float(delta.x);
+    state.axes[kMouseY] = float(delta.y);
+
+    return true;
+}
+
+DesktopInput::DesktopInput(sys::Window& window)
+    : input::ISource(input::InputDevice::eDesktop)
+    , mWindow(window)
+    , mMousePosition(get_mouse_position(window.get_handle()))
+{ }
+
 bool DesktopInput::poll(input::InputState& state) {
-    bool dirty = false;
+    bool dirty = poll_mouse(state);
 
     for (unsigned i = 0; i < kButtons.length(); ++i) {
         if (auto button = kButtons[i]; button.is_valid()) {
-            dirty |= update(state.buttons[button], m_buttons[button]);
+            dirty |= update(state.buttons[button], mButtons[button]);
         }
     }
 
@@ -151,7 +173,7 @@ void DesktopInput::window_event(UINT msg, WPARAM wparam, LPARAM lparam) {
         // ignore key repeats
         if (HIWORD(lparam) & KF_REPEAT) { return; }
 
-        set_key(remap_keycode(wparam, lparam), m_index++);
+        set_key(remap_keycode(wparam, lparam), mIndex++);
         break;
 
     case WM_SYSKEYUP:
@@ -160,28 +182,28 @@ void DesktopInput::window_event(UINT msg, WPARAM wparam, LPARAM lparam) {
         break;
 
     case WM_RBUTTONDOWN:
-        set_key(VK_RBUTTON, m_index++);
+        set_key(VK_RBUTTON, mIndex++);
         break;
     case WM_RBUTTONUP:
         set_key(VK_RBUTTON, 0);
         break;
 
     case WM_LBUTTONDOWN:
-        set_key(VK_LBUTTON, m_index++);
+        set_key(VK_LBUTTON, mIndex++);
         break;
     case WM_LBUTTONUP:
         set_key(VK_LBUTTON, 0);
         break;
 
     case WM_MBUTTONDOWN:
-        set_key(VK_MBUTTON, m_index++);
+        set_key(VK_MBUTTON, mIndex++);
         break;
     case WM_MBUTTONUP:
         set_key(VK_MBUTTON, 0);
         break;
 
     case WM_XBUTTONDOWN:
-        set_xbutton(GET_XBUTTON_WPARAM(wparam), m_index++);
+        set_xbutton(GET_XBUTTON_WPARAM(wparam), mIndex++);
         break;
 
     case WM_XBUTTONUP:

@@ -230,10 +230,6 @@ namespace sm::render {
         void create_scene();
         void destroy_scene();
 
-        draw::Camera mCamera;
-
-        void update_camera();
-
         void create_pipeline();
         void create_assets();
 
@@ -281,5 +277,7 @@ namespace sm::render {
         void render();
         void resize_draw(math::uint2 size);
         void resize_swapchain(math::uint2 size);
+
+        draw::Camera camera;
     };
 }

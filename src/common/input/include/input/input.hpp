@@ -3,22 +3,31 @@
 #include "core/vector.hpp"
 #include "core/array.hpp"
 
+#include "math/math.hpp"
+
 #include "input.reflect.h"
 
 namespace sm::input {
     using ButtonState = sm::Array<size_t, Button::kCount>;
     using AxisState = sm::Array<float, Axis::kCount>;
 
+    struct ButtonAxis {
+        Button negative;
+        Button positive;
+    };
+
     struct InputState {
         InputDevice device;
         ButtonState buttons;
         AxisState axes;
 
-        constexpr bool update_button(Button button, size_t next) {
-            bool updated = buttons[button] != next;
-            buttons[button] = next;
-            return updated;
-        }
+        bool update_button(Button button, size_t next);
+
+        float button_axis(ButtonAxis pair) const;
+        math::float2 button_axis2d(ButtonAxis horizontal, ButtonAxis vertical) const;
+
+        float axis(Axis id) const;
+        math::float2 axis2d(Axis horizontal, Axis vertical) const;
     };
 
     class ISource {

@@ -12,6 +12,7 @@
 #include "system/input.hpp"
 #include "system/system.hpp"
 
+#include "system/timer.hpp"
 #include "threads/threads.hpp"
 
 #include "imgui/imgui.h"
@@ -310,6 +311,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     sys::DesktopInput desktop_input{window};
 
     input::InputService input;
+    events.attach_input(&desktop_input);
     input.add_source(&desktop_input);
 
     window.show_window(show);
@@ -344,8 +346,11 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     render::Context context{render_config};
 
     events.attach_render(&context);
+    input.add_client(&context.camera);
 
     context.create();
+
+    sys::Ticker clock;
 
     bool done = false;
     while (!done) {
@@ -360,6 +365,10 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
         if (done) break;
         input.poll();
+
+        float dt = clock.tick();
+
+        context.camera.tick(dt);
 
         if (context.update())
             context.render();
