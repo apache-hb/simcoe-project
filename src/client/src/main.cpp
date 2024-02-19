@@ -238,7 +238,7 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
 
     void resize(sys::Window &, math::int2 size) override {
         if (m_context != nullptr) {
-            m_context->resize(size.as<uint>());
+            m_context->resize_swapchain(size.as<uint>());
         }
     }
 

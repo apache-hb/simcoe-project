@@ -794,7 +794,7 @@ void Context::update_swapchain_length(uint length) {
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
 }
 
-void Context::resize(math::uint2 size) {
+void Context::resize_swapchain(math::uint2 size) {
     wait_for_gpu();
 
     for (uint i = 0; i < mSwapChainLength; i++) {
@@ -802,17 +802,27 @@ void Context::resize(math::uint2 size) {
         mFrames[i].mFenceValue = mFrames[mFrameIndex].mFenceValue;
     }
 
-    mDepthStencil.reset();
-
     const uint flags = get_swapchain_flags(mInstance);
     SM_ASSERT_HR(mSwapChain->ResizeBuffers(mSwapChainLength, size.width, size.height, mConfig.swapchain_format, flags));
     mSwapChainSize = size;
 
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
 
-    update_scene_viewport();
     update_display_viewport();
     create_render_targets();
+}
+
+void Context::resize_draw(math::uint2 size) {
+    wait_for_gpu();
+
+    mDepthStencil.reset();
+    destroy_scene_target();
+
+    mDrawSize = size;
+
+    update_scene_viewport();
+    update_display_viewport();
+    create_scene_target();
     create_depth_stencil();
 }
 

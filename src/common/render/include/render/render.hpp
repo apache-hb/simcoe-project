@@ -82,7 +82,7 @@ namespace sm::render {
         void reset();
     };
 
-    struct Context {
+    class Context {
         static constexpr DXGI_FORMAT kDepthFormat = DXGI_FORMAT_D32_FLOAT;
 
         const RenderConfig mConfig;
@@ -284,6 +284,7 @@ namespace sm::render {
         void update_adapter(size_t index);
         void update_swapchain_length(uint length);
 
+
         void destroy_device();
 
     public:
@@ -294,6 +295,7 @@ namespace sm::render {
 
         bool update();
         void render();
-        void resize(math::uint2 size);
+        void resize_draw(math::uint2 size);
+        void resize_swapchain(math::uint2 size);
     };
 }

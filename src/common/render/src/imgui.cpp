@@ -149,6 +149,11 @@ bool Context::update_imgui() {
             update_swapchain_length(int_cast<uint>(backbuffers));
         }
 
+        int2 size = mDrawSize.as<int>();
+        if (ImGui::SliderInt2("Render resolution", size.data(), 64, 4096)) {
+            resize_draw(size.as<uint>());
+        }
+
         ImGui::SeparatorText("Adapters");
         const auto &adapters = mInstance.get_adapters();
         for (size_t i = 0; i < adapters.size(); i++) {
