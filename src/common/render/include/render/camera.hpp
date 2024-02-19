@@ -8,7 +8,7 @@
 namespace sm::draw {
     class Camera final : public input::IClient {
         float3 mPosition = {3.f, 0.f, 0.f};
-        float3 mDirection = kVectorForward;
+        float3 mDirection = -kVectorForward;
 
         float fov = to_radians(75.f);
         float speed = 3.f;

@@ -45,13 +45,11 @@ void Camera::accept(const input::InputState& state) {
 
     pitch = math::clamp(pitch, -89.f, 89.f);
 
-    fmt::println("yaw: {}, pitch: {}", yaw, pitch);
-
-    //float3 front = mDirection;
-    //front.x = cosf(to_radians(yaw)) * cosf(to_radians(pitch));
-    mDirection.y = -sinf(to_radians(yaw)) * cosf(to_radians(pitch));
-    mDirection.z = sinf(to_radians(pitch));
-    //mDirection = front.normalized();
+    float3 front = mDirection;
+    front.x = std::cos(to_radians(pitch)) * std::cos(to_radians(yaw));
+    front.y = std::cos(to_radians(pitch)) * std::sin(to_radians(yaw));
+    front.z = -std::sin(to_radians(pitch));
+    mDirection = front.normalized();
 }
 
 void Camera::tick(float dt) {
@@ -70,7 +68,7 @@ void Camera::tick(float dt) {
     mPosition += forward * -y * scaled;
     mPosition += float3::cross(forward, kVectorUp).normalized() * -x * scaled;
 
-    mPosition.z += z * scaled;
+    mPosition.z += -z * scaled;
 }
 
 float4x4 Camera::model() const {
