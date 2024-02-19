@@ -14,6 +14,9 @@ namespace sm::render {
 
     using DeviceHandle = Object<ID3D12Device1>;
 
+    constexpr math::float4 kClearColour = { 0.0f, 0.2f, 0.4f, 1.0f };
+    constexpr math::float4 kColourBlack = { 0.0f, 0.0f, 0.0f, 1.0f };
+
     constexpr float3 kVectorForward = {1.f, 0.f, 0.f};
     constexpr float3 kVectorRight = {0.f, 1.f, 0.f};
     constexpr float3 kVectorUp = {0.f, 0.f, 1.f};
@@ -26,7 +29,9 @@ namespace sm::render {
 
         uint swapchain_length;
         DXGI_FORMAT swapchain_format;
-        math::uint2 swapchain_size;
+        math::uint2 swapchain_size; // present resolution
+
+        math::uint2 draw_size; // internal resolution
 
         logs::ILogger &logger;
         sys::Window &window;
@@ -99,6 +104,8 @@ namespace sm::render {
 
         FeatureLevel get_feature_level() const { return mConfig.feature_level; }
 
+        sm::Vector<uint8> load_shader_bytecode(const char *path);
+
         void enable_debug_layer(bool gbv, bool rename);
         void enable_dred();
         void enable_info_queue();
@@ -115,8 +122,11 @@ namespace sm::render {
 
         /// presentation objects
         Object<IDXGISwapChain3> mSwapChain;
-        math::uint2 mSwapChainSize;
-        uint mSwapChainLength;
+
+        // render info
+        math::uint2 mSwapChainSize; // present resolution
+        uint mSwapChainLength; // number of swap chain buffers
+        math::uint2 mDrawSize; // render resolution
 
         sm::UniqueArray<FrameData> mFrames;
         void create_frame_allocators();
@@ -136,8 +146,6 @@ namespace sm::render {
         uint min_rtv_heap_size() const { return mSwapChainLength + 1; }
         uint scene_rtv_index() const { return mSwapChainLength; }
 
-        // +1 for dear imgui
-        // +1 for the scene target
         uint min_srv_heap_size() const { return eDescriptorCount; }
 
         DescriptorHeap mDsvHeap;
@@ -146,8 +154,6 @@ namespace sm::render {
         Resource mDepthStencil;
         void create_depth_stencil();
 
-        Resource mSceneTarget;
-        void create_scene_target();
 
         Result create_descriptor_heap(DescriptorHeap& heap, D3D12_DESCRIPTOR_HEAP_TYPE type, uint capacity, bool shader_visible);
 
@@ -163,25 +169,38 @@ namespace sm::render {
         uint64 mCopyFenceValue;
         void create_copy_fence();
 
-        Viewport mViewport;
-        void update_viewport_scissor();
 
-        // Viewport mSceneViewport;
 
-        Pipeline mPrimitivePipeline;
-
-        void create_primitive_pipeline();
-        void destroy_primitive_pipeline();
-
-        Viewport mPostViewport;
+        /// blit pipeline + assets
+        Viewport mPresentViewport;
         Pipeline mBlitPipeline;
-        Resource mScreenQuad;
+
+        struct {
+            Resource mVertexBuffer;
+            D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
+        } mScreenQuad;
+
+        void update_display_viewport();
 
         void create_blit_pipeline();
         void destroy_blit_pipeline();
 
         void create_screen_quad();
         void destroy_screen_quad();
+
+
+
+        /// scene pipeline + assets
+        Viewport mSceneViewport;
+        void update_scene_viewport();
+
+        Pipeline mPrimitivePipeline;
+        void create_primitive_pipeline();
+        void destroy_primitive_pipeline();
+
+        Resource mSceneTarget;
+        void create_scene_target();
+        void destroy_scene_target();
 
         struct Primitive {
             draw::MeshInfo mInfo;
@@ -238,10 +257,14 @@ namespace sm::render {
 
         void copy_buffer(Object<ID3D12GraphicsCommandList1>& list, Resource& dst, Resource& src, size_t size);
 
+        /// synchronization
+
         void build_command_list();
         void move_to_next_frame();
         void wait_for_gpu();
         void flush_copy_queue();
+
+        /// dear imgui
 
         draw::MeshInfo mMeshCreateInfo[draw::MeshType::kCount];
 
@@ -253,6 +276,8 @@ namespace sm::render {
 
         bool update_imgui();
         void render_imgui();
+
+        /// state updates
 
         void update_adapter(size_t index);
         void update_swapchain_length(uint length);

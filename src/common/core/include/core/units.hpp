@@ -6,6 +6,7 @@
 
 #include "core/core.hpp"
 #include "core/text.hpp"
+#include "core/format.hpp" // IWYU pragma: export
 
 #include "core.reflect.h"
 

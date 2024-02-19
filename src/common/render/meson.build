@@ -8,6 +8,8 @@ src = [
     'src/object.cpp',
     'src/imgui.cpp',
 
+    'src/blit.cpp',
+
     'src/camera.cpp',
     'src/draw.cpp',
     'src/primitives.cpp',

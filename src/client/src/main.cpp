@@ -335,6 +335,8 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .swapchain_format = DXGI_FORMAT_R8G8B8A8_UNORM,
         .swapchain_size = client.as<uint>(),
 
+        .draw_size = client.as<uint>(),
+
         .logger = gConsoleLog,
         .window = window,
     };

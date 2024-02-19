@@ -12,20 +12,6 @@
 using namespace sm;
 using namespace sm::render;
 
-namespace blit {
-    struct Vertex {
-        float2 position;
-        float2 uv;
-    };
-
-    SM_UNUSED static constexpr Vertex kScreenQuad[] = {
-        { { -1.f, -1.f }, { 0.f, 1.f } },
-        { { -1.f,  1.f }, { 0.f, 0.f } },
-        { {  1.f, -1.f }, { 1.f, 1.f } },
-        { {  1.f,  1.f }, { 1.f, 0.f } },
-    };
-}
-
 static uint get_swapchain_flags(const Instance& instance) {
     return instance.tearing_support() ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 }
@@ -248,7 +234,7 @@ void Context::create_pipeline() {
 
     mFrames.resize(mSwapChainLength);
 
-    update_viewport_scissor();
+    update_scene_viewport();
     create_render_targets();
     create_frame_allocators();
 
@@ -294,7 +280,7 @@ void Context::create_depth_stencil() {
         .DepthStencil = { 1.0f, 0 },
     };
 
-    const auto kDepthBufferDesc = CD3DX12_RESOURCE_DESC::Tex2D(kDepthFormat, mSwapChainSize.width, mSwapChainSize.height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+    const auto kDepthBufferDesc = CD3DX12_RESOURCE_DESC::Tex2D(kDepthFormat, mDrawSize.width, mDrawSize.height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 
     SM_ASSERT_HR(create_resource(mDepthStencil, D3D12_HEAP_TYPE_DEFAULT, kDepthBufferDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &kClearValue));
 
@@ -324,14 +310,14 @@ void Context::create_frame_allocators() {
     }
 }
 
-void Context::update_viewport_scissor() {
-    mViewport = Viewport{mSwapChainSize};
+void Context::update_scene_viewport() {
+    mSceneViewport = Viewport{mDrawSize};
 }
 
-static sm::Vector<uint8> load_shader_bytecode(Sink& sink, const char *path) {
+sm::Vector<uint8> Context::load_shader_bytecode(const char *path) {
     auto file = Io::file(path, eAccessRead);
     if (auto err = file.error()) {
-        sink.error("failed to open {}: {}", file.name(), err);
+        mSink.error("failed to open {}: {}", file.name(), err);
         return {};
     }
 
@@ -339,7 +325,7 @@ static sm::Vector<uint8> load_shader_bytecode(Sink& sink, const char *path) {
     auto size = file.size();
     data.resize(size);
     if (file.read_bytes(data.data(), size) != size) {
-        sink.error("failed to read {} bytes from {}: {}", size, file.name(), file.error());
+        mSink.error("failed to read {} bytes from {}: {}", size, file.name(), file.error());
         return {};
     }
 
@@ -379,8 +365,8 @@ void Context::create_primitive_pipeline() {
     }
 
     {
-        auto ps = load_shader_bytecode(mSink, "build/bundle/shaders/primitive.ps.cso");
-        auto vs = load_shader_bytecode(mSink, "build/bundle/shaders/primitive.vs.cso");
+        auto ps = load_shader_bytecode("build/bundle/shaders/primitive.ps.cso");
+        auto vs = load_shader_bytecode("build/bundle/shaders/primitive.vs.cso");
 
         constexpr D3D12_INPUT_ELEMENT_DESC kInputElements[] = {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(draw::Vertex, position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -409,125 +395,6 @@ void Context::create_primitive_pipeline() {
 
 void Context::destroy_primitive_pipeline() {
     mPrimitivePipeline.reset();
-}
-
-static constexpr D3D12_ROOT_SIGNATURE_FLAGS kPostRootFlags
-    = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
-    | D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS
-    | D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS
-    | D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS
-    | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS
-    | D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
-
-void Context::create_blit_pipeline() {
-    {
-        CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
-        CD3DX12_ROOT_PARAMETER1 params[1];
-
-        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
-        params[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
-
-        const D3D12_STATIC_SAMPLER_DESC kSampler = {
-            .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-            .AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-            .AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-            .AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-            .ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
-            .BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
-            .MinLOD = 0.f,
-            .MaxLOD = D3D12_FLOAT32_MAX,
-            .ShaderRegister = 0,
-            .RegisterSpace = 0,
-            .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL,
-        };
-
-        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
-        desc.Init_1_1(_countof(params), params, 1, &kSampler, kPostRootFlags);
-
-        serialize_root_signature(mBlitPipeline.mRootSignature, desc);
-    }
-
-    {
-        auto ps = load_shader_bytecode(mSink, "build/bundle/shaders/blit.ps.cso");
-        auto vs = load_shader_bytecode(mSink, "build/bundle/shaders/blit.vs.cso");
-
-        constexpr D3D12_INPUT_ELEMENT_DESC kInputElements[] = {
-            { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(blit::Vertex, position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-            { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(blit::Vertex, uv), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        };
-
-        const D3D12_GRAPHICS_PIPELINE_STATE_DESC kDesc = {
-            .pRootSignature = mBlitPipeline.mRootSignature.get(),
-            .VS = CD3DX12_SHADER_BYTECODE(vs.data(), vs.size()),
-            .PS = CD3DX12_SHADER_BYTECODE(ps.data(), ps.size()),
-            .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
-            .SampleMask = UINT_MAX,
-            .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
-            .DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT),
-            .InputLayout = { kInputElements, _countof(kInputElements) },
-            .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
-            .NumRenderTargets = 1,
-            .RTVFormats = { mConfig.swapchain_format },
-            .DSVFormat = kDepthFormat,
-            .SampleDesc = { 1, 0 },
-        };
-
-        SM_ASSERT_HR(mDevice->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&mBlitPipeline.mPipelineState)));
-    }
-}
-
-void Context::destroy_blit_pipeline() {
-    mBlitPipeline.reset();
-}
-
-void Context::create_screen_quad() {
-    const auto kBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(blit::kScreenQuad));
-    const auto kVertexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(blit::kScreenQuad));
-
-    Resource upload;
-
-    SM_ASSERT_HR(create_resource(upload, D3D12_HEAP_TYPE_UPLOAD, kBufferDesc, D3D12_RESOURCE_STATE_COPY_SOURCE));
-
-    SM_ASSERT_HR(create_resource(mScreenQuad, D3D12_HEAP_TYPE_DEFAULT, kVertexBufferDesc, D3D12_RESOURCE_STATE_COMMON));
-
-    void *data;
-    D3D12_RANGE read{0, 0};
-    SM_ASSERT_HR(upload.map(&read, &data));
-    std::memcpy(data, blit::kScreenQuad, sizeof(blit::kScreenQuad));
-    upload.unmap(&read);
-
-    reset_direct_commands();
-    reset_copy_commands();
-
-    copy_buffer(mCopyCommands, mScreenQuad, upload, sizeof(blit::kScreenQuad));
-
-    const D3D12_RESOURCE_BARRIER kBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
-        *mScreenQuad.mResource,
-        D3D12_RESOURCE_STATE_COPY_DEST,
-        D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
-    );
-
-    mCommandList->ResourceBarrier(1, &kBarrier);
-
-    SM_ASSERT_HR(mCopyCommands->Close());
-    SM_ASSERT_HR(mCommandList->Close());
-
-    ID3D12CommandList *copy_lists[] = { mCopyCommands.get() };
-    mCopyQueue->ExecuteCommandLists(1, copy_lists);
-    mCopyQueue->Signal(*mCopyFence, mCopyFenceValue);
-
-    ID3D12CommandList *direct_lists[] = { mCommandList.get() };
-    mDirectQueue->Wait(*mCopyFence, mCopyFenceValue);
-    mDirectQueue->ExecuteCommandLists(1, direct_lists);
-
-    mUploads.emplace(Upload{ std::move(upload), mCopyFenceValue });
-
-    wait_for_gpu();
-    flush_copy_queue();
-}
-
-void Context::destroy_screen_quad() {
-    mScreenQuad.reset();
 }
 
 static constexpr draw::Cube kCube = {
@@ -670,64 +537,102 @@ void Context::create_assets() {
 void Context::build_command_list() {
     mAllocator->SetCurrentFrameIndex(mFrameIndex);
 
-    auto& [backbuffer, allocator, _] = mFrames[mFrameIndex];
-
     reset_direct_commands(*mPrimitivePipeline.mPipelineState);
     mCommandList->SetGraphicsRootSignature(*mPrimitivePipeline.mRootSignature);
 
-    const auto kIntoRenderTarget = CD3DX12_RESOURCE_BARRIER::Transition(
-        *backbuffer,
-        D3D12_RESOURCE_STATE_PRESENT,
-        D3D12_RESOURCE_STATE_RENDER_TARGET
-    );
+    {
+        /// scene setup
 
-    mCommandList->ResourceBarrier(1, &kIntoRenderTarget);
+        const auto kSceneRtvHandle = mRtvHeap.cpu_descriptor_handle(int_cast<int>(scene_rtv_index()));
+        const auto kDsvHandle = mDsvHeap->GetCPUDescriptorHandleForHeapStart();
+        mCommandList->RSSetViewports(1, &mSceneViewport.mViewport);
+        mCommandList->RSSetScissorRects(1, &mSceneViewport.mScissorRect);
+        mCommandList->OMSetRenderTargets(1, &kSceneRtvHandle, false, &kDsvHandle);
 
-    /// render target setup
+        mCommandList->ClearRenderTargetView(kSceneRtvHandle, kClearColour.data(), 0, nullptr);
+        mCommandList->ClearDepthStencilView(kDsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
-    const auto kRtvHandle = mRtvHeap.cpu_descriptor_handle(int_cast<int>(mFrameIndex));
-    const auto kDsvHandle = mDsvHeap->GetCPUDescriptorHandleForHeapStart();
-    mCommandList->RSSetViewports(1, &mViewport.mViewport);
-    mCommandList->RSSetScissorRects(1, &mViewport.mScissorRect);
-    mCommandList->OMSetRenderTargets(1, &kRtvHandle, false, &kDsvHandle);
+        mCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    constexpr math::float4 kClearColour = { 0.0f, 0.2f, 0.4f, 1.0f };
-    mCommandList->ClearRenderTargetView(kRtvHandle, kClearColour.data(), 0, nullptr);
-    mCommandList->ClearDepthStencilView(kDsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+        /// draw primitives
 
-    /// shared render code
+        auto [width, height] = mDrawSize.as<float>();
 
-    mCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        for (auto& primitive : mPrimitives) {
+            const float4x4 model = primitive.mTransform.matrix().transpose();
+            const float4x4 mvp = mCamera.mvp(width / height, model).transpose();
+            mCommandList->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
 
-    /// cube
+            mCommandList->IASetVertexBuffers(0, 1, &primitive.mVertexBufferView);
+            mCommandList->IASetIndexBuffer(&primitive.mIndexBufferView);
 
-    auto [width, height] = mSwapChainSize.as<float>();
-
-    for (auto& primitive : mPrimitives) {
-        const float4x4 model = primitive.mTransform.matrix().transpose();
-        const float4x4 mvp = mCamera.mvp(width / height, model).transpose();
-        mCommandList->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
-
-        mCommandList->IASetVertexBuffers(0, 1, &primitive.mVertexBufferView);
-        mCommandList->IASetIndexBuffer(&primitive.mIndexBufferView);
-
-        mCommandList->DrawIndexedInstanced(primitive.mIndexCount, 1, 0, 0, 0);
+            mCommandList->DrawIndexedInstanced(primitive.mIndexCount, 1, 0, 0, 0);
+        }
     }
 
-    /// imgui
+    {
+        auto& [backbuffer, allocator, _] = mFrames[mFrameIndex];
 
-    ID3D12DescriptorHeap *heaps[] = { mSrvHeap.get() };
-    mCommandList->SetDescriptorHeaps(1, heaps);
+        const D3D12_RESOURCE_BARRIER kBeginPostBarriers[] = {
+            // transition backbuffer from present to render target
+            CD3DX12_RESOURCE_BARRIER::Transition(
+                *backbuffer,
+                D3D12_RESOURCE_STATE_PRESENT,
+                D3D12_RESOURCE_STATE_RENDER_TARGET
+            ),
+            // transition scene target from render target to pixel shader resource
+            CD3DX12_RESOURCE_BARRIER::Transition(
+                *mSceneTarget.mResource,
+                D3D12_RESOURCE_STATE_RENDER_TARGET,
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+            )
+        };
 
-    render_imgui();
+        mCommandList->ResourceBarrier(_countof(kBeginPostBarriers), kBeginPostBarriers);
 
-    const auto kIntoPresent = CD3DX12_RESOURCE_BARRIER::Transition(
-        *backbuffer,
-        D3D12_RESOURCE_STATE_RENDER_TARGET,
-        D3D12_RESOURCE_STATE_PRESENT
-    );
 
-    mCommandList->ResourceBarrier(1, &kIntoPresent);
+        ID3D12DescriptorHeap *heaps[] = { mSrvHeap.get() };
+        mCommandList->SetDescriptorHeaps(_countof(heaps), heaps);
+
+        /// post
+        mCommandList->SetGraphicsRootSignature(*mBlitPipeline.mRootSignature);
+        mCommandList->SetPipelineState(*mBlitPipeline.mPipelineState);
+
+        mCommandList->RSSetViewports(1, &mPresentViewport.mViewport);
+        mCommandList->RSSetScissorRects(1, &mPresentViewport.mScissorRect);
+
+        const auto rtv_handle = mRtvHeap.cpu_descriptor_handle(int_cast<int>(mFrameIndex));
+        mCommandList->OMSetRenderTargets(1, &rtv_handle, false, nullptr);
+
+        mCommandList->ClearRenderTargetView(rtv_handle, kColourBlack.data(), 0, nullptr);
+        mCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+        mCommandList->IASetVertexBuffers(0, 1, &mScreenQuad.mVertexBufferView);
+
+        const auto scene_srv_handle = mSrvHeap.gpu_descriptor_handle(eDescriptorScene);
+
+        mCommandList->SetGraphicsRootDescriptorTable(0, scene_srv_handle);
+        mCommandList->DrawInstanced(4, 1, 0, 0);
+
+        /// imgui
+        render_imgui();
+
+        const D3D12_RESOURCE_BARRIER kEndPostBarriers[] = {
+            // transition backbuffer from render target to present
+            CD3DX12_RESOURCE_BARRIER::Transition(
+                *backbuffer,
+                D3D12_RESOURCE_STATE_RENDER_TARGET,
+                D3D12_RESOURCE_STATE_PRESENT
+            ),
+            // transition scene target from pixel shader resource to render target
+            CD3DX12_RESOURCE_BARRIER::Transition(
+                *mSceneTarget.mResource,
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+                D3D12_RESOURCE_STATE_RENDER_TARGET
+            )
+        };
+
+        mCommandList->ResourceBarrier(_countof(kEndPostBarriers), kEndPostBarriers);
+    }
 
     SM_ASSERT_HR(mCommandList->Close());
 }
@@ -748,6 +653,7 @@ void Context::destroy_device() {
 
     // assets
     destroy_scene();
+    destroy_scene_target();
     destroy_screen_quad();
 
     // pipeline state
@@ -786,10 +692,9 @@ Context::Context(const RenderConfig& config)
     , mInstance({ config.flags, config.preference, config.logger })
     , mSwapChainSize(config.swapchain_size)
     , mSwapChainLength(config.swapchain_length)
-    , mViewport(config.swapchain_size)
-
-    //, mSceneViewport(0.f)
-    , mPostViewport(0.f)
+    , mDrawSize(config.draw_size)
+    , mPresentViewport(mSwapChainSize)
+    , mSceneViewport(mDrawSize)
 { }
 
 void Context::create() {
@@ -805,6 +710,7 @@ void Context::create() {
     create_assets();
 
     create_screen_quad();
+    create_scene_target();
     init_scene();
     create_imgui();
 }
@@ -851,6 +757,8 @@ void Context::update_adapter(size_t index) {
     create_pipeline();
     create_assets();
 
+    create_screen_quad();
+    create_scene_target();
     create_screen_quad();
     create_scene();
 
@@ -899,7 +807,8 @@ void Context::resize(math::uint2 size) {
 
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
 
-    update_viewport_scissor();
+    update_scene_viewport();
+    update_display_viewport();
     create_render_targets();
     create_depth_stencil();
 }

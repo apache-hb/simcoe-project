@@ -1,15 +1,17 @@
 #include "render/render.hpp"
 
-#include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_dx12.h"
 #include "imgui/backends/imgui_impl_win32.h"
+#include "imgui/imgui.h"
+
 
 using namespace sm;
 using namespace sm::draw;
 using namespace sm::render;
 
 namespace MyGui {
-template<ctu::Reflected T> requires (ctu::is_enum<T>())
+template <ctu::Reflected T>
+    requires(ctu::is_enum<T>())
 static bool EnumCombo(const char *label, typename ctu::TypeInfo<T>::Type &choice) {
     using Reflect = ctu::TypeInfo<T>;
     const auto id = Reflect::to_string(choice);
@@ -41,22 +43,14 @@ static bool SliderAngle3(const char *label, float3 &value, float min, float max)
 
 static constexpr MeshInfo get_default_info(MeshType type) {
     switch (type.as_enum()) {
-    case MeshType::eCube:
-        return { .type = type, .cube = {1.f, 1.f, 1.f} };
-    case MeshType::eSphere:
-        return { .type = type, .sphere = {1.f, 6, 6} };
-    case MeshType::eCylinder:
-        return { .type = type, .cylinder = {1.f, 1.f, 8} };
-    case MeshType::ePlane:
-        return { .type = type, .plane = {1.f, 1.f} };
-    case MeshType::eWedge:
-        return { .type = type, .wedge = {1.f, 1.f, 1.f} };
-    case MeshType::eCapsule:
-        return { .type = type, .capsule = {1.f, 5.f} };
-    case MeshType::eGeoSphere:
-        return { .type = type, .geosphere = {1.f, 2} };
-    default:
-        return { .type = type };
+    case MeshType::eCube: return {.type = type, .cube = {1.f, 1.f, 1.f}};
+    case MeshType::eSphere: return {.type = type, .sphere = {1.f, 6, 6}};
+    case MeshType::eCylinder: return {.type = type, .cylinder = {1.f, 1.f, 8}};
+    case MeshType::ePlane: return {.type = type, .plane = {1.f, 1.f}};
+    case MeshType::eWedge: return {.type = type, .wedge = {1.f, 1.f, 1.f}};
+    case MeshType::eCapsule: return {.type = type, .capsule = {1.f, 5.f}};
+    case MeshType::eGeoSphere: return {.type = type, .geosphere = {1.f, 2}};
+    default: return {.type = type};
     }
 }
 
@@ -65,23 +59,24 @@ void Context::create_imgui() {
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
 
-    ImGuiIO& io = ImGui::GetIO();
+    ImGuiIO &io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
-    ImGuiStyle& style = ImGui::GetStyle();
+    ImGuiStyle &style = ImGui::GetStyle();
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
         style.WindowRounding = 0.0f;
         style.Colors[ImGuiCol_WindowBg].w = 1.0f;
     }
 
     ImGui_ImplWin32_Init(mConfig.window.get_handle());
-    ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mSwapChainLength),
-                        mConfig.swapchain_format, *mSrvHeap,
-                        mSrvHeap->GetCPUDescriptorHandleForHeapStart(),
-                        mSrvHeap->GetGPUDescriptorHandleForHeapStart());
+
+    const auto cpu = mSrvHeap.cpu_descriptor_handle(eDescriptorImGui);
+    const auto gpu = mSrvHeap.gpu_descriptor_handle(eDescriptorImGui);
+    ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mSwapChainLength), mConfig.swapchain_format,
+                        *mSrvHeap, cpu, gpu);
 
     auto cases = MeshType::cases();
     for (MeshType i : cases) {
@@ -97,10 +92,11 @@ void Context::destroy_imgui() {
 
 void Context::create_imgui_backend() {
     ImGui_ImplWin32_Init(mConfig.window.get_handle());
-    ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mSwapChainLength),
-                        mConfig.swapchain_format, *mSrvHeap,
-                        mSrvHeap->GetCPUDescriptorHandleForHeapStart(),
-                        mSrvHeap->GetGPUDescriptorHandleForHeapStart());
+
+    const auto cpu = mSrvHeap.cpu_descriptor_handle(eDescriptorImGui);
+    const auto gpu = mSrvHeap.gpu_descriptor_handle(eDescriptorImGui);
+    ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mSwapChainLength), mConfig.swapchain_format,
+                        *mSrvHeap, cpu, gpu);
 
     ImGui_ImplDX12_CreateDeviceObjects();
     ImGui_ImplDX12_NewFrame();
@@ -154,9 +150,9 @@ bool Context::update_imgui() {
         }
 
         ImGui::SeparatorText("Adapters");
-        const auto& adapters = mInstance.get_adapters();
+        const auto &adapters = mInstance.get_adapters();
         for (size_t i = 0; i < adapters.size(); i++) {
-            auto& adapter = adapters[i];
+            auto &adapter = adapters[i];
             auto name = adapter.name();
             using Reflect = ctu::TypeInfo<AdapterFlag>;
 
@@ -166,7 +162,8 @@ bool Context::update_imgui() {
             ImGui::RadioButton(label, &current, int_cast<int>(i));
             ImGui::SameLine();
 
-            if (ImGui::TreeNodeEx((void*)name.data(), ImGuiTreeNodeFlags_None, "%s", name.data())) {
+            if (ImGui::TreeNodeEx((void *)name.data(), ImGuiTreeNodeFlags_None, "%s",
+                                  name.data())) {
                 ImGui::Text("Video memory: %s", adapter.vidmem().to_string().c_str());
                 ImGui::Text("System memory: %s", adapter.sysmem().to_string().c_str());
                 ImGui::Text("Shared memory: %s", adapter.sharedmem().to_string().c_str());
@@ -175,25 +172,23 @@ bool Context::update_imgui() {
             }
         }
 
-
         ImGui::SeparatorText("Render Status");
         if (ImGui::CollapsingHeader("Allocator")) {
             ImGui::SeparatorText("Memory");
 
             {
                 sm::Memory local = mAllocator->GetMemoryCapacity(DXGI_MEMORY_SEGMENT_GROUP_LOCAL);
-                sm::Memory nonlocal = mAllocator->GetMemoryCapacity(DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL);
+                sm::Memory nonlocal = mAllocator->GetMemoryCapacity(
+                    DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL);
 
                 ImGui::Text("Local: %s", local.to_string().c_str());
                 ImGui::Text("Non-Local: %s", nonlocal.to_string().c_str());
             }
 
             {
-                const char *mode = mAllocator->IsCacheCoherentUMA()
-                    ? "Cache Coherent UMA"
-                    : mAllocator->IsUMA()
-                        ? "Unified Memory Architecture"
-                        : "Non-UMA";
+                const char *mode = mAllocator->IsCacheCoherentUMA() ? "Cache Coherent UMA"
+                                   : mAllocator->IsUMA()            ? "Unified Memory Architecture"
+                                                                    : "Non-UMA";
 
                 ImGui::Text("UMA: %s", mode);
             }
@@ -205,7 +200,7 @@ bool Context::update_imgui() {
                 mAllocator->GetBudget(&local, &nolocal);
 
                 ImVec2 avail = ImGui::GetContentRegionAvail();
-                ImGuiStyle& style = ImGui::GetStyle();
+                ImGuiStyle &style = ImGui::GetStyle();
 
                 float width = avail.x / 2.f - style.ItemSpacing.x;
 
@@ -245,7 +240,7 @@ bool Context::update_imgui() {
             static float3 colour = {1.f, 1.f, 1.f};
             MyGui::EnumCombo<draw::MeshType>("Type", type);
 
-            auto& info = mMeshCreateInfo[type];
+            auto &info = mMeshCreateInfo[type];
 
             switch (type.as_enum()) {
             case draw::MeshType::eCube:
@@ -280,9 +275,7 @@ bool Context::update_imgui() {
                 ImGui::SliderFloat("Radius", &info.geosphere.radius, 0.1f, 10.f);
                 ImGui::SliderInt("Subdivisions", &info.geosphere.subdivisions, 1, 8);
                 break;
-            default:
-                ImGui::Text("Unimplemented primitive type");
-                break;
+            default: ImGui::Text("Unimplemented primitive type"); break;
             }
 
             ImGui::ColorEdit3("Colour", colour.data(), ImGuiColorEditFlags_Float);
@@ -295,12 +288,13 @@ bool Context::update_imgui() {
             ImGui::EndPopup();
         }
 
-        for (auto& primitive : mPrimitives) {
-            const auto& info = primitive.mInfo;
+        for (auto &primitive : mPrimitives) {
+            const auto &info = primitive.mInfo;
             using Reflect = ctu::TypeInfo<draw::MeshType>;
             auto name = Reflect::to_string(info.type);
-            if (ImGui::TreeNodeEx((void*)&primitive, ImGuiTreeNodeFlags_DefaultOpen, "%s", name.data())) {
-                auto& [position, rotation, scale] = primitive.mTransform;
+            if (ImGui::TreeNodeEx((void *)&primitive, ImGuiTreeNodeFlags_DefaultOpen, "%s",
+                                  name.data())) {
+                auto &[position, rotation, scale] = primitive.mTransform;
                 ImGui::SliderFloat3("Position", position.data(), -10.f, 10.f);
                 MyGui::SliderAngle3("Rotation", rotation, -3.14f, 3.14f);
                 ImGui::SliderFloat3("Scale", scale.data(), 0.1f, 10.f);
@@ -338,12 +332,8 @@ bool Context::update_imgui() {
                     ImGui::Text("Radius: %f", info.geosphere.radius);
                     ImGui::Text("Subdivisions: %d", info.geosphere.subdivisions);
                     break;
-                case MeshType::eImported:
-                    ImGui::Text("Imported");
-                    break;
-                default:
-                    ImGui::Text("Unknown primitive type");
-                    break;
+                case MeshType::eImported: ImGui::Text("Imported"); break;
+                default: ImGui::Text("Unknown primitive type"); break;
                 }
                 ImGui::TreePop();
             }
@@ -353,7 +343,7 @@ bool Context::update_imgui() {
 
     ImGui::Render();
 
-    ImGuiIO& io = ImGui::GetIO();
+    ImGuiIO &io = ImGui::GetIO();
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
         ImGui::UpdatePlatformWindows();
         ImGui::RenderPlatformWindowsDefault(nullptr, *mCommandList);

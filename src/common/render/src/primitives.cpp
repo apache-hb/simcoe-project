@@ -114,21 +114,21 @@ static void subdivide(Mesh& mesh) {
         vertices.push_back(m1);
         vertices.push_back(m2);
 
-        indices.push_back(i* 6 + 0);
-        indices.push_back(i* 6 + 3);
-        indices.push_back(i* 6 + 5);
+        indices.push_back(i * 6 + 0);
+        indices.push_back(i * 6 + 3);
+        indices.push_back(i * 6 + 5);
 
-        indices.push_back(i* 6 + 3);
-        indices.push_back(i* 6 + 4);
-        indices.push_back(i* 6 + 5);
+        indices.push_back(i * 6 + 3);
+        indices.push_back(i * 6 + 4);
+        indices.push_back(i * 6 + 5);
 
-        indices.push_back(i* 6 + 5);
-        indices.push_back(i* 6 + 4);
-        indices.push_back(i* 6 + 2);
+        indices.push_back(i * 6 + 5);
+        indices.push_back(i * 6 + 4);
+        indices.push_back(i * 6 + 2);
 
-        indices.push_back(i* 6 + 3);
-        indices.push_back(i* 6 + 1);
-        indices.push_back(i* 6 + 4);
+        indices.push_back(i * 6 + 3);
+        indices.push_back(i * 6 + 1);
+        indices.push_back(i * 6 + 4);
     }
 }
 
