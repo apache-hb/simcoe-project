@@ -23,6 +23,7 @@
 !*.ini
 !.clang-format
 !.clang-tidy
+!*.natvis
 
 # assets
 !data/**/*

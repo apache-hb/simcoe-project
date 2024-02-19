@@ -1,5 +1,4 @@
 src = [
-    'misc/freetype/imgui_freetype.cpp',
     'imgui_demo.cpp',
     'imgui_draw.cpp',
     'imgui_widgets.cpp',
@@ -9,10 +8,10 @@ src = [
     # the backends we use
     'backends/imgui_impl_dx12.cpp',
     'backends/imgui_impl_win32.cpp',
-]
 
-dxgi = cpp.find_library('dxgi')
-dxguid = cpp.find_library('dxguid')
+    # freetype integration
+    'misc/freetype/imgui_freetype.cpp',
+]
 
 imgui_include = include_directories('include')
 private_imgui_include = include_directories('include/imgui', 'include/imgui/backends', 'include/imgui/misc')

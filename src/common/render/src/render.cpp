@@ -251,12 +251,14 @@ void Context::create_rtv_heap() {
     SM_ASSERT_HR(create_descriptor_heap(mRtvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, count, false));
 }
 
-void Context::resize_rtv_heap(uint length) {
-    if (mRtvHeap.mCapacity >= length) return;
+bool Context::resize_rtv_heap(uint length) {
+    if (mRtvHeap.mCapacity >= length) return false;
 
     mRtvHeap.reset();
 
     SM_ASSERT_HR(create_descriptor_heap(mRtvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, length, false));
+
+    return true;
 }
 
 Result Context::create_descriptor_heap(DescriptorHeap& heap, D3D12_DESCRIPTOR_HEAP_TYPE type, uint capacity, bool shader_visible) {
@@ -298,7 +300,7 @@ void Context::create_render_targets() {
 
     for (uint i = 0; i < mSwapChainLength; i++) {
         auto& backbuffer = mFrames[i].mRenderTarget;
-        auto rtv = mRtvHeap.cpu_descriptor_handle(int_cast<int>(i));
+        auto rtv = mRtvHeap.cpu_descriptor_handle(frame_rtv_index(i));
         SM_ASSERT_HR(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&backbuffer)));
         mDevice->CreateRenderTargetView(*backbuffer, nullptr, rtv);
     }
@@ -543,7 +545,7 @@ void Context::build_command_list() {
     {
         /// scene setup
 
-        const auto kSceneRtvHandle = mRtvHeap.cpu_descriptor_handle(int_cast<int>(scene_rtv_index()));
+        const auto kSceneRtvHandle = mRtvHeap.cpu_descriptor_handle(scene_rtv_index());
         const auto kDsvHandle = mDsvHeap->GetCPUDescriptorHandleForHeapStart();
         mCommandList->RSSetViewports(1, &mSceneViewport.mViewport);
         mCommandList->RSSetScissorRects(1, &mSceneViewport.mScissorRect);
@@ -601,7 +603,7 @@ void Context::build_command_list() {
         mCommandList->RSSetViewports(1, &mPresentViewport.mViewport);
         mCommandList->RSSetScissorRects(1, &mPresentViewport.mScissorRect);
 
-        const auto rtv_handle = mRtvHeap.cpu_descriptor_handle(int_cast<int>(mFrameIndex));
+        const auto rtv_handle = mRtvHeap.cpu_descriptor_handle(frame_rtv_index(mFrameIndex));
         mCommandList->OMSetRenderTargets(1, &rtv_handle, false, nullptr);
 
         mCommandList->ClearRenderTargetView(rtv_handle, kColourBlack.data(), 0, nullptr);
@@ -757,7 +759,6 @@ void Context::update_adapter(size_t index) {
     create_pipeline();
     create_assets();
 
-    create_screen_quad();
     create_scene_target();
     create_screen_quad();
     create_scene();
@@ -784,7 +785,9 @@ void Context::update_swapchain_length(uint length) {
         mFrames[i].mFenceValue = current;
     }
 
-    resize_rtv_heap(min_rtv_heap_size());
+    if (resize_rtv_heap(min_rtv_heap_size())) {
+        create_scene_render_target();
+    }
     create_render_targets();
     create_frame_allocators();
 

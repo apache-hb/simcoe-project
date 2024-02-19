@@ -140,11 +140,12 @@ namespace sm::render {
 
         DescriptorHeap mRtvHeap;
         void create_rtv_heap();
-        void resize_rtv_heap(uint length);
+        bool resize_rtv_heap(uint length);
 
         // +1 for the scene target
         uint min_rtv_heap_size() const { return mSwapChainLength + 1; }
-        uint scene_rtv_index() const { return mSwapChainLength; }
+        int scene_rtv_index() const { return 0; }
+        int frame_rtv_index(uint frame) const { return int_cast<int>(frame) + 1; }
 
         uint min_srv_heap_size() const { return eDescriptorCount; }
 
@@ -201,6 +202,7 @@ namespace sm::render {
         Resource mSceneTarget;
         void create_scene_target();
         void destroy_scene_target();
+        void create_scene_render_target();
 
         struct Primitive {
             draw::MeshInfo mInfo;

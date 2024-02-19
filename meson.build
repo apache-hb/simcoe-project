@@ -18,7 +18,6 @@ project('simcoe', [ 'c', 'cpp' ],
         'fmt:warning_level=0',
         'harfbuzz:warning_level=0',
         'freetype2:warning_level=0',
-        'd3d12ma:warning_level=0',
 
         # disable everything in cthulhu by default
         'cthulhu:auto_features=disabled',
@@ -74,9 +73,11 @@ windows = import('windows')
 
 stb = subproject('stb').get_variable('stb')
 
+dxgi = cpp.find_library('dxgi')
+dxguid = cpp.find_library('dxguid')
+
 d3d12 = dependency('d3d12')
 d3dx12 = dependency('d3dx12')
-d3d12ma = dependency('d3d12ma')
 
 debug_render = get_option('debug_render').disable_auto_if(package_type == 'release')
 enable_agility = get_option('enable_agility').allowed()
@@ -206,9 +207,13 @@ config_include = include_directories('.')
 
 # we vendor fmtlib via a small shim header to hook FMT_THROW(x) into cthulhu's error handling
 subdir('src/vendor/fmtlib')
+
 subdir('src/vendor/reflect')
 
 subdir('src/common/core')
+# also hook assets into d3d12ma
+subdir('src/vendor/d3d12ma')
+
 subdir('src/common/math')
 subdir('src/common/logs')
 subdir('src/common/archive')
