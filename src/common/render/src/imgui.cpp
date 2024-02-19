@@ -110,11 +110,7 @@ void Context::destroy_imgui_backend() {
 
 void Context::update_camera() {
     ImGui::SeparatorText("Camera");
-
-    ImGui::SliderFloat("fov", &mCamera.fov, 0.1f, 3.14f);
-    ImGui::SliderFloat3("position", &mCamera.position.x, -10.f, 10.f);
-    ImGui::SliderFloat3("direction", &mCamera.direction.x, -1.f, 1.f);
-    ImGui::SliderFloat("speed", &mCamera.speed, 0.1f, 10.f);
+    mCamera.update();
 }
 
 static void display_mem_budget(const D3D12MA::Budget &budget) {

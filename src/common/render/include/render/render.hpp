@@ -3,7 +3,7 @@
 #include "core/array.hpp"
 #include "render/instance.hpp"
 
-#include "render/draw.hpp"
+#include "render/camera.hpp"
 
 #include "core/queue.hpp"
 
@@ -16,10 +16,6 @@ namespace sm::render {
 
     constexpr math::float4 kClearColour = { 0.0f, 0.2f, 0.4f, 1.0f };
     constexpr math::float4 kColourBlack = { 0.0f, 0.0f, 0.0f, 1.0f };
-
-    constexpr float3 kVectorForward = {1.f, 0.f, 0.f};
-    constexpr float3 kVectorRight = {0.f, 1.f, 0.f};
-    constexpr float3 kVectorUp = {0.f, 0.f, 1.f};
 
     struct RenderConfig {
         DebugFlags flags;
@@ -234,19 +230,7 @@ namespace sm::render {
         void create_scene();
         void destroy_scene();
 
-        struct Camera {
-            float3 position = {3.f, 0.f, 0.f};
-            float3 direction = kVectorForward;
-
-            float fov = to_radians(75.f);
-            float speed = 3.f;
-
-            float4x4 model() const;
-            float4x4 view() const;
-            float4x4 projection(float aspect) const;
-
-            float4x4 mvp(float aspect, const float4x4& object) const;
-        } mCamera;
+        draw::Camera mCamera;
 
         void update_camera();
 

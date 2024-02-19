@@ -7,6 +7,12 @@
 
 namespace sm::math {
     template<typename T>
+    concept IsVector = requires (T it) {
+        { T::kSize } -> std::convertible_to<size_t>;
+        { it.fields } -> std::convertible_to<typename T::Type*>;
+    };
+
+    template<typename T>
     constexpr inline T kPi = T(3.14159265358979323846264338327950288);
 
     template<typename T>
@@ -73,7 +79,7 @@ namespace sm::math {
     template<typename T> struct Mat4x4;
 
     template<typename T>
-    struct Vec2 {
+    struct alignas(sizeof(T) * 2) Vec2 {
         static constexpr size_t kSize = 2;
         using Type = T;
 
@@ -300,7 +306,7 @@ namespace sm::math {
     };
 
     template<typename T>
-    struct Vec4 {
+    struct alignas(sizeof(T) * 4) Vec4 {
         static constexpr size_t kSize = 4;
         using Type = T;
 
@@ -412,7 +418,7 @@ namespace sm::math {
 #endif
 
     template<typename T>
-    struct Mat4x4 {
+    struct alignas(sizeof(T) * 16) Mat4x4 {
         using Type = T;
         using Row = Vec4<T>;
         using Row3 = Vec3<T>;
@@ -724,12 +730,6 @@ namespace sm::math {
 
             return { r0, r1, r2, r3 };
         }
-    };
-
-    template<typename T>
-    concept IsVector = requires (T it) {
-        { T::kSize } -> std::convertible_to<size_t>;
-        { it.fields } -> std::convertible_to<typename T::Type*>;
     };
 
     template<IsVector T>

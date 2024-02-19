@@ -5,6 +5,8 @@
 #include "render/draw.hpp" // IWYU pragma: export
 #include "archive/io.hpp"
 
+#include "math/colour.hpp"
+
 #include "d3dx12/d3dx12_core.h"
 #include "d3dx12/d3dx12_root_signature.h"
 #include "d3dx12/d3dx12_barriers.h"
@@ -372,7 +374,7 @@ void Context::create_primitive_pipeline() {
 
         constexpr D3D12_INPUT_ELEMENT_DESC kInputElements[] = {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(draw::Vertex, position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-            { "COLOUR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(draw::Vertex, colour), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "COLOUR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, offsetof(draw::Vertex, colour), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         };
 
         const D3D12_GRAPHICS_PIPELINE_STATE_DESC kDesc = {
@@ -430,8 +432,10 @@ void Context::destroy_scene() {
 Context::Primitive Context::create_mesh(const draw::MeshInfo& info, const float3& colour) {
     auto mesh = draw::primitive(info);
 
+    uint32_t col = pack_colour(float4(colour, 1.0f));
+
     for (auto& v : mesh.vertices) {
-        v.colour = float4(colour, 1.0f);
+        v.colour = col;
     }
 
     Resource vbo_upload;

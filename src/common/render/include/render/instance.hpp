@@ -32,9 +32,11 @@ public:
     constexpr sm::Memory vidmem() const {
         return mVideoMemory;
     }
+
     constexpr sm::Memory sysmem() const {
         return mSystemMemory;
     }
+
     constexpr sm::Memory sharedmem() const {
         return mSharedMemory;
     }
