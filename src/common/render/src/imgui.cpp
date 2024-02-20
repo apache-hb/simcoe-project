@@ -73,10 +73,12 @@ void Context::create_imgui() {
 
     ImGui_ImplWin32_Init(mConfig.window.get_handle());
 
-    const auto cpu = mSrvHeap.cpu_descriptor_handle(eDescriptorImGui);
-    const auto gpu = mSrvHeap.gpu_descriptor_handle(eDescriptorImGui);
+    mImGuiSrvIndex = mSrvAllocator.allocate();
+
+    const auto cpu = mSrvAllocator.cpu_descriptor_handle(mImGuiSrvIndex);
+    const auto gpu = mSrvAllocator.gpu_descriptor_handle(mImGuiSrvIndex);
     ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mSwapChainLength), mConfig.swapchain_format,
-                        *mSrvHeap, cpu, gpu);
+                        mSrvAllocator.get(), cpu, gpu);
 
     auto cases = MeshType::cases();
     for (MeshType i : cases) {
@@ -88,15 +90,18 @@ void Context::destroy_imgui() {
     ImGui_ImplDX12_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
+
+    mSrvAllocator.release(mImGuiSrvIndex);
+    mImGuiSrvIndex = UINT_MAX;
 }
 
 void Context::create_imgui_backend() {
     ImGui_ImplWin32_Init(mConfig.window.get_handle());
 
-    const auto cpu = mSrvHeap.cpu_descriptor_handle(eDescriptorImGui);
-    const auto gpu = mSrvHeap.gpu_descriptor_handle(eDescriptorImGui);
+    const auto cpu = mSrvAllocator.cpu_descriptor_handle(mImGuiSrvIndex);
+    const auto gpu = mSrvAllocator.gpu_descriptor_handle(mImGuiSrvIndex);
     ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mSwapChainLength), mConfig.swapchain_format,
-                        *mSrvHeap, cpu, gpu);
+                        mSrvAllocator.get(), cpu, gpu);
 
     ImGui_ImplDX12_CreateDeviceObjects();
     ImGui_ImplDX12_NewFrame();
@@ -217,7 +222,7 @@ bool Context::update_imgui() {
         if (ImGui::CollapsingHeader("Descriptor heaps")) {
             ImGui::Text("RTV capacity: %u", mRtvHeap.mCapacity);
             ImGui::Text("DSV capacity: %u", mDsvHeap.mCapacity);
-            ImGui::Text("SRV capacity: %u", mSrvHeap.mCapacity);
+            ImGui::Text("SRV capacity: %u", mSrvAllocator.mHeap.mCapacity);
         }
     }
     ImGui::End();

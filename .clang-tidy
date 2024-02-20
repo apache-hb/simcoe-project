@@ -4,6 +4,7 @@ Checks:
   - '-performance-no-int-to-ptr'
   - '-bugprone-lambda-function-name'
   - '-bugprone-dynamic-static-initializers'
+  - '-bugprone-narrowing-conversions'
 CheckOptions:
   - { key: readability-identifier-naming.VariableCase, value: lower_case }
   - { key: readability-identifier-naming.ParameterCase, value: aNy_CasE }

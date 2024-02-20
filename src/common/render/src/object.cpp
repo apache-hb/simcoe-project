@@ -67,3 +67,28 @@ void Pipeline::reset() {
     mRootSignature.reset();
     mPipelineState.reset();
 }
+
+void DescriptorAllocator::set_heap(DescriptorHeap heap) {
+    mHeap = std::move(heap);
+}
+
+DescriptorIndex DescriptorAllocator::allocate() {
+    auto index = mAllocator.allocate();
+    SM_ASSERTF(index != sm::BitMap::eInvalid, "DescriptorAllocator: allocate out of descriptors. size {}", mHeap.mCapacity);
+    auto ret = DescriptorIndex(index);
+    SM_ASSERTF(ret < mHeap.mCapacity, "DescriptorAllocator: allocate out of range. index {} capacity {}", ret, mHeap.mCapacity);
+    return ret;
+}
+
+void DescriptorAllocator::release(DescriptorIndex index) {
+    SM_ASSERTF(index < mHeap.mCapacity, "DescriptorAllocator: release out of range. index {} capacity {}", index, mHeap.mCapacity);
+    mAllocator.release(sm::BitMap::Index{index});
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE DescriptorAllocator::cpu_descriptor_handle(int index) {
+    return mHeap.cpu_descriptor_handle(index);
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE DescriptorAllocator::gpu_descriptor_handle(int index) {
+    return mHeap.gpu_descriptor_handle(index);
+}

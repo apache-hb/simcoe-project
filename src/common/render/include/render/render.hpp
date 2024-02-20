@@ -2,6 +2,7 @@
 
 #include "archive/bundle.hpp"
 #include "core/array.hpp"
+#include "core/bitmap.hpp"
 #include "render/instance.hpp"
 
 #include "render/camera.hpp"
@@ -29,6 +30,8 @@ namespace sm::render {
         math::uint2 swapchain_size; // present resolution
 
         math::uint2 draw_size; // internal resolution
+
+        uint srv_heap_size;
 
         Bundle& bundle;
         logs::ILogger &logger;
@@ -60,10 +63,23 @@ namespace sm::render {
         D3D12_GPU_DESCRIPTOR_HANDLE gpu_descriptor_handle(int index);
     };
 
-    enum : int {
-        eDescriptorScene,
-        eDescriptorImGui,
-        eDescriptorCount
+    using DescriptorIndex = uint;
+
+    struct DescriptorAllocator {
+        DescriptorHeap mHeap;
+        sm::BitMap mAllocator;
+
+        void set_heap(DescriptorHeap heap);
+        void set_size(uint size) { mAllocator.resize(size); }
+
+        DescriptorIndex allocate();
+        void release(DescriptorIndex index);
+
+        D3D12_CPU_DESCRIPTOR_HANDLE cpu_descriptor_handle(int index);
+        D3D12_GPU_DESCRIPTOR_HANDLE gpu_descriptor_handle(int index);
+
+        void reset() { mHeap.reset(); }
+        ID3D12DescriptorHeap *get() const { return mHeap.get(); }
     };
 
     struct Viewport {
@@ -101,8 +117,6 @@ namespace sm::render {
         DWORD mCookie = ULONG_MAX;
 
         FeatureLevel get_feature_level() const { return mConfig.feature_level; }
-
-        sm::Vector<uint8> load_shader_bytecode(const char *path);
 
         void enable_debug_layer(bool gbv, bool rename);
         void enable_dred();
@@ -145,10 +159,12 @@ namespace sm::render {
         int scene_rtv_index() const { return 0; }
         int frame_rtv_index(uint frame) const { return int_cast<int>(frame) + 1; }
 
-        uint min_srv_heap_size() const { return eDescriptorCount; }
+        // +1 for scene target
+        // +1 for imgui font atlas
+        uint min_srv_heap_size() const { return 1 + 1 + mConfig.srv_heap_size; }
 
         DescriptorHeap mDsvHeap;
-        DescriptorHeap mSrvHeap;
+        DescriptorAllocator mSrvAllocator;
 
         Resource mDepthStencil;
         void create_depth_stencil();
@@ -169,6 +185,7 @@ namespace sm::render {
         void create_copy_fence();
 
 
+        DescriptorIndex mSceneTargetSrvIndex;
 
         /// blit pipeline + assets
         Viewport mPresentViewport;
@@ -251,6 +268,7 @@ namespace sm::render {
         /// dear imgui
 
         draw::MeshInfo mMeshCreateInfo[draw::MeshType::kCount];
+        DescriptorIndex mImGuiSrvIndex;
 
         void create_imgui();
         void destroy_imgui();

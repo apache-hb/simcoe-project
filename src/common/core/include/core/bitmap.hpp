@@ -57,6 +57,10 @@ namespace sm {
                 return scan_set_first(get_capacity());
             }
 
+            constexpr Index allocate() {
+                return scan_set_first();
+            }
+
             constexpr size_t get_capacity() const { return mStorage.length() * kBitsPerWord; }
             constexpr bool is_valid() const { return mStorage.is_valid(); }
 
@@ -65,7 +69,7 @@ namespace sm {
             }
 
             constexpr void release(Index index) {
-                CTASSERT(test(index));
+                SM_ASSERTF(test(index), "index {} is not set", (IndexType)index);
                 clear(index);
             }
 

@@ -3,7 +3,6 @@
 #include "core/format.hpp" // IWYU pragma: export
 
 #include "render/draw.hpp" // IWYU pragma: export
-#include "archive/io.hpp"
 
 #include "math/colour.hpp"
 
@@ -225,7 +224,10 @@ void Context::create_pipeline() {
 
     {
         uint count = min_srv_heap_size();
-        SM_ASSERT_HR(create_descriptor_heap(mSrvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, count, true));
+        DescriptorHeap srv_heap;
+        SM_ASSERT_HR(create_descriptor_heap(srv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, count, true));
+
+        mSrvAllocator.set_heap(std::move(srv_heap));
     }
 
     {
@@ -318,24 +320,6 @@ void Context::update_scene_viewport() {
     mSceneViewport = Viewport{mDrawSize};
 }
 
-sm::Vector<uint8> Context::load_shader_bytecode(const char *path) {
-    auto file = Io::file(path, eOsAccessRead);
-    if (auto err = file.error()) {
-        mSink.error("failed to open {}: {}", file.name(), err);
-        return {};
-    }
-
-    sm::Vector<uint8> data;
-    auto size = file.size();
-    data.resize(size);
-    if (file.read_bytes(data.data(), size) != size) {
-        mSink.error("failed to read {} bytes from {}: {}", size, file.name(), file.error());
-        return {};
-    }
-
-    return data;
-}
-
 Result Context::create_resource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state, const D3D12_CLEAR_VALUE *clear) {
     const D3D12MA::ALLOCATION_DESC kAllocDesc = {
         .HeapType = heap,
@@ -369,8 +353,8 @@ void Context::create_primitive_pipeline() {
     }
 
     {
-        auto ps = load_shader_bytecode("build/bundle/shaders/primitive.ps.cso");
-        auto vs = load_shader_bytecode("build/bundle/shaders/primitive.vs.cso");
+        auto ps = mConfig.bundle.get_shader_bytecode("primitive.ps");
+        auto vs = mConfig.bundle.get_shader_bytecode("primitive.vs");
 
         constexpr D3D12_INPUT_ELEMENT_DESC kInputElements[] = {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(draw::Vertex, position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -597,7 +581,7 @@ void Context::build_command_list() {
         mCommandList->ResourceBarrier(_countof(kBeginPostBarriers), kBeginPostBarriers);
 
 
-        ID3D12DescriptorHeap *heaps[] = { mSrvHeap.get() };
+        ID3D12DescriptorHeap *heaps[] = { mSrvAllocator.get() };
         mCommandList->SetDescriptorHeaps(_countof(heaps), heaps);
 
         /// post
@@ -614,7 +598,7 @@ void Context::build_command_list() {
         mCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
         mCommandList->IASetVertexBuffers(0, 1, &mScreenQuad.mVertexBufferView);
 
-        const auto scene_srv_handle = mSrvHeap.gpu_descriptor_handle(eDescriptorScene);
+        const auto scene_srv_handle = mSrvAllocator.gpu_descriptor_handle(mSceneTargetSrvIndex);
 
         mCommandList->SetGraphicsRootDescriptorTable(0, scene_srv_handle);
         mCommandList->DrawInstanced(4, 1, 0, 0);
@@ -681,7 +665,7 @@ void Context::destroy_device() {
     // descriptor heaps
     mRtvHeap.reset();
     mDsvHeap.reset();
-    mSrvHeap.reset();
+    mSrvAllocator.reset();
 
     // swapchain
     mSwapChain.reset();
@@ -708,12 +692,16 @@ void Context::create() {
         ? mInstance.warp_adapter_index()
         : mConfig.adapter_index;
 
+    mSrvAllocator.set_size(min_srv_heap_size());
+
     create_device(index);
     create_allocator();
     create_copy_queue();
     create_copy_fence();
     create_pipeline();
     create_assets();
+
+    mSceneTargetSrvIndex = mSrvAllocator.allocate();
 
     create_screen_quad();
     create_scene_target();
@@ -726,6 +714,9 @@ void Context::destroy() {
     wait_for_gpu();
 
     destroy_imgui();
+
+    mSrvAllocator.release(mSceneTargetSrvIndex);
+    mSceneTargetSrvIndex = UINT_MAX;
 
     SM_ASSERT_WIN32(CloseHandle(mCopyFenceEvent));
     SM_ASSERT_WIN32(CloseHandle(mFenceEvent));
