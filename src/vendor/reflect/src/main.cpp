@@ -139,7 +139,7 @@ struct tool_t
 
     void process_import(const char *path)
     {
-        io_t *io = open_file(path, eAccessRead, &kEvent_FailedToOpenSourceFile);
+        io_t *io = open_file(path, eOsAccessRead, &kEvent_FailedToOpenSourceFile);
         if (io == nullptr) return;
 
         scan_t *scan = scan_io("simcoe", io, m_arena);
@@ -153,7 +153,7 @@ struct tool_t
 
     ref_ast_t *process_file(const char *path)
     {
-        io_t *io = open_file(path, eAccessRead, &kEvent_FailedToOpenSourceFile);
+        io_t *io = open_file(path, eOsAccessRead, &kEvent_FailedToOpenSourceFile);
         if (io == nullptr) return nullptr;
 
         scan_t *scan = scan_io("simcoe", io, m_arena);
@@ -168,7 +168,7 @@ struct tool_t
     int emit_output(ref_ast_t *ast, const char *file)
     {
         const char *header_path = cfg_string_value(m_output_header);
-        io_t *header = open_file(header_path, os_access_t(eAccessWrite | eAccessTruncate), &kEvent_FailedToCreateOutputFile);
+        io_t *header = open_file(header_path, eOsAccessWrite | eOsAccessTruncate, &kEvent_FailedToCreateOutputFile);
         if (header == nullptr) return CT_EXIT_ERROR;
 
         text_config_t text_config = {

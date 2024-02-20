@@ -1,18 +1,16 @@
 #pragma once
 
-#include "os/os.h"
+#include "archive/bundle.hpp"
 
 #include "core/bitmap.hpp"
 
-#include "logs/sink.hpp"
+#include "os/os.h"
 
 #include "record.reflect.h"
 
 namespace sm::archive {
     // memory mapped file
     class RecordStore {
-        using AssetSink = logs::Sink<logs::Category::eAssets>;
-
         // file path
         const char *mFilePath = nullptr;
         AssetSink mSink;

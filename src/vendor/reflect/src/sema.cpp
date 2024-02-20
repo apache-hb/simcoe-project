@@ -135,7 +135,7 @@ static const char *get_config_val(const ref_ast_t *ast)
     if (val->kind == eAstOpaque || val->kind == eAstIdent || val->kind == eAstString)
         return val->ident;
 
-    NEVER("invalid config value");
+    CT_NEVER("invalid config value");
 }
 
 void Sema::forward_module(ref_ast_t *mod)
@@ -573,7 +573,7 @@ static const char *get_privacy(ref_privacy_t privacy)
     case ePrivacyPublic: return "public";
     case ePrivacyPrivate: return "private";
     case ePrivacyProtected: return "protected";
-    default: NEVER("invalid privacy %d", privacy);
+    default: CT_NEVER("invalid privacy %d", privacy);
     }
 }
 
@@ -635,7 +635,7 @@ void Method::emit_method(Sema& sema, cxx_emit_t *out, const RecordType& parent) 
 
     if (is_virtual && !parent.is_virtual())
     {
-        NEVER("virtual method %s on non-virtual class %s", get_name(), parent.get_name());
+        CT_NEVER("virtual method %s on non-virtual class %s", get_name(), parent.get_name());
     }
 
     const char *virt_str = is_virtual ? "virtual " : "";
@@ -829,7 +829,7 @@ void Class::resolve(Sema& sema)
 
     if (m_ast->tparams != NULL && vector_len(m_ast->tparams) > 0)
     {
-        NEVER("templates not implemented");
+        CT_NEVER("templates not implemented");
         // vec_foreach<ref_ast_t*>(m_ast->tparams, [&](auto param) {
         //     GenericType *p = new GenericType(param);
         //     p->resolve(sema);
@@ -940,7 +940,7 @@ static const char *digit_cxx_name(digit_t digit, sign_t sign)
     case eDigitLong: return (sign == eSignUnsigned) ? "unsigned long" : "long";
     case eDigitSize: return (sign == eSignUnsigned) ? "size_t" : "ptrdiff_t";
 
-    default: NEVER("invalid digit");
+    default: CT_NEVER("invalid digit");
     }
 }
 
@@ -970,7 +970,7 @@ static size_t digit_sizeof(digit_t digit)
     case eDigitSize: return sizeof(size_t);
     case eDigitPtr: return sizeof(intptr_t);
 
-    default: NEVER("invalid digit %d", digit);
+    default: CT_NEVER("invalid digit %d", digit);
     }
 }
 
@@ -1000,7 +1000,7 @@ static size_t digit_alignof(digit_t digit)
     case eDigitSize: return alignof(size_t);
     case eDigitPtr: return alignof(intptr_t);
 
-    default: NEVER("invalid digit %d", digit);
+    default: CT_NEVER("invalid digit %d", digit);
     }
 }
 
@@ -1464,7 +1464,7 @@ static const char *layout_enum_name(ref_attrib_tag_t tag)
     case eAttribLayoutAny: return "eLayoutAny";
     case eAttribLayoutConstBuffer: return "eLayoutConstBuffer";
 
-    default: NEVER("invalid layout %d", tag);
+    default: CT_NEVER("invalid layout %d", tag);
     }
 }
 
@@ -1491,7 +1491,7 @@ static const char *access_name(ref_privacy_t privacy)
     case ePrivacyPublic: return "ePublic";
     case ePrivacyPrivate: return "ePrivate";
     case ePrivacyProtected: return "eProtected";
-    default: NEVER("invalid privacy");
+    default: CT_NEVER("invalid privacy");
     }
 }
 

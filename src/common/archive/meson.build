@@ -4,13 +4,18 @@ src = [
     'src/archive.cpp',
     'src/io.cpp',
     'src/record.cpp',
+    'src/bundle.cpp',
 
     reflect.process('data/archive.ct'),
     reflect.process('data/io.ct'),
     reflect.process('data/record.ct')
 ]
 
-deps = [ core, cthulhu.get_variable('fs'), logs, math ]
+deps = [
+    core, logs, math,
+    cthulhu.get_variable('fs'),
+    cthulhu.get_variable('tar')
+]
 
 libarchive = library('archive', src,
     cpp_args : [ '-DSM_BUNDLE_BUILD=1' ],

@@ -85,7 +85,7 @@ bool RecordStore::create() {
         return true;
     };
 
-    static constexpr os_access_t kAccess = os_access_t(eAccessRead | eAccessWrite);
+    static constexpr os_access_t kAccess = eOsAccessRead | eOsAccessWrite;
 
     if (OsError err = os_file_open(mFilePath, kAccess, &mFileHandle)) {
         mSink.error("unable to open file, {}", err);
@@ -105,7 +105,7 @@ bool RecordStore::create() {
 
     // map the file into memory
 
-    static constexpr os_protect_t kProtect = os_protect_t(eProtectRead | eProtectWrite);
+    static constexpr os_protect_t kProtect = eOsProtectRead | eOsProtectWrite;
 
     if (OsError err = os_file_map(&mFileHandle, kProtect, size_as_bytes, &mMapHandle)) {
         mSink.error("unable to map file, {}", err);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "archive/bundle.hpp"
 #include "core/array.hpp"
 #include "render/instance.hpp"
 
@@ -29,6 +30,7 @@ namespace sm::render {
 
         math::uint2 draw_size; // internal resolution
 
+        Bundle& bundle;
         logs::ILogger &logger;
         sys::Window &window;
     };

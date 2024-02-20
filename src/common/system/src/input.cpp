@@ -98,6 +98,25 @@ static constexpr auto kButtons = make_table({
     { VK_XBUTTON2, input::Button::eMouseExtra2 }
 });
 
+template<typename T>
+static bool update(T& value, T next) {
+    bool bUpdated = value != next;
+    value = next;
+    return bUpdated;
+}
+
+static math::int2 get_mouse_position(HWND hwnd) {
+    POINT p;
+    GetCursorPos(&p);
+    ScreenToClient(hwnd, &p);
+    return {p.x, p.y};
+}
+
+static math::int2 get_window_center(sys::Window& hwnd) {
+    auto client = hwnd.get_client_coords();
+    return {client.right / 2, client.bottom / 2};
+}
+
 void DesktopInput::set_key(WORD key, size_t value) {
     if (auto button = kButtons[key]) {
         mButtons[button] = value;
@@ -118,18 +137,9 @@ void DesktopInput::set_xbutton(WORD key, size_t value) {
     }
 }
 
-template<typename T>
-static bool update(T& value, T next) {
-    bool bUpdated = value != next;
-    value = next;
-    return bUpdated;
-}
-
-static math::int2 get_mouse_position(HWND hwnd) {
-    POINT p;
-    GetCursorPos(&p);
-    ScreenToClient(hwnd, &p);
-    return {p.x, p.y};
+void DesktopInput::center_mouse() {
+    auto center = get_window_center(mWindow);
+    SetCursorPos(center.x, center.y);
 }
 
 static constexpr auto kMouseX = (size_t)input::Axis::eMouseX;
@@ -138,9 +148,13 @@ static constexpr auto kMouseY = (size_t)input::Axis::eMouseY;
 bool DesktopInput::poll_mouse(input::InputState& state) {
     auto pos = get_mouse_position(mWindow.get_handle());
     if (pos == mMousePosition) return false;
-
     auto delta = pos - mMousePosition;
-    mMousePosition = pos;
+
+    if (mCaptureMouse) {
+        center_mouse();
+    } else {
+        mMousePosition = pos;
+    }
 
     state.axes[kMouseX] = float(delta.x);
     state.axes[kMouseY] = float(delta.y);
@@ -213,4 +227,15 @@ void DesktopInput::window_event(UINT msg, WPARAM wparam, LPARAM lparam) {
     default:
         break;
     }
+}
+
+void DesktopInput::capture_mouse(bool capture) {
+    mCaptureMouse = capture;
+    if (mCaptureMouse) {
+        mMousePosition = get_window_center(mWindow);
+    }
+}
+
+void mouse::set_visible(bool visible) {
+    ShowCursor(visible);
 }

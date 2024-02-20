@@ -101,7 +101,7 @@ ref_ast_t *ref_program(scan_t *scan, where_t where, vector_t *mod, vector_t *lea
             ast->config[decl->cfg] = decl->expr;
             break;
 
-        default: NEVER("invalid leading decl %d", decl->kind);
+        default: CT_NEVER("invalid leading decl %d", decl->kind);
         }
     }
 

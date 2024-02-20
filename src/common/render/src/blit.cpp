@@ -60,8 +60,8 @@ void Context::create_blit_pipeline() {
     }
 
     {
-        auto ps = load_shader_bytecode("build/bundle/shaders/blit.ps.cso");
-        auto vs = load_shader_bytecode("build/bundle/shaders/blit.vs.cso");
+        auto ps = mConfig.bundle.get_shader_bytecode("blit.ps");
+        auto vs = mConfig.bundle.get_shader_bytecode("blit.vs");
 
         constexpr D3D12_INPUT_ELEMENT_DESC kInputElements[] = {
             { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(blit::Vertex, position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },

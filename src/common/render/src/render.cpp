@@ -319,7 +319,7 @@ void Context::update_scene_viewport() {
 }
 
 sm::Vector<uint8> Context::load_shader_bytecode(const char *path) {
-    auto file = Io::file(path, eAccessRead);
+    auto file = Io::file(path, eOsAccessRead);
     if (auto err = file.error()) {
         mSink.error("failed to open {}: {}", file.name(), err);
         return {};

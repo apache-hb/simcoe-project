@@ -296,7 +296,7 @@ debug_bundle = is_debug ? [ '--debug' ] : []
 make_bundle = find_program('scripts/make_bundle.py')
 game_bundle = custom_target('game_bundle',
     input : [ 'data/assets/bundle.json' ],
-    output : 'bundle.zip',
+    output : 'bundle.tar',
     install : true,
     install_dir : 'bin',
     depfile : 'bundle.d',

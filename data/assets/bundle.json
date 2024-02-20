@@ -44,6 +44,24 @@
             "name": "zlib",
             "url": "https://www.zlib.net",
             "path": "licenses/zlib/LICENSE"
+        },
+        {
+            "id": "d3d12ma",
+            "name": "D3D12 Memory Allocator",
+            "url": "https://gpuopen.com/d3d12-memory-allocator",
+            "path": "licenses/d3d12ma/LICENSE"
+        },
+        {
+            "id": "imgui",
+            "name": "Dear ImGui",
+            "url": "https://github.com/ocornut/imgui",
+            "path": "licenses/imgui/LICENSE"
+        },
+        {
+            "id": "stb",
+            "name": "nothings stb",
+            "url": "https://github.com/nothings/stb",
+            "path": "licenses/stb/LICENSE"
         }
     ],
     "shaders": [

@@ -1,3 +1,4 @@
+#include "archive/io.hpp"
 #include "core/arena.hpp"
 #include "core/error.hpp"
 // #include "core/format.hpp"
@@ -318,16 +319,19 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     auto client = window.get_client_coords().size();
 
+    IoHandle tar = io_file("build/bundle.tar", eOsAccessRead, sm::global_arena());
+    sm::Bundle bundle{*tar, archive::BundleFormat::eTar, gConsoleLog};
+
     // enabling gpu based validation on the warp adapter
     // absolutely tanks performance
-    render::DebugFlags flags = render::DebugFlags::eWarpAdapter
+    constexpr render::DebugFlags flags = render::DebugFlags::eWarpAdapter
         | render::DebugFlags::eDeviceDebugLayer
         | render::DebugFlags::eFactoryDebug
         | render::DebugFlags::eDeviceRemovedInfo
         | render::DebugFlags::eInfoQueue
         | render::DebugFlags::eAutoName;
 
-    render::RenderConfig render_config = {
+    const render::RenderConfig render_config = {
         .flags = flags,
         .preference = render::AdapterPreference::eMinimumPower,
         .feature_level = render::FeatureLevel::eLevel_11_0,
@@ -339,6 +343,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
         .draw_size = client.as<uint>(),
 
+        .bundle = bundle,
         .logger = gConsoleLog,
         .window = window,
     };

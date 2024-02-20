@@ -106,6 +106,6 @@ Mesh draw::primitive(const MeshInfo &info) {
 
     default:
         using Reflect = ctu::TypeInfo<MeshType>;
-        NEVER("Unhandled primitive type %s", Reflect::to_string(info.type).data());
+        CT_NEVER("Unhandled primitive type %s", Reflect::to_string(info.type).data());
     }
 }
