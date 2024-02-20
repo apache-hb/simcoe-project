@@ -692,8 +692,6 @@ void Context::create() {
         ? mInstance.warp_adapter_index()
         : mConfig.adapter_index;
 
-    mSrvAllocator.set_size(min_srv_heap_size());
-
     create_device(index);
     create_allocator();
     create_copy_queue();

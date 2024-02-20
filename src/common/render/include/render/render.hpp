@@ -57,7 +57,7 @@ namespace sm::render {
 
     struct DescriptorHeap : Object<ID3D12DescriptorHeap> {
         uint mDescriptorSize;
-        uint mCapacity;
+        uint mCapacity = 0;
 
         D3D12_CPU_DESCRIPTOR_HANDLE cpu_descriptor_handle(int index);
         D3D12_GPU_DESCRIPTOR_HANDLE gpu_descriptor_handle(int index);
@@ -70,7 +70,6 @@ namespace sm::render {
         sm::BitMap mAllocator;
 
         void set_heap(DescriptorHeap heap);
-        void set_size(uint size) { mAllocator.resize(size); }
 
         DescriptorIndex allocate();
         void release(DescriptorIndex index);
