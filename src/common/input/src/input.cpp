@@ -55,6 +55,12 @@ void InputService::poll() {
         return;
 
     for (IClient *client : m_clients) {
-        client->accept(m_state);
+        client->accept(m_state, *this);
+    }
+}
+
+void InputService::capture_cursor(bool capture) {
+    for (ISource *source : m_sources) {
+        source->capture_cursor(capture);
     }
 }

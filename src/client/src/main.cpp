@@ -343,6 +343,8 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
         .draw_size = client.as<uint>(),
 
+        .srv_heap_size = 1024,
+
         .bundle = bundle,
         .logger = gConsoleLog,
         .window = window,

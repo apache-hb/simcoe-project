@@ -11,6 +11,8 @@ namespace sm::input {
     using ButtonState = sm::Array<size_t, Button::kCount>;
     using AxisState = sm::Array<float, Axis::kCount>;
 
+    class InputService;
+
     struct ButtonAxis {
         Button negative;
         Button positive;
@@ -39,13 +41,14 @@ namespace sm::input {
         constexpr InputDevice get_type() const { return m_type; }
 
         virtual bool poll(InputState& state) = 0;
+        virtual void capture_cursor(bool capture) { }
     };
 
     class IClient {
     public:
         virtual ~IClient() = default;
 
-        virtual void accept(const InputState& state) = 0;
+        virtual void accept(const InputState& state, InputService& service) = 0;
     };
 
     class InputService {
@@ -59,6 +62,8 @@ namespace sm::input {
 
         void add_source(ISource* source);
         void add_client(IClient* client);
+
+        void capture_cursor(bool capture);
 
         void poll();
 

@@ -107,14 +107,20 @@ static bool update(T& value, T next) {
 
 static math::int2 get_mouse_position(HWND hwnd) {
     POINT p;
-    GetCursorPos(&p);
-    ScreenToClient(hwnd, &p);
+    SM_ASSERT_WIN32(GetCursorPos(&p));
     return {p.x, p.y};
 }
 
+// get screen space coordinates of the window center
+// SetCursor operates in screen space
 static math::int2 get_window_center(sys::Window& hwnd) {
-    auto client = hwnd.get_client_coords();
-    return {client.right / 2, client.bottom / 2};
+    RECT rect;
+    SM_ASSERT_WIN32(GetWindowRect(hwnd.get_handle(), &rect));
+
+    return {
+        (rect.left + rect.right) / 2,
+        (rect.top + rect.bottom) / 2
+    };
 }
 
 void DesktopInput::set_key(WORD key, size_t value) {
@@ -148,6 +154,7 @@ static constexpr auto kMouseY = (size_t)input::Axis::eMouseY;
 bool DesktopInput::poll_mouse(input::InputState& state) {
     auto pos = get_mouse_position(mWindow.get_handle());
     if (pos == mMousePosition) return false;
+
     auto delta = pos - mMousePosition;
 
     if (mCaptureMouse) {
@@ -156,8 +163,8 @@ bool DesktopInput::poll_mouse(input::InputState& state) {
         mMousePosition = pos;
     }
 
-    state.axes[kMouseX] = float(delta.x);
-    state.axes[kMouseY] = float(delta.y);
+    state.axes[kMouseX] = -float(delta.x);
+    state.axes[kMouseY] = -float(delta.y);
 
     return true;
 }
@@ -229,7 +236,7 @@ void DesktopInput::window_event(UINT msg, WPARAM wparam, LPARAM lparam) {
     }
 }
 
-void DesktopInput::capture_mouse(bool capture) {
+void DesktopInput::capture_cursor(bool capture) {
     mCaptureMouse = capture;
     if (mCaptureMouse) {
         mMousePosition = get_window_center(mWindow);

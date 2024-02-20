@@ -1,6 +1,7 @@
 #include "render/camera.hpp"
 
 #include "input/input.hpp"
+#include "system/input.hpp"
 
 #include "imgui/imgui.h"
 
@@ -20,9 +21,12 @@ void Camera::update() {
     ImGui::SliderFloat("sensitivity", &sensitivity, 0.1f, 1.f);
 }
 
-void Camera::accept(const input::InputState& state) {
+void Camera::accept(const input::InputState& state, InputService& service) {
     constexpr auto key = input::Button::eTilde;
-    mCameraActive.update(state.buttons[(size_t)key]);
+    if (mCameraActive.update(state.buttons[(size_t)key])) {
+        sys::mouse::set_visible(!mCameraActive.is_active());
+        service.capture_cursor(mCameraActive.is_active());
+    }
 
     if (!mCameraActive.is_active()) {
         mMoveInput = {0.f, 0.f, 0.f};

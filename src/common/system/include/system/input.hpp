@@ -6,7 +6,7 @@
 
 namespace sm::sys {
     // mouse and keyboard input
-    class DesktopInput : public input::ISource {
+    class DesktopInput final : public input::ISource {
         sys::Window& mWindow;
 
         // keyboard state
@@ -30,7 +30,7 @@ namespace sm::sys {
 
         void window_event(UINT msg, WPARAM wparam, LPARAM lparam);
 
-        void capture_mouse(bool capture);
+        void capture_cursor(bool capture) override;
     };
 
     namespace mouse {

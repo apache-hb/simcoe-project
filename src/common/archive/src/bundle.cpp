@@ -27,10 +27,6 @@ Bundle::Bundle(io_t *stream, archive::BundleFormat type, logs::ILogger &logger)
     if (tar_result_t err = tar_extract(mFiles, stream); err.error != eTarOk) {
         mSink.error("Failed to extract bundle: {}", tar_error_string(err.error));
     }
-
-    fs_iter_dirents(mFiles, ".", nullptr, [](const char *dir, const char *name, os_dirent_t type, void *ctx) {
-        fmt::println("{}/{} {}", dir, name, os_dirent_string(type));
-    });
 }
 
 ShaderIr Bundle::get_shader_bytecode(const char *name) const {
