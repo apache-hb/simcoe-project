@@ -69,7 +69,7 @@ void Pipeline::reset() {
 }
 
 void DescriptorAllocator::set_heap(DescriptorHeap heap) {
-    if (heap.mCapacity > mHeap.mCapacity) {
+    if (heap.mCapacity != mHeap.mCapacity) {
         mAllocator.resize(heap.mCapacity);
     }
 
