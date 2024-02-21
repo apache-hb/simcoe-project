@@ -13,6 +13,7 @@ import json
 import shutil
 import argparse
 import tarfile
+import configparser
 from pathlib import Path
 
 class ShaderCompiler:
@@ -42,25 +43,28 @@ class ShaderCompiler:
         return os.system(' '.join(self.args + extra_args + [ file ]))
 
 argparser = argparse.ArgumentParser(description="bundle assets into a folder")
-argparser.add_argument("--bundlefile", help="the input bundle description file")
-argparser.add_argument("--inputdir", help="the input directory")
+argparser.add_argument("--bundle", help="the input bundle description file")
+argparser.add_argument("--indir", help="the input directory")
 argparser.add_argument("--outdir", help="the output directory")
 argparser.add_argument("--output", help="output tar file")
 argparser.add_argument("--depfile", help="the output dependency file")
-argparser.add_argument("--dxc", help="the path to dxc.exe")
+argparser.add_argument("--config", help="config file with tool paths")
 argparser.add_argument("--debug", help="enable debug mode", action="store_true")
 
 def main():
     args = argparser.parse_args()
 
-    bundlefile = args.bundlefile
-    inputdir = args.inputdir
+    bundlefile = args.bundle
+    inputdir = args.indir
 
     # nest bundle dir inside outdir so we dont delete
     # the entire meson build dir
     outdir = os.path.join(args.outdir, 'bundle')
     depfile = args.depfile
-    dxc = args.dxc
+    config = configparser.ConfigParser()
+    config.read(args.config)
+    dxc = config['tools']['dxc']
+    msdf = config['tools']['msdf'] # msdf atlas generator
 
     if not os.path.exists(bundlefile):
         print(f"error: {bundlefile} does not exist")
@@ -116,12 +120,18 @@ def main():
     for item in bundle['fonts']:
         # copy the font file to <outdir>/fonts
         itempath = os.path.join(inputdir, item['path'])
-        outpath = os.path.join(fontdir, item['name'] + '.ttf')
+        outpath_ttf = os.path.join(fontdir, item['name'] + '.ttf')
+        print(f"copying font {item['path']} to {outpath_ttf}")
         deps.append(itempath)
-        shutil.copy(itempath, outpath)
-        # rename the font file to <name>.ttf
+        shutil.copy(itempath, outpath_ttf)
 
-        print(f"copied font {item['path']} to {outpath}")
+        em_size = item.get('em_size', 64)
+
+        atlas_path = os.path.join(fontdir, item['name'])
+        print(f"generating msdf atlas for {item['name']} ({em_size=})")
+        result = os.system(f'{msdf} -font {itempath} -size {em_size} -format png -imageout {atlas_path}.png -json {atlas_path}.json')
+        if result != 0:
+            sys.exit(result)
 
     for item in bundle['shaders']:
         name = item['name']

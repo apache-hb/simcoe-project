@@ -68,6 +68,7 @@ warp = subproject('d3d-warp')
 # if we use find_program it finds the system dxc, which will be older
 # than this one
 dxc = subproject('dxc').get_variable('dxc')
+msdf_atlas_gen = subproject('msdf-atlas-gen').get_variable('msdf_atlas_gen')
 
 windows = import('windows')
 
@@ -291,6 +292,16 @@ if package_type == 'devel'
     )
 endif
 
+bundle_cdata = configuration_data()
+bundle_cdata.set('DXC_EXE_PATH', dxc.full_path().replace('\\', '\\\\'))
+bundle_cdata.set('MSDF_EXE_PATH', msdf_atlas_gen.full_path().replace('\\', '\\\\'))
+
+bundle_config = configure_file(
+    input : 'data/config/tools.in.ini',
+    output : 'tools.ini',
+    configuration : bundle_cdata
+)
+
 debug_bundle = is_debug ? [ '--debug' ] : []
 
 make_bundle = find_program('scripts/make_bundle.py')
@@ -302,12 +313,12 @@ game_bundle = custom_target('game_bundle',
     depfile : 'bundle.d',
     command : [
         make_bundle,
-        '--bundlefile', '@INPUT@',
-        '--inputdir', '@SOURCE_ROOT@/data/assets',
+        '--bundle', '@INPUT@',
+        '--indir', '@SOURCE_ROOT@/data/assets',
         '--outdir', '@OUTDIR@',
         '--output', '@OUTPUT@',
         '--depfile', '@DEPFILE@',
-        '--dxc', dxc.full_path(),
+        '--config', bundle_config
     ] + debug_bundle
 )
 
