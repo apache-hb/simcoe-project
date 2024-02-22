@@ -65,6 +65,7 @@ def main():
     config.read(args.config)
     dxc = config['tools']['dxc']
     msdf = config['tools']['msdf'] # msdf atlas generator
+    compressor = config['tools']['compressor'] # compressonator cli
 
     if not os.path.exists(bundlefile):
         print(f"error: {bundlefile} does not exist")
@@ -90,11 +91,13 @@ def main():
 
     licensedir = os.path.join(outdir, "licenses")
     fontdir = os.path.join(outdir, "fonts")
+    texturedir = os.path.join(outdir, "textures")
     shaderdir = os.path.join(outdir, "shaders")
     pdbdir = os.path.join(outdir, "pdb")
 
     os.makedirs(licensedir, exist_ok=True)
     os.makedirs(fontdir, exist_ok=True)
+    os.makedirs(texturedir, exist_ok=True)
     os.makedirs(shaderdir, exist_ok=True)
     os.makedirs(pdbdir, exist_ok=True)
 
@@ -147,6 +150,16 @@ def main():
                 sys.exit(result)
 
             print(f"compiled shader {path} {target['entry']} to {path}/{item['name']}.{target['target']}.cso")
+
+    for texture in bundle['textures']:
+        itempath = os.path.join(inputdir, texture['path'])
+        deps.append(itempath)
+
+        mips = texture.get('mips', 1)
+
+        outpath = os.path.join(texturedir, texture['name'] + '.dds')
+        print(f"compressing texture {texture['path']} into {outpath} {mips=}")
+        os.system(f'{compressor} -fd BC7 {itempath} {outpath} -miplevels {mips}')
 
     open(depfile, "w").write(args.output + ': ' + ' '.join(deps))
 

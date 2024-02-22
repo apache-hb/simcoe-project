@@ -115,5 +115,12 @@
             "name": "public-sans-bold",
             "path": "fonts/ttf/PublicSans-Bold.ttf"
         }
+    ],
+    "textures": [
+        {
+            "name": "uv_coords",
+            "mips": 10,
+            "path": "textures/uv_coords.png"
+        }
     ]
 }

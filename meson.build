@@ -69,6 +69,7 @@ warp = subproject('d3d-warp')
 # than this one
 dxc = subproject('dxc').get_variable('dxc')
 msdf_atlas_gen = subproject('msdf-atlas-gen').get_variable('msdf_atlas_gen')
+compressonator = subproject('compressonator').get_variable('cli')
 
 windows = import('windows')
 
@@ -295,6 +296,7 @@ endif
 bundle_cdata = configuration_data()
 bundle_cdata.set('DXC_EXE_PATH', dxc.full_path().replace('\\', '\\\\'))
 bundle_cdata.set('MSDF_EXE_PATH', msdf_atlas_gen.full_path().replace('\\', '\\\\'))
+bundle_cdata.set('COMPRESSOR_EXE_PATH', compressonator.full_path().replace('\\', '\\\\'))
 
 bundle_config = configure_file(
     input : 'data/config/tools.in.ini',

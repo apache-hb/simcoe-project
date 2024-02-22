@@ -1,0 +1,8 @@
+[wrap-file]
+directory = compressonatorcli-4.5.52-win64
+
+source_url = https://github.com/GPUOpen-Tools/compressonator/releases/download/V4.5.52/compressonatorcli-4.5.52-win64.zip
+source_filename = compressonatorcli-4.5.52-win64.zip
+source_hash = 49ca7c85e299fc104878aef82470d731a7c853cfb5facd879e9bc633fb48a444
+
+patch_directory = compressonator
