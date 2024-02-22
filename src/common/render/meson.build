@@ -20,7 +20,8 @@ src = [
 
 deps = [
     core, logs, system, math, archive,
-    d3d12, d3dx12, d3d12ma, imgui
+    d3d12, d3dx12, d3d12ma, imgui,
+    dds_texture_loader
 ]
 
 librender = library('render', src,

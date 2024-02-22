@@ -13,6 +13,7 @@ namespace sm::render {
 
         constexpr operator bool() const { return SUCCEEDED(mValue); }
         constexpr bool success() const { return SUCCEEDED(mValue); }
+        constexpr bool failed() const { return FAILED(mValue); }
 
         constexpr explicit operator HRESULT() const { return mValue; }
 

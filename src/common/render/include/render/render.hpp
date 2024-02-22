@@ -53,6 +53,8 @@ namespace sm::render {
 
         D3D12_GPU_VIRTUAL_ADDRESS get_gpu_address();
         void reset();
+
+        ID3D12Resource *get() const { return mResource.get(); }
     };
 
     struct DescriptorHeap : Object<ID3D12DescriptorHeap> {
@@ -95,6 +97,13 @@ namespace sm::render {
         void reset();
     };
 
+    struct Texture {
+        Object<ID3D12Resource> mResource;
+        DescriptorIndex mSrvIndex;
+
+        sm::Vector<D3D12_SUBRESOURCE_DATA> mMipData;
+    };
+
     class Context {
         static constexpr DXGI_FORMAT kDepthFormat = DXGI_FORMAT_D32_FLOAT;
 
@@ -128,6 +137,8 @@ namespace sm::render {
         void create_allocator();
 
         Result create_resource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state, const D3D12_CLEAR_VALUE *clear = nullptr);
+
+        Result load_dds_texture(Object<ID3D12Resource>& texture, sm::Vector<D3D12_SUBRESOURCE_DATA>& mips, const char *name);
 
         void serialize_root_signature(Object<ID3D12RootSignature>& signature, const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& desc);
 
@@ -189,6 +200,8 @@ namespace sm::render {
         /// blit pipeline + assets
         Viewport mPresentViewport;
         Pipeline mBlitPipeline;
+
+        Texture mTexture;
 
         struct {
             Resource mVertexBuffer;

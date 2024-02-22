@@ -4,6 +4,7 @@
 #include "core/macros.hpp"
 
 #include "core/span.hpp"
+#include "core/text.hpp"
 #include "logs/sink.hpp"
 
 #include "io.reflect.h"
@@ -15,10 +16,13 @@ namespace sm {
     using AssetSink = logs::Sink<logs::Category::eAssets>;
 
     using ShaderIr = sm::Span<const uint8>;
+    using TextureData = sm::Span<const uint8>;
 
     class Bundle {
         AssetSink mSink;
         fs_t *mFiles;
+
+        sm::Span<const uint8> get_file(sm::StringView dir, sm::StringView name) const;
 
     public:
         SM_NOCOPY(Bundle)
@@ -34,5 +38,6 @@ namespace sm {
         }
 
         ShaderIr get_shader_bytecode(const char *name) const;
+        TextureData get_texture(const char *name) const;
     };
 }

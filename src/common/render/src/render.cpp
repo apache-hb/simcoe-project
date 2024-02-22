@@ -6,6 +6,8 @@
 
 #include "math/colour.hpp"
 
+#include "DDSTextureLoader12.h"
+
 #include "d3dx12/d3dx12_core.h"
 #include "d3dx12/d3dx12_root_signature.h"
 #include "d3dx12/d3dx12_barriers.h"
@@ -328,6 +330,25 @@ Result Context::create_resource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_
     return mAllocator->CreateResource(&kAllocDesc, &desc, state, clear, &resource.mAllocation, IID_PPV_ARGS(&resource.mResource));
 }
 
+Result Context::load_dds_texture(Object<ID3D12Resource>& texture, sm::Vector<D3D12_SUBRESOURCE_DATA>& mips, const char *name) {
+    auto data = mConfig.bundle.get_texture(name);
+    Result hr = DirectX::LoadDDSTextureFromMemory(
+        mDevice.get(),
+        data.data(),
+        data.size_bytes(),
+        &texture,
+        mips
+    );
+
+    if (hr.success()) {
+        texture.rename(name);
+        return S_OK;
+    }
+
+    mSink.error("failed to load dds texture: {}", hr);
+    return hr;
+}
+
 void Context::copy_buffer(Object<ID3D12GraphicsCommandList1>& list, Resource& dst, Resource& src, size_t size) {
     list->CopyBufferRegion(*dst.mResource, 0, *src.mResource, 0, size);
 }
@@ -598,7 +619,7 @@ void Context::build_command_list() {
         mCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
         mCommandList->IASetVertexBuffers(0, 1, &mScreenQuad.mVertexBufferView);
 
-        const auto scene_srv_handle = mSrvAllocator.gpu_descriptor_handle(mSceneTargetSrvIndex);
+        const auto scene_srv_handle = mSrvAllocator.gpu_descriptor_handle(mTexture.mSrvIndex);
 
         mCommandList->SetGraphicsRootDescriptorTable(0, scene_srv_handle);
         mCommandList->DrawInstanced(4, 1, 0, 0);

@@ -145,11 +145,11 @@ def main():
         deps.append(itempath)
 
         for target in item['targets']:
-            result = hlsl.compile_hlsl(item['name'], itempath, '6_0', target['target'], target['entry'])
+            result = hlsl.compile_hlsl(name, itempath, '6_0', target['target'], target['entry'])
             if result != 0:
                 sys.exit(result)
 
-            print(f"compiled shader {path} {target['entry']} to {path}/{item['name']}.{target['target']}.cso")
+            print(f"compiled shader {path} {target['entry']} to {path}/{name}.{target['target']}.cso")
 
     for texture in bundle['textures']:
         itempath = os.path.join(inputdir, texture['path'])

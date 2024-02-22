@@ -32,6 +32,7 @@
 subprojects/*
 !subprojects/*.wrap
 !subprojects/stb
+!subprojects/dds_texture_loader
 !subprojects/packagefiles
 !subprojects/packagefiles/**
 !subprojects/.clang-tidy

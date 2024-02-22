@@ -3,6 +3,7 @@
 #include "d3dx12/d3dx12_core.h"
 #include "d3dx12/d3dx12_root_signature.h"
 #include "d3dx12/d3dx12_barriers.h"
+#include "d3dx12/d3dx12_resource_helpers.h"
 
 using namespace sm;
 using namespace sm::render;
@@ -106,18 +107,51 @@ void Context::create_screen_quad() {
     std::memcpy(data, blit::kScreenQuad, sizeof(blit::kScreenQuad));
     upload.unmap(&read);
 
+    sm::Vector<D3D12_SUBRESOURCE_DATA> mips;
+    SM_ASSERT_HR(load_dds_texture(mTexture.mResource, mips, "uv_coords"));
+
+    const uint64 kUploadSize = GetRequiredIntermediateSize(mTexture.mResource.get(), 0, int_cast<uint>(mips.size()));
+    const auto kUploadDesc = CD3DX12_RESOURCE_DESC::Buffer(kUploadSize);
+
+    Resource texture_upload;
+    SM_ASSERT_HR(create_resource(texture_upload, D3D12_HEAP_TYPE_UPLOAD, kUploadDesc, D3D12_RESOURCE_STATE_GENERIC_READ));
+
+    const D3D12_SHADER_RESOURCE_VIEW_DESC kSrvDesc = {
+        .Format = DXGI_FORMAT_BC7_UNORM,
+        .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
+        .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+        .Texture2D = {
+            .MostDetailedMip = 0,
+            .MipLevels = 10,
+            .ResourceMinLODClamp = 0.f,
+        },
+    };
+
+    mTexture.mSrvIndex = mSrvAllocator.allocate();
+    mDevice->CreateShaderResourceView(mTexture.mResource.get(), &kSrvDesc, mSrvAllocator.cpu_descriptor_handle(mTexture.mSrvIndex));
+
     reset_direct_commands();
     reset_copy_commands();
 
+    UpdateSubresources<16>(mCommandList.get(), mTexture.mResource.get(), texture_upload.get(), 0, 0, int_cast<uint>(mips.size()), mips.data());
     copy_buffer(mCopyCommands, mScreenQuad.mVertexBuffer, upload, sizeof(blit::kScreenQuad));
 
-    const D3D12_RESOURCE_BARRIER kBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
-        *mScreenQuad.mVertexBuffer.mResource,
-        D3D12_RESOURCE_STATE_COPY_DEST,
-        D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
-    );
+    const D3D12_RESOURCE_BARRIER kBarriers[] = {
+        // screen quad verts
+        CD3DX12_RESOURCE_BARRIER::Transition(
+            *mScreenQuad.mVertexBuffer.mResource,
+            D3D12_RESOURCE_STATE_COPY_DEST,
+            D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
+        ),
+        // temp texture
+        CD3DX12_RESOURCE_BARRIER::Transition(
+            mTexture.mResource.get(),
+            D3D12_RESOURCE_STATE_COPY_DEST,
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+        )
+    };
 
-    mCommandList->ResourceBarrier(1, &kBarrier);
+    mCommandList->ResourceBarrier(_countof(kBarriers), kBarriers);
 
     SM_ASSERT_HR(mCopyCommands->Close());
     SM_ASSERT_HR(mCommandList->Close());
@@ -130,8 +164,6 @@ void Context::create_screen_quad() {
     mDirectQueue->Wait(*mCopyFence, mCopyFenceValue);
     mDirectQueue->ExecuteCommandLists(1, direct_lists);
 
-    mUploads.emplace(Upload{ std::move(upload), mCopyFenceValue });
-
     wait_for_gpu();
     flush_copy_queue();
 
@@ -143,6 +175,7 @@ void Context::create_screen_quad() {
 }
 
 void Context::destroy_screen_quad() {
+    mTexture.mResource.reset();
     mScreenQuad.mVertexBuffer.reset();
 }
 
