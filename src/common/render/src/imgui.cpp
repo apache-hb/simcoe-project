@@ -229,7 +229,7 @@ bool Context::update_imgui() {
 
     if (ImGui::Begin("World Settings")) {
         ImGui::SeparatorText("Camera");
-        camera.update();
+        camera.draw_debug();
 
         ImGui::SeparatorText("Scene");
 

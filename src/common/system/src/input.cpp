@@ -239,6 +239,7 @@ void DesktopInput::window_event(UINT msg, WPARAM wparam, LPARAM lparam) {
 void DesktopInput::capture_cursor(bool capture) {
     mCaptureMouse = capture;
     if (mCaptureMouse) {
+        center_mouse();
         mMousePosition = get_window_center(mWindow);
     }
 }

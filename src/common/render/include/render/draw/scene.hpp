@@ -75,7 +75,7 @@ namespace sm::draw {
     void create_scene_classes(graph::FrameGraph& graph) {
         auto backbuffer = graph.import<BackBuffer>("swapchain backbuffer", D3D12_RESOURCE_STATE_RENDER_TARGET, 1920, 1080, DXGI_FORMAT_R8G8B8A8_UNORM);
 
-        auto& scene = graph.pass<ScenePass>("scene");
-        graph.pass<BlitPass>("blit", scene.target, backbuffer);
+        SM_UNUSED auto& scene = graph.pass<ScenePass>("scene");
+        SM_UNUSED auto& blit = graph.pass<BlitPass>("blit", scene.target, backbuffer);
     }
 }

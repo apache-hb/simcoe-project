@@ -26,7 +26,7 @@ namespace sm::draw {
     public:
         Camera() = default;
 
-        void update();
+        void draw_debug();
         void tick(float dt);
 
         float4x4 model() const;

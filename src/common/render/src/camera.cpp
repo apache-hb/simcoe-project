@@ -13,7 +13,7 @@ static constexpr ButtonAxis kMoveForward = {Button::eW, Button::eS};
 static constexpr ButtonAxis kMoveStrafe = {Button::eD, Button::eA};
 static constexpr ButtonAxis kMoveUp = {Button::eE, Button::eQ};
 
-void Camera::update() {
+void Camera::draw_debug() {
     ImGui::SliderFloat("fov", &fov, 0.1f, 3.14f);
     ImGui::SliderFloat3("position", &mPosition.x, -10.f, 10.f);
     ImGui::SliderFloat3("direction", &mDirection.x, -1.f, 1.f);
@@ -24,8 +24,8 @@ void Camera::update() {
 void Camera::accept(const input::InputState& state, InputService& service) {
     constexpr auto key = input::Button::eTilde;
     if (mCameraActive.update(state.buttons[(size_t)key])) {
-        sys::mouse::set_visible(!mCameraActive.is_active());
         service.capture_cursor(mCameraActive.is_active());
+        sys::mouse::set_visible(!mCameraActive.is_active());
     }
 
     if (!mCameraActive.is_active()) {
