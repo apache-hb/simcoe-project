@@ -16,6 +16,9 @@ namespace sm::render {
 
     using DeviceHandle = Object<ID3D12Device1>;
 
+    using VertexBufferView = D3D12_VERTEX_BUFFER_VIEW;
+    using IndexBufferView = D3D12_INDEX_BUFFER_VIEW;
+
     constexpr math::float4 kClearColour = { 0.0f, 0.2f, 0.4f, 1.0f };
     constexpr math::float4 kColourBlack = { 0.0f, 0.0f, 0.0f, 1.0f };
 
@@ -104,7 +107,7 @@ namespace sm::render {
         sm::Vector<D3D12_SUBRESOURCE_DATA> mMipData;
     };
 
-    class Context {
+    struct Context {
         static constexpr DXGI_FORMAT kDepthFormat = DXGI_FORMAT_D32_FLOAT;
 
         const RenderConfig mConfig;
@@ -194,7 +197,6 @@ namespace sm::render {
         uint64 mCopyFenceValue;
         void create_copy_fence();
 
-
         DescriptorIndex mSceneTargetSrvIndex;
 
         /// blit pipeline + assets
@@ -202,10 +204,11 @@ namespace sm::render {
         Pipeline mBlitPipeline;
 
         Texture mTexture;
+        sm::Vector<Texture> mTextures;
 
         struct {
             Resource mVertexBuffer;
-            D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
+            VertexBufferView mVertexBufferView;
         } mScreenQuad;
 
         void update_display_viewport();
@@ -215,8 +218,6 @@ namespace sm::render {
 
         void create_screen_quad();
         void destroy_screen_quad();
-
-
 
         /// scene pipeline + assets
         Viewport mSceneViewport;
@@ -236,10 +237,10 @@ namespace sm::render {
             draw::Transform mTransform;
 
             Resource mVertexBuffer;
-            D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
+            VertexBufferView mVertexBufferView;
 
             Resource mIndexBuffer;
-            D3D12_INDEX_BUFFER_VIEW mIndexBufferView;
+            IndexBufferView mIndexBufferView;
 
             uint32 mIndexCount;
         };

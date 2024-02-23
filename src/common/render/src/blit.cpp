@@ -107,33 +107,33 @@ void Context::create_screen_quad() {
     std::memcpy(data, blit::kScreenQuad, sizeof(blit::kScreenQuad));
     upload.unmap(&read);
 
-    sm::Vector<D3D12_SUBRESOURCE_DATA> mips;
-    SM_ASSERT_HR(load_dds_texture(mTexture.mResource, mips, "uv_coords"));
+    // sm::Vector<D3D12_SUBRESOURCE_DATA> mips;
+    // SM_ASSERT_HR(load_dds_texture(mTexture.mResource, mips, "uv_coords"));
 
-    const uint64 kUploadSize = GetRequiredIntermediateSize(mTexture.mResource.get(), 0, int_cast<uint>(mips.size()));
-    const auto kUploadDesc = CD3DX12_RESOURCE_DESC::Buffer(kUploadSize);
+    // const uint64 kUploadSize = GetRequiredIntermediateSize(mTexture.mResource.get(), 0, int_cast<uint>(mips.size()));
+    // const auto kUploadDesc = CD3DX12_RESOURCE_DESC::Buffer(kUploadSize);
 
-    Resource texture_upload;
-    SM_ASSERT_HR(create_resource(texture_upload, D3D12_HEAP_TYPE_UPLOAD, kUploadDesc, D3D12_RESOURCE_STATE_GENERIC_READ));
+    // Resource texture_upload;
+    // SM_ASSERT_HR(create_resource(texture_upload, D3D12_HEAP_TYPE_UPLOAD, kUploadDesc, D3D12_RESOURCE_STATE_GENERIC_READ));
 
-    const D3D12_SHADER_RESOURCE_VIEW_DESC kSrvDesc = {
-        .Format = DXGI_FORMAT_BC7_UNORM,
-        .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
-        .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
-        .Texture2D = {
-            .MostDetailedMip = 0,
-            .MipLevels = 10,
-            .ResourceMinLODClamp = 0.f,
-        },
-    };
+    // const D3D12_SHADER_RESOURCE_VIEW_DESC kSrvDesc = {
+    //     .Format = DXGI_FORMAT_BC7_UNORM,
+    //     .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
+    //     .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+    //     .Texture2D = {
+    //         .MostDetailedMip = 0,
+    //         .MipLevels = 10,
+    //         .ResourceMinLODClamp = 0.f,
+    //     },
+    // };
 
-    mTexture.mSrvIndex = mSrvAllocator.allocate();
-    mDevice->CreateShaderResourceView(mTexture.mResource.get(), &kSrvDesc, mSrvAllocator.cpu_descriptor_handle(mTexture.mSrvIndex));
+    // mTexture.mSrvIndex = mSrvAllocator.allocate();
+    // mDevice->CreateShaderResourceView(mTexture.mResource.get(), &kSrvDesc, mSrvAllocator.cpu_descriptor_handle(mTexture.mSrvIndex));
 
     reset_direct_commands();
     reset_copy_commands();
 
-    UpdateSubresources<16>(mCommandList.get(), mTexture.mResource.get(), texture_upload.get(), 0, 0, int_cast<uint>(mips.size()), mips.data());
+    // UpdateSubresources<16>(mCommandList.get(), mTexture.mResource.get(), texture_upload.get(), 0, 0, int_cast<uint>(mips.size()), mips.data());
     copy_buffer(mCopyCommands, mScreenQuad.mVertexBuffer, upload, sizeof(blit::kScreenQuad));
 
     const D3D12_RESOURCE_BARRIER kBarriers[] = {
@@ -144,11 +144,11 @@ void Context::create_screen_quad() {
             D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
         ),
         // temp texture
-        CD3DX12_RESOURCE_BARRIER::Transition(
-            mTexture.mResource.get(),
-            D3D12_RESOURCE_STATE_COPY_DEST,
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
-        )
+        // CD3DX12_RESOURCE_BARRIER::Transition(
+        //     mTexture.mResource.get(),
+        //     D3D12_RESOURCE_STATE_COPY_DEST,
+        //     D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+        // )
     };
 
     mCommandList->ResourceBarrier(_countof(kBarriers), kBarriers);
@@ -158,10 +158,10 @@ void Context::create_screen_quad() {
 
     ID3D12CommandList *copy_lists[] = { mCopyCommands.get() };
     mCopyQueue->ExecuteCommandLists(1, copy_lists);
-    mCopyQueue->Signal(*mCopyFence, mCopyFenceValue);
+    SM_ASSERT_HR(mCopyQueue->Signal(*mCopyFence, mCopyFenceValue));
 
     ID3D12CommandList *direct_lists[] = { mCommandList.get() };
-    mDirectQueue->Wait(*mCopyFence, mCopyFenceValue);
+    SM_ASSERT_HR(mDirectQueue->Wait(*mCopyFence, mCopyFenceValue));
     mDirectQueue->ExecuteCommandLists(1, direct_lists);
 
     wait_for_gpu();
@@ -175,7 +175,7 @@ void Context::create_screen_quad() {
 }
 
 void Context::destroy_screen_quad() {
-    mTexture.mResource.reset();
+    // mTexture.mResource.reset();
     mScreenQuad.mVertexBuffer.reset();
 }
 

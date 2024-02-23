@@ -1,0 +1,11 @@
+module sm::graph;
+
+variant ResourceType {
+    case Imported
+    case Transient
+}
+
+[[arithmatic]]
+variant ResourceId : uint {
+    default Invalid = 0xFFFFFFFF
+}

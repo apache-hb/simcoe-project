@@ -601,7 +601,6 @@ void Context::build_command_list() {
 
         mCommandList->ResourceBarrier(_countof(kBeginPostBarriers), kBeginPostBarriers);
 
-
         ID3D12DescriptorHeap *heaps[] = { mSrvAllocator.get() };
         mCommandList->SetDescriptorHeaps(_countof(heaps), heaps);
 
@@ -619,7 +618,7 @@ void Context::build_command_list() {
         mCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
         mCommandList->IASetVertexBuffers(0, 1, &mScreenQuad.mVertexBufferView);
 
-        const auto scene_srv_handle = mSrvAllocator.gpu_descriptor_handle(mTexture.mSrvIndex);
+        const auto scene_srv_handle = mSrvAllocator.gpu_descriptor_handle(mSceneTargetSrvIndex);
 
         mCommandList->SetGraphicsRootDescriptorTable(0, scene_srv_handle);
         mCommandList->DrawInstanced(4, 1, 0, 0);

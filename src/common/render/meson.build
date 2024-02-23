@@ -15,7 +15,8 @@ src = [
     'src/primitives.cpp',
 
     reflect.process('data/render.ct'),
-    reflect.process('data/draw.ct')
+    reflect.process('data/draw.ct'),
+    reflect.process('data/graph.ct')
 ]
 
 deps = [
