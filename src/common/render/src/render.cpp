@@ -406,15 +406,13 @@ void Context::destroy_primitive_pipeline() {
     mPrimitivePipeline.reset();
 }
 
-static constexpr draw::Cube kCube = {
-    .width = 1.f,
-    .height = 1.f,
-    .depth = 1.f,
-};
-
 static constexpr draw::MeshInfo kInfo = {
     .type = draw::MeshType::eCube,
-    .cube = kCube,
+    .cube = {
+        .width = 1.f,
+        .height = 1.f,
+        .depth = 1.f,
+    },
 };
 
 void Context::init_scene() {

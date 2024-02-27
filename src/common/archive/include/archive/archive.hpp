@@ -1,6 +1,5 @@
 #pragma once
 
-#include "core/macros.hpp"
 #include "core/core.hpp"
 #include "core/span.hpp"
 #include "core/vector.hpp"
@@ -15,8 +14,6 @@ namespace sm {
         IoHandle mStream;
 
     public:
-        SM_NOCOPY(Archive)
-
         constexpr Archive(io_t *stream)
             : mStream(stream)
         { }

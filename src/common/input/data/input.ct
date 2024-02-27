@@ -1,7 +1,7 @@
 module sm::input;
 
 [[table]]
-variant InputDevice {
+variant DeviceType {
     [[format("null")]]
     default None = 0 // null input
 

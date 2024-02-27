@@ -25,16 +25,19 @@ namespace sm {
     template<typename T>
     concept IsEnum = __is_enum(T);
 
+    template<typename T, typename... A>
+    concept Construct = __is_constructible(T, A...);
+
     template<typename T>
     struct Empty {
-        constexpr Empty() noexcept = default;
-        constexpr Empty(const T&) noexcept { }
-        constexpr Empty(T&&) noexcept { }
+        constexpr Empty() = default;
+        constexpr Empty(const T&) { }
+        constexpr Empty(T&&) { }
     };
 
     struct Ignore {
         template<typename T>
-        constexpr void operator=(T&&) const noexcept { }
+        constexpr void operator=(T&&) const { }
     };
 
     inline constexpr Ignore kIgnore{};
@@ -65,7 +68,7 @@ namespace sm {
 #endif
 
 #if defined(__clang__)
-#   define undefined(T) [] { T ud = __builtin_nondeterministic_value(ud); return ud; }()
+#   define undefined(T) ([] { T ud = __builtin_nondeterministic_value(ud); return ud; }())
 #else
 #   define undefined(T) (T{})
 #endif

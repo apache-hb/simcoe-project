@@ -2,13 +2,16 @@
 
 #define SM_UNUSED [[maybe_unused]]
 
-#define SM_NOCOPY(CLS)         \
-    CLS(const CLS &) = delete; \
-    CLS &operator=(const CLS &) = delete;
+#define SM_COPY(CLS, IS) \
+    CLS(const CLS &other) = IS; \
+    CLS &operator=(const CLS &other) = IS;
 
-#define SM_NOMOVE(CLS)    \
-    CLS(CLS &&) = delete; \
-    CLS &operator=(CLS &&) = delete;
+#define SM_MOVE(CLS, IS) \
+    CLS(CLS &&other) = IS; \
+    CLS &operator=(CLS &&other) = IS;
+
+#define SM_NOCOPY(CLS) SM_COPY(CLS, delete)
+#define SM_NOMOVE(CLS) SM_MOVE(CLS, delete)
 
 #if defined(_MSC_VER)
 #   if defined(__clang__)
@@ -21,5 +24,5 @@
 #endif
 
 #ifndef SM_NO_UNIQUE_ADDRESS
-#   define SM_NO_UNIQUE_ADDRESS
+#   define SM_NO_UNIQUE_ADDRESS [[no_unique_address]]
 #endif

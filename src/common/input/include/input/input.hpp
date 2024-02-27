@@ -19,7 +19,7 @@ namespace sm::input {
     };
 
     struct InputState {
-        InputDevice device;
+        DeviceType device;
         ButtonState buttons;
         AxisState axes;
 
@@ -33,12 +33,12 @@ namespace sm::input {
     };
 
     class ISource {
-        InputDevice m_type;
+        DeviceType mDeviceType;
     public:
         virtual ~ISource() = default;
-        constexpr ISource(InputDevice type) : m_type(type) { }
+        constexpr ISource(DeviceType type) : mDeviceType(type) { }
 
-        constexpr InputDevice get_type() const { return m_type; }
+        constexpr DeviceType get_type() const { return mDeviceType; }
 
         virtual bool poll(InputState& state) = 0;
         virtual void capture_cursor(bool capture) { }

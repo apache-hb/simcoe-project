@@ -170,7 +170,7 @@ bool DesktopInput::poll_mouse(input::InputState& state) {
 }
 
 DesktopInput::DesktopInput(sys::Window& window)
-    : ISource(input::InputDevice::eDesktop)
+    : ISource(input::DeviceType::eDesktop)
     , mWindow(window)
     , mMousePosition(get_mouse_position(window.get_handle()))
 { }

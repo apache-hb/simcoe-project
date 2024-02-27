@@ -8,6 +8,8 @@
 #include "std/vector.h"
 #include "core/macros.h"
 
+#include <limits.h>
+
 using namespace refl;
 
 static node_t *gBuiltinNode = NULL;

@@ -14,7 +14,7 @@ using namespace sm;
 
 Bundle::Bundle(fs_t *vfs, logs::ILogger &logger)
     : mSink(logger)
-    , mFiles(vfs)
+    , mFileSystem(vfs)
 { }
 
 Bundle::Bundle(io_t *stream, archive::BundleFormat type, logs::ILogger &logger)
@@ -25,14 +25,14 @@ Bundle::Bundle(io_t *stream, archive::BundleFormat type, logs::ILogger &logger)
         return;
     }
 
-    if (tar_result_t err = tar_extract(mFiles, stream); err.error != eTarOk) {
+    if (tar_result_t err = tar_extract(*mFileSystem, stream); err.error != eTarOk) {
         mSink.error("failed to extract bundle: {}", tar_error_string(err.error));
     }
 }
 
 sm::Span<const uint8> Bundle::get_file(sm::StringView dir, sm::StringView name) const {
     sm::String path = fmt::format("bundle/{}/{}", dir, name);
-    IoHandle file = fs_open(mFiles, path.c_str(), eOsAccessRead);
+    IoHandle file = fs_open(*mFileSystem, path.c_str(), eOsAccessRead);
     if (OsError err = io_error(*file); err.failed()) {
         mSink.error("failed to open file: {}", err);
         return {};
