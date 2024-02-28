@@ -414,7 +414,8 @@ namespace sm::math {
 
         constexpr Quat(T x, T y, T z, T w)
             : v(x, y, z)
-            , angle(w) {}
+            , angle(w)
+        { }
 
         static constexpr Quat identity() {
             return {Vec3::zero(), 1};
