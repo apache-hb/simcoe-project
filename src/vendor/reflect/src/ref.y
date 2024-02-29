@@ -200,7 +200,7 @@ void referror(where_t *where, void *state, scan_t *scan, const char *msg);
     TOK_BITFLAGS "bitflags"
     TOK_ALIGNAS "alignas"
     TOK_PACKED "packed"
-    TOK_ARITHMATIC "arithmatic"
+    TOK_ARITHMATIC "arithmetic"
     TOK_ITERATOR "iterator"
     TOK_CXXNAME "cxxname"
     TOK_REMOTE "remote"

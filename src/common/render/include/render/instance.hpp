@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/vector.hpp"
+#include "core/memory.hpp"
 
 #include "render.reflect.h"
 

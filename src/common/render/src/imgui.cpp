@@ -77,7 +77,7 @@ void Context::create_imgui() {
 
     const auto cpu = mSrvAllocator.cpu_descriptor_handle(mImGuiSrvIndex);
     const auto gpu = mSrvAllocator.gpu_descriptor_handle(mImGuiSrvIndex);
-    ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mSwapChainLength), mConfig.swapchain_format,
+    ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mSwapChainLength), mSwapChainFormat,
                         mSrvAllocator.get(), cpu, gpu);
 
     auto cases = MeshType::cases();
@@ -100,7 +100,7 @@ void Context::create_imgui_backend() {
 
     const auto cpu = mSrvAllocator.cpu_descriptor_handle(mImGuiSrvIndex);
     const auto gpu = mSrvAllocator.gpu_descriptor_handle(mImGuiSrvIndex);
-    ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mSwapChainLength), mConfig.swapchain_format,
+    ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mSwapChainLength), mSwapChainFormat,
                         mSrvAllocator.get(), cpu, gpu);
 
     ImGui_ImplDX12_CreateDeviceObjects();
@@ -145,9 +145,11 @@ bool Context::update_imgui() {
             update_swapchain_length(int_cast<uint>(backbuffers));
         }
 
-        int2 size = mDrawSize.as<int>();
-        if (ImGui::SliderInt2("Render resolution", size.data(), 64, 4096)) {
-            resize_draw(size.as<uint>());
+        ImGui::Text("Swapchain Size: %u x %u", mSwapChainSize.x, mSwapChainSize.y);
+
+        int2 scene_size = mSceneSize.as<int>();
+        if (ImGui::SliderInt2("Render resolution", scene_size.data(), 64, 4096)) {
+            resize_draw(scene_size.as<uint>());
         }
 
         ImGui::SeparatorText("Adapters");

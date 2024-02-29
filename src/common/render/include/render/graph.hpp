@@ -28,6 +28,11 @@ namespace sm::graph {
 
         uint width = 1; // 1 for full resolution, 2 for half
         uint height = 1; // 1 for full resolution, 2 for half
+        uint temporal = 1; // number of frames to keep the resource
+    };
+
+    class Handle {
+
     };
 
     class IRenderPass {
@@ -48,7 +53,7 @@ namespace sm::graph {
         virtual void execute() = 0;
     };
 
-    class Resource {
+    class IResource {
 
     };
 
@@ -71,7 +76,7 @@ namespace sm::graph {
 
     class FrameGraph {
         sm::Vector<IRenderPass*> mPasses;
-        sm::Vector<Resource*> mResources;
+        sm::Vector<IResource*> mResources;
 
         render::Context& mContext;
 

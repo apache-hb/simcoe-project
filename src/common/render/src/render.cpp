@@ -200,7 +200,7 @@ void Context::create_pipeline() {
     const DXGI_SWAP_CHAIN_DESC1 kSwapChainDesc = {
         .Width = mSwapChainSize.width,
         .Height = mSwapChainSize.height,
-        .Format = mConfig.swapchain_format,
+        .Format = mSwapChainFormat,
         .SampleDesc = { 1, 0 },
         .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
         .BufferCount = mSwapChainLength,
@@ -284,18 +284,17 @@ static const D3D12_HEAP_PROPERTIES kUploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_H
 
 void Context::create_depth_stencil() {
     const D3D12_CLEAR_VALUE kClearValue = {
-        .Format = kDepthFormat,
+        .Format = mDepthFormat,
         .DepthStencil = { 1.0f, 0 },
     };
 
-    const auto kDepthBufferDesc = CD3DX12_RESOURCE_DESC::Tex2D(kDepthFormat, mDrawSize.width, mDrawSize.height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+    const auto kDepthBufferDesc = CD3DX12_RESOURCE_DESC::Tex2D(mDepthFormat, mSceneSize.width, mSceneSize.height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 
     SM_ASSERT_HR(create_resource(mDepthStencil, D3D12_HEAP_TYPE_DEFAULT, kDepthBufferDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &kClearValue));
 
     const D3D12_DEPTH_STENCIL_VIEW_DESC kDesc = {
-        .Format = kDepthFormat,
+        .Format = mDepthFormat,
         .ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
-        .Flags = D3D12_DSV_FLAG_NONE,
     };
 
     mDevice->CreateDepthStencilView(*mDepthStencil.mResource, &kDesc, mDsvHeap->GetCPUDescriptorHandleForHeapStart());
@@ -319,7 +318,7 @@ void Context::create_frame_allocators() {
 }
 
 void Context::update_scene_viewport() {
-    mSceneViewport = Viewport{mDrawSize};
+    mSceneViewport = Viewport{mSceneSize};
 }
 
 Result Context::create_resource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state, const D3D12_CLEAR_VALUE *clear) {
@@ -393,8 +392,8 @@ void Context::create_primitive_pipeline() {
             .InputLayout = { kInputElements, _countof(kInputElements) },
             .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
             .NumRenderTargets = 1,
-            .RTVFormats = { mConfig.swapchain_format },
-            .DSVFormat = kDepthFormat,
+            .RTVFormats = { mSceneFormat },
+            .DSVFormat = mDepthFormat,
             .SampleDesc = { 1, 0 },
         };
 
@@ -565,7 +564,7 @@ void Context::build_command_list() {
 
         /// draw primitives
 
-        auto [width, height] = mDrawSize.as<float>();
+        auto [width, height] = mSceneSize.as<float>();
 
         for (auto& primitive : mPrimitives) {
             const float4x4 model = primitive.mTransform.matrix().transpose();
@@ -698,11 +697,14 @@ Context::Context(const RenderConfig& config)
     : mConfig(config)
     , mSink(config.logger)
     , mInstance({ config.flags, config.preference, config.logger })
+    , mSwapChainFormat(config.swapchain_format)
     , mSwapChainSize(config.swapchain_size)
     , mSwapChainLength(config.swapchain_length)
-    , mDrawSize(config.draw_size)
+    , mSceneFormat(config.scene_format)
+    , mDepthFormat(config.depth_format)
+    , mSceneSize(config.scene_size)
     , mPresentViewport(mSwapChainSize)
-    , mSceneViewport(mDrawSize)
+    , mSceneViewport(mSceneSize)
 { }
 
 void Context::create() {
@@ -788,7 +790,7 @@ void Context::update_swapchain_length(uint length) {
     }
 
     const uint flags = get_swapchain_flags(mInstance);
-    SM_ASSERT_HR(mSwapChain->ResizeBuffers(length, mSwapChainSize.width, mSwapChainSize.height, mConfig.swapchain_format, flags));
+    SM_ASSERT_HR(mSwapChain->ResizeBuffers(length, mSwapChainSize.width, mSwapChainSize.height, mSwapChainFormat, flags));
     mSwapChainLength = length;
 
     mFrames.resize(length);
@@ -814,7 +816,7 @@ void Context::resize_swapchain(math::uint2 size) {
     }
 
     const uint flags = get_swapchain_flags(mInstance);
-    SM_ASSERT_HR(mSwapChain->ResizeBuffers(mSwapChainLength, size.width, size.height, mConfig.swapchain_format, flags));
+    SM_ASSERT_HR(mSwapChain->ResizeBuffers(mSwapChainLength, size.width, size.height, mSwapChainFormat, flags));
     mSwapChainSize = size;
 
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
@@ -829,7 +831,7 @@ void Context::resize_draw(math::uint2 size) {
     mDepthStencil.reset();
     destroy_scene_target();
 
-    mDrawSize = size;
+    mSceneSize = size;
 
     update_scene_viewport();
     update_display_viewport();

@@ -47,7 +47,7 @@ ESCAPES (\\(['"\?\\abfnrtv]|[0-7]{1,3}|x[a-fA-F0-9]+))
 
     /* enum attributes */
 <ATTRIBUTE>"bitflags" { return TOK_BITFLAGS; }
-<ATTRIBUTE>"arithmatic" { return TOK_ARITHMATIC; }
+<ATTRIBUTE>"arithmetic" { return TOK_ARITHMATIC; }
 <ATTRIBUTE>"iterator" { return TOK_ITERATOR; }
 <ATTRIBUTE>"ordered" { return TOK_ORDERED; }
 <ATTRIBUTE>"table" { return TOK_LOOKUP; }

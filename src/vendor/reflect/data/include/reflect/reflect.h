@@ -9,7 +9,7 @@
     constexpr T operator^(T lhs, T rhs) { return (T)((U)lhs ^ (U)rhs); } \
     constexpr T operator~(T lhs) { return (T)(~(U)lhs); }
 
-#define REFLECT_ENUM_ARITHMATIC(T, U) \
+#define REFLECT_ENUM_ARITHMETIC(T, U) \
     constexpr T operator+(T lhs, T rhs) { return (T)((U)lhs + (U)rhs); } \
     constexpr T operator-(T lhs, T rhs) { return (T)((U)lhs - (U)rhs); } \
     constexpr T operator*(T lhs, T rhs) { return (T)((U)lhs * (U)rhs); } \

@@ -111,8 +111,6 @@ static math::int2 get_mouse_position(HWND hwnd) {
     return {p.x, p.y};
 }
 
-// get screen space coordinates of the window center
-// SetCursor operates in screen space
 static math::int2 get_window_center(sys::Window& hwnd) {
     RECT rect;
     SM_ASSERT_WIN32(GetWindowRect(hwnd.get_handle(), &rect));

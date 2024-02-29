@@ -5,7 +5,13 @@ variant ResourceType {
     case Transient
 }
 
-[[arithmatic]]
+[[arithmetic]]
 variant ResourceId : uint {
     default Invalid = 0xFFFFFFFF
+}
+
+variant HandleClass {
+    case Colour
+    case Depth
+    case Buffer
 }

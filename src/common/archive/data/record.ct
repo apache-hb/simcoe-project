@@ -1,7 +1,7 @@
 module sm::archive;
 
 import "logs/logs.hpp";
-import "core/units.hpp";
+import "core/memory.hpp";
 
 using ILogger = opaque("sm::logs::ILogger")
 using Memory = opaque("sm::Memory")

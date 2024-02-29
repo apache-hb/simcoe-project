@@ -51,12 +51,12 @@ variant ResourceKind {
     case Imported // resources lifetime is outside of the frame
 }
 
-[[arithmatic]]
+[[arithmetic]]
 variant ResourceId : uint {
     default Invalid = 0xFFFFFFFF
 }
 
-[[arithmatic]]
+[[arithmetic]]
 variant ResourceVersion : uint {
     default Invalid = 0xFFFFFFFF
 }

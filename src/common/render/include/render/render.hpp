@@ -32,7 +32,9 @@ namespace sm::render {
         DXGI_FORMAT swapchain_format;
         math::uint2 swapchain_size; // present resolution
 
-        math::uint2 draw_size; // internal resolution
+        DXGI_FORMAT scene_format;
+        DXGI_FORMAT depth_format;
+        math::uint2 scene_size; // internal resolution
 
         uint srv_heap_size;
 
@@ -108,8 +110,6 @@ namespace sm::render {
     };
 
     struct Context {
-        static constexpr DXGI_FORMAT kDepthFormat = DXGI_FORMAT_D32_FLOAT;
-
         const RenderConfig mConfig;
 
         Sink mSink;
@@ -149,9 +149,13 @@ namespace sm::render {
         Object<IDXGISwapChain3> mSwapChain;
 
         // render info
+        DXGI_FORMAT mSwapChainFormat;
         math::uint2 mSwapChainSize; // present resolution
         uint mSwapChainLength; // number of swap chain buffers
-        math::uint2 mDrawSize; // render resolution
+
+        DXGI_FORMAT mSceneFormat;
+        DXGI_FORMAT mDepthFormat;
+        math::uint2 mSceneSize; // render resolution
 
         sm::UniqueArray<FrameData> mFrames;
         void create_frame_allocators();

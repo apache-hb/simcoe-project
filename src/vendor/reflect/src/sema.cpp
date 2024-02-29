@@ -1251,14 +1251,14 @@ void Variant::emit_impl(Sema& sema, cxx_emit_t *out) const
     }
     if (is_arithmatic || is_iterator || is_ordered) cxx_writeln(out, "REFLECT_ENUM_COMPARE(%s, %s)", get_name(), ty);
     if (is_bitflags) cxx_writeln(out, "REFLECT_ENUM_BITFLAGS(%s, %s);", get_name(), ty);
-    if (is_arithmatic) cxx_writeln(out, "REFLECT_ENUM_ARITHMATIC(%s, %s);", get_name(), ty);
+    if (is_arithmatic) cxx_writeln(out, "REFLECT_ENUM_ARITHMETIC(%s, %s);", get_name(), ty);
     if (is_iterator) cxx_writeln(out, "REFLECT_ENUM_ITERATOR(%s, %s);", get_name(), ty);
 
     cxx_leave(out);
     cxx_writeln(out, "} // namespace impl");
 
     if (is_iterator || is_arithmatic)
-        CTASSERTF(is_iterator ^ is_arithmatic, "enum %s cannot be both an iterator and arithmatic", get_name());
+        CTASSERTF(is_iterator ^ is_arithmatic, "enum %s cannot be both an iterator and arithmetic", get_name());
 
     emit_begin_record(out, false);
     cxx_privacy(out, "public");

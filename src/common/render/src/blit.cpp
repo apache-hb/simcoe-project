@@ -3,7 +3,7 @@
 #include "d3dx12/d3dx12_core.h"
 #include "d3dx12/d3dx12_root_signature.h"
 #include "d3dx12/d3dx12_barriers.h"
-#include "d3dx12/d3dx12_resource_helpers.h"
+// #include "d3dx12/d3dx12_resource_helpers.h"
 
 using namespace sm;
 using namespace sm::render;
@@ -79,7 +79,7 @@ void Context::create_blit_pipeline() {
             .InputLayout = { kInputElements, _countof(kInputElements) },
             .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
             .NumRenderTargets = 1,
-            .RTVFormats = { mConfig.swapchain_format },
+            .RTVFormats = { mSwapChainFormat },
             .SampleDesc = { 1, 0 },
         };
 
@@ -188,10 +188,10 @@ void Context::create_scene_render_target() {
 void Context::create_scene_target() {
     CTASSERT(!mSceneTarget.mResource.is_valid());
 
-    const auto kTargetDesc = CD3DX12_RESOURCE_DESC::Tex2D(mConfig.swapchain_format, mDrawSize.x, mDrawSize.y, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+    const auto kTargetDesc = CD3DX12_RESOURCE_DESC::Tex2D(mSceneFormat, mSceneSize.x, mSceneSize.y, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 
     const D3D12_CLEAR_VALUE kClear = {
-        .Format = mConfig.swapchain_format,
+        .Format = mSceneFormat,
         .Color = { kClearColour.r, kClearColour.g, kClearColour.b, kClearColour.a },
     };
 
@@ -209,7 +209,7 @@ void Context::destroy_scene_target() {
 }
 
 void Context::update_display_viewport() {
-    auto [renderWidth, renderHeight] = mDrawSize.as<float>();
+    auto [renderWidth, renderHeight] = mSceneSize.as<float>();
     auto [displayWidth, displayHeight] = mSwapChainSize.as<float>();
 
     auto widthRatio = renderWidth / displayWidth;
