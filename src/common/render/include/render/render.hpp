@@ -251,15 +251,6 @@ namespace sm::render {
 
         sm::Vector<Primitive> mPrimitives;
 
-        struct Upload {
-            Resource resource;
-            uint64 value;
-
-            constexpr auto operator<=>(const Upload& other) const { return value <=> other.value; }
-        };
-
-        sm::PriorityQueue<Upload, std::greater<Upload>> mUploads;
-
         Primitive create_mesh(const draw::MeshInfo& info, const float3& colour);
 
         void init_scene();

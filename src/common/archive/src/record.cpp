@@ -178,7 +178,7 @@ void RecordStore::destroy() {
     // reset the size
     mSize = 0;
 
-    mAllocator.clear();
+    mAllocator.reset();
 }
 
 RecordLookup RecordStore::get_record(uint32_t id, void **data, uint16_t size) {
@@ -300,7 +300,7 @@ void RecordStore::reset() {
 
     // reset the space bitmap
     if (mAllocator.is_valid())
-        mAllocator.clear();
+        mAllocator.reset();
     else
         mAllocator.resize(get_public_size() / 8);
 

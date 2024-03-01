@@ -15,14 +15,14 @@ namespace sm {
     /// value that represents an empty handle. For example mmap returns MAP_FAILED on failure
     template<typename T, typename TDelete, T TEmpty = T{}>
     class UniqueHandle {
-        T m_handle = TEmpty;
+        T mHandle = TEmpty;
 
-        SM_NO_UNIQUE_ADDRESS TDelete m_delete{};
+        SM_NO_UNIQUE_ADDRESS TDelete mDelete{};
 
     public:
         constexpr UniqueHandle(T handle = TEmpty, TDelete del = TDelete{})
-            : m_handle(handle)
-            , m_delete(del)
+            : mHandle(handle)
+            , mDelete(del)
         { }
 
         constexpr UniqueHandle &operator=(T handle) {
@@ -43,28 +43,28 @@ namespace sm {
             return *this;
         }
 
-        constexpr T& get() { CTASSERT(is_valid()); return m_handle; }
-        constexpr const T& get() const { CTASSERT(is_valid()); return m_handle; }
+        constexpr T& get() { CTASSERT(is_valid()); return mHandle; }
+        constexpr const T& get() const { CTASSERT(is_valid()); return mHandle; }
 
         constexpr T& operator*() { return get(); }
         constexpr const T& operator*() const { return get(); }
 
-        constexpr T *address() { return &m_handle; }
-        constexpr T *const address() const { return &m_handle; }
+        constexpr T *address() { return &mHandle; }
+        constexpr T *const address() const { return &mHandle; }
 
-        constexpr bool is_valid() const { return m_handle != TEmpty; }
-        constexpr explicit operator bool() const { return m_handle != TEmpty; }
+        constexpr bool is_valid() const { return mHandle != TEmpty; }
+        constexpr explicit operator bool() const { return mHandle != TEmpty; }
 
         constexpr void reset(T handle = TEmpty) {
-            if (m_handle != TEmpty) {
-                m_delete(m_handle);
+            if (mHandle != TEmpty) {
+                mDelete(mHandle);
             }
-            m_handle = handle;
+            mHandle = handle;
         }
 
         constexpr T release() {
-            T handle = m_handle;
-            m_handle = TEmpty;
+            T handle = mHandle;
+            mHandle = TEmpty;
             return handle;
         }
     };

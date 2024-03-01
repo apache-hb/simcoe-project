@@ -749,7 +749,7 @@ namespace sm::math {
             return { row0, row1, row2, row3 };
         }
 
-        constexpr Vec3 translation() const {
+        constexpr Vec3 get_translation() const {
             return { at(0, 3), at(1, 3), at(2, 3) };
         }
 
@@ -766,15 +766,9 @@ namespace sm::math {
         /// @param rotation the rotation vector
         /// @return the rotation matrix
         static constexpr Mat4x4 rotation(const Vec3& rotation) {
-            const auto& [pitch, yaw, roll] = rotation;
-            const T cp = std::cos(pitch);
-            const T sp = std::sin(pitch);
-
-            const T cy = std::cos(yaw);
-            const T sy = std::sin(yaw);
-
-            const T cr = std::cos(roll);
-            const T sr = std::sin(roll);
+            auto [sr, cr] = math::sincos(rotation.roll);
+            auto [sy, cy] = math::sincos(rotation.yaw);
+            auto [sp, cp] = math::sincos(rotation.pitch);
 
             Vec4 r0 = {
                 cr * cy + sr * sp * sy,

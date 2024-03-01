@@ -27,7 +27,7 @@ namespace sm {
                     mStorage.resize(words);
                 }
 
-                clear();
+                reset();
             }
 
             constexpr size_t popcount() const {
@@ -64,7 +64,7 @@ namespace sm {
             constexpr size_t get_capacity() const { return mStorage.length() * kBitsPerWord; }
             constexpr bool is_valid() const { return mStorage.is_valid(); }
 
-            constexpr void clear() {
+            constexpr void reset() {
                 mStorage.fill(0);
             }
 

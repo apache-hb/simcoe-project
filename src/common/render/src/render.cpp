@@ -520,9 +520,6 @@ Context::Primitive Context::create_mesh(const draw::MeshInfo& info, const float3
         .Format = DXGI_FORMAT_R16_UINT,
     };
 
-    mUploads.emplace(Upload{ std::move(vbo_upload), mCopyFenceValue });
-    mUploads.emplace(Upload{ std::move(ibo_upload), mCopyFenceValue });
-
     wait_for_gpu();
     flush_copy_queue();
 
@@ -859,18 +856,6 @@ void Context::wait_for_gpu() {
 
     SM_ASSERT_HR(mFence->SetEventOnCompletion(current, mFenceEvent));
     WaitForSingleObject(mFenceEvent, INFINITE);
-
-    // TODO: currently this is correct as all copies are followed by
-    // a direct state transition. but at some point that may not be the case
-    // come back here when that happens.
-
-    const uint64 completed = mFence->GetCompletedValue();
-    while (!mUploads.is_empty()) {
-        auto& upload = mUploads.top();
-        if (completed < upload.value) break;
-
-        mUploads.pop();
-    }
 }
 
 void Context::flush_copy_queue() {

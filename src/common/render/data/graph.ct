@@ -10,8 +10,8 @@ variant ResourceId : uint {
     default Invalid = 0xFFFFFFFF
 }
 
-variant HandleClass {
-    case Colour
-    case Depth
-    case Buffer
+variant HandleType {
+    case Create
+    case Read
+    case Write
 }
