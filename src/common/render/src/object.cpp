@@ -69,9 +69,7 @@ void Pipeline::reset() {
 }
 
 void DescriptorAllocator::set_heap(DescriptorHeap heap) {
-    if (heap.mCapacity != mHeap.mCapacity) {
-        mAllocator.resize(heap.mCapacity);
-    }
+    mAllocator.resize(heap.mCapacity);
 
     mHeap = std::move(heap);
 }
@@ -90,9 +88,11 @@ void DescriptorAllocator::release(DescriptorIndex index) {
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE DescriptorAllocator::cpu_descriptor_handle(int index) {
+    SM_ASSERTF(mAllocator.test(sm::BitMap::Index{(size_t)index}), "DescriptorAllocator: cpu_descriptor_handle index {} is not set", index);
     return mHeap.cpu_descriptor_handle(index);
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE DescriptorAllocator::gpu_descriptor_handle(int index) {
+    SM_ASSERTF(mAllocator.test(sm::BitMap::Index{(size_t)index}), "DescriptorAllocator: gpu_descriptor_handle index {} is not set", index);
     return mHeap.gpu_descriptor_handle(index);
 }

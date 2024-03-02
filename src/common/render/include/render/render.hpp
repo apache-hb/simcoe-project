@@ -7,7 +7,7 @@
 
 #include "render/camera.hpp"
 
-#include "core/queue.hpp"
+// #include "core/queue.hpp"
 
 #include <D3D12MemAlloc.h>
 
@@ -72,10 +72,11 @@ namespace sm::render {
 
     using DescriptorIndex = uint;
 
-    struct DescriptorAllocator {
+    class DescriptorAllocator {
         DescriptorHeap mHeap;
         sm::BitMap mAllocator;
 
+    public:
         void set_heap(DescriptorHeap heap);
 
         DescriptorIndex allocate();
@@ -86,6 +87,8 @@ namespace sm::render {
 
         void reset() { mHeap.reset(); }
         ID3D12DescriptorHeap *get() const { return mHeap.get(); }
+
+        uint get_capacity() const { return mHeap.mCapacity; }
     };
 
     struct Viewport {
@@ -180,14 +183,15 @@ namespace sm::render {
         // +1 for imgui font atlas
         uint min_srv_heap_size() const { return 1 + 1 + mConfig.srv_heap_size; }
 
-        DescriptorHeap mDsvHeap;
+        DescriptorAllocator mDsvAllocator;
         DescriptorAllocator mSrvAllocator;
 
+        DescriptorIndex mDepthStencilSrvIndex;
         Resource mDepthStencil;
         void create_depth_stencil();
 
-
         Result create_descriptor_heap(DescriptorHeap& heap, D3D12_DESCRIPTOR_HEAP_TYPE type, uint capacity, bool shader_visible);
+        Result create_descriptor_allocator(DescriptorAllocator& allocator, D3D12_DESCRIPTOR_HEAP_TYPE type, uint capacity, bool shader_visible);
 
         /// copy queue and commands
         Object<ID3D12CommandQueue> mCopyQueue;

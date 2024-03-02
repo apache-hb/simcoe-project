@@ -224,17 +224,9 @@ void Context::create_pipeline() {
 
     create_rtv_heap();
 
-    {
-        uint count = min_srv_heap_size();
-        DescriptorHeap srv_heap;
-        SM_ASSERT_HR(create_descriptor_heap(srv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, count, true));
+    SM_ASSERT_HR(create_descriptor_allocator(mSrvAllocator, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, min_srv_heap_size(), true));
 
-        mSrvAllocator.set_heap(std::move(srv_heap));
-    }
-
-    {
-        SM_ASSERT_HR(create_descriptor_heap(mDsvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false));
-    }
+    SM_ASSERT_HR(create_descriptor_allocator(mDsvAllocator, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false));
 
     create_depth_stencil();
 
@@ -279,6 +271,16 @@ Result Context::create_descriptor_heap(DescriptorHeap& heap, D3D12_DESCRIPTOR_HE
     return mDevice->CreateDescriptorHeap(&kHeapDesc, IID_PPV_ARGS(&heap));
 }
 
+Result Context::create_descriptor_allocator(DescriptorAllocator& allocator, D3D12_DESCRIPTOR_HEAP_TYPE type, uint capacity, bool shader_visible) {
+    DescriptorHeap heap;
+    if (Result hr = create_descriptor_heap(heap, type, capacity, shader_visible); !hr) {
+        return hr;
+    }
+
+    allocator.set_heap(std::move(heap));
+    return S_OK;
+}
+
 static const D3D12_HEAP_PROPERTIES kDefaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 static const D3D12_HEAP_PROPERTIES kUploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 
@@ -297,7 +299,9 @@ void Context::create_depth_stencil() {
         .ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
     };
 
-    mDevice->CreateDepthStencilView(*mDepthStencil.mResource, &kDesc, mDsvHeap->GetCPUDescriptorHandleForHeapStart());
+    mDepthStencilSrvIndex = mDsvAllocator.allocate();
+
+    mDevice->CreateDepthStencilView(*mDepthStencil.mResource, &kDesc, mDsvAllocator.cpu_descriptor_handle(mDepthStencilSrvIndex));
 }
 
 void Context::create_render_targets() {
@@ -549,7 +553,7 @@ void Context::build_command_list() {
         /// scene setup
 
         const auto kSceneRtvHandle = mRtvHeap.cpu_descriptor_handle(scene_rtv_index());
-        const auto kDsvHandle = mDsvHeap->GetCPUDescriptorHandleForHeapStart();
+        const auto kDsvHandle = mDsvAllocator.cpu_descriptor_handle(mDepthStencilSrvIndex);
         mCommandList->RSSetViewports(1, &mSceneViewport.mViewport);
         mCommandList->RSSetScissorRects(1, &mSceneViewport.mScissorRect);
         mCommandList->OMSetRenderTargets(1, &kSceneRtvHandle, false, &kDsvHandle);
@@ -678,7 +682,7 @@ void Context::destroy_device() {
 
     // descriptor heaps
     mRtvHeap.reset();
-    mDsvHeap.reset();
+    mDsvAllocator.reset();
     mSrvAllocator.reset();
 
     // swapchain
@@ -716,8 +720,6 @@ void Context::create() {
     create_pipeline();
     create_assets();
 
-    mSceneTargetSrvIndex = mSrvAllocator.allocate();
-
     create_screen_quad();
     create_scene_target();
     init_scene();
@@ -732,6 +734,9 @@ void Context::destroy() {
 
     mSrvAllocator.release(mSceneTargetSrvIndex);
     mSceneTargetSrvIndex = UINT_MAX;
+
+    mDsvAllocator.release(mDepthStencilSrvIndex);
+    mDepthStencilSrvIndex = UINT_MAX;
 
     SM_ASSERT_WIN32(CloseHandle(mCopyFenceEvent));
     SM_ASSERT_WIN32(CloseHandle(mFenceEvent));

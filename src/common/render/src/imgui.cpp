@@ -71,44 +71,33 @@ void Context::create_imgui() {
         style.Colors[ImGuiCol_WindowBg].w = 1.0f;
     }
 
-    ImGui_ImplWin32_Init(mConfig.window.get_handle());
-
-    mImGuiSrvIndex = mSrvAllocator.allocate();
-
-    const auto cpu = mSrvAllocator.cpu_descriptor_handle(mImGuiSrvIndex);
-    const auto gpu = mSrvAllocator.gpu_descriptor_handle(mImGuiSrvIndex);
-    ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mSwapChainLength), mSwapChainFormat,
-                        mSrvAllocator.get(), cpu, gpu);
-
     auto cases = MeshType::cases();
     for (MeshType i : cases) {
         mMeshCreateInfo[i] = get_default_info(i);
     }
+
+    create_imgui_backend();
 }
 
 void Context::destroy_imgui() {
-    ImGui_ImplDX12_Shutdown();
-    ImGui_ImplWin32_Shutdown();
+    destroy_imgui_backend();
     ImGui::DestroyContext();
-
-    mSrvAllocator.release(mImGuiSrvIndex);
-    mImGuiSrvIndex = UINT_MAX;
 }
 
 void Context::create_imgui_backend() {
+    mImGuiSrvIndex = mSrvAllocator.allocate();
+
     ImGui_ImplWin32_Init(mConfig.window.get_handle());
 
     const auto cpu = mSrvAllocator.cpu_descriptor_handle(mImGuiSrvIndex);
     const auto gpu = mSrvAllocator.gpu_descriptor_handle(mImGuiSrvIndex);
     ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mSwapChainLength), mSwapChainFormat,
                         mSrvAllocator.get(), cpu, gpu);
-
-    ImGui_ImplDX12_CreateDeviceObjects();
-    ImGui_ImplDX12_NewFrame();
 }
 
 void Context::destroy_imgui_backend() {
-    ImGui_ImplDX12_InvalidateDeviceObjects();
+    mSrvAllocator.release(mImGuiSrvIndex);
+
     ImGui_ImplDX12_Shutdown();
     ImGui_ImplWin32_Shutdown();
 }
@@ -223,8 +212,8 @@ bool Context::update_imgui() {
 
         if (ImGui::CollapsingHeader("Descriptor heaps")) {
             ImGui::Text("RTV capacity: %u", mRtvHeap.mCapacity);
-            ImGui::Text("DSV capacity: %u", mDsvHeap.mCapacity);
-            ImGui::Text("SRV capacity: %u", mSrvAllocator.mHeap.mCapacity);
+            ImGui::Text("DSV capacity: %u", mDsvAllocator.get_capacity());
+            ImGui::Text("SRV capacity: %u", mSrvAllocator.get_capacity());
         }
     }
     ImGui::End();

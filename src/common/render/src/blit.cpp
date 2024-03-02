@@ -199,6 +199,8 @@ void Context::create_scene_target() {
 
     create_scene_render_target();
 
+    mSceneTargetSrvIndex = mSrvAllocator.allocate();
+
     /// create srv
     const auto srv_handle = mSrvAllocator.cpu_descriptor_handle(mSceneTargetSrvIndex);
     mDevice->CreateShaderResourceView(mSceneTarget.mResource.get(), nullptr, srv_handle);

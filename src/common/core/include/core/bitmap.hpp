@@ -65,7 +65,7 @@ namespace sm {
             constexpr bool is_valid() const { return mStorage.is_valid(); }
 
             constexpr void reset() {
-                mStorage.fill(0);
+                if (mStorage.is_valid()) mStorage.fill(0);
             }
 
             constexpr void release(Index index) {
