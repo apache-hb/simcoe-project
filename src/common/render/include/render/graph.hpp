@@ -1,10 +1,20 @@
 #pragma once
 
-#include "render/render.hpp"
+#include "core/text.hpp"
+#include "core/vector.hpp"
+#include "math/math.hpp"
+
+#include "render/heap.hpp"
+#include "render/resource.hpp"
 
 #include <functional>
 
-#include "graph.reflect.h" // IWYU pragma: export
+#include "render.reflect.h"
+#include "graph.reflect.h"
+
+namespace sm::render {
+    struct Context;
+}
 
 /// list of stuff that we cant do yet
 /// - branching on the graph, no coniditional passes or resources
@@ -112,7 +122,7 @@ namespace sm::graph {
             void side_effects(bool effects);
 
             template<typename F>
-            PassBuilder& execute(F&& execute) {
+            PassBuilder& bind(F&& execute) {
                 mRenderPass.execute = std::forward<F>(execute);
                 return *this;
             }
@@ -129,4 +139,6 @@ namespace sm::graph {
         void compile();
         void execute();
     };
+
+    using PassBuilder = FrameGraph::PassBuilder;
 }

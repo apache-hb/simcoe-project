@@ -1,5 +1,7 @@
 #include "render/graph.hpp"
 
+#include "render/render.hpp"
+
 #include "core/map.hpp"
 #include "core/stack.hpp"
 
@@ -163,10 +165,13 @@ void FrameGraph::create_resources() {
         const auto flags = get_required_flags(handle.access);
         const auto clear = get_clear_value(handle.access);
 
+        auto size = mContext.mSceneSize;
+        size /= info.size;
+
         const auto desc = CD3DX12_RESOURCE_DESC::Tex2D(
             /*format=*/ info.format.as_facade(),
-            /*width=*/ info.size.width,
-            /*height=*/ info.size.height,
+            /*width=*/ size.width,
+            /*height=*/ size.height,
             /*arraySize=*/ 1,
             /*mipLevels=*/ 0,
             /*sampleCount=*/ 1,
@@ -180,6 +185,14 @@ void FrameGraph::create_resources() {
         SM_ASSERT_HR(mContext.create_resource(resource, D3D12_HEAP_TYPE_DEFAULT, desc, state, &clear));
 
         handle.resource = resource.get();
+
+        if (handle.access.test(eRenderTarget)) {
+            handle.rtv = mContext.mRtvPool.allocate();
+        } else if (handle.access.test(eDepthTarget)) {
+            handle.dsv = mContext.mDsvPool.allocate();
+        }
+
+        handle.srv = mContext.mSrvPool.allocate();
     }
 }
 

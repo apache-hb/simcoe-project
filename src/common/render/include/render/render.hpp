@@ -1,16 +1,16 @@
 #pragma once
 
 #include "archive/bundle.hpp"
+
 #include "core/array.hpp"
 
 #include "render/instance.hpp"
 #include "render/heap.hpp"
 #include "render/commands.hpp"
 #include "render/camera.hpp"
+#include "render/resource.hpp"
 
-// #include "core/queue.hpp"
-
-#include <D3D12MemAlloc.h>
+#include "render/graph.hpp"
 
 namespace sm::render {
     using namespace math;
@@ -44,19 +44,6 @@ namespace sm::render {
         Bundle& bundle;
         logs::ILogger &logger;
         sys::Window &window;
-    };
-
-    struct Resource {
-        Object<ID3D12Resource> mResource;
-        Object<D3D12MA::Allocation> mAllocation;
-
-        Result map(const D3D12_RANGE *range, void **data);
-        void unmap(const D3D12_RANGE *range);
-
-        D3D12_GPU_VIRTUAL_ADDRESS get_gpu_address();
-        void reset();
-
-        ID3D12Resource *get() const { return mResource.get(); }
     };
 
     struct FrameData {
@@ -239,6 +226,8 @@ namespace sm::render {
 
         void copy_buffer(Object<ID3D12GraphicsCommandList1>& list, Resource& dst, Resource& src, size_t size);
 
+        // render graph
+
         /// synchronization
 
         void build_command_list();
@@ -264,7 +253,6 @@ namespace sm::render {
 
         void update_adapter(size_t index);
         void update_swapchain_length(uint length);
-
 
         void destroy_device();
 
