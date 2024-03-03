@@ -222,41 +222,24 @@ void Context::create_pipeline() {
     SM_ASSERT_HR(swapchain1.query(&mSwapChain));
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
 
-    create_rtv_heap();
+    SM_ASSERT_HR(create_descriptor_allocator(mRtvAllocator, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, min_rtv_heap_size(), false));
 
     SM_ASSERT_HR(create_descriptor_allocator(mSrvAllocator, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, min_srv_heap_size(), true));
 
-    SM_ASSERT_HR(create_descriptor_allocator(mDsvAllocator, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false));
+    SM_ASSERT_HR(create_descriptor_allocator(mDsvAllocator, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, min_dsv_heap_size(), false));
 
     create_depth_stencil();
 
     mFrames.resize(mSwapChainLength);
 
     update_scene_viewport();
+    create_frame_rtvs();
     create_render_targets();
     create_frame_allocators();
 
     for (uint i = 0; i < mSwapChainLength; i++) {
         mFrames[i].mFenceValue = 0;
     }
-}
-
-void Context::create_rtv_heap() {
-    mRtvHeap.reset();
-
-    uint count = min_rtv_heap_size();
-
-    SM_ASSERT_HR(create_descriptor_heap(mRtvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, count, false));
-}
-
-bool Context::resize_rtv_heap(uint length) {
-    if (mRtvHeap.mCapacity >= length) return false;
-
-    mRtvHeap.reset();
-
-    SM_ASSERT_HR(create_descriptor_heap(mRtvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, length, false));
-
-    return true;
 }
 
 Result Context::create_descriptor_heap(DescriptorHeap& heap, D3D12_DESCRIPTOR_HEAP_TYPE type, uint capacity, bool shader_visible) {
@@ -304,12 +287,29 @@ void Context::create_depth_stencil() {
     mDevice->CreateDepthStencilView(*mDepthStencil.mResource, &kDesc, mDsvAllocator.cpu_descriptor_handle(mDepthStencilSrvIndex));
 }
 
+void Context::destroy_depth_stencil() {
+    mDepthStencil.reset();
+    mDsvAllocator.release(mDepthStencilSrvIndex);
+}
+
+void Context::create_frame_rtvs() {
+    for (auto& frame : mFrames) {
+        frame.rtv_index = mRtvAllocator.allocate();
+    }
+}
+
+void Context::destroy_frame_rtvs() {
+    for (auto& frame : mFrames) {
+        mRtvAllocator.release(frame.rtv_index);
+    }
+}
+
 void Context::create_render_targets() {
     CTASSERTF(mSwapChainLength <= DXGI_MAX_SWAP_CHAIN_BUFFERS, "too many swap chain buffers (%u > %u)", mSwapChainLength, DXGI_MAX_SWAP_CHAIN_BUFFERS);
 
     for (uint i = 0; i < mSwapChainLength; i++) {
         auto& backbuffer = mFrames[i].mRenderTarget;
-        auto rtv = mRtvHeap.cpu_descriptor_handle(frame_rtv_index(i));
+        auto rtv = mRtvAllocator.cpu_descriptor_handle(mFrames[i].rtv_index);
         SM_ASSERT_HR(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&backbuffer)));
         mDevice->CreateRenderTargetView(*backbuffer, nullptr, rtv);
     }
@@ -552,7 +552,7 @@ void Context::build_command_list() {
     {
         /// scene setup
 
-        const auto kSceneRtvHandle = mRtvHeap.cpu_descriptor_handle(scene_rtv_index());
+        const auto kSceneRtvHandle = mRtvAllocator.cpu_descriptor_handle(mSceneTargetRtvIndex);
         const auto kDsvHandle = mDsvAllocator.cpu_descriptor_handle(mDepthStencilSrvIndex);
         mCommandList->RSSetViewports(1, &mSceneViewport.mViewport);
         mCommandList->RSSetScissorRects(1, &mSceneViewport.mScissorRect);
@@ -580,7 +580,7 @@ void Context::build_command_list() {
     }
 
     {
-        auto& [backbuffer, allocator, _] = mFrames[mFrameIndex];
+        auto& [backbuffer, allocator, rtv_index, _] = mFrames[mFrameIndex];
 
         const D3D12_RESOURCE_BARRIER kBeginPostBarriers[] = {
             // transition backbuffer from present to render target
@@ -609,7 +609,7 @@ void Context::build_command_list() {
         mCommandList->RSSetViewports(1, &mPresentViewport.mViewport);
         mCommandList->RSSetScissorRects(1, &mPresentViewport.mScissorRect);
 
-        const auto rtv_handle = mRtvHeap.cpu_descriptor_handle(frame_rtv_index(mFrameIndex));
+        const auto rtv_handle = mRtvAllocator.cpu_descriptor_handle(rtv_index);
         mCommandList->OMSetRenderTargets(1, &rtv_handle, false, nullptr);
 
         mCommandList->ClearRenderTargetView(rtv_handle, kColourBlack.data(), 0, nullptr);
@@ -681,7 +681,7 @@ void Context::destroy_device() {
     mAllocator.reset();
 
     // descriptor heaps
-    mRtvHeap.reset();
+    mRtvAllocator.reset();
     mDsvAllocator.reset();
     mSrvAllocator.reset();
 
@@ -786,10 +786,13 @@ void Context::update_swapchain_length(uint length) {
 
     uint64 current = mFrames[mFrameIndex].mFenceValue;
 
-    for (uint i = 0; i < mSwapChainLength; i++) {
-        mFrames[i].mRenderTarget.reset();
-        mFrames[i].mCommandAllocator.reset();
+    for (auto& frame : mFrames) {
+        frame.mRenderTarget.reset();
+        frame.mCommandAllocator.reset();
     }
+
+    destroy_frame_rtvs();
+    destroy_scene_rtv();
 
     const uint flags = get_swapchain_flags(mInstance);
     SM_ASSERT_HR(mSwapChain->ResizeBuffers(length, mSwapChainSize.width, mSwapChainSize.height, mSwapChainFormat, flags));
@@ -800,9 +803,8 @@ void Context::update_swapchain_length(uint length) {
         mFrames[i].mFenceValue = current;
     }
 
-    if (resize_rtv_heap(min_rtv_heap_size())) {
-        create_scene_render_target();
-    }
+    create_frame_rtvs();
+    create_scene_rtv();
     create_render_targets();
     create_frame_allocators();
 
@@ -832,6 +834,8 @@ void Context::resize_draw(math::uint2 size) {
 
     mDepthStencil.reset();
     destroy_scene_target();
+    destroy_scene_rtv();
+    destroy_depth_stencil();
 
     mSceneSize = size;
 

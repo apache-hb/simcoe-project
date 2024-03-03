@@ -179,15 +179,18 @@ void Context::destroy_screen_quad() {
     mScreenQuad.mVertexBuffer.reset();
 }
 
-void Context::create_scene_render_target() {
-    /// create rtv
-    const auto rtv_handle = mRtvHeap.cpu_descriptor_handle(scene_rtv_index());
+void Context::create_scene_rtv() {
+    mSceneTargetRtvIndex = mRtvAllocator.allocate();
+
+    const auto rtv_handle = mRtvAllocator.cpu_descriptor_handle(mSceneTargetRtvIndex);
     mDevice->CreateRenderTargetView(mSceneTarget.mResource.get(), nullptr, rtv_handle);
 }
 
-void Context::create_scene_target() {
-    CTASSERT(!mSceneTarget.mResource.is_valid());
+void Context::destroy_scene_rtv() {
+    mRtvAllocator.release(mSceneTargetRtvIndex);
+}
 
+void Context::create_scene_target() {
     const auto kTargetDesc = CD3DX12_RESOURCE_DESC::Tex2D(mSceneFormat, mSceneSize.x, mSceneSize.y, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 
     const D3D12_CLEAR_VALUE kClear = {
@@ -197,9 +200,9 @@ void Context::create_scene_target() {
 
     SM_ASSERT_HR(create_resource(mSceneTarget, D3D12_HEAP_TYPE_DEFAULT, kTargetDesc, D3D12_RESOURCE_STATE_RENDER_TARGET, &kClear));
 
-    create_scene_render_target();
-
     mSceneTargetSrvIndex = mSrvAllocator.allocate();
+
+    create_scene_rtv();
 
     /// create srv
     const auto srv_handle = mSrvAllocator.cpu_descriptor_handle(mSceneTargetSrvIndex);
@@ -208,6 +211,7 @@ void Context::create_scene_target() {
 
 void Context::destroy_scene_target() {
     mSceneTarget.reset();
+    mSrvAllocator.release(mSceneTargetSrvIndex);
 }
 
 void Context::update_display_viewport() {

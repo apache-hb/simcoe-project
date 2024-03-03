@@ -345,6 +345,8 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .depth_format = DXGI_FORMAT_D32_FLOAT,
         .scene_size = { 1920, 1080 },
 
+        .rtv_heap_size = 64,
+        .dsv_heap_size = 64,
         .srv_heap_size = 1024,
 
         .bundle = bundle,

@@ -36,17 +36,13 @@ namespace sm::render {
         DXGI_FORMAT depth_format;
         math::uint2 scene_size; // internal resolution
 
+        uint rtv_heap_size;
+        uint dsv_heap_size;
         uint srv_heap_size;
 
         Bundle& bundle;
         logs::ILogger &logger;
         sys::Window &window;
-    };
-
-    struct FrameData {
-        Object<ID3D12Resource> mRenderTarget;
-        Object<ID3D12CommandAllocator> mCommandAllocator;
-        uint64 mFenceValue;
     };
 
     struct Resource {
@@ -89,6 +85,13 @@ namespace sm::render {
         ID3D12DescriptorHeap *get() const { return mHeap.get(); }
 
         uint get_capacity() const { return mHeap.mCapacity; }
+    };
+
+    struct FrameData {
+        Object<ID3D12Resource> mRenderTarget;
+        Object<ID3D12CommandAllocator> mCommandAllocator;
+        DescriptorIndex rtv_index;
+        uint64 mFenceValue;
     };
 
     struct Viewport {
@@ -162,6 +165,8 @@ namespace sm::render {
 
         sm::UniqueArray<FrameData> mFrames;
         void create_frame_allocators();
+        void create_frame_rtvs();
+        void destroy_frame_rtvs();
         void create_render_targets();
 
         /// graphics pipeline objects
@@ -170,25 +175,18 @@ namespace sm::render {
 
         void reset_direct_commands(ID3D12PipelineState *pso = nullptr);
 
-        DescriptorHeap mRtvHeap;
-        void create_rtv_heap();
-        bool resize_rtv_heap(uint length);
-
-        // +1 for the scene target
-        uint min_rtv_heap_size() const { return mSwapChainLength + 1; }
-        int scene_rtv_index() const { return 0; }
-        int frame_rtv_index(uint frame) const { return int_cast<int>(frame) + 1; }
-
-        // +1 for scene target
-        // +1 for imgui font atlas
+        uint min_rtv_heap_size() const { return DXGI_MAX_SWAP_CHAIN_BUFFERS + 1 + mConfig.rtv_heap_size; }
         uint min_srv_heap_size() const { return 1 + 1 + mConfig.srv_heap_size; }
+        uint min_dsv_heap_size() const { return 1 + mConfig.dsv_heap_size; }
 
+        DescriptorAllocator mRtvAllocator;
         DescriptorAllocator mDsvAllocator;
         DescriptorAllocator mSrvAllocator;
 
         DescriptorIndex mDepthStencilSrvIndex;
         Resource mDepthStencil;
         void create_depth_stencil();
+        void destroy_depth_stencil();
 
         Result create_descriptor_heap(DescriptorHeap& heap, D3D12_DESCRIPTOR_HEAP_TYPE type, uint capacity, bool shader_visible);
         Result create_descriptor_allocator(DescriptorAllocator& allocator, D3D12_DESCRIPTOR_HEAP_TYPE type, uint capacity, bool shader_visible);
@@ -206,6 +204,7 @@ namespace sm::render {
         void create_copy_fence();
 
         DescriptorIndex mSceneTargetSrvIndex;
+        DescriptorIndex mSceneTargetRtvIndex;
 
         /// blit pipeline + assets
         Viewport mPresentViewport;
@@ -238,7 +237,8 @@ namespace sm::render {
         Resource mSceneTarget;
         void create_scene_target();
         void destroy_scene_target();
-        void create_scene_render_target();
+        void create_scene_rtv();
+        void destroy_scene_rtv();
 
         struct Primitive {
             draw::MeshInfo mInfo;

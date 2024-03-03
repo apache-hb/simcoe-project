@@ -211,7 +211,7 @@ bool Context::update_imgui() {
         }
 
         if (ImGui::CollapsingHeader("Descriptor heaps")) {
-            ImGui::Text("RTV capacity: %u", mRtvHeap.mCapacity);
+            ImGui::Text("RTV capacity: %u", mRtvAllocator.get_capacity());
             ImGui::Text("DSV capacity: %u", mDsvAllocator.get_capacity());
             ImGui::Text("SRV capacity: %u", mSrvAllocator.get_capacity());
         }

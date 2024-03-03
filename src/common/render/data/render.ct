@@ -116,3 +116,9 @@ variant WindowState {
     case Unfocused // window is visible, but not active
     case Minimized // window is not visible
 }
+
+[[bitflags]]
+variant ObjectDep {
+    case Device = (1 << 0) // all device objects
+    case SwapChain = (1 << 1) // backbuffer count, format, resolution, etc
+}
