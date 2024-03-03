@@ -142,8 +142,8 @@ namespace sm::render {
         DsvPool mDsvPool;
         SrvPool mSrvPool;
 
-        DsvIndex mDepthStencilIndex;
-        Resource mDepthStencil;
+        // DsvIndex mDepthStencilIndex;
+        // Resource mDepthStencil;
         void create_depth_stencil();
         void destroy_depth_stencil();
 
@@ -159,8 +159,8 @@ namespace sm::render {
         uint64 mCopyFenceValue;
         void create_copy_fence();
 
-        SrvIndex mSceneTargetSrvIndex;
-        RtvIndex mSceneTargetRtvIndex;
+        // SrvIndex mSceneTargetSrvIndex;
+        // RtvIndex mSceneTargetRtvIndex;
 
         /// blit pipeline + assets
         Viewport mPresentViewport;
@@ -227,6 +227,7 @@ namespace sm::render {
         void copy_buffer(Object<ID3D12GraphicsCommandList1>& list, Resource& dst, Resource& src, size_t size);
 
         // render graph
+        graph::Handle mSceneTargetHandle;
         graph::FrameGraph mFrameGraph;
 
         /// synchronization

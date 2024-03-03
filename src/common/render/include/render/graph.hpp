@@ -83,7 +83,7 @@ namespace sm::graph {
             render::SrvIndex srv = render::SrvIndex::eInvalid;
 
             bool is_imported() const { return type == ResourceType::eImported; }
-            bool is_used() const { return refcount > 0; }
+            bool is_used() const { return is_imported() || refcount > 0; }
         };
 
         render::Context& mContext;

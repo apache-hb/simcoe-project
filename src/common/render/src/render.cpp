@@ -246,28 +246,28 @@ static const D3D12_HEAP_PROPERTIES kDefaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_
 static const D3D12_HEAP_PROPERTIES kUploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 
 void Context::create_depth_stencil() {
-    const D3D12_CLEAR_VALUE kClearValue = {
-        .Format = mDepthFormat,
-        .DepthStencil = { 1.0f, 0 },
-    };
+    // const D3D12_CLEAR_VALUE kClearValue = {
+    //     .Format = mDepthFormat,
+    //     .DepthStencil = { 1.0f, 0 },
+    // };
 
-    const auto kDepthBufferDesc = CD3DX12_RESOURCE_DESC::Tex2D(mDepthFormat, mSceneSize.width, mSceneSize.height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+    // const auto kDepthBufferDesc = CD3DX12_RESOURCE_DESC::Tex2D(mDepthFormat, mSceneSize.width, mSceneSize.height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 
-    SM_ASSERT_HR(create_resource(mDepthStencil, D3D12_HEAP_TYPE_DEFAULT, kDepthBufferDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &kClearValue));
+    // SM_ASSERT_HR(create_resource(mDepthStencil, D3D12_HEAP_TYPE_DEFAULT, kDepthBufferDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &kClearValue));
 
-    const D3D12_DEPTH_STENCIL_VIEW_DESC kDesc = {
-        .Format = mDepthFormat,
-        .ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
-    };
+    // const D3D12_DEPTH_STENCIL_VIEW_DESC kDesc = {
+    //     .Format = mDepthFormat,
+    //     .ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
+    // };
 
-    mDepthStencilIndex = mDsvPool.allocate();
+    // mDepthStencilIndex = mDsvPool.allocate();
 
-    mDevice->CreateDepthStencilView(*mDepthStencil.mResource, &kDesc, mDsvPool.cpu_handle(mDepthStencilIndex));
+    // mDevice->CreateDepthStencilView(*mDepthStencil.mResource, &kDesc, mDsvPool.cpu_handle(mDepthStencilIndex));
 }
 
 void Context::destroy_depth_stencil() {
-    mDepthStencil.reset();
-    mDsvPool.release(mDepthStencilIndex);
+    // mDepthStencil.reset();
+    // mDsvPool.release(mDepthStencilIndex);
 }
 
 void Context::create_frame_rtvs() {
@@ -529,7 +529,9 @@ void Context::build_command_list() {
 
     {
         /// scene setup
+        mFrameGraph.execute();
 
+#if 0
         const auto kSceneRtvHandle = mRtvPool.cpu_handle(mSceneTargetRtvIndex);
         const auto kDsvHandle = mDsvPool.cpu_handle(mDepthStencilIndex);
         mCommandList->RSSetViewports(1, &mSceneViewport.mViewport);
@@ -555,6 +557,7 @@ void Context::build_command_list() {
 
             mCommandList->DrawIndexedInstanced(primitive.mIndexCount, 1, 0, 0, 0);
         }
+#endif
     }
 
     {
@@ -594,7 +597,7 @@ void Context::build_command_list() {
         mCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
         mCommandList->IASetVertexBuffers(0, 1, &mScreenQuad.mVertexBufferView);
 
-        const auto scene_srv_handle = mSrvPool.gpu_handle(mSceneTargetSrvIndex);
+        const auto scene_srv_handle = mSrvPool.gpu_handle(mFrameGraph.srv(mSceneTargetHandle));
 
         mCommandList->SetGraphicsRootDescriptorTable(0, scene_srv_handle);
         mCommandList->DrawInstanced(4, 1, 0, 0);
@@ -631,7 +634,7 @@ void Context::destroy_device() {
     }
 
     // depth stencil
-    mDepthStencil.reset();
+    // mDepthStencil.reset();
 
     // release sync objects
     mFence.reset();
@@ -706,8 +709,8 @@ void Context::create() {
 
     // create frame graph
     graph::TextureInfo info = { .name = "Target", .size = 1, .format = mSceneFormat };
-    graph::Handle target = mFrameGraph.include(info, graph::Access::eRenderTarget, mSceneTarget.get());
-    draw::draw_scene(mFrameGraph, target);
+    mSceneTargetHandle = mFrameGraph.include(info, graph::Access::eRenderTarget, mSceneTarget.get());
+    draw::draw_scene(mFrameGraph, mSceneTargetHandle);
 
     mFrameGraph.compile();
 }
@@ -812,7 +815,7 @@ void Context::resize_swapchain(math::uint2 size) {
 void Context::resize_draw(math::uint2 size) {
     wait_for_gpu();
 
-    mDepthStencil.reset();
+    // mDepthStencil.reset();
     destroy_scene_target();
     destroy_scene_rtv();
     destroy_depth_stencil();
