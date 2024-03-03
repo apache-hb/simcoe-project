@@ -57,7 +57,7 @@ void Context::create_blit_pipeline() {
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
         desc.Init_1_1(_countof(params), params, 1, &kSampler, kPostRootFlags);
 
-        serialize_root_signature(mBlitPipeline.mRootSignature, desc);
+        serialize_root_signature(mBlitPipeline.signature, desc);
     }
 
     {
@@ -70,7 +70,7 @@ void Context::create_blit_pipeline() {
         };
 
         const D3D12_GRAPHICS_PIPELINE_STATE_DESC kDesc = {
-            .pRootSignature = mBlitPipeline.mRootSignature.get(),
+            .pRootSignature = mBlitPipeline.signature.get(),
             .VS = CD3DX12_SHADER_BYTECODE(vs.data(), vs.size()),
             .PS = CD3DX12_SHADER_BYTECODE(ps.data(), ps.size()),
             .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
@@ -83,7 +83,7 @@ void Context::create_blit_pipeline() {
             .SampleDesc = { 1, 0 },
         };
 
-        SM_ASSERT_HR(mDevice->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&mBlitPipeline.mPipelineState)));
+        SM_ASSERT_HR(mDevice->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&mBlitPipeline.pso)));
     }
 }
 

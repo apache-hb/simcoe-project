@@ -20,8 +20,8 @@ void draw::draw_scene(graph::FrameGraph& graph, graph::Handle target) {
         auto rtv_cpu = context.mRtvPool.cpu_handle(rtv);
         auto dsv_cpu = context.mDsvPool.cpu_handle(dsv);
 
-        cmd->SetGraphicsRootSignature(*context.mPrimitivePipeline.mRootSignature);
-        cmd->SetPipelineState(*context.mPrimitivePipeline.mPipelineState);
+        cmd->SetGraphicsRootSignature(*context.mPrimitivePipeline.signature);
+        cmd->SetPipelineState(*context.mPrimitivePipeline.pso);
 
         cmd->OMSetRenderTargets(1, &rtv_cpu, false, &dsv_cpu);
 

@@ -61,8 +61,8 @@ namespace sm::render {
     };
 
     struct Pipeline {
-        Object<ID3D12RootSignature> mRootSignature;
-        Object<ID3D12PipelineState> mPipelineState;
+        Object<ID3D12RootSignature> signature;
+        Object<ID3D12PipelineState> pso;
 
         void reset();
     };

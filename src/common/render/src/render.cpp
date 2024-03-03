@@ -324,7 +324,7 @@ void Context::create_primitive_pipeline() {
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
         desc.Init_1_1(1, params, 0, nullptr, kPrimitiveRootFlags);
 
-        serialize_root_signature(mPrimitivePipeline.mRootSignature, desc);
+        serialize_root_signature(mPrimitivePipeline.signature, desc);
     }
 
     {
@@ -337,7 +337,7 @@ void Context::create_primitive_pipeline() {
         };
 
         const D3D12_GRAPHICS_PIPELINE_STATE_DESC kDesc = {
-            .pRootSignature = mPrimitivePipeline.mRootSignature.get(),
+            .pRootSignature = mPrimitivePipeline.signature.get(),
             .VS = CD3DX12_SHADER_BYTECODE(vs.data(), vs.size()),
             .PS = CD3DX12_SHADER_BYTECODE(ps.data(), ps.size()),
             .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
@@ -352,7 +352,7 @@ void Context::create_primitive_pipeline() {
             .SampleDesc = { 1, 0 },
         };
 
-        SM_ASSERT_HR(mDevice->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&mPrimitivePipeline.mPipelineState)));
+        SM_ASSERT_HR(mDevice->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&mPrimitivePipeline.pso)));
     }
 }
 
@@ -497,40 +497,11 @@ void Context::create_assets() {
 void Context::build_command_list() {
     mAllocator->SetCurrentFrameIndex(mFrameIndex);
 
-    reset_direct_commands(*mPrimitivePipeline.mPipelineState);
-    mCommandList->SetGraphicsRootSignature(*mPrimitivePipeline.mRootSignature);
+    reset_direct_commands();
 
     {
         /// scene setup
         mFrameGraph.execute();
-
-#if 0
-        const auto kSceneRtvHandle = mRtvPool.cpu_handle(mSceneTargetRtvIndex);
-        const auto kDsvHandle = mDsvPool.cpu_handle(mDepthStencilIndex);
-        mCommandList->RSSetViewports(1, &mSceneViewport.mViewport);
-        mCommandList->RSSetScissorRects(1, &mSceneViewport.mScissorRect);
-        mCommandList->OMSetRenderTargets(1, &kSceneRtvHandle, false, &kDsvHandle);
-
-        mCommandList->ClearRenderTargetView(kSceneRtvHandle, kClearColour.data(), 0, nullptr);
-        mCommandList->ClearDepthStencilView(kDsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
-        mCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-        /// draw primitives
-
-        auto [width, height] = mSceneSize.as<float>();
-
-        for (auto& primitive : mPrimitives) {
-            const float4x4 model = primitive.mTransform.matrix().transpose();
-            const float4x4 mvp = camera.mvp(width / height, model).transpose();
-            mCommandList->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
-
-            mCommandList->IASetVertexBuffers(0, 1, &primitive.mVertexBufferView);
-            mCommandList->IASetIndexBuffer(&primitive.mIndexBufferView);
-
-            mCommandList->DrawIndexedInstanced(primitive.mIndexCount, 1, 0, 0, 0);
-        }
-#endif
     }
 
     {
@@ -557,8 +528,8 @@ void Context::build_command_list() {
         mCommandList->SetDescriptorHeaps(_countof(heaps), heaps);
 
         /// post
-        mCommandList->SetGraphicsRootSignature(*mBlitPipeline.mRootSignature);
-        mCommandList->SetPipelineState(*mBlitPipeline.mPipelineState);
+        mCommandList->SetGraphicsRootSignature(*mBlitPipeline.signature);
+        mCommandList->SetPipelineState(*mBlitPipeline.pso);
 
         mCommandList->RSSetViewports(1, &mPresentViewport.mViewport);
         mCommandList->RSSetScissorRects(1, &mPresentViewport.mScissorRect);

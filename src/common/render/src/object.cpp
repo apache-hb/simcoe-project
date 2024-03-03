@@ -79,6 +79,6 @@ Viewport::Viewport(math::uint2 size) {
 }
 
 void Pipeline::reset() {
-    mRootSignature.reset();
-    mPipelineState.reset();
+    signature.reset();
+    pso.reset();
 }
