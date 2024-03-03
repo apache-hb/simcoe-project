@@ -57,7 +57,7 @@ Handle FrameGraph::texture(TextureInfo info, Access access) {
     return {index};
 }
 
-Handle FrameGraph::include(sm::StringView name, TextureInfo info, Access access, ID3D12Resource *resource) {
+Handle FrameGraph::include(TextureInfo info, Access access, ID3D12Resource *resource) {
     ResourceHandle handle = {
         .info = info,
         .type = ResourceType::eImported,
@@ -67,6 +67,22 @@ Handle FrameGraph::include(sm::StringView name, TextureInfo info, Access access,
 
     uint index = add_handle(handle, access);
     return {index};
+}
+
+ID3D12Resource *FrameGraph::resource(Handle handle) {
+    return mHandles[handle.index].resource;
+}
+
+render::RtvIndex FrameGraph::rtv(Handle handle) {
+    return mHandles[handle.index].rtv;
+}
+
+render::DsvIndex FrameGraph::dsv(Handle handle) {
+    return mHandles[handle.index].dsv;
+}
+
+render::SrvIndex FrameGraph::srv(Handle handle) {
+    return mHandles[handle.index].srv;
 }
 
 PassBuilder FrameGraph::pass(sm::StringView name) {

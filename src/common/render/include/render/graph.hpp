@@ -134,7 +134,7 @@ namespace sm::graph {
         render::SrvIndex srv(Handle handle);
 
         PassBuilder pass(sm::StringView name);
-        Handle include(sm::StringView name, TextureInfo info, Access access, ID3D12Resource *resource);
+        Handle include(TextureInfo info, Access access, ID3D12Resource *resource);
 
         void compile();
         void execute();

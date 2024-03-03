@@ -8,6 +8,8 @@
 
 #include "DDSTextureLoader12.h"
 
+#include "render/draw/scene.hpp"
+
 #include "d3dx12/d3dx12_core.h"
 #include "d3dx12/d3dx12_root_signature.h"
 #include "d3dx12/d3dx12_barriers.h"
@@ -682,6 +684,7 @@ Context::Context(const RenderConfig& config)
     , mSceneSize(config.scene_size)
     , mPresentViewport(mSwapChainSize)
     , mSceneViewport(mSceneSize)
+    , mFrameGraph(*this)
 { }
 
 void Context::create() {
@@ -700,6 +703,13 @@ void Context::create() {
     create_scene_target();
     init_scene();
     create_imgui();
+
+    // create frame graph
+    graph::TextureInfo info = { .name = "Target", .size = 1, .format = mSceneFormat };
+    graph::Handle target = mFrameGraph.include(info, graph::Access::eRenderTarget, mSceneTarget.get());
+    draw::draw_scene(mFrameGraph, target);
+
+    mFrameGraph.compile();
 }
 
 void Context::destroy() {
