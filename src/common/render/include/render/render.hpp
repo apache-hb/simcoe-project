@@ -220,6 +220,7 @@ namespace sm::render {
         void copy_buffer(Object<ID3D12GraphicsCommandList1>& list, Resource& dst, Resource& src, size_t size);
 
         // render graph
+        graph::Handle mSwapChainHandle;
         graph::Handle mSceneTargetHandle;
         graph::FrameGraph mFrameGraph;
 

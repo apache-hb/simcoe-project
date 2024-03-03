@@ -129,6 +129,13 @@ namespace sm::graph {
             }
         };
 
+        // update a handle with new data
+        // this is quite dangerous, only really used for the swapchain
+        void update(Handle handle, ID3D12Resource *resource);
+        void update(Handle handle, render::RtvIndex rtv);
+        void update(Handle handle, render::DsvIndex dsv);
+        void update(Handle handle, render::SrvIndex srv);
+
         ID3D12Resource *resource(Handle handle);
         render::RtvIndex rtv(Handle handle);
         render::DsvIndex dsv(Handle handle);

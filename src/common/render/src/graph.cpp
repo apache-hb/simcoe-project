@@ -70,6 +70,22 @@ Handle FrameGraph::include(TextureInfo info, Access access, ID3D12Resource *reso
     return {index};
 }
 
+void FrameGraph::update(Handle handle, ID3D12Resource *resource) {
+    mHandles[handle.index].resource = resource;
+}
+
+void FrameGraph::update(Handle handle, render::RtvIndex rtv) {
+    mHandles[handle.index].rtv = rtv;
+}
+
+void FrameGraph::update(Handle handle, render::DsvIndex dsv) {
+    mHandles[handle.index].dsv = dsv;
+}
+
+void FrameGraph::update(Handle handle, render::SrvIndex srv) {
+    mHandles[handle.index].srv = srv;
+}
+
 ID3D12Resource *FrameGraph::resource(Handle handle) {
     return mHandles[handle.index].resource;
 }
@@ -261,33 +277,41 @@ void FrameGraph::compile() {
 
 void FrameGraph::execute() {
     sm::HashMap<ID3D12Resource*, D3D12_RESOURCE_STATES> states;
+    auto& commands = mContext.mCommandList;
+
+    auto update_state = [&](Handle index, Access access) {
+        ID3D12Resource *resource = mHandles[index.index].resource;
+        D3D12_RESOURCE_STATES state = access.as_facade();
+
+        if (states.contains(resource)) commands.transition(resource, states[resource], state);
+        states[resource] = state;
+    };
 
     struct FinalState {
         ID3D12Resource *resource;
         D3D12_RESOURCE_STATES state;
     };
-    sm::SmallVector<FinalState, 8> created_resources;
+    sm::SmallVector<FinalState, 8> restoration;
 
-    auto& commands = mContext.mCommandList;
+    for (auto& handle : mHandles) {
+        if (!handle.is_imported()) continue;
+        restoration.push_back({handle.resource, handle.access.as_facade()});
+        states[handle.resource] = handle.access.as_facade();
+    }
+
     for (auto& pass : mRenderPasses) {
         if (!pass.is_used()) continue;
 
         for (auto& [index, access] : pass.creates) {
-            ID3D12Resource *resource = mHandles[index.index].resource;
-            created_resources.push_back({resource, access.as_facade()});
-            states[resource] = access.as_facade();
+            update_state(index, access);
         }
 
         for (auto& [index, access] : pass.reads) {
-            ID3D12Resource *resource = mHandles[index.index].resource;
-            if (states.contains(resource)) commands.transition(resource, states[resource], access.as_facade());
-            states[resource] = access.as_facade();
+            update_state(index, access);
         }
 
         for (auto& [index, access] : pass.writes) {
-            ID3D12Resource *resource = mHandles[index.index].resource;
-            if (states.contains(resource)) commands.transition(resource, states[resource], access.as_facade());
-            states[resource] = access.as_facade();
+            update_state(index, access);
         }
 
         commands.submit_barriers();
@@ -296,7 +320,7 @@ void FrameGraph::execute() {
     }
 
     // transition created resource back to their initial state
-    for (auto& [resource, state] : created_resources) {
+    for (auto& [resource, state] : restoration) {
         commands.transition(resource, states[resource], state);
     }
 

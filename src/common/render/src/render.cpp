@@ -8,6 +8,8 @@
 
 #include "DDSTextureLoader12.h"
 
+#include "render/draw/imgui.hpp"
+#include "render/draw/present.hpp"
 #include "render/draw/scene.hpp"
 
 #include "d3dx12/d3dx12_core.h"
@@ -499,11 +501,19 @@ void Context::build_command_list() {
 
     reset_direct_commands();
 
+    auto& [backbuffer, _0, rtv, _1] = mFrames[mFrameIndex];
+
+    mFrameGraph.update(mSwapChainHandle, backbuffer.get());
+    mFrameGraph.update(mSwapChainHandle, rtv);
+
     {
-        /// scene setup
+        ID3D12DescriptorHeap *heaps[] = { mSrvPool.get() };
+        mCommandList->SetDescriptorHeaps(_countof(heaps), heaps);
+
         mFrameGraph.execute();
     }
 
+#if 0
     {
         auto& [backbuffer, allocator, rtv_index, _] = mFrames[mFrameIndex];
 
@@ -566,14 +576,25 @@ void Context::build_command_list() {
 
         mCommandList->ResourceBarrier(_countof(kEndPostBarriers), kEndPostBarriers);
     }
+#endif
 
     SM_ASSERT_HR(mCommandList->Close());
 }
 
 void Context::create_frame_graph() {
-    graph::TextureInfo info = { .name = "Target", .size = 1, .format = mSceneFormat };
-    mSceneTargetHandle = mFrameGraph.include(info, graph::Access::eRenderTarget, mSceneTarget.get());
-    draw::draw_scene(mFrameGraph, mSceneTargetHandle);
+    {
+        graph::TextureInfo info = { .name = "SwapChain", .size = 1, .format = mSwapChainFormat };
+        mSwapChainHandle = mFrameGraph.include(info, graph::Access::ePresent, nullptr);
+    }
+
+    {
+        graph::TextureInfo info = { .name = "Target", .size = 1, .format = mSceneFormat };
+        mSceneTargetHandle = mFrameGraph.include(info, graph::Access::eRenderTarget, mSceneTarget.get());
+        draw::draw_scene(mFrameGraph, mSceneTargetHandle);
+    }
+
+    draw::draw_present(mFrameGraph, mSwapChainHandle, mSceneTargetHandle);
+    draw::draw_imgui(mFrameGraph, mSwapChainHandle);
 
     mFrameGraph.compile();
 }
