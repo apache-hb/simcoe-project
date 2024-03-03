@@ -9,4 +9,3 @@ patch_directory = d3d12ma
 
 [provide]
 d3d12ma = d3d12ma_dep
-

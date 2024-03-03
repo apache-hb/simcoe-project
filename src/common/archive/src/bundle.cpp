@@ -9,6 +9,9 @@
 
 #include "logs/logs.hpp"
 
+#include "artery-font/artery-font.h"
+#include "stb/stb_image.h"
+
 #include "fs/fs.h"
 #include "tar/tar.h"
 
@@ -57,4 +60,55 @@ ShaderIr Bundle::get_shader_bytecode(const char *name) const {
 
 TextureData Bundle::get_texture(const char *name) const {
     return get_file("textures", fmt::format("{}.dds", name));
+}
+
+static int wrap_io_read(void *dst, int length, void *user) {
+    io_t *io = (io_t*)user;
+    return int_cast<int>(io_read(io, dst, int_cast<size_t>(length)));
+}
+
+// i have some choice words for artery-fonts api design
+template<typename T>
+struct ArteryVector : sm::Vector<T> {
+    using Super = sm::Vector<T>;
+    using Super::Super;
+
+    operator T*() { return Super::data(); }
+};
+
+using ArteryByteArray = ArteryVector<unsigned char>;
+
+FontInfo Bundle::get_font(const char *name) const {
+    auto texture = get_file("fonts", fmt::format("{}.png", name));
+
+    int width, height, channels;
+    stbi_uc *pixels = stbi_load_from_memory(texture.data(), texture.size(), &width, &height, &channels, 4);
+
+    if (pixels == nullptr) {
+        gSink.error("failed to load font texture: {}", stbi_failure_reason());
+        return {};
+    }
+
+    gSink.info("loaded font texture: {} ({}x{})", name, width, height);
+
+    sm::String path = fmt::format("bundle/fonts/{}.arfont", name);
+    IoHandle file = fs_open(*mFileSystem, path.c_str(), eOsAccessRead);
+
+    if (OsError err = io_error(*file); err.failed()) {
+        gSink.error("failed to open file: {}", err);
+        return {};
+    }
+
+    using Artery = artery_font::ArteryFont<float, ArteryVector, ArteryByteArray, sm::String>;
+
+    Artery font;
+    auto result = artery_font::decode<wrap_io_read>(font, (void*)file.get());
+    if (!result) {
+        gSink.error("failed to decode font: {}", name);
+        return {};
+    }
+
+    gSink.info("loaded font: {}", name);
+
+    return {};
 }

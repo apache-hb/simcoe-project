@@ -12,7 +12,7 @@ src = [
 ]
 
 deps = [
-    core, logs, math,
+    core, logs, math, stb,
     cthulhu.get_variable('fs'),
     cthulhu.get_variable('tar')
 ]
@@ -20,7 +20,7 @@ deps = [
 libarchive = library('archive', src,
     cpp_args : [ '-DSM_BUNDLE_BUILD=1' ],
     include_directories : [ archive_include, reflect_include ],
-    dependencies : deps
+    dependencies : deps + [ artery ]
 )
 
 archive = declare_dependency(

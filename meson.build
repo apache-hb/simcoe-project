@@ -70,6 +70,7 @@ warp = subproject('d3d-warp')
 dxc = subproject('dxc').get_variable('dxc')
 msdf_atlas_gen = subproject('msdf-atlas-gen').get_variable('msdf_atlas_gen')
 compressonator = subproject('compressonator').get_variable('cli')
+artery = dependency('artery-font-format')
 
 windows = import('windows')
 
@@ -224,6 +225,7 @@ subdir('src/common/logs')
 subdir('src/common/archive')
 subdir('src/common/input')
 subdir('src/common/system')
+subdir('src/common/world')
 subdir('src/common/threads')
 
 # vendor imgui here to have access to our own math library

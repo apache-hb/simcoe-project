@@ -104,6 +104,14 @@
                 { "entry": "vs_main", "target": "vs" },
                 { "entry": "ps_main", "target": "ps" }
             ]
+        },
+        {
+            "name": "msdf_font",
+            "path": "shaders/msdf_font.hlsl",
+            "targets": [
+                { "entry": "vs_main", "target": "vs" },
+                { "entry": "ps_main", "target": "ps" }
+            ]
         }
     ],
     "fonts": [

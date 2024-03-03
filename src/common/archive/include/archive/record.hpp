@@ -1,7 +1,5 @@
 #pragma once
 
-#include "archive/bundle.hpp"
-
 #include "core/bitmap.hpp"
 
 #include "os/os.h"

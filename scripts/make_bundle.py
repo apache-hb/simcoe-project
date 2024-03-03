@@ -132,7 +132,7 @@ def main():
 
         atlas_path = os.path.join(fontdir, item['name'])
         print(f"generating msdf atlas for {item['name']} ({em_size=})")
-        result = os.system(f'{msdf} -font {itempath} -size {em_size} -format png -imageout {atlas_path}.png -json {atlas_path}.json')
+        result = os.system(f'{msdf} -font {itempath} -size {em_size} -format png -imageout {atlas_path}.png -charset {inputdir}/ascii.txt -arfont {atlas_path}.arfont')
         if result != 0:
             sys.exit(result)
 
