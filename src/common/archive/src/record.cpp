@@ -2,11 +2,15 @@
 
 #include "core/format.hpp" // IWYU pragma: keep
 
+#include "logs/logs.hpp"
+
 using namespace sm;
 using namespace sm::archive;
 
 static_assert(sizeof(RecordStoreHeader) == 20);
 static_assert(sizeof(RecordEntryHeader) == 8);
+
+static auto gSink = logs::get_sink(logs::Category::eAssets);
 
 static constexpr uint32_t kFileMagic = '\0MUC';
 static constexpr RecordStoreVersion kCurrentVersion = RecordStoreVersion::eCurrent;
@@ -30,7 +34,7 @@ static constexpr uint32_t checksum(const uint8_t *data, size_t size) {
 
 bool RecordStore::check(bool expr, std::string_view fmt, auto&&... args) const {
     if (!expr) {
-        mSink.error(fmt, std::forward<decltype(args)>(args)...);
+        gSink.error(fmt, std::forward<decltype(args)>(args)...);
         return false;
     }
     return true;
@@ -88,7 +92,7 @@ bool RecordStore::create() {
     static constexpr os_access_t kAccess = eOsAccessRead | eOsAccessWrite;
 
     if (OsError err = os_file_open(mFilePath, kAccess, &mFileHandle)) {
-        mSink.error("unable to open file, {}", err);
+        gSink.error("unable to open file, {}", err);
         return false;
     }
 
@@ -99,7 +103,7 @@ bool RecordStore::create() {
     size_t size_as_bytes = mSize.as_bytes();
 
     if (OsError err = os_file_expand(&mFileHandle, size_as_bytes)) {
-        mSink.error("unable to expand file, {}", err);
+        gSink.error("unable to expand file, {}", err);
         return false;
     }
 
@@ -108,7 +112,7 @@ bool RecordStore::create() {
     static constexpr os_protect_t kProtect = eOsProtectRead | eOsProtectWrite;
 
     if (OsError err = os_file_map(&mFileHandle, kProtect, size_as_bytes, &mMapHandle)) {
-        mSink.error("unable to map file, {}", err);
+        gSink.error("unable to map file, {}", err);
         return false;
     }
 
@@ -135,7 +139,7 @@ bool RecordStore::create() {
 
     sm::Memory public_size = get_public_size();
     if (public_size.as_bytes() % 8 != 0) {
-        mSink.error("public_size size must be a multiple of 8, {}", public_size);
+        gSink.error("public_size size must be a multiple of 8, {}", public_size);
         return false;
     }
 
@@ -162,7 +166,7 @@ bool RecordStore::create() {
 }
 
 void RecordStore::destroy() {
-    mSink.info("closing record store {}", mFilePath);
+    gSink.info("closing record store {}", mFilePath);
     // unmap the file from memory
     if (is_valid())
         update_header();
@@ -227,7 +231,7 @@ RecordLookup RecordStore::get_record(uint32_t id, void **data, uint16_t size) {
     std::memset(ptr, 0, size);
     *data = ptr;
 
-    mSink.info("record created\n| id: {}\n| size: {}\n| offset: {}", id, size, found->offset);
+    gSink.info("record created\n| id: {}\n| size: {}\n| offset: {}", id, size, found->offset);
 
     return RecordLookup::eCreated;
 }
@@ -268,16 +272,16 @@ void RecordStore::destroy_safe() {
 
 RecordStore::RecordStore(const RecordStoreConfig &config)
     : mFilePath(config.path)
-    , mSink(config.logger)
     , mSize(config.size.b() + (header_size(config.record_count)))
-    , mCapacity(config.record_count) {
+    , mCapacity(config.record_count)
+{
     CTASSERT(mFilePath != nullptr);
     CTASSERT(mSize > 0);
     CTASSERT(mCapacity > 0);
 
     mValid = create();
     if (mValid) {
-        mSink.info("record store created\n| path: {}\n| size: {}\n| records: {}", mFilePath, mSize,
+        gSink.info("record store created\n| path: {}\n| size: {}\n| records: {}", mFilePath, mSize,
                    mCapacity);
     }
 }

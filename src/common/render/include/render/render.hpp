@@ -42,7 +42,6 @@ namespace sm::render {
         uint srv_heap_size;
 
         Bundle& bundle;
-        logs::ILogger &logger;
         sys::Window &window;
     };
 
@@ -79,7 +78,6 @@ namespace sm::render {
 
         DebugFlags mDebugFlags;
 
-        Sink mSink;
         Instance mInstance;
         WindowState mWindowState;
 

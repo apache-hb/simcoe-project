@@ -40,14 +40,13 @@ protected:
 class Window {
     HWND m_window = nullptr;
     IWindowEvents *m_events = nullptr;
-    SystemSink m_log;
 
     static LRESULT CALLBACK proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 
     void create(const WindowConfig &config);
     void destroy_window();
 
-    friend void create(HINSTANCE hInstance, logs::ILogger &logger);
+    friend void create(HINSTANCE hInstance);
 
 public:
     SM_NOCOPY(Window)

@@ -13,7 +13,6 @@ namespace sm::archive {
     class RecordStore {
         // file path
         const char *mFilePath = nullptr;
-        AssetSink mSink;
 
         // mapping data
         os_file_t mFileHandle;

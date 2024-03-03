@@ -1,6 +1,5 @@
 module sm::sys;
 
-import "logs/logs.hpp";
 import "core/units.hpp";
 
 import "core/win32.hpp";
@@ -20,7 +19,6 @@ struct WindowConfig {
     width: int;
     height: int;
     title: cstring;
-    logger: &opaque("sm::logs::ILogger");
 }
 
 // win32 types

@@ -1,0 +1,16 @@
+module sm::world;
+
+[[table, iterator]]
+variant MeshType {
+    [[format("Unknown")]] default None
+    [[format("Cube")]] case Cube
+    [[format("Sphere")]] case Sphere
+    [[format("Cylinder")]] case Cylinder
+    [[format("Plane")]] case Plane
+    [[format("Wedge")]] case Wedge
+    [[format("Capsule")]] case Capsule
+    [[format("Diamond")]] case Diamond
+    [[format("Geo Sphere")]] case GeoSphere
+
+    [[format("Imported Mesh")]] case Imported
+}

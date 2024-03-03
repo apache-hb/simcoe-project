@@ -14,8 +14,10 @@
 using namespace sm;
 using namespace sm::threads;
 
+static auto gSink = logs::get_sink(logs::Category::eSchedule);
+
 template <typename T>
-T *advance(T *ptr, size_t bytes) {
+static T *advance(T *ptr, size_t bytes) {
     return reinterpret_cast<T *>(reinterpret_cast<std::byte *>(ptr) + bytes);
 }
 
@@ -271,8 +273,7 @@ struct CpuSetLayout {
     }
 };
 
-CpuGeometry threads::global_cpu_geometry(logs::ILogger &logger) {
-    logs::Sink<logs::Category::eSchedule> log{logger};
+CpuGeometry threads::global_cpu_geometry() {
     GeometryBuilder builder;
     ProcessorInfoLayout processor_layout{&builder};
     CpuSetLayout cpuset_layout{&builder};
@@ -300,7 +301,7 @@ CpuGeometry threads::global_cpu_geometry(logs::ILogger &logger) {
 
     // print cpu geometry
 
-    log.info("cpu geometry: {} package(s), {} chiplet(s), {} cores, {} subcores",
+    gSink.info("cpu geometry: {} package(s), {} chiplet(s), {} cores, {} subcores",
              builder.packages.size(), builder.chiplets.size(), builder.cores.size(),
              builder.subcores.size());
 

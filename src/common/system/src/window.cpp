@@ -88,7 +88,7 @@ void Window::create(const WindowConfig &info) {
 
 Window::Window(const WindowConfig &info, IWindowEvents *events)
     : m_events(events)
-    , m_log(info.logger) {
+{
     CTASSERT(events != nullptr);
 
     create(info);
@@ -106,7 +106,7 @@ WindowPlacement Window::get_placement(void) const {
 }
 
 void Window::set_placement(const WindowPlacement &placement) {
-    SM_CHECK_WIN32(SetWindowPlacement(m_window, &placement), m_log);
+    SM_CHECK_WIN32(SetWindowPlacement(m_window, &placement));
 }
 
 void Window::show_window(ShowWindow show) {
@@ -116,14 +116,14 @@ void Window::show_window(ShowWindow show) {
 }
 
 void Window::destroy_window() {
-    SM_CHECK_WIN32(DestroyWindow(m_window), m_log);
+    SM_CHECK_WIN32(DestroyWindow(m_window));
     m_window = nullptr;
 }
 
 void Window::set_title(const char *title) {
     CTASSERT(title != nullptr);
 
-    SM_CHECK_WIN32(SetWindowTextA(m_window, title), m_log);
+    SM_CHECK_WIN32(SetWindowTextA(m_window, title));
 }
 
 WindowCoords Window::get_coords() const {
@@ -146,15 +146,15 @@ bool Window::center_window(MultiMonitor monitor, bool topmost) {
 
     // get current monitor
     HMONITOR hmonitor = MonitorFromWindow(m_window, monitor.as_integral());
-    if (!SM_CHECK_WIN32(hmonitor != nullptr, m_log)) return false;
+    if (!SM_CHECK_WIN32(hmonitor != nullptr)) return false;
 
     // get monitor info
     MONITORINFO monitor_info{.cbSize = sizeof(monitor_info)};
-    if (!SM_CHECK_WIN32(GetMonitorInfoA(hmonitor, &monitor_info), m_log)) return false;
+    if (!SM_CHECK_WIN32(GetMonitorInfoA(hmonitor, &monitor_info))) return false;
 
     // get window rect
     RECT rect{};
-    if (!SM_CHECK_WIN32(GetWindowRect(m_window, &rect), m_log)) return false;
+    if (!SM_CHECK_WIN32(GetWindowRect(m_window, &rect))) return false;
 
     // calculate center
     int x = (monitor_info.rcWork.left + monitor_info.rcWork.right) / 2 -
@@ -166,5 +166,5 @@ bool Window::center_window(MultiMonitor monitor, bool topmost) {
     UINT flags = topmost ? 0 : SWP_NOZORDER;
 
     // move window
-    return SM_CHECK_WIN32(SetWindowPos(m_window, insert, x, y, 0, 0, SWP_NOSIZE | flags), m_log);
+    return SM_CHECK_WIN32(SetWindowPos(m_window, insert, x, y, 0, 0, SWP_NOSIZE | flags));
 }

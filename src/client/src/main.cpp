@@ -34,8 +34,6 @@
 using namespace sm;
 using namespace math;
 
-using GlobalSink = logs::Sink<logs::Category::eGlobal>;
-
 // void *operator new(size_t size) {
 //     NEVER("operator new called");
 // }
@@ -51,6 +49,8 @@ using GlobalSink = logs::Sink<logs::Category::eGlobal>;
 // void operator delete[](void *ptr) {
 //     NEVER("operator delete[] called");
 // }
+
+static auto gSink = logs::get_sink(logs::Category::eGlobal);
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
                                                              LPARAM lParam);
@@ -73,7 +73,7 @@ static std::string format_log(const logs::Message &message, const char *colour, 
     return header;
 }
 
-class FileLog final : public logs::ILogger {
+class FileLog final : public logs::ILogChannel {
     io_t *io;
 
     void accept(const logs::Message &message) override {
@@ -102,11 +102,11 @@ class FileLog final : public logs::ILogger {
 
 public:
     constexpr FileLog(io_t *io)
-        : ILogger(logs::Severity::eInfo)
-        , io(io) {}
+        : io(io)
+    { }
 };
 
-class ConsoleLog final : public logs::ILogger {
+class ConsoleLog final : public logs::ILogChannel {
     static constexpr colour_t get_colour(logs::Severity severity) {
         using Reflect = ctu::TypeInfo<logs::Severity>;
         CTASSERTF(severity.is_valid(), "invalid severity: %s", Reflect::to_string(severity).data());
@@ -150,8 +150,7 @@ class ConsoleLog final : public logs::ILogger {
     }
 
 public:
-    constexpr ConsoleLog(logs::Severity severity)
-        : ILogger(severity) {}
+    ConsoleLog() = default;
 };
 
 #if 0
@@ -272,7 +271,7 @@ public:
 };
 
 constinit static DefaultSystemError gDefaultError{};
-static constinit ConsoleLog gConsoleLog{logs::Severity::eInfo};
+static constinit ConsoleLog gConsoleLog{};
 
 static void common_init(void) {
     bt_init();
@@ -288,13 +287,16 @@ static void common_init(void) {
 
         auto message = sm::vformat(msg, args);
 
-        gConsoleLog.log(logs::Category::eGlobal, logs::Severity::ePanic, message.data());
+        gSink.log(logs::Severity::ePanic, message.data());
 
         bt_report_t *report = bt_report_collect(arena);
         print_backtrace(kPrintOptions, report);
 
         std::exit(CT_EXIT_INTERNAL); // NOLINT
     };
+
+    auto& logger = logs::get_logger();
+    logger.add_channel(&gConsoleLog);
 }
 
 static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
@@ -303,7 +305,6 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .width = 1280,
         .height = 720,
         .title = "Priority Zero",
-        .logger = gConsoleLog,
     };
 
     DefaultWindowEvents events{store};
@@ -320,7 +321,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     auto client = window.get_client_coords().size();
 
     IoHandle tar = io_file("build/bundle.tar", eOsAccessRead, sm::global_arena());
-    sm::Bundle bundle{*tar, archive::BundleFormat::eTar, gConsoleLog};
+    sm::Bundle bundle{*tar, archive::BundleFormat::eTar};
 
     // enabling gpu based validation on the warp adapter
     // absolutely tanks performance
@@ -350,7 +351,6 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .srv_heap_size = 1024,
 
         .bundle = bundle,
-        .logger = gConsoleLog,
         .window = window,
     };
 
@@ -388,23 +388,22 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     context.destroy();
 }
 
-static int client_main(GlobalSink& sink, sys::ShowWindow show) {
+static int client_main(sys::ShowWindow show) {
     archive::RecordStoreConfig store_config = {
         .path = "client.bin",
         .size = {1, Memory::eMegabytes},
         .record_count = 256,
-        .logger = gConsoleLog,
     };
 
     archive::RecordStore store{store_config};
 
-    threads::CpuGeometry geometry = threads::global_cpu_geometry(gConsoleLog);
+    threads::CpuGeometry geometry = threads::global_cpu_geometry();
 
     threads::SchedulerConfig thread_config = {
         .worker_count = 8,
         .process_priority = threads::PriorityClass::eNormal,
     };
-    threads::Scheduler scheduler{thread_config, geometry, gConsoleLog};
+    threads::Scheduler scheduler{thread_config, geometry};
 
     if (!store.is_valid()) {
         store.reset();
@@ -416,20 +415,19 @@ static int client_main(GlobalSink& sink, sys::ShowWindow show) {
 }
 
 static int common_main(sys::ShowWindow show) {
-    GlobalSink general{gConsoleLog};
-    general.info("SMC_DEBUG = {}", SMC_DEBUG);
-    general.info("CTU_DEBUG = {}", CTU_DEBUG);
+    gSink.info("SMC_DEBUG = {}", SMC_DEBUG);
+    gSink.info("CTU_DEBUG = {}", CTU_DEBUG);
 
-    int result =  client_main(general, show);
+    int result = client_main(show);
 
-    general.info("client exiting with {}", result);
+    gSink.info("client exiting with {}", result);
 
     return result;
 }
 
 struct System {
     System(HINSTANCE hInstance) {
-        sys::create(hInstance, gConsoleLog);
+        sys::create(hInstance);
     }
     ~System() {
         sys::destroy();
@@ -437,11 +435,10 @@ struct System {
 };
 
 int main(int argc, const char **argv) {
-    GlobalSink general{gConsoleLog};
     common_init();
 
     sm::Span<const char*> args{argv, size_t(argc)};
-    general.info("args = [{}]", fmt::join(args, ", "));
+    gSink.info("args = [{}]", fmt::join(args, ", "));
 
     System sys{GetModuleHandleA(nullptr)};
 
@@ -449,11 +446,10 @@ int main(int argc, const char **argv) {
 }
 
 int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
-    GlobalSink general{gConsoleLog};
     common_init();
 
-    general.info("lpCmdLine = {}", lpCmdLine);
-    general.info("nShowCmd = {}", nShowCmd);
+    gSink.info("lpCmdLine = {}", lpCmdLine);
+    gSink.info("nShowCmd = {}", nShowCmd);
 
     System sys{hInstance};
 

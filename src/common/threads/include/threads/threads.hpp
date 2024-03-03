@@ -2,7 +2,6 @@
 
 #include "core/macros.hpp"
 #include "core/vector.hpp"
-#include "logs/sink.hpp"
 
 #include "threads.reflect.h"
 
@@ -71,7 +70,7 @@ struct CpuGeometry {
     }
 };
 
-CpuGeometry global_cpu_geometry(logs::ILogger &logger);
+CpuGeometry global_cpu_geometry();
 
 class ThreadHandle {
     HANDLE m_handle = nullptr;
@@ -87,16 +86,15 @@ public:
 
 class Scheduler {
     CpuGeometry m_cpu;
-    logs::Sink<logs::Category::eSchedule> m_log;
 
     static DWORD WINAPI thread_thunk(LPVOID param);
 
     ThreadHandle launch_thread(void *param);
 
 public:
-    Scheduler(const SchedulerConfig &, CpuGeometry geometry, logs::ILogger &logger)
+    Scheduler(const SchedulerConfig &, CpuGeometry geometry)
         : m_cpu(std::move(geometry))
-        , m_log(logger) {}
+    { }
 
     template <typename T>
     ThreadHandle launch(SM_UNUSED T &&task) {

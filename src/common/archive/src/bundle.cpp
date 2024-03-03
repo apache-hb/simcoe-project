@@ -7,34 +7,38 @@
 #include "core/text.hpp"
 #include "core/format.hpp" // IWYU pragma: keep
 
+#include "logs/logs.hpp"
+
 #include "fs/fs.h"
 #include "tar/tar.h"
 
 using namespace sm;
 
-Bundle::Bundle(fs_t *vfs, logs::ILogger &logger)
-    : mSink(logger)
-    , mFileSystem(vfs)
+static logs::Sink gSink = logs::get_sink(logs::Category::eAssets);
+
+Bundle::Bundle(fs_t *vfs)
+    : mFileSystem(vfs)
 { }
 
-Bundle::Bundle(io_t *stream, archive::BundleFormat type, logs::ILogger &logger)
-    : Bundle(fs_virtual("bundle", sm::global_arena()), logger)
+Bundle::Bundle(io_t *stream, archive::BundleFormat type)
+    : Bundle(fs_virtual("bundle", sm::global_arena()))
 {
     if (type != archive::BundleFormat::eTar) {
-        mSink.warn("unsupported bundle format: {}", type);
+        gSink.warn("unsupported bundle format: {}", type);
         return;
     }
 
     if (tar_result_t err = tar_extract(*mFileSystem, stream); err.error != eTarOk) {
-        mSink.error("failed to extract bundle: {}", tar_error_string(err.error));
+        gSink.error("failed to extract bundle: {}", tar_error_string(err.error));
     }
 }
 
 sm::Span<const uint8> Bundle::get_file(sm::StringView dir, sm::StringView name) const {
     sm::String path = fmt::format("bundle/{}/{}", dir, name);
     IoHandle file = fs_open(*mFileSystem, path.c_str(), eOsAccessRead);
+
     if (OsError err = io_error(*file); err.failed()) {
-        mSink.error("failed to open file: {}", err);
+        gSink.error("failed to open file: {}", err);
         return {};
     }
 
@@ -42,7 +46,7 @@ sm::Span<const uint8> Bundle::get_file(sm::StringView dir, sm::StringView name) 
     const uint8 *data = (uint8*)io_map(*file, eOsProtectRead);
 
     sm::Memory mem = size;
-    mSink.info("loaded file: {} ({} bytes)", path, mem);
+    gSink.info("loaded file: {} ({} bytes)", path, mem);
 
     return { data, size };
 }

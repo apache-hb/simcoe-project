@@ -5,11 +5,13 @@
 using namespace sm;
 using namespace sm::render;
 
-void log_adapter(const Adapter &adapter, Sink &sink) {
-    sink.info("|| video memory: {}", adapter.vidmem());
-    sink.info("|| system memory: {}", adapter.sysmem());
-    sink.info("|| shared memory: {}", adapter.sharedmem());
-    sink.info("|| flags: {}", adapter.flags());
+static auto gSink = logs::get_sink(logs::Category::eRHI);
+
+void log_adapter(const Adapter &adapter) {
+    gSink.info("|| video memory: {}", adapter.vidmem());
+    gSink.info("|| system memory: {}", adapter.sysmem());
+    gSink.info("|| shared memory: {}", adapter.sharedmem());
+    gSink.info("|| flags: {}", adapter.flags());
 }
 
 Adapter::Adapter(IDXGIAdapter1 *adapter)
@@ -27,11 +29,11 @@ Adapter::Adapter(IDXGIAdapter1 *adapter)
 bool Instance::enum_by_preference() {
     Object<IDXGIFactory6> factory6;
     if (Result hr = mFactory.query(&factory6); !hr) {
-        mSink.warn("failed to query factory6: {}", hr);
+        gSink.warn("failed to query factory6: {}", hr);
         return false;
     }
 
-    mSink.info("querying for {} adapter", mAdapterSearch);
+    gSink.info("querying for {} adapter", mAdapterSearch);
 
     IDXGIAdapter1 *adapter;
     for (UINT i = 0;
@@ -39,8 +41,8 @@ bool Instance::enum_by_preference() {
                                               IID_PPV_ARGS(&adapter)) != DXGI_ERROR_NOT_FOUND;
          ++i) {
         auto &it = mAdapters.emplace_back(adapter);
-        mSink.info("| adapter {}: {}", i, it.name());
-        log_adapter(it, mSink);
+        gSink.info("| adapter {}: {}", i, it.name());
+        log_adapter(it);
     }
     return true;
 }
@@ -49,8 +51,8 @@ void Instance::enum_adapters() {
     IDXGIAdapter1 *adapter;
     for (UINT i = 0; mFactory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; ++i) {
         auto &it = mAdapters.emplace_back(adapter);
-        mSink.info("| adapter {}: {}", i, it.name());
-        log_adapter(it, mSink);
+        gSink.info("| adapter {}: {}", i, it.name());
+        log_adapter(it);
     }
 }
 
@@ -58,20 +60,20 @@ void Instance::enable_leak_tracking() {
     if (Result hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&mDebug))) {
         mDebug->EnableLeakTrackingForThread();
     } else {
-        mSink.error("failed to enable dxgi debug interface: {}", hr);
+        gSink.error("failed to enable dxgi debug interface: {}", hr);
     }
 }
 
 void Instance::query_tearing_support() {
     Object<IDXGIFactory5> factory;
     if (Result hr = mFactory.query(&factory); !hr) {
-        mSink.warn("failed to query factory5: {}", hr);
+        gSink.warn("failed to query factory5: {}", hr);
         return;
     }
 
     BOOL tearing = FALSE;
     if (Result hr = factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &tearing, sizeof(tearing)); !hr) {
-        mSink.warn("failed to query tearing support: {}", hr);
+        gSink.warn("failed to query tearing support: {}", hr);
         return;
     }
 
@@ -79,34 +81,35 @@ void Instance::query_tearing_support() {
 }
 
 Instance::Instance(InstanceConfig config)
-    : mSink(config.logger)
-    , mFlags(config.flags)
-    , mAdapterSearch(config.preference) {
+    : mFlags(config.flags)
+    , mAdapterSearch(config.preference)
+{
     bool debug = mFlags.test(DebugFlags::eFactoryDebug);
     const UINT flags = debug ? DXGI_CREATE_FACTORY_DEBUG : 0;
     SM_ASSERT_HR(CreateDXGIFactory2(flags, IID_PPV_ARGS(&mFactory)));
 
     query_tearing_support();
-    mSink.info("tearing support: {}", mTearingSupport);
+    gSink.info("tearing support: {}", mTearingSupport);
 
     if (debug) enable_leak_tracking();
 
-    mSink.info("instance config");
-    mSink.info("| flags: {}", config.flags);
+    gSink.info("instance config");
+    gSink.info("| flags: {}", config.flags);
 
     if (!enum_by_preference()) enum_adapters();
 }
 
 Instance::~Instance() {
     if (mDebug) {
-        mSink.info("reporting live dxgi/d3d objects");
+        gSink.info("reporting live dxgi/d3d objects");
         mDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
     }
 }
 
 size_t Instance::warp_adapter_index() {
     for (size_t i = 0; i < mAdapters.size(); i++) {
-        if (mAdapters[i].flags().test(AdapterFlag::eSoftware)) return i;
+        if (mAdapters[i].flags().test(AdapterFlag::eSoftware))
+            return i;
     }
     return SIZE_MAX;
 }

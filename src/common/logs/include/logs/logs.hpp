@@ -2,124 +2,98 @@
 
 #include <simcoe_config.h>
 
+#include "core/vector.hpp"
+
+#include "fmtlib/format.h"
+
 #include "logs.reflect.h"
 
 namespace sm::logs {
-class ILogger {
-    Severity m_severity;
+    class ILogChannel {
+    public:
+        virtual ~ILogChannel() = default;
 
-protected:
-    constexpr ILogger(Severity severity)
-        : m_severity(severity) {}
+        virtual void accept(const Message &message) = 0;
+    };
 
-    virtual void accept(const Message &message) = 0;
+    class Logger {
+        Severity mSeverity;
+        sm::Vector<ILogChannel*> mChannels;
 
-public:
-    virtual ~ILogger() = default;
+        void log(const Message &message);
 
-    void log(Category category, Severity severity, std::string_view msg);
-    void log(const Message &message);
+    public:
+        constexpr Logger(Severity severity)
+            : mSeverity(severity)
+        { }
 
-    constexpr Severity get_severity() const {
-        return m_severity;
-    }
-    constexpr bool will_accept(Severity severity) const {
-        return severity >= m_severity;
-    }
-};
+        virtual ~Logger() = default;
 
-} // namespace sm::logs
+        void log(Category category, Severity severity, std::string_view msg);
 
-#if 0
-namespace logdb {
-void add_message(const char *str, uint32_t hash);
+        void add_channel(ILogChannel *channel);
+        void remove_channel(ILogChannel *channel);
 
-// max length of a uint32_t converted to a string in base 16
-static constexpr size_t kMinLogSize = 8;
+        void set_severity(Severity severity);
+        Severity get_severity() const;
 
-template <size_t N>
-struct LogString {
-    ctu::SmallString<N> args;
-    uint32_t hash;
-
-    consteval operator std::string_view() const {
-        return {args.data(), args.size()};
-    }
-};
-
-template <size_t N>
-consteval auto build_log_message(const char (&str)[N]) -> LogString<N> {
-    ctu::SmallString<N> args{};
-    uint32_t hash = 0;
-
-    enum {
-        eText,
-        eStartEscape,
-        eEscape,
-    } state = eText;
-
-    for (size_t i = 0; i < N; i++) {
-        char c = str[i];
-        hash = hash * 31 + c;
-        if (c == '{') {
-            switch (state) {
-            case eText: state = eStartEscape; break;
-            case eStartEscape: state = eText; break;
-            default: NEVER("%s", "invalid escape sequence"); break;
-            }
-        } else if (c == '}') {
-            switch (state) {
-            case eText: break;
-            default:
-                args.append('}');
-                state = eText;
-                break;
-            }
-        } else {
-            switch (state) {
-            case eText: break;
-            case eStartEscape:
-                args.append('{');
-                args.append(c);
-                state = eEscape;
-                break;
-            case eEscape: args.append(c); break;
-            }
+        constexpr bool will_accept(Severity severity) const {
+            return severity >= mSeverity;
         }
-    }
+    };
 
-    return LogString<N>{args, hash};
-}
-} // namespace logdb
+    class Sink final {
+        Logger& mLogger;
+        Category mCategory;
 
-#   if SMC_ENABLE_LOGDB
-template <size_t N>
-auto message(const char (&str)[N]) -> logdb::LogString<N> {
-    constexpr auto msg = logdb::build_log_message(str);
-    logdb::add_message(str, msg.hash);
-    return msg;
-}
-#   elif SMC_DEBUG
-template <size_t N>
-consteval auto message(const char (&str)[N]) -> logdb::LogString<N> {
-    ctu::SmallString<N> msg{str};
-    return {msg, 0};
-}
-#   elif SMC_RELEASE
-template <size_t N>
-consteval auto message(const char (&str)[N]) -> logdb::LogString<N> {
-    constexpr auto msg = logdb::build_log_message(str);
-    logdb::LogString<N> result;
-    result.append_int(msg.hash, 16);
-    result.append(msg.args.data());
-    return result;
-}
-#   endif
+    public:
+        constexpr Sink(Logger& logger, Category category)
+            : mLogger(logger)
+            , mCategory(category)
+        { }
 
-#   if SMC_ENABLE_LOGDB
-#      define SM_MESSAGE(id, text) static const auto id = sm::message(text)
-#   else
-#      define SM_MESSAGE(id, text) static constexpr auto id = sm::message(text)
-#   endif
+        void log(Severity severity, std::string_view msg, auto &&...args) const {
+            // while ILogger will reject the message, still do an early return
+            // to avoid formatting if we don't need to
+            if (!mLogger.will_accept(severity)) return;
 
-#endif
+            auto text = fmt::vformat(msg, fmt::make_format_args(args...));
+            mLogger.log(mCategory, severity, text);
+        }
+
+        void operator()(Severity severity, std::string_view msg, auto &&...args) const {
+            log(severity, msg, std::forward<decltype(args)>(args)...);
+        }
+
+        void trace(std::string_view msg, auto &&...args) const {
+            log(Severity::eTrace, msg, std::forward<decltype(args)>(args)...);
+        }
+
+        void debug(std::string_view msg, auto &&...args) const {
+            log(Severity::eInfo, msg, std::forward<decltype(args)>(args)...);
+        }
+
+        void info(std::string_view msg, auto &&...args) const {
+            log(Severity::eInfo, msg, std::forward<decltype(args)>(args)...);
+        }
+
+        void warn(std::string_view msg, auto &&...args) const {
+            log(Severity::eWarning, msg, std::forward<decltype(args)>(args)...);
+        }
+
+        void error(std::string_view msg, auto &&...args) const {
+            log(Severity::eError, msg, std::forward<decltype(args)>(args)...);
+        }
+
+        void fatal(std::string_view msg, auto &&...args) const {
+            log(Severity::eFatal, msg, std::forward<decltype(args)>(args)...);
+        }
+
+        void panic(std::string_view msg, auto &&...args) const {
+            log(Severity::ePanic, msg, std::forward<decltype(args)>(args)...);
+        }
+    };
+
+    Logger& get_logger();
+    Sink get_sink(Category category);
+} // namespace sm::logs

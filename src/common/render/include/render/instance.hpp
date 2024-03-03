@@ -6,12 +6,9 @@
 #include "render.reflect.h"
 
 namespace sm::render {
-using Sink = logs::Sink<logs::Category::eRender>;
-
 struct InstanceConfig {
     DebugFlags flags;
     AdapterPreference preference;
-    logs::ILogger &logger;
 };
 
 class Adapter : public Object<IDXGIAdapter1> {
@@ -48,8 +45,6 @@ public:
 };
 
 class Instance {
-    Sink mSink;
-
     DebugFlags mFlags;
     AdapterPreference mAdapterSearch;
 

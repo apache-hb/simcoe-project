@@ -19,6 +19,8 @@
 using namespace sm;
 using namespace sm::render;
 
+static auto gSink = logs::get_sink(logs::Category::eRender);
+
 static uint get_swapchain_flags(const Instance& instance) {
     return instance.tearing_support() ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 }
@@ -47,17 +49,15 @@ void Context::on_info(
     MessageCategory c{category};
     MessageSeverity s{severity};
     MessageID message{id};
-    auto *ctx = static_cast<Context *>(user);
-    auto& sink = ctx->mSink;
 
-    sink.log(get_severity(s), "{} {}: {}", c, message, desc);
+    gSink.log(get_severity(s), "{} {}: {}", c, message, desc);
 }
 
 void Context::enable_info_queue() {
     if (Result hr = mDevice.query(&mInfoQueue)) {
         mInfoQueue->RegisterMessageCallback(&on_info, D3D12_MESSAGE_CALLBACK_FLAG_NONE, this, &mCookie);
     } else {
-        mSink.warn("failed to query info queue: {}", hr);
+        gSink.warn("failed to query info queue: {}", hr);
     }
 }
 
@@ -67,13 +67,13 @@ void Context::enable_debug_layer(bool gbv, bool rename) {
 
         Object<ID3D12Debug3> debug3;
         if (mDebug.query(&debug3)) debug3->SetEnableGPUBasedValidation(gbv);
-        else mSink.warn("failed to get debug3 interface: {}", hr);
+        else gSink.warn("failed to get debug3 interface: {}", hr);
 
         Object<ID3D12Debug5> debug5;
         if (mDebug.query(&debug5)) debug5->SetEnableAutoName(rename);
-        else mSink.warn("failed to get debug5 interface: {}", hr);
+        else gSink.warn("failed to get debug5 interface: {}", hr);
     } else {
-        mSink.warn("failed to get debug interface: {}", hr);
+        gSink.warn("failed to get debug interface: {}", hr);
     }
 }
 
@@ -82,7 +82,7 @@ void Context::disable_debug_layer() {
     if (Result hr = D3D12GetDebugInterface(IID_PPV_ARGS(&debug4))) {
         debug4->DisableDebugLayer();
     } else {
-        mSink.warn("failed to query debug4 interface: {}", hr);
+        gSink.warn("failed to query debug4 interface: {}", hr);
     }
 }
 
@@ -92,7 +92,7 @@ void Context::enable_dred(bool enabled) {
         dred->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
         dred->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
     } else {
-        mSink.warn("failed to query dred settings: {}", hr);
+        gSink.warn("failed to query dred settings: {}", hr);
     }
 }
 
@@ -102,11 +102,11 @@ void Context::query_root_signature_version() {
     };
 
     if (Result hr = mDevice->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &feature, sizeof(feature)); !hr) {
-        mSink.warn("failed to query root signature version: {}", hr);
+        gSink.warn("failed to query root signature version: {}", hr);
         mRootSignatureVersion = RootSignatureVersion::eVersion_1_0;
     } else {
         mRootSignatureVersion = feature.HighestVersion;
-        mSink.info("root signature version: {}", mRootSignatureVersion);
+        gSink.info("root signature version: {}", mRootSignatureVersion);
     }
 }
 
@@ -114,8 +114,8 @@ void Context::serialize_root_signature(Object<ID3D12RootSignature>& signature, c
     Blob serialized;
     Blob error;
     if (Result hr = D3DX12SerializeVersionedRootSignature(&desc, mRootSignatureVersion.as_facade(), &serialized, &error); !hr) {
-        mSink.error("failed to serialize root signature: {}", hr);
-        mSink.error("| error: {}", error.as_string());
+        gSink.error("failed to serialize root signature: {}", hr);
+        gSink.error("| error: {}", error.as_string());
         SM_ASSERT_HR(hr);
     }
 
@@ -136,24 +136,24 @@ void Context::create_device(size_t index) {
 
     mAdapterIndex = index;
     if (Result hr = D3D12CreateDevice(adapter.get(), fl.as_facade(), IID_PPV_ARGS(&mDevice)); !hr) {
-        mSink.error("failed to create device `{}` at feature level `{}`", adapter.name(), fl, hr);
-        mSink.error("| hresult: {}", hr);
-        mSink.error("falling back to warp adapter...");
+        gSink.error("failed to create device `{}` at feature level `{}`", adapter.name(), fl, hr);
+        gSink.error("| hresult: {}", hr);
+        gSink.error("falling back to warp adapter...");
 
         mAdapterIndex = mInstance.warp_adapter_index();
         auto& warp_adapter = mInstance.get_adapter(mAdapterIndex);
         SM_ASSERT_HR(D3D12CreateDevice(warp_adapter.get(), fl.as_facade(), IID_PPV_ARGS(&mDevice)));
     }
 
-    mSink.info("device created: {}", adapter.name());
+    gSink.info("device created: {}", adapter.name());
 
     if (mDebugFlags.test(DebugFlags::eInfoQueue))
         enable_info_queue();
 
     query_root_signature_version();
 
-    mSink.info("| feature level: {}", fl);
-    mSink.info("| flags: {}", mDebugFlags);
+    gSink.info("| feature level: {}", fl);
+    gSink.info("| flags: {}", mDebugFlags);
 }
 
 static constexpr D3D12MA::ALLOCATOR_FLAGS kAllocatorFlags = D3D12MA::ALLOCATOR_FLAG_DEFAULT_POOLS_NOT_ZEROED | D3D12MA::ALLOCATOR_FLAG_SINGLETHREADED;
@@ -309,7 +309,7 @@ Result Context::load_dds_texture(Object<ID3D12Resource>& texture, sm::Vector<D3D
         return S_OK;
     }
 
-    mSink.error("failed to load dds texture: {}", hr);
+    gSink.error("failed to load dds texture: {}", hr);
     return hr;
 }
 
@@ -594,8 +594,7 @@ void Context::destroy_device() {
 Context::Context(const RenderConfig& config)
     : mConfig(config)
     , mDebugFlags(config.flags)
-    , mSink(config.logger)
-    , mInstance({ mDebugFlags, config.preference, config.logger })
+    , mInstance({ mDebugFlags, config.preference })
     , mSwapChainFormat(config.swapchain_format)
     , mSwapChainSize(config.swapchain_size)
     , mSwapChainLength(config.swapchain_length)

@@ -1,9 +1,7 @@
 module sm::archive;
 
-import "logs/logs.hpp";
 import "core/memory.hpp";
 
-using ILogger = opaque("sm::logs::ILogger")
 using Memory = opaque("sm::Memory")
 
 variant RecordStoreVersion : uint16 {
@@ -17,7 +15,6 @@ struct RecordStoreConfig {
     path: cstring;
     size: Memory;
     record_count: fast16;
-    logger: &ILogger;
 }
 
 struct RecordStoreHeader {

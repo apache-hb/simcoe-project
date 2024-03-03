@@ -22,11 +22,11 @@ const char *sys::get_exe_path() {
 }
 #endif
 
-void sys::create(HINSTANCE hInstance, logs::ILogger &logger) {
+void sys::create(HINSTANCE hInstance) {
     CTASSERTF(hInstance != nullptr, "system::create() invalid hInstance");
     CTASSERTF(gWindowClass == nullptr, "system::create() called twice");
 
-    SystemSink sink{logger};
+    auto sink = logs::get_sink(logs::Category::eSystem);
 
     gInstance = hInstance;
 
