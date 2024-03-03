@@ -45,22 +45,35 @@ namespace sm::graph {
 
             std::function<void(FrameGraph&, render::Context&)> execute;
 
-            bool should_execute() const { return has_side_effects || refcount > 0; }
+            bool is_used() const { return has_side_effects || refcount > 0; }
         };
 
         struct ResourceHandle final : IGraphNode {
+            // info to create the resource
             TextureInfo info;
-            ResourceType type;
-            Access access;
-            RenderPass *producer;
-            RenderPass *last;
 
-            ID3D12Resource *resource;
+            // type of the resource (imported or transient)
+            ResourceType type;
+
+            // the initial state of the resource
+            Access access;
+
+            // the producer of the resource, null if it's imported
+            RenderPass *producer = nullptr;
+
+            // the last pass that uses the resource
+            RenderPass *last = nullptr;
+
+            // the resource itself
+            ID3D12Resource *resource = nullptr;
 
             // will be filled depending on the type of resource
             render::RtvIndex rtv = render::RtvIndex::eInvalid;
             render::DsvIndex dsv = render::DsvIndex::eInvalid;
             render::SrvIndex srv = render::SrvIndex::eInvalid;
+
+            bool is_imported() const { return type == ResourceType::eImported; }
+            bool is_used() const { return refcount > 0; }
         };
 
         render::Context& mContext;
@@ -73,6 +86,9 @@ namespace sm::graph {
         Handle texture(TextureInfo info, Access access);
 
         bool is_imported(Handle handle) const;
+
+        void optimize();
+        void create_resources();
 
     public:
         FrameGraph(render::Context& context)

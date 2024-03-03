@@ -162,7 +162,7 @@ void Context::create_allocator() {
 void Context::reset_direct_commands(ID3D12PipelineState *pso) {
     auto& allocator = mFrames[mFrameIndex].allocator;
     SM_ASSERT_HR(allocator->Reset());
-    SM_ASSERT_HR(mCommandList->Reset(allocator.get(), pso));
+    mCommandList.reset(*allocator, pso);
 }
 
 void Context::create_copy_queue() {

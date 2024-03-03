@@ -1,8 +1,33 @@
 #include "render/object.hpp"
 #include "render/render.hpp"
+#include "render/commands.hpp"
+
+#include "d3dx12_barriers.h"
 
 using namespace sm;
 using namespace sm::render;
+
+void CommandList::reset(ID3D12CommandAllocator *allocator, ID3D12PipelineState *pso) {
+    mBarriers.clear();
+    SM_ASSERT_HR(get()->Reset(allocator, pso));
+}
+
+void CommandList::transition(ID3D12Resource *resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
+    if (before == after) return;
+
+    D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+        resource, before, after
+    );
+
+    mBarriers.push_back(barrier);
+}
+
+void CommandList::submit_barriers() {
+    if (mBarriers.size() > 0) {
+        get()->ResourceBarrier(mBarriers.size(), mBarriers.data());
+        mBarriers.clear();
+    }
+}
 
 std::string_view Blob::as_string() const {
     return {reinterpret_cast<const char*>(data()), size()};

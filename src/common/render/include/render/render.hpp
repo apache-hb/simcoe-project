@@ -5,6 +5,7 @@
 
 #include "render/instance.hpp"
 #include "render/heap.hpp"
+#include "render/commands.hpp"
 #include "render/camera.hpp"
 
 // #include "core/queue.hpp"
@@ -142,7 +143,7 @@ namespace sm::render {
 
         /// graphics pipeline objects
         Object<ID3D12CommandQueue> mDirectQueue;
-        Object<ID3D12GraphicsCommandList1> mCommandList;
+        CommandList mCommandList;
 
         void reset_direct_commands(ID3D12PipelineState *pso = nullptr);
 
