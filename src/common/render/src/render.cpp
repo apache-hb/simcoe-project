@@ -160,7 +160,7 @@ void Context::create_allocator() {
 }
 
 void Context::reset_direct_commands(ID3D12PipelineState *pso) {
-    auto& allocator = mFrames[mFrameIndex].mCommandAllocator;
+    auto& allocator = mFrames[mFrameIndex].allocator;
     SM_ASSERT_HR(allocator->Reset());
     SM_ASSERT_HR(mCommandList->Reset(allocator.get(), pso));
 }
@@ -222,11 +222,9 @@ void Context::create_pipeline() {
     SM_ASSERT_HR(swapchain1.query(&mSwapChain));
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
 
-    SM_ASSERT_HR(create_descriptor_allocator(mRtvAllocator, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, min_rtv_heap_size(), false));
-
-    SM_ASSERT_HR(create_descriptor_allocator(mSrvAllocator, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, min_srv_heap_size(), true));
-
-    SM_ASSERT_HR(create_descriptor_allocator(mDsvAllocator, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, min_dsv_heap_size(), false));
+    SM_ASSERT_HR(mRtvPool.init(*mDevice, min_rtv_heap_size(), D3D12_DESCRIPTOR_HEAP_FLAG_NONE));
+    SM_ASSERT_HR(mSrvPool.init(*mDevice, min_srv_heap_size(), D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE));
+    SM_ASSERT_HR(mDsvPool.init(*mDevice, min_dsv_heap_size(), D3D12_DESCRIPTOR_HEAP_FLAG_NONE));
 
     create_depth_stencil();
 
@@ -238,30 +236,8 @@ void Context::create_pipeline() {
     create_frame_allocators();
 
     for (uint i = 0; i < mSwapChainLength; i++) {
-        mFrames[i].mFenceValue = 0;
+        mFrames[i].fence_value = 0;
     }
-}
-
-Result Context::create_descriptor_heap(DescriptorHeap& heap, D3D12_DESCRIPTOR_HEAP_TYPE type, uint capacity, bool shader_visible) {
-    const D3D12_DESCRIPTOR_HEAP_DESC kHeapDesc = {
-        .Type = type,
-        .NumDescriptors = capacity,
-        .Flags = shader_visible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
-    };
-
-    heap.mDescriptorSize = mDevice->GetDescriptorHandleIncrementSize(type);
-    heap.mCapacity = capacity;
-    return mDevice->CreateDescriptorHeap(&kHeapDesc, IID_PPV_ARGS(&heap));
-}
-
-Result Context::create_descriptor_allocator(DescriptorAllocator& allocator, D3D12_DESCRIPTOR_HEAP_TYPE type, uint capacity, bool shader_visible) {
-    DescriptorHeap heap;
-    if (Result hr = create_descriptor_heap(heap, type, capacity, shader_visible); !hr) {
-        return hr;
-    }
-
-    allocator.set_heap(std::move(heap));
-    return S_OK;
 }
 
 static const D3D12_HEAP_PROPERTIES kDefaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
@@ -282,25 +258,25 @@ void Context::create_depth_stencil() {
         .ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
     };
 
-    mDepthStencilSrvIndex = mDsvAllocator.allocate();
+    mDepthStencilIndex = mDsvPool.allocate();
 
-    mDevice->CreateDepthStencilView(*mDepthStencil.mResource, &kDesc, mDsvAllocator.cpu_descriptor_handle(mDepthStencilSrvIndex));
+    mDevice->CreateDepthStencilView(*mDepthStencil.mResource, &kDesc, mDsvPool.cpu_handle(mDepthStencilIndex));
 }
 
 void Context::destroy_depth_stencil() {
     mDepthStencil.reset();
-    mDsvAllocator.release(mDepthStencilSrvIndex);
+    mDsvPool.release(mDepthStencilIndex);
 }
 
 void Context::create_frame_rtvs() {
     for (auto& frame : mFrames) {
-        frame.rtv_index = mRtvAllocator.allocate();
+        frame.rtv_index = mRtvPool.allocate();
     }
 }
 
 void Context::destroy_frame_rtvs() {
     for (auto& frame : mFrames) {
-        mRtvAllocator.release(frame.rtv_index);
+        mRtvPool.release(frame.rtv_index);
     }
 }
 
@@ -308,8 +284,8 @@ void Context::create_render_targets() {
     CTASSERTF(mSwapChainLength <= DXGI_MAX_SWAP_CHAIN_BUFFERS, "too many swap chain buffers (%u > %u)", mSwapChainLength, DXGI_MAX_SWAP_CHAIN_BUFFERS);
 
     for (uint i = 0; i < mSwapChainLength; i++) {
-        auto& backbuffer = mFrames[i].mRenderTarget;
-        auto rtv = mRtvAllocator.cpu_descriptor_handle(mFrames[i].rtv_index);
+        auto& backbuffer = mFrames[i].target;
+        auto rtv = mRtvPool.cpu_handle(mFrames[i].rtv_index);
         SM_ASSERT_HR(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&backbuffer)));
         mDevice->CreateRenderTargetView(*backbuffer, nullptr, rtv);
     }
@@ -317,7 +293,7 @@ void Context::create_render_targets() {
 
 void Context::create_frame_allocators() {
     for (uint i = 0; i < mSwapChainLength; i++) {
-        SM_ASSERT_HR(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&mFrames[i].mCommandAllocator)));
+        SM_ASSERT_HR(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&mFrames[i].allocator)));
     }
 }
 
@@ -534,11 +510,11 @@ void Context::create_assets() {
     create_primitive_pipeline();
     create_blit_pipeline();
 
-    SM_ASSERT_HR(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, *mFrames[mFrameIndex].mCommandAllocator, nullptr, IID_PPV_ARGS(&mCommandList)));
+    SM_ASSERT_HR(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, *mFrames[mFrameIndex].allocator, nullptr, IID_PPV_ARGS(&mCommandList)));
     SM_ASSERT_HR(mCommandList->Close());
 
     SM_ASSERT_HR(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
-    mFrames[mFrameIndex].mFenceValue += 1;
+    mFrames[mFrameIndex].fence_value += 1;
 
     SM_ASSERT_WIN32(mFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr));
 }
@@ -552,8 +528,8 @@ void Context::build_command_list() {
     {
         /// scene setup
 
-        const auto kSceneRtvHandle = mRtvAllocator.cpu_descriptor_handle(mSceneTargetRtvIndex);
-        const auto kDsvHandle = mDsvAllocator.cpu_descriptor_handle(mDepthStencilSrvIndex);
+        const auto kSceneRtvHandle = mRtvPool.cpu_handle(mSceneTargetRtvIndex);
+        const auto kDsvHandle = mDsvPool.cpu_handle(mDepthStencilIndex);
         mCommandList->RSSetViewports(1, &mSceneViewport.mViewport);
         mCommandList->RSSetScissorRects(1, &mSceneViewport.mScissorRect);
         mCommandList->OMSetRenderTargets(1, &kSceneRtvHandle, false, &kDsvHandle);
@@ -599,7 +575,7 @@ void Context::build_command_list() {
 
         mCommandList->ResourceBarrier(_countof(kBeginPostBarriers), kBeginPostBarriers);
 
-        ID3D12DescriptorHeap *heaps[] = { mSrvAllocator.get() };
+        ID3D12DescriptorHeap *heaps[] = { mSrvPool.get() };
         mCommandList->SetDescriptorHeaps(_countof(heaps), heaps);
 
         /// post
@@ -609,14 +585,14 @@ void Context::build_command_list() {
         mCommandList->RSSetViewports(1, &mPresentViewport.mViewport);
         mCommandList->RSSetScissorRects(1, &mPresentViewport.mScissorRect);
 
-        const auto rtv_handle = mRtvAllocator.cpu_descriptor_handle(rtv_index);
+        const auto rtv_handle = mRtvPool.cpu_handle(rtv_index);
         mCommandList->OMSetRenderTargets(1, &rtv_handle, false, nullptr);
 
         mCommandList->ClearRenderTargetView(rtv_handle, kColourBlack.data(), 0, nullptr);
         mCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
         mCommandList->IASetVertexBuffers(0, 1, &mScreenQuad.mVertexBufferView);
 
-        const auto scene_srv_handle = mSrvAllocator.gpu_descriptor_handle(mSceneTargetSrvIndex);
+        const auto scene_srv_handle = mSrvPool.gpu_handle(mSceneTargetSrvIndex);
 
         mCommandList->SetGraphicsRootDescriptorTable(0, scene_srv_handle);
         mCommandList->DrawInstanced(4, 1, 0, 0);
@@ -648,8 +624,8 @@ void Context::build_command_list() {
 void Context::destroy_device() {
     // release frame resources
     for (uint i = 0; i < mSwapChainLength; i++) {
-        mFrames[i].mRenderTarget.reset();
-        mFrames[i].mCommandAllocator.reset();
+        mFrames[i].target.reset();
+        mFrames[i].allocator.reset();
     }
 
     // depth stencil
@@ -681,9 +657,9 @@ void Context::destroy_device() {
     mAllocator.reset();
 
     // descriptor heaps
-    mRtvAllocator.reset();
-    mDsvAllocator.reset();
-    mSrvAllocator.reset();
+    mRtvPool.reset();
+    mDsvPool.reset();
+    mSrvPool.reset();
 
     // swapchain
     mSwapChain.reset();
@@ -732,12 +708,6 @@ void Context::destroy() {
 
     destroy_imgui();
 
-    mSrvAllocator.release(mSceneTargetSrvIndex);
-    mSceneTargetSrvIndex = UINT_MAX;
-
-    mDsvAllocator.release(mDepthStencilSrvIndex);
-    mDepthStencilSrvIndex = UINT_MAX;
-
     SM_ASSERT_WIN32(CloseHandle(mCopyFenceEvent));
     SM_ASSERT_WIN32(CloseHandle(mFenceEvent));
 }
@@ -784,11 +754,11 @@ void Context::update_adapter(size_t index) {
 void Context::update_swapchain_length(uint length) {
     wait_for_gpu();
 
-    uint64 current = mFrames[mFrameIndex].mFenceValue;
+    uint64 current = mFrames[mFrameIndex].fence_value;
 
     for (auto& frame : mFrames) {
-        frame.mRenderTarget.reset();
-        frame.mCommandAllocator.reset();
+        frame.target.reset();
+        frame.allocator.reset();
     }
 
     destroy_frame_rtvs();
@@ -800,7 +770,7 @@ void Context::update_swapchain_length(uint length) {
 
     mFrames.resize(length);
     for (uint i = 0; i < length; i++) {
-        mFrames[i].mFenceValue = current;
+        mFrames[i].fence_value = current;
     }
 
     create_frame_rtvs();
@@ -815,8 +785,8 @@ void Context::resize_swapchain(math::uint2 size) {
     wait_for_gpu();
 
     for (uint i = 0; i < mSwapChainLength; i++) {
-        mFrames[i].mRenderTarget.reset();
-        mFrames[i].mFenceValue = mFrames[mFrameIndex].mFenceValue;
+        mFrames[i].target.reset();
+        mFrames[i].fence_value = mFrames[mFrameIndex].fence_value;
     }
 
     const uint flags = get_swapchain_flags(mInstance);
@@ -846,21 +816,21 @@ void Context::resize_draw(math::uint2 size) {
 }
 
 void Context::move_to_next_frame() {
-    const uint64 current = mFrames[mFrameIndex].mFenceValue;
+    const uint64 current = mFrames[mFrameIndex].fence_value;
     SM_ASSERT_HR(mDirectQueue->Signal(*mFence, current));
 
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
 
-    if (mFence->GetCompletedValue() < mFrames[mFrameIndex].mFenceValue) {
-        SM_ASSERT_HR(mFence->SetEventOnCompletion(mFrames[mFrameIndex].mFenceValue, mFenceEvent));
+    if (mFence->GetCompletedValue() < mFrames[mFrameIndex].fence_value) {
+        SM_ASSERT_HR(mFence->SetEventOnCompletion(mFrames[mFrameIndex].fence_value, mFenceEvent));
         WaitForSingleObject(mFenceEvent, INFINITE);
     }
 
-    mFrames[mFrameIndex].mFenceValue = current + 1;
+    mFrames[mFrameIndex].fence_value = current + 1;
 }
 
 void Context::wait_for_gpu() {
-    const uint64 current = mFrames[mFrameIndex].mFenceValue++;
+    const uint64 current = mFrames[mFrameIndex].fence_value++;
     SM_ASSERT_HR(mDirectQueue->Signal(*mFence, current));
 
     SM_ASSERT_HR(mFence->SetEventOnCompletion(current, mFenceEvent));

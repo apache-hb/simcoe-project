@@ -1,8 +1,6 @@
 #include "render/object.hpp"
 #include "render/render.hpp"
 
-#include "d3dx12/d3dx12_root_signature.h"
-
 using namespace sm;
 using namespace sm::render;
 
@@ -35,14 +33,6 @@ void Resource::reset() {
     mAllocation.reset();
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE DescriptorHeap::cpu_descriptor_handle(int index) {
-    return CD3DX12_CPU_DESCRIPTOR_HANDLE(get()->GetCPUDescriptorHandleForHeapStart(), index, mDescriptorSize);
-}
-
-D3D12_GPU_DESCRIPTOR_HANDLE DescriptorHeap::gpu_descriptor_handle(int index) {
-    return CD3DX12_GPU_DESCRIPTOR_HANDLE(get()->GetGPUDescriptorHandleForHeapStart(), index, mDescriptorSize);
-}
-
 Viewport::Viewport(math::uint2 size) {
     auto [w, h] = size;
 
@@ -66,33 +56,4 @@ Viewport::Viewport(math::uint2 size) {
 void Pipeline::reset() {
     mRootSignature.reset();
     mPipelineState.reset();
-}
-
-void DescriptorAllocator::set_heap(DescriptorHeap heap) {
-    mAllocator.resize(heap.mCapacity);
-
-    mHeap = std::move(heap);
-}
-
-DescriptorIndex DescriptorAllocator::allocate() {
-    auto index = mAllocator.allocate();
-    SM_ASSERTF(index != sm::BitMap::eInvalid, "DescriptorAllocator: allocate out of descriptors. size {}", mHeap.mCapacity);
-    auto ret = DescriptorIndex(index);
-    SM_ASSERTF(ret < mHeap.mCapacity, "DescriptorAllocator: allocate out of range. index {} capacity {}", ret, mHeap.mCapacity);
-    return ret;
-}
-
-void DescriptorAllocator::release(DescriptorIndex index) {
-    SM_ASSERTF(index < mHeap.mCapacity, "DescriptorAllocator: release out of range. index {} capacity {}", index, mHeap.mCapacity);
-    mAllocator.release(sm::BitMap::Index{index});
-}
-
-D3D12_CPU_DESCRIPTOR_HANDLE DescriptorAllocator::cpu_descriptor_handle(int index) {
-    SM_ASSERTF(mAllocator.test(sm::BitMap::Index{(size_t)index}), "DescriptorAllocator: cpu_descriptor_handle index {} is not set", index);
-    return mHeap.cpu_descriptor_handle(index);
-}
-
-D3D12_GPU_DESCRIPTOR_HANDLE DescriptorAllocator::gpu_descriptor_handle(int index) {
-    SM_ASSERTF(mAllocator.test(sm::BitMap::Index{(size_t)index}), "DescriptorAllocator: gpu_descriptor_handle index {} is not set", index);
-    return mHeap.gpu_descriptor_handle(index);
 }

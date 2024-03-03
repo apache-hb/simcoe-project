@@ -17,9 +17,9 @@ namespace sm::graph {
     struct Resource {
         render::Resource resource;
 
-        render::DescriptorIndex rtv;
-        render::DescriptorIndex dsv;
-        render::DescriptorIndex srv;
+        render::RtvIndex rtv;
+        render::DsvIndex dsv;
+        render::SrvIndex srv;
         // render::DescriptorIndex uav;
     };
 

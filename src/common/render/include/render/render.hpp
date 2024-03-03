@@ -3,8 +3,9 @@
 #include "archive/bundle.hpp"
 #include "core/array.hpp"
 #include "core/bitmap.hpp"
-#include "render/instance.hpp"
 
+#include "render/instance.hpp"
+#include "render/gpu_objects.hpp"
 #include "render/camera.hpp"
 
 // #include "core/queue.hpp"
@@ -58,40 +59,79 @@ namespace sm::render {
         ID3D12Resource *get() const { return mResource.get(); }
     };
 
-    struct DescriptorHeap : Object<ID3D12DescriptorHeap> {
+    template<DescriptorType::Inner D>
+    class DescriptorPool {
+        Object<ID3D12DescriptorHeap> mHeap;
         uint mDescriptorSize;
-        uint mCapacity = 0;
-
-        D3D12_CPU_DESCRIPTOR_HANDLE cpu_descriptor_handle(int index);
-        D3D12_GPU_DESCRIPTOR_HANDLE gpu_descriptor_handle(int index);
-    };
-
-    using DescriptorIndex = uint;
-
-    class DescriptorAllocator {
-        DescriptorHeap mHeap;
+        uint mCapacity;
         sm::BitMap mAllocator;
-
     public:
-        void set_heap(DescriptorHeap heap);
+        constexpr static DescriptorType kType = D;
 
-        DescriptorIndex allocate();
-        void release(DescriptorIndex index);
+        enum class Index : uint { eInvalid = UINT_MAX };
 
-        D3D12_CPU_DESCRIPTOR_HANDLE cpu_descriptor_handle(int index);
-        D3D12_GPU_DESCRIPTOR_HANDLE gpu_descriptor_handle(int index);
+        bool test_bit(Index index) const { return mAllocator.test(sm::BitMap::Index{size_t(index)}); }
 
-        void reset() { mHeap.reset(); }
+        Result init(ID3D12Device1 *device, uint capacity, D3D12_DESCRIPTOR_HEAP_FLAGS flags) {
+            constexpr D3D12_DESCRIPTOR_HEAP_TYPE kHeapType = kType.as_facade();
+            const D3D12_DESCRIPTOR_HEAP_DESC kDesc = {
+                .Type = kHeapType,
+                .NumDescriptors = capacity,
+                .Flags = flags,
+                .NodeMask = 0,
+            };
+
+            mDescriptorSize = device->GetDescriptorHandleIncrementSize(kHeapType);
+            mCapacity = capacity;
+            mAllocator.resize(capacity);
+
+            return device->CreateDescriptorHeap(&kDesc, IID_PPV_ARGS(&mHeap));
+        }
+
+        Index allocate() {
+            auto index = mAllocator.allocate();
+            CTASSERTF(index < mCapacity, "DescriptorPool: allocate out of range. index %u capacity %u", enum_cast<uint>(index), mCapacity);
+            CTASSERTF(index != sm::BitMap::eInvalid, "DescriptorPool: allocate out of descriptors. size %u", mCapacity);
+            return Index{uint(index)};
+        }
+
+        void release(Index index) {
+            mAllocator.release(sm::BitMap::Index{size_t(index)});
+        }
+
+        D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle(Index index) {
+            CTASSERTF(test_bit(index), "DescriptorPool: cpu_handle index %u is not set", enum_cast<uint>(index));
+            D3D12_CPU_DESCRIPTOR_HANDLE handle = mHeap->GetCPUDescriptorHandleForHeapStart();
+            handle.ptr += enum_cast<uint>(index) * mDescriptorSize;
+            return handle;
+        }
+
+        D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle(Index index) {
+            CTASSERTF(test_bit(index), "DescriptorPool: gpu_handle index %u is not set", enum_cast<uint>(index));
+            D3D12_GPU_DESCRIPTOR_HANDLE handle = mHeap->GetGPUDescriptorHandleForHeapStart();
+            handle.ptr += enum_cast<uint>(index) * mDescriptorSize;
+            return handle;
+        }
+
+        void reset() { mHeap.reset(); mAllocator.reset(); }
         ID3D12DescriptorHeap *get() const { return mHeap.get(); }
 
-        uint get_capacity() const { return mHeap.mCapacity; }
+        uint get_capacity() const { return mCapacity; }
     };
 
+    using RtvPool = DescriptorPool<DescriptorType::eRTV>;
+    using DsvPool = DescriptorPool<DescriptorType::eDSV>;
+    using SrvPool = DescriptorPool<DescriptorType::eSRV>;
+
+    using RtvIndex = RtvPool::Index;
+    using DsvIndex = DsvPool::Index;
+    using SrvIndex = SrvPool::Index;
+
     struct FrameData {
-        Object<ID3D12Resource> mRenderTarget;
-        Object<ID3D12CommandAllocator> mCommandAllocator;
-        DescriptorIndex rtv_index;
-        uint64 mFenceValue;
+        Object<ID3D12Resource> target;
+        Object<ID3D12CommandAllocator> allocator;
+        RtvIndex rtv_index;
+        uint64 fence_value;
     };
 
     struct Viewport {
@@ -110,7 +150,7 @@ namespace sm::render {
 
     struct Texture {
         Object<ID3D12Resource> mResource;
-        DescriptorIndex mSrvIndex;
+        SrvIndex mSrvIndex;
 
         sm::Vector<D3D12_SUBRESOURCE_DATA> mMipData;
     };
@@ -179,17 +219,14 @@ namespace sm::render {
         uint min_srv_heap_size() const { return 1 + 1 + mConfig.srv_heap_size; }
         uint min_dsv_heap_size() const { return 1 + mConfig.dsv_heap_size; }
 
-        DescriptorAllocator mRtvAllocator;
-        DescriptorAllocator mDsvAllocator;
-        DescriptorAllocator mSrvAllocator;
+        RtvPool mRtvPool;
+        DsvPool mDsvPool;
+        SrvPool mSrvPool;
 
-        DescriptorIndex mDepthStencilSrvIndex;
+        DsvIndex mDepthStencilIndex;
         Resource mDepthStencil;
         void create_depth_stencil();
         void destroy_depth_stencil();
-
-        Result create_descriptor_heap(DescriptorHeap& heap, D3D12_DESCRIPTOR_HEAP_TYPE type, uint capacity, bool shader_visible);
-        Result create_descriptor_allocator(DescriptorAllocator& allocator, D3D12_DESCRIPTOR_HEAP_TYPE type, uint capacity, bool shader_visible);
 
         /// copy queue and commands
         Object<ID3D12CommandQueue> mCopyQueue;
@@ -203,8 +240,8 @@ namespace sm::render {
         uint64 mCopyFenceValue;
         void create_copy_fence();
 
-        DescriptorIndex mSceneTargetSrvIndex;
-        DescriptorIndex mSceneTargetRtvIndex;
+        SrvIndex mSceneTargetSrvIndex;
+        RtvIndex mSceneTargetRtvIndex;
 
         /// blit pipeline + assets
         Viewport mPresentViewport;
@@ -280,7 +317,7 @@ namespace sm::render {
         /// dear imgui
 
         draw::MeshInfo mMeshCreateInfo[draw::MeshType::kCount];
-        DescriptorIndex mImGuiSrvIndex;
+        SrvIndex mImGuiSrvIndex;
 
         void create_imgui();
         void destroy_imgui();

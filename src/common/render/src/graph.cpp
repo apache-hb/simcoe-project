@@ -34,7 +34,7 @@ Handle FrameGraph::create_resource(const HandleInfo& info) {
     // }
 
     if (info.state & D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE) {
-        resource.srv = mContext.mSrvAllocator.allocate();
+        resource.srv = mContext.mSrvPool.allocate();
     }
 
     const auto kDesc = CD3DX12_RESOURCE_DESC::Tex2D(info.format.as_facade(), scene.width, scene.height, 1, 1, 1, 0, flags);

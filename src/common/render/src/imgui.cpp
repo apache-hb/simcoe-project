@@ -85,18 +85,18 @@ void Context::destroy_imgui() {
 }
 
 void Context::create_imgui_backend() {
-    mImGuiSrvIndex = mSrvAllocator.allocate();
+    mImGuiSrvIndex = mSrvPool.allocate();
 
     ImGui_ImplWin32_Init(mConfig.window.get_handle());
 
-    const auto cpu = mSrvAllocator.cpu_descriptor_handle(mImGuiSrvIndex);
-    const auto gpu = mSrvAllocator.gpu_descriptor_handle(mImGuiSrvIndex);
+    const auto cpu = mSrvPool.cpu_handle(mImGuiSrvIndex);
+    const auto gpu = mSrvPool.gpu_handle(mImGuiSrvIndex);
     ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mSwapChainLength), mSwapChainFormat,
-                        mSrvAllocator.get(), cpu, gpu);
+                        mSrvPool.get(), cpu, gpu);
 }
 
 void Context::destroy_imgui_backend() {
-    mSrvAllocator.release(mImGuiSrvIndex);
+    mSrvPool.release(mImGuiSrvIndex);
 
     ImGui_ImplDX12_Shutdown();
     ImGui_ImplWin32_Shutdown();
@@ -211,9 +211,9 @@ bool Context::update_imgui() {
         }
 
         if (ImGui::CollapsingHeader("Descriptor heaps")) {
-            ImGui::Text("RTV capacity: %u", mRtvAllocator.get_capacity());
-            ImGui::Text("DSV capacity: %u", mDsvAllocator.get_capacity());
-            ImGui::Text("SRV capacity: %u", mSrvAllocator.get_capacity());
+            ImGui::Text("RTV capacity: %u", mRtvPool.get_capacity());
+            ImGui::Text("DSV capacity: %u", mDsvPool.get_capacity());
+            ImGui::Text("SRV capacity: %u", mSrvPool.get_capacity());
         }
     }
     ImGui::End();
