@@ -10,6 +10,17 @@ using namespace sm::draw;
 using namespace sm::render;
 
 namespace MyGui {
+template<ctu::Reflected T>
+    requires (ctu::is_enum<T>())
+static bool CheckboxFlags(const char *label, T &flags, T flag) {
+    unsigned val = flags.as_integral();
+    if (ImGui::CheckboxFlags(label, &val, flag.as_integral())) {
+        flags = T(val);
+        return true;
+    }
+    return false;
+}
+
 template <ctu::Reflected T>
     requires(ctu::is_enum<T>())
 static bool EnumCombo(const char *label, typename ctu::TypeInfo<T>::Type &choice) {
@@ -127,6 +138,7 @@ bool Context::update_imgui() {
 
     ImGui::ShowDemoWindow();
 
+    bool debug_flags_changed = false;
     int current = int_cast<int>(mAdapterIndex);
     if (ImGui::Begin("Render Config")) {
         int backbuffers = int_cast<int>(mSwapChainLength);
@@ -215,6 +227,18 @@ bool Context::update_imgui() {
             ImGui::Text("DSV capacity: %u", mDsvPool.get_capacity());
             ImGui::Text("SRV capacity: %u", mSrvPool.get_capacity());
         }
+
+        debug_flags_changed |= MyGui::CheckboxFlags<DebugFlags>("Debug layer", mDebugFlags, DebugFlags::eDeviceDebugLayer);
+        ImGui::SameLine();
+
+        ImGui::BeginDisabled(!mDebugFlags.test(DebugFlags::eDeviceDebugLayer));
+        debug_flags_changed |= MyGui::CheckboxFlags<DebugFlags>("Info queue", mDebugFlags, DebugFlags::eInfoQueue);
+        ImGui::SameLine();
+        debug_flags_changed |= MyGui::CheckboxFlags<DebugFlags>("GPU Validation", mDebugFlags, DebugFlags::eGpuValidation);
+        ImGui::EndDisabled();
+
+        ImGui::SameLine();
+        debug_flags_changed |= MyGui::CheckboxFlags<DebugFlags>("DRED", mDebugFlags, DebugFlags::eDeviceRemovedInfo);
     }
     ImGui::End();
 
@@ -344,6 +368,9 @@ bool Context::update_imgui() {
 
     if (current != (int)mAdapterIndex) {
         update_adapter(current);
+        return false;
+    } else if (debug_flags_changed) {
+        recreate_device();
         return false;
     }
 

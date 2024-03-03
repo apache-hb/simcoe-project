@@ -66,22 +66,27 @@ void Context::enable_debug_layer(bool gbv, bool rename) {
         mDebug->EnableDebugLayer();
 
         Object<ID3D12Debug3> debug3;
-        if (gbv) {
-            if (mDebug.query(&debug3)) debug3->SetEnableGPUBasedValidation(true);
-            else mSink.warn("failed to get debug3 interface: {}", hr);
-        }
+        if (mDebug.query(&debug3)) debug3->SetEnableGPUBasedValidation(gbv);
+        else mSink.warn("failed to get debug3 interface: {}", hr);
 
         Object<ID3D12Debug5> debug5;
-        if (rename) {
-            if (mDebug.query(&debug5)) debug5->SetEnableAutoName(true);
-            else mSink.warn("failed to get debug5 interface: {}", hr);
-        }
+        if (mDebug.query(&debug5)) debug5->SetEnableAutoName(rename);
+        else mSink.warn("failed to get debug5 interface: {}", hr);
     } else {
         mSink.warn("failed to get debug interface: {}", hr);
     }
 }
 
-void Context::enable_dred() {
+void Context::disable_debug_layer() {
+    Object<ID3D12Debug4> debug4;
+    if (Result hr = D3D12GetDebugInterface(IID_PPV_ARGS(&debug4))) {
+        debug4->DisableDebugLayer();
+    } else {
+        mSink.warn("failed to query debug4 interface: {}", hr);
+    }
+}
+
+void Context::enable_dred(bool enabled) {
     Object<ID3D12DeviceRemovedExtendedDataSettings> dred;
     if (Result hr = D3D12GetDebugInterface(IID_PPV_ARGS(&dred))) {
         dred->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
@@ -118,14 +123,14 @@ void Context::serialize_root_signature(Object<ID3D12RootSignature>& signature, c
 }
 
 void Context::create_device(size_t index) {
-    auto flags = mInstance.flags();
     auto& adapter = mInstance.get_adapter(index);
 
-    if (flags.test(DebugFlags::eDeviceDebugLayer))
-        enable_debug_layer(flags.test(DebugFlags::eGpuValidation), flags.test(DebugFlags::eAutoName));
+    if (mDebugFlags.test(DebugFlags::eDeviceDebugLayer))
+        enable_debug_layer(mDebugFlags.test(DebugFlags::eGpuValidation), mDebugFlags.test(DebugFlags::eAutoName));
+    else
+        disable_debug_layer();
 
-    if (flags.test(DebugFlags::eDeviceRemovedInfo))
-        enable_dred();
+    enable_dred(mDebugFlags.test(DebugFlags::eDeviceRemovedInfo));
 
     auto fl = get_feature_level();
 
@@ -142,13 +147,13 @@ void Context::create_device(size_t index) {
 
     mSink.info("device created: {}", adapter.name());
 
-    if (flags.test(DebugFlags::eInfoQueue))
+    if (mDebugFlags.test(DebugFlags::eInfoQueue))
         enable_info_queue();
 
     query_root_signature_version();
 
     mSink.info("| feature level: {}", fl);
-    mSink.info("| flags: {}", flags);
+    mSink.info("| flags: {}", mDebugFlags);
 }
 
 static constexpr D3D12MA::ALLOCATOR_FLAGS kAllocatorFlags = D3D12MA::ALLOCATOR_FLAG_DEFAULT_POOLS_NOT_ZEROED | D3D12MA::ALLOCATOR_FLAG_SINGLETHREADED;
@@ -588,8 +593,9 @@ void Context::destroy_device() {
 
 Context::Context(const RenderConfig& config)
     : mConfig(config)
+    , mDebugFlags(config.flags)
     , mSink(config.logger)
-    , mInstance({ config.flags, config.preference, config.logger })
+    , mInstance({ mDebugFlags, config.preference, config.logger })
     , mSwapChainFormat(config.swapchain_format)
     , mSwapChainSize(config.swapchain_size)
     , mSwapChainLength(config.swapchain_length)
@@ -602,7 +608,7 @@ Context::Context(const RenderConfig& config)
 { }
 
 void Context::create() {
-    size_t index = mConfig.flags.test(DebugFlags::eWarpAdapter)
+    size_t index = mDebugFlags.test(DebugFlags::eWarpAdapter)
         ? mInstance.warp_adapter_index()
         : mConfig.adapter_index;
 
@@ -651,13 +657,18 @@ void Context::render() {
 
 void Context::update_adapter(size_t index) {
     if (index == mAdapterIndex) return;
+    mAdapterIndex = index;
 
+    recreate_device();
+}
+
+void Context::recreate_device() {
     wait_for_gpu();
     destroy_imgui_backend();
     destroy_frame_graph();
     destroy_device();
 
-    create_device(index);
+    create_device(mAdapterIndex);
     create_allocator();
     create_copy_queue();
     create_copy_fence();

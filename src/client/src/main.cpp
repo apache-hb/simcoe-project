@@ -324,8 +324,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     // enabling gpu based validation on the warp adapter
     // absolutely tanks performance
-    constexpr render::DebugFlags flags = //render::DebugFlags::eWarpAdapter
-        render::DebugFlags::eGpuValidation
+    constexpr render::DebugFlags flags = render::DebugFlags::eWarpAdapter
         | render::DebugFlags::eDeviceDebugLayer
         | render::DebugFlags::eFactoryDebug
         | render::DebugFlags::eDeviceRemovedInfo

@@ -77,6 +77,8 @@ namespace sm::render {
     struct Context {
         const RenderConfig mConfig;
 
+        DebugFlags mDebugFlags;
+
         Sink mSink;
         Instance mInstance;
         WindowState mWindowState;
@@ -95,7 +97,8 @@ namespace sm::render {
         FeatureLevel get_feature_level() const { return mConfig.feature_level; }
 
         void enable_debug_layer(bool gbv, bool rename);
-        void enable_dred();
+        void disable_debug_layer();
+        void enable_dred(bool enabled);
         void enable_info_queue();
         void query_root_signature_version();
         void create_device(size_t adapter);
@@ -261,6 +264,7 @@ namespace sm::render {
         void render();
         void resize_draw(math::uint2 size);
         void resize_swapchain(math::uint2 size);
+        void recreate_device();
 
         draw::Camera camera;
     };
