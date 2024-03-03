@@ -99,6 +99,7 @@ namespace sm::graph {
 
         void optimize();
         void create_resources();
+        void destroy_resources();
 
     public:
         FrameGraph(render::Context& context)
@@ -136,6 +137,7 @@ namespace sm::graph {
         PassBuilder pass(sm::StringView name);
         Handle include(TextureInfo info, Access access, ID3D12Resource *resource);
 
+        void reset();
         void compile();
         void execute();
     };

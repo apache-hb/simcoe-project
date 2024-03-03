@@ -142,11 +142,6 @@ namespace sm::render {
         DsvPool mDsvPool;
         SrvPool mSrvPool;
 
-        // DsvIndex mDepthStencilIndex;
-        // Resource mDepthStencil;
-        void create_depth_stencil();
-        void destroy_depth_stencil();
-
         /// copy queue and commands
         Object<ID3D12CommandQueue> mCopyQueue;
         Object<ID3D12CommandAllocator> mCopyAllocator;
@@ -158,9 +153,6 @@ namespace sm::render {
         HANDLE mCopyFenceEvent;
         uint64 mCopyFenceValue;
         void create_copy_fence();
-
-        // SrvIndex mSceneTargetSrvIndex;
-        // RtvIndex mSceneTargetRtvIndex;
 
         /// blit pipeline + assets
         Viewport mPresentViewport;
@@ -193,8 +185,6 @@ namespace sm::render {
         Resource mSceneTarget;
         void create_scene_target();
         void destroy_scene_target();
-        void create_scene_rtv();
-        void destroy_scene_rtv();
 
         struct Primitive {
             draw::MeshInfo mInfo;
@@ -216,6 +206,9 @@ namespace sm::render {
         void init_scene();
         void create_scene();
         void destroy_scene();
+
+        void create_frame_graph();
+        void destroy_frame_graph();
 
         void create_pipeline();
         void create_assets();

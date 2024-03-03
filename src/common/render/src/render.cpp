@@ -228,8 +228,6 @@ void Context::create_pipeline() {
     SM_ASSERT_HR(mSrvPool.init(*mDevice, min_srv_heap_size(), D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE));
     SM_ASSERT_HR(mDsvPool.init(*mDevice, min_dsv_heap_size(), D3D12_DESCRIPTOR_HEAP_FLAG_NONE));
 
-    create_depth_stencil();
-
     mFrames.resize(mSwapChainLength);
 
     update_scene_viewport();
@@ -244,31 +242,6 @@ void Context::create_pipeline() {
 
 static const D3D12_HEAP_PROPERTIES kDefaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 static const D3D12_HEAP_PROPERTIES kUploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-
-void Context::create_depth_stencil() {
-    // const D3D12_CLEAR_VALUE kClearValue = {
-    //     .Format = mDepthFormat,
-    //     .DepthStencil = { 1.0f, 0 },
-    // };
-
-    // const auto kDepthBufferDesc = CD3DX12_RESOURCE_DESC::Tex2D(mDepthFormat, mSceneSize.width, mSceneSize.height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
-
-    // SM_ASSERT_HR(create_resource(mDepthStencil, D3D12_HEAP_TYPE_DEFAULT, kDepthBufferDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &kClearValue));
-
-    // const D3D12_DEPTH_STENCIL_VIEW_DESC kDesc = {
-    //     .Format = mDepthFormat,
-    //     .ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
-    // };
-
-    // mDepthStencilIndex = mDsvPool.allocate();
-
-    // mDevice->CreateDepthStencilView(*mDepthStencil.mResource, &kDesc, mDsvPool.cpu_handle(mDepthStencilIndex));
-}
-
-void Context::destroy_depth_stencil() {
-    // mDepthStencil.reset();
-    // mDsvPool.release(mDepthStencilIndex);
-}
 
 void Context::create_frame_rtvs() {
     for (auto& frame : mFrames) {
@@ -626,15 +599,26 @@ void Context::build_command_list() {
     SM_ASSERT_HR(mCommandList->Close());
 }
 
+void Context::create_frame_graph() {
+    graph::TextureInfo info = { .name = "Target", .size = 1, .format = mSceneFormat };
+    mSceneTargetHandle = mFrameGraph.include(info, graph::Access::eRenderTarget, mSceneTarget.get());
+    draw::draw_scene(mFrameGraph, mSceneTargetHandle);
+
+    mFrameGraph.compile();
+}
+
+void Context::destroy_frame_graph() {
+    mFrameGraph.reset();
+}
+
 void Context::destroy_device() {
+    destroy_frame_graph();
+
     // release frame resources
     for (uint i = 0; i < mSwapChainLength; i++) {
         mFrames[i].target.reset();
         mFrames[i].allocator.reset();
     }
-
-    // depth stencil
-    // mDepthStencil.reset();
 
     // release sync objects
     mFence.reset();
@@ -705,20 +689,15 @@ void Context::create() {
     create_screen_quad();
     create_scene_target();
     init_scene();
+    create_frame_graph();
     create_imgui();
-
-    // create frame graph
-    graph::TextureInfo info = { .name = "Target", .size = 1, .format = mSceneFormat };
-    mSceneTargetHandle = mFrameGraph.include(info, graph::Access::eRenderTarget, mSceneTarget.get());
-    draw::draw_scene(mFrameGraph, mSceneTargetHandle);
-
-    mFrameGraph.compile();
 }
 
 void Context::destroy() {
     flush_copy_queue();
     wait_for_gpu();
 
+    destroy_frame_graph();
     destroy_imgui();
 
     SM_ASSERT_WIN32(CloseHandle(mCopyFenceEvent));
@@ -748,6 +727,7 @@ void Context::update_adapter(size_t index) {
 
     wait_for_gpu();
     destroy_imgui_backend();
+    destroy_frame_graph();
     destroy_device();
 
     create_device(index);
@@ -760,6 +740,7 @@ void Context::update_adapter(size_t index) {
     create_scene_target();
     create_screen_quad();
     create_scene();
+    create_frame_graph();
 
     create_imgui_backend();
 }
@@ -775,7 +756,6 @@ void Context::update_swapchain_length(uint length) {
     }
 
     destroy_frame_rtvs();
-    destroy_scene_rtv();
 
     const uint flags = get_swapchain_flags(mInstance);
     SM_ASSERT_HR(mSwapChain->ResizeBuffers(length, mSwapChainSize.width, mSwapChainSize.height, mSwapChainFormat, flags));
@@ -787,7 +767,6 @@ void Context::update_swapchain_length(uint length) {
     }
 
     create_frame_rtvs();
-    create_scene_rtv();
     create_render_targets();
     create_frame_allocators();
 
@@ -817,15 +796,14 @@ void Context::resize_draw(math::uint2 size) {
 
     // mDepthStencil.reset();
     destroy_scene_target();
-    destroy_scene_rtv();
-    destroy_depth_stencil();
+    destroy_frame_graph();
 
     mSceneSize = size;
 
     update_scene_viewport();
     update_display_viewport();
     create_scene_target();
-    create_depth_stencil();
+    create_frame_graph();
 }
 
 void Context::move_to_next_frame() {

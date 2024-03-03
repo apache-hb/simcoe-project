@@ -45,6 +45,10 @@ namespace sm::render {
             mAllocator.release(sm::BitMap::Index{size_t(index)});
         }
 
+        void safe_release(Index index) {
+            if (index != Index::eInvalid) release(index);
+        }
+
         D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle(Index index) {
             CTASSERTF(test_bit(index), "DescriptorPool: cpu_handle index %u is not set", enum_cast<uint>(index));
             D3D12_CPU_DESCRIPTOR_HANDLE handle = mHeap->GetCPUDescriptorHandleForHeapStart();

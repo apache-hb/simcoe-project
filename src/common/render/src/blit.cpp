@@ -179,17 +179,6 @@ void Context::destroy_screen_quad() {
     mScreenQuad.mVertexBuffer.reset();
 }
 
-void Context::create_scene_rtv() {
-    // mSceneTargetRtvIndex = mRtvPool.allocate();
-
-    // const auto rtv_handle = mRtvPool.cpu_handle(mSceneTargetRtvIndex);
-    // mDevice->CreateRenderTargetView(mSceneTarget.mResource.get(), nullptr, rtv_handle);
-}
-
-void Context::destroy_scene_rtv() {
-    // mRtvPool.release(mSceneTargetRtvIndex);
-}
-
 void Context::create_scene_target() {
     const auto kTargetDesc = CD3DX12_RESOURCE_DESC::Tex2D(mSceneFormat, mSceneSize.x, mSceneSize.y, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 
@@ -199,19 +188,10 @@ void Context::create_scene_target() {
     };
 
     SM_ASSERT_HR(create_resource(mSceneTarget, D3D12_HEAP_TYPE_DEFAULT, kTargetDesc, D3D12_RESOURCE_STATE_RENDER_TARGET, &kClear));
-
-    // mSceneTargetSrvIndex = mSrvPool.allocate();
-
-    // create_scene_rtv();
-
-    // /// create srv
-    // const auto srv_handle = mSrvPool.cpu_handle(mSceneTargetSrvIndex);
-    // mDevice->CreateShaderResourceView(mSceneTarget.mResource.get(), nullptr, srv_handle);
 }
 
 void Context::destroy_scene_target() {
     mSceneTarget.reset();
-    // mSrvPool.release(mSceneTargetSrvIndex);
 }
 
 void Context::update_display_viewport() {

@@ -220,7 +220,6 @@ void FrameGraph::create_resources() {
 
         // TODO: this seems a little weird
         if (handle.access.test(eRenderTarget)) {
-            mContext.mSink.info("RenderTarget created for {}", info.name);
             handle.rtv = mContext.mRtvPool.allocate();
 
             const auto rtv_handle = mContext.mRtvPool.cpu_handle(handle.rtv);
@@ -231,15 +230,28 @@ void FrameGraph::create_resources() {
             const auto srv_handle = mContext.mSrvPool.cpu_handle(handle.srv);
             device->CreateShaderResourceView(handle.resource, nullptr, srv_handle);
         } else if (handle.access.test(eDepthTarget)) {
-            mContext.mSink.info("DepthStencil created for {}", info.name);
             handle.dsv = mContext.mDsvPool.allocate();
 
             const auto dsv_handle = mContext.mDsvPool.cpu_handle(handle.dsv);
             device->CreateDepthStencilView(handle.resource, nullptr, dsv_handle);
         }
     }
+}
 
-    mContext.mSink.info("Resources created");
+void FrameGraph::destroy_resources() {
+    for (auto& handle : mHandles) {
+        mContext.mRtvPool.safe_release(handle.rtv);
+        mContext.mDsvPool.safe_release(handle.dsv);
+        mContext.mSrvPool.safe_release(handle.srv);
+    }
+
+    mResources.clear();
+}
+
+void FrameGraph::reset() {
+    destroy_resources();
+    mRenderPasses.clear();
+    mHandles.clear();
 }
 
 void FrameGraph::compile() {
