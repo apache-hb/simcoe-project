@@ -23,24 +23,6 @@ namespace sm::render {
     constexpr math::float4 kClearColour = { 0.0f, 0.2f, 0.4f, 1.0f };
     constexpr math::float4 kColourBlack = { 0.0f, 0.0f, 0.0f, 1.0f };
 
-    constexpr D3D12_CLEAR_VALUE clear_depth(Format format, float depth = 1.0f, uint8 stencil = 0) {
-        D3D12_CLEAR_VALUE clear;
-        clear.Format = format.as_facade();
-        clear.DepthStencil.Depth = depth;
-        clear.DepthStencil.Stencil = stencil;
-        return clear;
-    }
-
-    constexpr D3D12_CLEAR_VALUE clear_colour(const math::float4& colour) {
-        D3D12_CLEAR_VALUE clear;
-        clear.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        clear.Color[0] = colour.r;
-        clear.Color[1] = colour.g;
-        clear.Color[2] = colour.b;
-        clear.Color[3] = colour.a;
-        return clear;
-    }
-
     struct RenderConfig {
         DebugFlags flags;
         AdapterPreference preference;

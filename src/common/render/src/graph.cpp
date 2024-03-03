@@ -61,7 +61,7 @@ void PassBuilder::write(Handle handle, Access access) {
 }
 
 Handle PassBuilder::create(TextureInfo info, Access access) {
-    Handle handle = mFrameGraph.texture(info, access);
+    Handle handle = mFrameGraph.texture(std::move(info), access);
     mRenderPass.creates.push_back({handle, access});
     return handle;
 }
@@ -76,13 +76,13 @@ bool FrameGraph::is_imported(Handle handle) const {
 
 uint FrameGraph::add_handle(ResourceHandle handle, Access access) {
     uint index = mHandles.size();
-    mHandles.emplace_back(handle);
+    mHandles.emplace_back(std::move(handle));
     return index;
 }
 
 Handle FrameGraph::texture(TextureInfo info, Access access) {
     ResourceHandle handle = {
-        .info = info,
+        .info = std::move(info),
         .type = ResourceType::eTransient,
         .access = access,
         .resource = nullptr,
@@ -94,7 +94,7 @@ Handle FrameGraph::texture(TextureInfo info, Access access) {
 
 Handle FrameGraph::include(TextureInfo info, Access access, ID3D12Resource *resource) {
     ResourceHandle handle = {
-        .info = info,
+        .info = std::move(info),
         .type = ResourceType::eImported,
         .access = access,
         .resource = resource
@@ -240,53 +240,50 @@ void FrameGraph::create_resources() {
 
         const auto& info = handle.info;
 
-        if (!handle.is_imported()) {
-            const auto flags = get_required_flags(handle.access);
+        if (handle.is_imported()) continue;
 
-            D3D12_CLEAR_VALUE storage;
-            auto *clear = info.clear.get_value(storage, info.format);
+        const auto flags = get_required_flags(handle.access);
 
-            auto size = info.size;
+        D3D12_CLEAR_VALUE storage;
+        auto *clear = info.clear.get_value(storage, info.format);
 
-            const auto desc = CD3DX12_RESOURCE_DESC::Tex2D(
-                /*format=*/ info.format.as_facade(),
-                /*width=*/ size.width,
-                /*height=*/ size.height,
-                /*arraySize=*/ 1,
-                /*mipLevels=*/ 0,
-                /*sampleCount=*/ 1,
-                /*sampleQuality=*/ 0,
-                /*flags=*/ flags
-            );
+        auto size = info.size;
 
-            const auto state = handle.access.as_facade();
+        const auto desc = CD3DX12_RESOURCE_DESC::Tex2D(
+            /*format=*/ info.format.as_facade(),
+            /*width=*/ size.width,
+            /*height=*/ size.height,
+            /*arraySize=*/ 1,
+            /*mipLevels=*/ 1,
+            /*sampleCount=*/ 1,
+            /*sampleQuality=*/ 0,
+            /*flags=*/ flags
+        );
 
-            auto& resource = mResources.emplace_back();
-            SM_ASSERT_HR(mContext.create_resource(resource, D3D12_HEAP_TYPE_DEFAULT, desc, state, clear));
+        const auto state = handle.access.as_facade();
 
-            resource.mResource.rename(info.name);
+        auto& resource = mResources.emplace_back();
+        SM_ASSERT_HR(mContext.create_resource(resource, D3D12_HEAP_TYPE_DEFAULT, desc, state, clear));
 
-            handle.resource = resource.get();
-        }
+        resource.mResource.rename(info.name);
 
-        if (handle.resource) {
-            // TODO: this seems a little weird
-            if (handle.access.test(eRenderTarget)) {
-                handle.rtv = mContext.mRtvPool.allocate();
+        handle.resource = resource.get();
 
-                const auto rtv_handle = mContext.mRtvPool.cpu_handle(handle.rtv);
-                device->CreateRenderTargetView(handle.resource, nullptr, rtv_handle);
+        // TODO: this seems a little weird
+        if (handle.access.test(eRenderTarget)) {
+            handle.rtv = mContext.mRtvPool.allocate();
+            handle.srv = mContext.mSrvPool.allocate();
 
-                // create srv
-                handle.srv = mContext.mSrvPool.allocate();
-                const auto srv_handle = mContext.mSrvPool.cpu_handle(handle.srv);
-                device->CreateShaderResourceView(handle.resource, nullptr, srv_handle);
-            } else if (handle.access.test(eDepthTarget)) {
-                handle.dsv = mContext.mDsvPool.allocate();
+            const auto rtv_handle = mContext.mRtvPool.cpu_handle(handle.rtv);
+            device->CreateRenderTargetView(handle.resource, nullptr, rtv_handle);
 
-                const auto dsv_handle = mContext.mDsvPool.cpu_handle(handle.dsv);
-                device->CreateDepthStencilView(handle.resource, nullptr, dsv_handle);
-            }
+            const auto srv_handle = mContext.mSrvPool.cpu_handle(handle.srv);
+            device->CreateShaderResourceView(handle.resource, nullptr, srv_handle);
+        } else if (handle.access.test(eDepthTarget)) {
+            handle.dsv = mContext.mDsvPool.allocate();
+
+            const auto dsv_handle = mContext.mDsvPool.cpu_handle(handle.dsv);
+            device->CreateDepthStencilView(handle.resource, nullptr, dsv_handle);
         }
     }
 }

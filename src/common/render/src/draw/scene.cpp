@@ -5,23 +5,24 @@
 using namespace sm;
 
 void draw::draw_scene(graph::FrameGraph& graph, graph::Handle& target) {
+    auto& ctx = graph.get_context();
     graph::TextureInfo depth_info = {
         .name = "Scene/Depth",
         .size = graph.render_size(),
-        .format = render::Format::eF32_DEPTH,
+        .format = ctx.mDepthFormat,
         .clear = graph::clear_depth(1.f)
     };
 
     graph::TextureInfo target_info = {
         .name = "Scene/Target",
         .size = graph.render_size(),
-        .format = render::Format::eRGBA8_UNORM,
+        .format = ctx.mSceneFormat,
         .clear = graph::clear_colour(render::kClearColour)
     };
 
     graph::PassBuilder pass = graph.pass("Scene");
-    auto depth = pass.create(depth_info, graph::Access::eDepthTarget);
     target = pass.create(target_info, graph::Access::eRenderTarget);
+    auto depth = pass.create(depth_info, graph::Access::eDepthTarget);
     pass.write(depth, graph::Access::eDepthTarget);
     pass.write(target, graph::Access::eRenderTarget);
 
@@ -36,10 +37,10 @@ void draw::draw_scene(graph::FrameGraph& graph, graph::Handle& target) {
         cmd->SetGraphicsRootSignature(*context.mPrimitivePipeline.signature);
         cmd->SetPipelineState(*context.mPrimitivePipeline.pso);
 
-        cmd->OMSetRenderTargets(1, &rtv_cpu, false, &dsv_cpu);
-
         cmd->RSSetViewports(1, &context.mSceneViewport.mViewport);
         cmd->RSSetScissorRects(1, &context.mSceneViewport.mScissorRect);
+
+        cmd->OMSetRenderTargets(1, &rtv_cpu, false, &dsv_cpu);
         cmd->ClearRenderTargetView(rtv_cpu, render::kClearColour.data(), 0, nullptr);
         cmd->ClearDepthStencilView(dsv_cpu, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 

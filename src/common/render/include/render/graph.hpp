@@ -164,6 +164,8 @@ namespace sm::graph {
         uint2 present_size() const;
         uint2 render_size() const;
 
+        render::Context& get_context() { return mContext; }
+
         void reset();
         void compile();
         void execute();

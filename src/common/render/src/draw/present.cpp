@@ -6,8 +6,8 @@ using namespace sm;
 
 void draw::draw_present(graph::FrameGraph& graph, graph::Handle target, graph::Handle source) {
     graph::PassBuilder pass = graph.pass("Present");
-    pass.read(source, graph::Access::ePixelShaderResource);
     pass.write(target, graph::Access::eRenderTarget);
+    pass.read(source, graph::Access::ePixelShaderResource);
 
     pass.bind([target, source](graph::FrameGraph& graph, render::Context& context) {
         auto& cmd = context.mCommandList;

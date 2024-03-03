@@ -227,8 +227,8 @@ void Context::create_pipeline() {
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
 
     SM_ASSERT_HR(mRtvPool.init(*mDevice, min_rtv_heap_size(), D3D12_DESCRIPTOR_HEAP_FLAG_NONE));
-    SM_ASSERT_HR(mSrvPool.init(*mDevice, min_srv_heap_size(), D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE));
     SM_ASSERT_HR(mDsvPool.init(*mDevice, min_dsv_heap_size(), D3D12_DESCRIPTOR_HEAP_FLAG_NONE));
+    SM_ASSERT_HR(mSrvPool.init(*mDevice, min_srv_heap_size(), D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE));
 
     mFrames.resize(mSwapChainLength);
 
@@ -266,6 +266,8 @@ void Context::create_render_targets() {
         auto rtv = mRtvPool.cpu_handle(mFrames[i].rtv_index);
         SM_ASSERT_HR(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&backbuffer)));
         mDevice->CreateRenderTargetView(*backbuffer, nullptr, rtv);
+
+        backbuffer.rename(fmt::format("BackBuffer {}", i));
     }
 }
 
@@ -519,7 +521,7 @@ void Context::build_command_list() {
 
 void Context::create_frame_graph() {
     {
-        graph::TextureInfo info = { .name = "SwapChain", .size = 1, .format = mSwapChainFormat };
+        graph::TextureInfo info = { .name = "SwapChain", .size = mSwapChainSize, .format = mSwapChainFormat };
         mSwapChainHandle = mFrameGraph.include(info, graph::Access::ePresent, nullptr);
     }
 
