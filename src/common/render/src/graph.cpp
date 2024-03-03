@@ -4,61 +4,161 @@
 #include "core/stack.hpp"
 
 #include "d3dx12_core.h"
+#include "d3dx12_barriers.h"
 
 using namespace sm;
 using namespace sm::graph;
 
-// Handle FrameGraph::new_resource(ResourceType type, const HandleInfo& info, Resource *resource) {
+using enum render::ResourceState::Inner;
 
-// }
+using PassBuilder = FrameGraph::PassBuilder;
 
-Handle FrameGraph::create_resource(const HandleInfo& info) {
-    SM_ASSERTF(info.type == HandleType::eCreate, "Invalid handle type {}", info.type);
+void PassBuilder::read(Handle handle, Access access) {
+    mRenderPass.reads.push_back({handle, access});
+}
 
-    auto scene = mContext.mSceneSize;
-    scene.width /= info.create.width;
-    scene.height /= info.create.height;
-
-    Resource resource;
-
-    D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE;
-
-    // if (info.state & D3D12_RESOURCE_STATE_RENDER_TARGET) {
-    //     resource.rtv = mContext.mRtvAllocator.allocate();
-    //     flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-    // }
-
-    // if (info.state & D3D12_RESOURCE_STATE_DEPTH_WRITE) {
-    //     resource.dsv = mContext.mDsvAllocator.allocate();
-    //     flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-    // }
-
-    if (info.state & D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE) {
-        resource.srv = mContext.mSrvPool.allocate();
+void PassBuilder::write(Handle handle, Access access) {
+    mRenderPass.writes.push_back({handle, access});
+    if (mFrameGraph.is_imported(handle)) {
+        mRenderPass.has_side_effects = true;
     }
+}
 
-    const auto kDesc = CD3DX12_RESOURCE_DESC::Tex2D(info.format.as_facade(), scene.width, scene.height, 1, 1, 1, 0, flags);
+Handle PassBuilder::create(TextureInfo info, Access access) {
+    Handle handle = mFrameGraph.texture(info, access);
+    mRenderPass.creates.push_back({handle, access});
+    return handle;
+}
 
-    D3D12_CLEAR_VALUE kClear = {
-        .Format = info.format.as_facade(),
-        .Color = { 0.0f, 0.0f, 0.0f, 1.0f },
+void PassBuilder::side_effects(bool effects) {
+    mRenderPass.has_side_effects = effects;
+}
+
+bool FrameGraph::is_imported(Handle handle) const {
+    return mHandles[handle.index].type == ResourceType::eImported;
+}
+
+uint FrameGraph::add_handle(ResourceHandle handle, Access access) {
+    uint index = mResources.size();
+    mHandles.emplace_back(handle);
+    return index;
+}
+
+Handle FrameGraph::texture(TextureInfo info, Access access) {
+    ResourceHandle handle = {
+        .info = info,
+        .type = ResourceType::eTransient,
+        .access = access,
+        .resource = nullptr,
     };
 
-    if (info.state & D3D12_RESOURCE_STATE_DEPTH_WRITE) {
-        kClear.DepthStencil = { 1.0f, 0 };
+    uint index = add_handle(handle, access);
+    return {index};
+}
+
+Handle FrameGraph::include(sm::StringView name, TextureInfo info, Access access, ID3D12Resource *resource) {
+    ResourceHandle handle = {
+        .info = info,
+        .type = ResourceType::eImported,
+        .access = access,
+        .resource = resource
+    };
+
+    uint index = add_handle(handle, access);
+    return {index};
+}
+
+PassBuilder FrameGraph::pass(sm::StringView name) {
+    RenderPass pass;
+    pass.name = name;
+
+    auto& ref = mRenderPasses.emplace_back(pass);
+    return { *this, ref };
+}
+
+void FrameGraph::compile() {
+    // cull all the nodes that are not used
+    for (auto& pass : mRenderPasses) {
+        pass.refcount = (uint)pass.writes.size();
+
+        for (auto& [index, access] : pass.reads) {
+            mHandles[index.index].refcount += 1;
+        }
+
+        for (auto& [index, access] : pass.writes) {
+            mHandles[index.index].producer = &pass;
+        }
     }
 
-    SM_ASSERT_HR(mContext.create_resource(resource.resource, D3D12_HEAP_TYPE_DEFAULT, kDesc, info.state, &kClear));
+    // culling
+    sm::Stack<ResourceHandle*> queue;
+    for (auto& handle : mHandles) {
+        if (handle.refcount == 0) {
+            queue.push(&handle);
+        }
+    }
 
-    CT_NEVER("Not implemented");
+    while (!queue.empty()) {
+        ResourceHandle *handle = queue.top();
+        queue.pop();
+        RenderPass *producer = handle->producer;
+        if (producer == nullptr || producer->has_side_effects) {
+            continue;
+        }
+
+        producer->refcount -= 1;
+        if (producer->refcount == 0) {
+            for (auto& [index, access] : producer->reads) {
+                auto& handle = mHandles[index.index];
+                handle.refcount -= 1;
+                if (handle.refcount == 0) {
+                    queue.push(&handle);
+                }
+            }
+        }
+    }
+
+    for (auto& pass : mRenderPasses) {
+        if (pass.refcount == 0) continue;
+
+        for (auto& [index, access] : pass.creates)
+            mHandles[index.index].producer = &pass;
+        for (auto& [index, access] : pass.reads)
+            mHandles[index.index].last = &pass;
+        for (auto& [index, access] : pass.writes)
+            mHandles[index.index].last = &pass;
+    }
 }
 
-Handle FrameGraph::import_resource(const HandleInfo& info, Resource *resource) {
-    return new_resource(ResourceType::eImported, info, resource);
-}
+void FrameGraph::execute() {
+    sm::HashMap<ID3D12Resource*, D3D12_RESOURCE_STATES> states;
 
-void FrameGraph::build_pass(sm::StringView name, IRenderPass *pass) {
-    PassBuilder builder{mContext, *pass, *this};
-    pass->build(builder);
-    mPasses.push_back(pass);
+    sm::SmallVector<D3D12_RESOURCE_BARRIER, 4> barriers;
+
+    auto& commands = mContext.mCommandList;
+    for (auto& pass : mRenderPasses) {
+        if (!pass.should_execute()) continue;
+
+        for (auto& [index, access] : pass.creates) {
+            ID3D12Resource *resource = mHandles[index.index].resource;
+            states[resource] = access.as_facade();
+        }
+
+        for (auto& [index, access] : pass.reads) {
+            ID3D12Resource *resource = mHandles[index.index].resource;
+            states[resource] = access.as_facade();
+        }
+
+        for (auto& [index, access] : pass.writes) {
+            ID3D12Resource *resource = mHandles[index.index].resource;
+            states[resource] = access.as_facade();
+        }
+
+        if (barriers.size() > 0) {
+            commands->ResourceBarrier(barriers.size(), barriers.data());
+            barriers.clear();
+        }
+
+        pass.execute(*this, mContext);
+    }
 }

@@ -1,17 +1,6 @@
 module sm::graph;
 
 variant ResourceType {
-    case Imported
     case Transient
-}
-
-[[arithmetic]]
-variant ResourceId : uint {
-    default Invalid = 0xFFFFFFFF
-}
-
-variant HandleType {
-    case Create
-    case Read
-    case Write
+    case Imported
 }

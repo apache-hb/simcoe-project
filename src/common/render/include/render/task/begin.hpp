@@ -18,12 +18,8 @@
 #   define TASK_TEXTURE_CREATE(name, state, width, height, format)
 #endif
 
-#ifndef RELATIVE_SIZE
-#   define RELATIVE_SIZE()
-#endif
-
-#ifndef RELATIVE_DIV2
-#   define RELATIVE_DIV2()
+#ifndef TASK_DEPTH_CREATE
+#   define TASK_DEPTH_CREATE(name, state, width, height, format)
 #endif
 
 #ifndef TEMPORAL
