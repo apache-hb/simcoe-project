@@ -29,10 +29,27 @@ namespace sm::graph {
         uint index;
     };
 
+    struct Clear {
+        enum { eColour, eDepth, eEmpty } type;
+        union {
+            float4 colour;
+            float depth;
+        };
+
+        Clear() : type(eEmpty) { }
+
+        D3D12_CLEAR_VALUE *get_value(D3D12_CLEAR_VALUE& storage, render::Format format) const;
+    };
+
+    Clear clear_colour(float4 colour);
+
+    Clear clear_depth(float depth);
+
     struct TextureInfo {
         sm::String name;
         uint2 size;
         render::Format format;
+        Clear clear;
     };
 
     class FrameGraph {
@@ -143,6 +160,9 @@ namespace sm::graph {
 
         PassBuilder pass(sm::StringView name);
         Handle include(TextureInfo info, Access access, ID3D12Resource *resource);
+
+        uint2 present_size() const;
+        uint2 render_size() const;
 
         void reset();
         void compile();

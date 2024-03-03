@@ -513,71 +513,6 @@ void Context::build_command_list() {
         mFrameGraph.execute();
     }
 
-#if 0
-    {
-        auto& [backbuffer, allocator, rtv_index, _] = mFrames[mFrameIndex];
-
-        const D3D12_RESOURCE_BARRIER kBeginPostBarriers[] = {
-            // transition backbuffer from present to render target
-            CD3DX12_RESOURCE_BARRIER::Transition(
-                *backbuffer,
-                D3D12_RESOURCE_STATE_PRESENT,
-                D3D12_RESOURCE_STATE_RENDER_TARGET
-            ),
-            // transition scene target from render target to pixel shader resource
-            CD3DX12_RESOURCE_BARRIER::Transition(
-                *mSceneTarget.mResource,
-                D3D12_RESOURCE_STATE_RENDER_TARGET,
-                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
-            )
-        };
-
-        mCommandList->ResourceBarrier(_countof(kBeginPostBarriers), kBeginPostBarriers);
-
-        ID3D12DescriptorHeap *heaps[] = { mSrvPool.get() };
-        mCommandList->SetDescriptorHeaps(_countof(heaps), heaps);
-
-        /// post
-        mCommandList->SetGraphicsRootSignature(*mBlitPipeline.signature);
-        mCommandList->SetPipelineState(*mBlitPipeline.pso);
-
-        mCommandList->RSSetViewports(1, &mPresentViewport.mViewport);
-        mCommandList->RSSetScissorRects(1, &mPresentViewport.mScissorRect);
-
-        const auto rtv_handle = mRtvPool.cpu_handle(rtv_index);
-        mCommandList->OMSetRenderTargets(1, &rtv_handle, false, nullptr);
-
-        mCommandList->ClearRenderTargetView(rtv_handle, kColourBlack.data(), 0, nullptr);
-        mCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-        mCommandList->IASetVertexBuffers(0, 1, &mScreenQuad.mVertexBufferView);
-
-        const auto scene_srv_handle = mSrvPool.gpu_handle(mFrameGraph.srv(mSceneTargetHandle));
-
-        mCommandList->SetGraphicsRootDescriptorTable(0, scene_srv_handle);
-        mCommandList->DrawInstanced(4, 1, 0, 0);
-
-        /// imgui
-        render_imgui();
-
-        const D3D12_RESOURCE_BARRIER kEndPostBarriers[] = {
-            // transition backbuffer from render target to present
-            CD3DX12_RESOURCE_BARRIER::Transition(
-                *backbuffer,
-                D3D12_RESOURCE_STATE_RENDER_TARGET,
-                D3D12_RESOURCE_STATE_PRESENT
-            ),
-            // transition scene target from pixel shader resource to render target
-            CD3DX12_RESOURCE_BARRIER::Transition(
-                *mSceneTarget.mResource,
-                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-                D3D12_RESOURCE_STATE_RENDER_TARGET
-            )
-        };
-
-        mCommandList->ResourceBarrier(_countof(kEndPostBarriers), kEndPostBarriers);
-    }
-#endif
-
     SM_ASSERT_HR(mCommandList->Close());
 }
 
@@ -587,13 +522,10 @@ void Context::create_frame_graph() {
         mSwapChainHandle = mFrameGraph.include(info, graph::Access::ePresent, nullptr);
     }
 
-    {
-        graph::TextureInfo info = { .name = "Target", .size = 1, .format = mSceneFormat };
-        mSceneTargetHandle = mFrameGraph.include(info, graph::Access::eRenderTarget, mSceneTarget.get());
-        draw::draw_scene(mFrameGraph, mSceneTargetHandle);
-    }
+    graph::Handle scene_target;
 
-    draw::draw_present(mFrameGraph, mSwapChainHandle, mSceneTargetHandle);
+    draw::draw_scene(mFrameGraph, scene_target);
+    draw::draw_present(mFrameGraph, mSwapChainHandle, scene_target);
     draw::draw_imgui(mFrameGraph, mSwapChainHandle);
 
     mFrameGraph.compile();
@@ -767,6 +699,7 @@ void Context::update_swapchain_length(uint length) {
 
 void Context::resize_swapchain(math::uint2 size) {
     wait_for_gpu();
+    destroy_frame_graph();
 
     for (uint i = 0; i < mSwapChainLength; i++) {
         mFrames[i].target.reset();
@@ -781,6 +714,7 @@ void Context::resize_swapchain(math::uint2 size) {
 
     update_display_viewport();
     create_render_targets();
+    create_frame_graph();
 }
 
 void Context::resize_draw(math::uint2 size) {

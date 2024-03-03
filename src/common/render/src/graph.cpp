@@ -14,6 +14,40 @@ using enum render::ResourceState::Inner;
 
 using PassBuilder = FrameGraph::PassBuilder;
 
+Clear graph::clear_colour(float4 colour) {
+    Clear clear;
+    clear.type = Clear::eColour;
+    clear.colour = colour;
+    return clear;
+}
+
+Clear graph::clear_depth(float depth) {
+    Clear clear;
+    clear.type = Clear::eDepth;
+    clear.depth = depth;
+    return clear;
+}
+
+D3D12_CLEAR_VALUE *Clear::get_value(D3D12_CLEAR_VALUE& storage, render::Format format) const {
+    storage = { .Format = format.as_facade() };
+    switch (type) {
+    case eColour:
+        storage.Color[0] = colour.r;
+        storage.Color[1] = colour.g;
+        storage.Color[2] = colour.b;
+        storage.Color[3] = colour.a;
+        break;
+    case eDepth:
+        storage.DepthStencil.Depth = depth;
+        storage.DepthStencil.Stencil = 0;
+        break;
+    case eEmpty:
+        return nullptr;
+    }
+
+    return &storage;
+}
+
 void PassBuilder::read(Handle handle, Access access) {
     mRenderPass.reads.push_back({handle, access});
 }
@@ -68,6 +102,14 @@ Handle FrameGraph::include(TextureInfo info, Access access, ID3D12Resource *reso
 
     uint index = add_handle(handle, access);
     return {index};
+}
+
+uint2 FrameGraph::present_size() const {
+    return mContext.mSwapChainSize;
+}
+
+uint2 FrameGraph::render_size() const {
+    return mContext.mSceneSize;
 }
 
 void FrameGraph::update(Handle handle, ID3D12Resource *resource) {
@@ -187,16 +229,6 @@ static constexpr D3D12_RESOURCE_FLAGS get_required_flags(Access access) {
     return flags;
 }
 
-static constexpr D3D12_CLEAR_VALUE get_clear_value(Access access) {
-    if (access.test(eRenderTarget)) {
-        return { .Format = DXGI_FORMAT_R8G8B8A8_UNORM, .Color = {0.0f, 0.0f, 0.0f, 1.0f} };
-    } else if (access.test(eDepthTarget)) {
-        return { .Format = DXGI_FORMAT_D32_FLOAT, .DepthStencil = {1.0f, 0} };
-    }
-
-    SM_NEVER("invalid access {}", access);
-}
-
 void FrameGraph::create_resources() {
     mResources.clear();
 
@@ -210,10 +242,11 @@ void FrameGraph::create_resources() {
 
         if (!handle.is_imported()) {
             const auto flags = get_required_flags(handle.access);
-            const auto clear = get_clear_value(handle.access);
 
-            auto size = mContext.mSceneSize;
-            size /= info.size;
+            D3D12_CLEAR_VALUE storage;
+            auto *clear = info.clear.get_value(storage, info.format);
+
+            auto size = info.size;
 
             const auto desc = CD3DX12_RESOURCE_DESC::Tex2D(
                 /*format=*/ info.format.as_facade(),
@@ -229,27 +262,31 @@ void FrameGraph::create_resources() {
             const auto state = handle.access.as_facade();
 
             auto& resource = mResources.emplace_back();
-            SM_ASSERT_HR(mContext.create_resource(resource, D3D12_HEAP_TYPE_DEFAULT, desc, state, &clear));
+            SM_ASSERT_HR(mContext.create_resource(resource, D3D12_HEAP_TYPE_DEFAULT, desc, state, clear));
+
+            resource.mResource.rename(info.name);
 
             handle.resource = resource.get();
         }
 
-        // TODO: this seems a little weird
-        if (handle.access.test(eRenderTarget)) {
-            handle.rtv = mContext.mRtvPool.allocate();
+        if (handle.resource) {
+            // TODO: this seems a little weird
+            if (handle.access.test(eRenderTarget)) {
+                handle.rtv = mContext.mRtvPool.allocate();
 
-            const auto rtv_handle = mContext.mRtvPool.cpu_handle(handle.rtv);
-            device->CreateRenderTargetView(handle.resource, nullptr, rtv_handle);
+                const auto rtv_handle = mContext.mRtvPool.cpu_handle(handle.rtv);
+                device->CreateRenderTargetView(handle.resource, nullptr, rtv_handle);
 
-            // create srv
-            handle.srv = mContext.mSrvPool.allocate();
-            const auto srv_handle = mContext.mSrvPool.cpu_handle(handle.srv);
-            device->CreateShaderResourceView(handle.resource, nullptr, srv_handle);
-        } else if (handle.access.test(eDepthTarget)) {
-            handle.dsv = mContext.mDsvPool.allocate();
+                // create srv
+                handle.srv = mContext.mSrvPool.allocate();
+                const auto srv_handle = mContext.mSrvPool.cpu_handle(handle.srv);
+                device->CreateShaderResourceView(handle.resource, nullptr, srv_handle);
+            } else if (handle.access.test(eDepthTarget)) {
+                handle.dsv = mContext.mDsvPool.allocate();
 
-            const auto dsv_handle = mContext.mDsvPool.cpu_handle(handle.dsv);
-            device->CreateDepthStencilView(handle.resource, nullptr, dsv_handle);
+                const auto dsv_handle = mContext.mDsvPool.cpu_handle(handle.dsv);
+                device->CreateDepthStencilView(handle.resource, nullptr, dsv_handle);
+            }
         }
     }
 }
@@ -283,7 +320,9 @@ void FrameGraph::execute() {
         ID3D12Resource *resource = mHandles[index.index].resource;
         D3D12_RESOURCE_STATES state = access.as_facade();
 
-        if (states.contains(resource)) commands.transition(resource, states[resource], state);
+        if (states.contains(resource))
+            commands.transition(resource, states[resource], state);
+
         states[resource] = state;
     };
 
@@ -293,16 +332,22 @@ void FrameGraph::execute() {
     };
     sm::SmallVector<FinalState, 8> restoration;
 
+    // store the initial state of all imported resources
     for (auto& handle : mHandles) {
-        if (!handle.is_imported()) continue;
-        restoration.push_back({handle.resource, handle.access.as_facade()});
-        states[handle.resource] = handle.access.as_facade();
+        if (!handle.is_imported() || !handle.is_used()) continue;
+
+        auto state = handle.access.as_facade();
+
+        restoration.push_back({handle.resource, state});
+        states[handle.resource] = state;
     }
 
     for (auto& pass : mRenderPasses) {
         if (!pass.is_used()) continue;
 
         for (auto& [index, access] : pass.creates) {
+            restoration.push_back({resource(index), access.as_facade()});
+
             update_state(index, access);
         }
 
@@ -319,7 +364,7 @@ void FrameGraph::execute() {
         pass.execute(*this, mContext);
     }
 
-    // transition created resource back to their initial state
+    // transition imported and created resource back to their initial state
     for (auto& [resource, state] : restoration) {
         commands.transition(resource, states[resource], state);
     }

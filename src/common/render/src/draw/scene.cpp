@@ -4,11 +4,24 @@
 
 using namespace sm;
 
-void draw::draw_scene(graph::FrameGraph& graph, graph::Handle target) {
-    graph::TextureInfo depth_info = { .name = "Scene/Depth", .size = 1, .format = render::Format::eF32_DEPTH };
+void draw::draw_scene(graph::FrameGraph& graph, graph::Handle& target) {
+    graph::TextureInfo depth_info = {
+        .name = "Scene/Depth",
+        .size = graph.render_size(),
+        .format = render::Format::eF32_DEPTH,
+        .clear = graph::clear_depth(1.f)
+    };
+
+    graph::TextureInfo target_info = {
+        .name = "Scene/Target",
+        .size = graph.render_size(),
+        .format = render::Format::eRGBA8_UNORM,
+        .clear = graph::clear_colour(render::kClearColour)
+    };
 
     graph::PassBuilder pass = graph.pass("Scene");
     auto depth = pass.create(depth_info, graph::Access::eDepthTarget);
+    target = pass.create(target_info, graph::Access::eRenderTarget);
     pass.write(depth, graph::Access::eDepthTarget);
     pass.write(target, graph::Access::eRenderTarget);
 
