@@ -293,6 +293,8 @@ void FrameGraph::create_resources() {
 
 void FrameGraph::destroy_resources() {
     for (auto& handle : mHandles) {
+        if (handle.is_imported()) continue;
+
         mContext.mRtvPool.safe_release(handle.rtv);
         mContext.mDsvPool.safe_release(handle.dsv);
         mContext.mSrvPool.safe_release(handle.srv);

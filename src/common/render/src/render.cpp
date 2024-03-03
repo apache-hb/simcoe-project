@@ -254,6 +254,7 @@ void Context::create_frame_rtvs() {
 void Context::destroy_frame_rtvs() {
     for (auto& frame : mFrames) {
         mRtvPool.release(frame.rtv_index);
+        frame.rtv_index = RtvIndex::eInvalid;
     }
 }
 
@@ -699,12 +700,14 @@ void Context::update_swapchain_length(uint length) {
 
 void Context::resize_swapchain(math::uint2 size) {
     wait_for_gpu();
-    destroy_frame_graph();
 
     for (uint i = 0; i < mSwapChainLength; i++) {
         mFrames[i].target.reset();
         mFrames[i].fence_value = mFrames[mFrameIndex].fence_value;
     }
+
+    destroy_frame_graph();
+    destroy_frame_rtvs();
 
     const uint flags = get_swapchain_flags(mInstance);
     SM_ASSERT_HR(mSwapChain->ResizeBuffers(mSwapChainLength, size.width, size.height, mSwapChainFormat, flags));
@@ -712,6 +715,7 @@ void Context::resize_swapchain(math::uint2 size) {
 
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
 
+    create_frame_rtvs();
     update_display_viewport();
     create_render_targets();
     create_frame_graph();
