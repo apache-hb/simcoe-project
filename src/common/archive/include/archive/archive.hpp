@@ -21,7 +21,12 @@ namespace sm {
         constexpr bool is_valid() const { return mStream.is_valid(); }
 
         void write_bytes(const void *data, size_t size);
+        void write_string(sm::StringView str);
+        void write_length(size_t length);
+
         size_t read_bytes(void *data, size_t size);
+        bool read_string(sm::String& str);
+        bool read_length(size_t& length);
 
         template<StandardLayout T>
         void write(const T& data) {
@@ -29,10 +34,9 @@ namespace sm {
         }
 
         template<StandardLayout T>
-        void write_many(sm::Span<const T> data) {
-            uint32_t count = int_cast<uint32_t>(data.size());
-            write(count);
-            write_bytes(data.data(), data.size_bytes());
+        void write_many(const sm::Vector<T>& data) {
+            write_length(data.size());
+            write_bytes(data.data(), data.size() * sizeof(T));
         }
 
         template<StandardLayout T>
@@ -42,16 +46,15 @@ namespace sm {
 
         template<StandardLayout T>
         bool read_many(sm::Vector<T>& data) {
-            uint32_t count;
-            if (!read(count))
+            size_t count;
+            if (!read_length(count))
                 return false;
 
-            data.resize(count);
-            return read_bytes(data.data(), data.size_bytes()) == data.size_bytes();
-        }
+            size_t size = count * sizeof(T);
 
-        void write_string(sm::StringView str);
-        bool read_string(sm::String& str);
+            data.resize(count);
+            return read_bytes(data.data(), size) == size;
+        }
 
         static Archive load(sm::StringView path);
         static Archive save(sm::StringView path);

@@ -47,13 +47,14 @@ class AtlasGenerator:
         self.atlasgen = atlasgen
         self.target_dir = target_dir
         self.input_dir = input_dir
-        self.charset = os.path.join(input_dir, 'ascii.txt')
 
     def build_atlas(self, options):
         em_size = options.get('em_size', 64)
         atlas_path = os.path.join(self.target_dir, options['name'])
         fonts = ' -and '.join([ f'-font {it}' for it in self.get_font_files(options) ])
-        return os.system(f'{self.atlasgen} -em {em_size} -format png -allglyphs -arfont {atlas_path}.arfont {fonts} -imageout {atlas_path}.png')
+        cmd = f'{self.atlasgen} {fonts} -size {em_size} -format png -arfont {atlas_path}.arfont -imageout {atlas_path}.png'
+        print(cmd)
+        return os.system(cmd)
 
     def get_font_files(self, options):
         path = os.path.join(self.input_dir, options['path'])

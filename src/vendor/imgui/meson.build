@@ -5,6 +5,9 @@ src = [
     'imgui_tables.cpp',
     'imgui.cpp',
 
+    # imguizmo requires some patches
+    'imgui_backport.cpp',
+
     # the backends we use
     'backends/imgui_impl_dx12.cpp',
     'backends/imgui_impl_win32.cpp',

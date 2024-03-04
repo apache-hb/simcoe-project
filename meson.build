@@ -18,6 +18,8 @@ project('simcoe', [ 'c', 'cpp' ],
         'fmt:warning_level=0',
         'harfbuzz:warning_level=0',
         'freetype2:warning_level=0',
+        #'simdjson:warning_level=0',
+        #'fastgltf:warning_level=0',
 
         # disable everything in cthulhu by default
         'cthulhu:auto_features=disabled',
@@ -71,6 +73,7 @@ dxc = subproject('dxc').get_variable('dxc')
 msdf_atlas_gen = subproject('msdf-atlas-gen').get_variable('msdf_atlas_gen')
 compressonator = subproject('compressonator').get_variable('cli')
 artery = dependency('artery-font-format')
+#fastgltf = dependency('fastgltf')
 
 windows = import('windows')
 
@@ -230,6 +233,8 @@ subdir('src/common/threads')
 
 # vendor imgui here to have access to our own math library
 subdir('src/vendor/imgui')
+subdir('src/vendor/implot')
+subdir('src/vendor/imguizmo')
 
 subdir('src/common/render')
 

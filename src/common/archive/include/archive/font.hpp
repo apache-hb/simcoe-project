@@ -28,8 +28,9 @@ namespace sm::font {
 
     struct Glyph {
         char32 codepoint;
+        uint16 image;
         Bounds plane;
-        Bounds image;
+        Bounds texbounds;
         Advance advance;
     };
 
@@ -57,6 +58,6 @@ namespace sm::font {
     struct FontInfo {
         sm::String name;
         sm::Vector<Family> families;
-        ImageData image;
+        sm::Vector<ImageData> images;
     };
 }

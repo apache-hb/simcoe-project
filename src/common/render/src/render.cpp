@@ -604,6 +604,7 @@ Context::Context(const RenderConfig& config)
     , mPresentViewport(mSwapChainSize)
     , mSceneViewport(mSceneSize)
     , mFrameGraph(*this)
+    , mEditor(*this)
 { }
 
 void Context::create() {
@@ -682,6 +683,12 @@ void Context::recreate_device() {
     create_frame_graph();
 
     create_imgui_backend();
+
+    mDeviceLost = false;
+}
+
+void Context::set_device_lost() {
+    mDeviceLost = true;
 }
 
 void Context::update_swapchain_length(uint length) {
@@ -733,6 +740,10 @@ void Context::resize_swapchain(math::uint2 size) {
     update_display_viewport();
     create_render_targets();
     create_frame_graph();
+}
+
+void Context::update_scene_size(math::uint2 size) {
+    resize_draw(size);
 }
 
 void Context::resize_draw(math::uint2 size) {

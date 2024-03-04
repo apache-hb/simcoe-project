@@ -1,94 +1,54 @@
 #pragma once
 
-#include "core/vector.hpp"
-#include "math/math.hpp"
-
-#include "archive/archive.hpp"
-
-#include "world.reflect.h"
+#include "world/mesh.hpp"
 
 namespace sm::world {
-    using namespace math;
+    struct NodeInfo {
+        sm::String name;
+        sm::Vector<uint16> children;
+        sm::Vector<uint16> objects;
+    };
 
-    constexpr float3 kVectorForward = {1.f, 0.f, 0.f};
-    constexpr float3 kVectorRight = {0.f, 1.f, 0.f};
-    constexpr float3 kVectorUp = {0.f, 0.f, 1.f};
+    struct CameraInfo {
+        sm::String name;
 
-    struct Vertex {
         float3 position;
-        uint32_t colour;
+        float3 direction;
     };
 
-    struct Cube {
-        float width;
-        float height;
-        float depth;
+    struct ObjectInfo {
+        sm::String name;
+        MeshInfo info;
     };
 
-    struct Sphere {
-        float radius;
-        int slices;
-        int stacks;
+    struct MaterialInfo {
+        sm::String name;
     };
 
-    struct Cylinder {
-        float radius;
-        float height;
-        int slices;
+    struct ImageInfo {
+        sm::String name;
     };
 
-    struct Plane {
-        float width;
-        float depth;
+    struct BufferInfo {
+        sm::String name;
+        sm::Vector<byte> data;
     };
 
-    struct Wedge {
-        float width;
-        float height;
-        float depth;
+    struct WorldInfo {
+        sm::String name;
+        uint16 root_node;
+        uint16 active_camera;
+
+        sm::Vector<NodeInfo> nodes;
+        sm::Vector<CameraInfo> cameras;
+        sm::Vector<ObjectInfo> objects;
+        sm::Vector<MaterialInfo> materials;
+        sm::Vector<ImageInfo> images;
+        sm::Vector<BufferInfo> buffers;
     };
 
-    struct Capsule {
-        float radius;
-        float height;
-    };
+    WorldInfo load_world(Archive& archive);
+    void save_world(Archive& archive, const WorldInfo& world);
 
-    struct GeoSphere {
-        float radius;
-        int subdivisions;
-    };
-
-    struct MeshInfo {
-        MeshType type;
-        union {
-            Cube cube;
-            Sphere sphere;
-            Cylinder cylinder;
-            Plane plane;
-            Wedge wedge;
-            Capsule capsule;
-            GeoSphere geosphere;
-        };
-    };
-
-    struct BoxBounds {
-        float3 min;
-        float3 max;
-    };
-
-    struct Transform {
-        float3 position;
-        float3 rotation;
-        float3 scale = 1.f;
-
-        float4x4 matrix() const;
-    };
-
-    struct Mesh {
-        BoxBounds bounds;
-        sm::Vector<Vertex> vertices;
-        sm::Vector<uint16> indices;
-    };
-
-    Mesh primitive(const MeshInfo& info);
+    WorldInfo load_gltf(const fs::Path& path);
 }

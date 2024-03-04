@@ -12,6 +12,8 @@
 
 #include "render/graph.hpp"
 
+#include "render/editor/editor.hpp"
+
 namespace sm::render {
     using namespace math;
 
@@ -233,6 +235,8 @@ namespace sm::render {
 
         /// dear imgui
 
+        editor::Editor mEditor;
+
         draw::MeshInfo mMeshCreateInfo[draw::MeshType::kCount];
         SrvIndex mImGuiSrvIndex;
 
@@ -250,6 +254,7 @@ namespace sm::render {
         void update_adapter(size_t index);
         void update_swapchain_length(uint length);
 
+        bool mDeviceLost = false;
         void destroy_device();
 
     public:
@@ -261,8 +266,11 @@ namespace sm::render {
         bool update();
         void render();
         void resize_draw(math::uint2 size);
+        void update_scene_size(math::uint2 size);
         void resize_swapchain(math::uint2 size);
         void recreate_device();
+
+        void set_device_lost();
 
         draw::Camera camera;
     };

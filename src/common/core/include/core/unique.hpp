@@ -124,7 +124,7 @@ namespace sm {
 
         constexpr void reset(size_t size) {
             Super::reset(new T[size]);
-            SM_DBG_REF(m_size) = size;
+            DBG_REF(m_size) = size;
         }
 
         constexpr T &operator[](size_t index) {
@@ -139,7 +139,7 @@ namespace sm {
 
     private:
         constexpr void verify_index(SM_UNUSED size_t index) const {
-            SM_DBG_ASSERT(index < m_size, "index out of bounds (%zu < %zu)", index, m_size);
+            DBG_ASSERT(index < m_size, "index out of bounds (%zu < %zu)", index, m_size);
         }
 
         DBG_MEMBER(size_t) m_size;

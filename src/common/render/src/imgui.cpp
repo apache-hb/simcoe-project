@@ -3,7 +3,7 @@
 #include "imgui/backends/imgui_impl_dx12.h"
 #include "imgui/backends/imgui_impl_win32.h"
 #include "imgui/imgui.h"
-
+#include "implot.h"
 
 using namespace sm;
 using namespace sm::draw;
@@ -69,6 +69,8 @@ void Context::create_imgui() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
+    ImPlot::CreateContext();
+    ImPlot::StyleColorsDark();
 
     ImGuiIO &io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
@@ -113,134 +115,12 @@ void Context::destroy_imgui_backend() {
     ImGui_ImplWin32_Shutdown();
 }
 
-static void display_mem_budget(const D3D12MA::Budget &budget) {
-    sm::Memory usage_bytes = budget.UsageBytes;
-    sm::Memory budget_bytes = budget.BudgetBytes;
-    ImGui::Text("Usage: %s", usage_bytes.to_string().c_str());
-    ImGui::Text("Budget: %s", budget_bytes.to_string().c_str());
-
-    uint64 alloc_count = budget.Stats.AllocationCount;
-    sm::Memory alloc_bytes = budget.Stats.AllocationBytes;
-    uint64 block_count = budget.Stats.BlockCount;
-    sm::Memory block_bytes = budget.Stats.BlockBytes;
-
-    ImGui::Text("Allocated blocks: %llu", alloc_count);
-    ImGui::Text("Allocated: %s", alloc_bytes.to_string().c_str());
-
-    ImGui::Text("Block count: %llu", block_count);
-    ImGui::Text("Block: %s", block_bytes.to_string().c_str());
-}
-
 bool Context::update_imgui() {
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    ImGui::ShowDemoWindow();
-
-    bool debug_flags_changed = false;
-    int current = int_cast<int>(mAdapterIndex);
-    if (ImGui::Begin("Render Config")) {
-        int backbuffers = int_cast<int>(mSwapChainLength);
-        if (ImGui::SliderInt("Swapchain Length", &backbuffers, 2, DXGI_MAX_SWAP_CHAIN_BUFFERS)) {
-            update_swapchain_length(int_cast<uint>(backbuffers));
-        }
-
-        ImGui::Text("Swapchain Size: %u x %u", mSwapChainSize.x, mSwapChainSize.y);
-
-        int2 scene_size = mSceneSize.as<int>();
-        if (ImGui::SliderInt2("Render resolution", scene_size.data(), 64, 4096)) {
-            resize_draw(scene_size.as<uint>());
-        }
-
-        ImGui::SeparatorText("Adapters");
-        const auto &adapters = mInstance.get_adapters();
-        for (size_t i = 0; i < adapters.size(); i++) {
-            auto &adapter = adapters[i];
-            auto name = adapter.name();
-            using Reflect = ctu::TypeInfo<AdapterFlag>;
-
-            char label[32];
-            (void)snprintf(label, sizeof(label), "##%zu", i);
-
-            ImGui::RadioButton(label, &current, int_cast<int>(i));
-            ImGui::SameLine();
-
-            if (ImGui::TreeNodeEx((void *)name.data(), ImGuiTreeNodeFlags_None, "%s",
-                                  name.data())) {
-                ImGui::Text("Video memory: %s", adapter.vidmem().to_string().c_str());
-                ImGui::Text("System memory: %s", adapter.sysmem().to_string().c_str());
-                ImGui::Text("Shared memory: %s", adapter.sharedmem().to_string().c_str());
-                ImGui::Text("Flags: %s", Reflect::to_string(adapter.flags()).data());
-                ImGui::TreePop();
-            }
-        }
-
-        ImGui::SeparatorText("Render Status");
-        if (ImGui::CollapsingHeader("Allocator")) {
-            ImGui::SeparatorText("Memory");
-
-            {
-                sm::Memory local = mAllocator->GetMemoryCapacity(DXGI_MEMORY_SEGMENT_GROUP_LOCAL);
-                sm::Memory nonlocal = mAllocator->GetMemoryCapacity(
-                    DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL);
-
-                ImGui::Text("Local: %s", local.to_string().c_str());
-                ImGui::Text("Non-Local: %s", nonlocal.to_string().c_str());
-            }
-
-            {
-                const char *mode = mAllocator->IsCacheCoherentUMA() ? "Cache Coherent UMA"
-                                   : mAllocator->IsUMA()            ? "Unified Memory Architecture"
-                                                                    : "Non-UMA";
-
-                ImGui::Text("UMA: %s", mode);
-            }
-
-            ImGui::SeparatorText("Budget");
-            {
-                D3D12MA::Budget local;
-                D3D12MA::Budget nolocal;
-                mAllocator->GetBudget(&local, &nolocal);
-
-                ImVec2 avail = ImGui::GetContentRegionAvail();
-                ImGuiStyle &style = ImGui::GetStyle();
-
-                float width = avail.x / 2.f - style.ItemSpacing.x;
-
-                ImGui::BeginChild("Local Budget", ImVec2(width, 150), ImGuiChildFlags_Border);
-                ImGui::SeparatorText("Local");
-                display_mem_budget(local);
-                ImGui::EndChild();
-
-                ImGui::SameLine();
-
-                ImGui::BeginChild("Non-Local Budget", ImVec2(width, 150), ImGuiChildFlags_Border);
-                ImGui::SeparatorText("Non-Local");
-                display_mem_budget(nolocal);
-                ImGui::EndChild();
-            }
-        }
-
-        if (ImGui::CollapsingHeader("Descriptor heaps")) {
-            ImGui::Text("RTV capacity: %u", mRtvPool.get_capacity());
-            ImGui::Text("DSV capacity: %u", mDsvPool.get_capacity());
-            ImGui::Text("SRV capacity: %u", mSrvPool.get_capacity());
-        }
-
-        debug_flags_changed |= MyGui::CheckboxFlags<DebugFlags>("Debug layer", mDebugFlags, DebugFlags::eDeviceDebugLayer);
-        ImGui::SameLine();
-
-        ImGui::BeginDisabled(!mDebugFlags.test(DebugFlags::eDeviceDebugLayer));
-        debug_flags_changed |= MyGui::CheckboxFlags<DebugFlags>("Info queue", mDebugFlags, DebugFlags::eInfoQueue);
-        ImGui::SameLine();
-        debug_flags_changed |= MyGui::CheckboxFlags<DebugFlags>("GPU Validation", mDebugFlags, DebugFlags::eGpuValidation);
-        ImGui::EndDisabled();
-
-        ImGui::SameLine();
-        debug_flags_changed |= MyGui::CheckboxFlags<DebugFlags>("DRED", mDebugFlags, DebugFlags::eDeviceRemovedInfo);
-    }
-    ImGui::End();
+    mEditor.draw();
 
     if (ImGui::Begin("World Settings")) {
         ImGui::SeparatorText("Camera");
@@ -366,13 +246,8 @@ bool Context::update_imgui() {
         ImGui::RenderPlatformWindowsDefault(nullptr, *mCommandList);
     }
 
-    if (current != (int)mAdapterIndex) {
-        update_adapter(current);
-        return false;
-    } else if (debug_flags_changed) {
+    if (mDeviceLost)
         recreate_device();
-        return false;
-    }
 
     return true;
 }

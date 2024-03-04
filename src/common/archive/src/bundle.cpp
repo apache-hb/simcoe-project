@@ -134,8 +134,9 @@ static constexpr font::Glyph convert_glyph(const artery::Glyph& glyph) {
     const auto& [cp, _0, plane, image, advance] = glyph;
     const font::Glyph result = {
         .codepoint = cp,
+        .image = sm::int_cast<uint16>(glyph.image),
         .plane = { plane.l, plane.t, plane.r, plane.b, },
-        .image = { image.l, image.t, image.r, image.b, },
+        .texbounds = { image.l, image.t, image.r, image.b, },
         .advance = {
             .h = advance.h,
             .v = advance.v,
@@ -203,29 +204,29 @@ font::FontInfo Bundle::get_font(const char *name) const {
     }
 
     if (font.images.empty()) {
-        gSink.error("font has no images, giving up");
+        gSink.error("font has no images, cannot load data");
         return {};
     }
 
-    if (font.images.size() > 1) {
-        gSink.warn("multiple images in font {}\nusing first image", font.images.size());
+    sm::Vector<ImageData> images;
+
+    for (auto& image : font.images) {
+        const auto& data = image.data;
+        gSink.info("| image: {}x{}x{}", image.width, image.height, image.channels);
+
+        int width, height, channels;
+        stbi_uc *pixels = stbi_load_from_memory(data.data(), data.size(), &width, &height, &channels, 4);
+        if (pixels == nullptr) {
+            gSink.error("failed to load font texture: {}", stbi_failure_reason());
+            return {};
+        }
+
+        gSink.info("| loaded image: {}x{}x{}", width, height, channels);
+        images.emplace_back(convert_image(pixels, width, height, channels));
     }
-
-    const auto& font_image = font.images[0];
-    gSink.info("| image: {}x{}x{}", font_image.width, font_image.height, font_image.channels);
-
-    int width, height, channels;
-    stbi_uc *pixels = stbi_load_from_memory(font_image.data.data(), font_image.data.size(), &width, &height, &channels, 4);
-    if (pixels == nullptr) {
-        gSink.error("failed to load font texture: {}", stbi_failure_reason());
-        return {};
-    }
-
-    gSink.info("| loaded image: {}x{}x{}", width, height, channels);
-    auto image = convert_image(pixels, width, height, channels);
 
     auto info = convert_info(font, name);
-    info.image = image;
+    info.images = std::move(images);
 
     return info;
 }

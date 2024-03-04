@@ -37,4 +37,7 @@ subprojects/*
 !subprojects/packagefiles/**
 !subprojects/.clang-tidy
 
+!LICENSE
+!README.md
+
 *[bB]uild*/

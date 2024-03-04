@@ -1,7 +1,9 @@
 args = cpp.get_supported_arguments(
     '-Wno-switch',
     '-Wno-unused-variable',
-    '-Wno-unused-function'
+    '-Wno-unused-function',
+    '/wd4189',
+    '/wd4127'
 )
 
 libd3d12ma = library('d3d12ma', 'src/D3D12MemAlloc.cpp',

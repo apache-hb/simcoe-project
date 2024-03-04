@@ -21,6 +21,17 @@ src = [
     'src/draw/imgui.cpp',
     'src/draw/canvas.cpp',
 
+    'src/editor/panel.cpp',
+    'src/editor/logger.cpp',
+    'src/editor/editor.cpp',
+    'src/editor/config.cpp',
+    'src/editor/scene.cpp',
+    'src/editor/graph.cpp',
+    'src/editor/features.cpp',
+    'src/editor/inspector.cpp',
+    'src/editor/gizmo.cpp',
+    'src/editor/viewport.cpp',
+
     reflect.process('data/render.ct'),
     reflect.process('data/draw.ct'),
     reflect.process('data/graph.ct')
@@ -29,7 +40,8 @@ src = [
 deps = [
     core, logs, system, math, archive,
     d3d12, d3dx12, d3d12ma, imgui,
-    dds_texture_loader, world, stb
+    dds_texture_loader, world, stb,
+    world, implot, imguizmo
 ]
 
 librender = library('render', src,

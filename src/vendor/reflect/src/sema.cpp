@@ -696,11 +696,6 @@ static bool type_is_external(ref_ast_t *ast)
     return has_attrib_tag(ast->attributes, eAttribExternal);
 }
 
-static bool type_is_facade(ref_ast_t *ast)
-{
-    return has_attrib_tag(ast->attributes, eAttribFacade);
-}
-
 // internal types have no reflection data
 static bool type_is_internal(ref_ast_t *ast)
 {

@@ -23,7 +23,7 @@ public:
 
     Adapter(IDXGIAdapter1 *adapter);
 
-    constexpr std::string_view name() const {
+    constexpr sm::StringView name() const {
         return mName;
     }
 
