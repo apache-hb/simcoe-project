@@ -246,8 +246,10 @@ bool Context::update_imgui() {
         ImGui::RenderPlatformWindowsDefault(nullptr, *mCommandList);
     }
 
-    if (mDeviceLost)
+    if (mDeviceLost) {
         recreate_device();
+        return false;
+    }
 
     return true;
 }

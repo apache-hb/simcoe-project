@@ -67,7 +67,6 @@ static void display_mem_budget(const D3D12MA::Budget &budget) {
 }
 
 void RenderConfig::draw_allocator_info() const {
-    ImGui::SeparatorText("Memory");
     auto& allocator = mContext.mAllocator;
 
     {
@@ -154,9 +153,8 @@ void RenderConfig::draw_content() {
     ImGui::SeparatorText("Adapters");
     draw_adapters();
 
-    if (ImGui::CollapsingHeader("Allocator")) {
-        draw_allocator_info();
-    }
+    ImGui::SeparatorText("Allocator");
+    draw_allocator_info();
 
     ImGui::SeparatorText("Descriptor Heaps");
     ImGui::Text("RTV: %u", mContext.mRtvPool.get_capacity());
