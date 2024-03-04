@@ -2,6 +2,8 @@
 
 #include "core/text.hpp"
 
+#include "imgui/imgui.h"
+
 namespace sm::editor {
     class IEditorPanel {
         bool mOpen = true;
@@ -10,8 +12,11 @@ namespace sm::editor {
         virtual void draw_content() = 0;
 
     protected:
-        IEditorPanel(sm::StringView title)
+        ImGuiWindowFlags mFlags;
+
+        IEditorPanel(sm::StringView title, ImGuiWindowFlags flags = ImGuiWindowFlags_None)
             : mTitle(title)
+            , mFlags(flags)
         { }
 
     public:

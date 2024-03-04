@@ -27,6 +27,171 @@ variant AdapterPreference : opaque(DXGI_GPU_PREFERENCE) {
     [[format("high performance")]] case HighPerformance = opaque(DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE)
 }
 
+[[facade]]
+variant ShaderMinPrecisionSupport : opaque(D3D12_SHADER_MIN_PRECISION_SUPPORT) {
+    [[format("none")]] default None = opaque(D3D12_SHADER_MIN_PRECISION_SUPPORT_NONE)
+    [[format("10 bit")]] case Support10Bit = opaque(D3D12_SHADER_MIN_PRECISION_SUPPORT_10_BIT)
+    [[format("16 bit")]] case Support16Bit = opaque(D3D12_SHADER_MIN_PRECISION_SUPPORT_16_BIT)
+}
+
+[[facade]]
+variant TiledResourceTier : opaque(D3D12_TILED_RESOURCES_TIER) {
+    [[format("none")]] default None = opaque(D3D12_TILED_RESOURCES_TIER_NOT_SUPPORTED)
+    [[format("tier 1")]] case Tier1 = opaque(D3D12_TILED_RESOURCES_TIER_1)
+    [[format("tier 2")]] case Tier2 = opaque(D3D12_TILED_RESOURCES_TIER_2)
+    [[format("tier 3")]] case Tier3 = opaque(D3D12_TILED_RESOURCES_TIER_3)
+    [[format("tier 4")]] case Tier4 = opaque(D3D12_TILED_RESOURCES_TIER_4)
+}
+
+[[facade]]
+variant ResourceBindingTier : opaque(D3D12_RESOURCE_BINDING_TIER) {
+    [[format("tier 1")]] case Tier1 = opaque(D3D12_RESOURCE_BINDING_TIER_1)
+    [[format("tier 2")]] case Tier2 = opaque(D3D12_RESOURCE_BINDING_TIER_2)
+    [[format("tier 3")]] case Tier3 = opaque(D3D12_RESOURCE_BINDING_TIER_3)
+}
+
+[[facade]]
+variant ConservativeRasterizationTier : opaque(D3D12_CONSERVATIVE_RASTERIZATION_TIER) {
+    [[format("not supported")]] default NotSupported = opaque(D3D12_CONSERVATIVE_RASTERIZATION_TIER_NOT_SUPPORTED)
+    [[format("tier 1")]] case Tier1 = opaque(D3D12_CONSERVATIVE_RASTERIZATION_TIER_1)
+    [[format("tier 2")]] case Tier2 = opaque(D3D12_CONSERVATIVE_RASTERIZATION_TIER_2)
+    [[format("tier 3")]] case Tier3 = opaque(D3D12_CONSERVATIVE_RASTERIZATION_TIER_3)
+}
+
+[[facade]]
+variant ResourceHeapTier : opaque(D3D12_RESOURCE_HEAP_TIER) {
+    [[format("tier 1")]] case Tier1 = opaque(D3D12_RESOURCE_HEAP_TIER_1)
+    [[format("tier 2")]] case Tier2 = opaque(D3D12_RESOURCE_HEAP_TIER_2)
+}
+
+[[facade]]
+variant CrossNodeSharingTier : opaque(D3D12_CROSS_NODE_SHARING_TIER) {
+    [[format("not supported")]] default NotSupported = opaque(D3D12_CROSS_NODE_SHARING_TIER_NOT_SUPPORTED)
+    [[format("tier 1 emulated")]] case Tier1Emulated = opaque(D3D12_CROSS_NODE_SHARING_TIER_1_EMULATED)
+    [[format("tier 1")]] case Tier1 = opaque(D3D12_CROSS_NODE_SHARING_TIER_1)
+    [[format("tier 2")]] case Tier2 = opaque(D3D12_CROSS_NODE_SHARING_TIER_2)
+    [[format("tier 3")]] case Tier3 = opaque(D3D12_CROSS_NODE_SHARING_TIER_3)
+}
+
+[[facade]]
+variant ShaderModel : opaque(D3D_SHADER_MODEL) {
+    [[format("5.1")]] default Model_5_1 = opaque(D3D_SHADER_MODEL_5_1)
+    [[format("6.0")]] case Model_6_0 = opaque(D3D_SHADER_MODEL_6_0)
+    [[format("6.1")]] case Model_6_1 = opaque(D3D_SHADER_MODEL_6_1)
+    [[format("6.2")]] case Model_6_2 = opaque(D3D_SHADER_MODEL_6_2)
+    [[format("6.3")]] case Model_6_3 = opaque(D3D_SHADER_MODEL_6_3)
+    [[format("6.4")]] case Model_6_4 = opaque(D3D_SHADER_MODEL_6_4)
+    [[format("6.5")]] case Model_6_5 = opaque(D3D_SHADER_MODEL_6_5)
+    [[format("6.6")]] case Model_6_6 = opaque(D3D_SHADER_MODEL_6_6)
+    [[format("6.7")]] case Model_6_7 = opaque(D3D_SHADER_MODEL_6_7)
+    [[format("6.8")]] case Model_6_8 = opaque(D3D_SHADER_MODEL_6_8)
+}
+
+[[facade]]
+variant ProtectedResourceSessionSupport : opaque(D3D12_PROTECTED_RESOURCE_SESSION_SUPPORT_FLAGS) {
+    [[format("none")]] default None = opaque(D3D12_PROTECTED_RESOURCE_SESSION_SUPPORT_FLAG_NONE)
+    [[format("supported")]] case Supported = opaque(D3D12_PROTECTED_RESOURCE_SESSION_SUPPORT_FLAG_SUPPORTED)
+}
+
+[[facade]]
+variant ProgrammableSamplePositionsTier : opaque(D3D12_PROGRAMMABLE_SAMPLE_POSITIONS_TIER) {
+    [[format("not supported")]] default NotSupported = opaque(D3D12_PROGRAMMABLE_SAMPLE_POSITIONS_TIER_NOT_SUPPORTED)
+    [[format("tier 1")]] case Tier1 = opaque(D3D12_PROGRAMMABLE_SAMPLE_POSITIONS_TIER_1)
+    [[format("tier 2")]] case Tier2 = opaque(D3D12_PROGRAMMABLE_SAMPLE_POSITIONS_TIER_2)
+}
+
+[[facade, bitflags]]
+variant ShaderCacheSupportFlags : opaque(D3D12_SHADER_CACHE_SUPPORT_FLAGS) {
+    [[format("none")]] default None = opaque(D3D12_SHADER_CACHE_SUPPORT_NONE)
+    [[format("single pso")]] case SinglePso = opaque(D3D12_SHADER_CACHE_SUPPORT_SINGLE_PSO)
+    [[format("library")]] case Library = opaque(D3D12_SHADER_CACHE_SUPPORT_LIBRARY)
+    [[format("automatic inprocess cache")]] case AutomaticInprocessCache = opaque(D3D12_SHADER_CACHE_SUPPORT_AUTOMATIC_INPROC_CACHE)
+    [[format("automatic disk cache")]] case AutomaticDiskCache = opaque(D3D12_SHADER_CACHE_SUPPORT_AUTOMATIC_DISK_CACHE)
+    [[format("driver managed cache")]] case DriverManagedCache = opaque(D3D12_SHADER_CACHE_SUPPORT_DRIVER_MANAGED_CACHE)
+    [[format("shader control clear")]] case ShaderControlClear = opaque(D3D12_SHADER_CACHE_SUPPORT_SHADER_CONTROL_CLEAR)
+    [[format("shader session delete")]] case ShaderSessionDelete = opaque(D3D12_SHADER_CACHE_SUPPORT_SHADER_SESSION_DELETE)
+}
+
+[[facade, bitflags]]
+variant CommandListSupportFlags : opaque(D3D12_COMMAND_LIST_SUPPORT_FLAGS) {
+    [[format("none")]] default None = opaque(D3D12_COMMAND_LIST_SUPPORT_FLAG_NONE)
+    [[format("direct")]] case Direct = opaque(D3D12_COMMAND_LIST_SUPPORT_FLAG_DIRECT)
+    [[format("bundle")]] case Bundle = opaque(D3D12_COMMAND_LIST_SUPPORT_FLAG_BUNDLE)
+    [[format("compute")]] case Compute = opaque(D3D12_COMMAND_LIST_SUPPORT_FLAG_COMPUTE)
+    [[format("copy")]] case Copy = opaque(D3D12_COMMAND_LIST_SUPPORT_FLAG_COPY)
+    [[format("video decode")]] case VideoDecode = opaque(D3D12_COMMAND_LIST_SUPPORT_FLAG_VIDEO_DECODE)
+    [[format("video process")]] case VideoProcess = opaque(D3D12_COMMAND_LIST_SUPPORT_FLAG_VIDEO_PROCESS)
+    [[format("video encode")]] case VideoEncode = opaque(D3D12_COMMAND_LIST_SUPPORT_FLAG_VIDEO_ENCODE)
+}
+
+[[facade]]
+variant ViewInstancingTier : opaque(D3D12_VIEW_INSTANCING_TIER) {
+    [[format("not supported")]] default NotSupported = opaque(D3D12_VIEW_INSTANCING_TIER_NOT_SUPPORTED)
+    [[format("tier 1")]] case Tier1 = opaque(D3D12_VIEW_INSTANCING_TIER_1)
+    [[format("tier 2")]] case Tier2 = opaque(D3D12_VIEW_INSTANCING_TIER_2)
+    [[format("tier 3")]] case Tier3 = opaque(D3D12_VIEW_INSTANCING_TIER_3)
+}
+
+[[facade]]
+variant SharedResourceCompatibilityTier : opaque(D3D12_SHARED_RESOURCE_COMPATIBILITY_TIER) {
+    [[format("tier 0")]] case Tier0 = opaque(D3D12_SHARED_RESOURCE_COMPATIBILITY_TIER_0)
+    [[format("tier 1")]] case Tier1 = opaque(D3D12_SHARED_RESOURCE_COMPATIBILITY_TIER_1)
+    [[format("tier 2")]] case Tier2 = opaque(D3D12_SHARED_RESOURCE_COMPATIBILITY_TIER_2)
+}
+
+[[facade]]
+variant HeapSerializationTier : opaque(D3D12_HEAP_SERIALIZATION_TIER) {
+    [[format("tier 0")]] default NotSupported = opaque(D3D12_HEAP_SERIALIZATION_TIER_0)
+    [[format("tier 10")]] case Tier1 = opaque(D3D12_HEAP_SERIALIZATION_TIER_10)
+}
+
+[[facade]]
+variant RenderPassTier : opaque(D3D12_RENDER_PASS_TIER) {
+    [[format("tier 0")]] case Tier0 = opaque(D3D12_RENDER_PASS_TIER_0)
+    [[format("tier 1")]] case Tier1 = opaque(D3D12_RENDER_PASS_TIER_1)
+    [[format("tier 2")]] case Tier2 = opaque(D3D12_RENDER_PASS_TIER_2)
+}
+
+[[facade]]
+variant RaytracingTier : opaque(D3D12_RAYTRACING_TIER) {
+    [[format("not supported")]] default NotSupported = opaque(D3D12_RAYTRACING_TIER_NOT_SUPPORTED)
+    [[format("tier 1.0")]] case Tier1_0 = opaque(D3D12_RAYTRACING_TIER_1_0)
+    [[format("tier 1.1")]] case Tier1_1 = opaque(D3D12_RAYTRACING_TIER_1_1)
+}
+
+[[facade]]
+variant VariableShadingRateTier : opaque(D3D12_VARIABLE_SHADING_RATE_TIER) {
+    [[format("not supported")]] default NotSupported = opaque(D3D12_VARIABLE_SHADING_RATE_TIER_NOT_SUPPORTED)
+    [[format("tier 1")]] case Tier1 = opaque(D3D12_VARIABLE_SHADING_RATE_TIER_1)
+    [[format("tier 2")]] case Tier2 = opaque(D3D12_VARIABLE_SHADING_RATE_TIER_2)
+}
+
+[[facade]]
+variant MeshShaderTier : opaque(D3D12_MESH_SHADER_TIER) {
+    [[format("not supported")]] default NotSupported = opaque(D3D12_MESH_SHADER_TIER_NOT_SUPPORTED)
+    [[format("tier 1")]] case Tier1 = opaque(D3D12_MESH_SHADER_TIER_1)
+}
+
+[[facade]]
+variant SamplerFeedbackTier : opaque(D3D12_SAMPLER_FEEDBACK_TIER) {
+    [[format("not supported")]] default NotSupported = opaque(D3D12_SAMPLER_FEEDBACK_TIER_NOT_SUPPORTED)
+    [[format("tier 0_9")]] case Tier0_9 = opaque(D3D12_SAMPLER_FEEDBACK_TIER_0_9)
+    [[format("tier 1_0")]] case Tier1_0 = opaque(D3D12_SAMPLER_FEEDBACK_TIER_1_0)
+}
+
+[[facade]]
+variant WaveMMA : opaque(D3D12_WAVE_MMA_TIER) {
+    [[format("not supported")]] default NotSupported = opaque(D3D12_WAVE_MMA_TIER_NOT_SUPPORTED)
+    [[format("tier 1_0")]] case Tier1 = opaque(D3D12_WAVE_MMA_TIER_1_0)
+}
+
+[[facade]]
+variant TriState : opaque(D3D12_TRI_STATE) {
+    [[format("unknown")]] default Unknown = opaque(D3D12_TRI_STATE_UNKNOWN)
+    [[format("true")]] case True = opaque(D3D12_TRI_STATE_TRUE)
+    [[format("false")]] case False = opaque(D3D12_TRI_STATE_FALSE)
+}
+
 [[bitflags]]
 variant DebugFlags {
     [[format("none")]] default None = 0

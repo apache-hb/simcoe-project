@@ -100,7 +100,8 @@ namespace sm::graph {
             render::SrvIndex srv = render::SrvIndex::eInvalid;
 
             bool is_imported() const { return type == ResourceType::eImported; }
-            bool is_used() const { return is_imported() || refcount > 0; }
+            bool is_managed() const { return type == ResourceType::eManaged || type == ResourceType::eTransient; }
+            bool is_used() const { return is_managed() || refcount > 0; }
         };
 
         render::Context& mContext;

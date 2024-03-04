@@ -157,9 +157,12 @@ void RenderConfig::draw_content() {
     draw_allocator_info();
 
     ImGui::SeparatorText("Descriptor Heaps");
-    ImGui::Text("RTV: %u", mContext.mRtvPool.get_capacity());
-    ImGui::Text("DSV: %u", mContext.mDsvPool.get_capacity());
-    ImGui::Text("CBV/SRV/UAV: %u", mContext.mSrvPool.get_capacity());
+    auto& rtv = mContext.mRtvPool;
+    auto& dsv = mContext.mDsvPool;
+    auto& srv = mContext.mSrvPool;
+    ImGui::Text("RTV: %u (%u used)", rtv.get_capacity(), rtv.get_used());
+    ImGui::Text("DSV: %u (%u used)", dsv.get_capacity(), dsv.get_used());
+    ImGui::Text("CBV/SRV/UAV: %u (%u used)", srv.get_capacity(), srv.get_used());
 
     ImGui::SeparatorText("Debug Flags");
     if (draw_debug_flags()) {

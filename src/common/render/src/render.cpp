@@ -97,17 +97,8 @@ void Context::enable_dred(bool enabled) {
 }
 
 void Context::query_root_signature_version() {
-    D3D12_FEATURE_DATA_ROOT_SIGNATURE feature = {
-        .HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1,
-    };
-
-    if (Result hr = mDevice->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &feature, sizeof(feature)); !hr) {
-        gSink.warn("failed to query root signature version: {}", hr);
-        mRootSignatureVersion = RootSignatureVersion::eVersion_1_0;
-    } else {
-        mRootSignatureVersion = feature.HighestVersion;
-        gSink.info("root signature version: {}", mRootSignatureVersion);
-    }
+    mRootSignatureVersion = mFeatureSupport.HighestRootSignatureVersion();
+    gSink.info("root signature version: {}", mRootSignatureVersion);
 }
 
 void Context::serialize_root_signature(Object<ID3D12RootSignature>& signature, const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& desc) {
@@ -149,6 +140,8 @@ void Context::create_device(size_t index) {
 
     if (mDebugFlags.test(DebugFlags::eInfoQueue))
         enable_info_queue();
+
+    SM_ASSERT_HR(mFeatureSupport.Init(*mDevice));
 
     query_root_signature_version();
 
@@ -530,10 +523,8 @@ void Context::create_frame_graph() {
         mSwapChainHandle = mFrameGraph.include(info, graph::Access::ePresent, nullptr);
     }
 
-    graph::Handle scene_target;
-
-    draw::draw_scene(mFrameGraph, scene_target);
-    draw::draw_present(mFrameGraph, mSwapChainHandle, scene_target);
+    draw::draw_scene(mFrameGraph, mSceneTargetHandle);
+    draw::draw_present(mFrameGraph, mSwapChainHandle, mSceneTargetHandle);
     draw::draw_imgui(mFrameGraph, mSwapChainHandle);
 
     mFrameGraph.compile();
@@ -613,6 +604,8 @@ void Context::create() {
         : mConfig.adapter_index;
 
     mConfig.bundle.get_font("public_sans");
+
+    mWorld = world::empty_world("test_world");
 
     create_device(index);
     create_allocator();

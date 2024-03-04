@@ -2,5 +2,6 @@ module sm::graph;
 
 variant ResourceType {
     case Transient
+    case Managed
     case Imported
 }

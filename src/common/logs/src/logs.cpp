@@ -37,11 +37,11 @@ Severity Logger::get_severity() const {
     return mSeverity;
 }
 
-Logger& logs::get_logger() {
+Logger& logs::get_logger() noexcept {
     static Logger logger{Severity::eInfo};
     return logger;
 }
 
-Sink logs::get_sink(Category category) {
+Sink logs::get_sink(Category category) noexcept {
     return Sink{get_logger(), category};
 }

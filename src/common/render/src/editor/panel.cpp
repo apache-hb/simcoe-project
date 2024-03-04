@@ -12,7 +12,7 @@ void IEditorPanel::draw_menu_item(const char *shortcut) {
 void IEditorPanel::draw_window() {
     if (!mOpen) return;
 
-    if (ImGui::Begin(mTitle.c_str(), &mOpen)) {
+    if (ImGui::Begin(mTitle.c_str(), &mOpen, mFlags)) {
         draw_content();
     }
     ImGui::End();

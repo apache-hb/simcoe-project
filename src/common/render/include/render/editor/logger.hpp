@@ -29,7 +29,7 @@ namespace sm::editor {
         // IEditorPanel
         void draw_content() override;
 
-        LoggerPanel() noexcept;
+        LoggerPanel();
         ~LoggerPanel();
 
         static LoggerPanel gInstance;

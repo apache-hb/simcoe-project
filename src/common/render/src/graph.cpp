@@ -14,6 +14,8 @@ using enum render::ResourceState::Inner;
 
 using PassBuilder = FrameGraph::PassBuilder;
 
+static auto gSink = logs::get_sink(logs::Category::eRender);
+
 Clear graph::clear_colour(float4 colour) {
     Clear clear;
     clear.type = Clear::eColour;
@@ -95,7 +97,7 @@ Handle FrameGraph::texture(TextureInfo info, Access access) {
 Handle FrameGraph::include(TextureInfo info, Access access, ID3D12Resource *resource) {
     ResourceHandle handle = {
         .info = std::move(info),
-        .type = ResourceType::eImported,
+        .type = resource ? ResourceType::eManaged : ResourceType::eImported,
         .access = access,
         .resource = resource
     };

@@ -84,6 +84,8 @@ namespace sm::world {
         float4x4 matrix() const;
     };
 
+    Transform default_transform();
+
     struct Mesh {
         BoxBounds bounds;
         sm::Vector<Vertex> vertices;

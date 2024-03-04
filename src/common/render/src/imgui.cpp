@@ -94,6 +94,7 @@ void Context::create_imgui() {
 
 void Context::destroy_imgui() {
     destroy_imgui_backend();
+    ImPlot::DestroyContext();
     ImGui::DestroyContext();
 }
 

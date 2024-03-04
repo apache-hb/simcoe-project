@@ -6,7 +6,7 @@ project('simcoe', [ 'c', 'cpp' ],
         'cpp_std=c++20',
 
         'cpp_rtti=false',
-        'cpp_eh=none',
+        #'cpp_eh=none',
 
         'warning_level=3',
         'werror=true',
@@ -18,8 +18,8 @@ project('simcoe', [ 'c', 'cpp' ],
         'fmt:warning_level=0',
         'harfbuzz:warning_level=0',
         'freetype2:warning_level=0',
-        #'simdjson:warning_level=0',
-        #'fastgltf:warning_level=0',
+        'simdjson:warning_level=0',
+        'fastgltf:warning_level=0',
 
         # disable everything in cthulhu by default
         'cthulhu:auto_features=disabled',
@@ -73,7 +73,7 @@ dxc = subproject('dxc').get_variable('dxc')
 msdf_atlas_gen = subproject('msdf-atlas-gen').get_variable('msdf_atlas_gen')
 compressonator = subproject('compressonator').get_variable('cli')
 artery = dependency('artery-font-format')
-#fastgltf = dependency('fastgltf')
+fastgltf = dependency('fastgltf')
 
 windows = import('windows')
 
@@ -235,6 +235,7 @@ subdir('src/common/threads')
 subdir('src/vendor/imgui')
 subdir('src/vendor/implot')
 subdir('src/vendor/imguizmo')
+subdir('src/vendor/imfilebrowser')
 
 subdir('src/common/render')
 

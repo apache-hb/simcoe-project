@@ -14,6 +14,10 @@
 
 #include "render/editor/editor.hpp"
 
+#include "world/world.hpp"
+
+#include "d3dx12/d3dx12_check_feature_support.h"
+
 namespace sm::render {
     using namespace math;
 
@@ -89,6 +93,7 @@ namespace sm::render {
         /// device creation and physical adapters
         size_t mAdapterIndex;
         DeviceHandle mDevice;
+        CD3DX12FeatureSupport mFeatureSupport;
         RootSignatureVersion mRootSignatureVersion;
         Object<ID3D12Debug1> mDebug;
         Object<ID3D12InfoQueue1> mInfoQueue;
@@ -224,10 +229,13 @@ namespace sm::render {
 
         // render graph
         graph::Handle mSwapChainHandle;
+        graph::Handle mSceneTargetHandle;
         graph::FrameGraph mFrameGraph;
 
-        /// synchronization
+        // scene
+        world::WorldInfo mWorld;
 
+        /// synchronization
         void build_command_list();
         void move_to_next_frame();
         void wait_for_gpu();

@@ -41,7 +41,7 @@ deps = [
     core, logs, system, math, archive,
     d3d12, d3dx12, d3d12ma, imgui,
     dds_texture_loader, world, stb,
-    world, implot, imguizmo
+    world, implot, imguizmo, filebrowser
 ]
 
 librender = library('render', src,

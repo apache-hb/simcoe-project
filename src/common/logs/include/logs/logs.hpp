@@ -23,7 +23,7 @@ namespace sm::logs {
         void log(const Message &message);
 
     public:
-        constexpr Logger(Severity severity)
+        constexpr Logger(Severity severity) noexcept
             : mSeverity(severity)
         { }
 
@@ -94,6 +94,6 @@ namespace sm::logs {
         }
     };
 
-    Logger& get_logger();
-    Sink get_sink(Category category);
+    Logger& get_logger() noexcept;
+    Sink get_sink(Category category) noexcept;
 } // namespace sm::logs

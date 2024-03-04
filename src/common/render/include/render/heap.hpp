@@ -11,6 +11,7 @@ namespace sm::render {
         uint mDescriptorSize;
         uint mCapacity;
         sm::BitMap mAllocator;
+
     public:
         constexpr static DescriptorType kType = D;
 
@@ -67,6 +68,13 @@ namespace sm::render {
         ID3D12DescriptorHeap *get() const { return mHeap.get(); }
 
         uint get_capacity() const { return mCapacity; }
+        uint get_used() const {
+            // freecount returns the number of free bits in the bitset,
+            // the bitset can be larger than the number of descriptors
+            uint freecount = mAllocator.freecount();
+            auto diff = mCapacity - freecount;
+            return diff < mCapacity ? diff : mCapacity;
+        }
     };
 
     using RtvPool = DescriptorPool<DescriptorType::eRTV>;

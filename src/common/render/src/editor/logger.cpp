@@ -11,7 +11,7 @@ LoggerPanel& LoggerPanel::get() {
     return gInstance;
 }
 
-LoggerPanel::LoggerPanel() noexcept
+LoggerPanel::LoggerPanel()
     : IEditorPanel("Logs")
 {
     auto& instance = logs::get_logger();

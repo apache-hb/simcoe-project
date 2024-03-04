@@ -7,6 +7,19 @@ using namespace sm::world;
 
 #define badparse(...) do { mSink.error(__VA_ARGS__); return false; } while (false)
 
+WorldInfo world::empty_world(sm::StringView name) {
+    WorldInfo world = {
+        .name = sm::String{name}
+    };
+
+    world.nodes.push_back({
+        .name = "Root",
+        .transform = default_transform()
+    });
+
+    return world;
+}
+
 struct WorldLoad {
     Archive& archive;
     logs::Sink mSink;

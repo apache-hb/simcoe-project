@@ -10,15 +10,37 @@ Editor::Editor(render::Context& context)
     : mContext(context)
     , mLogger(LoggerPanel::get())
     , mConfig(context)
-{ }
+    , mScene(context)
+    , mViewport(context)
+    , mFeatureSupport(context)
+{
+    mOpenLevelDialog.SetTitle("Open Level");
+    mSaveLevelDialog.SetTitle("Save Level");
+    mSaveLevelDialog.SetTypeFilters({".bin"});
+    mSaveLevelDialog.SetInputName("level.bin");
+}
 
 void Editor::draw_mainmenu() {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
             ImGui::MenuItem("New Level");
-            ImGui::MenuItem("Open");
-            ImGui::MenuItem("Save");
-            ImGui::MenuItem("Save As");
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("Open")) {
+                mOpenLevelDialog.Open();
+            }
+            ImGui::Separator();
+
+            // TODO: implement save and save as
+            if (ImGui::MenuItem("Save")) {
+                mSaveLevelDialog.Open();
+            }
+
+            if (ImGui::MenuItem("Save As")) {
+                mSaveLevelDialog.Open();
+            }
+            ImGui::Separator();
+
             ImGui::MenuItem("Exit");
             ImGui::EndMenu();
         }
@@ -26,6 +48,9 @@ void Editor::draw_mainmenu() {
         if (ImGui::BeginMenu("View")) {
             mLogger.draw_menu_item();
             mConfig.draw_menu_item();
+            mScene.draw_menu_item();
+            mViewport.draw_menu_item();
+            mFeatureSupport.draw_menu_item();
 
             ImGui::SeparatorText("Demo Windows");
             ImGui::MenuItem("ImGui Demo", nullptr, &mShowDemo);
@@ -93,4 +118,10 @@ void Editor::draw() {
 
     mLogger.draw_window();
     mConfig.draw_window();
+    mScene.draw_window();
+    mViewport.draw_window();
+    mFeatureSupport.draw_window();
+
+    mOpenLevelDialog.Display();
+    mSaveLevelDialog.Display();
 }

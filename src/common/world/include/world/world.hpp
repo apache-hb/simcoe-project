@@ -7,6 +7,11 @@ namespace sm::world {
         sm::String name;
         sm::Vector<uint16> children;
         sm::Vector<uint16> objects;
+
+        Transform transform;
+
+        // transient
+        uint16 parent;
     };
 
     struct CameraInfo {
@@ -46,6 +51,8 @@ namespace sm::world {
         sm::Vector<ImageInfo> images;
         sm::Vector<BufferInfo> buffers;
     };
+
+    WorldInfo empty_world(sm::StringView name);
 
     WorldInfo load_world(Archive& archive);
     void save_world(Archive& archive, const WorldInfo& world);
