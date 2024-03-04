@@ -87,6 +87,9 @@ namespace sm::math {
     template<typename T> struct Vec3;
     template<typename T> struct Vec4;
 
+    template<typename T> struct Rect;
+    template<typename T> struct Quat;
+
     template<typename T> struct Mat4x4;
 
     template<typename T>
@@ -397,6 +400,75 @@ namespace sm::math {
         }
     };
 
+    template <typename T>
+    struct alignas(sizeof(T) * 4) Rect {
+        using Vec2 = Vec2<T>;
+        using Vec4 = Vec4<T>;
+
+        struct Members {
+            T left;
+            T top;
+            T right;
+            T bottom;
+        };
+
+        union {
+            T fields[4];
+            struct { T left; T top; T right; T bottom; };
+        };
+
+        constexpr Rect() = default;
+        constexpr Rect(T left, T top, T right, T bottom)
+            : left(left)
+            , top(top)
+            , right(right)
+            , bottom(bottom)
+        { }
+
+        constexpr Rect(Members members)
+            : Rect(members.left, members.top, members.right, members.bottom)
+        { }
+
+        constexpr Rect(const Vec2 &pos, const Vec2 &size)
+            : Rect(pos.x, pos.y, pos.x + size.x, pos.y + size.y)
+        { }
+
+        constexpr Vec2 position() const { return Vec2(left, top); }
+        constexpr Vec2 size() const { return Vec2(right - left, bottom - top); }
+
+        constexpr bool operator==(const Rect &other) const {
+            return left == other.left
+                && top == other.top
+                && right == other.right
+                && bottom == other.bottom;
+        }
+
+        constexpr bool operator!=(const Rect &other) const {
+            return left != other.left
+                || top != other.top
+                || right != other.right
+                || bottom != other.bottom;
+        }
+
+        constexpr T area() const {
+            auto [w, h] = size();
+            return w * h;
+        }
+
+        template<size_t I>
+        constexpr decltype(auto) get() const {
+            if constexpr (I == 0) return left;
+            else if constexpr (I == 1) return top;
+            else if constexpr (I == 2) return right;
+            else if constexpr (I == 3) return bottom;
+            else static_assert(I < 4, "index out of bounds");
+        }
+
+        constexpr T *data() { return fields; }
+        constexpr const T *data() const { return fields; }
+    };
+
+    // TODO: this doesnt work, need to do some actual math studying
     template <typename T>
     struct alignas(sizeof(T) * 4) Quat {
         using Vec3 = Vec3<T>;
@@ -925,8 +997,18 @@ namespace sm::math {
     };
 
     // NOLINTBEGIN
-    using quatf = Quat<float>;  // NOLINT
-    using quatd = Quat<double>; // NOLINT
+    using quatf = Quat<float>;
+    using quatd = Quat<double>;
+    static_assert(sizeof(quatf) == sizeof(float) * 4);
+    static_assert(sizeof(quatd) == sizeof(double) * 4);
+
+    using rectf = Rect<float>;
+    using rectd = Rect<double>;
+    using rect32 = Rect<uint32>;
+    static_assert(sizeof(rectf) == sizeof(float) * 4);
+    static_assert(sizeof(rectd) == sizeof(double) * 4);
+    static_assert(sizeof(rect32) == sizeof(uint32) * 4);
+
 
     using int2 = Vec2<int>;
     using int3 = Vec3<int>;
@@ -1002,10 +1084,10 @@ namespace sm::math {
 
     // NOLINTBEGIN
     enum Swizzle {
-        X = 0,
-        Y = 1,
-        Z = 2,
-        W = 3,
+        X = 0, R = 0,
+        Y = 1, G = 1,
+        Z = 2, B = 2,
+        W = 3, A = 3,
     };
     // NOLINTEND
 
@@ -1025,6 +1107,7 @@ namespace sm::math {
         return uint32x4(x, y, z, w);
     }
 
+    // TODO: should this be a static in Quat<T>
     template <typename T>
     constexpr Vec3<T> rotate(const Quat<T> &q, const Vec3<T> &v) {
         const Vec3<T> t = cross(q.v, v) * T(2);
@@ -1082,6 +1165,12 @@ namespace std {
 
     template<size_t I, typename T>
     struct tuple_element<I, sm::math::Vec4<T>> { using type = T; };
+
+    template<typename T>
+    struct tuple_size<sm::math::Rect<T>> : std::integral_constant<size_t, 4> { };
+
+    template<size_t I, typename T>
+    struct tuple_element<I, sm::math::Rect<T>> { using type = T; };
 }
 
 // NOLINTEND

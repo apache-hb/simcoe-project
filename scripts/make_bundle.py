@@ -42,6 +42,26 @@ class ShaderCompiler:
 
         return os.system(' '.join(self.args + extra_args + [ file ]))
 
+class AtlasGenerator:
+    def __init__(self, atlasgen, target_dir, input_dir):
+        self.atlasgen = atlasgen
+        self.target_dir = target_dir
+        self.input_dir = input_dir
+        self.charset = os.path.join(input_dir, 'ascii.txt')
+
+    def build_atlas(self, options):
+        em_size = options.get('em_size', 64)
+        atlas_path = os.path.join(self.target_dir, options['name'])
+        fonts = ' -and '.join([ f'-font {it}' for it in self.get_font_files(options) ])
+        return os.system(f'{self.atlasgen} -em {em_size} -format png -allglyphs -arfont {atlas_path}.arfont {fonts} -imageout {atlas_path}.png')
+
+    def get_font_files(self, options):
+        path = os.path.join(self.input_dir, options['path'])
+        if 'files' in options:
+            return [ os.path.join(path, file) for file in options['files'] ]
+        else:
+            return [ path ]
+
 argparser = argparse.ArgumentParser(description="bundle assets into a folder")
 argparser.add_argument("--bundle", help="the input bundle description file")
 argparser.add_argument("--indir", help="the input directory")
@@ -102,6 +122,7 @@ def main():
     os.makedirs(pdbdir, exist_ok=True)
 
     hlsl = ShaderCompiler(dxc, shaderdir, pdbdir, args.debug)
+    atlasgen = AtlasGenerator(msdf, fontdir, inputdir)
 
     licensedata = '# Third party licenses\n\n'
     licensedata += 'All third party licenses are included below as well as in the licenses directory.\n\n'
@@ -122,17 +143,15 @@ def main():
 
     for item in bundle['fonts']:
         # copy the font file to <outdir>/fonts
-        itempath = os.path.join(inputdir, item['path'])
-        outpath_ttf = os.path.join(fontdir, item['name'] + '.ttf')
-        print(f"copying font {item['path']} to {outpath_ttf}")
-        deps.append(itempath)
-        shutil.copy(itempath, outpath_ttf)
+        fonts = atlasgen.get_font_files(item)
+        for font in fonts:
+            outpath_ttf = os.path.join(fontdir, os.path.basename(font))
+            print(f"copying font {font} to {outpath_ttf}")
+            deps.append(font)
+            shutil.copy(font, outpath_ttf)
 
-        em_size = item.get('em_size', 64)
-
-        atlas_path = os.path.join(fontdir, item['name'])
-        print(f"generating msdf atlas for {item['name']} ({em_size=})")
-        result = os.system(f'{msdf} -font {itempath} -size {em_size} -format png -imageout {atlas_path}.png -charset {inputdir}/ascii.txt -arfont {atlas_path}.arfont')
+        print(f"generating msdf atlas for {item['name']}")
+        result = atlasgen.build_atlas(item)
         if result != 0:
             sys.exit(result)
 

@@ -18,6 +18,11 @@ namespace sm {
     using int64 = int64_t; // NOLINT
 
     using uint = uint32_t; // NOLINT
+    using byte = uint8_t; // NOLINT
+
+    using char8 = char8_t; // NOLINT
+    using char16 = char16_t; // NOLINT
+    using char32 = char32_t; // NOLINT
 
     template<typename T>
     concept StandardLayout = __is_standard_layout(T);

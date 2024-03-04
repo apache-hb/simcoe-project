@@ -122,6 +122,11 @@
         {
             "name": "public-sans-bold",
             "path": "fonts/ttf/PublicSans-Bold.ttf"
+        },
+        {
+            "name": "public_sans",
+            "path": "fonts/ttf",
+            "files": [ "PublicSans-Regular.ttf", "PublicSans-Bold.ttf", "PublicSans-Italic.ttf" ]
         }
     ],
     "textures": [

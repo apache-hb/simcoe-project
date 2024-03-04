@@ -5,11 +5,17 @@
 #include <stdarg.h>
 
 namespace sm {
-    using String = std::string;
-    using WideString = std::wstring;
+    template<typename T>
+    using CoreString = std::basic_string<T>;
 
-    using StringView = std::string_view;
-    using WideStringView = std::wstring_view;
+    template<typename T>
+    using CoreStringView = std::basic_string_view<T>;
+
+    using String = CoreString<char>;
+    using WideString = CoreString<wchar_t>;
+
+    using StringView = CoreStringView<char>;
+    using WideStringView = CoreStringView<wchar_t>;
 
     String format(const char *fmt, ...);
     String vformat(const char *fmt, va_list args);

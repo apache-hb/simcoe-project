@@ -6,6 +6,7 @@
 #include "core/source_info.h"
 
 #include "core/error.hpp"
+#include "core/text.hpp"
 #include "logs/logs.hpp" // IWYU pragma: export
 
 #include "system.reflect.h" // IWYU pragma: export
@@ -34,6 +35,9 @@ CT_NORETURN
 assert_last_error(source_info_t panic, const char *expr);
 
 OsError get_last_error();
+
+using OsString = sm::CoreString<TCHAR>;
+using OsStringView = sm::CoreStringView<TCHAR>;
 
 //const char *get_exe_path();
 

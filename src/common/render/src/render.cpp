@@ -611,6 +611,8 @@ void Context::create() {
         ? mInstance.warp_adapter_index()
         : mConfig.adapter_index;
 
+    mConfig.bundle.get_font("public_sans");
+
     create_device(index);
     create_allocator();
     create_copy_queue();

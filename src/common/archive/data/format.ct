@@ -1,0 +1,33 @@
+module sm;
+
+variant Format : uint16 {
+    [[format("unknown")]]
+    default Unknown
+
+    [[format("rg/float")]]
+    case RG32_FLOAT
+
+    [[format("rgb/float")]]
+    case RGB32_FLOAT
+
+    [[format("rgba/float")]]
+    case RGBA32_FLOAT
+
+    [[format("r/byte")]]
+    case R8_BYTE
+
+    [[format("rg/byte")]]
+    case RG8_BYTE
+
+    [[format("rgb/byte")]]
+    case RGB8_BYTE
+
+    [[format("rgba/byte")]]
+    case RGBA8_BYTE
+
+    [[format("uint16")]]
+    case uint16
+
+    [[format("uint32")]]
+    case uint32
+}
