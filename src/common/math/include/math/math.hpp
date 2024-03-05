@@ -2,31 +2,14 @@
 
 #include "core/core.hpp"
 
+#include "units.hpp"
+
 namespace sm::math {
     template<typename T>
     concept IsVector = requires (T it) {
         { T::kSize } -> std::convertible_to<size_t>;
         { it.fields } -> std::convertible_to<typename T::Type*>;
     };
-
-    template<typename T>
-    constexpr inline T kPi = T(3.14159265358979323846264338327950288);
-
-    template<typename T>
-    constexpr inline T kRadToDeg = T(180) / kPi<T>;
-
-    template<typename T>
-    constexpr inline T kDegToRad = kPi<T> / T(180);
-
-    template<typename T>
-    constexpr T to_radians(T degrees) {
-        return degrees * kDegToRad<T>;
-    }
-
-    template<typename T>
-    constexpr T to_degrees(T radians) {
-        return radians * kRadToDeg<T>;
-    }
 
     template<typename T>
     constexpr T clamp(T it, T low, T high) {
@@ -670,6 +653,7 @@ namespace sm::math {
 
         union {
             T fields[16];
+            T matrix[4][4];
             Vec4 rows[4];
         };
 

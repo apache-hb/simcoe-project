@@ -19,13 +19,13 @@ endif
 icon = files('WinPixEventRuntimeIcon.png')
 
 redist = files(bindir / 'WinPixEventRuntime.dll')
-winpixruntime = cc.find_library('WinPixEventRuntime', dirs : bindir)
+winpixruntime = cc.find_library(meson.current_source_dir() / bindir / 'WinPixEventRuntime')
 
 inc = include_directories('Include/WinPixEventRuntime')
 
 winpixruntime_dep = declare_dependency(
     include_directories : inc,
-    link_with : winpixruntime,
+    dependencies : winpixruntime,
 )
 
 meson.override_dependency('winpixruntime', winpixruntime_dep)

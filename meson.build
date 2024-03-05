@@ -85,6 +85,7 @@ stb = subproject('stb').get_variable('stb')
 dxgi = cpp.find_library('dxgi')
 dxguid = cpp.find_library('dxguid')
 
+winpixruntime = dependency('winpixruntime')
 d3d12 = dependency('d3d12')
 d3dx12 = dependency('d3dx12')
 
