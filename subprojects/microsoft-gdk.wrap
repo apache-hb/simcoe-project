@@ -9,3 +9,5 @@ lead_directory_missing = true
 patch_directory = microsoft-gdk
 
 [provide]
+dependency_names = gameruntime, gameinput
+program_names = wdapp, makepkg, makepri, packageutil, splitpkg

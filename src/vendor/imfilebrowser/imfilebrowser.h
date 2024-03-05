@@ -126,9 +126,9 @@ namespace ImGui
 
         static std::string ToLower(const std::string &s);
 
-        void UpdateFileRecords();
+        std::error_code UpdateFileRecords();
 
-        void SetPwdUncatched(const std::filesystem::path &pwd);
+        std::error_code SetPwdUncatched(const std::filesystem::path &pwd);
 
         bool IsExtensionMatched(const std::filesystem::path &extension) const;
 

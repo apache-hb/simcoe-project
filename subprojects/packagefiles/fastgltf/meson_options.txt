@@ -1,0 +1,19 @@
+option('custom_small_vector', type : 'boolean',
+    value : false,
+    description : 'Uses a custom SmallVector type optimised for small arrays'
+)
+
+option('deprecated_exts', type : 'boolean',
+    value : false,
+    description : 'Enables support for deprecated extensions'
+)
+
+option('custom_memory_pool', type : 'boolean',
+    value : true,
+    description : 'Uses a memory allocation algorithm based on polymorphic resources'
+)
+
+option('double_precision', type : 'boolean',
+    value : false,
+    description : 'Default to 64-bit double precision floats for everything'
+)

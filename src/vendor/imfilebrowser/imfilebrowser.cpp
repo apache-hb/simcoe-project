@@ -567,22 +567,13 @@ bool ImGui::FileBrowser::HasSelected() const noexcept
 
 bool ImGui::FileBrowser::SetPwd(const std::filesystem::path &pwd)
 {
-    try
-    {
-        SetPwdUncatched(pwd);
-        return true;
-    }
-    catch(const std::exception &err)
-    {
-        statusStr_ = std::string("last error: ") + err.what();
-    }
-    catch(...)
-    {
-        statusStr_ = "last error: unknown";
-    }
+    std::error_code errc = SetPwdUncatched(pwd);
+    if (!errc) return true;
 
-    SetPwdUncatched(std::filesystem::current_path());
-    return false;
+    statusStr_ = "last error: " + errc.message();
+
+    errc = SetPwdUncatched(std::filesystem::current_path());
+    return !errc;
 }
 
 const class std::filesystem::path &ImGui::FileBrowser::GetPwd() const noexcept
@@ -716,19 +707,23 @@ std::string ImGui::FileBrowser::ToLower(const std::string &s)
     return ret;
 }
 
-void ImGui::FileBrowser::UpdateFileRecords()
+std::error_code ImGui::FileBrowser::UpdateFileRecords()
 {
     fileRecords_ = { FileRecord{ true, "..", "[D] ..", "" } };
 
-    for(auto &p : std::filesystem::directory_iterator(pwd_))
+    std::filesystem::directory_iterator iter{ pwd_ };
+    std::error_code errc;
+    for (auto p = std::filesystem::begin(iter); p != std::filesystem::end(iter); p.increment(errc))
     {
+        if (errc) return errc;
+
         FileRecord rcd;
 
-        if(p.is_regular_file())
+        if(p->is_regular_file())
         {
             rcd.isDir = false;
         }
-        else if(p.is_directory())
+        else if(p->is_directory())
         {
             rcd.isDir = true;
         }
@@ -737,16 +732,16 @@ void ImGui::FileBrowser::UpdateFileRecords()
             continue;
         }
 
-        rcd.name = p.path().filename();
+        rcd.name = p->path().filename();
         if(rcd.name.empty())
         {
             continue;
         }
 
-        rcd.extension = p.path().filename().extension();
+        rcd.extension = p->path().filename().extension();
 
         rcd.showName = (rcd.isDir ? "[D] " : "[F] ") +
-                       u8StrToStr(p.path().filename().u8string());
+                       u8StrToStr(p->path().filename().u8string());
         fileRecords_.push_back(rcd);
     }
 
@@ -757,14 +752,22 @@ void ImGui::FileBrowser::UpdateFileRecords()
     });
 
     ClearRangeSelectionState();
+
+    return std::error_code();
 }
 
-void ImGui::FileBrowser::SetPwdUncatched(const std::filesystem::path &pwd)
+std::error_code ImGui::FileBrowser::SetPwdUncatched(const std::filesystem::path &pwd)
 {
-    pwd_ = absolute(pwd);
-    UpdateFileRecords();
+    std::error_code errc;
+    std::filesystem::path path = std::filesystem::absolute(pwd, errc);
+    if (errc) return errc;
+    pwd_ = path;
+
+    errc = UpdateFileRecords();
     selectedFilenames_.clear();
     (*inputNameBuf_)[0] = '\0';
+
+    return errc;
 }
 
 bool ImGui::FileBrowser::IsExtensionMatched(

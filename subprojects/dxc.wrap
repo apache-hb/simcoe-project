@@ -10,3 +10,4 @@ patch_directory = dxc
 
 [provide]
 program_names = dxc
+dependency_names = dxcompiler

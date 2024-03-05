@@ -549,7 +549,6 @@ void Context::destroy_device() {
 
     // assets
     destroy_scene();
-    destroy_scene_target();
     destroy_screen_quad();
 
     // pipeline state
@@ -615,7 +614,6 @@ void Context::create() {
     create_assets();
 
     create_screen_quad();
-    create_scene_target();
     init_scene();
     create_frame_graph();
     create_imgui();
@@ -670,7 +668,6 @@ void Context::recreate_device() {
     create_pipeline();
     create_assets();
 
-    create_scene_target();
     create_screen_quad();
     create_scene();
     create_frame_graph();
@@ -736,21 +733,20 @@ void Context::resize_swapchain(math::uint2 size) {
 }
 
 void Context::update_scene_size(math::uint2 size) {
+    if (mSceneSize == size) return;
+
     resize_draw(size);
 }
 
 void Context::resize_draw(math::uint2 size) {
     wait_for_gpu();
 
-    // mDepthStencil.reset();
-    destroy_scene_target();
     destroy_frame_graph();
 
     mSceneSize = size;
 
     update_scene_viewport();
     update_display_viewport();
-    create_scene_target();
     create_frame_graph();
 }
 

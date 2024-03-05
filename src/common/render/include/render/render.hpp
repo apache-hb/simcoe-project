@@ -190,10 +190,6 @@ namespace sm::render {
         void create_primitive_pipeline();
         void destroy_primitive_pipeline();
 
-        Resource mSceneTarget;
-        void create_scene_target();
-        void destroy_scene_target();
-
         struct Primitive {
             draw::MeshInfo mInfo;
             draw::Transform mTransform;
@@ -261,6 +257,7 @@ namespace sm::render {
 
         void update_adapter(size_t index);
         void update_swapchain_length(uint length);
+        void resize_draw(math::uint2 size);
 
         bool mDeviceLost = false;
         void destroy_device();
@@ -273,7 +270,6 @@ namespace sm::render {
 
         bool update();
         void render();
-        void resize_draw(math::uint2 size);
         void update_scene_size(math::uint2 size);
         void resize_swapchain(math::uint2 size);
         void recreate_device();

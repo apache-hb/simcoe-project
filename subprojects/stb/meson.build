@@ -1,6 +1,6 @@
 project('stb', 'c')
 
-src = [ 'src/stb_image.c', 'src/stb_image_write.c', 'src/stb_rectpack.c' ]
+src = [ 'src/stb_image.c', 'src/stb_image_write.c', 'src/stb_rectpack.c', 'src/stb_perlin.c' ]
 
 add_project_arguments('-D_CRT_SECURE_NO_WARNINGS=1', language : 'c')
 

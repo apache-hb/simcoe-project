@@ -6,13 +6,16 @@ project('simcoe', [ 'c', 'cpp' ],
         'cpp_std=c++20',
 
         'cpp_rtti=false',
-        #'cpp_eh=none',
+        'cpp_eh=none',
 
         'warning_level=3',
         'werror=true',
 
         'unity=subprojects',
         'default_library=static',
+
+        # prevent system dxc from being used
+        'force_fallback_for=dxc',
 
         # nobody builds with clean warnings, so disable them per subproject
         'fmt:warning_level=0',
@@ -24,6 +27,9 @@ project('simcoe', [ 'c', 'cpp' ],
         # disable everything in cthulhu by default
         'cthulhu:auto_features=disabled',
         'cthulhu:win32_trickery=enabled',
+
+        # configure fastgltf
+        'fastgltf:custom_small_vector=true',
 
         # configure freetype before harfbuzz to pick up configuration
         'freetype2:auto_features=disabled',
@@ -66,13 +72,10 @@ harfbuzz = dependency('harfbuzz')
 agility = subproject('d3d12-agility')
 warp = subproject('d3d-warp')
 
-# get dxc from the subproject directly rather than using find_program
-# if we use find_program it finds the system dxc, which will be older
-# than this one
-dxc = subproject('dxc').get_variable('dxc')
-msdf_atlas_gen = subproject('msdf-atlas-gen').get_variable('msdf_atlas_gen')
-compressonator = subproject('compressonator').get_variable('cli')
-artery = dependency('artery-font-format')
+dxc = find_program('dxc', version : '>=1.7')
+msdf_atlas_gen = find_program('msdf-atlas-gen')
+compressonator = find_program('compressonatorcli')
+artery = dependency('artery-font')
 fastgltf = dependency('fastgltf')
 
 windows = import('windows')

@@ -179,21 +179,6 @@ void Context::destroy_screen_quad() {
     mScreenQuad.mVertexBuffer.reset();
 }
 
-void Context::create_scene_target() {
-    const auto kTargetDesc = CD3DX12_RESOURCE_DESC::Tex2D(mSceneFormat, mSceneSize.x, mSceneSize.y, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
-
-    const D3D12_CLEAR_VALUE kClear = {
-        .Format = mSceneFormat,
-        .Color = { kClearColour.r, kClearColour.g, kClearColour.b, kClearColour.a },
-    };
-
-    SM_ASSERT_HR(create_resource(mSceneTarget, D3D12_HEAP_TYPE_DEFAULT, kTargetDesc, D3D12_RESOURCE_STATE_RENDER_TARGET, &kClear));
-}
-
-void Context::destroy_scene_target() {
-    mSceneTarget.reset();
-}
-
 void Context::update_display_viewport() {
     auto [renderWidth, renderHeight] = mSceneSize.as<float>();
     auto [displayWidth, displayHeight] = mSwapChainSize.as<float>();

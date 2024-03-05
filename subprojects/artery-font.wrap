@@ -8,4 +8,4 @@ depth = 1
 patch_directory = artery-font-format
 
 [provide]
-artery-font-format = artery_dep
+dependency_names = artery-font
