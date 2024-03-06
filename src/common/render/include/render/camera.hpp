@@ -10,12 +10,12 @@ namespace sm::draw {
         float3 mPosition = {-3.f, 0.f, 0.f};
         float3 mDirection = kVectorForward;
 
-        float fov = to_radians(75.f);
-        float speed = 3.f;
-        float sensitivity = 0.1f;
+        radf mFieldOfView = 75._deg;
+        float mCameraSpeed = 3.f;
+        float mMouseSensitivity = 0.1f;
 
-        float pitch = 0.f;
-        float yaw = 0.f;
+        degf mLookPitch = 0._deg;
+        degf mLookYaw = 0._deg;
 
         float3 mMoveInput = 0.f;
 

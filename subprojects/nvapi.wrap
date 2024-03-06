@@ -1,0 +1,11 @@
+[wrap-file]
+directory = nvapi
+
+source_url = https://developer.nvidia.com/downloads/assets/gameworks/downloads/secure/nvapi-r550/r550-developer.zip
+source_filename = nvapi-r550.zip
+source_hash = ab370d9391fe57f7f4bc8ede653cca86dc58ef9a1baf1c84d8dbce141f2a7299
+
+patch_directory = nvapi
+
+[provide]
+dependency_names = nvapi

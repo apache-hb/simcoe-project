@@ -23,13 +23,10 @@ else
     error('No prebuilt dxc binaries for ' + host_cpu)
 endif
 
-bindir = 'build/native/bin' / archdir
+bindir = meson.current_source_dir() / 'build/native/bin' / archdir
+dxc = find_program(bindir / 'dxc.exe')
+
 libdir = 'build/native/lib' / archdir
-
-dxc = find_program(meson.current_source_dir() / bindir / 'dxc.exe')
-
-redist = files(bindir / 'dxcompiler.dll', bindir / 'dxil.dll')
-redist_pdb = files(bindir / 'dxcompiler.pdb', bindir / 'dxil.pdb')
 
 dxcompiler = cc.find_library(meson.current_source_dir() / libdir / 'dxcompiler')
 inc = include_directories('build/native/include')

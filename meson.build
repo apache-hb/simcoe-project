@@ -71,6 +71,9 @@ harfbuzz = dependency('harfbuzz')
 # windows specific dependencies
 agility = subproject('d3d12-agility')
 warp = subproject('d3d-warp')
+dxcompiler = subproject('dxc')
+winpixruntime = subproject('winpixruntime')
+windows = import('windows')
 
 dxc = find_program('dxc', version : '>=1.7')
 msdf_atlas_gen = find_program('msdf-atlas-gen')
@@ -78,14 +81,12 @@ compressonator = find_program('compressonatorcli')
 artery = dependency('artery-font')
 fastgltf = dependency('fastgltf')
 
-windows = import('windows')
 
 stb = subproject('stb').get_variable('stb')
 
 dxgi = cpp.find_library('dxgi')
 dxguid = cpp.find_library('dxguid')
 
-winpixruntime = dependency('winpixruntime')
 d3d12 = dependency('d3d12')
 d3dx12 = dependency('d3dx12')
 
@@ -278,40 +279,14 @@ res = windows.compile_resources(rc,
 
 manifest = meson.current_source_dir() / 'data/win32/client.exe.manifest'
 
-if enable_agility
-    agility_redist = agility.get_variable('redist')
-    install_data(agility_redist,
-        install_tag : 'bin',
-        install_dir : get_option('bindir') / 'D3D12'
-    )
-endif
-
-if package_type == 'devel'
-    if enable_agility
-        agility_redist_pdb = agility.get_variable('redist_pdb')
-        install_data(agility_redist_pdb,
-            install_tag : 'bin',
-            install_dir : get_option('bindir') / 'D3D12'
-        )
-    endif
-
-    warp_redist = warp.get_variable('redist')
-    install_data(warp_redist,
-        install_tag : 'bin',
-        install_dir : get_option('bindir')
-    )
-
-    warp_redist_pdb = warp.get_variable('redist_pdb')
-    install_data(warp_redist_pdb,
-        install_tag : 'bin',
-        install_dir : get_option('bindir')
-    )
-endif
-
 bundle_cdata = configuration_data()
-bundle_cdata.set('DXC_EXE_PATH', dxc.full_path().replace('\\', '\\\\'))
-bundle_cdata.set('MSDF_EXE_PATH', msdf_atlas_gen.full_path().replace('\\', '\\\\'))
-bundle_cdata.set('COMPRESSOR_EXE_PATH', compressonator.full_path().replace('\\', '\\\\'))
+bundle_cdata.set('DXC_EXE_PATH', dxc.full_path())
+bundle_cdata.set('MSDF_EXE_PATH', msdf_atlas_gen.full_path())
+bundle_cdata.set('COMPRESSOR_EXE_PATH', compressonator.full_path())
+bundle_cdata.set('AGILITY_REDIST_PATH', agility.get_variable('bindir'))
+bundle_cdata.set('DXCOMPILER_REDIST_PATH', dxcompiler.get_variable('bindir'))
+bundle_cdata.set('WARP_REDIST_PATH', warp.get_variable('bindir'))
+bundle_cdata.set('WINPIXRUNTIME_REDIST_PATH', winpixruntime.get_variable('bindir'))
 
 bundle_config = configure_file(
     input : 'data/config/tools.in.ini',
@@ -343,6 +318,7 @@ win_subsystem = not is_devel ? 'windows' : 'console'
 
 client = executable('client', 'src/client/src/main.cpp', game_bundle,
     install : true,
+    export_dynamic : true,
     win_subsystem : win_subsystem,
     link_depends : [ manifest, res ],
     link_args : [

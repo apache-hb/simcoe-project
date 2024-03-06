@@ -116,6 +116,10 @@ void Context::serialize_root_signature(Object<ID3D12RootSignature>& signature, c
 void Context::create_device(size_t index) {
     auto& adapter = mInstance.get_adapter(index);
 
+    if (auto flags = adapter.flags(); flags.test(AdapterFlag::eSoftware) && mDebugFlags.test(DebugFlags::eGpuValidation)) {
+        gSink.warn("adapter `{}` is a software adapter, enabling gpu validation has major performance implications", adapter.name());
+    }
+
     if (mDebugFlags.test(DebugFlags::eDeviceDebugLayer))
         enable_debug_layer(mDebugFlags.test(DebugFlags::eGpuValidation), mDebugFlags.test(DebugFlags::eAutoName));
     else

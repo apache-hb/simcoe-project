@@ -1,11 +1,6 @@
 #!/usr/bin/python3
 
 # bundle assets into a folder
-# usage: make_bundle.py <bundlefile> <inputdir> <outdir> <depfile>
-# <bundlefile> is the input bundle description file
-# <inputdir> is the input directory
-# <outdir> is the output directory
-# <depfile> is the output dependency file
 
 import sys
 import os
@@ -15,6 +10,8 @@ import argparse
 import tarfile
 import configparser
 from pathlib import Path
+
+pj = os.path.join
 
 class ShaderCompiler:
     # dxc is the path to dxc.exe
@@ -71,16 +68,59 @@ argparser.add_argument("--output", help="output tar file")
 argparser.add_argument("--depfile", help="the output dependency file")
 argparser.add_argument("--config", help="config file with tool paths")
 argparser.add_argument("--debug", help="enable debug mode", action="store_true")
+args = argparser.parse_args()
+bundlefile = args.bundle
+inputdir = args.indir
+
+bundle_dir = os.path.join(args.outdir, 'bundle')
+redist_dir = os.path.join(args.outdir, 'redist')
+
+deps = []
+
+def copyfile(src, dst):
+    print(f"copying {src} to {dst}")
+    shutil.copy(src, dst)
+    deps.append(src)
+
+def copy_redist(outdir, indir, redists, debug_redists):
+    os.makedirs(outdir, exist_ok=True)
+    for redist in redists:
+        copyfile(pj(indir, redist), outdir)
+
+    if not args.debug:
+        return
+
+    for redist in debug_redists:
+        copyfile(pj(indir, redist), outdir)
+
+def copy_redist_files(outdir, config):
+    agility_redist = config['redist']['agility']
+    dxc_redist = config['redist']['dxcompiler']
+    warp_redist = config['redist']['warp']
+    pix_redist = config['redist']['winpixruntime']
+    os.makedirs(outdir, exist_ok=True)
+
+    copy_redist(pj(outdir, 'd3d12'), agility_redist,
+        [ 'D3D12Core.dll' ],
+        [ 'D3D12Core.pdb', 'D3D12SDKLayers.dll', 'd3d12SDKLayers.pdb' ]
+    )
+
+    copy_redist(outdir, dxc_redist,
+        [ 'dxcompiler.dll', 'dxil.dll' ],
+        [ 'dxcompiler.pdb', 'dxil.pdb' ]
+    )
+
+    copy_redist(outdir, warp_redist,
+        [ ],
+        [ 'd3d10warp.dll', 'd3d10warp.pdb' ]
+    )
+
+    copy_redist(outdir, pix_redist,
+        [ ],
+        [ 'WinPixEventRuntime.dll' ]
+    )
 
 def main():
-    args = argparser.parse_args()
-
-    bundlefile = args.bundle
-    inputdir = args.indir
-
-    # nest bundle dir inside outdir so we dont delete
-    # the entire meson build dir
-    outdir = os.path.join(args.outdir, 'bundle')
     depfile = args.depfile
     config = configparser.ConfigParser()
     config.read(args.config)
@@ -97,24 +137,25 @@ def main():
         sys.exit(1)
 
     # delete output directorys contents
-    if os.path.exists(outdir):
+    if os.path.exists(bundle_dir):
         # cant delete the dir itself because meson is watching it
-        for root, dirs, files in os.walk(outdir):
+        for root, dirs, files in os.walk(bundle_dir):
             for file in files:
                 os.remove(os.path.join(root, file))
             for dir in dirs:
                 shutil.rmtree(os.path.join(root, dir))
 
-    os.makedirs(outdir, exist_ok=True)
+    copy_redist_files(redist_dir, config)
+
+    os.makedirs(bundle_dir, exist_ok=True)
 
     bundle = json.load(open(bundlefile, "r"))
-    deps = []
 
-    licensedir = os.path.join(outdir, "licenses")
-    fontdir = os.path.join(outdir, "fonts")
-    texturedir = os.path.join(outdir, "textures")
-    shaderdir = os.path.join(outdir, "shaders")
-    pdbdir = os.path.join(outdir, "pdb")
+    licensedir = os.path.join(bundle_dir, "licenses")
+    fontdir = os.path.join(bundle_dir, "fonts")
+    texturedir = os.path.join(bundle_dir, "textures")
+    shaderdir = os.path.join(bundle_dir, "shaders")
+    pdbdir = os.path.join(bundle_dir, "pdb")
 
     os.makedirs(licensedir, exist_ok=True)
     os.makedirs(fontdir, exist_ok=True)
@@ -129,27 +170,23 @@ def main():
     licensedata += 'All third party licenses are included below as well as in the licenses directory.\n\n'
 
     for item in bundle['licenses']:
-        # copy the license file to <outdir>/licenses
+        # copy the license file to <bundle_dir>/licenses
         itempath = os.path.join(inputdir, item['path'])
         targetpath = os.path.join(licensedir, item['id'].upper() + '.LICENSE.md')
-        print(f"copying license {item['path']} to {targetpath}")
-        deps.append(itempath)
-        shutil.copy(itempath, targetpath)
+        copyfile(itempath, targetpath)
         licensedata += f'## {item["name"]}\n\n'
         licensedata += f'Project url: {item["url"]}\n\n'
         licensedata += open(itempath, "r", encoding='utf8').read()
         licensedata += '\n'
 
-    open(os.path.join(outdir, "LICENSES.md"), "w", encoding='utf8').write(licensedata)
+    open(os.path.join(bundle_dir, "LICENSES.md"), "w", encoding='utf8').write(licensedata)
 
     for item in bundle['fonts']:
-        # copy the font file to <outdir>/fonts
+        # copy the font file to <bundle_dir>/fonts
         fonts = atlasgen.get_font_files(item)
         for font in fonts:
             outpath_ttf = os.path.join(fontdir, os.path.basename(font))
-            print(f"copying font {font} to {outpath_ttf}")
-            deps.append(font)
-            shutil.copy(font, outpath_ttf)
+            copyfile(font, outpath_ttf)
 
         print(f"generating msdf atlas for {item['name']}")
         result = atlasgen.build_atlas(item)
@@ -184,7 +221,7 @@ def main():
     open(depfile, "w").write(args.output + ': ' + ' '.join(deps))
 
     with tarfile.open(args.output, "w", format=tarfile.USTAR_FORMAT) as tar:
-        tar.add(outdir, arcname=os.path.basename(outdir))
+        tar.add(bundle_dir, arcname=os.path.basename(bundle_dir))
 
 if __name__ == "__main__":
     main()

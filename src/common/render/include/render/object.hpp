@@ -5,11 +5,11 @@
 
 #include "render/result.hpp"
 
-#include "core/win32.hpp" // IWYU pragma: export
-
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <dxgidebug.h>
+
+#include "core/win32.hpp" // IWYU pragma: export
 
 namespace sm::render {
 

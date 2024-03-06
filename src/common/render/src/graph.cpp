@@ -225,7 +225,7 @@ static constexpr D3D12_RESOURCE_FLAGS get_required_flags(Access access) {
     if (access.test(eRenderTarget)) {
         flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
     } else if (access.test(eDepthTarget)) {
-        flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+        flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
     }
 
     return flags;

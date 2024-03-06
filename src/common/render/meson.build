@@ -1,7 +1,7 @@
+
 render_include = include_directories('.', 'include')
 
 src = [
-    'src/vendor.cpp',
     'src/result.cpp',
     'src/instance.cpp',
     'src/render.cpp',
@@ -50,8 +50,11 @@ librender = library('render', src,
     dependencies : deps
 )
 
+libvendor = shared_module('vendor', 'src/vendor.cpp', dependencies : core)
+
 render = declare_dependency(
     link_with : librender,
+    objects : libvendor.extract_all_objects(),
     include_directories : [ render_include, librender.private_dir_include() ],
     dependencies : deps
 )

@@ -69,6 +69,9 @@ namespace sm {
         }
     };
 
+    template<typename T, void(*F)(T*), T TEmpty = {}>
+    using FnUniqueHandle = UniqueHandle<T, decltype([](T* it) { F(it); }), TEmpty>;
+
     template<typename T>
     struct DefaultDelete {
         constexpr void operator()(T *data) const { delete data; }

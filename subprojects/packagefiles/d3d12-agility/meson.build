@@ -31,11 +31,7 @@ icon = files('icon.png')
 # override the system d3dconfig with the new one
 d3dconfig = find_program(bindir / 'd3dconfig')
 
-# get the redist dlls
-# meson currently has no mechanism for installing redist files
-# so we just export them as files and the user can `install_data` them
-redist = files(bindir / 'D3D12Core.dll', bindir / 'D3D12SDKLayers.dll')
-redist_pdb = files(bindir / 'D3D12Core.pdb', bindir / 'd3d12SDKLayers.pdb')
+bindir = meson.current_source_dir() / bindir
 
 # we only need to export the include directory for d3d12
 d3d12_include = include_directories('build/native/include')
@@ -47,8 +43,6 @@ d3d12 = declare_dependency(
 # build d3dx12
 d3dx12_include = include_directories('build/native/include/d3dx12')
 d3dx12_src = 'build/native/src/d3dx12/d3dx12_property_format_table.cpp'
-
-needs_fixup = get_option('cpp_eh') == 'none'
 
 if get_option('cpp_eh') == 'none'
     awful = generator(find_program('awful.py'),

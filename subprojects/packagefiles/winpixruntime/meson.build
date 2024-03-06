@@ -9,17 +9,17 @@ host_cpu = host_machine.cpu_family()
 cc = meson.get_compiler('c')
 
 if host_cpu == 'x86_64'
-    bindir = 'bin/x64'
+    bindir = 'bin/X64'
 elif host_cpu == 'aarch64'
-    bindir = 'bin/arm64'
+    bindir = 'bin/ARM64'
 else
     error('The winpixruntime package does not support the ' + host_cpu + ' architecture')
 endif
 
 icon = files('WinPixEventRuntimeIcon.png')
 
-redist = files(bindir / 'WinPixEventRuntime.dll')
-winpixruntime = cc.find_library(meson.current_source_dir() / bindir / 'WinPixEventRuntime')
+bindir = meson.current_source_dir() / bindir
+winpixruntime = cc.find_library(bindir / 'WinPixEventRuntime')
 
 inc = include_directories('Include/WinPixEventRuntime')
 

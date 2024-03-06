@@ -13,12 +13,21 @@ static constexpr ButtonAxis kMoveForward = {Button::eW, Button::eS};
 static constexpr ButtonAxis kMoveStrafe = {Button::eD, Button::eA};
 static constexpr ButtonAxis kMoveUp = {Button::eE, Button::eQ};
 
+namespace MyGui {
+    template<math::IsAngle T>
+    void SliderAngle(const char *label, T *angle, T min, T max) {
+        float deg = angle->get_degrees();
+        ImGui::SliderFloat(label, &deg, min.get_degrees(), max.get_degrees());
+        *angle = math::Degrees(deg);
+    }
+}
+
 void Camera::draw_debug() {
-    ImGui::SliderFloat("fov", &fov, 0.1f, 3.14f);
+    MyGui::SliderAngle<radf>("fov", &mFieldOfView, 5._deg, 120._deg);
     ImGui::SliderFloat3("position", &mPosition.x, -10.f, 10.f);
     ImGui::SliderFloat3("direction", &mDirection.x, -1.f, 1.f);
-    ImGui::SliderFloat("speed", &speed, 0.1f, 10.f);
-    ImGui::SliderFloat("sensitivity", &sensitivity, 0.1f, 1.f);
+    ImGui::SliderFloat("speed", &mCameraSpeed, 0.1f, 10.f);
+    ImGui::SliderFloat("sensitivity", &mMouseSensitivity, 0.1f, 1.f);
 }
 
 void Camera::accept(const input::InputState& state, InputService& service) {
@@ -42,17 +51,17 @@ void Camera::accept(const input::InputState& state, InputService& service) {
     // when the mouse is moving.
     float2 mouse = state.axis2d(Axis::eMouseX, Axis::eMouseY);
 
-    mouse *= sensitivity;
+    mouse *= mMouseSensitivity;
 
-    yaw += mouse.x;
-    pitch += -mouse.y;
+    mLookYaw += degf(mouse.x);
+    mLookPitch += -degf(mouse.y);
 
-    pitch = math::clamp(pitch, -89.f, 89.f);
+    mLookPitch = math::clamp(mLookPitch, -89._deg, 89._deg);
 
     float3 front = mDirection;
-    front.x = std::cos(to_radians(pitch)) * std::cos(to_radians(yaw));
-    front.y = std::cos(to_radians(pitch)) * std::sin(to_radians(yaw));
-    front.z = -std::sin(to_radians(pitch));
+    front.x = math::cos(mLookPitch) * math::cos(mLookYaw);
+    front.y = math::cos(mLookPitch) * math::sin(mLookYaw);
+    front.z = -math::sin(mLookPitch);
     mDirection = front.normalized();
 }
 
@@ -61,7 +70,7 @@ void Camera::tick(float dt) {
         return;
     }
 
-    float scaled = speed * dt;
+    float scaled = mCameraSpeed * dt;
 
     // do keyboard input here, we only get a new input state
     // when a key is pressed or released.
@@ -84,7 +93,7 @@ float4x4 Camera::view() const {
 }
 
 float4x4 Camera::projection(float aspect) const {
-    return float4x4::perspectiveRH(fov, aspect, 0.1f, 100.f);
+    return float4x4::perspectiveRH(mFieldOfView, aspect, 0.1f, 100.f);
 }
 
 float4x4 Camera::mvp(float aspect, const float4x4& object) const {

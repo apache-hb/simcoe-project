@@ -181,6 +181,7 @@ namespace sm::math {
     template<typename T>
     struct Vec3 {
         static constexpr size_t kSize = 3;
+        using Vec2 = Vec2<T>;
         using Type = T;
 
         union {
@@ -194,8 +195,8 @@ namespace sm::math {
 
         constexpr Vec3(T x, T y, T z) : x(x), y(y), z(z) { }
         constexpr Vec3(T it) : Vec3(it, it, it){ }
-        constexpr Vec3(const Vec2<T>& xy, T z) : Vec3(xy.x, xy.y, z) { }
-        constexpr Vec3(T x, const Vec2<T>& yz) : Vec3(x, yz.x, yz.y) { }
+        constexpr Vec3(const Vec2& xy, T z) : Vec3(xy.x, xy.y, z) { }
+        constexpr Vec3(T x, const Vec2& yz) : Vec3(x, yz.x, yz.y) { }
         constexpr Vec3(const T *data) : Vec3(data[0], data[1], data[2]) { }
 
         static constexpr Vec3 zero() { return Vec3(T(0)); }
@@ -219,9 +220,9 @@ namespace sm::math {
         template<typename O>
         constexpr Vec3<O> as() const { return Vec3<O>(O(x), O(y), O(z)); }
 
-        constexpr Vec2<T> xy() const { return Vec2<T>(x, y); }
-        constexpr Vec2<T> xz() const { return Vec2<T>(x, z); }
-        constexpr Vec2<T> yz() const { return Vec2<T>(y, z); }
+        constexpr Vec2 xy() const { return Vec2(x, y); }
+        constexpr Vec2 xz() const { return Vec2(x, z); }
+        constexpr Vec2 yz() const { return Vec2(y, z); }
 
         bool isinf() const { return std::isinf(x) || std::isinf(y) || std::isinf(z); }
 
@@ -305,6 +306,8 @@ namespace sm::math {
     template<typename T>
     struct alignas(sizeof(T) * 4) Vec4 {
         static constexpr size_t kSize = 4;
+        using Vec2 = Vec2<T>;
+        using Vec3 = Vec3<T>;
         using Type = T;
 
         union {
@@ -317,7 +320,7 @@ namespace sm::math {
 
         constexpr Vec4(T x, T y, T z, T w) : x(x), y(y), z(z), w(w) { }
         constexpr Vec4(T it) : Vec4(it, it, it, it) { }
-        constexpr Vec4(const Vec3<T>& xyz, T w) : Vec4(xyz.x, xyz.y, xyz.z, w) { }
+        constexpr Vec4(const Vec3& xyz, T w) : Vec4(xyz.x, xyz.y, xyz.z, w) { }
         constexpr Vec4(const T *data) : Vec4(data[0], data[1], data[2], data[3]) { }
 
         static constexpr Vec4 zero() { return Vec4(T(0)); }
@@ -338,7 +341,7 @@ namespace sm::math {
         template<typename O>
         constexpr Vec4<O> as() const { return Vec4<O>(O(x), O(y), O(z), O(w)); }
 
-        constexpr Vec3<T> xyz() const { return Vec3<T>(x, y, z); }
+        constexpr Vec3 xyz() const { return Vec3(x, y, z); }
 
         bool isinf() const { return std::isinf(x) || std::isinf(y) || std::isinf(z) || std::isinf(w); }
         constexpr bool is_uniform() const { return x == y && y == z && z == w; }
@@ -480,6 +483,7 @@ namespace sm::math {
             return {-v, angle};
         }
 
+#if 0
         constexpr Vec3 as_euler() const {
             T sinr_cosp = T(2) * (angle * v.x + v.y * v.z);
             T cosr_cosp = T(1) - T(2) * (v.x * v.x + v.y * v.y);
@@ -637,6 +641,7 @@ namespace sm::math {
                 }
             }
         }
+#endif
 
         constexpr void decompose(Vec3 &axis, T &angle) const {
             axis = v.normalized();
@@ -647,6 +652,8 @@ namespace sm::math {
     template<typename T>
     struct alignas(sizeof(T) * 16) Mat4x4 {
         using Type = T;
+        using Rad = Radians<T>;
+        using Rad3 = Vec3<Rad>;
         using Vec4 = Vec4<T>;
         using Vec3 = Vec3<T>;
         using Quat = Quat<T>;
@@ -933,9 +940,9 @@ namespace sm::math {
             return Mat4x4::lookToLH(eye, eye - focus, up);
         }
 
-        static constexpr Mat4x4 perspectiveRH(T fov, T aspect, T nearLimit, T farLimit) {
-            auto fovSin = std::sin(fov / 2);
-            auto fovCos = std::cos(fov / 2);
+        static constexpr Mat4x4 perspectiveRH(Rad fov, T aspect, T nearLimit, T farLimit) {
+            auto fovSin = math::sin(fov / 2);
+            auto fovCos = math::cos(fov / 2);
 
             auto height = fovCos / fovSin;
             auto width = height / aspect;
