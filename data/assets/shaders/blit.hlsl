@@ -6,8 +6,8 @@ struct Input {
 Texture2D gTexture : register(t0);
 SamplerState gSampler : register(s0);
 
-Input vs_main(float3 position : POSITION, float2 uv : TEXCOORD) {
-    Input result = { float4(position, 1.f), uv };
+Input vs_main(float2 position : POSITION, float2 uv : TEXCOORD) {
+    Input result = { float4(position, 0.f, 1.f), uv };
     return result;
 }
 

@@ -1,0 +1,11 @@
+[wrap-git]
+directory = nvapi
+
+url = https://github.com/NVIDIA/nvapi
+revision = head
+depth = 1
+
+patch_directory = nvapi
+
+[provide]
+dependency_names = nvapi

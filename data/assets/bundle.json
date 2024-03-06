@@ -44,6 +44,24 @@
             "name": "zlib",
             "url": "https://www.zlib.net",
             "path": "licenses/zlib/LICENSE"
+        },
+        {
+            "id": "d3d12ma",
+            "name": "D3D12 Memory Allocator",
+            "url": "https://gpuopen.com/d3d12-memory-allocator",
+            "path": "licenses/d3d12ma/LICENSE"
+        },
+        {
+            "id": "imgui",
+            "name": "Dear ImGui",
+            "url": "https://github.com/ocornut/imgui",
+            "path": "licenses/imgui/LICENSE"
+        },
+        {
+            "id": "stb",
+            "name": "nothings stb",
+            "url": "https://github.com/nothings/stb",
+            "path": "licenses/stb/LICENSE"
         }
     ],
     "shaders": [
@@ -78,6 +96,30 @@
                 { "entry": "vs_main", "target": "vs" },
                 { "entry": "ps_main", "target": "ps" }
             ]
+        },
+        {
+            "name": "simple",
+            "path": "shaders/simple.hlsl",
+            "targets": [
+                { "entry": "vs_main", "target": "vs" },
+                { "entry": "ps_main", "target": "ps" }
+            ]
+        },
+        {
+            "name": "msdf_font",
+            "path": "shaders/msdf_font.hlsl",
+            "targets": [
+                { "entry": "vs_main", "target": "vs" },
+                { "entry": "ps_main", "target": "ps" }
+            ]
+        },
+        {
+            "name": "diffuse",
+            "path": "shaders/diffuse.hlsl",
+            "targets": [
+                { "entry": "vs_main", "target": "vs" },
+                { "entry": "ps_main", "target": "ps" }
+            ]
         }
     ],
     "fonts": [
@@ -88,6 +130,18 @@
         {
             "name": "public-sans-bold",
             "path": "fonts/ttf/PublicSans-Bold.ttf"
+        },
+        {
+            "name": "public_sans",
+            "path": "fonts/ttf",
+            "files": [ "PublicSans-Regular.ttf", "PublicSans-Bold.ttf", "PublicSans-Italic.ttf" ]
+        }
+    ],
+    "textures": [
+        {
+            "name": "uv_coords",
+            "mips": 10,
+            "path": "textures/uv_coords.png"
         }
     ]
 }

@@ -18,5 +18,4 @@ else
     error('No warp redist is provided for ' + host_cpu)
 endif
 
-redist = files(bindir / 'd3d10warp.dll')
-redist_pdb = files(bindir / 'd3d10warp.pdb')
+bindir = meson.current_source_dir() / bindir

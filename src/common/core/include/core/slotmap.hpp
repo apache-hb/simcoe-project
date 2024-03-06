@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/array.hpp"
-#include "core/backtrace.hpp"
+#include "core/error.hpp"
 
 #include <atomic>
 #include <stdint.h>
@@ -62,7 +62,7 @@ namespace sm {
                 Super *super = static_cast<Super*>(this);
                 for (size_t i = 0; i < limit; i++) {
                     if (super->cmpxchg(i, TEmpty, value) == TEmpty) {
-                        return Index(i);
+                        return enum_cast<Index>(i);
                     }
                 }
 

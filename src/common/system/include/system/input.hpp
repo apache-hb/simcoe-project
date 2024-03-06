@@ -6,18 +6,22 @@
 
 namespace sm::sys {
     // mouse and keyboard input
-    class DesktopInput : public input::ISource {
+    class DesktopInput final : public input::ISource {
+        sys::Window& mWindow;
+
         // keyboard state
-        input::ButtonState m_buttons{};
-        size_t m_index = 0;
+        input::ButtonState mButtons{};
+        size_t mIndex = 0;
 
-        SM_UNUSED math::int2 m_mouse_origin;
-        SM_UNUSED math::int2 m_mouse_position;
-
-        SM_UNUSED sys::Window& m_window;
+        math::int2 mMousePosition;
+        bool mCaptureMouse = false;
 
         void set_key(WORD key, size_t value);
         void set_xbutton(WORD key, size_t value);
+
+        bool poll_mouse(input::InputState& state);
+
+        void center_mouse();
 
     public:
         DesktopInput(sys::Window& window);
@@ -25,5 +29,11 @@ namespace sm::sys {
         bool poll(input::InputState& state) override;
 
         void window_event(UINT msg, WPARAM wparam, LPARAM lparam);
+
+        void capture_cursor(bool capture) override;
     };
+
+    namespace mouse {
+        void set_visible(bool visible);
+    }
 }

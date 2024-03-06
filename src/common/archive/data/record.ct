@@ -1,0 +1,44 @@
+module sm::archive;
+
+import "core/memory.hpp";
+
+using Memory = opaque("sm::Memory")
+
+variant RecordStoreVersion : uint16 {
+    [[format("v0")]] case Version0 = 0
+    [[format("2024/02/17")]] case Version1 = 1
+
+    default Current = 1
+}
+
+struct RecordStoreConfig {
+    path: cstring;
+    size: Memory;
+    record_count: fast16;
+}
+
+struct RecordStoreHeader {
+    magic: uint32; // 'CUM\0'
+    version: RecordStoreVersion;
+    padding: uint16;
+    count: uint16; // number of records
+    used: uint16; // number of records slots used
+    size: uint32;
+    checksum: uint32;
+}
+
+struct RecordEntryHeader {
+    id: uint32; // matches typeid of the record
+    offset: uint16; // offset from the start of the data region
+    size: uint16; // size of the record
+}
+
+variant RecordLookup {
+    [[format("created new")]] case Created
+    [[format("opened existing")]] case Opened
+    [[format("out of record headers")]] case RecordTableExhausted
+    [[format("out of data")]] case DataRegionExhausted
+    [[format("invalid record")]] default RecordInvalid
+
+    const def has_valid_data(): bool;
+}

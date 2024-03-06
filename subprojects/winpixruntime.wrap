@@ -1,0 +1,12 @@
+[wrap-file]
+directory = winpixruntime-1.0.231030001
+
+source_url = https://www.nuget.org/api/v2/package/WinPixEventRuntime/1.0.231030001
+source_filename = winpixruntime-1.0.231030001.zip
+source_hash = 085731681957063aff051c3de4b38c59b3135e600cbbe1370bdd07d0b487bcae
+lead_directory_missing = true
+
+patch_directory = winpixruntime
+
+[provide]
+dependency_names = winpixruntime

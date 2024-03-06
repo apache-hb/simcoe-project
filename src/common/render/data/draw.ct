@@ -1,23 +1,16 @@
 module sm::draw;
 
+[[table, iterator]]
 variant MeshType {
-    case Cube
-    case Sphere
-    case Cylinder
-    case Plane
-    case Wedge
-    case Capsule
-    case Diamond
-    case GeoSphere
+    [[format("Unknown")]] default None
+    [[format("Cube")]] case Cube
+    [[format("Sphere")]] case Sphere
+    [[format("Cylinder")]] case Cylinder
+    [[format("Plane")]] case Plane
+    [[format("Wedge")]] case Wedge
+    [[format("Capsule")]] case Capsule
+    [[format("Diamond")]] case Diamond
+    [[format("Geo Sphere")]] case GeoSphere
 
-    case Imported
-}
-
-variant ModifierType {
-    case Array
-}
-
-variant CameraProjection {
-    case Perspective
-    case Orthographic
+    [[format("Imported Mesh")]] case Imported
 }

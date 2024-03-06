@@ -23,6 +23,7 @@
 !*.ini
 !.clang-format
 !.clang-tidy
+!*.natvis
 
 # assets
 !data/**/*
@@ -31,8 +32,12 @@
 subprojects/*
 !subprojects/*.wrap
 !subprojects/stb
+!subprojects/dds_texture_loader
 !subprojects/packagefiles
 !subprojects/packagefiles/**
 !subprojects/.clang-tidy
+
+!LICENSE
+!README.md
 
 *[bB]uild*/

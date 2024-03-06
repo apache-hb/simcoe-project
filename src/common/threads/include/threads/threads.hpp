@@ -2,15 +2,26 @@
 
 #include "core/macros.hpp"
 #include "core/vector.hpp"
-#include "logs/sink.hpp"
+#include "core/core.hpp"
 
 #include "threads.reflect.h"
 
 namespace sm::threads {
-    enum struct SubcoreIndex : uint16_t { eInvalid = UINT16_MAX };
-    enum struct CoreIndex : uint16_t { eInvalid = UINT16_MAX };
-    enum struct ChipletIndex : uint16_t { eInvalid = UINT16_MAX };
-    enum struct PackageIndex : uint16_t { eInvalid = UINT16_MAX };
+    enum struct SubcoreIndex : uint16 {
+        eInvalid = UINT16_MAX
+    };
+
+    enum struct CoreIndex : uint16 {
+        eInvalid = UINT16_MAX
+    };
+
+    enum struct ChipletIndex : uint16 {
+        eInvalid = UINT16_MAX
+    };
+
+    enum struct PackageIndex : uint16 {
+        eInvalid = UINT16_MAX
+    };
 
     using SubcoreIndices = sm::Vector<SubcoreIndex>;
     using CoreIndices = sm::Vector<CoreIndex>;
@@ -25,7 +36,7 @@ namespace sm::threads {
         GROUP_AFFINITY mask;
         SubcoreIndices subcores;
 
-        uint16_t schedule; // schedule speed (lower is faster)
+        uint16_t schedule;  // schedule speed (lower is faster)
         uint8_t efficiency; // efficiency (higher is more efficient)
     };
 
@@ -49,42 +60,55 @@ namespace sm::threads {
         sm::Vector<Chiplet> chiplets;
         sm::Vector<Package> packages;
 
-        const Subcore& get_subcore(SubcoreIndex idx) const { return subcores[size_t(idx)]; }
-        const Core& get_core(CoreIndex idx) const { return cores[size_t(idx)]; }
-        const Chiplet& get_chiplet(ChipletIndex idx) const { return chiplets[size_t(idx)]; }
-        const Package& get_package(PackageIndex idx) const { return packages[size_t(idx)]; }
+        const Subcore &get_subcore(SubcoreIndex idx) const {
+            return subcores[size_t(idx)];
+        }
+
+        const Core &get_core(CoreIndex idx) const {
+            return cores[size_t(idx)];
+        }
+
+        const Chiplet &get_chiplet(ChipletIndex idx) const {
+            return chiplets[size_t(idx)];
+        }
+
+        const Package &get_package(PackageIndex idx) const {
+            return packages[size_t(idx)];
+        }
     };
 
-    CpuGeometry global_cpu_geometry(logs::ILogger& logger);
+    CpuGeometry global_cpu_geometry();
 
     class ThreadHandle {
-        HANDLE m_handle = nullptr;
+        HANDLE mHandle = nullptr;
 
     public:
         ThreadHandle(HANDLE handle)
-            : m_handle(handle)
+            : mHandle(handle)
         { }
 
-        HANDLE get_handle() const { return m_handle; }
+        HANDLE get_handle() const {
+            return mHandle;
+        }
     };
 
     class Scheduler {
-        CpuGeometry m_cpu;
-        logs::Sink<logs::Category::eSchedule> m_log;
+        const SchedulerConfig mConfig;
+        CpuGeometry mCpuGeometry;
 
         static DWORD WINAPI thread_thunk(LPVOID param);
 
-        ThreadHandle launch_thread(void* param);
+        ThreadHandle launch_thread(void *param);
 
     public:
-        Scheduler(const SchedulerConfig&, CpuGeometry geometry, logs::ILogger& logger)
-            : m_cpu(std::move(geometry))
-            , m_log(logger)
+        Scheduler(const SchedulerConfig& config, CpuGeometry geometry)
+            : mConfig(config)
+            , mCpuGeometry(std::move(geometry))
         { }
 
-        template<typename T>
-        ThreadHandle launch(SM_UNUSED T&& task) {
-            return ThreadHandle { nullptr };
+        template <typename T>
+        ThreadHandle launch(SM_UNUSED T &&task) {
+            return ThreadHandle{nullptr};
         }
     };
 }

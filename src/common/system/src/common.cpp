@@ -1,10 +1,6 @@
-#include "system/system.hpp"
-
-#include "core/arena.hpp"
-
 #include "common.hpp"
 
-#include "os/core.h"
+#include "system/system.hpp"
 
 #include <errhandlingapi.h>
 
@@ -12,15 +8,22 @@ using namespace sm;
 
 HINSTANCE gInstance = nullptr;
 LPTSTR gWindowClass = nullptr;
+size_t gTimerFrequency = 0;
 
-char *sys::last_error_string(void) {
-    DWORD last_error = GetLastError();
-    IArena& arena = sm::get_pool(sm::Pool::eDebug);
-    return os_error_string(last_error, &arena);
+OsError sys::get_last_error() {
+    return GetLastError();
 }
 
 CT_NORETURN
 sys::assert_last_error(source_info_t panic, const char *expr) {
-    char *message = sys::last_error_string();
-    ctu_panic(panic, "win32 error: %s %s", message, expr);
+    sm::vpanic(panic, "win32 {}: {}", get_last_error(), expr);
+}
+
+size_t query_timer() {
+    CTASSERT(gTimerFrequency != 0);
+
+    LARGE_INTEGER frequency;
+    SM_ASSERT_WIN32(QueryPerformanceCounter(&frequency));
+
+    return int_cast<size_t>(frequency.QuadPart);
 }

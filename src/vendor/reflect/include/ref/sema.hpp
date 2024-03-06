@@ -718,6 +718,7 @@ namespace refl {
 
         // was an opaque value used?
         bool is_opaque_case() const;
+        bool is_empty_case() const;
 
         // no value specified, we generate one
         bool is_blank_case() const;

@@ -1,4 +1,4 @@
-#include "render/render.hpp" // IWYU pragma: keep
+#include "core/win32.hpp" // IWYU pragma: export
 
 extern "C" {
 	// ask for the discrete gpu on laptops
@@ -9,5 +9,5 @@ extern "C" {
 extern "C" {
 	// agility sdk
 	__declspec(dllexport) extern const UINT D3D12SDKVersion = 611;        // NOLINT
-	__declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\"; // NOLINT
+	__declspec(dllexport) extern const char* D3D12SDKPath = ".\\redist\\d3d12\\"; // NOLINT
 }

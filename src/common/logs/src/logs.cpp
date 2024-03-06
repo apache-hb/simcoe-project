@@ -1,12 +1,19 @@
 #include "logs/logs.hpp"
-#include "logs/panic.hpp"
 
 #include <chrono>
 
 using namespace sm;
 using namespace sm::logs;
 
-void ILogger::log(Category category, Severity severity, std::string_view msg) {
+void Logger::log(const Message &message) {
+    if (!will_accept(message.severity)) return;
+
+    for (ILogChannel* channel : mChannels) {
+        channel->accept(message);
+    }
+}
+
+void Logger::log(Category category, Severity severity, std::string_view msg) {
     // get current time in milliseconds
     auto now = std::chrono::system_clock::now();
     auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
@@ -14,24 +21,27 @@ void ILogger::log(Category category, Severity severity, std::string_view msg) {
     log(Message{msg, category, severity, uint32_t(timestamp), 0});
 }
 
-void ILogger::log(const Message& message) {
-    if (will_accept(message.severity)) {
-        accept(message);
-    }
+void Logger::add_channel(ILogChannel *channel) {
+    mChannels.push_back(channel);
 }
 
-#if 0
-#if SMC_ENABLE_LOGDB
-
-static std::unordered_map<uint32_t, std::string> gMessages;
-
-void logdb::add_message(const char *str, uint32_t hash) {
-    if (auto it = gMessages.find(hash); it != gMessages.end()) {
-        CTASSERTF(it->second == str, "hash collision between %s and %s", it->second.c_str(), str);
-    }
-
-    gMessages[hash] = str;
+void Logger::remove_channel(ILogChannel *channel) {
+    mChannels.erase(std::remove(mChannels.begin(), mChannels.end(), channel), mChannels.end());
 }
 
-#endif
-#endif
+void Logger::set_severity(Severity severity) {
+    mSeverity = severity;
+}
+
+Severity Logger::get_severity() const {
+    return mSeverity;
+}
+
+Logger& logs::get_logger() noexcept {
+    static Logger logger{Severity::eInfo};
+    return logger;
+}
+
+Sink logs::get_sink(Category category) noexcept {
+    return Sink{get_logger(), category};
+}

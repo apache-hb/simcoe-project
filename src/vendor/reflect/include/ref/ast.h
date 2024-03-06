@@ -78,7 +78,7 @@ typedef enum ref_attrib_tag_t
 {
     eAttribTransient,  // this field should not be serialized
     eAttribBitflags,   // this enum is a bitflag type, define bitwise operators
-    eAttribArithmatic, // this enum is an arithmatic type, define arithmatic operators
+    eAttribArithmatic, // this enum is an arithmetic type, define arithmetic operators
     eAttribIterator, // this enum is an iterator, define increment/decrement operators and generate
                      // begin/end functions
     eAttribOrdered,  // allow order comparison of enums
@@ -121,6 +121,9 @@ typedef enum ref_attrib_tag_t
 
     // generate d3d12 input element description
     eAttribVertexInput,
+
+    // the empty value of an enum
+    eAttribEmpty,
 
     ///
     /// these have a string arg
@@ -260,7 +263,7 @@ typedef struct ref_ast_t
 
             /* eAstClass, eAstStruct, eAstVariant */
             ref_flags_t flags;
-            vector_t *attributes;
+            const vector_t *attributes;
             vector_t *tparams;
             char *name;
 

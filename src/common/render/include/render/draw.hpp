@@ -1,59 +1,94 @@
 #pragma once
 
-#include "render/mesh.hpp"
+#include "core/vector.hpp"
+#include "core/core.hpp"
+
+#include "math/math.hpp"
+
+#include "draw.reflect.h"
 
 namespace sm::draw {
-    using namespace sm::math;
+    using namespace math;
+
+    constexpr float3 kVectorForward = {1.f, 0.f, 0.f};
+    constexpr float3 kVectorRight = {0.f, 1.f, 0.f};
+    constexpr float3 kVectorUp = {0.f, 0.f, 1.f};
+
+    struct Vertex {
+        float3 position;
+        uint32_t colour;
+    };
+
+    struct Cube {
+        float width;
+        float height;
+        float depth;
+    };
+
+    struct Sphere {
+        float radius;
+        int slices;
+        int stacks;
+    };
+
+    struct Cylinder {
+        float radius;
+        float height;
+        int slices;
+    };
+
+    struct Plane {
+        float width;
+        float depth;
+    };
+
+    struct Wedge {
+        float width;
+        float height;
+        float depth;
+    };
+
+    struct Capsule {
+        float radius;
+        float height;
+    };
+
+    struct GeoSphere {
+        float radius;
+        int subdivisions;
+    };
+
+    struct MeshInfo {
+        MeshType type;
+        union {
+            Cube cube;
+            Sphere sphere;
+            Cylinder cylinder;
+            Plane plane;
+            Wedge wedge;
+            Capsule capsule;
+            GeoSphere geosphere;
+        };
+    };
+
+    struct BoxBounds {
+        float3 min;
+        float3 max;
+    };
 
     struct Transform {
         float3 position;
         float3 rotation;
-        float3 scale;
+        float3 scale = 1.f;
 
         float4x4 matrix() const;
     };
 
-    struct ArrayModifier {
-        uint32_t repeat;
-        Transform transform;
+    struct Mesh {
+        BoxBounds bounds;
+        sm::Vector<Vertex> vertices;
+        sm::Vector<uint16> indices;
     };
 
-    struct Modifier {
-        ModifierType type;
-        union {
-            ArrayModifier array;
-        };
-    };
-
-    struct RenderNode {
-        Transform transform;
-
-        sm::SmallVector<uint16_t, 4> children;
-        sm::SmallVector<uint16_t, 4> modifiers;
-        sm::SmallVector<uint16_t, 4> meshes;
-    };
-
-    struct Camera {
-        float3 position;
-        float3 forward;
-        float3 up;
-
-        float near_plane = 0.1f;
-        float far_plane = 100.f;
-        float fov = 90.f;
-
-        float4x4 model() const;
-        float4x4 view() const;
-        float4x4 perspective(float width, float height) const;
-
-        void move(float3 delta);
-        void look(float3 delta);
-    };
-
-    struct Scene {
-        uint16_t root;
-        sm::Vector<RenderNode> nodes;
-        sm::Vector<Modifier> modifiers;
-        sm::Vector<MeshInfo> meshes;
-    };
+    Mesh primitive(const MeshInfo& info);
 }

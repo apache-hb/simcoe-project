@@ -1,10 +1,9 @@
 #pragma once
 
-#include <simcoe_config.h>
-
 #include "base/panic.h" // IWYU pragma: keep
 
-#include "core/debug.hpp"
+#include "core/core.hpp"
+#include "core/macros.hpp"
 
 namespace sm {
     /// @brief A handle to a resource that is automatically destroyed when it goes out of scope.
@@ -16,14 +15,14 @@ namespace sm {
     /// value that represents an empty handle. For example mmap returns MAP_FAILED on failure
     template<typename T, typename TDelete, T TEmpty = T{}>
     class UniqueHandle {
-        T m_handle = TEmpty;
+        T mHandle = TEmpty;
 
-        SM_NO_UNIQUE_ADDRESS TDelete m_delete{};
+        SM_NO_UNIQUE_ADDRESS TDelete mDelete{};
 
     public:
         constexpr UniqueHandle(T handle = TEmpty, TDelete del = TDelete{})
-            : m_handle(handle)
-            , m_delete(del)
+            : mHandle(handle)
+            , mDelete(del)
         { }
 
         constexpr UniqueHandle &operator=(T handle) {
@@ -44,31 +43,34 @@ namespace sm {
             return *this;
         }
 
-        constexpr T& get() { CTASSERT(is_valid()); return m_handle; }
-        constexpr const T& get() const { CTASSERT(is_valid()); return m_handle; }
+        constexpr T& get() { CTASSERT(is_valid()); return mHandle; }
+        constexpr const T& get() const { CTASSERT(is_valid()); return mHandle; }
 
         constexpr T& operator*() { return get(); }
         constexpr const T& operator*() const { return get(); }
 
-        constexpr T *address() { return &m_handle; }
-        constexpr T *const address() const { return &m_handle; }
+        constexpr T *address() { return &mHandle; }
+        constexpr T *const address() const { return &mHandle; }
 
-        constexpr bool is_valid() const { return m_handle != TEmpty; }
-        constexpr explicit operator bool() const { return m_handle != TEmpty; }
+        constexpr bool is_valid() const { return mHandle != TEmpty; }
+        constexpr explicit operator bool() const { return mHandle != TEmpty; }
 
         constexpr void reset(T handle = TEmpty) {
-            if (m_handle != TEmpty) {
-                m_delete(m_handle);
+            if (mHandle != TEmpty) {
+                mDelete(mHandle);
             }
-            m_handle = handle;
+            mHandle = handle;
         }
 
         constexpr T release() {
-            T handle = m_handle;
-            m_handle = TEmpty;
+            T handle = mHandle;
+            mHandle = TEmpty;
             return handle;
         }
     };
+
+    template<typename T, void(*F)(T&), T TEmpty = {}>
+    using FnUniqueHandle = UniqueHandle<T, decltype([](T& it) { F(it); }), TEmpty>;
 
     template<typename T>
     struct DefaultDelete {
@@ -125,7 +127,7 @@ namespace sm {
 
         constexpr void reset(size_t size) {
             Super::reset(new T[size]);
-            SM_DBG_REF(m_size) = size;
+            DBG_REF(m_size) = size;
         }
 
         constexpr T &operator[](size_t index) {
@@ -140,13 +142,13 @@ namespace sm {
 
     private:
         constexpr void verify_index(SM_UNUSED size_t index) const {
-            SM_DBG_ASSERT(index < m_size, "index out of bounds (%zu < %zu)", index, m_size);
+            DBG_ASSERT(index < m_size, "index out of bounds (%zu < %zu)", index, m_size);
         }
 
-        SM_DBG_MEMBER(size_t) m_size;
+        DBG_MEMBER(size_t) m_size;
     };
 
-    SM_REL_STATIC_ASSERT(sizeof(sm::UniquePtr<int>) == sizeof(int*),
+    DBG_STATIC_ASSERT(sizeof(sm::UniquePtr<int>) == sizeof(int*),
         "UniquePtr<T> should be the same size as T* in release"
         "a compiler that supports [[no_unique_address]] or [[msvc::no_unique_address]] is required");
 }

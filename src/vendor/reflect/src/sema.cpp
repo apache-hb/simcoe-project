@@ -6,8 +6,9 @@
 #include "std/map.h"
 #include "std/str.h"
 #include "std/vector.h"
-#include <climits>
-#include <cstdio>
+#include "core/macros.h"
+
+#include <limits.h>
 
 using namespace refl;
 
@@ -136,7 +137,7 @@ static const char *get_config_val(const ref_ast_t *ast)
     if (val->kind == eAstOpaque || val->kind == eAstIdent || val->kind == eAstString)
         return val->ident;
 
-    NEVER("invalid config value");
+    CT_NEVER("invalid config value");
 }
 
 void Sema::forward_module(ref_ast_t *mod)
@@ -372,7 +373,7 @@ static ref_ast_t *get_attrib(const vector_t *attribs, ref_kind_t kind)
     return nullptr;
 }
 
-static const char *get_attrib_string(vector_t *attribs, ref_attrib_tag_t tag)
+static const char *get_attrib_string(const vector_t *attribs, ref_attrib_tag_t tag)
 {
     CTASSERT(attribs != nullptr);
 
@@ -407,7 +408,7 @@ static const char *get_doc(vector_t *attribs, const char *key)
 
 void Decl::find_layout(const ref_ast_t *ast, logger_t *logger)
 {
-    vector_t *attribs = ast->attributes;
+    const vector_t *attribs = ast->attributes;
     ref_ast_t *layout_ast = NULL;
     ref_attrib_tag_t layout_tag = get_layout();
 
@@ -478,6 +479,21 @@ void Field::resolve_type(Sema& sema)
     set_type(ty);
 }
 
+static bool has_attrib_tag(const vector_t *attribs, ref_attrib_tag_t tag)
+{
+    for (size_t i = 0; i < vector_len(attribs); i++)
+    {
+        ref_ast_t *attrib = (ref_ast_t*)vector_get(attribs, i);
+        if (attrib->kind != eAstAttribTag)
+            continue;
+
+        if (attrib->attrib == tag)
+            return true;
+    }
+
+    return false;
+}
+
 Case::Case(ref_ast_t *ast)
     : TreeBackedDecl(ast, eKindCase)
 { }
@@ -509,6 +525,10 @@ bool Case::is_opaque_case() const {
     return m_eval == eEvalOpaque;
 }
 
+bool Case::is_empty_case() const {
+    return has_attrib_tag(m_ast->attributes, eAttribEmpty);
+}
+
 bool Case::is_blank_case() const {
     return m_ast->value == nullptr;
 }
@@ -518,21 +538,6 @@ bool Case::get_integer(mpz_t out) const {
     {
         mpz_init_set(out, digit_value);
         return true;
-    }
-
-    return false;
-}
-
-static bool has_attrib_tag(const vector_t *attribs, ref_attrib_tag_t tag)
-{
-    for (size_t i = 0; i < vector_len(attribs); i++)
-    {
-        ref_ast_t *attrib = (ref_ast_t*)vector_get(attribs, i);
-        if (attrib->kind != eAstAttribTag)
-            continue;
-
-        if (attrib->attrib == tag)
-            return true;
     }
 
     return false;
@@ -570,7 +575,7 @@ static const char *get_privacy(ref_privacy_t privacy)
     case ePrivacyPublic: return "public";
     case ePrivacyPrivate: return "private";
     case ePrivacyProtected: return "protected";
-    default: NEVER("invalid privacy %d", privacy);
+    default: CT_NEVER("invalid privacy %d", privacy);
     }
 }
 
@@ -632,7 +637,7 @@ void Method::emit_method(Sema& sema, cxx_emit_t *out, const RecordType& parent) 
 
     if (is_virtual && !parent.is_virtual())
     {
-        NEVER("virtual method %s on non-virtual class %s", get_name(), parent.get_name());
+        CT_NEVER("virtual method %s on non-virtual class %s", get_name(), parent.get_name());
     }
 
     const char *virt_str = is_virtual ? "virtual " : "";
@@ -689,11 +694,6 @@ void RecordType::resolve(Sema& sema)
 static bool type_is_external(ref_ast_t *ast)
 {
     return has_attrib_tag(ast->attributes, eAttribExternal);
-}
-
-static bool type_is_facade(ref_ast_t *ast)
-{
-    return has_attrib_tag(ast->attributes, eAttribFacade);
 }
 
 // internal types have no reflection data
@@ -826,7 +826,7 @@ void Class::resolve(Sema& sema)
 
     if (m_ast->tparams != NULL && vector_len(m_ast->tparams) > 0)
     {
-        NEVER("templates not implemented");
+        CT_NEVER("templates not implemented");
         // vec_foreach<ref_ast_t*>(m_ast->tparams, [&](auto param) {
         //     GenericType *p = new GenericType(param);
         //     p->resolve(sema);
@@ -937,7 +937,7 @@ static const char *digit_cxx_name(digit_t digit, sign_t sign)
     case eDigitLong: return (sign == eSignUnsigned) ? "unsigned long" : "long";
     case eDigitSize: return (sign == eSignUnsigned) ? "size_t" : "ptrdiff_t";
 
-    default: NEVER("invalid digit");
+    default: CT_NEVER("invalid digit");
     }
 }
 
@@ -967,7 +967,7 @@ static size_t digit_sizeof(digit_t digit)
     case eDigitSize: return sizeof(size_t);
     case eDigitPtr: return sizeof(intptr_t);
 
-    default: NEVER("invalid digit %d", digit);
+    default: CT_NEVER("invalid digit %d", digit);
     }
 }
 
@@ -997,7 +997,7 @@ static size_t digit_alignof(digit_t digit)
     case eDigitSize: return alignof(size_t);
     case eDigitPtr: return alignof(intptr_t);
 
-    default: NEVER("invalid digit %d", digit);
+    default: CT_NEVER("invalid digit %d", digit);
     }
 }
 
@@ -1246,14 +1246,14 @@ void Variant::emit_impl(Sema& sema, cxx_emit_t *out) const
     }
     if (is_arithmatic || is_iterator || is_ordered) cxx_writeln(out, "REFLECT_ENUM_COMPARE(%s, %s)", get_name(), ty);
     if (is_bitflags) cxx_writeln(out, "REFLECT_ENUM_BITFLAGS(%s, %s);", get_name(), ty);
-    if (is_arithmatic) cxx_writeln(out, "REFLECT_ENUM_ARITHMATIC(%s, %s);", get_name(), ty);
+    if (is_arithmatic) cxx_writeln(out, "REFLECT_ENUM_ARITHMETIC(%s, %s);", get_name(), ty);
     if (is_iterator) cxx_writeln(out, "REFLECT_ENUM_ITERATOR(%s, %s);", get_name(), ty);
 
     cxx_leave(out);
     cxx_writeln(out, "} // namespace impl");
 
     if (is_iterator || is_arithmatic)
-        CTASSERTF(is_iterator ^ is_arithmatic, "enum %s cannot be both an iterator and arithmatic", get_name());
+        CTASSERTF(is_iterator ^ is_arithmatic, "enum %s cannot be both an iterator and arithmetic", get_name());
 
     emit_begin_record(out, false);
     cxx_privacy(out, "public");
@@ -1365,6 +1365,11 @@ void Variant::emit_impl(Sema& sema, cxx_emit_t *out) const
         cxx_writeln(out, "constexpr operator underlying_t() const { return as_integral(); }");
     }
 
+    if (is_lookup && is_iterator)
+    {
+        cxx_writeln(out, "static constexpr Range cases() { return Range((wrapper_t)kMin, (wrapper_t)kMax); }");
+    }
+
     cxx_nl(out);
     cxx_writeln(out, "constexpr bool operator==(wrapper_t other) const { return m_value == other; }");
     cxx_writeln(out, "constexpr bool operator!=(wrapper_t other) const { return m_value != other; }");
@@ -1456,7 +1461,7 @@ static const char *layout_enum_name(ref_attrib_tag_t tag)
     case eAttribLayoutAny: return "eLayoutAny";
     case eAttribLayoutConstBuffer: return "eLayoutConstBuffer";
 
-    default: NEVER("invalid layout %d", tag);
+    default: CT_NEVER("invalid layout %d", tag);
     }
 }
 
@@ -1483,7 +1488,7 @@ static const char *access_name(ref_privacy_t privacy)
     case ePrivacyPublic: return "ePublic";
     case ePrivacyPrivate: return "ePrivate";
     case ePrivacyProtected: return "eProtected";
-    default: NEVER("invalid privacy");
+    default: CT_NEVER("invalid privacy");
     }
 }
 
@@ -1673,8 +1678,10 @@ size_t Variant::max_tostring() const {
     m_cases.foreach([&](auto c)
     {
         size_t len = ctu_strlen(c->get_name());
-        if (len > max)
-            max = len;
+        max = CT_MAX(max, len);
+
+        len = ctu_strlen(c->get_repr());
+        max = CT_MAX(max, len);
     });
 
     return max + 1;
@@ -1706,6 +1713,10 @@ Case *Variant::get_zero_case() const
         {
             if (mpz_cmp_ui(id, 0) == 0)
                 return c;
+        }
+        else if (c->is_empty_case())
+        {
+            return c;
         }
     }
 

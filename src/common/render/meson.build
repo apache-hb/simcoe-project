@@ -1,21 +1,66 @@
+
 render_include = include_directories('.', 'include')
 
 src = [
-    'src/vendor.cpp',
-    'src/common.cpp',
-    'src/context.cpp',
+    'src/result.cpp',
     'src/instance.cpp',
-    'src/objects.cpp',
-    'src/primitives.cpp',
+    'src/render.cpp',
+    'src/dstorage.cpp',
+    'src/object.cpp',
+    'src/imgui.cpp',
+
+    'src/blit.cpp',
+
+    'src/camera.cpp',
+    'src/gltf.cpp',
     'src/draw.cpp',
+    'src/primitives.cpp',
+
+    'src/graph.cpp',
+
+    'src/draw/scene.cpp',
+    'src/draw/present.cpp',
+    'src/draw/imgui.cpp',
+    'src/draw/canvas.cpp',
+
+    'src/editor/panel.cpp',
+    'src/editor/logger.cpp',
+    'src/editor/editor.cpp',
+    'src/editor/config.cpp',
+    'src/editor/scene.cpp',
+    'src/editor/graph.cpp',
+    'src/editor/features.cpp',
+    'src/editor/inspector.cpp',
+    'src/editor/gizmo.cpp',
+    'src/editor/debug.cpp',
+    'src/editor/assets.cpp',
+    'src/editor/viewport.cpp',
 
     reflect.process('data/render.ct'),
     reflect.process('data/draw.ct'),
+    reflect.process('data/graph.ct')
 ]
 
 deps = [
-    core, logs, system, math,
-    d3d12, d3dx12, d3d12ma, i18n
+    # internal libraries
+    core, logs, system, math, archive,
+    world,
+
+    # other vendors
+    stb, fastgltf,
+
+    # microsoft
+    d3d12, d3dx12, d3d12ma,
+
+    # we load the redist from the dll ourselves, so dont link to the implib
+    dstorage.partial_dependency(includes : true),
+    dds_texture_loader,
+
+    # hardware vendors
+    nvapi,
+
+    # gui
+    imgui, implot, imguizmo, filebrowser,
 ]
 
 librender = library('render', src,
@@ -24,8 +69,11 @@ librender = library('render', src,
     dependencies : deps
 )
 
+libvendor = shared_module('vendor', 'src/vendor.cpp', dependencies : core)
+
 render = declare_dependency(
     link_with : librender,
+    objects : libvendor.extract_all_objects(recursive : true),
     include_directories : [ render_include, librender.private_dir_include() ],
     dependencies : deps
 )

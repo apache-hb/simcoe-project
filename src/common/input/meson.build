@@ -2,6 +2,7 @@ input_include = include_directories('.', 'include')
 
 src = [
     'src/input.cpp',
+    'src/toggle.cpp',
     reflect.process('data/input.ct')
 ]
 

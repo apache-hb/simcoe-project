@@ -14,15 +14,22 @@ project('simcoe', [ 'c', 'cpp' ],
         'unity=subprojects',
         'default_library=static',
 
+        # prevent system dxc from being used
+        'force_fallback_for=dxc',
+
         # nobody builds with clean warnings, so disable them per subproject
         'fmt:warning_level=0',
         'harfbuzz:warning_level=0',
         'freetype2:warning_level=0',
-        'd3d12ma:warning_level=0',
+        'simdjson:warning_level=0',
+        'fastgltf:warning_level=0',
 
         # disable everything in cthulhu by default
         'cthulhu:auto_features=disabled',
         'cthulhu:win32_trickery=enabled',
+
+        # configure fastgltf
+        'fastgltf:custom_small_vector=true',
 
         # configure freetype before harfbuzz to pick up configuration
         'freetype2:auto_features=disabled',
@@ -61,22 +68,21 @@ cthulhu = subproject('cthulhu')
 freetype2 = dependency('freetype2')
 harfbuzz = dependency('harfbuzz')
 
-# windows specific dependencies
-agility = subproject('d3d12-agility')
-warp = subproject('d3d-warp')
-
-# get dxc from the subproject directly rather than using find_program
-# if we use find_program it finds the system dxc, which will be older
-# than this one
-dxc = subproject('dxc').get_variable('dxc')
-
-windows = import('windows')
+dxc = find_program('dxc', version : '>=1.7')
+msdf_atlas_gen = find_program('msdf-atlas-gen')
+compressonator = find_program('compressonatorcli')
+artery = dependency('artery-font')
+fastgltf = dependency('fastgltf')
 
 stb = subproject('stb').get_variable('stb')
 
+dxgi = cpp.find_library('dxgi')
+dxguid = cpp.find_library('dxguid')
+
 d3d12 = dependency('d3d12')
-d3dx12 = dependency('d3dx12')
-d3d12ma = dependency('d3d12ma')
+dstorage = dependency('dstorage')
+d3dx12 = dependency('directx-headers')
+nvapi = dependency('nvapi')
 
 debug_render = get_option('debug_render').disable_auto_if(package_type == 'release')
 enable_agility = get_option('enable_agility').allowed()
@@ -204,31 +210,41 @@ simcoe_config = configure_file(
 
 config_include = include_directories('.')
 
-subdir('src/vendor/reflect')
-
 # we vendor fmtlib via a small shim header to hook FMT_THROW(x) into cthulhu's error handling
 subdir('src/vendor/fmtlib')
 
+subdir('src/vendor/reflect')
+
 subdir('src/common/core')
-subdir('src/common/i18n')
+# also hook assets into d3d12ma
+subdir('src/vendor/d3d12ma')
+
+# patch dds_texture_loader to use d3d12ma
+subdir('src/vendor/dds_texture_loader')
+
 subdir('src/common/math')
+subdir('src/common/logs')
+subdir('src/common/archive')
+subdir('src/common/input')
+subdir('src/common/system')
+subdir('src/common/world')
+subdir('src/common/threads')
 
 # vendor imgui here to have access to our own math library
 subdir('src/vendor/imgui')
-
-subdir('src/common/logs')
-subdir('src/common/archive')
-subdir('src/common/service')
-
-# subdir('src/common/bundle')
-
-subdir('src/common/input')
-subdir('src/common/system')
-subdir('src/common/threads')
+subdir('src/vendor/implot')
+subdir('src/vendor/imguizmo')
+subdir('src/vendor/imfilebrowser')
 
 subdir('src/common/render')
 
-#subdir('src/common/ui')
+# windows specific dependencies
+agility = subproject('d3d12-agility')
+warp = subproject('d3d-warp')
+dxcompiler = subproject('dxc')
+winpixruntime = subproject('winpixruntime')
+dstorage = subproject('dstorage')
+windows = import('windows')
 
 default_ico = custom_target('default_icon',
     input : [ 'data/assets/icon/icon_circle.png' ],
@@ -265,60 +281,46 @@ res = windows.compile_resources(rc,
 
 manifest = meson.current_source_dir() / 'data/win32/client.exe.manifest'
 
-if enable_agility
-    agility_redist = agility.get_variable('redist')
-    install_data(agility_redist,
-        install_tag : 'bin',
-        install_dir : get_option('bindir') / 'D3D12'
-    )
-endif
+bundle_cdata = configuration_data()
+bundle_cdata.set('DXC_EXE_PATH', dxc.full_path())
+bundle_cdata.set('MSDF_EXE_PATH', msdf_atlas_gen.full_path())
+bundle_cdata.set('COMPRESSOR_EXE_PATH', compressonator.full_path())
+bundle_cdata.set('AGILITY_REDIST_PATH', agility.get_variable('bindir'))
+bundle_cdata.set('DXCOMPILER_REDIST_PATH', dxcompiler.get_variable('bindir'))
+bundle_cdata.set('WARP_REDIST_PATH', warp.get_variable('bindir'))
+bundle_cdata.set('WINPIXRUNTIME_REDIST_PATH', winpixruntime.get_variable('bindir'))
+bundle_cdata.set('DSTORAGE_REDIST_PATH', dstorage.get_variable('bindir'))
 
-if package_type == 'devel'
-    if enable_agility
-        agility_redist_pdb = agility.get_variable('redist_pdb')
-        install_data(agility_redist_pdb,
-            install_tag : 'bin',
-            install_dir : get_option('bindir') / 'D3D12'
-        )
-    endif
-
-    warp_redist = warp.get_variable('redist')
-    install_data(warp_redist,
-        install_tag : 'bin',
-        install_dir : get_option('bindir')
-    )
-
-    warp_redist_pdb = warp.get_variable('redist_pdb')
-    install_data(warp_redist_pdb,
-        install_tag : 'bin',
-        install_dir : get_option('bindir')
-    )
-endif
-
-debug_bundle = is_debug ? [ '--debug' ] : []
+bundle_config = configure_file(
+    input : 'data/config/tools.in.ini',
+    output : 'tools.ini',
+    configuration : bundle_cdata
+)
 
 make_bundle = find_program('scripts/make_bundle.py')
 game_bundle = custom_target('game_bundle',
     input : [ 'data/assets/bundle.json' ],
-    output : 'bundle.zip',
+    output : 'bundle.tar',
     install : true,
     install_dir : 'bin',
     depfile : 'bundle.d',
     command : [
         make_bundle,
-        '--bundlefile', '@INPUT@',
-        '--inputdir', '@SOURCE_ROOT@/data/assets',
+        '--desc', '@INPUT@',
+        '--config', bundle_config,
+        is_debug ? '--debug' : '',
+        '--dir', '@SOURCE_ROOT@/data/assets',
         '--outdir', '@OUTDIR@',
-        '--output', '@OUTPUT@',
+        '--bundle', '@OUTPUT@',
         '--depfile', '@DEPFILE@',
-        '--dxc', dxc.full_path(),
-    ] + debug_bundle
+    ]
 )
 
 win_subsystem = not is_devel ? 'windows' : 'console'
 
 client = executable('client', 'src/client/src/main.cpp', game_bundle,
     install : true,
+    export_dynamic : true,
     win_subsystem : win_subsystem,
     link_depends : [ manifest, res ],
     link_args : [
@@ -329,7 +331,7 @@ client = executable('client', 'src/client/src/main.cpp', game_bundle,
         '/manifest:embed', '/manifestinput:' + manifest
     ],
     dependencies : [
-        core, system, logs, threads, imgui, service, render, input, archive,
+        core, system, logs, threads, imgui, render, input, archive,
         cthulhu.get_variable('backtrace'),
         cthulhu.get_variable('format_core'),
         cthulhu.get_variable('io')

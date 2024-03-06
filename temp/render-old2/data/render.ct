@@ -1,0 +1,237 @@
+module sm::render;
+
+import "system/window.hpp";
+import "logs/logs.hpp";
+
+import "<d3d12.h>";
+import "<dxgi1_6.h>";
+import "<dxgidebug.h>";
+
+using Window = opaque("sm::sys::Window")
+using ILogger = opaque("sm::logs::ILogger")
+
+[[facade]]
+variant DataFormat : opaque(DXGI_FORMAT) {
+    default Unknown = opaque(DXGI_FORMAT_UNKNOWN)
+
+    case R8G8B8A8_UNORM = opaque(DXGI_FORMAT_R8G8B8A8_UNORM)
+
+    case R32_FLOAT = opaque(DXGI_FORMAT_R32_FLOAT)
+    case R32G32_FLOAT = opaque(DXGI_FORMAT_R32G32_FLOAT)
+    case R32G32B32_FLOAT = opaque(DXGI_FORMAT_R32G32B32_FLOAT)
+    case R32G32B32A32_FLOAT = opaque(DXGI_FORMAT_R32G32B32A32_FLOAT)
+
+    case R16_UINT = opaque(DXGI_FORMAT_R16_UINT)
+}
+
+[[facade]]
+variant FeatureLevel : opaque(D3D_FEATURE_LEVEL) {
+    [[format("level 11.0")]] case Level_11_0 = opaque(D3D_FEATURE_LEVEL_11_0)
+    [[format("level 11.1")]] case Level_11_1 = opaque(D3D_FEATURE_LEVEL_11_1)
+    [[format("level 12.0")]] case Level_12_0 = opaque(D3D_FEATURE_LEVEL_12_0)
+    [[format("level 12.1")]] case Level_12_1 = opaque(D3D_FEATURE_LEVEL_12_1)
+    [[format("level 12.2")]] case Level_12_2 = opaque(D3D_FEATURE_LEVEL_12_2)
+}
+
+[[facade, bitflags]]
+variant AdapterPreference : opaque(DXGI_GPU_PREFERENCE) {
+    [[format("default")]] default Default = opaque(DXGI_GPU_PREFERENCE_UNSPECIFIED)
+    [[format("low_power")]] case MinimumPower = opaque(DXGI_GPU_PREFERENCE_MINIMUM_POWER)
+    [[format("high_performance")]] case HighPerformance = opaque(DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE)
+}
+
+[[facade, bitflags]]
+variant AdapterFlag : uint {
+    [[format("none")]] default None = opaque(DXGI_ADAPTER_FLAG_NONE)
+    [[format("remote")]] case Remote = opaque(DXGI_ADAPTER_FLAG_REMOTE)
+    [[format("software")]] case Software = opaque(DXGI_ADAPTER_FLAG_SOFTWARE)
+}
+
+[[facade]]
+variant RootSignatureVersion : opaque(D3D_ROOT_SIGNATURE_VERSION) {
+    [[format("version 1.0")]] default Version_1_0 = opaque(D3D_ROOT_SIGNATURE_VERSION_1_0)
+    [[format("version 1.1")]] case Version_1_1 = opaque(D3D_ROOT_SIGNATURE_VERSION_1_1)
+    [[format("version 1.2")]] case Version_1_2 = opaque(D3D_ROOT_SIGNATURE_VERSION_1_2)
+}
+
+[[facade]]
+variant DescriptorHeapType : opaque(D3D12_DESCRIPTOR_HEAP_TYPE) {
+    [[format("cbv/srv/uav")]] case Resource = opaque(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
+    [[format("sampler")]] case Sampler = opaque(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
+    [[format("rtv")]] case RTV = opaque(D3D12_DESCRIPTOR_HEAP_TYPE_RTV)
+    [[format("dsv")]] case DSV = opaque(D3D12_DESCRIPTOR_HEAP_TYPE_DSV)
+}
+
+[[facade, table]]
+variant CommandListType : opaque(D3D12_COMMAND_LIST_TYPE) {
+    [[format("direct")]] case Direct = 0
+    [[format("bundle")]] case Bundle = 1
+    [[format("compute")]] case Compute = 2
+    [[format("copy")]] case Copy = 3
+    [[format("video decode")]] case VideoDecode = 4
+    [[format("video process")]] case VideoProcess = 5
+    [[format("video encode")]] case VideoEncode = 6
+}
+
+[[bitflags]]
+variant DebugFlags {
+    [[format("none")]] default None = 0
+    [[format("device")]] case DeviceDebugLayer = (1 << 0) // d3d12 debug layer
+    [[format("factory")]] case FactoryDebug = (1 << 1) // dxgi debug layer
+    [[format("dred")]] case DeviceRemovedInfo = (1 << 2) // dred
+    [[format("queue")]] case InfoQueue = (1 << 3) // d3d12 debug layer
+    [[format("auto name")]] case AutoName = (1 << 4) // automatically name objects
+    [[format("warp adapter")]] case WarpAdapter = (1 << 5) // use software renderer
+    [[format("gpu validation")]] case GpuValidation = (1 << 6) // gpu validation
+}
+
+[[facade]]
+variant MessageCategory : opaque(D3D12_MESSAGE_CATEGORY) {
+    case App = opaque(D3D12_MESSAGE_CATEGORY_APPLICATION_DEFINED)
+    case Other = opaque(D3D12_MESSAGE_CATEGORY_MISCELLANEOUS)
+    case Init = opaque(D3D12_MESSAGE_CATEGORY_INITIALIZATION)
+    case Cleanup = opaque(D3D12_MESSAGE_CATEGORY_CLEANUP)
+    case Compile = opaque(D3D12_MESSAGE_CATEGORY_COMPILATION)
+    case StateCreation = opaque(D3D12_MESSAGE_CATEGORY_STATE_CREATION)
+    case StateSetting = opaque(D3D12_MESSAGE_CATEGORY_STATE_SETTING)
+    case StateGetting = opaque(D3D12_MESSAGE_CATEGORY_STATE_GETTING)
+    case ResourceUpdate = opaque(D3D12_MESSAGE_CATEGORY_RESOURCE_MANIPULATION)
+    case Execution = opaque(D3D12_MESSAGE_CATEGORY_EXECUTION)
+    case Shader = opaque(D3D12_MESSAGE_CATEGORY_SHADER)
+}
+
+[[facade]]
+variant MessageSeverity : opaque(D3D12_MESSAGE_SEVERITY) {
+    case Corruption = opaque(D3D12_MESSAGE_SEVERITY_CORRUPTION)
+    case Error = opaque(D3D12_MESSAGE_SEVERITY_ERROR)
+    case Warning = opaque(D3D12_MESSAGE_SEVERITY_WARNING)
+    case Info = opaque(D3D12_MESSAGE_SEVERITY_INFO)
+    case Message = opaque(D3D12_MESSAGE_SEVERITY_MESSAGE)
+}
+
+[[facade]]
+variant MessageID : opaque(D3D12_MESSAGE_ID) {
+    default Unknown = opaque(D3D12_MESSAGE_ID_UNKNOWN)
+    // dont fill in the rest, theres over 1000 of them
+    // we'll add them as we need them
+}
+
+[[facade]]
+variant RootParameterType : opaque(D3D12_ROOT_PARAMETER_TYPE) {
+    case Table = opaque(D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE)
+    case RootConsts = opaque(D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS)
+    case ConstBuffer = opaque(D3D12_ROOT_PARAMETER_TYPE_CBV)
+    case ShaderResource = opaque(D3D12_ROOT_PARAMETER_TYPE_SRV)
+    case UnorderedAccess = opaque(D3D12_ROOT_PARAMETER_TYPE_UAV)
+}
+
+[[bitflags, facade]]
+variant DescriptorRangeFlags : opaque(D3D12_DESCRIPTOR_RANGE_FLAGS) {
+    default None = opaque(D3D12_DESCRIPTOR_RANGE_FLAG_NONE)
+    case VolatileDescriptors = opaque(D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE)
+    case VolatileData = opaque(D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE)
+    case StaticData = opaque(D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC)
+    case StaticAtExecute = opaque(D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE)
+    case StaticBoundsChecked = opaque(D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_STATIC_KEEPING_BUFFER_BOUNDS_CHECKS)
+}
+
+[[facade]]
+variant DescriptorRangeType : opaque(D3D12_DESCRIPTOR_RANGE_TYPE) {
+    case SRV = opaque(D3D12_DESCRIPTOR_RANGE_TYPE_SRV)
+    case UAV = opaque(D3D12_DESCRIPTOR_RANGE_TYPE_UAV)
+    case CBV = opaque(D3D12_DESCRIPTOR_RANGE_TYPE_CBV)
+    case Sampler = opaque(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER)
+}
+
+[[facade]]
+variant ShaderVisibility : opaque(D3D12_SHADER_VISIBILITY) {
+    case All = opaque(D3D12_SHADER_VISIBILITY_ALL)
+    case Vertex = opaque(D3D12_SHADER_VISIBILITY_VERTEX)
+    case Hull = opaque(D3D12_SHADER_VISIBILITY_HULL)
+    case Domain = opaque(D3D12_SHADER_VISIBILITY_DOMAIN)
+    case Geometry = opaque(D3D12_SHADER_VISIBILITY_GEOMETRY)
+    case Pixel = opaque(D3D12_SHADER_VISIBILITY_PIXEL)
+    case Amplification = opaque(D3D12_SHADER_VISIBILITY_AMPLIFICATION)
+    case Mesh = opaque(D3D12_SHADER_VISIBILITY_MESH)
+}
+
+[[bitflags, facade]]
+variant RootSignatureFlags : opaque(D3D12_ROOT_SIGNATURE_FLAGS) {
+    [[format("none")]] default None = opaque(D3D12_ROOT_SIGNATURE_FLAG_NONE)
+    [[format("allow input layout")]] case AllowInputAssemblerInputLayout = opaque(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT)
+    [[format("deny vs root access")]] case DenyVertexShaderRootAccess = opaque(D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS)
+    [[format("deny hs root access")]] case DenyHullShaderRootAccess = opaque(D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS)
+    [[format("deny ds root access")]] case DenyDomainShaderRootAccess = opaque(D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS)
+    [[format("deny gs root access")]] case DenyGeometryShaderRootAccess = opaque(D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS)
+    [[format("deny ps root access")]] case DenyPixelShaderRootAccess = opaque(D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS)
+    [[format("deny as root access")]] case DenyAmplificationShaderRootAccess = opaque(D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS)
+    [[format("deny ms root access")]] case DenyMeshShaderRootAccess = opaque(D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS)
+}
+
+[[facade]]
+variant Filter : opaque(D3D12_FILTER) {
+    case MinMagMipPoint = opaque(D3D12_FILTER_MIN_MAG_MIP_POINT)
+}
+
+[[facade]]
+variant AddressMode : opaque(D3D12_TEXTURE_ADDRESS_MODE) {
+    case Wrap = opaque(D3D12_TEXTURE_ADDRESS_MODE_WRAP)
+    case Mirror = opaque(D3D12_TEXTURE_ADDRESS_MODE_MIRROR)
+    case Clamp = opaque(D3D12_TEXTURE_ADDRESS_MODE_CLAMP)
+    case Border = opaque(D3D12_TEXTURE_ADDRESS_MODE_BORDER)
+    case MirrorOnce = opaque(D3D12_TEXTURE_ADDRESS_MODE_MIRROR_ONCE)
+}
+
+[[facade]]
+variant GpuAddress : uint64 {
+    default Invalid = 0xFFFFFFFFFFFFFFFF
+}
+
+variant ResourceState {
+    case CopySource
+    case CopyTarget
+    case IndexBuffer
+    case VertexBuffer
+    case ConstBuffer
+}
+
+struct IndexBufferView {
+    address: GpuAddress;
+    size: uint;
+    format: DataFormat;
+}
+
+struct VertexBufferView {
+    address: GpuAddress;
+    size: uint;
+    stride: uint;
+}
+
+struct InputElement {
+    name: cstring;
+    format: DataFormat;
+    offset: uint;
+}
+
+struct RenderConfig {
+    window: &Window;
+    logger: &ILogger;
+
+    adapter_index: uint;
+    adapter_preference: AdapterPreference;
+    feature_level: FeatureLevel;
+    debug_flags: DebugFlags;
+
+    frame_count: ufast8;
+    swapchain_format: DataFormat;
+
+    direct_command_pool_size: ufast8;
+    copy_command_pool_size: ufast8;
+    compute_command_pool_size: ufast8;
+
+    resource_pool_size: ufast16;
+
+    rtv_heap_size: ufast16;
+    dsv_heap_size: ufast16;
+    srv_heap_size: ufast16;
+}

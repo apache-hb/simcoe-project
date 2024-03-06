@@ -1,0 +1,11 @@
+[wrap-git]
+directory = fastgltf-0.7.1
+
+url = https://github.com/spnda/fastgltf
+revision = head
+depth = 1
+
+patch_directory = fastgltf
+
+[provide]
+dependency_names = fastgltf

@@ -12,16 +12,6 @@ option('trace_time', type : 'feature',
     value : 'disabled'
 )
 
-option('debug_render', type : 'feature',
-    description : 'Attach names to api objects',
-    value : 'auto'
-)
-
-option('enable_agility', type : 'feature',
-    description : 'Enable agility sdk',
-    value : 'auto'
-)
-
 option('freetype_logging', type : 'feature',
     description : 'Enable freetype logging',
     value : 'disabled'

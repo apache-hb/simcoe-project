@@ -1,19 +1,21 @@
 #pragma once
 
-#include "core/arena.hpp"
-
-#include <cstdarg>
-
 #include <string>
 
-namespace sm {
-    using StringArena = StandardArena<char>;
-    using WideStringArena = StandardArena<wchar_t>;
-    using String = std::basic_string<char, std::char_traits<char>, StringArena>;
-    using WideString = std::basic_string<wchar_t, std::char_traits<wchar_t>, WideStringArena>;
+#include <stdarg.h>
 
-    using StringView = std::string_view;
-    using WideStringView = std::wstring_view;
+namespace sm {
+    template<typename T>
+    using CoreString = std::basic_string<T>;
+
+    template<typename T>
+    using CoreStringView = std::basic_string_view<T>;
+
+    using String = CoreString<char>;
+    using WideString = CoreString<wchar_t>;
+
+    using StringView = CoreStringView<char>;
+    using WideStringView = CoreStringView<wchar_t>;
 
     String format(const char *fmt, ...);
     String vformat(const char *fmt, va_list args);

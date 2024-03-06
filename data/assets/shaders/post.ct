@@ -3,14 +3,14 @@ module sm::shader;
 config shader = true;
 config math = true;
 
-[[sampler, binding(0)]]
+[[binding(s0)]]
 var gSampler: SamplerState;
 
-[[texture, binding(0)]]
+[[binding(t0)]]
 var gTexture: Texture2D;
 
 struct VertexInput {
-    [[semantic(POSITION)]]
+    [[sv_semantic(POSITION)]]
     position: float4;
 
     [[semantic(TEXCOORD)]]

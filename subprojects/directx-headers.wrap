@@ -1,0 +1,9 @@
+[wrap-git]
+directory = directx-headers
+
+url = https://github.com/apache-hb/DirectX-Headers.git
+revision = head
+depth = 1
+
+[provide]
+directx-headers = dep_dxheaders

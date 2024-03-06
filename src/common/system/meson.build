@@ -15,8 +15,7 @@ src = [
     # windowing
     'src/window.cpp',
 
-    # memory mapped files conflated with persistent storage
-    'src/io.cpp',
+    'src/timer.cpp',
 
     # win32 input source
     'src/input.cpp',

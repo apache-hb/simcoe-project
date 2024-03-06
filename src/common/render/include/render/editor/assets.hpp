@@ -1,0 +1,28 @@
+#pragma once
+
+#include "render/editor/panel.hpp"
+
+#include "imfilebrowser.h"
+
+namespace sm::render {
+    struct Context;
+}
+
+namespace sm::editor {
+    class AssetBrowserPanel final : public IEditorPanel {
+        render::Context &mContext;
+
+        float mThumbnailSize = 64.0f;
+        float mThumbnailPadding = 4.0f;
+
+        ImGui::FileBrowser mFileBrowser { ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_MultipleSelection | ImGuiFileBrowserFlags_ConfirmOnEnter };
+
+        // IEditorPanel
+        void draw_content() override;
+
+        void draw_images();
+
+    public:
+        AssetBrowserPanel(render::Context& context);
+    };
+}

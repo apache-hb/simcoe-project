@@ -1,0 +1,12 @@
+[wrap-file]
+directory = dstorage-1.2.2
+
+source_url = https://www.nuget.org/api/v2/package/Microsoft.Direct3D.DirectStorage/1.2.2
+source_filename = dstorage-1.2.2.zip
+source_hash = 25cab8bce31d6a044caaa255b416b22d91e47fe98916a631d9f7cb7017fc011d
+lead_directory_missing = true
+
+patch_directory = dstorage
+
+[provide]
+dependency_names = dstorage

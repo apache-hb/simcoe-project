@@ -1,0 +1,59 @@
+module sm;
+
+variant Format : uint16 {
+    [[format("unknown")]]
+    default Unknown
+
+    [[format("rg/float")]]
+    case RG32_FLOAT
+
+    [[format("rgb/float")]]
+    case RGB32_FLOAT
+
+    [[format("rgba/float")]]
+    case RGBA32_FLOAT
+
+    [[format("r/byte")]]
+    case R8_BYTE
+
+    [[format("rg/byte")]]
+    case RG8_BYTE
+
+    [[format("rgb/byte")]]
+    case RGB8_BYTE
+
+    [[format("rgba/byte")]]
+    case RGBA8_BYTE
+
+    [[format("uint16")]]
+    case uint16
+
+    [[format("uint32")]]
+    case uint32
+}
+
+variant ImageFormat : uint16 {
+    [[format("unknown")]]
+    default Unknown
+
+    [[format("bc7")]]
+    case BC7
+
+    [[format("png")]]
+    case PNG
+
+    [[format("jpg")]]
+    case JPG
+
+    [[format("bmp")]]
+    case BMP
+
+    // custom asset format, seperates the asset metadata from the resource data
+    // for better loading with direct storage
+    [[format("simcoe asset")]]
+    case SimcoeAsset
+
+    // same as SimcoeAsset but compressed with ginflate
+    [[format("simcoe compressed asset")]]
+    case SimcoeCompressedAsset
+}

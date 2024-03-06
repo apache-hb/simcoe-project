@@ -1,4 +1,4 @@
-#include "core/units.hpp"
+#include "core/memory.hpp"
 #include "core/format.hpp"
 #include "core/text.hpp"
 
@@ -7,11 +7,11 @@
 using namespace sm;
 
 sm::String Memory::to_string() const {
-    if (m_bytes == 0) { return "0b"; }
+    if (mBytes == 0) { return "0b"; }
 
     sm::FormatBuffer buffer;
     auto out = std::back_inserter(buffer);
-    size_t total = m_bytes;
+    size_t total = mBytes;
 
     // seperate each part with a +
 

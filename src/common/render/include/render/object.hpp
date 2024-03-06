@@ -5,7 +5,12 @@
 
 #include "render/result.hpp"
 
-#include <d3d12.h>
+#include <directx/d3d12.h>
+#include <dxgi1_6.h>
+#include <dxgidebug.h>
+#include <dstorage.h>
+
+#include "core/win32.hpp" // IWYU pragma: export
 
 namespace sm::render {
 
@@ -22,6 +27,7 @@ constexpr auto kComRelease = [](IUnknown *object) {
 template <ComObject T>
 class Object : public sm::UniquePtr<T, decltype(kComRelease)> {
     using Super = sm::UniquePtr<T, decltype(kComRelease)>;
+
 public:
     using Super::Super;
 
@@ -30,8 +36,15 @@ public:
         return Super::get()->QueryInterface(IID_PPV_ARGS(out));
     }
 
-    void rename(std::string_view name) requires(D3DObject<T>) {
+    void rename(std::string_view name) requires D3DObject<T> {
         Super::get()->SetName(sm::widen(name).c_str());
     }
+};
+
+struct Blob : public Object<ID3DBlob> {
+    std::string_view as_string() const;
+
+    const void *data() const;
+    size_t size() const;
 };
 } // namespace sm::render

@@ -4,3 +4,6 @@
 
 extern HINSTANCE gInstance;
 extern LPTSTR gWindowClass;
+extern size_t gTimerFrequency;
+
+size_t query_timer();

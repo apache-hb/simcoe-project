@@ -9,7 +9,7 @@
     constexpr T operator^(T lhs, T rhs) { return (T)((U)lhs ^ (U)rhs); } \
     constexpr T operator~(T lhs) { return (T)(~(U)lhs); }
 
-#define REFLECT_ENUM_ARITHMATIC(T, U) \
+#define REFLECT_ENUM_ARITHMETIC(T, U) \
     constexpr T operator+(T lhs, T rhs) { return (T)((U)lhs + (U)rhs); } \
     constexpr T operator-(T lhs, T rhs) { return (T)((U)lhs - (U)rhs); } \
     constexpr T operator*(T lhs, T rhs) { return (T)((U)lhs * (U)rhs); } \
@@ -46,6 +46,7 @@ namespace ctu {
 
         constexpr size_t size() const { return m_back - m_front; }
         constexpr const char *data() const { return m_front; }
+        constexpr const char *c_str() const { return m_front; }
 
         constexpr char operator[](size_t index) const {
             return m_front[index];
@@ -153,6 +154,7 @@ namespace ctu {
 
         constexpr size_t size() const { return m_size; }
         constexpr const char *data() const { return m_data; }
+        constexpr const char *c_str() const { return m_data; }
         constexpr const char *begin() const { return m_data; }
         constexpr const char *end() const { return m_data + m_size; }
 

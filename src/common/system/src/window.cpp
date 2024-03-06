@@ -1,5 +1,5 @@
 #include "system/window.hpp"
-#include "logs/sink.inl" // IWYU pragma: keep
+#include "core/format.hpp" // IWYU pragma: keep
 
 #include "common.hpp"
 
@@ -64,12 +64,10 @@ LRESULT CALLBACK Window::proc(HWND window, UINT message, WPARAM wparam, LPARAM l
 }
 
 void Window::create(const WindowConfig &info) {
-    using Reflect = ctu::TypeInfo<WindowMode>;
     CTASSERTF(gInstance != nullptr, "system::create() not called before Window::create()");
     CTASSERTF(gWindowClass != nullptr, "system::create() not called before Window::create()");
 
-    CTASSERTF(info.mode.is_valid(), "Window::create() invalid mode: %s",
-              Reflect::to_string(info.mode, 16).data());
+    SM_ASSERTF(info.mode.is_valid(), "invalid mode: {}", info.mode);
 
     m_window = CreateWindowExA(
         /* dwExStyle = */ 0,
@@ -90,7 +88,7 @@ void Window::create(const WindowConfig &info) {
 
 Window::Window(const WindowConfig &info, IWindowEvents *events)
     : m_events(events)
-    , m_log(info.logger) {
+{
     CTASSERT(events != nullptr);
 
     create(info);
@@ -108,24 +106,24 @@ WindowPlacement Window::get_placement(void) const {
 }
 
 void Window::set_placement(const WindowPlacement &placement) {
-    SM_CHECK_WIN32(SetWindowPlacement(m_window, &placement), m_log);
+    SM_CHECK_WIN32(SetWindowPlacement(m_window, &placement));
 }
 
 void Window::show_window(ShowWindow show) {
     CTASSERTF(m_window != nullptr, "Window::show_window() called before Window::create()");
-    CTASSERTF(show.is_valid(), "Window::show_window() invalid show: %d", show.as_integral());
+    SM_ASSERTF(show.is_valid(), "invalid show: {}", show);
     ::ShowWindow(m_window, show.as_integral());
 }
 
 void Window::destroy_window() {
-    SM_CHECK_WIN32(DestroyWindow(m_window), m_log);
+    SM_CHECK_WIN32(DestroyWindow(m_window));
     m_window = nullptr;
 }
 
 void Window::set_title(const char *title) {
     CTASSERT(title != nullptr);
 
-    SM_CHECK_WIN32(SetWindowTextA(m_window, title), m_log);
+    SM_CHECK_WIN32(SetWindowTextA(m_window, title));
 }
 
 WindowCoords Window::get_coords() const {
@@ -143,22 +141,20 @@ WindowCoords Window::get_client_coords() const {
 }
 
 bool Window::center_window(MultiMonitor monitor, bool topmost) {
-    using Reflect = ctu::TypeInfo<MultiMonitor>;
     CTASSERTF(m_window != nullptr, "Window::center_window() called before Window::create()");
-    CTASSERTF(monitor.is_valid(), "Window::center_window() invalid monitor: %s",
-              Reflect::to_string(monitor).data());
+    SM_ASSERTF(monitor.is_valid(), "invalid monitor {}", monitor);
 
     // get current monitor
     HMONITOR hmonitor = MonitorFromWindow(m_window, monitor.as_integral());
-    if (!SM_CHECK_WIN32(hmonitor != nullptr, m_log)) return false;
+    if (!SM_CHECK_WIN32(hmonitor != nullptr)) return false;
 
     // get monitor info
     MONITORINFO monitor_info{.cbSize = sizeof(monitor_info)};
-    if (!SM_CHECK_WIN32(GetMonitorInfoA(hmonitor, &monitor_info), m_log)) return false;
+    if (!SM_CHECK_WIN32(GetMonitorInfoA(hmonitor, &monitor_info))) return false;
 
     // get window rect
     RECT rect{};
-    if (!SM_CHECK_WIN32(GetWindowRect(m_window, &rect), m_log)) return false;
+    if (!SM_CHECK_WIN32(GetWindowRect(m_window, &rect))) return false;
 
     // calculate center
     int x = (monitor_info.rcWork.left + monitor_info.rcWork.right) / 2 -
@@ -170,5 +166,5 @@ bool Window::center_window(MultiMonitor monitor, bool topmost) {
     UINT flags = topmost ? 0 : SWP_NOZORDER;
 
     // move window
-    return SM_CHECK_WIN32(SetWindowPos(m_window, insert, x, y, 0, 0, SWP_NOSIZE | flags), m_log);
+    return SM_CHECK_WIN32(SetWindowPos(m_window, insert, x, y, 0, 0, SWP_NOSIZE | flags));
 }

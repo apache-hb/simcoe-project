@@ -1,6 +1,5 @@
 #include "core/arena.hpp"
 #include "core/macros.h"
-#include "core/macros.hpp"
 
 #include <string.h>
 #include <stdlib.h>
@@ -88,18 +87,8 @@ class DefaultArena final : public IArena {
     }
 };
 
-constinit static DefaultArena gGlobalPools[] = {
-    /* global */ DefaultArena{"global"},
-    /* debug */ DefaultArena{"debug"},
-    /* logging */ DefaultArena{"logging"},
-    /* rhi */ DefaultArena{"rhi"},
-    /* render */ DefaultArena{"render"},
-    /* assets */ DefaultArena{"assets"},
-};
+constinit static DefaultArena gGlobalArena{"global"};
 
-IArena& sm::get_pool(Pool pool) {
-    using Reflect = ctu::TypeInfo<Pool>;
-    CTASSERTF(pool.is_valid(), "invalid pool %s", Reflect::to_string(pool).data());
-
-    return gGlobalPools[pool.as_integral()];
+arena_t *sm::global_arena() {
+    return &gGlobalArena;
 }

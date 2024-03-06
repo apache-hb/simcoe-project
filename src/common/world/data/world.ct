@@ -1,0 +1,23 @@
+module sm::world;
+
+[[table, iterator]]
+variant ObjectType {
+    [[format("Unknown")]] default None
+    [[format("Cube")]] case Cube
+    [[format("Sphere")]] case Sphere
+    [[format("Cylinder")]] case Cylinder
+    [[format("Plane")]] case Plane
+    [[format("Wedge")]] case Wedge
+    [[format("Capsule")]] case Capsule
+    [[format("Diamond")]] case Diamond
+    [[format("Geo Sphere")]] case GeoSphere
+
+    [[format("Imported Mesh")]] case Imported
+
+    [[format("Point Light")]] case PointLight
+    [[format("Spot Light")]] case SpotLight
+}
+
+variant WorldVersion : uint32 {
+    [[format("24/03/04")]] case Version0
+}

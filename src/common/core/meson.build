@@ -8,15 +8,17 @@ core_dependencies = [
     cthulhu.get_variable('std'),
     cthulhu.get_variable('backtrace'),
     cthulhu.get_variable('io'),
+    cthulhu.get_variable('os'),
 ]
 
 src = [
     'src/arena.cpp',
     'src/text.cpp',
-    'src/backtrace.cpp',
+    'src/error.cpp',
     'src/bitmap.cpp',
     'src/units.cpp',
     'src/utf8.cpp',
+    'src/library.cpp',
     reflect.process('data/core.ct')
 ]
 

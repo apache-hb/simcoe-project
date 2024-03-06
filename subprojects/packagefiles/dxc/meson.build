@@ -1,4 +1,4 @@
-project('dxc', 'cpp',
+project('dxc', 'c',
     version : '1.7.2308',
     # dxil.dll is licensed under the MS license
     # d3d12shader.h is licensed under the MIT license
@@ -11,18 +11,30 @@ project('dxc', 'cpp',
 )
 
 host_cpu = host_machine.cpu_family()
-cpp = meson.get_compiler('cpp')
-binaries = 'build/native/bin'
+cc = meson.get_compiler('c')
 
 if host_cpu == 'x86_64'
-    bindir = binaries / 'x64'
+    archdir = 'x64'
 elif host_cpu == 'x86'
-    bindir = binaries / 'win32'
+    archdir = 'win32'
 elif host_cpu == 'aarch64'
-    bindir = binaries / 'arm64'
+    archdir = 'arm64'
 else
     error('No prebuilt dxc binaries for ' + host_cpu)
 endif
 
+bindir = meson.current_source_dir() / 'build/native/bin' / archdir
 dxc = find_program(bindir / 'dxc.exe')
+
+libdir = 'build/native/lib' / archdir
+
+dxcompiler = cc.find_library(meson.current_source_dir() / libdir / 'dxcompiler')
+inc = include_directories('build/native/include')
+
+dxcompiler_dep = declare_dependency(
+    dependencies : dxcompiler,
+    include_directories : inc,
+)
+
 meson.override_find_program('dxc', dxc)
+meson.override_dependency('dxcompiler', dxcompiler_dep)

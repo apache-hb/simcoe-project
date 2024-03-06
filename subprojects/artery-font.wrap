@@ -1,0 +1,11 @@
+[wrap-git]
+directory = artery-font-format
+
+url = https://github.com/Chlumsky/artery-font-format
+revision = head
+depth = 1
+
+patch_directory = artery-font-format
+
+[provide]
+dependency_names = artery-font

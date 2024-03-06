@@ -1,571 +1,327 @@
 #pragma once
 
-#include "core/bitmap.hpp"
-#include "core/slotmap.hpp"
-#include "core/core.hpp"
-#include "core/queue.hpp"
-#include "core/span.hpp"
-#include "core/vector.hpp"
+#include "archive/bundle.hpp"
 
-#include "logs/sink.hpp"
+#include "core/array.hpp"
 
-#include "render/object.hpp"
+#include "render/instance.hpp"
+#include "render/heap.hpp"
+#include "render/commands.hpp"
+#include "render/camera.hpp"
+#include "render/resource.hpp"
+#include "render/dstorage.hpp"
 
-#include <D3D12MemAlloc.h>
+#include "render/graph.hpp"
 
-#include "render.reflect.h"
+#include "render/editor/editor.hpp"
 
-namespace sm::render {
-constexpr int sm_strcmp(const char *lhs, const char *rhs) {
-    while (*lhs && *rhs && *lhs == *rhs) {
-        lhs++;
-        rhs++;
-    }
+#include "world/world.hpp"
 
-    return *lhs - *rhs;
-}
-
-struct ResourceId {
-    const char *name = nullptr;
-
-    constexpr ResourceId() = default;
-    constexpr ResourceId(const char *name)
-        : name(name)
-    { }
-
-    constexpr auto operator<=>(const ResourceId &other) const {
-        return sm_strcmp(c_str(), other.c_str()) <=> 0;
-    }
-
-    constexpr auto operator==(const ResourceId &other) const {
-        return sm_strcmp(c_str(), other.c_str()) == 0;
-    }
-
-    constexpr const char *c_str() const { return name != nullptr ? name : "unnamed"; }
-};
-}
-template<>
-struct fmt::formatter<sm::render::ResourceId> {
-    constexpr auto parse(format_parse_context &ctx) const {
-        return ctx.begin();
-    }
-
-    auto format(const sm::render::ResourceId &id, format_context &ctx) const {
-        return format_to(ctx.out(), "{}", id.c_str());
-    }
-};
+#include "d3dx12/d3dx12_check_feature_support.h"
 
 namespace sm::render {
-class Context;
+    using namespace math;
 
-using Sink = logs::Sink<logs::Category::eRender>;
+    using DeviceHandle = Object<ID3D12Device1>;
 
-using DeviceHandle = Object<ID3D12Device1>;
+    using VertexBufferView = D3D12_VERTEX_BUFFER_VIEW;
+    using IndexBufferView = D3D12_INDEX_BUFFER_VIEW;
 
-struct InstanceConfig {
-    DebugFlags flags;
-    AdapterPreference preference;
-    logs::ILogger &logger;
-};
+    constexpr math::float4 kClearColour = { 0.0f, 0.2f, 0.4f, 1.0f };
+    constexpr math::float4 kColourBlack = { 0.0f, 0.0f, 0.0f, 1.0f };
 
-class Adapter : public Object<IDXGIAdapter1> {
-    sm::String mName;
-    sm::Memory mVideoMemory{0};
-    sm::Memory mSystemMemory{0};
-    sm::Memory mSharedMemory{0};
-    AdapterFlag mFlags;
+    using texindex = uint16; // NOLINT
+    using meshindex = uint16; // NOLINT
 
-public:
-    using Object::Object;
+    struct RenderConfig {
+        DebugFlags flags;
+        AdapterPreference preference;
+        FeatureLevel feature_level;
+        size_t adapter_index;
 
-    Adapter(IDXGIAdapter1 *adapter);
+        uint swapchain_length;
+        DXGI_FORMAT swapchain_format;
+        math::uint2 swapchain_size; // present resolution
 
-    constexpr std::string_view name() const {
-        return mName;
-    }
+        DXGI_FORMAT scene_format;
+        DXGI_FORMAT depth_format;
+        math::uint2 scene_size; // internal resolution
 
-    constexpr sm::Memory vidmem() const {
-        return mVideoMemory;
-    }
-    constexpr sm::Memory sysmem() const {
-        return mSystemMemory;
-    }
-    constexpr sm::Memory sharedmem() const {
-        return mSharedMemory;
-    }
+        uint rtv_heap_size;
+        uint dsv_heap_size;
+        uint srv_heap_size;
 
-    constexpr AdapterFlag flags() const {
-        return mFlags;
-    }
-};
-
-class Instance {
-    Sink mSink;
-
-    DebugFlags mFlags;
-    AdapterPreference mAdapterSearch;
-
-    Object<IDXGIFactory4> mFactory;
-    Object<IDXGIDebug1> mDebug;
-    sm::Vector<Adapter> mAdapters;
-    Adapter mWarpAdapter;
-
-    void enable_leak_tracking();
-
-public:
-    Instance(InstanceConfig config);
-    ~Instance();
-
-    bool enum_by_preference();
-    void enum_warp_adapter();
-    void enum_adapters();
-
-    Adapter &warp_adapter() {
-        return mWarpAdapter;
-    }
-    Adapter &get_adapter(size_t index) {
-        return mAdapters[index];
-    }
-
-    Object<IDXGIFactory4> &factory() {
-        return mFactory;
-    }
-
-    const DebugFlags &flags() const {
-        return mFlags;
-    }
-};
-
-struct DeviceResource {
-    Object<ID3D12Resource> resource;
-    Object<D3D12MA::Allocation> allocation;
-
-    void write(const void *data, size_t size);
-
-    template<StandardLayout T>
-    void write(sm::Span<const T> data) {
-        write(data.data(), data.size_bytes());
-    }
-
-    ID3D12Resource *get() const {
-        return resource.get();
-    }
-
-    GpuAddress gpu_address() {
-        return GpuAddress(resource->GetGPUVirtualAddress());
-    }
-};
-
-VertexBufferView vbo_view(DeviceResource &resource, uint stride, uint size);
-IndexBufferView ibo_view(DeviceResource &resource, uint size, DataFormat type);
-
-struct DescriptorRange {
-    DescriptorRangeType type;
-    DescriptorRangeFlags flags;
-    uint count;
-    uint reg;
-    uint space;
-    uint offset;
-};
-
-struct RootData {
-    uint reg;
-    uint space;
-    uint count;
-};
-
-struct RootParameter {
-    RootParameterType type;
-    ShaderVisibility visibility;
-
-    union {
-        sm::Span<const DescriptorRange> ranges;
-        RootData info;
+        Bundle& bundle;
+        sys::Window &window;
     };
 
-    static constexpr RootParameter table(sm::Span<const DescriptorRange> table,
-                                         ShaderVisibility visibility) {
-        return {
-            .type = RootParameterType::eTable,
-            .visibility = visibility,
-            .ranges = table,
-        };
-    }
-
-    static constexpr RootParameter consts(uint reg, uint space, uint count,
-                                          ShaderVisibility visibility) {
-        return {
-            .type = RootParameterType::eRootConsts,
-            .visibility = visibility,
-            .info = {reg, space, count},
-        };
-    }
-
-    static constexpr RootParameter cbv(uint reg, uint space, uint count,
-                                       ShaderVisibility visibility) {
-        return {
-            .type = RootParameterType::eConstBuffer,
-            .visibility = visibility,
-            .info = {reg, space, count},
-        };
-    }
-
-    static constexpr RootParameter srv(uint reg, uint space, uint count,
-                                       ShaderVisibility visibility) {
-        return {
-            .type = RootParameterType::eShaderResource,
-            .visibility = visibility,
-            .info = {reg, space, count},
-        };
-    }
-
-    static constexpr RootParameter uav(uint reg, uint space, uint count,
-                                       ShaderVisibility visibility) {
-        return {
-            .type = RootParameterType::eUnorderedAccess,
-            .visibility = visibility,
-            .info = {reg, space, count},
-        };
-    }
-};
-
-struct Sampler {
-    Filter filter;
-    AddressMode address;
-    uint reg;
-    uint space;
-    ShaderVisibility visibility;
-};
-
-struct ShaderBytecode {
-    sm::Span<const uint8> data;
-};
-
-struct PipelineConfig {
-    sm::Span<const InputElement> input;
-    ShaderBytecode vs;
-    ShaderBytecode ps;
-};
-
-struct RootSignatureConfig {
-    RootSignatureFlags flags;
-    sm::Span<const RootParameter> params;
-    sm::Span<const Sampler> samplers;
-};
-
-struct RootSignature : public Object<ID3D12RootSignature> {
-    void create(Context& context, const RootSignatureConfig &config);
-};
-
-struct PipelineState : public Object<ID3D12PipelineState> {
-    void create(Context& context, RootSignature& signature, const PipelineConfig &config);
-};
-
-struct Blob : public Object<ID3DBlob> {
-    std::string_view as_string() const;
-
-    const void *data() const;
-    size_t size() const;
-};
-
-using Barrier = D3D12_RESOURCE_BARRIER;
-
-Barrier transition_barrier(DeviceResource &resource, ResourceState before,
-                        ResourceState after);
-
-struct CommandList {
-    Object<ID3D12CommandAllocator> allocator;
-    Object<ID3D12GraphicsCommandList> list;
-
-    void create(DeviceHandle &device, CommandListType type);
-
-    void bind_signature(const RootSignature &signature) {
-        list->SetGraphicsRootSignature(signature.get());
-    }
-
-    void bind_pipeline(const PipelineState &state) {
-        list->SetPipelineState(state.get());
-    }
-
-    bool is_valid() const {
-        return list.is_valid();
-    }
-
-    void close();
-    void reset();
-
-    void set_index_buffer(const IndexBufferView &view);
-    void set_vertex_buffer(const VertexBufferView &view);
-
-    void copy_buffer(DeviceResource& src, DeviceResource& dst, uint size);
-
-    void barriers(sm::Span<const Barrier> barriers) {
-        list->ResourceBarrier(uint(barriers.size()), barriers.data());
-    }
-
-    ID3D12GraphicsCommandList *get() const {
-        return list.get();
-    }
-};
-
-constexpr auto kCloseHandle = [](HANDLE handle) { CloseHandle(handle); };
-
-struct Fence {
-    Object<ID3D12Fence> fence;
-    sm::UniqueHandle<HANDLE, decltype(kCloseHandle)> event;
-
-    void create(DeviceHandle &device, const char *name = nullptr);
-
-    void wait(uint64 pending);
-    uint64 value();
-};
-
-struct CommandQueue {
-    Object<ID3D12CommandQueue> queue;
-
-    void create(DeviceHandle &device, CommandListType type);
-    void signal(Fence &fence, uint64 value);
-    void execute(uint count, ID3D12CommandList *const *lists);
-
-    ID3D12CommandQueue *get() const {
-        return queue.get();
-    }
-};
-
-enum DescriptorIndex : uint {
-    eInvalid = UINT_MAX
-};
-
-class DescriptorArena : Object<ID3D12DescriptorHeap> {
-    sm::BitMap mAllocator;
-    uint mStride{0};
-
-public:
-    void create(DeviceHandle &device, DescriptorHeapType type, uint count, bool shader_visible);
-
-    DescriptorIndex acquire();
-    void release(DescriptorIndex handle);
-
-    D3D12_CPU_DESCRIPTOR_HANDLE cpu(DescriptorIndex index);
-    D3D12_GPU_DESCRIPTOR_HANDLE gpu(DescriptorIndex index);
-
-    ID3D12DescriptorHeap *get() const {
-        return Object::get();
-    }
-};
-
-struct FrameData {
-    CommandList commands;
-
-    Object<ID3D12Resource> buffer;
-    DescriptorIndex rtv;
-    uint64 value = 1;
-};
-
-template <typename T>
-class ResourcePool {
-    using Alloc = sm::SlotMap<ResourceId>;
-    using Index = Alloc::Index;
-    using ConstIterator = typename Alloc::ConstIterator;
-    Alloc mArena;
-
-protected:
-    using Storage = sm::UniqueArray<T>;
-    Storage mStorage;
-
-public:
-    constexpr ResourcePool(size_t size)
-        : mArena(size)
-        , mStorage(size)
-    { }
-
-    constexpr size_t length() const {
-        return mStorage.length();
-    }
-
-    T *acquire(ResourceId id) {
-        auto index = mArena.alloc(length(), id);
-
-        if (index == Index::eInvalid)
-            return nullptr;
-
-        return &mStorage[index];
-    }
-
-    void release(T *ptr) {
-        auto index = ptr - mStorage.get();
-        mArena.release(Index(index));
-    }
-
-    constexpr ResourceId get_id(size_t index) const {
-        return mArena[index];
-    }
-
-    constexpr const T &get_resource(size_t index) {
-        return mStorage[index];
-    }
-};
-
-class CommandListPool : public ResourcePool<CommandList> {
-    CommandListType mType;
-
-public:
-    constexpr CommandListPool(CommandListType type, size_t size)
-        : ResourcePool(size)
-        , mType(type) {}
-
-    void create(DeviceHandle &device);
-
-    CommandList *acquire(ResourceId id);
-};
-
-template<typename T>
-class PendingQueue {
-    struct Entry {
-        mutable T object;
-        uint64 fence;
-
-        constexpr auto operator<=>(const Entry &other) const {
-            return fence <=> other.fence;
-        }
+    struct FrameData {
+        Object<ID3D12Resource> target;
+        Object<ID3D12CommandAllocator> allocator;
+        RtvIndex rtv_index;
+        uint64 fence_value;
     };
 
-    sm::PriorityQueue<Entry, std::greater<Entry>> mQueue;
+    struct Viewport {
+        D3D12_VIEWPORT mViewport;
+        D3D12_RECT mScissorRect;
 
-public:
-    void dispose(uint64 value, auto&& fn) {
-        while (!mQueue.is_empty() && mQueue.top().fence <= value) {
-            fn(mQueue.top().object);
-            mQueue.pop();
-        }
-    }
+        Viewport(math::uint2 size);
+    };
 
-    void push(T object, uint64 fence) {
-        mQueue.emplace(std::move(object), fence);
-    }
+    struct Pipeline {
+        Object<ID3D12RootSignature> signature;
+        Object<ID3D12PipelineState> pso;
 
-    constexpr uint64 min_value() const {
-        return mQueue.is_empty() ? UINT64_MAX : mQueue.top().fence;
-    }
+        void reset();
+    };
 
-    constexpr size_t length() const { return mQueue.length(); }
-    constexpr Entry& operator[](size_t index) { return mQueue[index]; }
-    constexpr const Entry& operator[](size_t index) const { return mQueue[index]; }
-};
+    struct Texture {
+        fs::path path;
 
-using PendingCommandsQueue = PendingQueue<CommandList*>;
+        sm::String name;
+        ImageFormat format;
+        uint2 size;
+        uint mips;
+        sm::Vector<uint8> data;
 
-class Context {
-    friend RootSignature;
-    friend PipelineState;
+        Resource resource;
+        SrvIndex srv;
+    };
 
-    Sink mSink;
-    Instance mInstance;
+    struct Mesh {
+        draw::MeshInfo mInfo;
+        draw::Transform mTransform;
 
-    static void CALLBACK on_info(D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERITY severity,
+        Resource mVertexBuffer;
+        VertexBufferView mVertexBufferView;
+
+        Resource mIndexBuffer;
+        IndexBufferView mIndexBufferView;
+
+        uint32 mIndexCount;
+    };
+
+    struct MeshResource {
+        Resource vbo;
+        VertexBufferView vbo_view;
+
+        Resource ibo;
+        IndexBufferView ibo_view;
+
+        uint32 index_count;
+    };
+
+    struct TextureResource {
+        Resource resource;
+        SrvIndex srv;
+    };
+
+    struct Context {
+        const RenderConfig mConfig;
+
+        DebugFlags mDebugFlags;
+
+        Instance mInstance;
+        WindowState mWindowState;
+
+        static void CALLBACK on_info(D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERITY severity,
                                  D3D12_MESSAGE_ID id, LPCSTR desc, void *user);
 
-    size_t mAdapterIndex;
-    FeatureLevel mFeatureLevel;
-    RootSignatureVersion mRootSignatureVersion;
+        /// device creation and physical adapters
+        size_t mAdapterIndex;
+        DeviceHandle mDevice;
+        CD3DX12FeatureSupport mFeatureSupport;
+        RootSignatureVersion mRootSignatureVersion;
+        Object<ID3D12Debug1> mDebug;
+        Object<ID3D12InfoQueue1> mInfoQueue;
+        DWORD mCookie = ULONG_MAX;
 
-    Adapter *mAdapter = nullptr;
-    DeviceHandle mDevice;
-    Object<ID3D12Debug1> mDebug;
+        FeatureLevel get_feature_level() const { return mConfig.feature_level; }
 
-    Object<ID3D12InfoQueue1> mInfoQueue;
-    DWORD mCookie{UINT_MAX};
+        void enable_debug_layer(bool gbv, bool rename);
+        void disable_debug_layer();
+        void enable_dred(bool enabled);
+        void enable_info_queue();
+        void query_root_signature_version();
+        void create_device(size_t adapter);
 
-    Object<IDXGISwapChain3> mSwapChain;
+        // resource allocator
+        Object<D3D12MA::Allocator> mAllocator;
+        void create_allocator();
 
-    size_t mFrameIndex = 0;
-    sm::UniqueArray<FrameData> mFrames;
+        Result create_resource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state, const D3D12_CLEAR_VALUE *clear = nullptr);
 
-    Object<D3D12MA::Allocator> mAllocator;
+        void serialize_root_signature(Object<ID3D12RootSignature>& signature, const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& desc);
 
-    CommandQueue mDirectQueue;
-    CommandQueue mCopyQueue;
-    //CommandQueue mComputeQueue;
+        /// presentation objects
+        Object<IDXGISwapChain3> mSwapChain;
 
-    DescriptorArena mRenderTargetHeap;
-    DescriptorArena mDepthStencilHeap;
-    DescriptorArena mShaderResourceHeap;
+        // render info
+        DXGI_FORMAT mSwapChainFormat;
+        math::uint2 mSwapChainSize; // present resolution
+        uint mSwapChainLength; // number of swap chain buffers
 
-    CommandListPool mDirectCommandLists;
-    CommandListPool mCopyCommandLists;
-    //CommandListPool mComputeCommandLists;
+        DXGI_FORMAT mSceneFormat;
+        DXGI_FORMAT mDepthFormat;
+        math::uint2 mSceneSize; // render resolution
 
-    // lists that havent been submitted yet
-    sm::Vector<CommandList *> mPendingDirectCommands;
-    sm::Vector<CommandList *> mPendingCopyCommands;
-    //sm::Vector<CommandList *> mPendingComputeCommands;
+        sm::UniqueArray<FrameData> mFrames;
+        void create_frame_allocators();
+        void create_frame_rtvs();
+        void destroy_frame_rtvs();
+        void create_render_targets();
 
-    // objects that have been submitted but not finished execution
-    //PendingCommandsQueue mWaitingDirectCommands;
-    //PendingCommandsQueue mWaitingCopyCommands;
-    //PendingCommandsQueue mWaitingComputeCommands;
+        /// graphics pipeline objects
+        Object<ID3D12CommandQueue> mDirectQueue;
+        CommandList mCommandList;
 
-    //ResourcePool<DeviceResource> mResources;
+        void reset_direct_commands(ID3D12PipelineState *pso = nullptr);
 
-    Fence mPresentFence;
+        uint min_rtv_heap_size() const { return DXGI_MAX_SWAP_CHAIN_BUFFERS + 1 + mConfig.rtv_heap_size; }
+        uint min_srv_heap_size() const { return 1 + 1 + mConfig.srv_heap_size; }
+        uint min_dsv_heap_size() const { return 1 + mConfig.dsv_heap_size; }
 
-    //uint64 mDirectFenceValue = 1;
-    //Fence mDirectFence;
+        RtvPool mRtvPool;
+        DsvPool mDsvPool;
+        SrvPool mSrvPool;
 
-    uint64 mCopyFenceValue = 1;
-    Fence mCopyFence;
+        /// copy queue and commands
+        Object<ID3D12CommandQueue> mCopyQueue;
+        Object<ID3D12CommandAllocator> mCopyAllocator;
+        Object<ID3D12GraphicsCommandList1> mCopyCommands;
+        void create_copy_queue();
+        void destroy_copy_queue();
 
-    void enable_debug_layer(bool gbv, bool rename);
-    void enable_dred();
-    void enable_info_queue();
+        void reset_copy_commands();
 
-    void create_device();
-    void query_root_signature_version();
-    void create_device_objects(const RenderConfig &config);
-    void create_swapchain(const RenderConfig &config);
+        Object<ID3D12Fence> mCopyFence;
+        HANDLE mCopyFenceEvent;
+        uint64 mCopyFenceValue;
+        void create_copy_fence();
 
-    void create_allocator();
+        /// blit pipeline + assets
+        Viewport mPresentViewport;
+        Pipeline mBlitPipeline;
 
-    void create_backbuffers(uint count);
+        struct {
+            Resource mVertexBuffer;
+            VertexBufferView mVertexBufferView;
+        } mScreenQuad;
 
-    void next_frame();
+        void update_display_viewport();
 
-    //void reclaim_live_objects();
+        void create_blit_pipeline();
+        void destroy_blit_pipeline();
 
-    void reclaim_resource(DeviceResource resource);
+        void create_screen_quad();
+        void destroy_screen_quad();
 
-    DeviceResource create_resource(D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc,
-                                   D3D12_RESOURCE_STATES state);
+        /// scene pipeline + assets
+        Viewport mSceneViewport;
+        void update_scene_viewport();
 
-public:
-    Context(RenderConfig config);
-    ~Context();
+        Pipeline mPrimitivePipeline;
+        void create_primitive_pipeline();
+        void destroy_primitive_pipeline();
 
-    void begin_frame();
-    void end_frame();
+        struct {
+            // meshes and textures both line up with the objects, and images in the info struct
+            // nodes are all done inside the info struct
+            world::WorldInfo info;
+            sm::Vector<MeshResource> meshes;
+            sm::Vector<TextureResource> textures;
+        } mWorld;
 
-    DescriptorArena &srv_heap() {
-        return mShaderResourceHeap;
-    }
-    DeviceHandle &device() {
-        return mDevice;
-    }
+        void create_world_resources();
 
-    void flush_copy_queue();
-    void wait_for_gpu();
-    //void flush_direct_queue();
+        sm::Vector<Mesh> mMeshes;
 
-    void resize(uint width, uint height);
+        sm::Vector<Texture> mTextures;
+        texindex load_texture(const fs::path& path);
+        texindex load_texture(const ImageData& image);
 
-    CommandList& current_frame_list();
+        Mesh create_mesh(const draw::MeshInfo& info, const float3& colour);
+        bool create_texture(Texture& result, const fs::path& path, ImageFormat type);
+        bool create_texture_stb(Texture& result, const fs::path& path);
+        bool create_texture_dds(Texture& result, const fs::path& path);
 
-    CommandList& acquire_copy_list(ResourceId id);
-    void submit_copy_list(CommandList &list);
+        bool load_gltf(const fs::path& path);
 
-    CommandList &acquire_direct_list(ResourceId id);
-    void submit_direct_list(CommandList &list);
+        void init_scene();
+        void create_scene();
+        void destroy_scene();
 
-    DeviceResource create_staging_buffer(uint size);
-    DeviceResource create_buffer(uint size);
-};
-} // namespace sm::render
+        void create_frame_graph();
+        void destroy_frame_graph();
+
+        void create_pipeline();
+        void create_assets();
+
+        void destroy_textures();
+        void create_textures();
+
+        uint mFrameIndex;
+        HANDLE mFenceEvent;
+        Object<ID3D12Fence> mFence;
+
+        void copy_buffer(Object<ID3D12GraphicsCommandList1>& list, Resource& dst, Resource& src, size_t size);
+
+        // dstorage
+        CopyStorage mStorage;
+        void create_dstorage();
+        void destroy_dstorage();
+
+        // render graph
+        graph::Handle mSwapChainHandle;
+        graph::Handle mSceneTargetHandle;
+        graph::FrameGraph mFrameGraph;
+
+        /// synchronization
+        void build_command_list();
+        void move_to_next_frame();
+        void wait_for_gpu();
+        void flush_copy_queue();
+
+        /// dear imgui
+
+        editor::Editor mEditor;
+
+        draw::MeshInfo mMeshCreateInfo[draw::MeshType::kCount];
+        SrvIndex mImGuiSrvIndex;
+
+        void create_imgui();
+        void destroy_imgui();
+
+        void create_imgui_backend();
+        void destroy_imgui_backend();
+
+        bool update_imgui();
+        void render_imgui();
+
+        /// state updates
+
+        void update_adapter(size_t index);
+        void update_swapchain_length(uint length);
+        void resize_draw(math::uint2 size);
+
+        bool mDeviceLost = false;
+        void destroy_device();
+
+    public:
+        Context(const RenderConfig& config);
+
+        void create();
+        void destroy();
+
+        bool update();
+        void render();
+        void update_scene_size(math::uint2 size);
+        void resize_swapchain(math::uint2 size);
+        void recreate_device();
+
+        void set_device_lost();
+
+        draw::Camera camera;
+    };
+}

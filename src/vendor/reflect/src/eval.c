@@ -89,7 +89,7 @@ static eval_result_t eval_binary_expr(mpz_t result, logger_t *logs, ref_ast_t *e
         break;
 
     default:
-        NEVER("unknown binary operator %d", expr->binary);
+        CT_NEVER("unknown binary operator %d", expr->binary);
     }
 
     return eEvalOk;
@@ -123,7 +123,7 @@ static eval_result_t eval_unary(mpz_t result, logger_t *logs, ref_ast_t *expr)
         break;
 
     default:
-        NEVER("unknown unary operator %d", expr->unary);
+        CT_NEVER("unknown unary operator %d", expr->unary);
     }
 
     return eEvalOk;

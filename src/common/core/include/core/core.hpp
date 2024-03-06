@@ -1,5 +1,9 @@
 #pragma once
 
+#include <simcoe_config.h>
+
+#include "core/error.hpp"
+
 #include <stdint.h>
 
 namespace sm {
@@ -14,7 +18,62 @@ namespace sm {
     using int64 = int64_t; // NOLINT
 
     using uint = uint32_t; // NOLINT
+    using byte = uint8_t; // NOLINT
+
+    using char8 = char8_t; // NOLINT
+    using char16 = char16_t; // NOLINT
+    using char32 = char32_t; // NOLINT
 
     template<typename T>
     concept StandardLayout = __is_standard_layout(T);
+
+    template<typename T>
+    concept IsEnum = __is_enum(T);
+
+    template<typename T, typename... A>
+    concept Construct = __is_constructible(T, A...);
+
+    template<typename T>
+    struct Empty {
+        constexpr Empty() = default;
+        constexpr Empty(const T&) { }
+        constexpr Empty(T&&) { }
+    };
+
+    struct Ignore {
+        template<typename T>
+        constexpr void operator=(T&&) const { }
+    };
+
+    inline constexpr Ignore kIgnore{};
 }
+
+/// @brief debug member variables and required macros
+/// SM_DBG_MEMBER(type) declares a member variable that will only be present in debug builds
+/// SM_DBG_REF(name) allows storing to a variable that will only be present in debug builds
+/// all debug variables can only be read inside a SM_DBG_ASSERT block or inside a
+/// #if SMC_DEBUG block
+
+#if SMC_DEBUG
+#   define DBG_MEMBER(T) T
+#   define DBG_REF(name) name
+#   define DBG_MEMBER_OR(name, ...) name
+#   define DBG_ASSERT(expr, ...) SM_ASSERTF(expr, __VA_ARGS__)
+#else
+#   define DBG_MEMBER(T) SM_NO_UNIQUE_ADDRESS sm::Empty<T>
+#   define DBG_REF(name) sm::kIgnore
+#   define DBG_MEMBER_OR(name, ...) __VA_ARGS__
+#   define DBG_ASSERT(expr, ...) do { } while (0)
+#endif
+
+#if SMC_RELEASE
+#   define DBG_STATIC_ASSERT(...) static_assert(__VA_ARGS__)
+#else
+#   define DBG_STATIC_ASSERT(...) static_assert(true)
+#endif
+
+#if defined(__clang__)
+#   define undefined(T) ([] { T ud = __builtin_nondeterministic_value(ud); return ud; }())
+#else
+#   define undefined(T) (T{})
+#endif

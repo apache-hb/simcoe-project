@@ -1,0 +1,11 @@
+[wrap-file]
+directory = msdf-atlas-gen
+
+source_url = https://github.com/Chlumsky/msdf-atlas-gen/releases/download/v1.2.2/msdf-atlas-gen-1.2.2-win64.zip
+source_filename = msdf-atlas-gen-1.2.2-win64.zip
+source_hash = 9d0c4cc6eab891a1ba349fda0b699b74f4d652177b8d57653fe20aefe3fa1275
+
+patch_directory = msdf-atlas-gen
+
+[provide]
+program_names = msdf-atlas-gen

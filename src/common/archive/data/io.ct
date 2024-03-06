@@ -4,6 +4,10 @@ import "io/io.h";
 
 [[facade, bitflags]]
 variant IoAccess : opaque(os_access_t) {
-    case Read = opaque(eAccessRead)
-    case Write = opaque(eAccessWrite)
+    case Read = opaque(eOsAccessRead)
+    case Write = opaque(eOsAccessWrite)
+}
+
+variant BundleFormat {
+    case Tar
 }
