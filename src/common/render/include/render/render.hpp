@@ -77,6 +77,8 @@ namespace sm::render {
     };
 
     struct Texture {
+        fs::path path;
+
         sm::String name;
         ImageFormat format;
         uint2 size;
@@ -217,11 +219,12 @@ namespace sm::render {
         sm::Vector<Primitive> mPrimitives;
         sm::Vector<Texture> mTextures;
 
-        texindex load_texture(const fs::path& path, ImageFormat type);
-        texindex load_texture_stb(const fs::path& path);
-        texindex load_texture_dds(const fs::path& path);
+        texindex load_texture(const fs::path& path);
 
         Primitive create_mesh(const draw::MeshInfo& info, const float3& colour);
+        bool create_texture(Texture& result, const fs::path& path, ImageFormat type);
+        bool create_texture_stb(Texture& result, const fs::path& path);
+        bool create_texture_dds(Texture& result, const fs::path& path);
 
         bool load_gltf_scene(Scene& scene, const fs::path& path);
 
@@ -234,6 +237,9 @@ namespace sm::render {
 
         void create_pipeline();
         void create_assets();
+
+        void destroy_textures();
+        void create_textures();
 
         uint mFrameIndex;
         HANDLE mFenceEvent;

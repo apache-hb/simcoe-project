@@ -44,6 +44,10 @@ void Resource::reset() {
     mAllocation.reset();
 }
 
+void Resource::rename(sm::StringView name) {
+    if (mResource) mResource.rename(name);
+}
+
 Viewport::Viewport(math::uint2 size) {
     auto [w, h] = size;
 

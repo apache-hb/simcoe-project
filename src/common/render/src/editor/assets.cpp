@@ -74,7 +74,7 @@ void AssetBrowserPanel::draw_content() {
     if (mFileBrowser.HasSelected()) {
         auto selected = mFileBrowser.GetMultiSelected();
         for (const auto& file : selected) {
-            mContext.load_texture(file, ImageFormat::eUnknown);
+            mContext.load_texture(file);
         }
         mFileBrowser.ClearSelected();
     }

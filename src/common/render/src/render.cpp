@@ -2,20 +2,22 @@
 
 #include "core/format.hpp" // IWYU pragma: export
 
-#include "d3dx12/d3dx12_resource_helpers.h"
 #include "render/draw.hpp" // IWYU pragma: export
 
 #include "math/colour.hpp"
-
-#include "DDSTextureLoader12.h"
 
 #include "render/draw/imgui.hpp"
 #include "render/draw/present.hpp"
 #include "render/draw/scene.hpp"
 
+#include "fmt/std.h" // IWYU pragma: export
+
 #include "d3dx12/d3dx12_core.h"
+#include "d3dx12/d3dx12_resource_helpers.h"
 #include "d3dx12/d3dx12_root_signature.h"
 #include "d3dx12/d3dx12_barriers.h"
+
+#include "DDSTextureLoader12.h"
 
 using namespace sm;
 using namespace sm::render;
@@ -396,9 +398,20 @@ void Context::destroy_scene() {
     }
 }
 
-texindex Context::load_texture_stb(const fs::path& path) {
+texindex Context::load_texture(const fs::path& path) {
+    Texture tex;
+    if (create_texture(tex, path, ImageFormat::eUnknown)) {
+        texindex index = int_cast<texindex>(mTextures.size());
+        mTextures.emplace_back(std::move(tex));
+        return index;
+    }
+
+    return UINT16_MAX;
+}
+
+bool Context::create_texture_stb(Texture& result, const fs::path& path) {
     auto image = open_image(path);
-    if (image.size == 0u) return UINT16_MAX;
+    if (image.size == 0u) return false;
 
     Resource texture;
     Resource upload;
@@ -417,11 +430,16 @@ texindex Context::load_texture_stb(const fs::path& path) {
 
     SM_ASSERT_HR(create_resource(upload, D3D12_HEAP_TYPE_UPLOAD, kUploadBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ));
 
+    texture.rename(path.string());
+    upload.rename(fmt::format("{}_upload", path));
+
     D3D12_RANGE read{0, 0};
     void *data;
     SM_ASSERT_HR(upload.map(&read, &data));
     std::memcpy(data, image.data.data(), image.data.size());
     upload.unmap(&read);
+
+    wait_for_gpu();
 
     reset_direct_commands();
     reset_copy_commands();
@@ -452,9 +470,10 @@ texindex Context::load_texture_stb(const fs::path& path) {
     SM_ASSERT_HR(mCopyQueue->Signal(*mCopyFence, mCopyFenceValue));
 
     ID3D12CommandList *direct_lists[] = { mCommandList.get() };
-    SM_ASSERT_HR(mCopyQueue->Wait(*mCopyFence, mCopyFenceValue));
+    SM_ASSERT_HR(mDirectQueue->Wait(*mCopyFence, mCopyFenceValue));
     mDirectQueue->ExecuteCommandLists(1, direct_lists);
 
+    wait_for_gpu();
     flush_copy_queue();
 
     const D3D12_SHADER_RESOURCE_VIEW_DESC kSrvDesc = {
@@ -472,22 +491,20 @@ texindex Context::load_texture_stb(const fs::path& path) {
     auto cpu = mSrvPool.cpu_handle(index);
     mDevice->CreateShaderResourceView(*texture.mResource, &kSrvDesc, cpu);
 
-    texindex texid = int_cast<texindex>(mTextures.size());
-
-    mTextures.emplace_back(Texture {
+    result = Texture {
         .name = path.string(),
-        .format = ImageFormat::ePNG,
+        .format = image.format,
         .size = image.size,
         .mips = 1,
 
         .resource = std::move(texture),
         .srv = index,
-    });
+    };
 
-    return texid;
+    return true;
 }
 
-texindex Context::load_texture_dds(const fs::path& path) {
+bool Context::create_texture_dds(Texture& result, const fs::path& path) {
     Object<ID3D12Resource> texture;
     sm::Vector<D3D12_SUBRESOURCE_DATA> mips;
     std::unique_ptr<uint8_t[]> data;
@@ -502,14 +519,18 @@ texindex Context::load_texture_dds(const fs::path& path) {
         mips);
 
     if (hr.failed()) {
-        gSink.error("failed to load dds texture: {}", hr);
-        return UINT16_MAX;
+        gSink.warn("failed to load dds {}: {}", path, hr);
+        return false;
     }
+
+    texture.rename(path.string());
 
     const uint kUploadBufferSize = GetRequiredIntermediateSize(*texture, 0, int_cast<uint>(mips.size()));
     const auto kUploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kUploadBufferSize);
 
     Resource upload;
+
+    upload.rename(fmt::format("{}_upload", path));
 
     SM_ASSERT_HR(create_resource(upload, D3D12_HEAP_TYPE_UPLOAD, kUploadBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ));
 
@@ -540,40 +561,67 @@ texindex Context::load_texture_dds(const fs::path& path) {
     SM_ASSERT_HR(mCopyQueue->Signal(*mCopyFence, mCopyFenceValue));
 
     ID3D12CommandList *direct_lists[] = { mCommandList.get() };
-    SM_ASSERT_HR(mCopyQueue->Wait(*mCopyFence, mCopyFenceValue));
+    SM_ASSERT_HR(mDirectQueue->Wait(*mCopyFence, mCopyFenceValue));
     mDirectQueue->ExecuteCommandLists(1, direct_lists);
 
     wait_for_gpu();
     flush_copy_queue();
 
-    texindex texid = int_cast<texindex>(mTextures.size());
-    return texid;
+    const D3D12_SHADER_RESOURCE_VIEW_DESC kSrvDesc = {
+        .Format = DXGI_FORMAT_BC7_UNORM,
+        .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
+        .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+        .Texture2D = {
+            .MostDetailedMip = 0,
+            .MipLevels = int_cast<uint>(mips.size()),
+            .ResourceMinLODClamp = 0.f,
+        },
+    };
+
+    SrvIndex index = mSrvPool.allocate();
+    auto cpu = mSrvPool.cpu_handle(index);
+    mDevice->CreateShaderResourceView(*texture, &kSrvDesc, cpu);
+
+    result = Texture {
+        .name = path.string(),
+        .format = ImageFormat::eBC7,
+        .size = { 0, 0 },
+        .mips = int_cast<uint>(mips.size()),
+
+        .resource = {
+            .mResource = std::move(texture),
+        },
+        .srv = index,
+    };
+
+    return true;
 }
 
-texindex Context::load_texture(const fs::path& path, ImageFormat type) {
+bool Context::create_texture(Texture& result, const fs::path& path, ImageFormat type) {
     auto str = path.string();
     using enum ImageFormat::Inner;
     switch (type) {
     case eUnknown:
-        if (texindex i = load_texture_stb(str.c_str()); i != UINT16_MAX)
-            return i;
-        if (texindex i = load_texture_dds(str.c_str()); i != UINT16_MAX)
-            return i;
-        gSink.error("unsupported image type: {}", type);
+        if (create_texture_stb(result, path))
+            return true;
+        if (create_texture_dds(result, path))
+            return true;
+        gSink.warn("unable to determine image type of {}", path);
         break;
     case ePNG:
     case eJPG:
-        return load_texture_stb(str.c_str());
+    case eBMP:
+        return create_texture_stb(result, path);
 
     case eBC7:
-        return load_texture_dds(str.c_str());
+        return create_texture_dds(result, path);
 
     default:
         gSink.error("unsupported image type: {}", type);
-        return UINT16_MAX;
+        return false;
     }
 
-    return UINT16_MAX;
+    return false;
 }
 
 Context::Primitive Context::create_mesh(const draw::MeshInfo& info, const float3& colour) {
@@ -719,6 +767,20 @@ void Context::create_frame_graph() {
 
 void Context::destroy_frame_graph() {
     mFrameGraph.reset();
+}
+
+void Context::destroy_textures() {
+    for (auto& texture : mTextures) {
+        mSrvPool.release(texture.srv);
+        texture.resource.reset();
+    }
+}
+
+void Context::create_textures() {
+    for (auto& texture : mTextures) {
+        // recreate all textures
+        create_texture(texture, texture.name, texture.format);
+    }
 }
 
 void Context::destroy_device() {

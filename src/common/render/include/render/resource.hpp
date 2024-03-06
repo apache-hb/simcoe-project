@@ -14,6 +14,7 @@ namespace sm::render {
 
         D3D12_GPU_VIRTUAL_ADDRESS get_gpu_address();
         void reset();
+        void rename(sm::StringView name);
 
         ID3D12Resource *get() const { return mResource.get(); }
     };
