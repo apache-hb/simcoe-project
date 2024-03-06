@@ -476,10 +476,13 @@ texindex Context::load_texture_stb(const fs::path& path) {
     texindex texid = int_cast<texindex>(mTextures.size());
 
     mTextures.emplace_back(Texture {
-        .resource = std::move(texture),
-        .srv = index,
+        .name = path.string(),
+        .format = ImageFormat::ePNG,
         .size = image.size,
         .mips = 1,
+
+        .resource = std::move(texture),
+        .srv = index,
     });
 
     return texid;
@@ -545,8 +548,8 @@ texindex Context::load_texture_dds(const fs::path& path) {
     return texid;
 }
 
-texindex Context::load_texture(const fs::path& path, ImageType type) {
-    using enum ImageType::Inner;
+texindex Context::load_texture(const fs::path& path, ImageFormat type) {
+    using enum ImageFormat::Inner;
     switch (type) {
     case ePNG:
     case eJPG:

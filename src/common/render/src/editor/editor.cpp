@@ -13,6 +13,7 @@ Editor::Editor(render::Context& context)
     , mScene(context)
     , mViewport(context)
     , mFeatureSupport(context)
+    , mAssetBrowser(context)
 {
     mOpenLevelDialog.SetTitle("Open Level");
     mSaveLevelDialog.SetTitle("Save Level");
@@ -51,6 +52,8 @@ void Editor::draw_mainmenu() {
             mScene.draw_menu_item();
             mViewport.draw_menu_item();
             mFeatureSupport.draw_menu_item();
+            mDebug.draw_menu_item();
+            mAssetBrowser.draw_menu_item();
 
             ImGui::SeparatorText("Demo Windows");
             ImGui::MenuItem("ImGui Demo", nullptr, &mShowDemo);
@@ -121,6 +124,8 @@ void Editor::draw() {
     mScene.draw_window();
     mViewport.draw_window();
     mFeatureSupport.draw_window();
+    mDebug.draw_window();
+    mAssetBrowser.draw_window();
 
     mOpenLevelDialog.Display();
     mSaveLevelDialog.Display();

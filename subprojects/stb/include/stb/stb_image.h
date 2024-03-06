@@ -381,6 +381,23 @@ enum
    STBI_rgb_alpha  = 4
 };
 
+// begin(simcoe): image type testing
+enum
+{
+   STBI_unknown = 0,
+
+   STBI_jpeg = 1,
+   STBI_png = 2,
+   STBI_bmp = 3,
+   STBI_gif = 4,
+   STBI_psd = 5,
+   STBI_pic = 6,
+   STBI_pnm = 7,
+   STBI_hdr = 8,
+   STBI_tga = 9,
+};
+// end(simcoe)
+
 #include <stdlib.h>
 typedef unsigned char stbi_uc;
 typedef unsigned short stbi_us;
@@ -532,6 +549,10 @@ STBIDEF int   stbi_zlib_decode_buffer(char *obuffer, int olen, const char *ibuff
 STBIDEF char *stbi_zlib_decode_noheader_malloc(const char *buffer, int len, int *outlen);
 STBIDEF int   stbi_zlib_decode_noheader_buffer(char *obuffer, int olen, const char *ibuffer, int ilen);
 
+
+// begin(simcoe): image type testing
+STBIDEF int stbi_test_from_memory(stbi_uc const *buffer, int len);
+// end(simcoe)
 
 #ifdef __cplusplus
 }
@@ -1131,6 +1152,52 @@ STBIDEF void stbi_set_flip_vertically_on_load_thread(int flag_true_if_should_fli
                                          ? stbi__vertically_flip_on_load_local  \
                                          : stbi__vertically_flip_on_load_global)
 #endif // STBI_THREAD_LOCAL
+
+// begin(simcoe): image type testing
+STBIDEF int stbi_test_from_memory(stbi_uc const *buffer, int len)
+{
+   stbi__context s;
+   stbi__start_mem(&s, buffer, len);
+
+   #ifndef STBI_NO_JPEG
+   if (stbi__jpeg_test(&s)) return STBI_jpeg;
+   #endif
+
+   #ifndef STBI_NO_PNG
+   if (stbi__png_test(&s))  return STBI_png;
+   #endif
+
+   #ifndef STBI_NO_BMP
+   if (stbi__bmp_test(&s))  return STBI_bmp;
+   #endif
+
+   #ifndef STBI_NO_GIF
+   if (stbi__gif_test(&s))  return STBI_gif;
+   #endif
+
+   #ifndef STBI_NO_PSD
+   if (stbi__psd_test(&s))  return STBI_psd;
+   #endif
+
+   #ifndef STBI_NO_PIC
+   if (stbi__pic_test(&s))  return STBI_pic;
+   #endif
+
+   #ifndef STBI_NO_PNM
+   if (stbi__pnm_test(&s))  return STBI_pnm;
+   #endif
+
+   #ifndef STBI_NO_HDR
+   if (stbi__hdr_test(&s))  return STBI_hdr;
+   #endif
+
+   #ifndef STBI_NO_TGA
+   if (stbi__tga_test(&s))  return STBI_tga;
+   #endif
+
+   return STBI_unknown;
+}
+// end(simcoe)
 
 static void *stbi__load_main(stbi__context *s, int *x, int *y, int *comp, int req_comp, stbi__result_info *ri, int bpc)
 {

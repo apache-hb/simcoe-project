@@ -32,6 +32,8 @@ src = [
     'src/editor/features.cpp',
     'src/editor/inspector.cpp',
     'src/editor/gizmo.cpp',
+    'src/editor/debug.cpp',
+    'src/editor/assets.cpp',
     'src/editor/viewport.cpp',
 
     reflect.process('data/render.ct'),

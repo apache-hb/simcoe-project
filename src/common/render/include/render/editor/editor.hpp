@@ -4,6 +4,8 @@
 #include "render/editor/logger.hpp"
 #include "render/editor/config.hpp"
 #include "render/editor/scene.hpp"
+#include "render/editor/debug.hpp"
+#include "render/editor/assets.hpp"
 #include "render/editor/viewport.hpp"
 
 #include "imfilebrowser.h"
@@ -21,6 +23,8 @@ namespace sm::editor {
         ScenePanel mScene;
         ViewportPanel mViewport;
         FeatureSupportPanel mFeatureSupport;
+        DebugPanel mDebug;
+        AssetBrowserPanel mAssetBrowser;
 
         ImGui::FileBrowser mSaveLevelDialog { ImGuiFileBrowserFlags_CreateNewDir | ImGuiFileBrowserFlags_EnterNewFilename | ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_ConfirmOnEnter };
         ImGui::FileBrowser mOpenLevelDialog { ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_ConfirmOnEnter };

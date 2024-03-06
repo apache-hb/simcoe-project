@@ -10,8 +10,9 @@
 
 namespace sm {
     struct ImageData {
-        math::uint2 size;
+        ImageFormat format;
         Format pxformat;
+        math::uint2 size;
         sm::Vector<byte> data;
     };
 

@@ -77,17 +77,20 @@ namespace sm::render {
     };
 
     struct Texture {
-        Resource resource;
-        SrvIndex srv;
+        sm::String name;
+        ImageFormat format;
         uint2 size;
         uint mips;
+
+        Resource resource;
+        SrvIndex srv;
     };
 
     struct Scene {
         fs::path path;
 
         // indices into the contexts texture array
-        sm::Vector<uint16> textures;
+        sm::Vector<texindex> textures;
     };
 
     struct Context {
@@ -214,7 +217,7 @@ namespace sm::render {
         sm::Vector<Primitive> mPrimitives;
         sm::Vector<Texture> mTextures;
 
-        texindex load_texture(const fs::path& path, ImageType type);
+        texindex load_texture(const fs::path& path, ImageFormat type);
         texindex load_texture_stb(const fs::path& path);
         texindex load_texture_dds(const fs::path& path);
 

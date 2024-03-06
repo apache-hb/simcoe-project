@@ -1,8 +1,8 @@
 #pragma once
 
-#include "core/library.hpp"
-
 #include "render/object.hpp"
+
+#include "core/library.hpp"
 
 #include "render.reflect.h"
 

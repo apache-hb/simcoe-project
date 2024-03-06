@@ -32,7 +32,7 @@ variant Format : uint16 {
     case uint32
 }
 
-variant ImageType : uint16 {
+variant ImageFormat : uint16 {
     [[format("unknown")]]
     default Unknown
 
@@ -44,6 +44,9 @@ variant ImageType : uint16 {
 
     [[format("jpg")]]
     case JPG
+
+    [[format("bmp")]]
+    case BMP
 
     // custom asset format, seperates the asset metadata from the resource data
     // for better loading with direct storage
