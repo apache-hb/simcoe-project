@@ -2,6 +2,7 @@
 
 #include "core/format.hpp" // IWYU pragma: export
 
+#include "d3dx12/d3dx12_resource_helpers.h"
 #include "render/draw.hpp" // IWYU pragma: export
 
 #include "math/colour.hpp"
@@ -151,6 +152,8 @@ void Context::create_device(size_t index) {
 
     gSink.info("| feature level: {}", fl);
     gSink.info("| flags: {}", mDebugFlags);
+
+    create_dstorage();
 }
 
 static constexpr D3D12MA::ALLOCATOR_FLAGS kAllocatorFlags = D3D12MA::ALLOCATOR_FLAG_DEFAULT_POOLS_NOT_ZEROED | D3D12MA::ALLOCATOR_FLAG_SINGLETHREADED;
@@ -391,6 +394,173 @@ void Context::destroy_scene() {
         primitive.mVertexBuffer.reset();
         primitive.mIndexBuffer.reset();
     }
+}
+
+texindex Context::load_texture_stb(const fs::path& path) {
+    auto image = open_image(path);
+    if (image.size == 0u) return UINT16_MAX;
+
+    Resource texture;
+    Resource upload;
+
+    const auto kTextureDesc = CD3DX12_RESOURCE_DESC::Tex2D(
+        DXGI_FORMAT_R8G8B8A8_UNORM,
+        image.size.width,
+        image.size.height,
+        1, 1
+    );
+
+    SM_ASSERT_HR(create_resource(texture, D3D12_HEAP_TYPE_DEFAULT, kTextureDesc, D3D12_RESOURCE_STATE_COPY_DEST));
+
+    const uint kUploadBufferSize = GetRequiredIntermediateSize(*texture.mResource, 0, 1);
+    const auto kUploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kUploadBufferSize);
+
+    SM_ASSERT_HR(create_resource(upload, D3D12_HEAP_TYPE_UPLOAD, kUploadBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ));
+
+    D3D12_RANGE read{0, 0};
+    void *data;
+    SM_ASSERT_HR(upload.map(&read, &data));
+    std::memcpy(data, image.data.data(), kUploadBufferSize);
+    upload.unmap(&read);
+
+    reset_direct_commands();
+    reset_copy_commands();
+
+    const D3D12_SUBRESOURCE_DATA kTextureData = {
+        .pData = image.data.data(),
+        .RowPitch = int_cast<LONG_PTR>(image.size.width * 4),
+        .SlicePitch = int_cast<LONG_PTR>(image.size.width * image.size.height * 4),
+    };
+
+    UpdateSubresources<1>(mCopyCommands.get(), *texture.mResource, upload.mResource.get(), 0, 0, 1, &kTextureData);
+
+    const D3D12_RESOURCE_BARRIER kBarriers[] = {
+        CD3DX12_RESOURCE_BARRIER::Transition(
+            *texture.mResource,
+            D3D12_RESOURCE_STATE_COPY_DEST,
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+        )
+    };
+
+    mCommandList.submit_barriers(kBarriers);
+
+    SM_ASSERT_HR(mCopyCommands->Close());
+    SM_ASSERT_HR(mCommandList->Close());
+
+    ID3D12CommandList *copy_lists[] = { mCopyCommands.get() };
+    mCopyQueue->ExecuteCommandLists(1, copy_lists);
+    SM_ASSERT_HR(mCopyQueue->Signal(*mCopyFence, mCopyFenceValue));
+
+    ID3D12CommandList *direct_lists[] = { mCommandList.get() };
+    SM_ASSERT_HR(mCopyQueue->Wait(*mCopyFence, mCopyFenceValue));
+    mDirectQueue->ExecuteCommandLists(1, direct_lists);
+
+    wait_for_gpu();
+    flush_copy_queue();
+
+    const D3D12_SHADER_RESOURCE_VIEW_DESC kSrvDesc = {
+        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+        .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
+        .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+        .Texture2D = {
+            .MostDetailedMip = 0,
+            .MipLevels = 1,
+            .ResourceMinLODClamp = 0.f,
+        },
+    };
+
+    SrvIndex index = mSrvPool.allocate();
+    auto cpu = mSrvPool.cpu_handle(index);
+    mDevice->CreateShaderResourceView(*texture.mResource, &kSrvDesc, cpu);
+
+    texindex texid = int_cast<texindex>(mTextures.size());
+
+    mTextures.emplace_back(Texture {
+        .resource = std::move(texture),
+        .srv = index,
+        .size = image.size,
+        .mips = 1,
+    });
+
+    return texid;
+}
+
+texindex Context::load_texture_dds(const fs::path& path) {
+    Object<ID3D12Resource> texture;
+    sm::Vector<D3D12_SUBRESOURCE_DATA> mips;
+    std::unique_ptr<uint8_t[]> data;
+
+    auto wpath = path.wstring();
+
+    Result hr = DirectX::LoadDDSTextureFromFile(
+        mDevice.get(),
+        wpath.c_str(),
+        &texture,
+        data,
+        mips);
+
+    if (hr.failed()) {
+        gSink.error("failed to load dds texture: {}", hr);
+        return UINT16_MAX;
+    }
+
+    const uint kUploadBufferSize = GetRequiredIntermediateSize(*texture, 0, int_cast<uint>(mips.size()));
+    const auto kUploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kUploadBufferSize);
+
+    Resource upload;
+
+    SM_ASSERT_HR(create_resource(upload, D3D12_HEAP_TYPE_UPLOAD, kUploadBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ));
+
+    // TODO: really need an async copy queue on another thread
+    wait_for_gpu();
+    flush_copy_queue();
+
+    UpdateSubresources<16>(mCopyCommands.get(), texture.get(), upload.get(), 0, 0, int_cast<uint>(mips.size()), mips.data());
+
+    const D3D12_RESOURCE_BARRIER kBarriers[] = {
+        CD3DX12_RESOURCE_BARRIER::Transition(
+            *texture,
+            D3D12_RESOURCE_STATE_COPY_DEST,
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+        )
+    };
+
+    mCommandList.submit_barriers(kBarriers);
+
+    SM_ASSERT_HR(mCopyCommands->Close());
+    SM_ASSERT_HR(mCommandList->Close());
+
+    ID3D12CommandList *copy_lists[] = { mCopyCommands.get() };
+    mCopyQueue->ExecuteCommandLists(1, copy_lists);
+    SM_ASSERT_HR(mCopyQueue->Signal(*mCopyFence, mCopyFenceValue));
+
+    ID3D12CommandList *direct_lists[] = { mCommandList.get() };
+    SM_ASSERT_HR(mCopyQueue->Wait(*mCopyFence, mCopyFenceValue));
+    mDirectQueue->ExecuteCommandLists(1, direct_lists);
+
+    wait_for_gpu();
+    flush_copy_queue();
+
+    texindex texid = int_cast<texindex>(mTextures.size());
+    return texid;
+}
+
+texindex Context::load_texture(const fs::path& path, ImageType type) {
+    using enum ImageType::Inner;
+    switch (type) {
+    case ePNG:
+    case eJPG:
+        return load_texture_stb(path.string().c_str());
+
+    case eBC7:
+        return load_texture_dds(path.string().c_str());
+
+    default:
+        gSink.error("unsupported image type: {}", type);
+        return UINT16_MAX;
+    }
+
+    return UINT16_MAX;
 }
 
 Context::Primitive Context::create_mesh(const draw::MeshInfo& info, const float3& colour) {
@@ -663,6 +833,11 @@ void Context::recreate_device() {
     wait_for_gpu();
     destroy_imgui_backend();
     destroy_frame_graph();
+
+    // TODO: we dont actually need to destroy the dstorage factory
+    // just the queue, its also slow to recreate the factory.
+    // might be worth handling that case in the future
+    destroy_dstorage();
     destroy_device();
 
     create_device(mAdapterIndex);

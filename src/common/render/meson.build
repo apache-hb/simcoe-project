@@ -5,12 +5,14 @@ src = [
     'src/result.cpp',
     'src/instance.cpp',
     'src/render.cpp',
+    'src/dstorage.cpp',
     'src/object.cpp',
     'src/imgui.cpp',
 
     'src/blit.cpp',
 
     'src/camera.cpp',
+    'src/gltf.cpp',
     'src/draw.cpp',
     'src/primitives.cpp',
 
@@ -38,11 +40,25 @@ src = [
 ]
 
 deps = [
+    # internal libraries
     core, logs, system, math, archive,
-    d3d12, d3dx12, d3d12ma, imgui,
-    dds_texture_loader, world, stb,
-    world, implot, imguizmo, filebrowser,
-    nvapi
+    world,
+
+    # other vendors
+    stb, fastgltf,
+
+    # microsoft
+    d3d12, d3dx12, d3d12ma,
+
+    # we load the redist from the dll ourselves, so dont link to the implib
+    dstorage.partial_dependency(includes : true),
+    dds_texture_loader,
+
+    # hardware vendors
+    nvapi,
+
+    # gui
+    imgui, implot, imguizmo, filebrowser,
 ]
 
 librender = library('render', src,

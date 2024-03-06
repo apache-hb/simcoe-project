@@ -10,17 +10,16 @@ using namespace sm::sys;
 
 static constexpr const char *kClassName = "simcoe";
 
-#if 0
-static constexpr size_t kPathMax = 512;
-static TCHAR gExecutablePath[kPathMax];
-static DWORD gExecutablePathLength = 0;
+static fs::path gProgramPath;
+static fs::path gProgramDir;
 
-const char *sys::get_exe_path() {
-    CTASSERTF(gExecutablePathLength != 0, "system::get_exe_path() called before system::create()");
-
-    return gExecutablePath;
+fs::path sys::get_app_path() {
+    return gProgramPath;
 }
-#endif
+
+fs::path sys::get_appdir() {
+    return gProgramDir;
+}
 
 void sys::create(HINSTANCE hInstance) {
     CTASSERTF(hInstance != nullptr, "system::create() invalid hInstance");
@@ -68,7 +67,10 @@ void sys::create(HINSTANCE hInstance) {
 
     gTimerFrequency = frequency.QuadPart;
 
-#if 0
+    static constexpr size_t kPathMax = 2048;
+    TCHAR gExecutablePath[kPathMax];
+    DWORD gExecutablePathLength = 0;
+
     gExecutablePathLength = GetModuleFileNameA(
         /* hModule = */ nullptr,
         /* lpFilename = */ gExecutablePath,
@@ -81,7 +83,9 @@ void sys::create(HINSTANCE hInstance) {
     if (gExecutablePathLength == kPathMax) {
         sink.warn("executable path longer than {}, may be truncated", kPathMax);
     }
-#endif
+
+    gProgramPath = fs::path{gExecutablePath, gExecutablePath + gExecutablePathLength};
+    gProgramDir = gProgramPath.parent_path();
 }
 
 void sys::destroy(void) {

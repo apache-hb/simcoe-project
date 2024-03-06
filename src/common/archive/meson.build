@@ -5,6 +5,7 @@ src = [
     'src/io.cpp',
     'src/record.cpp',
     'src/bundle.cpp',
+    'src/image.cpp',
 
     reflect.process('data/format.ct'),
     reflect.process('data/io.ct'),

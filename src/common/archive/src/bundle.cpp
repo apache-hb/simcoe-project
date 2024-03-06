@@ -109,11 +109,13 @@ static Format get_channel_format(int channels) {
     }
 }
 
+// TODO: deduplicate this with the one in image.cpp
 static ImageData convert_image(stbi_uc *pixels, int width, int height, int channels) {
-    ImageData image;
-    image.size = { int_cast<uint32_t>(width), int_cast<uint32_t>(height) };
-    image.format = get_channel_format(channels);
-    image.data = sm::Vector<uint8>(pixels, pixels + int_cast<ptrdiff_t>(width * height * 4));
+    const ImageData image = {
+        .size = { int_cast<uint32_t>(width), int_cast<uint32_t>(height) },
+        .pxformat = get_channel_format(channels),
+        .data = sm::Vector<uint8>(pixels, pixels + int_cast<ptrdiff_t>(width * height * 4)),
+    };
     return image;
 }
 

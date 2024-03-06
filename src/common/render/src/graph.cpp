@@ -6,6 +6,7 @@
 #include "core/stack.hpp"
 
 #include "directx/d3dx12_core.h"
+#include "directx/d3dx12_barriers.h"
 
 using namespace sm;
 using namespace sm::graph;
@@ -313,16 +314,45 @@ void FrameGraph::compile() {
     create_resources();
 }
 
+struct BarrierList {
+    sm::SmallVector<D3D12_RESOURCE_BARRIER, 4> barriers;
+
+    void transition(ID3D12Resource *resource, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to) {
+        if (from == to) return;
+
+        const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(resource, from, to);
+        barriers.push_back(barrier);
+    }
+
+    uint length() const {
+        return int_cast<uint>(barriers.size());
+    }
+
+    const D3D12_RESOURCE_BARRIER *data() const {
+        return barriers.data();
+    }
+
+    void submit(ID3D12GraphicsCommandList *commands) {
+        if (barriers.empty()) return;
+
+        commands->ResourceBarrier(length(), data());
+
+        barriers.clear();
+    }
+};
+
 void FrameGraph::execute() {
     sm::HashMap<ID3D12Resource*, D3D12_RESOURCE_STATES> states;
+    BarrierList barriers;
     auto& commands = mContext.mCommandList;
 
     auto update_state = [&](Handle index, Access access) {
         ID3D12Resource *resource = mHandles[index.index].resource;
         D3D12_RESOURCE_STATES state = access.as_facade();
 
-        if (states.contains(resource))
-            commands.transition(resource, states[resource], state);
+        if (states.contains(resource)) {
+            barriers.transition(resource, states[resource], state);
+        }
 
         states[resource] = state;
     };
@@ -360,15 +390,15 @@ void FrameGraph::execute() {
             update_state(index, access);
         }
 
-        commands.submit_barriers();
+        barriers.submit(commands.get());
 
         pass.execute(*this, mContext);
     }
 
-    // transition imported and created resource back to their initial state
+    // transition imported and created resources back to their initial state
     for (auto& [resource, state] : restoration) {
-        commands.transition(resource, states[resource], state);
+        barriers.transition(resource, states[resource], state);
     }
 
-    commands.submit_barriers();
+    barriers.submit(commands.get());
 }

@@ -8,7 +8,7 @@ using namespace sm::utf8;
 
 namespace {
     /// get the length of a utf8 string in bytes
-    constexpr size_t utf8_string_length(const char8_t *text) {
+    constexpr size_t utf8_size_bytes(const char8_t *text) {
         size_t length = 0;
         while (*text++) {
             length += 1;
@@ -46,11 +46,11 @@ namespace {
                 break;
             }
 
-            size_t codepointSize = utf8_codepoint_length(text + offset);
-            if (codepointSize == 0) {
+            size_t size = utf8_codepoint_length(text + offset);
+            if (size == 0) {
                 return offset;
             }
-            offset += codepointSize;
+            offset += size;
         }
         return SIZE_MAX;
     }
@@ -59,27 +59,27 @@ namespace {
 // text iterator
 
 TextIterator::TextIterator(const char8_t *text, size_t offset)
-    : m_text(text)
-    , m_offset(offset)
+    : mText(text)
+    , mOffset(offset)
 { }
 
 bool TextIterator::operator==(const TextIterator& other) const {
-    return m_text == other.m_text && m_offset == other.m_offset;
+    return mText == other.mText && mOffset == other.mOffset;
 }
 
 bool TextIterator::operator!=(const TextIterator& other) const {
-    return m_text != other.m_text || m_offset != other.m_offset;
+    return mText != other.mText || mOffset != other.mOffset;
 }
 
 TextIterator& TextIterator::operator++() {
-    if ((m_text[m_offset] & 0x80) == 0) {
-        m_offset += 1;
-    } else if ((m_text[m_offset] & 0xE0) == 0xC0) {
-        m_offset += 2;
-    } else if ((m_text[m_offset] & 0xF0) == 0xE0) {
-        m_offset += 3;
-    } else if ((m_text[m_offset] & 0xF8) == 0xF0) {
-        m_offset += 4;
+    if ((mText[mOffset] & 0x80) == 0) {
+        mOffset += 1;
+    } else if ((mText[mOffset] & 0xE0) == 0xC0) {
+        mOffset += 2;
+    } else if ((mText[mOffset] & 0xF0) == 0xE0) {
+        mOffset += 3;
+    } else if ((mText[mOffset] & 0xF8) == 0xF0) {
+        mOffset += 4;
     }
 
     return *this;
@@ -88,20 +88,20 @@ TextIterator& TextIterator::operator++() {
 char32_t TextIterator::operator*() const {
     char32_t codepoint = 0;
 
-    if ((m_text[m_offset] & 0x80) == 0) {
-        codepoint = m_text[m_offset];
-    } else if ((m_text[m_offset] & 0xE0) == 0xC0) {
-        codepoint = (m_text[m_offset] & 0x1F) << 6;
-        codepoint |= (m_text[m_offset + 1] & 0x3F);
-    } else if ((m_text[m_offset] & 0xF0) == 0xE0) {
-        codepoint = (m_text[m_offset] & 0x0F) << 12;
-        codepoint |= (m_text[m_offset + 1] & 0x3F) << 6;
-        codepoint |= (m_text[m_offset + 2] & 0x3F);
-    } else if ((m_text[m_offset] & 0xF8) == 0xF0) {
-        codepoint = (m_text[m_offset] & 0x07) << 18;
-        codepoint |= (m_text[m_offset + 1] & 0x3F) << 12;
-        codepoint |= (m_text[m_offset + 2] & 0x3F) << 6;
-        codepoint |= (m_text[m_offset + 3] & 0x3F);
+    if ((mText[mOffset] & 0x80) == 0) {
+        codepoint = mText[mOffset];
+    } else if ((mText[mOffset] & 0xE0) == 0xC0) {
+        codepoint = (mText[mOffset] & 0x1F) << 6;
+        codepoint |= (mText[mOffset + 1] & 0x3F);
+    } else if ((mText[mOffset] & 0xF0) == 0xE0) {
+        codepoint = (mText[mOffset] & 0x0F) << 12;
+        codepoint |= (mText[mOffset + 1] & 0x3F) << 6;
+        codepoint |= (mText[mOffset + 2] & 0x3F);
+    } else if ((mText[mOffset] & 0xF8) == 0xF0) {
+        codepoint = (mText[mOffset] & 0x07) << 18;
+        codepoint |= (mText[mOffset + 1] & 0x3F) << 12;
+        codepoint |= (mText[mOffset + 2] & 0x3F) << 6;
+        codepoint |= (mText[mOffset + 3] & 0x3F);
     }
 
     return codepoint;
@@ -110,25 +110,25 @@ char32_t TextIterator::operator*() const {
 // static text
 
 StaticText::StaticText(const char8_t *text)
-    : m_text(text)
-    , m_size(utf8_string_length(text))
+    : mText(text)
+    , mSize(utf8_size_bytes(text))
 {
-    size_t offset = utf8_validate(text, m_size);
+    size_t offset = utf8_validate(text, mSize);
     CTASSERTF(offset == SIZE_MAX, "invalid utf8 text at offset %zu", offset);
 }
 
 StaticText::StaticText(const char8_t *text, size_t size)
-    : m_text(text)
-    , m_size(size)
+    : mText(text)
+    , mSize(size)
 { }
 
-const char8_t *StaticText::data() const { return m_text; }
-size_t StaticText::size() const { return m_size; }
+const char8_t *StaticText::data() const { return mText; }
+size_t StaticText::size_bytes() const { return mSize; }
 
 TextIterator StaticText::begin() const {
-    return TextIterator(m_text, 0);
+    return TextIterator(mText, 0);
 }
 
 TextIterator StaticText::end() const {
-    return TextIterator(m_text, m_size);
+    return TextIterator(mText, mSize);
 }

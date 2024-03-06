@@ -31,3 +31,26 @@ variant Format : uint16 {
     [[format("uint32")]]
     case uint32
 }
+
+variant ImageType : uint16 {
+    [[format("unknown")]]
+    default Unknown
+
+    [[format("bc7")]]
+    case BC7
+
+    [[format("png")]]
+    case PNG
+
+    [[format("jpg")]]
+    case JPG
+
+    // custom asset format, seperates the asset metadata from the resource data
+    // for better loading with direct storage
+    [[format("simcoe asset")]]
+    case SimcoeAsset
+
+    // same as SimcoeAsset but compressed with ginflate
+    [[format("simcoe compressed asset")]]
+    case SimcoeCompressedAsset
+}

@@ -9,6 +9,7 @@
 #include "render/commands.hpp"
 #include "render/camera.hpp"
 #include "render/resource.hpp"
+#include "render/dstorage.hpp"
 
 #include "render/graph.hpp"
 
@@ -28,6 +29,9 @@ namespace sm::render {
 
     constexpr math::float4 kClearColour = { 0.0f, 0.2f, 0.4f, 1.0f };
     constexpr math::float4 kColourBlack = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+    using texindex = uint16; // NOLINT
+    using meshindex = uint16; // NOLINT
 
     struct RenderConfig {
         DebugFlags flags;
@@ -73,10 +77,17 @@ namespace sm::render {
     };
 
     struct Texture {
-        Object<ID3D12Resource> mResource;
-        SrvIndex mSrvIndex;
+        Resource resource;
+        SrvIndex srv;
+        uint2 size;
+        uint mips;
+    };
 
-        sm::Vector<D3D12_SUBRESOURCE_DATA> mMipData;
+    struct Scene {
+        fs::path path;
+
+        // indices into the contexts texture array
+        sm::Vector<uint16> textures;
     };
 
     struct Context {
@@ -166,9 +177,6 @@ namespace sm::render {
         Viewport mPresentViewport;
         Pipeline mBlitPipeline;
 
-        Texture mTexture;
-        sm::Vector<Texture> mTextures;
-
         struct {
             Resource mVertexBuffer;
             VertexBufferView mVertexBufferView;
@@ -204,8 +212,15 @@ namespace sm::render {
         };
 
         sm::Vector<Primitive> mPrimitives;
+        sm::Vector<Texture> mTextures;
+
+        texindex load_texture(const fs::path& path, ImageType type);
+        texindex load_texture_stb(const fs::path& path);
+        texindex load_texture_dds(const fs::path& path);
 
         Primitive create_mesh(const draw::MeshInfo& info, const float3& colour);
+
+        bool load_gltf_scene(Scene& scene, const fs::path& path);
 
         void init_scene();
         void create_scene();
@@ -222,6 +237,11 @@ namespace sm::render {
         Object<ID3D12Fence> mFence;
 
         void copy_buffer(Object<ID3D12GraphicsCommandList1>& list, Resource& dst, Resource& src, size_t size);
+
+        // dstorage
+        CopyStorage mStorage;
+        void create_dstorage();
+        void destroy_dstorage();
 
         // render graph
         graph::Handle mSwapChainHandle;

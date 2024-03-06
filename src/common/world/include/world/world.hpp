@@ -2,7 +2,11 @@
 
 #include "world/mesh.hpp"
 
+#include "archive/archive.hpp"
+
 namespace sm::world {
+    using vtxindex = uint16; // NOLINT
+
     struct NodeInfo {
         sm::String name;
         sm::Vector<uint16> children;
@@ -39,6 +43,16 @@ namespace sm::world {
         sm::Vector<byte> data;
     };
 
+    struct VertexData {
+        sm::String name;
+        sm::Vector<Vertex> vertices;
+    };
+
+    struct IndexData {
+        sm::String name;
+        sm::Vector<vtxindex> indices;
+    };
+
     struct WorldInfo {
         sm::String name;
         uint16 root_node;
@@ -50,12 +64,15 @@ namespace sm::world {
         sm::Vector<MaterialInfo> materials;
         sm::Vector<ImageInfo> images;
         sm::Vector<BufferInfo> buffers;
+
+        uint16 add_node(NodeInfo info);
+        uint16 add_camera(CameraInfo info);
+
+        void reparent_node(uint16 node, uint16 parent);
     };
 
     WorldInfo empty_world(sm::StringView name);
 
-    WorldInfo load_world(Archive& archive);
+    bool load_world(WorldInfo& info, Archive& archive);
     void save_world(Archive& archive, const WorldInfo& world);
-
-    WorldInfo load_gltf(const fs::Path& path);
 }

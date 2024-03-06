@@ -64,6 +64,12 @@ namespace sm {
     constexpr Memory megabytes(size_t megabytes) { return Memory(megabytes, Memory::eMegabytes); }
     constexpr Memory gigabytes(size_t gigabytes) { return Memory(gigabytes, Memory::eGigabytes); }
     constexpr Memory terabytes(size_t terabytes) { return Memory(terabytes, Memory::eTerabytes); }
+
+    constexpr Memory operator""_b(unsigned long long bytes) { return Memory(bytes, Memory::eBytes); }
+    constexpr Memory operator""_kb(unsigned long long kilobytes) { return Memory(kilobytes, Memory::eKilobytes); }
+    constexpr Memory operator""_mb(unsigned long long megabytes) { return Memory(megabytes, Memory::eMegabytes); }
+    constexpr Memory operator""_gb(unsigned long long gigabytes) { return Memory(gigabytes, Memory::eGigabytes); }
+    constexpr Memory operator""_tb(unsigned long long terabytes) { return Memory(terabytes, Memory::eTerabytes); }
 }
 
 template<>

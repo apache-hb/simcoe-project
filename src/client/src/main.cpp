@@ -204,69 +204,69 @@ static print_backtrace_t print_options_make(io_t *io) {
 }
 
 class DefaultSystemError final : public ISystemError {
-    bt_report_t *m_report = nullptr;
+    bt_report_t *mReport = nullptr;
 
     void error_begin(OsError error) override {
-        m_report = bt_report_new(sm::global_arena());
+        mReport = bt_report_new(sm::global_arena());
         io_t *io = io_stderr();
         io_printf(io, "System error detected: (%s)\n", error.to_string());
     }
 
     void error_frame(const bt_frame_t *it) override {
-        bt_report_add(m_report, it);
+        bt_report_add(mReport, it);
     }
 
     void error_end() override {
         const print_backtrace_t kPrintOptions = print_options_make(io_stderr());
-        print_backtrace(kPrintOptions, m_report);
+        print_backtrace(kPrintOptions, mReport);
         std::exit(CT_EXIT_INTERNAL); // NOLINT
     }
 };
 
 class DefaultWindowEvents final : public sys::IWindowEvents {
-    archive::RecordStore &m_store;
+    archive::RecordStore &mStore;
 
-    sys::WindowPlacement *m_placement = nullptr;
-    archive::RecordLookup m_lookup;
+    sys::WindowPlacement *mWindowPlacement = nullptr;
+    archive::RecordLookup mPlacementLookup;
 
-    render::Context *m_context = nullptr;
-    sys::DesktopInput *m_input = nullptr;
+    render::Context *mContext = nullptr;
+    sys::DesktopInput *mInput = nullptr;
 
     LRESULT event(sys::Window &window, UINT message, WPARAM wparam, LPARAM lparam) override {
-        if (m_input) m_input->window_event(message, wparam, lparam);
+        if (mInput) mInput->window_event(message, wparam, lparam);
         return ImGui_ImplWin32_WndProcHandler(window.get_handle(), message, wparam, lparam);
     }
 
     void resize(sys::Window &, math::int2 size) override {
-        if (m_context != nullptr) {
-            m_context->resize_swapchain(size.as<uint>());
+        if (mContext != nullptr) {
+            mContext->resize_swapchain(size.as<uint>());
         }
     }
 
     void create(sys::Window &window) override {
-        if (m_lookup = m_store.get_record(&m_placement); m_lookup == archive::RecordLookup::eOpened) {
-            window.set_placement(*m_placement);
+        if (mPlacementLookup = mStore.get_record(&mWindowPlacement); mPlacementLookup == archive::RecordLookup::eOpened) {
+            window.set_placement(*mWindowPlacement);
         } else {
             window.center_window(sys::MultiMonitor::ePrimary);
         }
     }
 
     bool close(sys::Window &window) override {
-        if (m_lookup.has_valid_data()) *m_placement = window.get_placement();
+        if (mPlacementLookup.has_valid_data()) *mWindowPlacement = window.get_placement();
         return true;
     }
 
 public:
     DefaultWindowEvents(archive::RecordStore &store)
-        : m_store(store)
+        : mStore(store)
     { }
 
     void attach_render(render::Context *context) {
-        m_context = context;
+        mContext = context;
     }
 
     void attach_input(sys::DesktopInput *input) {
-        m_input = input;
+        mInput = input;
     }
 };
 

@@ -74,7 +74,6 @@ compressonator = find_program('compressonatorcli')
 artery = dependency('artery-font')
 fastgltf = dependency('fastgltf')
 
-
 stb = subproject('stb').get_variable('stb')
 
 dxgi = cpp.find_library('dxgi')

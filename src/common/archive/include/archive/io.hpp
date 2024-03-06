@@ -3,15 +3,9 @@
 #include "core/unique.hpp"
 #include "core/error.hpp"
 
-#include <filesystem>
-
 #include "io.reflect.h"
 
 namespace sm {
-    namespace fs {
-        using Path = std::filesystem::path;
-    }
-
     using IoHandle = sm::FnUniquePtr<io_t, io_close>;
 
     struct Io : IoHandle {

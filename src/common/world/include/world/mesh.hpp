@@ -3,8 +3,6 @@
 #include "core/vector.hpp"
 #include "math/math.hpp"
 
-#include "archive/archive.hpp"
-
 #include "world.reflect.h"
 
 namespace sm::world {
@@ -56,6 +54,10 @@ namespace sm::world {
     struct GeoSphere {
         float radius;
         int subdivisions;
+    };
+
+    struct ImportedMesh {
+        uint buffer;
     };
 
     struct MeshInfo {

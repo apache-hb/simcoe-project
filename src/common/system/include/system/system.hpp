@@ -6,10 +6,22 @@
 #include "core/source_info.h"
 
 #include "core/error.hpp"
-#include "core/text.hpp"
+#include "core/fs.hpp"
 #include "logs/logs.hpp" // IWYU pragma: export
 
 #include "system.reflect.h" // IWYU pragma: export
+
+namespace sm::sys {
+    CT_NORETURN assert_last_error(source_info_t panic, const char *expr);
+
+    OsError get_last_error();
+
+    fs::path get_app_path();
+    fs::path get_appdir();
+
+    void create(HINSTANCE hInstance);
+    void destroy(void);
+}
 
 #define SM_ASSERT_WIN32(expr)                                  \
     do {                                                       \
@@ -29,18 +41,3 @@
         return true;                                                                               \
     }(CT_SOURCE_CURRENT)
 // pass CT_SOURCE_CURRENT as an arg to preserve source location
-
-namespace sm::sys {
-CT_NORETURN
-assert_last_error(source_info_t panic, const char *expr);
-
-OsError get_last_error();
-
-using OsString = sm::CoreString<TCHAR>;
-using OsStringView = sm::CoreStringView<TCHAR>;
-
-//const char *get_exe_path();
-
-void create(HINSTANCE hInstance);
-void destroy(void);
-} // namespace sm::sys

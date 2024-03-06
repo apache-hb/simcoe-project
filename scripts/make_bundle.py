@@ -101,66 +101,11 @@ def hash_file(path):
     with open(path, "rb") as file:
         return hashlib.file_digest(file, 'sha256').hexdigest()
 
-class FileCache:
-    def __init__(self, path):
-        self.path = path
-        if os.path.exists(path):
-            log.info(f"loading cache from {path}")
-            self.cache = json.load(open(path, "r"))
-        else:
-            log.info(f"cache file {path} does not exist, creating a new one")
-            self.cache = {}
-        # dict[str, (str, int)]
-        # where the key is the relative file path
-        # and the value is a tuple of the hash and the last modified time.
-        # if the last modified times dont match, then the hash is compared
-        # if that is also different, then the file is considered dirty
-
-    def write_cache(self):
-        log.info(f"saving cache to {self.path}")
-        json.dump(self.cache, open(self.path, "w"))
-
-    def update_entry(self, path, hash, lasttime):
-        if path not in self.cache:
-            self.cache[path] = (hash, lasttime)
-        else:
-            oldhash, _ = self.cache[path]
-            self.cache[path] = (hash if hash is not None else oldhash, lasttime)
-
-    def is_file_dirty(self, path):
-        entry = self.cache.get(path)
-        if entry is None:
-            self.update_entry(path, None, os.path.getmtime(path))
-            return True
-
-        lasttime = os.path.getmtime(path)
-        if lasttime == entry[1]:
-            return False
-
-        self.update_entry(path, None, lasttime)
-
-        filehash = None
-        if entry[0] is not None:
-            filehash = hash_file(path)
-            if filehash == entry[0]:
-                return False
-
-        # only calculate the hash if we really need to
-        filehash = hash_file(path) if filehash is None else filehash
-        self.update_entry(path, filehash, lasttime)
-        return True
-
-    def any_dirty(self, paths):
-        return any(self.is_file_dirty(path) for path in paths)
-
-cache = FileCache(pj(outputdir, 'cache.json'))
-
 def tool_exit(code):
     if code == 0:
         return
 
     deps.write()
-    cache.write_cache()
     sys.exit(code)
 
 def flatten(items):
@@ -176,11 +121,11 @@ def run_command(cmd):
     # flatten the command list and convert everything to strings
     # makes this function more ergenomic to use
     command = [ str(each) for each in flatten(cmd) ]
-    log.info(f'executing: {command}')
-    with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as proc:
-        proc.communicate(timeout=15)
-        log.info(f'exit code: {proc.returncode}')
-        return proc.returncode
+    log.info(f'executing: {" ".join(command)}')
+
+    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    log.info(f'exit code: {result.returncode}')
+    return result.returncode
 
 # https://stackoverflow.com/questions/5920643/add-an-item-between-each-item-already-in-the-list
 def intersperse(lst, item):
@@ -190,9 +135,6 @@ def intersperse(lst, item):
 
 def copyfile(src, dst):
     deps.add(src)
-    if not cache.is_file_dirty(src):
-        return
-
     log.info(f"copying {src} to {dst}\n")
     shutil.copy(src, dst)
 
@@ -228,9 +170,6 @@ class ShaderCompiler:
     # target is the shader target to compile for
     # entrypoint is the entry point to use
     def compile_hlsl(self, name, file, model, target, entrypoint):
-        if not cache.is_file_dirty(file):
-            return 0
-
         output = os.path.join(self.target_dir, f'{name}.{target}.cso')
         extra_args = [ '-T' + target + '_' + model, '-E' + entrypoint, '-Fo' + output ]
 
@@ -245,14 +184,11 @@ class AtlasGenerator:
 
     def build_atlas(self, options):
         files = self.get_font_files(options)
-        if not cache.any_dirty(files):
-            return 0
-
         em_size = options.get('em_size', 64)
         atlas_path = os.path.join(self.target_dir, options['name'])
         cmd = [
             self.args,
-            intersperse([ f'-font {it}' for it in files ], '-and'),
+            intersperse([ ['-font', it] for it in files ], '-and'),
             '-size', em_size,
             '-arfont', f'{atlas_path}.arfont',
             '-imageout', f'{atlas_path}.png'
@@ -350,9 +286,6 @@ def main():
     for item in bundle['licenses']:
         # copy the license file to <bundle_dir>/licenses
         itempath = os.path.join(inputdir, item['path'])
-        if cache.is_file_dirty(itempath):
-            license_dirty = True
-
         targetpath = os.path.join(licensedir, item['id'].upper() + '.LICENSE.md')
         copyfile(itempath, targetpath)
         licensedata += f'## {item["name"]}\n\n'
@@ -388,8 +321,6 @@ def main():
     compressor = config.get_tool('compressonator')
     for texture in bundle['textures']:
         itempath = os.path.join(inputdir, texture['path'])
-        if not cache.is_file_dirty(itempath):
-            continue
         mips = texture.get('mips', 1)
 
         deps.add(itempath)
@@ -399,7 +330,6 @@ def main():
         tool_exit(result)
 
     deps.write()
-    cache.write_cache()
 
     with tarfile.open(outputfile, "w", format=tarfile.USTAR_FORMAT) as tar:
         tar.add(bundle_dir, arcname=os.path.basename(bundle_dir))

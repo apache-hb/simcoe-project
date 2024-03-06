@@ -202,6 +202,9 @@ variant DebugFlags {
     [[format("auto name")]] case AutoName = (1 << 4) // automatically name objects
     [[format("warp adapter")]] case WarpAdapter = (1 << 5) // use software renderer
     [[format("gpu validation")]] case GpuValidation = (1 << 6) // gpu validation
+    [[format("dstorage debug")]] case DirectStorageDebug = (1 << 7) // DSTORAGE_DEBUG_SHOW_ERRORS
+    [[format("dstorage break on error")]] case DirectStorageBreak = (1 << 8) // DSTORAGE_DEBUG_BREAK_ON_ERROR
+    [[format("dstorage object names")]] case DirectStorageNames = (1 << 9) // DSTORAGE_DEBUG_RECORD_OBJECT_NAMES
 }
 
 [[facade, bitflags]]

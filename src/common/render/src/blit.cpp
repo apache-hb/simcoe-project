@@ -151,7 +151,7 @@ void Context::create_screen_quad() {
         // )
     };
 
-    mCommandList->ResourceBarrier(_countof(kBarriers), kBarriers);
+    mCommandList.submit_barriers(kBarriers);
 
     SM_ASSERT_HR(mCopyCommands->Close());
     SM_ASSERT_HR(mCommandList->Close());
