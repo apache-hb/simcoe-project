@@ -51,7 +51,8 @@ void CopyStorage::create_queue(ID3D12Device1 *device) {
         .SourceType = DSTORAGE_REQUEST_SOURCE_MEMORY,
         .Capacity = DSTORAGE_MAX_QUEUE_CAPACITY,
         .Priority = DSTORAGE_PRIORITY_NORMAL,
-        .Device = device
+        .Name = "Memory -> Video Queue",
+        .Device = device,
     };
 
     SM_ASSERT_HR(mFactory->CreateQueue(&desc, IID_PPV_ARGS(&mQueue)));

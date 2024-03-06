@@ -420,7 +420,7 @@ texindex Context::load_texture_stb(const fs::path& path) {
     D3D12_RANGE read{0, 0};
     void *data;
     SM_ASSERT_HR(upload.map(&read, &data));
-    std::memcpy(data, image.data.data(), kUploadBufferSize);
+    std::memcpy(data, image.data.data(), image.data.size());
     upload.unmap(&read);
 
     reset_direct_commands();
@@ -735,6 +735,7 @@ void Context::destroy_device() {
     mCopyFence.reset();
 
     // assets
+    mTextures.clear();
     destroy_scene();
     destroy_screen_quad();
 
