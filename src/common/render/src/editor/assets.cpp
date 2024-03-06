@@ -30,6 +30,10 @@ void AssetBrowserPanel::draw_images() {
 }
 
 void AssetBrowserPanel::draw_content() {
+    if (ImGui::Button("Import")) {
+        mFileBrowser.Open();
+    }
+
     if (ImGui::BeginTabBar("Assets", ImGuiTabBarFlags_NoCloseWithMiddleMouseButton)) {
         if (ImGui::BeginTabItem("Images")) {
             draw_images();
@@ -38,9 +42,21 @@ void AssetBrowserPanel::draw_content() {
 
         ImGui::EndTabBar();
     }
+
+    mFileBrowser.Display();
+
+    if (mFileBrowser.HasSelected()) {
+        auto selected = mFileBrowser.GetMultiSelected();
+        for (const auto& file : selected) {
+            mContext.load_texture(file, ImageFormat::eUnknown);
+        }
+        mFileBrowser.ClearSelected();
+    }
 }
 
 AssetBrowserPanel::AssetBrowserPanel(render::Context& context)
     : IEditorPanel("Asset Browser")
     , mContext(context)
-{ }
+{
+    mFileBrowser.SetTitle("Import Assets");
+}

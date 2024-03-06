@@ -455,7 +455,6 @@ texindex Context::load_texture_stb(const fs::path& path) {
     SM_ASSERT_HR(mCopyQueue->Wait(*mCopyFence, mCopyFenceValue));
     mDirectQueue->ExecuteCommandLists(1, direct_lists);
 
-    wait_for_gpu();
     flush_copy_queue();
 
     const D3D12_SHADER_RESOURCE_VIEW_DESC kSrvDesc = {
@@ -518,6 +517,9 @@ texindex Context::load_texture_dds(const fs::path& path) {
     wait_for_gpu();
     flush_copy_queue();
 
+    reset_copy_commands();
+    reset_direct_commands();
+
     UpdateSubresources<16>(mCopyCommands.get(), texture.get(), upload.get(), 0, 0, int_cast<uint>(mips.size()), mips.data());
 
     const D3D12_RESOURCE_BARRIER kBarriers[] = {
@@ -549,14 +551,22 @@ texindex Context::load_texture_dds(const fs::path& path) {
 }
 
 texindex Context::load_texture(const fs::path& path, ImageFormat type) {
+    auto str = path.string();
     using enum ImageFormat::Inner;
     switch (type) {
+    case eUnknown:
+        if (texindex i = load_texture_stb(str.c_str()); i != UINT16_MAX)
+            return i;
+        if (texindex i = load_texture_dds(str.c_str()); i != UINT16_MAX)
+            return i;
+        gSink.error("unsupported image type: {}", type);
+        break;
     case ePNG:
     case eJPG:
-        return load_texture_stb(path.string().c_str());
+        return load_texture_stb(str.c_str());
 
     case eBC7:
-        return load_texture_dds(path.string().c_str());
+        return load_texture_dds(str.c_str());
 
     default:
         gSink.error("unsupported image type: {}", type);
