@@ -45,13 +45,14 @@ static bool EnumCombo(const char *label, typename ctu::TypeInfo<T>::Type &choice
 SM_UNUSED
 static bool SliderAngle3(const char *label, Radians<float3> &value, radf min, radf max) {
     auto degrees = math::to_degrees(value);
-    if (ImGui::SliderFloat3(label, degrees.value.data(), min.get_degrees(), max.get_degrees())) {
-        value = to_radians(degrees);
+    if (ImGui::SliderFloat3(label, degrees.data(), min.get_degrees(), max.get_degrees())) {
+        value = Radians(math::to_radians(degrees));
         return true;
     }
     return false;
 }
 
+SM_UNUSED
 static bool SliderQuat(SM_UNUSED const char *label, SM_UNUSED quatf &value, SM_UNUSED radf min, SM_UNUSED radf max) {
 #if 0
     float3 euler = math::to_euler(value);
@@ -207,7 +208,7 @@ bool Context::update_imgui() {
                                   name.data())) {
                 auto &[position, rotation, scale] = primitive.mTransform;
                 ImGui::SliderFloat3("Position", position.data(), -10.f, 10.f);
-                MyGui::SliderQuat("Rotation", rotation, -180._deg, 180._deg);
+                MyGui::SliderAngle3("Rotation", rotation, -180._deg, 180._deg);
                 ImGui::SliderFloat3("Scale", scale.data(), 0.1f, 10.f);
 
                 switch (info.type.as_enum()) {

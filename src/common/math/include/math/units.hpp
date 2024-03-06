@@ -104,6 +104,26 @@ namespace sm::math {
     template<typename T>
     constexpr T cos(T value) { return std::cos(value); }
 
+    template<typename T>
+    struct SinCos { T sin; T cos; };
+
+    // TODO: do an approximation to get sin and cos at the same time
+    template<IsAngle T>
+    constexpr auto sincos(T angle) -> SinCos<typename T::Type> {
+        return {math::sin(angle), math::cos(angle)};
+    }
+
+    template<typename T>
+    constexpr SinCos<T> sincos(T angle) {
+        return {math::sin(angle), math::cos(angle)};
+    }
+
+    template<IsAngle T>
+    constexpr auto acos(T value) -> T::Type { return std::acos(value.get_radians()); }
+
+    template<typename T>
+    constexpr T acos(T value) { return std::acos(value); }
+
     template<IsAngle T>
     bool isinf(T angle) { return std::isinf(angle.get_radians()); }
 
@@ -111,23 +131,23 @@ namespace sm::math {
     bool isinf(T value) { return std::isinf(value); }
 
     template<IsAngle T>
-    constexpr T to_radians(T degrees) {
-        return degrees.to_radians();
+    constexpr auto to_radians(T angle) -> T::Type {
+        return angle.get_radians();
     }
 
     template<typename T>
-    constexpr T to_radians(T degrees) {
-        return degrees * kDegToRad<T>;
+    constexpr T to_radians(T angle) {
+        return angle * kDegToRad<T>;
     }
 
     template<IsAngle T>
-    constexpr T to_degrees(T radians) {
-        return radians.to_degrees();
+    constexpr auto to_degrees(T angle) -> T::Type {
+        return angle.get_degrees();
     }
 
     template<typename T>
-    constexpr T to_degrees(T radians) {
-        return radians * kRadToDeg<T>;
+    constexpr T to_degrees(T angle) {
+        return angle * kRadToDeg<T>;
     }
 
     // NOLINTBEGIN

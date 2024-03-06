@@ -38,15 +38,6 @@ namespace sm::math {
     }
 
     template<typename T>
-    struct SinCos { T sin; T cos; };
-
-    // TODO: do an approximation to get both at once
-    template<typename T>
-    constexpr SinCos<T> sincos(T angle) {
-        return {math::sin(angle), math::cos(angle)};
-    }
-
-    template<typename T>
     constexpr T fmod(T x, T y) {
         return std::fmod(x, y);
     }
@@ -457,26 +448,28 @@ namespace sm::math {
     // TODO: this doesnt work, need to do some actual math studying
     template <typename T>
     struct alignas(sizeof(T) * 4) Quat {
+        using Rad = Radians<T>;
         using Vec3 = Vec3<T>;
         using Vec4 = Vec4<T>;
         using Mat4x4 = Mat4x4<T>;
 
         Vec3 v;
-        T angle;
+        Rad angle;
 
         constexpr Quat() = default;
-        constexpr Quat(const Vec3 &v, T w)
+        constexpr Quat(const Vec3 &v, Rad w)
             : v(v)
             , angle(w)
         { }
 
-        constexpr Quat(T x, T y, T z, T w)
+        constexpr Quat(T x, T y, T z, Rad w)
             : v(x, y, z)
             , angle(w)
         { }
 
         static constexpr Quat identity() {
-            return {Vec3::zero(), 1};
+            // TODO: is 1rad correct?
+            return {Vec3::zero(), Rad(1)};
         }
 
         constexpr Quat conjugate() const {
@@ -643,7 +636,7 @@ namespace sm::math {
         }
 #endif
 
-        constexpr void decompose(Vec3 &axis, T &angle) const {
+        constexpr void decompose(Vec3 &axis, Rad &angle) const {
             axis = v.normalized();
             angle = std::acos(angle) * T(2);
         }
@@ -653,9 +646,9 @@ namespace sm::math {
     struct alignas(sizeof(T) * 16) Mat4x4 {
         using Type = T;
         using Rad = Radians<T>;
-        using Rad3 = Vec3<Rad>;
         using Vec4 = Vec4<T>;
         using Vec3 = Vec3<T>;
+        using Rad3 = Radians<Vec3>;
         using Quat = Quat<T>;
 
         union {
@@ -825,13 +818,13 @@ namespace sm::math {
         // rotation related functions
 
         /// @brief creates a rotation matrix from a vector
-        /// @note the vector is expected to be in radians
         /// @param rotation the rotation vector
         /// @return the rotation matrix
         static constexpr Mat4x4 rotation(const Rad3& rotation) {
-            auto [sr, cr] = math::sincos(rotation.roll);
-            auto [sy, cy] = math::sincos(rotation.yaw);
-            auto [sp, cp] = math::sincos(rotation.pitch);
+            auto v = rotation.get_radians();
+            auto [sr, cr] = math::sincos(v.roll);
+            auto [sp, cp] = math::sincos(v.pitch);
+            auto [sy, cy] = math::sincos(v.yaw);
 
             Vec4 r0 = {
                 cr * cy + sr * sp * sy,
@@ -862,7 +855,7 @@ namespace sm::math {
         static constexpr Mat4x4 rotation(const Quat& q) {
             // https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/jay.htm
             auto [x, y, z] = q.v;
-            auto w = q.angle;
+            T w = q.angle.get_radians();
 
             Vec4 x0 = { w, z, -y, x };
             Vec4 y0 = { -z, w, x, y };

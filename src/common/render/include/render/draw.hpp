@@ -78,7 +78,7 @@ namespace sm::draw {
 
     struct Transform {
         float3 position;
-        quatf rotation;
+        Radians<float3> rotation; // TODO: really need to use quatf
         float3 scale = 1.f;
 
         float4x4 matrix() const;
