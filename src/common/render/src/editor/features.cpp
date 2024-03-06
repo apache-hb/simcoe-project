@@ -30,12 +30,6 @@ namespace MyGui {
 void FeatureSupportPanel::draw_content() {
     const auto& feat = mContext.mFeatureSupport;
 
-    if (mModule == nullptr) {
-        ImGui::TextColored(ImVec4(1, 0, 0, 1), "Failed to load D3D12 Agility SDK Configuration");
-    } else {
-        ImGui::TextColored(ImVec4(0, 1, 0, 1), "D3D12 Agility SDK Configuration Loaded");
-    }
-
     MyGui::TextReflect<render::FeatureLevel>("Feature Level", feat.MaxSupportedFeatureLevel());
     MyGui::TextReflect<render::ShaderModel>("Shader Model", feat.HighestShaderModel());
     MyGui::TextReflect<render::RootSignatureVersion>("Root Signature Version", feat.HighestRootSignatureVersion());
@@ -216,16 +210,4 @@ void FeatureSupportPanel::draw_content() {
 FeatureSupportPanel::FeatureSupportPanel(render::Context &context)
     : IEditorPanel("D3D12 Feature Support")
     , mContext(context)
-    , mModule(LoadLibrary(TEXT(".\\redist\\d3d12\\d3d12core.dll")))
-{
-    if (mModule == nullptr) {
-        gSink.error("Failed to load d3d12core.dll {}", sys::get_last_error());
-    } else {
-        UINT *version = (UINT*)GetProcAddress(mModule, "D3D12SDKVersion");
-        if (version == nullptr) {
-            gSink.error("Failed to load D3D12SDKVersion {}", sys::get_last_error());
-        } else {
-            gSink.info("D3D12SDKVersion: {}", *version);
-        }
-    }
-}
+{ }

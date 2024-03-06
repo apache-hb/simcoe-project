@@ -2,7 +2,7 @@
 #include "render/render.hpp"
 #include "render/commands.hpp"
 
-#include "d3dx12_barriers.h"
+#include "directx/d3dx12_barriers.h"
 
 using namespace sm;
 using namespace sm::render;

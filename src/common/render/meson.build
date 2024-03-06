@@ -41,7 +41,8 @@ deps = [
     core, logs, system, math, archive,
     d3d12, d3dx12, d3d12ma, imgui,
     dds_texture_loader, world, stb,
-    world, implot, imguizmo, filebrowser
+    world, implot, imguizmo, filebrowser,
+    nvapi
 ]
 
 librender = library('render', src,
@@ -54,7 +55,7 @@ libvendor = shared_module('vendor', 'src/vendor.cpp', dependencies : core)
 
 render = declare_dependency(
     link_with : librender,
-    objects : libvendor.extract_all_objects(),
+    objects : libvendor.extract_all_objects(recursive : true),
     include_directories : [ render_include, librender.private_dir_include() ],
     dependencies : deps
 )

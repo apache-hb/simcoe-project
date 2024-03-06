@@ -88,7 +88,8 @@ dxgi = cpp.find_library('dxgi')
 dxguid = cpp.find_library('dxguid')
 
 d3d12 = dependency('d3d12')
-d3dx12 = dependency('d3dx12')
+d3dx12 = dependency('directx-headers')
+nvapi = dependency('nvapi')
 
 debug_render = get_option('debug_render').disable_auto_if(package_type == 'release')
 enable_agility = get_option('enable_agility').allowed()

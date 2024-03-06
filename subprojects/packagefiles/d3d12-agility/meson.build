@@ -40,33 +40,6 @@ d3d12 = declare_dependency(
     include_directories : d3d12_include
 )
 
-# build d3dx12
-d3dx12_include = include_directories('build/native/include/d3dx12')
-d3dx12_src = 'build/native/src/d3dx12/d3dx12_property_format_table.cpp'
-
-if get_option('cpp_eh') == 'none'
-    awful = generator(find_program('awful.py'),
-        output : '@BASENAME@.cpp',
-        arguments : [ '@INPUT@', '@OUTPUT@' ]
-    )
-    src = awful.process(d3dx12_src)
-else
-    src = d3dx12_src
-endif
-
-libd3dx12 = library('d3dx12', src,
-    cpp_args : [ '-D_HAS_EXCEPTIONS=0' ],
-    dependencies : d3d12,
-    include_directories : d3dx12_include
-)
-
-d3dx12 = declare_dependency(
-    dependencies : d3d12,
-    include_directories : d3dx12_include,
-    link_with : libd3dx12
-)
-
 # export everything
 meson.override_find_program('d3dconfig', d3dconfig)
 meson.override_dependency('d3d12', d3d12)
-meson.override_dependency('d3dx12', d3dx12)

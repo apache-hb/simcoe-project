@@ -10,4 +10,4 @@ patch_directory = d3d12-agility
 
 [provide]
 program_names = d3dconfig
-dependency_names = d3d12, d3dx12
+dependency_names = d3d12

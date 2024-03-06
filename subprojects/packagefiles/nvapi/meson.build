@@ -3,14 +3,19 @@ project('nvapi', 'c',
 )
 
 host_cpu = host_machine.cpu_family()
-cpp = meson.get_compiler('cpp')
-
-bindir = meson.current_source_dir()
+cc = meson.get_compiler('c')
 
 if host_cpu == 'x86_64'
-    bindir = bindir / 'amd64'
+    libnvapi = cc.find_library('nvapi64', dirs : meson.current_source_dir() / 'amd64')
 elif host_cpu == 'x86'
-    bindir = bindir / 'x86'
+    libnvapi = cc.find_library('nvapi', dirs : meson.current_source_dir() / 'x86')
 else
     error('NVAPI is not supported on ' + host_cpu)
 endif
+
+inc = include_directories('.')
+nvapi_dep = declare_dependency(
+    include_directories : inc
+)
+
+meson.override_dependency('nvapi', nvapi_dep)
