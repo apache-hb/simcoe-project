@@ -2,6 +2,9 @@ threads_include = include_directories('.', 'include')
 
 src = [
     'src/threads.cpp',
+    'src/geometry.cpp',
+    'src/schedule.cpp',
+
     reflect.process('data/threads.ct')
 ]
 

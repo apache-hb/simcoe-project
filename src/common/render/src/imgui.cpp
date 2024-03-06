@@ -179,14 +179,14 @@ bool Context::update_imgui() {
             ImGui::ColorEdit3("Colour", colour.data(), ImGuiColorEditFlags_Float);
 
             if (ImGui::Button("Create")) {
-                mPrimitives.push_back(create_mesh(info, colour));
+                mMeshes.push_back(create_mesh(info, colour));
                 ImGui::CloseCurrentPopup();
             }
 
             ImGui::EndPopup();
         }
 
-        for (auto &primitive : mPrimitives) {
+        for (auto &primitive : mMeshes) {
             const auto &info = primitive.mInfo;
             using Reflect = ctu::TypeInfo<draw::MeshType>;
             auto name = Reflect::to_string(info.type);

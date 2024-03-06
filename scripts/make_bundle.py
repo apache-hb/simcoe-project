@@ -124,7 +124,8 @@ def run_command(cmd):
     log.info(f'executing: {" ".join(command)}')
 
     result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    log.info(f'exit code: {result.returncode}')
+    if result.returncode != 0:
+        log.info(f'exit code: {result.returncode}')
     return result.returncode
 
 # https://stackoverflow.com/questions/5920643/add-an-item-between-each-item-already-in-the-list

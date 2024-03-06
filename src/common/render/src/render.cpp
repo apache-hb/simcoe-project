@@ -155,7 +155,7 @@ void Context::create_device(size_t index) {
     gSink.info("| feature level: {}", fl);
     gSink.info("| flags: {}", mDebugFlags);
 
-    create_dstorage();
+    mStorage.create_queue(mDevice.get());
 }
 
 static constexpr D3D12MA::ALLOCATOR_FLAGS kAllocatorFlags = D3D12MA::ALLOCATOR_FLAG_DEFAULT_POOLS_NOT_ZEROED | D3D12MA::ALLOCATOR_FLAG_SINGLETHREADED;
@@ -186,6 +186,12 @@ void Context::create_copy_queue() {
     SM_ASSERT_HR(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS(&mCopyAllocator)));
     SM_ASSERT_HR(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, mCopyAllocator.get(), nullptr, IID_PPV_ARGS(&mCopyCommands)));
     SM_ASSERT_HR(mCopyCommands->Close());
+}
+
+void Context::destroy_copy_queue() {
+    mCopyCommands.reset();
+    mCopyAllocator.reset();
+    mCopyQueue.reset();
 }
 
 void Context::reset_copy_commands() {
@@ -296,25 +302,6 @@ Result Context::create_resource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_
     return mAllocator->CreateResource(&kAllocDesc, &desc, state, clear, &resource.mAllocation, IID_PPV_ARGS(&resource.mResource));
 }
 
-Result Context::load_dds_texture(Object<ID3D12Resource>& texture, sm::Vector<D3D12_SUBRESOURCE_DATA>& mips, const char *name) {
-    auto data = mConfig.bundle.get_texture(name);
-    Result hr = DirectX::LoadDDSTextureFromMemory(
-        mDevice.get(),
-        data.data(),
-        data.size_bytes(),
-        &texture,
-        mips
-    );
-
-    if (hr.success()) {
-        texture.rename(name);
-        return S_OK;
-    }
-
-    gSink.error("failed to load dds texture: {}", hr);
-    return hr;
-}
-
 void Context::copy_buffer(Object<ID3D12GraphicsCommandList1>& list, Resource& dst, Resource& src, size_t size) {
     list->CopyBufferRegion(*dst.mResource, 0, *src.mResource, 0, size);
 }
@@ -382,17 +369,17 @@ static constexpr draw::MeshInfo kInfo = {
 };
 
 void Context::init_scene() {
-    mPrimitives.push_back(create_mesh(kInfo, float3(1.f, 0.f, 0.f)));
+    mMeshes.push_back(create_mesh(kInfo, float3(1.f, 0.f, 0.f)));
 }
 
 void Context::create_scene() {
-    for (auto& primitive : mPrimitives) {
+    for (auto& primitive : mMeshes) {
         primitive = create_mesh(primitive.mInfo, float3(1.f, 0.f, 0.f));
     }
 }
 
 void Context::destroy_scene() {
-    for (auto& primitive : mPrimitives) {
+    for (auto& primitive : mMeshes) {
         primitive.mVertexBuffer.reset();
         primitive.mIndexBuffer.reset();
     }
@@ -407,6 +394,105 @@ texindex Context::load_texture(const fs::path& path) {
     }
 
     return UINT16_MAX;
+}
+
+texindex Context::load_texture(const ImageData& image) {
+    Resource texture;
+    Resource upload;
+
+    const auto kTextureDesc = CD3DX12_RESOURCE_DESC::Tex2D(
+        DXGI_FORMAT_R8G8B8A8_UNORM,
+        image.size.width,
+        image.size.height,
+        1, 1
+    );
+
+    SM_ASSERT_HR(create_resource(texture, D3D12_HEAP_TYPE_DEFAULT, kTextureDesc, D3D12_RESOURCE_STATE_COPY_DEST));
+
+    const uint kUploadBufferSize = GetRequiredIntermediateSize(*texture.mResource, 0, 1);
+    const auto kUploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kUploadBufferSize);
+
+    SM_ASSERT_HR(create_resource(upload, D3D12_HEAP_TYPE_UPLOAD, kUploadBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ));
+
+    texture.rename("temp texture");
+    upload.rename("temp texture (upload)");
+
+    D3D12_RANGE read{0, 0};
+    void *data;
+    SM_ASSERT_HR(upload.map(&read, &data));
+    std::memcpy(data, image.data.data(), image.data.size());
+    upload.unmap(&read);
+
+    wait_for_gpu();
+
+    reset_direct_commands();
+    reset_copy_commands();
+
+    const D3D12_SUBRESOURCE_DATA kTextureData = {
+        .pData = image.data.data(),
+        .RowPitch = int_cast<LONG_PTR>(image.size.width * 4),
+        .SlicePitch = int_cast<LONG_PTR>(image.size.width * image.size.height * 4),
+    };
+
+    UpdateSubresources<1>(mCopyCommands.get(), *texture.mResource, upload.mResource.get(), 0, 0, 1, &kTextureData);
+
+    const D3D12_RESOURCE_BARRIER kBarriers[] = {
+        CD3DX12_RESOURCE_BARRIER::Transition(
+            *texture.mResource,
+            D3D12_RESOURCE_STATE_COPY_DEST,
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+        )
+    };
+
+    mCommandList.submit_barriers(kBarriers);
+
+    SM_ASSERT_HR(mCopyCommands->Close());
+    SM_ASSERT_HR(mCommandList->Close());
+
+    ID3D12CommandList *copy_lists[] = { mCopyCommands.get() };
+    mCopyQueue->ExecuteCommandLists(1, copy_lists);
+    SM_ASSERT_HR(mCopyQueue->Signal(*mCopyFence, mCopyFenceValue));
+
+    ID3D12CommandList *direct_lists[] = { mCommandList.get() };
+    SM_ASSERT_HR(mDirectQueue->Wait(*mCopyFence, mCopyFenceValue));
+    mDirectQueue->ExecuteCommandLists(1, direct_lists);
+
+    wait_for_gpu();
+    flush_copy_queue();
+
+    const D3D12_SHADER_RESOURCE_VIEW_DESC kSrvDesc = {
+        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+        .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
+        .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+        .Texture2D = {
+            .MostDetailedMip = 0,
+            .MipLevels = 1,
+            .ResourceMinLODClamp = 0.f,
+        },
+    };
+
+    SrvIndex index = mSrvPool.allocate();
+    auto cpu = mSrvPool.cpu_handle(index);
+    mDevice->CreateShaderResourceView(*texture.mResource, &kSrvDesc, cpu);
+
+    Texture tex = {
+        .path = "temp texture",
+        .name = "temp texture",
+        .format = ImageFormat::eUnknown,
+        .size = image.size,
+        .mips = 1,
+
+        .resource = std::move(texture),
+        .srv = index,
+    };
+
+    texindex idx = int_cast<texindex>(mTextures.size());
+    mTextures.emplace_back(std::move(tex));
+    return idx;
+}
+
+void Context::create_world_resources() {
+    // TODO:
 }
 
 bool Context::create_texture_stb(Texture& result, const fs::path& path) {
@@ -431,7 +517,7 @@ bool Context::create_texture_stb(Texture& result, const fs::path& path) {
     SM_ASSERT_HR(create_resource(upload, D3D12_HEAP_TYPE_UPLOAD, kUploadBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ));
 
     texture.rename(path.string());
-    upload.rename(fmt::format("{}_upload", path));
+    upload.rename(fmt::format("{} (upload)", path));
 
     D3D12_RANGE read{0, 0};
     void *data;
@@ -492,7 +578,8 @@ bool Context::create_texture_stb(Texture& result, const fs::path& path) {
     mDevice->CreateShaderResourceView(*texture.mResource, &kSrvDesc, cpu);
 
     result = Texture {
-        .name = path.string(),
+        .path = path,
+        .name = path.filename().string(),
         .format = image.format,
         .size = image.size,
         .mips = 1,
@@ -523,16 +610,15 @@ bool Context::create_texture_dds(Texture& result, const fs::path& path) {
         return false;
     }
 
-    texture.rename(path.string());
-
     const uint kUploadBufferSize = GetRequiredIntermediateSize(*texture, 0, int_cast<uint>(mips.size()));
     const auto kUploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kUploadBufferSize);
 
     Resource upload;
 
-    upload.rename(fmt::format("{}_upload", path));
-
     SM_ASSERT_HR(create_resource(upload, D3D12_HEAP_TYPE_UPLOAD, kUploadBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ));
+
+    texture.rename(path.string());
+    upload.rename(fmt::format("{} (upload)", path));
 
     // TODO: really need an async copy queue on another thread
     wait_for_gpu();
@@ -567,8 +653,10 @@ bool Context::create_texture_dds(Texture& result, const fs::path& path) {
     wait_for_gpu();
     flush_copy_queue();
 
+    auto desc = texture->GetDesc();
+
     const D3D12_SHADER_RESOURCE_VIEW_DESC kSrvDesc = {
-        .Format = DXGI_FORMAT_BC7_UNORM,
+        .Format = desc.Format,
         .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
         .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
         .Texture2D = {
@@ -583,9 +671,10 @@ bool Context::create_texture_dds(Texture& result, const fs::path& path) {
     mDevice->CreateShaderResourceView(*texture, &kSrvDesc, cpu);
 
     result = Texture {
-        .name = path.string(),
+        .path = path,
+        .name = path.filename().string(),
         .format = ImageFormat::eBC7,
-        .size = { 0, 0 },
+        .size = { int_cast<uint>(desc.Width), int_cast<uint>(desc.Height) },
         .mips = int_cast<uint>(mips.size()),
 
         .resource = {
@@ -624,7 +713,7 @@ bool Context::create_texture(Texture& result, const fs::path& path, ImageFormat 
     return false;
 }
 
-Context::Primitive Context::create_mesh(const draw::MeshInfo& info, const float3& colour) {
+Mesh Context::create_mesh(const draw::MeshInfo& info, const float3& colour) {
     auto mesh = draw::primitive(info);
 
     uint32_t col = pack_colour(float4(colour, 1.0f));
@@ -642,7 +731,7 @@ Context::Primitive Context::create_mesh(const draw::MeshInfo& info, const float3
     const auto kVertexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kVertexBufferSize);
     const auto kIndexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kIndexBufferSize);
 
-    Primitive primitive = {
+    Mesh primitive = {
         .mInfo = info,
         .mIndexCount = int_cast<uint>(mesh.indices.size()),
     };
@@ -695,10 +784,10 @@ Context::Primitive Context::create_mesh(const draw::MeshInfo& info, const float3
 
     ID3D12CommandList *copy_lists[] = { mCopyCommands.get() };
     mCopyQueue->ExecuteCommandLists(1, copy_lists);
-    mCopyQueue->Signal(*mCopyFence, mCopyFenceValue);
+    SM_ASSERT_HR(mCopyQueue->Signal(*mCopyFence, mCopyFenceValue));
 
     ID3D12CommandList *direct_lists[] = { mCommandList.get() };
-    mDirectQueue->Wait(*mCopyFence, mCopyFenceValue);
+    SM_ASSERT_HR(mDirectQueue->Wait(*mCopyFence, mCopyFenceValue));
     mDirectQueue->ExecuteCommandLists(1, direct_lists);
 
     primitive.mVertexBufferView = {
@@ -777,9 +866,11 @@ void Context::destroy_textures() {
 }
 
 void Context::create_textures() {
+    // TODO: create default texture
+
     for (auto& texture : mTextures) {
         // recreate all textures
-        create_texture(texture, texture.name, texture.format);
+        create_texture(texture, texture.path, texture.format);
     }
 }
 
@@ -797,7 +888,7 @@ void Context::destroy_device() {
     mCopyFence.reset();
 
     // assets
-    mTextures.clear();
+    destroy_textures();
     destroy_scene();
     destroy_screen_quad();
 
@@ -806,9 +897,7 @@ void Context::destroy_device() {
     destroy_blit_pipeline();
 
     // copy commands
-    mCopyCommands.reset();
-    mCopyAllocator.reset();
-    mCopyQueue.reset();
+    destroy_copy_queue();
 
     // direct commands
     mDirectQueue.reset();
@@ -816,6 +905,7 @@ void Context::destroy_device() {
 
     // allocator
     mAllocator.reset();
+    mStorage.destroy_queue();
 
     // descriptor heaps
     mRtvPool.reset();
@@ -854,7 +944,7 @@ void Context::create() {
 
     mConfig.bundle.get_font("public_sans");
 
-    mWorld = world::empty_world("test_world");
+    mStorage.create(mDebugFlags);
 
     create_device(index);
     create_allocator();
@@ -875,6 +965,9 @@ void Context::destroy() {
 
     destroy_frame_graph();
     destroy_imgui();
+
+    mStorage.destroy_queue();
+    mStorage.destroy();
 
     SM_ASSERT_WIN32(CloseHandle(mCopyFenceEvent));
     SM_ASSERT_WIN32(CloseHandle(mFenceEvent));
@@ -908,12 +1001,7 @@ void Context::update_adapter(size_t index) {
 void Context::recreate_device() {
     wait_for_gpu();
     destroy_imgui_backend();
-    destroy_frame_graph();
 
-    // TODO: we dont actually need to destroy the dstorage factory
-    // just the queue, its also slow to recreate the factory.
-    // might be worth handling that case in the future
-    destroy_dstorage();
     destroy_device();
 
     create_device(mAdapterIndex);
@@ -923,6 +1011,7 @@ void Context::recreate_device() {
     create_pipeline();
     create_assets();
 
+    create_textures();
     create_screen_quad();
     create_scene();
     create_frame_graph();

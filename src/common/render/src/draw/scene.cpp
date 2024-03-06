@@ -48,7 +48,7 @@ void draw::draw_scene(graph::FrameGraph& graph, graph::Handle& target) {
 
         auto [width, height] = context.mSceneSize.as<float>();
 
-        for (auto& primitive : context.mPrimitives) {
+        for (auto& primitive : context.mMeshes) {
             auto model = primitive.mTransform.matrix().transpose();
             auto mvp = context.camera.mvp(width / height, model).transpose();
 

@@ -25,6 +25,7 @@ void AssetBrowserPanel::draw_images() {
 
     for (size_t i = 0; i < textures.size(); i++) {
         const auto& texture = textures[i];
+        const auto& path = texture.path;
         const auto& name = texture.name;
         auto gpu = mContext.mSrvPool.gpu_handle(texture.srv);
         ImGui::PushID((int)i);
@@ -32,7 +33,12 @@ void AssetBrowserPanel::draw_images() {
         if (ImGui::ImageButton(name.c_str(), (ImTextureID)gpu.ptr, math::float2(mThumbnailSize))) {
 
         }
-        ImGui::SetItemTooltip("%s", name.c_str());
+        if (ImGui::BeginItemTooltip()) {
+            ImGui::Text("%s (%s)", path.string().c_str(), ReflectImageType::to_string(texture.format).c_str());
+            auto [w, h] = texture.size;
+            ImGui::Text("%u x %u (%u mips)", w, h, texture.mips);
+            ImGui::EndTooltip();
+        }
         MyGui::TextCutoff(name.c_str(), mThumbnailSize);
         ImGui::EndGroup();
         ImGui::PopID();
@@ -74,7 +80,11 @@ void AssetBrowserPanel::draw_content() {
     if (mFileBrowser.HasSelected()) {
         auto selected = mFileBrowser.GetMultiSelected();
         for (const auto& file : selected) {
-            mContext.load_texture(file);
+            auto ext = file.extension();
+            if (ext == ".png" || ext == ".jpg" || ext == ".bmp" || ext == ".dds")
+                mContext.load_texture(file);
+            else if (ext == ".glb" || ext == ".gltf")
+                mContext.load_gltf(file);
         }
         mFileBrowser.ClearSelected();
     }

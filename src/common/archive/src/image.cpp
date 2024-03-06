@@ -36,7 +36,7 @@ ImageData sm::load_image(sm::Span<const uint8> data) {
     int width, height, channels;
     stbi_uc *pixels = stbi_load_from_memory(data.data(), int_cast<int>(data.size()), &width, &height, &channels, 4);
     if (!pixels) {
-        gSink.error("Failed to load image: {}", stbi_failure_reason());
+        gSink.warn("Failed to parse image data: {}", stbi_failure_reason());
         return {};
     }
 

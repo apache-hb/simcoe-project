@@ -83,16 +83,38 @@ namespace sm::render {
         ImageFormat format;
         uint2 size;
         uint mips;
+        sm::Vector<uint8> data;
 
         Resource resource;
         SrvIndex srv;
     };
 
-    struct Scene {
-        fs::path path;
+    struct Mesh {
+        draw::MeshInfo mInfo;
+        draw::Transform mTransform;
 
-        // indices into the contexts texture array
-        sm::Vector<texindex> textures;
+        Resource mVertexBuffer;
+        VertexBufferView mVertexBufferView;
+
+        Resource mIndexBuffer;
+        IndexBufferView mIndexBufferView;
+
+        uint32 mIndexCount;
+    };
+
+    struct MeshResource {
+        Resource vbo;
+        VertexBufferView vbo_view;
+
+        Resource ibo;
+        IndexBufferView ibo_view;
+
+        uint32 index_count;
+    };
+
+    struct TextureResource {
+        Resource resource;
+        SrvIndex srv;
     };
 
     struct Context {
@@ -129,8 +151,6 @@ namespace sm::render {
         void create_allocator();
 
         Result create_resource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state, const D3D12_CLEAR_VALUE *clear = nullptr);
-
-        Result load_dds_texture(Object<ID3D12Resource>& texture, sm::Vector<D3D12_SUBRESOURCE_DATA>& mips, const char *name);
 
         void serialize_root_signature(Object<ID3D12RootSignature>& signature, const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& desc);
 
@@ -171,6 +191,8 @@ namespace sm::render {
         Object<ID3D12CommandAllocator> mCopyAllocator;
         Object<ID3D12GraphicsCommandList1> mCopyCommands;
         void create_copy_queue();
+        void destroy_copy_queue();
+
         void reset_copy_commands();
 
         Object<ID3D12Fence> mCopyFence;
@@ -203,30 +225,28 @@ namespace sm::render {
         void create_primitive_pipeline();
         void destroy_primitive_pipeline();
 
-        struct Primitive {
-            draw::MeshInfo mInfo;
-            draw::Transform mTransform;
+        struct {
+            // meshes and textures both line up with the objects, and images in the info struct
+            // nodes are all done inside the info struct
+            world::WorldInfo info;
+            sm::Vector<MeshResource> meshes;
+            sm::Vector<TextureResource> textures;
+        } mWorld;
 
-            Resource mVertexBuffer;
-            VertexBufferView mVertexBufferView;
+        void create_world_resources();
 
-            Resource mIndexBuffer;
-            IndexBufferView mIndexBufferView;
+        sm::Vector<Mesh> mMeshes;
 
-            uint32 mIndexCount;
-        };
-
-        sm::Vector<Primitive> mPrimitives;
         sm::Vector<Texture> mTextures;
-
         texindex load_texture(const fs::path& path);
+        texindex load_texture(const ImageData& image);
 
-        Primitive create_mesh(const draw::MeshInfo& info, const float3& colour);
+        Mesh create_mesh(const draw::MeshInfo& info, const float3& colour);
         bool create_texture(Texture& result, const fs::path& path, ImageFormat type);
         bool create_texture_stb(Texture& result, const fs::path& path);
         bool create_texture_dds(Texture& result, const fs::path& path);
 
-        bool load_gltf_scene(Scene& scene, const fs::path& path);
+        bool load_gltf(const fs::path& path);
 
         void init_scene();
         void create_scene();
@@ -256,9 +276,6 @@ namespace sm::render {
         graph::Handle mSwapChainHandle;
         graph::Handle mSceneTargetHandle;
         graph::FrameGraph mFrameGraph;
-
-        // scene
-        world::WorldInfo mWorld;
 
         /// synchronization
         void build_command_list();

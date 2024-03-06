@@ -43,16 +43,6 @@ namespace sm::world {
         sm::Vector<byte> data;
     };
 
-    struct VertexData {
-        sm::String name;
-        sm::Vector<Vertex> vertices;
-    };
-
-    struct IndexData {
-        sm::String name;
-        sm::Vector<vtxindex> indices;
-    };
-
     struct WorldInfo {
         sm::String name;
         uint16 root_node;
