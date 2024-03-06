@@ -944,6 +944,8 @@ void Context::create() {
 
     mConfig.bundle.get_font("public_sans");
 
+    mWorld.info = world::empty_world("empty_world");
+
     mStorage.create(mDebugFlags);
 
     create_device(index);

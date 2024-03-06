@@ -43,7 +43,7 @@ namespace sm::math {
     // TODO: do an approximation to get both at once
     template<typename T>
     constexpr SinCos<T> sincos(T angle) {
-        return {std::sin(angle), std::cos(angle)};
+        return {math::sin(angle), math::cos(angle)};
     }
 
     template<typename T>
@@ -828,7 +828,7 @@ namespace sm::math {
         /// @note the vector is expected to be in radians
         /// @param rotation the rotation vector
         /// @return the rotation matrix
-        static constexpr Mat4x4 rotation(const Vec3& rotation) {
+        static constexpr Mat4x4 rotation(const Rad3& rotation) {
             auto [sr, cr] = math::sincos(rotation.roll);
             auto [sy, cy] = math::sincos(rotation.yaw);
             auto [sp, cp] = math::sincos(rotation.pitch);
@@ -881,7 +881,7 @@ namespace sm::math {
         }
 
         // full transform
-        static constexpr Mat4x4 transform(const Vec3& translation, const Vec3& rotation, const Vec3& scale) {
+        static constexpr Mat4x4 transform(const Vec3& translation, const Rad3& rotation, const Vec3& scale) {
             return Mat4x4::translation(translation) * Mat4x4::rotation(rotation) * Mat4x4::scale(scale);
         }
 

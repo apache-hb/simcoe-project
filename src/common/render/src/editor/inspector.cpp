@@ -11,10 +11,10 @@ void InspectorPanel::draw_content() {
         ImGui::Text("Nothing selected");
         break;
     case ItemIndex::eNode:
-        ImGui::Text("Node %s selected", mContext.mWorld.nodes[mSelected.index].name.data());
+        ImGui::Text("Node %s selected", mContext.mWorld.info.nodes[mSelected.index].name.data());
         break;
     case ItemIndex::eObject:
-        ImGui::Text("Object %s selected", mContext.mWorld.objects[mSelected.index].name.data());
+        ImGui::Text("Object %s selected", mContext.mWorld.info.objects[mSelected.index].name.data());
         break;
     }
 }

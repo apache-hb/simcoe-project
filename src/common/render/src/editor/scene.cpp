@@ -38,7 +38,7 @@ static sm::StringView get_item_name(const world::WorldInfo& info, ItemIndex inde
 }
 
 bool ScenePanel::begin_tree_node(ItemIndex index, ImGuiTreeNodeFlags flags) {
-    auto name = get_item_name(mContext.mWorld, index);
+    auto name = get_item_name(mContext.mWorld.info, index);
     if (index == mSelected) {
         flags |= ImGuiTreeNodeFlags_Selected;
     }
@@ -68,7 +68,7 @@ bool ScenePanel::begin_tree_node(ItemIndex index, ImGuiTreeNodeFlags flags) {
 }
 
 void ScenePanel::draw_node(uint16 index) {
-    auto& node = mContext.mWorld.nodes[index];
+    auto& node = mContext.mWorld.info.nodes[index];
     ImGui::PushID((void*)&node);
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
@@ -87,7 +87,7 @@ void ScenePanel::draw_leaf(uint16 index) {
 }
 
 void ScenePanel::draw_group(uint16 index) {
-    auto& node = mContext.mWorld.nodes[index];
+    auto& node = mContext.mWorld.info.nodes[index];
     bool is_open = begin_tree_node({ItemIndex::eNode, index}, kGroupNodeFlags);
 
     if (is_open) {
@@ -106,7 +106,7 @@ void ScenePanel::draw_content() {
         ImGui::TableSetupColumn("Type");
         ImGui::TableHeadersRow();
 
-        draw_node(mContext.mWorld.root_node);
+        draw_node(mContext.mWorld.info.root_node);
 
         ImGui::EndTable();
     }

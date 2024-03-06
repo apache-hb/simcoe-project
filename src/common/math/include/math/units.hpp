@@ -17,16 +17,6 @@ namespace sm::math {
     template<typename T> struct Degrees;
 
     template<typename T>
-    constexpr T to_radians(T degrees) {
-        return degrees * kDegToRad<T>;
-    }
-
-    template<typename T>
-    constexpr T to_degrees(T radians) {
-        return radians * kRadToDeg<T>;
-    }
-
-    template<typename T>
     concept IsAngle = requires (T it) {
         typename T::Type;
         { it.to_degrees() } -> std::convertible_to<typename T::Degrees>;
@@ -46,13 +36,13 @@ namespace sm::math {
         constexpr Radians() = default;
 
         explicit constexpr Radians(T v) : value(v) { }
-        constexpr Radians(Degrees deg) : value(math::to_radians(deg.value)) { }
+        constexpr Radians(Degrees deg) : value(deg.get_radians()) { }
 
-        constexpr Degrees to_degrees() const { return Degrees(math::to_degrees(value)); }
+        constexpr Degrees to_degrees() const { return Degrees(get_degrees()); }
         constexpr Radians to_radians() const { return *this; }
 
         constexpr T get_radians() const { return value; }
-        constexpr T get_degrees() const { return math::to_degrees(value); }
+        constexpr T get_degrees() const { return value * kRadToDeg<T>; }
 
         constexpr T get() const { return value; }
 
@@ -81,12 +71,12 @@ namespace sm::math {
         constexpr Degrees() = default;
 
         explicit constexpr Degrees(T v) : value(v) { }
-        constexpr Degrees(Radians rad) : value(math::to_degrees(rad.value)) { }
+        constexpr Degrees(Radians rad) : value(rad.get_degrees()) { }
 
-        constexpr Radians to_radians() const { return Radians(math::to_radians(value)); }
+        constexpr Radians to_radians() const { return Radians(get_radians()); }
         constexpr Degrees to_degrees() const { return *this; }
 
-        constexpr T get_radians() const { return math::to_radians(value); }
+        constexpr T get_radians() const { return value * kDegToRad<T>; }
         constexpr T get_degrees() const { return value; }
 
         constexpr T get() const { return value; }
@@ -119,6 +109,26 @@ namespace sm::math {
 
     template<typename T>
     bool isinf(T value) { return std::isinf(value); }
+
+    template<IsAngle T>
+    constexpr T to_radians(T degrees) {
+        return degrees.to_radians();
+    }
+
+    template<typename T>
+    constexpr T to_radians(T degrees) {
+        return degrees * kDegToRad<T>;
+    }
+
+    template<IsAngle T>
+    constexpr T to_degrees(T radians) {
+        return radians.to_degrees();
+    }
+
+    template<typename T>
+    constexpr T to_degrees(T radians) {
+        return radians * kRadToDeg<T>;
+    }
 
     // NOLINTBEGIN
     using radf = Radians<float>;
