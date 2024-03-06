@@ -68,13 +68,6 @@ cthulhu = subproject('cthulhu')
 freetype2 = dependency('freetype2')
 harfbuzz = dependency('harfbuzz')
 
-# windows specific dependencies
-agility = subproject('d3d12-agility')
-warp = subproject('d3d-warp')
-dxcompiler = subproject('dxc')
-winpixruntime = subproject('winpixruntime')
-windows = import('windows')
-
 dxc = find_program('dxc', version : '>=1.7')
 msdf_atlas_gen = find_program('msdf-atlas-gen')
 compressonator = find_program('compressonatorcli')
@@ -88,6 +81,7 @@ dxgi = cpp.find_library('dxgi')
 dxguid = cpp.find_library('dxguid')
 
 d3d12 = dependency('d3d12')
+dstorage = dependency('dstorage')
 d3dx12 = dependency('directx-headers')
 nvapi = dependency('nvapi')
 
@@ -245,6 +239,14 @@ subdir('src/vendor/imfilebrowser')
 
 subdir('src/common/render')
 
+# windows specific dependencies
+agility = subproject('d3d12-agility')
+warp = subproject('d3d-warp')
+dxcompiler = subproject('dxc')
+winpixruntime = subproject('winpixruntime')
+dstorage = subproject('dstorage')
+windows = import('windows')
+
 default_ico = custom_target('default_icon',
     input : [ 'data/assets/icon/icon_circle.png' ],
     command : [ magick, '@INPUT@', '-define', 'icon:auto-resize=256,128,48,32,16', '@OUTPUT@' ],
@@ -288,14 +290,13 @@ bundle_cdata.set('AGILITY_REDIST_PATH', agility.get_variable('bindir'))
 bundle_cdata.set('DXCOMPILER_REDIST_PATH', dxcompiler.get_variable('bindir'))
 bundle_cdata.set('WARP_REDIST_PATH', warp.get_variable('bindir'))
 bundle_cdata.set('WINPIXRUNTIME_REDIST_PATH', winpixruntime.get_variable('bindir'))
+bundle_cdata.set('DSTORAGE_REDIST_PATH', dstorage.get_variable('bindir'))
 
 bundle_config = configure_file(
     input : 'data/config/tools.in.ini',
     output : 'tools.ini',
     configuration : bundle_cdata
 )
-
-debug_bundle = is_debug ? [ '--debug' ] : []
 
 make_bundle = find_program('scripts/make_bundle.py')
 game_bundle = custom_target('game_bundle',
@@ -306,13 +307,14 @@ game_bundle = custom_target('game_bundle',
     depfile : 'bundle.d',
     command : [
         make_bundle,
-        '--bundle', '@INPUT@',
-        '--indir', '@SOURCE_ROOT@/data/assets',
+        '--desc', '@INPUT@',
+        '--config', bundle_config,
+        is_debug ? '--debug' : '',
+        '--dir', '@SOURCE_ROOT@/data/assets',
         '--outdir', '@OUTDIR@',
-        '--output', '@OUTPUT@',
+        '--bundle', '@OUTPUT@',
         '--depfile', '@DEPFILE@',
-        '--config', bundle_config
-    ] + debug_bundle
+    ]
 )
 
 win_subsystem = not is_devel ? 'windows' : 'console'
