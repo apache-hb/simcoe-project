@@ -2,6 +2,7 @@
 
 #include "core/vector.hpp"
 #include "core/memory.hpp"
+#include "core/library.hpp"
 
 #include "render.reflect.h"
 
@@ -52,6 +53,8 @@ class Instance {
     Object<IDXGIDebug1> mDebug;
     sm::Vector<Adapter> mAdapters;
     bool mTearingSupport = false;
+
+    Library mWarpLibrary;
 
     void enable_leak_tracking();
     void query_tearing_support();

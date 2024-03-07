@@ -3,6 +3,8 @@
 #include "core/unique.hpp"
 #include "core/fs.hpp"
 
+#include "core/win32.hpp" // IWYU pragma: export
+
 #include "os/os.h"
 
 constexpr bool operator!=(const os_library_t& lhs, const os_library_t& rhs) {

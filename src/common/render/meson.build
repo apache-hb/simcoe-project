@@ -32,7 +32,6 @@ src = [
     'src/editor/graph.cpp',
     'src/editor/features.cpp',
     'src/editor/inspector.cpp',
-    'src/editor/gizmo.cpp',
     'src/editor/debug.cpp',
     'src/editor/assets.cpp',
     'src/editor/viewport.cpp',
@@ -62,7 +61,7 @@ deps = [
     nvapi,
 
     # gui
-    imgui, implot, imguizmo, filebrowser,
+    imgui, implot, imguizmo, filebrowser
 ]
 
 librender = library('render', src,

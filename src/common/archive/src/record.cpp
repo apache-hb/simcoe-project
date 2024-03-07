@@ -175,10 +175,14 @@ void RecordStore::destroy() {
     mMemory = nullptr;
 
     if (os_mapping_active(&mMapHandle)) {
-        os_file_unmap(&mMapHandle);
+        if (OsError err = os_file_unmap(&mMapHandle)) {
+            gSink.error("unable to unmap file, {}", err);
+        }
     }
 
-    os_file_close(&mFileHandle);
+    if (OsError err = os_file_close(&mFileHandle)) {
+        gSink.error("unable to close file, {}", err);
+    }
 
     // reset the size
     mSize = 0;
@@ -187,6 +191,7 @@ void RecordStore::destroy() {
 }
 
 RecordLookup RecordStore::get_record(uint32_t id, void **data, uint16_t size) {
+    gSink.info("looking for record {}", id);
     RecordEntryHeader *found = nullptr;
     for (uint32_t i = 0; i <= mUsed; i++) {
         RecordEntryHeader *record = get_record_header(i);
@@ -203,10 +208,11 @@ RecordLookup RecordStore::get_record(uint32_t id, void **data, uint16_t size) {
             return RecordLookup::eRecordInvalid;
 
         *data = get_record_data(record->offset);
+        gSink.info("record found\n| id: {}\n| size: {}\n| offset: {}", id, size, record->offset);
         return RecordLookup::eOpened;
     }
 
-    if (check(found != nullptr, "record slots at capacity, cant create new record, {}/{}",
+    if (!check(found != nullptr, "record slots at capacity, cant create new record, {}/{}",
                   mUsed, mCapacity))
         return RecordLookup::eRecordTableExhausted;
 

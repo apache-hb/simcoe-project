@@ -20,9 +20,9 @@ namespace MyGui {
         ImGui::Text("%s: ", name);
         ImGui::SameLine();
         if (value) {
-            ImGui::TextColored(ImVec4(0, 1, 0, 1), "true");
+            ImGui::TextColored(ImVec4(0, 1, 0, 1), "Supported");
         } else {
-            ImGui::TextColored(ImVec4(1, 0, 0, 1), "false");
+            ImGui::TextColored(ImVec4(1, 0, 0, 1), "Not supported");
         }
     }
 }

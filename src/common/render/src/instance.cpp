@@ -91,12 +91,21 @@ Instance::Instance(InstanceConfig config)
     query_tearing_support();
     gSink.info("tearing support: {}", mTearingSupport);
 
-    if (debug) enable_leak_tracking();
+    if (debug)
+        enable_leak_tracking();
 
     gSink.info("instance config");
     gSink.info("| flags: {}", config.flags);
 
-    if (!enum_by_preference()) enum_adapters();
+    mWarpLibrary = Library(sys::get_appdir() / "redist" / "d3d10warp.dll");
+    if (auto err = mWarpLibrary.get_error()) {
+        gSink.warn("failed to load warp redist, falling back to os provided one: {}", err);
+    } else {
+        gSink.info("loaded warp redist");
+    }
+
+    if (!enum_by_preference())
+        enum_adapters();
 }
 
 Instance::~Instance() {

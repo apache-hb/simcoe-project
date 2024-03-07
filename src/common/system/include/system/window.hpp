@@ -38,8 +38,8 @@ protected:
 };
 
 class Window {
-    HWND m_window = nullptr;
-    IWindowEvents *m_events = nullptr;
+    HWND mWindow = nullptr;
+    IWindowEvents& mEvents;
 
     static LRESULT CALLBACK proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 
@@ -52,7 +52,7 @@ public:
     SM_NOCOPY(Window)
     SM_NOMOVE(Window)
 
-    Window(const WindowConfig &config, IWindowEvents *events);
+    Window(const WindowConfig &config, IWindowEvents& events);
     ~Window();
 
     WindowPlacement get_placement() const;
@@ -68,7 +68,7 @@ public:
     WindowCoords get_client_coords() const;
 
     HWND get_handle() const {
-        return m_window;
+        return mWindow;
     }
 };
 }

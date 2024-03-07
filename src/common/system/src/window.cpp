@@ -11,7 +11,7 @@ using namespace sm;
 using namespace sm::sys;
 
 LRESULT CALLBACK Window::proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam) {
-    Window *self = reinterpret_cast<Window *>(GetWindowLongPtrA(window, GWLP_USERDATA));
+    Window *self = reinterpret_cast<Window*>(GetWindowLongPtrA(window, GWLP_USERDATA));
 
     switch (message) {
     case WM_CREATE: {
@@ -20,11 +20,11 @@ LRESULT CALLBACK Window::proc(HWND window, UINT message, WPARAM wparam, LPARAM l
 
         // CreateWindow calls WM_CREATE before returning
         // so we need to set the window handle here
-        it->m_window = window;
+        it->mWindow = window;
 
         SetWindowLongPtrA(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(it));
 
-        it->m_events->create(*it);
+        it->mEvents.create(*it);
         break;
     }
     case WM_SIZE: {
@@ -33,34 +33,33 @@ LRESULT CALLBACK Window::proc(HWND window, UINT message, WPARAM wparam, LPARAM l
         int width = LOWORD(lparam);
         int height = HIWORD(lparam);
 
-        self->m_events->resize(*self, {width, height});
+        self->mEvents.resize(*self, {width, height});
         break;
     }
-    case WM_CLOSE:
-        // we may not have a window so use DestroyWindow directly
-        if (self != nullptr) {
-            if (self->m_events->close(*self)) self->destroy_window();
-        } else {
-            // dont check the result of DestroyWindow because we have no
-            // log sink to report the error to
-            DestroyWindow(window);
-        }
+    case WM_CLOSE: {
+        if (self == nullptr) break;
+
+        if (self->mEvents.close(*self))
+            self->destroy_window();
 
         break;
-
+    }
     case WM_DESTROY:
-        if (self != nullptr) self->m_events->destroy(*self);
+        if (self != nullptr)
+            self->mEvents.destroy(*self);
 
         PostQuitMessage(0);
         break;
 
     default:
-        if (self != nullptr && self->m_events->event(*self, message, wparam, lparam) != 0) return 0;
+        if (self == nullptr) break;
+        if (LRESULT res = self->mEvents.event(*self, message, wparam, lparam))
+            return res;
 
-        return DefWindowProcA(window, message, wparam, lparam);
+        break;
     }
 
-    return 0;
+    return DefWindowProcA(window, message, wparam, lparam);
 }
 
 void Window::create(const WindowConfig &info) {
@@ -69,7 +68,7 @@ void Window::create(const WindowConfig &info) {
 
     SM_ASSERTF(info.mode.is_valid(), "invalid mode: {}", info.mode);
 
-    m_window = CreateWindowExA(
+    mWindow = CreateWindowExA(
         /* dwExStyle = */ 0,
         /* lpClassName = */ gWindowClass,
         /* lpWindowName = */ info.title,
@@ -83,69 +82,67 @@ void Window::create(const WindowConfig &info) {
         /* hInstance = */ gInstance,
         /* lpParam = */ this);
 
-    SM_ASSERT_WIN32(m_window != nullptr);
+    SM_ASSERT_WIN32(mWindow != nullptr);
 }
 
-Window::Window(const WindowConfig &info, IWindowEvents *events)
-    : m_events(events)
+Window::Window(const WindowConfig &info, IWindowEvents& events)
+    : mEvents(events)
 {
-    CTASSERT(events != nullptr);
-
     create(info);
 }
 
 Window::~Window() {
-    if (m_window != nullptr) destroy_window();
+    if (mWindow != nullptr) destroy_window();
 }
 
 WindowPlacement Window::get_placement(void) const {
     WINDOWPLACEMENT placement{.length = sizeof(WINDOWPLACEMENT)};
-    SM_ASSERT_WIN32(GetWindowPlacement(m_window, &placement));
+    SM_ASSERT_WIN32(GetWindowPlacement(mWindow, &placement));
 
     return placement;
 }
 
 void Window::set_placement(const WindowPlacement &placement) {
-    SM_CHECK_WIN32(SetWindowPlacement(m_window, &placement));
+    SM_CHECK_WIN32(SetWindowPlacement(mWindow, &placement));
 }
 
 void Window::show_window(ShowWindow show) {
-    CTASSERTF(m_window != nullptr, "Window::show_window() called before Window::create()");
+    CTASSERTF(mWindow != nullptr, "Window::show_window() called before Window::create()");
     SM_ASSERTF(show.is_valid(), "invalid show: {}", show);
-    ::ShowWindow(m_window, show.as_integral());
+    ::ShowWindow(mWindow, show.as_integral());
 }
 
 void Window::destroy_window() {
-    SM_CHECK_WIN32(DestroyWindow(m_window));
-    m_window = nullptr;
+    SM_CHECK_WIN32(DestroyWindow(mWindow));
+    mWindow = nullptr;
 }
 
 void Window::set_title(const char *title) {
     CTASSERT(title != nullptr);
 
-    SM_CHECK_WIN32(SetWindowTextA(m_window, title));
+    SM_CHECK_WIN32(SetWindowTextA(mWindow, title));
 }
 
 WindowCoords Window::get_coords() const {
     RECT rect{};
-    SM_ASSERT_WIN32(GetWindowRect(m_window, &rect));
+    SM_ASSERT_WIN32(GetWindowRect(mWindow, &rect));
 
     return rect;
 }
 
 WindowCoords Window::get_client_coords() const {
     RECT rect{};
-    SM_ASSERT_WIN32(GetClientRect(m_window, &rect));
+    SM_ASSERT_WIN32(GetClientRect(mWindow, &rect));
 
     return rect;
 }
 
 bool Window::center_window(MultiMonitor monitor, bool topmost) {
-    CTASSERTF(m_window != nullptr, "Window::center_window() called before Window::create()");
+    CTASSERTF(mWindow != nullptr, "Window::center_window() called before Window::create()");
     SM_ASSERTF(monitor.is_valid(), "invalid monitor {}", monitor);
 
     // get current monitor
-    HMONITOR hmonitor = MonitorFromWindow(m_window, monitor.as_integral());
+    HMONITOR hmonitor = MonitorFromWindow(mWindow, monitor.as_integral());
     if (!SM_CHECK_WIN32(hmonitor != nullptr)) return false;
 
     // get monitor info
@@ -154,7 +151,7 @@ bool Window::center_window(MultiMonitor monitor, bool topmost) {
 
     // get window rect
     RECT rect{};
-    if (!SM_CHECK_WIN32(GetWindowRect(m_window, &rect))) return false;
+    if (!SM_CHECK_WIN32(GetWindowRect(mWindow, &rect))) return false;
 
     // calculate center
     int x = (monitor_info.rcWork.left + monitor_info.rcWork.right) / 2 -
@@ -166,5 +163,5 @@ bool Window::center_window(MultiMonitor monitor, bool topmost) {
     UINT flags = topmost ? 0 : SWP_NOZORDER;
 
     // move window
-    return SM_CHECK_WIN32(SetWindowPos(m_window, insert, x, y, 0, 0, SWP_NOSIZE | flags));
+    return SM_CHECK_WIN32(SetWindowPos(mWindow, insert, x, y, 0, 0, SWP_NOSIZE | flags));
 }

@@ -74,7 +74,7 @@ static std::string format_log(const logs::Message &message, const char *colour, 
 }
 
 class FileLog final : public logs::ILogChannel {
-    io_t *io;
+    io_t *mFile;
 
     void accept(const logs::Message &message) override {
         auto header = format_log(message, "", "");
@@ -90,9 +90,9 @@ class FileLog final : public logs::ILogChannel {
             auto line = std::string_view{&*it, int_cast<size_t>(std::distance(it, next))};
             it = next;
 
-            io_write(io, header.data(), header.size());
-            io_write(io, line.data(), line.size());
-            io_write(io, "\n", 1);
+            io_write(mFile, header.data(), header.size());
+            io_write(mFile, line.data(), line.size());
+            io_write(mFile, "\n", 1);
 
             if (it != end) {
                 ++it;
@@ -102,7 +102,7 @@ class FileLog final : public logs::ILogChannel {
 
 public:
     constexpr FileLog(io_t *io)
-        : io(io)
+        : mFile(io)
     { }
 };
 
@@ -244,6 +244,7 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     }
 
     void create(sys::Window &window) override {
+        gSink.info("create window");
         if (mPlacementLookup = mStore.get_record(&mWindowPlacement); mPlacementLookup == archive::RecordLookup::eOpened) {
             window.set_placement(*mWindowPlacement);
         } else {
@@ -309,7 +310,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     DefaultWindowEvents events{store};
 
-    sys::Window window{window_config, &events};
+    sys::Window window{window_config, events};
     sys::DesktopInput desktop_input{window};
 
     input::InputService input;
