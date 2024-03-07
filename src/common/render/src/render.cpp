@@ -359,8 +359,8 @@ void Context::destroy_primitive_pipeline() {
     mPrimitivePipeline.reset();
 }
 
-static constexpr draw::MeshInfo kInfo = {
-    .type = draw::MeshType::eCube,
+static constexpr world::MeshInfo kMeshInfo = {
+    .type = world::ObjectType::eCube,
     .cube = {
         .width = 1.f,
         .height = 1.f,
@@ -369,7 +369,11 @@ static constexpr draw::MeshInfo kInfo = {
 };
 
 void Context::init_scene() {
-    mMeshes.push_back(create_mesh(kInfo, float3(1.f, 0.f, 0.f)));
+    world::ObjectInfo object;
+    object.name = "cube";
+    object.info = kMeshInfo;
+    mWorld.info.objects.emplace_back(object);
+    mMeshes.push_back(create_mesh(kMeshInfo, float3(1.f, 0.f, 0.f)));
 }
 
 void Context::create_scene() {
@@ -713,7 +717,7 @@ bool Context::create_texture(Texture& result, const fs::path& path, ImageFormat 
     return false;
 }
 
-Mesh Context::create_mesh(const draw::MeshInfo& info, const float3& colour) {
+Mesh Context::create_mesh(const world::MeshInfo& info, const float3& colour) {
     auto mesh = draw::primitive(info);
 
     uint32_t col = pack_colour(float4(colour, 1.0f));

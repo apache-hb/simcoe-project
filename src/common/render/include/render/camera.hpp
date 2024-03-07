@@ -5,6 +5,8 @@
 #include "input/input.hpp"
 #include "input/toggle.hpp"
 
+#include "draw.reflect.h"
+
 namespace sm::draw {
     class Camera final : public input::IClient {
         float3 mPosition = {-3.f, 0.f, 0.f};
@@ -28,6 +30,10 @@ namespace sm::draw {
 
         void draw_debug();
         void tick(float dt);
+
+        // is the camera currently capturing input
+        bool is_active() const;
+        Projection get_projection() const;
 
         float4x4 model() const;
         float4x4 view() const;

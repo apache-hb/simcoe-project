@@ -33,8 +33,6 @@ namespace sm::archive {
         // number of used records
         uint_fast16_t mUsed = 0;
 
-        bool check(bool expr, std::string_view fmt, auto&&... args) const;
-
         void init_alloc_info();
         void update_header();
 

@@ -46,51 +46,57 @@ namespace sm::logs {
         Logger& mLogger;
         Category mCategory;
 
+        void vlog(Severity severity, fmt::string_view format, fmt::format_args args) const {
+            if (!mLogger.will_accept(severity)) return;
+
+            auto text = fmt::vformat(format, args);
+            mLogger.log(mCategory, severity, text);
+        }
+
     public:
         constexpr Sink(Logger& logger, Category category)
             : mLogger(logger)
             , mCategory(category)
         { }
 
-        void log(Severity severity, std::string_view msg, auto &&...args) const {
-            // while ILogger will reject the message, still do an early return
-            // to avoid formatting if we don't need to
-            if (!mLogger.will_accept(severity)) return;
-
-            auto text = fmt::vformat(msg, fmt::make_format_args(args...));
-            mLogger.log(mCategory, severity, text);
+        template<typename... A>
+        void log(Severity severity, fmt::format_string<A...> msg, A&&... args) const {
+            vlog(severity, msg, fmt::make_format_args(args...));
         }
 
-        void operator()(Severity severity, std::string_view msg, auto &&...args) const {
-            log(severity, msg, std::forward<decltype(args)>(args)...);
+        template<typename... A>
+        void operator()(Severity severity, fmt::format_string<A...> msg, A&&... args) const {
+            vlog(severity, msg, fmt::make_format_args(args...));
         }
 
-        void trace(std::string_view msg, auto &&...args) const {
-            log(Severity::eTrace, msg, std::forward<decltype(args)>(args)...);
+        template<typename... A>
+        void trace(fmt::format_string<A...> msg, A&&... args) const {
+            vlog(Severity::eTrace, msg, fmt::make_format_args(args...));
         }
 
-        void debug(std::string_view msg, auto &&...args) const {
-            log(Severity::eInfo, msg, std::forward<decltype(args)>(args)...);
+        template<typename... A>
+        void info(fmt::format_string<A...> msg, A&&... args) const {
+            vlog(Severity::eInfo, msg, fmt::make_format_args(args...));
         }
 
-        void info(std::string_view msg, auto &&...args) const {
-            log(Severity::eInfo, msg, std::forward<decltype(args)>(args)...);
+        template<typename... A>
+        void warn(fmt::format_string<A...> msg, A&&... args) const {
+            vlog(Severity::eWarning, msg, fmt::make_format_args(args...));
         }
 
-        void warn(std::string_view msg, auto &&...args) const {
-            log(Severity::eWarning, msg, std::forward<decltype(args)>(args)...);
+        template<typename... A>
+        void error(fmt::format_string<A...> msg, A&&... args) const {
+            vlog(Severity::eError, msg, fmt::make_format_args(args...));
         }
 
-        void error(std::string_view msg, auto &&...args) const {
-            log(Severity::eError, msg, std::forward<decltype(args)>(args)...);
+        template<typename... A>
+        void fatal(fmt::format_string<A...> msg, A&&... args) const {
+            vlog(Severity::eFatal, msg, fmt::make_format_args(args...));
         }
 
-        void fatal(std::string_view msg, auto &&...args) const {
-            log(Severity::eFatal, msg, std::forward<decltype(args)>(args)...);
-        }
-
-        void panic(std::string_view msg, auto &&...args) const {
-            log(Severity::ePanic, msg, std::forward<decltype(args)>(args)...);
+        template<typename... A>
+        void panic(fmt::format_string<A...> msg, A&&... args) const {
+            vlog(Severity::ePanic, msg, fmt::make_format_args(args...));
         }
     };
 

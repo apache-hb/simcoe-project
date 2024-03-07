@@ -287,7 +287,7 @@ static void common_init(void) {
 
         auto message = sm::vformat(msg, args);
 
-        gSink.log(logs::Severity::ePanic, message.data());
+        gSink.log(logs::Severity::ePanic, "{}", message);
 
         bt_report_t *report = bt_report_collect(arena);
         print_backtrace(kPrintOptions, report);

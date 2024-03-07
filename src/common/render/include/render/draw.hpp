@@ -5,6 +5,8 @@
 
 #include "math/math.hpp"
 
+#include "world/world.hpp"
+
 #include "draw.reflect.h"
 
 namespace sm::draw {
@@ -19,69 +21,9 @@ namespace sm::draw {
         uint32_t colour;
     };
 
-    struct Cube {
-        float width;
-        float height;
-        float depth;
-    };
-
-    struct Sphere {
-        float radius;
-        int slices;
-        int stacks;
-    };
-
-    struct Cylinder {
-        float radius;
-        float height;
-        int slices;
-    };
-
-    struct Plane {
-        float width;
-        float depth;
-    };
-
-    struct Wedge {
-        float width;
-        float height;
-        float depth;
-    };
-
-    struct Capsule {
-        float radius;
-        float height;
-    };
-
-    struct GeoSphere {
-        float radius;
-        int subdivisions;
-    };
-
-    struct MeshInfo {
-        MeshType type;
-        union {
-            Cube cube;
-            Sphere sphere;
-            Cylinder cylinder;
-            Plane plane;
-            Wedge wedge;
-            Capsule capsule;
-            GeoSphere geosphere;
-        };
-    };
-
     struct BoxBounds {
         float3 min;
         float3 max;
-    };
-
-    struct Transform {
-        float3 position;
-        Radians<float3> rotation; // TODO: really need to use quatf
-        float3 scale = 1.f;
-
-        float4x4 matrix() const;
     };
 
     struct Mesh {
@@ -90,5 +32,5 @@ namespace sm::draw {
         sm::Vector<uint16> indices;
     };
 
-    Mesh primitive(const MeshInfo& info);
+    Mesh primitive(const world::MeshInfo& info);
 }

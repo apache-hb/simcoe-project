@@ -17,6 +17,16 @@ namespace sm::math {
     template<typename T> struct Degrees;
 
     template<typename T>
+    concept IsVector = requires (T it) {
+        typename T::Type;
+        { T::kSize } -> std::convertible_to<size_t>;
+        { it.fields } -> std::convertible_to<typename T::Type*>;
+        std::size(it.fields) == T::kSize;
+
+        { it.data() } -> std::convertible_to<typename T::Type*>;
+    };
+
+    template<typename T>
     concept IsAngle = requires (T it) {
         typename T::Type;
         { it.to_degrees() } -> std::convertible_to<typename T::Degrees>;
@@ -59,6 +69,12 @@ namespace sm::math {
         constexpr Radians operator-() const { return Radians(-value); }
 
         constexpr auto operator<=>(const Radians&) const = default;
+
+        constexpr auto* data() requires (IsVector<T>) { return value.data(); }
+        constexpr const auto* data() const requires (IsVector<T>) { return value.data(); }
+
+        constexpr auto& operator[](size_t index) requires (IsVector<T>) { return value[index]; }
+        constexpr const auto& operator[](size_t index) const requires (IsVector<T>) { return value[index]; }
     };
 
     template<typename T>
@@ -83,13 +99,23 @@ namespace sm::math {
 
         constexpr Degrees operator+(Degrees other) const { return Degrees(value + other.value); }
         constexpr Degrees operator-(Degrees other) const { return Degrees(value - other.value); }
+        constexpr Degrees operator*(T scalar) const { return Degrees(value * scalar); }
+        constexpr Degrees operator/(T scalar) const { return Degrees(value / scalar); }
 
         constexpr Degrees& operator+=(Degrees other) { value += other.value; return *this; }
         constexpr Degrees& operator-=(Degrees other) { value -= other.value; return *this; }
+        constexpr Degrees& operator*=(T scalar) { value *= scalar; return *this; }
+        constexpr Degrees& operator/=(T scalar) { value /= scalar; return *this; }
 
         constexpr Degrees operator-() const { return Degrees(-value); }
 
         constexpr auto operator<=>(const Degrees&) const = default;
+
+        constexpr auto* data() requires (IsVector<T>) { return value.data(); }
+        constexpr const auto* data() const requires (IsVector<T>) { return value.data(); }
+
+        constexpr auto& operator[](size_t index) requires (IsVector<T>) { return value[index]; }
+        constexpr const auto& operator[](size_t index) const requires (IsVector<T>) { return value[index]; }
     };
 
     template<IsAngle T>
@@ -157,6 +183,11 @@ namespace sm::math {
     using degf = Degrees<float>;
     using degd = Degrees<double>;
     // NOLINTEND
+
+    static_assert(sizeof(radf) == sizeof(float));
+    static_assert(sizeof(radd) == sizeof(double));
+    static_assert(sizeof(degf) == sizeof(float));
+    static_assert(sizeof(degd) == sizeof(double));
 
     constexpr radd operator""_radx(long double value) {
         return radd(static_cast<double>(value));

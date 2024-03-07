@@ -10,14 +10,15 @@ Editor::Editor(render::Context& context)
     : mContext(context)
     , mLogger(LoggerPanel::get())
     , mConfig(context)
-    , mScene(context)
     , mViewport(context)
+    , mScene(context, mViewport)
+    , mInspector(context, mViewport)
     , mFeatureSupport(context)
     , mAssetBrowser(context)
 {
     mOpenLevelDialog.SetTitle("Open Level");
     mSaveLevelDialog.SetTitle("Save Level");
-    mSaveLevelDialog.SetTypeFilters({".bin"});
+    mSaveLevelDialog.SetTypeFilters({ ".bin" });
     mSaveLevelDialog.SetInputName("level.bin");
 }
 
@@ -54,6 +55,7 @@ void Editor::draw_mainmenu() {
             mFeatureSupport.draw_menu_item();
             mDebug.draw_menu_item();
             mAssetBrowser.draw_menu_item();
+            mInspector.draw_menu_item();
 
             ImGui::SeparatorText("Demo Windows");
             ImGui::MenuItem("ImGui Demo", nullptr, &mShowDemo);
@@ -126,6 +128,7 @@ void Editor::draw() {
     mFeatureSupport.draw_window();
     mDebug.draw_window();
     mAssetBrowser.draw_window();
+    mInspector.draw_window();
 
     mOpenLevelDialog.Display();
     mSaveLevelDialog.Display();

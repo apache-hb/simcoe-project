@@ -4,6 +4,7 @@
 #include "imgui/backends/imgui_impl_win32.h"
 #include "imgui/imgui.h"
 #include "implot.h"
+#include "render/mygui.hpp"
 
 using namespace sm;
 using namespace sm::draw;
@@ -43,16 +44,6 @@ static bool EnumCombo(const char *label, typename ctu::TypeInfo<T>::Type &choice
 }
 
 SM_UNUSED
-static bool SliderAngle3(const char *label, Radians<float3> &value, radf min, radf max) {
-    auto degrees = math::to_degrees(value);
-    if (ImGui::SliderFloat3(label, degrees.data(), min.get_degrees(), max.get_degrees())) {
-        value = Radians(math::to_radians(degrees));
-        return true;
-    }
-    return false;
-}
-
-SM_UNUSED
 static bool SliderQuat(SM_UNUSED const char *label, SM_UNUSED quatf &value, SM_UNUSED radf min, SM_UNUSED radf max) {
 #if 0
     float3 euler = math::to_euler(value);
@@ -66,15 +57,15 @@ static bool SliderQuat(SM_UNUSED const char *label, SM_UNUSED quatf &value, SM_U
 }
 } // namespace MyGui
 
-static constexpr MeshInfo get_default_info(MeshType type) {
+static constexpr world::MeshInfo get_default_info(world::ObjectType type) {
     switch (type.as_enum()) {
-    case MeshType::eCube: return {.type = type, .cube = {1.f, 1.f, 1.f}};
-    case MeshType::eSphere: return {.type = type, .sphere = {1.f, 6, 6}};
-    case MeshType::eCylinder: return {.type = type, .cylinder = {1.f, 1.f, 8}};
-    case MeshType::ePlane: return {.type = type, .plane = {1.f, 1.f}};
-    case MeshType::eWedge: return {.type = type, .wedge = {1.f, 1.f, 1.f}};
-    case MeshType::eCapsule: return {.type = type, .capsule = {1.f, 5.f}};
-    case MeshType::eGeoSphere: return {.type = type, .geosphere = {1.f, 2}};
+    case world::ObjectType::eCube: return {.type = type, .cube = {1.f, 1.f, 1.f}};
+    case world::ObjectType::eSphere: return {.type = type, .sphere = {1.f, 6, 6}};
+    case world::ObjectType::eCylinder: return {.type = type, .cylinder = {1.f, 1.f, 8}};
+    case world::ObjectType::ePlane: return {.type = type, .plane = {1.f, 1.f}};
+    case world::ObjectType::eWedge: return {.type = type, .wedge = {1.f, 1.f, 1.f}};
+    case world::ObjectType::eCapsule: return {.type = type, .capsule = {1.f, 5.f}};
+    case world::ObjectType::eGeoSphere: return {.type = type, .geosphere = {1.f, 2}};
     default: return {.type = type};
     }
 }
@@ -98,8 +89,8 @@ void Context::create_imgui() {
         style.Colors[ImGuiCol_WindowBg].w = 1.0f;
     }
 
-    auto cases = MeshType::cases();
-    for (MeshType i : cases) {
+    auto cases = world::ObjectType::cases();
+    for (world::ObjectType i : cases) {
         mMeshCreateInfo[i] = get_default_info(i);
     }
 
@@ -134,6 +125,7 @@ bool Context::update_imgui() {
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
+    editor::ViewportPanel::begin_frame(camera);
 
     mEditor.draw();
 
@@ -148,42 +140,42 @@ bool Context::update_imgui() {
         }
 
         if (ImGui::BeginPopup("New Primitive")) {
-            static draw::MeshType type = draw::MeshType::eCube;
+            static world::ObjectType type = world::ObjectType::eCube;
             static float3 colour = {1.f, 1.f, 1.f};
-            MyGui::EnumCombo<draw::MeshType>("Type", type);
+            MyGui::EnumCombo<world::ObjectType>("Type", type);
 
             auto &info = mMeshCreateInfo[type];
 
             switch (type.as_enum()) {
-            case draw::MeshType::eCube:
+            case world::ObjectType::eCube:
                 ImGui::SliderFloat("Width", &info.cube.width, 0.1f, 10.f);
                 ImGui::SliderFloat("Height", &info.cube.height, 0.1f, 10.f);
                 ImGui::SliderFloat("Depth", &info.cube.depth, 0.1f, 10.f);
                 break;
-            case draw::MeshType::eSphere:
+            case world::ObjectType::eSphere:
                 ImGui::SliderFloat("Radius", &info.sphere.radius, 0.1f, 10.f);
                 ImGui::SliderInt("Slices", &info.sphere.slices, 3, 32);
                 ImGui::SliderInt("Stacks", &info.sphere.stacks, 3, 32);
                 break;
-            case draw::MeshType::eCylinder:
+            case world::ObjectType::eCylinder:
                 ImGui::SliderFloat("Radius", &info.cylinder.radius, 0.1f, 10.f);
                 ImGui::SliderFloat("Height", &info.cylinder.height, 0.1f, 10.f);
                 ImGui::SliderInt("Slices", &info.cylinder.slices, 3, 32);
                 break;
-            case draw::MeshType::ePlane:
+            case world::ObjectType::ePlane:
                 ImGui::SliderFloat("Width", &info.plane.width, 0.1f, 10.f);
                 ImGui::SliderFloat("Depth", &info.plane.depth, 0.1f, 10.f);
                 break;
-            case draw::MeshType::eWedge:
+            case world::ObjectType::eWedge:
                 ImGui::SliderFloat("Width", &info.wedge.width, 0.1f, 10.f);
                 ImGui::SliderFloat("Depth", &info.wedge.depth, 0.1f, 10.f);
                 ImGui::SliderFloat("Height", &info.wedge.height, 0.1f, 10.f);
                 break;
-            case draw::MeshType::eCapsule:
+            case world::ObjectType::eCapsule:
                 ImGui::SliderFloat("Radius", &info.capsule.radius, 0.1f, 10.f);
                 ImGui::SliderFloat("Height", &info.capsule.height, 0.1f, 10.f);
                 break;
-            case draw::MeshType::eGeoSphere:
+            case world::ObjectType::eGeoSphere:
                 ImGui::SliderFloat("Radius", &info.geosphere.radius, 0.1f, 10.f);
                 ImGui::SliderInt("Subdivisions", &info.geosphere.subdivisions, 1, 8);
                 break;
@@ -202,49 +194,49 @@ bool Context::update_imgui() {
 
         for (auto &primitive : mMeshes) {
             const auto &info = primitive.mInfo;
-            using Reflect = ctu::TypeInfo<draw::MeshType>;
+            using Reflect = ctu::TypeInfo<world::ObjectType>;
             auto name = Reflect::to_string(info.type);
             if (ImGui::TreeNodeEx((void *)&primitive, ImGuiTreeNodeFlags_DefaultOpen, "%s",
                                   name.data())) {
                 auto &[position, rotation, scale] = primitive.mTransform;
                 ImGui::SliderFloat3("Position", position.data(), -10.f, 10.f);
-                MyGui::SliderAngle3("Rotation", rotation, -180._deg, 180._deg);
+                MyGui::SliderAngle3("Rotation", &rotation, -180._deg, 180._deg);
                 ImGui::SliderFloat3("Scale", scale.data(), 0.1f, 10.f);
 
                 switch (info.type.as_enum()) {
-                case MeshType::eCube:
+                case world::ObjectType::eCube:
                     ImGui::Text("Width: %f", info.cube.width);
                     ImGui::Text("Height: %f", info.cube.height);
                     ImGui::Text("Depth: %f", info.cube.depth);
                     break;
-                case MeshType::eSphere:
+                case world::ObjectType::eSphere:
                     ImGui::Text("Radius: %f", info.sphere.radius);
                     ImGui::Text("Slices: %d", info.sphere.slices);
                     ImGui::Text("Stacks: %d", info.sphere.stacks);
                     break;
-                case MeshType::eCylinder:
+                case world::ObjectType::eCylinder:
                     ImGui::Text("Radius: %f", info.cylinder.radius);
                     ImGui::Text("Height: %f", info.cylinder.height);
                     ImGui::Text("Slices: %d", info.cylinder.slices);
                     break;
-                case MeshType::ePlane:
+                case world::ObjectType::ePlane:
                     ImGui::Text("Width: %f", info.plane.width);
                     ImGui::Text("Depth: %f", info.plane.depth);
                     break;
-                case MeshType::eWedge:
+                case world::ObjectType::eWedge:
                     ImGui::Text("Width: %f", info.wedge.width);
                     ImGui::Text("Height: %f", info.wedge.height);
                     ImGui::Text("Depth: %f", info.wedge.depth);
                     break;
-                case MeshType::eCapsule:
+                case world::ObjectType::eCapsule:
                     ImGui::Text("Radius: %f", info.capsule.radius);
                     ImGui::Text("Height: %f", info.capsule.height);
                     break;
-                case MeshType::eGeoSphere:
+                case world::ObjectType::eGeoSphere:
                     ImGui::Text("Radius: %f", info.geosphere.radius);
                     ImGui::Text("Subdivisions: %d", info.geosphere.subdivisions);
                     break;
-                case MeshType::eImported: ImGui::Text("Imported"); break;
+                case world::ObjectType::eImported: ImGui::Text("Imported"); break;
                 default: ImGui::Text("Unknown primitive type"); break;
                 }
                 ImGui::TreePop();
@@ -266,9 +258,7 @@ bool Context::update_imgui() {
         return false;
     }
 
-    return true;
-}
+    mMeshes[0].mTransform = mWorld.info.nodes[0].transform;
 
-void Context::render_imgui() {
-    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), *mCommandList);
+    return true;
 }

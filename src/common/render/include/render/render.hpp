@@ -90,8 +90,8 @@ namespace sm::render {
     };
 
     struct Mesh {
-        draw::MeshInfo mInfo;
-        draw::Transform mTransform;
+        world::MeshInfo mInfo;
+        world::Transform mTransform;
 
         Resource mVertexBuffer;
         VertexBufferView mVertexBufferView;
@@ -241,7 +241,7 @@ namespace sm::render {
         texindex load_texture(const fs::path& path);
         texindex load_texture(const ImageData& image);
 
-        Mesh create_mesh(const draw::MeshInfo& info, const float3& colour);
+        Mesh create_mesh(const world::MeshInfo& info, const float3& colour);
         bool create_texture(Texture& result, const fs::path& path, ImageFormat type);
         bool create_texture_stb(Texture& result, const fs::path& path);
         bool create_texture_dds(Texture& result, const fs::path& path);
@@ -287,7 +287,7 @@ namespace sm::render {
 
         editor::Editor mEditor;
 
-        draw::MeshInfo mMeshCreateInfo[draw::MeshType::kCount];
+        world::MeshInfo mMeshCreateInfo[world::ObjectType::kCount];
         SrvIndex mImGuiSrvIndex;
 
         void create_imgui();
@@ -297,7 +297,6 @@ namespace sm::render {
         void destroy_imgui_backend();
 
         bool update_imgui();
-        void render_imgui();
 
         /// state updates
 

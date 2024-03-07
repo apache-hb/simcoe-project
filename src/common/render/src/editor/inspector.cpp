@@ -1,25 +1,42 @@
 #include "render/editor/inspector.hpp"
 
+#include "render/editor/viewport.hpp"
+
 #include "render/render.hpp"
+#include "render/mygui.hpp"
 
 using namespace sm;
 using namespace sm::editor;
+using namespace sm::math;
 
 void InspectorPanel::draw_content() {
-    switch (mSelected.type) {
-    case ItemIndex::eNone:
+    auto selected = mViewport.get_selected();
+    switch (selected.type) {
+    case ItemType::eNone:
         ImGui::Text("Nothing selected");
+        return;
+    case ItemType::eNode:
+        ImGui::Text("Node %s selected", mContext.mWorld.info.nodes[selected.index].name.data());
         break;
-    case ItemIndex::eNode:
-        ImGui::Text("Node %s selected", mContext.mWorld.info.nodes[mSelected.index].name.data());
-        break;
-    case ItemIndex::eObject:
-        ImGui::Text("Object %s selected", mContext.mWorld.info.objects[mSelected.index].name.data());
+    case ItemType::eMesh:
+        ImGui::Text("Mesh %s selected", mContext.mWorld.info.objects[selected.index].name.data());
         break;
     }
+
+    if (selected.type != ItemType::eNode) return;
+
+    auto& node = mContext.mWorld.info.nodes[selected.index];
+
+	auto& [position, rotation, scale] = node.transform;
+	ImGui::InputFloat3("Translation", position.data());
+    MyGui::DragAngle3("Rotation", &rotation, 1._deg, -180._deg, 180._deg);
+	ImGui::InputFloat3("Scale", scale.data());
+
+    mViewport.gizmo_settings_panel();
 }
 
-InspectorPanel::InspectorPanel(render::Context &context)
+InspectorPanel::InspectorPanel(render::Context &context, ViewportPanel &viewport)
     : IEditorPanel("Inspector")
     , mContext(context)
+    , mViewport(viewport)
 { }

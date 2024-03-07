@@ -26,13 +26,13 @@ const ImGuiTreeNodeFlags kLeafNodeFlags
     | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 
 static intptr_t unique_id(ItemIndex index) {
-    return (intptr_t)index.type << 16 | index.index;
+    return (intptr_t)index.type.as_integral() << 16 | index.index;
 }
 
 static sm::StringView get_item_name(const world::WorldInfo& info, ItemIndex index) {
     switch (index.type) {
-    case ItemIndex::eNode: return info.nodes[index.index].name;
-    case ItemIndex::eObject: return info.objects[index.index].name;
+    case ItemType::eNode: return info.nodes[index.index].name;
+    case ItemType::eMesh: return info.objects[index.index].name;
     default: return "Unknown";
     }
 }
@@ -46,6 +46,7 @@ bool ScenePanel::begin_tree_node(ItemIndex index, ImGuiTreeNodeFlags flags) {
     const bool open = ImGui::TreeNodeEx((void*)unique_id(index), flags, "%s", name.data());
     if (ImGui::IsItemClicked()) {
         mSelected = index;
+        mViewport.select(index);
     }
 
     if (ImGui::BeginDragDropSource()) {
@@ -83,12 +84,12 @@ void ScenePanel::draw_node(uint16 index) {
 }
 
 void ScenePanel::draw_leaf(uint16 index) {
-    begin_tree_node({ItemIndex::eNode, index}, kLeafNodeFlags);
+    begin_tree_node({ItemType::eNode, index}, kLeafNodeFlags);
 }
 
 void ScenePanel::draw_group(uint16 index) {
     auto& node = mContext.mWorld.info.nodes[index];
-    bool is_open = begin_tree_node({ItemIndex::eNode, index}, kGroupNodeFlags);
+    bool is_open = begin_tree_node({ItemType::eNode, index}, kGroupNodeFlags);
 
     if (is_open) {
         for (uint16 child : node.children) {
@@ -112,7 +113,8 @@ void ScenePanel::draw_content() {
     }
 }
 
-ScenePanel::ScenePanel(render::Context& context)
+ScenePanel::ScenePanel(render::Context& context, ViewportPanel& viewport)
     : IEditorPanel("Scene Tree")
     , mContext(context)
+    , mViewport(viewport)
 { }

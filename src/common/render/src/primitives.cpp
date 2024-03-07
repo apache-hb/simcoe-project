@@ -132,7 +132,7 @@ static void subdivide(Mesh& mesh) {
     }
 }
 
-static Mesh cube(const Cube &cube) {
+static Mesh cube(const world::Cube &cube) {
     auto [w, h, d] = cube;
 
     PrimitiveBuilder builder;
@@ -152,7 +152,7 @@ static Mesh cube(const Cube &cube) {
     return builder.build();
 }
 
-static Mesh cylinder(const Cylinder& cylinder) {
+static Mesh cylinder(const world::Cylinder& cylinder) {
     auto [radius, height, slices] = cylinder;
     PrimitiveBuilder builder;
 
@@ -192,7 +192,7 @@ static Mesh cylinder(const Cylinder& cylinder) {
     return builder.build();
 }
 
-static Mesh wedge(const Wedge& wedge) {
+static Mesh wedge(const world::Wedge& wedge) {
     auto [width, height, depth] = wedge;
     PrimitiveBuilder builder;
 
@@ -251,7 +251,7 @@ static Mesh wedge(const Wedge& wedge) {
     return builder.build();
 }
 
-static Mesh geosphere(const GeoSphere& geosphere) {
+static Mesh geosphere(const world::GeoSphere& geosphere) {
     auto [radius, tessellation] = geosphere;
     PrimitiveBuilder builder;
 
@@ -306,15 +306,15 @@ static Mesh geosphere(const GeoSphere& geosphere) {
     return mesh;
 }
 
-Mesh draw::primitive(const MeshInfo &info) {
+Mesh draw::primitive(const world::MeshInfo &info) {
     switch (info.type.as_enum()) {
-    case MeshType::eCube: return cube(info.cube);
-    case MeshType::eCylinder: return cylinder(info.cylinder);
-    case MeshType::eWedge: return wedge(info.wedge);
-    case MeshType::eGeoSphere: return geosphere(info.geosphere);
+    case world::ObjectType::eCube: return cube(info.cube);
+    case world::ObjectType::eCylinder: return cylinder(info.cylinder);
+    case world::ObjectType::eWedge: return wedge(info.wedge);
+    case world::ObjectType::eGeoSphere: return geosphere(info.geosphere);
 
     default:
-        using Reflect = ctu::TypeInfo<MeshType>;
+        using Reflect = ctu::TypeInfo<world::ObjectType>;
         CT_NEVER("Unhandled primitive type %s", Reflect::to_string(info.type).data());
     }
 }

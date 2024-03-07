@@ -80,7 +80,7 @@ namespace sm::world {
 
     struct Transform {
         float3 position;
-        quatf rotation;
+        radf3 rotation;
         float3 scale;
 
         float4x4 matrix() const;

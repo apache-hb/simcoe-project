@@ -2,6 +2,8 @@
 
 #include "render/render.hpp"
 
+#include "imgui/backends/imgui_impl_dx12.h"
+
 using namespace sm;
 
 void draw::draw_imgui(graph::FrameGraph& graph, graph::Handle target) {
@@ -9,6 +11,6 @@ void draw::draw_imgui(graph::FrameGraph& graph, graph::Handle target) {
     pass.write(target, graph::Access::eRenderTarget);
 
     pass.bind([](graph::FrameGraph& graph, render::Context& context) {
-        context.render_imgui();
+        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), *context.mCommandList);
     });
 }

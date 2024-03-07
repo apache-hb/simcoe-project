@@ -1,52 +1,56 @@
 #pragma once
 
-#include "math.hpp"
+#include "math/math.hpp"
 
 #include "fmtlib/format.h"
 
-template<typename T>
-struct fmt::formatter<sm::math::Vec2<T>> : fmt::nested_formatter<T> {
-    using Super = fmt::nested_formatter<T>;
+template<sm::math::IsVector T>
+struct fmt::formatter<T> : fmt::nested_formatter<typename T::Type> {
+    using Super = fmt::nested_formatter<typename T::Type>;
 
-    auto format(const sm::math::Vec2<T>& value, fmt::format_context& ctx) const {
+    constexpr auto format(const T& value, fmt::format_context& ctx) const {
         return Super::write_padded(ctx, [this, value](auto out) {
-            return fmt::format_to(out, "({}, {})", this->nested(value.x), this->nested(value.y));
+            out = fmt::format_to(out, "(");
+            for (size_t i = 0; i < T::kSize; ++i) {
+                if (i > 0) {
+                    out = fmt::format_to(out, ", ");
+                }
+                out = fmt::format_to(out, "{}", this->nested(value.fields[i]));
+            }
+            return fmt::format_to(out, ")");
         });
     }
 };
 
-template<typename T>
-struct fmt::formatter<sm::math::Vec3<T>> : fmt::nested_formatter<T> {
-    using Super = fmt::nested_formatter<T>;
+template<sm::math::IsAngle T> requires (sm::math::IsVector<typename T::Type>)
+struct fmt::formatter<T> : fmt::nested_formatter<typename T::Type::Type> {
+    using Vec = typename T::Type;
+    using Inner = typename Vec::Type;
+    using Super = fmt::nested_formatter<Inner>;
 
-    auto format(const sm::math::Vec3<T>& value, fmt::format_context& ctx) const {
-        return Super::write_padded(ctx, [this, value](auto out) {
-            return fmt::format_to(out, "({}, {}, {})", this->nested(value.x), this->nested(value.y), this->nested(value.z));
+    const char *mode = (std::is_same_v<T, sm::math::Degrees<Vec>>) ? "deg" : "rad";
+
+    constexpr auto format(const T& angle, fmt::format_context& ctx) const {
+        return Super::write_padded(ctx, [this, angle](auto out) {
+            out = fmt::format_to(out, "(");
+            for (size_t i = 0; i < Vec::kSize; ++i) {
+                if (i > 0) {
+                    out = fmt::format_to(out, ", ");
+                }
+                out = fmt::format_to(out, "{}{}", this->nested(angle.value[i]), mode);
+            }
+            return fmt::format_to(out, ")");
         });
     }
 };
 
-template<typename T>
-struct fmt::formatter<sm::math::Vec4<T>> : fmt::nested_formatter<T> {
-    using Super = fmt::nested_formatter<T>;
+template<sm::math::IsAngle T> requires (!sm::math::IsVector<typename T::Type>)
+struct fmt::formatter<T> : fmt::formatter<typename T::Type> {
+    using Super = fmt::formatter<typename T::Type>;
 
-    auto format(const sm::math::Vec4<T>& value, fmt::format_context& ctx) const {
-        return Super::write_padded(ctx, [this, value](auto out) {
-            return fmt::format_to(out, "({}, {}, {}, {})", this->nested(value.x), this->nested(value.y), this->nested(value.z), this->nested(value.w));
-        });
-    }
-};
+    const char *mode = (std::is_same_v<T, sm::math::Degrees<typename T::Type>>) ? "deg" : "rad";
 
-template<typename T>
-struct fmt::formatter<sm::math::Radians<T>> : fmt::formatter<T> {
-    auto format(const sm::math::Radians<T>& r, fmt::format_context& ctx) {
-        return fmt::format_to(ctx.out(), "{}rad", r.value);
-    }
-};
-
-template<typename T>
-struct fmt::formatter<sm::math::Degrees<T>> : fmt::formatter<T> {
-    auto format(const sm::math::Degrees<T>& d, fmt::format_context& ctx) {
-        return fmt::format_to(ctx.out(), "{}deg", d.value);
+    constexpr auto format(const T& angle, fmt::format_context& ctx) const {
+        return fmt::format_to(ctx.out(), "{}{}", angle.value, mode);
     }
 };

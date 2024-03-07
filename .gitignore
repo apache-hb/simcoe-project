@@ -27,6 +27,7 @@
 
 # assets
 !data/**/*
+!*.md
 
 # dependencies
 subprojects/*
@@ -38,6 +39,6 @@ subprojects/*
 !subprojects/.clang-tidy
 
 !LICENSE
-!README.md
+!README
 
 *[bB]uild*/

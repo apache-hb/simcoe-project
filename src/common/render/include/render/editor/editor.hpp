@@ -1,6 +1,7 @@
 #pragma once
 
 #include "render/editor/features.hpp"
+#include "render/editor/inspector.hpp"
 #include "render/editor/logger.hpp"
 #include "render/editor/config.hpp"
 #include "render/editor/scene.hpp"
@@ -20,8 +21,9 @@ namespace sm::editor {
 
         LoggerPanel& mLogger;
         RenderConfig mConfig;
-        ScenePanel mScene;
         ViewportPanel mViewport;
+        ScenePanel mScene;
+        InspectorPanel mInspector;
         FeatureSupportPanel mFeatureSupport;
         DebugPanel mDebug;
         AssetBrowserPanel mAssetBrowser;

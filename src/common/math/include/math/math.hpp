@@ -6,12 +6,6 @@
 
 namespace sm::math {
     template<typename T>
-    concept IsVector = requires (T it) {
-        { T::kSize } -> std::convertible_to<size_t>;
-        { it.fields } -> std::convertible_to<typename T::Type*>;
-    };
-
-    template<typename T>
     constexpr T clamp(T it, T low, T high) {
         if (it < low)
             return low;
@@ -450,30 +444,43 @@ namespace sm::math {
     struct alignas(sizeof(T) * 4) Quat {
         using Rad = Radians<T>;
         using Vec3 = Vec3<T>;
+        using Rad3 = Radians<Vec3>;
         using Vec4 = Vec4<T>;
         using Mat4x4 = Mat4x4<T>;
 
         Vec3 v;
-        Rad angle;
+        T angle;
 
         constexpr Quat() = default;
-        constexpr Quat(const Vec3 &v, Rad w)
+        constexpr Quat(const Vec3 &v, T w)
             : v(v)
             , angle(w)
         { }
 
-        constexpr Quat(T x, T y, T z, Rad w)
+        constexpr Quat(T x, T y, T z, T w)
             : v(x, y, z)
             , angle(w)
         { }
 
         static constexpr Quat identity() {
-            // TODO: is 1rad correct?
-            return {Vec3::zero(), Rad(1)};
+            return {Vec3::zero(), 1};
         }
 
         constexpr Quat conjugate() const {
             return {-v, angle};
+        }
+
+        constexpr static Quat from_euler(Rad3 euler) {
+            auto [sr, cr] = math::sincos(euler.roll / 2);
+            auto [sp, cp] = math::sincos(euler.pitch / 2);
+            auto [sy, cy] = math::sincos(euler.yaw / 2);
+
+            T x = cr * sp * cy + sr * cp * sy;
+            T y = cr * cp * sy - sr * sp * cy;
+            T z = sr * cp * cy - cr * sp * sy;
+            T w = cr * cp * cy + sr * sp * sy;
+
+            return Quat {x, y, z, w};
         }
 
 #if 0
@@ -857,20 +864,34 @@ namespace sm::math {
             auto [x, y, z] = q.v;
             T w = q.angle.get_radians();
 
-            Vec4 x0 = { w, z, -y, x };
-            Vec4 y0 = { -z, w, x, y };
-            Vec4 z0 = { y, -x, w, z };
-            Vec4 w0 = { -x, -y, -z, w };
+            T xx = x * x;
+            T yy = y * y;
+            T zz = z * z;
 
-            Vec4 x1 = { w, z, -y, -x };
-            Vec4 y1 = { -z, w, x, -y };
-            Vec4 z1 = { y, -x, w, -z };
-            Vec4 w1 = { x, y, z, w };
+            Vec4 r0 = {
+                1 - 2 * yy - 2 * zz,
+                2 * x * y + 2 * z * w,
+                2 * x * z - 2 * y * w,
+                0
+            };
 
-            Mat4x4 lhs = { x0, y0, z0, w0 };
-            Mat4x4 rhs = { x1, y1, z1, w1 };
+            Vec4 r1 = {
+                2 * x * y - 2 * z * w,
+                1 - 2 * xx - 2 * zz,
+                2 * y * z + 2 * x * w,
+                0
+            };
 
-            return lhs * rhs;
+            Vec4 r2 = {
+                2 * x * z + 2 * y * w,
+                2 * y * z - 2 * x * w,
+                1 - 2 * xx - 2 * yy,
+                0
+            };
+
+            Vec4 r3 = { 0, 0, 0, 1 };
+
+            return { r0, r1, r2, r3 };
         }
 
         // full transform
@@ -1024,6 +1045,16 @@ namespace sm::math {
     static_assert(sizeof(float4) == sizeof(float) * 4);
     static_assert(sizeof(float4x4) == sizeof(float) * 4 * 4);
 
+    using radf2 = Radians<float2>;
+    using radf3 = Radians<float3>;
+    static_assert(sizeof(radf2) == sizeof(float) * 2);
+    static_assert(sizeof(radf3) == sizeof(float) * 3);
+
+    using degf2 = Degrees<float2>;
+    using degf3 = Degrees<float3>;
+    static_assert(sizeof(degf2) == sizeof(float) * 2);
+    static_assert(sizeof(degf3) == sizeof(float) * 3);
+
     using uint8x2 = Vec2<uint8>;
     using uint8x3 = Vec3<uint8>;
     using uint8x4 = Vec4<uint8>;
@@ -1079,6 +1110,14 @@ namespace sm::math {
         return (x << 0) | (y << 2) | (z << 4) | (w << 6);
     }
 
+    constexpr Swizzle swizzle_get(uint8 mask, Swizzle channel) {
+        return static_cast<Swizzle>((mask >> (channel * 2)) & 0x3);
+    }
+
+    constexpr uint8 swizzle_set(uint8 mask, Swizzle channel, Swizzle value) {
+        return (mask & ~(0x3 << (channel * 2))) | (value << (channel * 2));
+    }
+
     // NOLINTBEGIN
     enum Select : uint {
         LO = 0,
@@ -1112,6 +1151,15 @@ namespace sm::math {
         T out;
         for (size_t i = 0; i < T::kSize; i++) {
             out.fields[i] = math::max(lhs.fields[i], rhs.fields[i]);
+        }
+        return out;
+    }
+
+    template<IsVector T>
+    constexpr T swizzle(const T& v, uint8 mask) {
+        T out;
+        for (size_t i = 0; i < T::kSize; i++) {
+            out.fields[i] = v.fields[(mask >> (i * 2)) & 0x3];
         }
         return out;
     }

@@ -10,6 +10,7 @@ src = [
     'src/imgui.cpp',
 
     'src/blit.cpp',
+    'src/mygui.cpp',
 
     'src/camera.cpp',
     'src/gltf.cpp',
@@ -38,7 +39,8 @@ src = [
 
     reflect.process('data/render.ct'),
     reflect.process('data/draw.ct'),
-    reflect.process('data/graph.ct')
+    reflect.process('data/graph.ct'),
+    reflect.process('data/editor.ct')
 ]
 
 deps = [

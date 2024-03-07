@@ -6,21 +6,29 @@
 
 #include "imgui/imgui.h"
 
+#include "editor.reflect.h"
+
 namespace sm::render {
     struct Context;
 }
 
 namespace sm::editor {
+    class ViewportPanel;
+
     struct ItemIndex {
-        enum { eNode, eObject, eNone } type;
+        ItemType type;
         uint16 index;
 
         constexpr auto operator<=>(const ItemIndex&) const = default;
+        constexpr bool has_selection() const { return type != ItemType::eNone; }
+
+        static constexpr ItemIndex none() { return {ItemType::eNone, 0}; }
     };
 
     class ScenePanel final : public IEditorPanel {
         render::Context& mContext;
-        ItemIndex mSelected = {ItemIndex::eNone, 0};
+        ViewportPanel& mViewport;
+        ItemIndex mSelected = ItemIndex::none();
 
         bool begin_tree_node(ItemIndex index, ImGuiTreeNodeFlags flags);
 
@@ -32,6 +40,6 @@ namespace sm::editor {
         void draw_content() override;
 
     public:
-        ScenePanel(render::Context& context);
+        ScenePanel(render::Context& context, ViewportPanel& viewport);
     };
 }

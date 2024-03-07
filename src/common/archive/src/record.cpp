@@ -32,9 +32,10 @@ static constexpr uint32_t checksum(const uint8_t *data, size_t size) {
     return (sum2 << 16) | sum1;
 }
 
-bool RecordStore::check(bool expr, std::string_view fmt, auto&&... args) const {
+template<typename... A>
+constexpr bool check(bool expr, fmt::format_string<A...> fmt, A&&... args) {
     if (!expr) {
-        gSink.error(fmt, std::forward<decltype(args)>(args)...);
+        gSink.error(fmt, std::forward<A>(args)...);
         return false;
     }
     return true;

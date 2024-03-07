@@ -1,0 +1,7 @@
+module sm::editor;
+
+variant ItemType {
+    default None
+    case Node
+    case Mesh
+}
