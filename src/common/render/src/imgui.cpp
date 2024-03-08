@@ -258,7 +258,5 @@ bool Context::update_imgui() {
         return false;
     }
 
-    mMeshes[0].mTransform = mWorld.info.nodes[0].transform;
-
     return true;
 }

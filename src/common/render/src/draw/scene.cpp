@@ -4,6 +4,26 @@
 
 using namespace sm;
 
+static void draw_node(render::Context& context, uint16 index, const math::float4x4& parent) {
+    const auto& node = context.mWorld.info.nodes[index];
+    auto model = (parent * node.transform.matrix()).transpose();
+    float aspect_ratio = float(context.mSceneSize.width) / float(context.mSceneSize.height);
+    auto mvp = context.camera.mvp(aspect_ratio, model).transpose();
+
+    for (uint16 i : node.objects) {
+        const auto& object = context.mMeshes[i];
+        context.mCommandList->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
+        context.mCommandList->IASetVertexBuffers(0, 1, &object.mVertexBufferView);
+        context.mCommandList->IASetIndexBuffer(&object.mIndexBufferView);
+
+        context.mCommandList->DrawIndexedInstanced(object.mIndexCount, 1, 0, 0, 0);
+    }
+
+    for (uint16 i : node.children) {
+        draw_node(context, i, model);
+    }
+}
+
 void draw::draw_scene(graph::FrameGraph& graph, graph::Handle& target) {
     auto& ctx = graph.get_context();
     graph::TextureInfo depth_info = {
@@ -46,17 +66,6 @@ void draw::draw_scene(graph::FrameGraph& graph, graph::Handle& target) {
 
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-        auto [width, height] = context.mSceneSize.as<float>();
-
-        for (auto& primitive : context.mMeshes) {
-            auto model = primitive.mTransform.matrix().transpose();
-            auto mvp = context.camera.mvp(width / height, model).transpose();
-
-            cmd->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
-            cmd->IASetVertexBuffers(0, 1, &primitive.mVertexBufferView);
-            cmd->IASetIndexBuffer(&primitive.mIndexBufferView);
-
-            cmd->DrawIndexedInstanced(primitive.mIndexCount, 1, 0, 0, 0);
-        }
+        draw_node(context, context.mWorld.info.root_node, math::float4x4::identity());
     });
 }

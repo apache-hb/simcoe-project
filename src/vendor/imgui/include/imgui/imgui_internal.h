@@ -1719,33 +1719,31 @@ struct ImGuiOldColumns
 #ifdef IMGUI_HAS_DOCK
 
 // Extend ImGuiDockNodeFlags_
-enum ImGuiDockNodeFlagsPrivate_
-{
-    // [Internal]
-    ImGuiDockNodeFlags_DockSpace                = 1 << 10,  // Saved // A dockspace is a node that occupy space within an existing user window. Otherwise the node is floating and create its own window.
-    ImGuiDockNodeFlags_CentralNode              = 1 << 11,  // Saved // The central node has 2 main properties: stay visible when empty, only use "remaining" spaces from its neighbor.
-    ImGuiDockNodeFlags_NoTabBar                 = 1 << 12,  // Saved // Tab bar is completely unavailable. No triangle in the corner to enable it back.
-    ImGuiDockNodeFlags_HiddenTabBar             = 1 << 13,  // Saved // Tab bar is hidden, with a triangle in the corner to show it again (NB: actual tab-bar instance may be destroyed as this is only used for single-window tab bar)
-    ImGuiDockNodeFlags_NoWindowMenuButton       = 1 << 14,  // Saved // Disable window/docking menu (that one that appears instead of the collapse button)
-    ImGuiDockNodeFlags_NoCloseButton            = 1 << 15,  // Saved // Disable close button
-    ImGuiDockNodeFlags_NoResizeX                = 1 << 16,  //       //
-    ImGuiDockNodeFlags_NoResizeY                = 1 << 17,  //       //
-    ImGuiDockNodeFlags_DockedWindowsInFocusRoute= 1 << 18,  //       // Any docked window will be automatically be focus-route chained (window->ParentWindowForFocusRoute set to this) so Shortcut() in this window can run when any docked window is focused.
-    // Disable docking/undocking actions in this dockspace or individual node (existing docked nodes will be preserved)
-    // Those are not exposed in public because the desirable sharing/inheriting/copy-flag-on-split behaviors are quite difficult to design and understand.
-    // The two public flags ImGuiDockNodeFlags_NoDockingOverCentralNode/ImGuiDockNodeFlags_NoDockingSplit don't have those issues.
-    ImGuiDockNodeFlags_NoDockingSplitOther      = 1 << 19,  //       // Disable this node from splitting other windows/nodes.
-    ImGuiDockNodeFlags_NoDockingOverMe          = 1 << 20,  //       // Disable other windows/nodes from being docked over this node.
-    ImGuiDockNodeFlags_NoDockingOverOther       = 1 << 21,  //       // Disable this node from being docked over another window or non-empty node.
-    ImGuiDockNodeFlags_NoDockingOverEmpty       = 1 << 22,  //       // Disable this node from being docked over an empty node (e.g. DockSpace with no other windows)
-    ImGuiDockNodeFlags_NoDocking                = ImGuiDockNodeFlags_NoDockingOverMe | ImGuiDockNodeFlags_NoDockingOverOther | ImGuiDockNodeFlags_NoDockingOverEmpty | ImGuiDockNodeFlags_NoDockingSplit | ImGuiDockNodeFlags_NoDockingSplitOther,
-    // Masks
-    ImGuiDockNodeFlags_SharedFlagsInheritMask_  = ~0,
-    ImGuiDockNodeFlags_NoResizeFlagsMask_       = ImGuiDockNodeFlags_NoResize | ImGuiDockNodeFlags_NoResizeX | ImGuiDockNodeFlags_NoResizeY,
-    // When splitting, those local flags are moved to the inheriting child, never duplicated
-    ImGuiDockNodeFlags_LocalFlagsTransferMask_  = ImGuiDockNodeFlags_NoDockingSplit | ImGuiDockNodeFlags_NoResizeFlagsMask_ | ImGuiDockNodeFlags_AutoHideTabBar | ImGuiDockNodeFlags_CentralNode | ImGuiDockNodeFlags_NoTabBar | ImGuiDockNodeFlags_HiddenTabBar | ImGuiDockNodeFlags_NoWindowMenuButton | ImGuiDockNodeFlags_NoCloseButton,
-    ImGuiDockNodeFlags_SavedFlagsMask_          = ImGuiDockNodeFlags_NoResizeFlagsMask_ | ImGuiDockNodeFlags_DockSpace | ImGuiDockNodeFlags_CentralNode | ImGuiDockNodeFlags_NoTabBar | ImGuiDockNodeFlags_HiddenTabBar | ImGuiDockNodeFlags_NoWindowMenuButton | ImGuiDockNodeFlags_NoCloseButton,
-};
+using ImGuiDockNodeFlagsPrivate_ = int;
+// [Internal]
+constexpr ImGuiDockNodeFlagsPrivate_ ImGuiDockNodeFlags_DockSpace                = 1 << 10;  // Saved // A dockspace is a node that occupy space within an existing user window. Otherwise the node is floating and create its own window.
+constexpr ImGuiDockNodeFlagsPrivate_ ImGuiDockNodeFlags_CentralNode              = 1 << 11;  // Saved // The central node has 2 main properties: stay visible when empty, only use "remaining" spaces from its neighbor.
+constexpr ImGuiDockNodeFlagsPrivate_ ImGuiDockNodeFlags_NoTabBar                 = 1 << 12;  // Saved // Tab bar is completely unavailable. No triangle in the corner to enable it back.
+constexpr ImGuiDockNodeFlagsPrivate_ ImGuiDockNodeFlags_HiddenTabBar             = 1 << 13;  // Saved // Tab bar is hidden, with a triangle in the corner to show it again (NB: actual tab-bar instance may be destroyed as this is only used for single-window tab bar)
+constexpr ImGuiDockNodeFlagsPrivate_ ImGuiDockNodeFlags_NoWindowMenuButton       = 1 << 14;  // Saved // Disable window/docking menu (that one that appears instead of the collapse button)
+constexpr ImGuiDockNodeFlagsPrivate_ ImGuiDockNodeFlags_NoCloseButton            = 1 << 15;  // Saved // Disable close button
+constexpr ImGuiDockNodeFlagsPrivate_ ImGuiDockNodeFlags_NoResizeX                = 1 << 16;  //       //
+constexpr ImGuiDockNodeFlagsPrivate_ ImGuiDockNodeFlags_NoResizeY                = 1 << 17;  //       //
+constexpr ImGuiDockNodeFlagsPrivate_ ImGuiDockNodeFlags_DockedWindowsInFocusRoute= 1 << 18;  //       // Any docked window will be automatically be focus-route chained (window->ParentWindowForFocusRoute set to this) so Shortcut() in this window can run when any docked window is focused.
+// Disable docking/undocking actions in this dockspace or individual node (existing docked nodes will be preserved)
+// Those are not exposed in public because the desirable sharing/inheriting/copy-flag-on-split behaviors are quite difficult to design and understand.
+// The two public flags ImGuiDockNodeFlags_NoDockingOverCentralNode/ImGuiDockNodeFlags_NoDockingSplit don't have those issues.
+constexpr ImGuiDockNodeFlagsPrivate_ ImGuiDockNodeFlags_NoDockingSplitOther      = 1 << 19;  //       // Disable this node from splitting other windows/nodes.
+constexpr ImGuiDockNodeFlagsPrivate_ ImGuiDockNodeFlags_NoDockingOverMe          = 1 << 20;  //       // Disable other windows/nodes from being docked over this node.
+constexpr ImGuiDockNodeFlagsPrivate_ ImGuiDockNodeFlags_NoDockingOverOther       = 1 << 21;  //       // Disable this node from being docked over another window or non-empty node.
+constexpr ImGuiDockNodeFlagsPrivate_ ImGuiDockNodeFlags_NoDockingOverEmpty       = 1 << 22;  //       // Disable this node from being docked over an empty node (e.g. DockSpace with no other windows)
+constexpr ImGuiDockNodeFlagsPrivate_ ImGuiDockNodeFlags_NoDocking                = ImGuiDockNodeFlags_NoDockingOverMe | ImGuiDockNodeFlags_NoDockingOverOther | ImGuiDockNodeFlags_NoDockingOverEmpty | ImGuiDockNodeFlags_NoDockingSplit | ImGuiDockNodeFlags_NoDockingSplitOther;
+// Masks
+constexpr ImGuiDockNodeFlagsPrivate_ ImGuiDockNodeFlags_SharedFlagsInheritMask_  = ~0;
+constexpr ImGuiDockNodeFlagsPrivate_ ImGuiDockNodeFlags_NoResizeFlagsMask_       = ImGuiDockNodeFlags_NoResize | ImGuiDockNodeFlags_NoResizeX | ImGuiDockNodeFlags_NoResizeY;
+// When splitting, those local flags are moved to the inheriting child, never duplicated
+constexpr ImGuiDockNodeFlagsPrivate_ ImGuiDockNodeFlags_LocalFlagsTransferMask_  = ImGuiDockNodeFlags_NoDockingSplit | ImGuiDockNodeFlags_NoResizeFlagsMask_ | ImGuiDockNodeFlags_AutoHideTabBar | ImGuiDockNodeFlags_CentralNode | ImGuiDockNodeFlags_NoTabBar | ImGuiDockNodeFlags_HiddenTabBar | ImGuiDockNodeFlags_NoWindowMenuButton | ImGuiDockNodeFlags_NoCloseButton;
+constexpr ImGuiDockNodeFlagsPrivate_ ImGuiDockNodeFlags_SavedFlagsMask_          = ImGuiDockNodeFlags_NoResizeFlagsMask_ | ImGuiDockNodeFlags_DockSpace | ImGuiDockNodeFlags_CentralNode | ImGuiDockNodeFlags_NoTabBar | ImGuiDockNodeFlags_HiddenTabBar | ImGuiDockNodeFlags_NoWindowMenuButton | ImGuiDockNodeFlags_NoCloseButton;
 
 // Store the source authority (dock node vs window) of a field
 enum ImGuiDataAuthority_

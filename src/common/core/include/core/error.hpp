@@ -56,12 +56,9 @@ protected:
     virtual void error_frame(const bt_frame_t *frame) = 0;
     virtual void error_end() = 0;
 
-    constexpr ISystemError() {
-        begin = wrap_begin;
-        next = wrap_frame;
-        end = wrap_end;
-        user = this;
-    }
+    constexpr ISystemError()
+        : bt_error_t{wrap_begin, wrap_end, wrap_frame, this}
+    { }
 };
 } // namespace sm
 

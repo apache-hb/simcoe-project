@@ -3,7 +3,7 @@ project('simcoe', [ 'c', 'cpp' ],
     license : 'UNLICENSED',
     version : '1.0.1',
     default_options : [
-        'cpp_std=c++20',
+        'cpp_std=c++latest',
 
         'cpp_rtti=false',
         'cpp_eh=none',
@@ -83,10 +83,6 @@ d3d12 = dependency('d3d12')
 dstorage = dependency('dstorage')
 d3dx12 = dependency('directx-headers')
 nvapi = dependency('nvapi')
-
-debug_render = get_option('debug_render').disable_auto_if(package_type == 'release')
-enable_agility = get_option('enable_agility').allowed()
-message_db = get_option('log_database').enabled()
 
 magick = find_program('magick')
 convert_utf16 = find_program('scripts/convert_utf16.py')
@@ -198,10 +194,6 @@ simcoe_cdata.set10('SMC_RELEASE', build_type.contains('release'))
 
 simcoe_cdata.set10('SMC_BUILD_SHARED', library_type == 'shared')
 simcoe_cdata.set10('SMC_BUILD_STATIC', library_type == 'static')
-
-simcoe_cdata.set10('SMC_RENDER_DEBUG', debug_render.allowed())
-simcoe_cdata.set10('SMC_AGILITY_SDK', enable_agility)
-simcoe_cdata.set10('SMC_ENABLE_LOGDB', message_db)
 
 simcoe_config = configure_file(
     output : 'simcoe_config.h',
