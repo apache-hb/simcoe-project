@@ -80,6 +80,15 @@ void Instance::query_tearing_support() {
     mTearingSupport = tearing;
 }
 
+void Instance::load_wrap_redist() {
+    mWarpLibrary = sys::get_redist("d3d10warp.dll");
+    if (OsError err = mWarpLibrary.get_error()) {
+        gSink.warn("failed to load warp redist: {}", err);
+    } else {
+        gSink.info("loaded warp redist");
+    }
+}
+
 Instance::Instance(InstanceConfig config)
     : mFlags(config.flags)
     , mAdapterSearch(config.preference)
@@ -97,11 +106,12 @@ Instance::Instance(InstanceConfig config)
     gSink.info("instance config");
     gSink.info("| flags: {}", config.flags);
 
-    mWarpLibrary = Library(sys::get_appdir() / "redist" / "d3d10warp.dll");
-    if (auto err = mWarpLibrary.get_error()) {
-        gSink.warn("failed to load warp redist, falling back to os provided one: {}", err);
+    load_wrap_redist();
+
+    if (PIXLoadLatestWinPixGpuCapturerLibrary()) {
+        gSink.info("loaded pix runtime");
     } else {
-        gSink.info("loaded warp redist");
+        gSink.warn("failed to load pix runtime: {}", sys::get_last_error());
     }
 
     if (!enum_by_preference())

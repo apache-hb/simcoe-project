@@ -1,0 +1,13 @@
+module sm::delayload;
+
+import "<delayimp.h>";
+
+[[facade]]
+variant LoadNotify : uint {
+    case Begin = opaque(dliNoteStartProcessing)
+    case PreLoadLibrary = opaque(dliNotePreLoadLibrary)
+    case PreLoadAddress = opaque(dliNotePreGetProcAddress)
+    case FailLoadLibrary = opaque(dliFailLoadLib)
+    case FailGetAddress = opaque(dliFailGetProc)
+    case End = opaque(dliNoteEndProcessing)
+}

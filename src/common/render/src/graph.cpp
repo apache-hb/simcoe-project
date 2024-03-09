@@ -32,7 +32,7 @@ Clear graph::clear_depth(float depth) {
 }
 
 D3D12_CLEAR_VALUE *Clear::get_value(D3D12_CLEAR_VALUE& storage, render::Format format) const {
-    storage = { .Format = format.as_facade() };
+    storage = { .Format = format };
     switch (type) {
     case eColour:
         storage.Color[0] = colour.r;
@@ -253,7 +253,7 @@ void FrameGraph::create_resources() {
         auto size = info.size;
 
         const auto desc = CD3DX12_RESOURCE_DESC::Tex2D(
-            /*format=*/ info.format.as_facade(),
+            /*format=*/ info.format,
             /*width=*/ size.width,
             /*height=*/ size.height,
             /*arraySize=*/ 1,
@@ -373,6 +373,7 @@ void FrameGraph::execute() {
         states[handle.resource] = state;
     }
 
+    SM_UNUSED BYTE colour_index = PIX_COLOR_DEFAULT;
     for (auto& pass : mRenderPasses) {
         if (!pass.is_used()) continue;
 
@@ -390,9 +391,15 @@ void FrameGraph::execute() {
             update_state(index, access);
         }
 
-        barriers.submit(commands.get());
+        auto& cmd = commands.get();
+
+        PIXBeginEvent(cmd, PIX_COLOR_INDEX(colour_index++), "%s", pass.name.c_str());
+
+        barriers.submit(cmd);
 
         pass.execute(*this, mContext);
+
+        PIXEndEvent(cmd);
     }
 
     // transition imported and created resources back to their initial state

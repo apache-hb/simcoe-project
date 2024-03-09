@@ -26,7 +26,6 @@ project('simcoe', [ 'c', 'cpp' ],
 
         # disable everything in cthulhu by default
         'cthulhu:auto_features=disabled',
-        'cthulhu:win32_trickery=enabled',
 
         # configure fastgltf
         'fastgltf:custom_small_vector=true',
@@ -60,6 +59,11 @@ package_type = get_option('package_type')
 trace_time = get_option('trace_time')
 
 is_devel = package_type == 'devel'
+is_private = package_type == 'private'
+is_release = package_type == 'release'
+
+enable_pix = get_option('enable_pix').disable_auto_if(not is_devel)
+warp_redist = get_option('warp_redist').disable_auto_if(is_release)
 
 # the perfect library
 cthulhu = subproject('cthulhu')
@@ -81,6 +85,7 @@ dxguid = cpp.find_library('dxguid')
 
 d3d12 = dependency('d3d12')
 dstorage = dependency('dstorage')
+pix = dependency('winpix-event-runtime')
 d3dx12 = dependency('directx-headers')
 nvapi = dependency('nvapi')
 
@@ -194,6 +199,9 @@ simcoe_cdata.set10('SMC_RELEASE', build_type.contains('release'))
 
 simcoe_cdata.set10('SMC_BUILD_SHARED', library_type == 'shared')
 simcoe_cdata.set10('SMC_BUILD_STATIC', library_type == 'static')
+
+simcoe_cdata.set10('SMC_USE_PIX_RUNTIME', enable_pix.allowed())
+simcoe_cdata.set10('SMC_USE_WARP_REDIST', warp_redist.allowed())
 
 simcoe_config = configure_file(
     output : 'simcoe_config.h',
@@ -310,7 +318,15 @@ game_bundle = custom_target('game_bundle',
 
 win_subsystem = not is_devel ? 'windows' : 'console'
 
-client = executable('client', 'src/client/src/main.cpp', game_bundle,
+src = [
+    'src/client/src/main.cpp',
+    'src/client/src/delayload.cpp',
+    reflect.process('src/client/data/delayload.ct')
+]
+
+delayimp = cc.find_library('delayimp')
+
+client = executable('client', src, game_bundle,
     install : true,
     export_dynamic : true,
     win_subsystem : win_subsystem,
@@ -320,12 +336,17 @@ client = executable('client', 'src/client/src/main.cpp', game_bundle,
         res[0].full_path(),
 
         # embed the manifest file
-        '/manifest:embed', '/manifestinput:' + manifest
+        '/manifest:embed', '/manifestinput:' + manifest,
+
+        '/delayload:dxcompiler.dll',
+        '/delayload:dxil.dll',
+        '/delayload:WinPixEventRuntime.dll',
     ],
     dependencies : [
         core, system, logs, threads, imgui, render, input, archive,
         cthulhu.get_variable('backtrace'),
         cthulhu.get_variable('format_core'),
-        cthulhu.get_variable('io')
+        cthulhu.get_variable('io'),
+        delayimp
     ]
 )

@@ -27,11 +27,15 @@ void InspectorPanel::draw_content() {
 
     auto& node = mContext.mWorld.info.nodes[selected.index];
 
-	auto& [position, rotation, scale] = node.transform;
-	ImGui::InputFloat3("Translation", position.data());
-    MyGui::DragAngle3("Rotation", &rotation, 1._deg, -180._deg, 180._deg);
-	ImGui::InputFloat3("Scale", scale.data());
+    ImGui::Text("%zu children, %zu objects", node.children.size(), node.objects.size());
 
+    ImGui::SeparatorText("Transform");
+	auto& [position, rotation, scale] = node.transform;
+	ImGui::DragFloat3("Translation", position.data());
+    MyGui::DragAngle3("Rotation", &rotation, 1._deg, -180._deg, 180._deg);
+	ImGui::DragFloat3("Scale", scale.data());
+
+    ImGui::SeparatorText("Gizmo");
     mViewport.gizmo_settings_panel();
 }
 

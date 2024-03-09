@@ -16,3 +16,13 @@ option('freetype_logging', type : 'feature',
     description : 'Enable freetype logging',
     value : 'disabled'
 )
+
+option('enable_pix', type : 'feature',
+    description : 'Enable PIX event runtime',
+    value : 'auto'
+)
+
+option('warp_redist', type : 'feature',
+    description : 'Enable searching for the new warp runtime redist',
+    value : 'auto'
+)

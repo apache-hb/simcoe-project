@@ -205,6 +205,7 @@ variant DebugFlags {
     [[format("dstorage debug")]] case DirectStorageDebug = (1 << 7) // DSTORAGE_DEBUG_SHOW_ERRORS
     [[format("dstorage break on error")]] case DirectStorageBreak = (1 << 8) // DSTORAGE_DEBUG_BREAK_ON_ERROR
     [[format("dstorage object names")]] case DirectStorageNames = (1 << 9) // DSTORAGE_DEBUG_RECORD_OBJECT_NAMES
+    [[format("enable pix runtime")]] case WinPixEventRuntime = (1 << 10) // try to load the pix redist and enable the pix runtime
 }
 
 [[facade, bitflags]]
@@ -219,13 +220,6 @@ variant RootSignatureVersion : opaque(D3D_ROOT_SIGNATURE_VERSION) {
     [[format("version 1.0")]] default Version_1_0 = opaque(D3D_ROOT_SIGNATURE_VERSION_1_0)
     [[format("version 1.1")]] case Version_1_1 = opaque(D3D_ROOT_SIGNATURE_VERSION_1_1)
     [[format("version 1.2")]] case Version_1_2 = opaque(D3D_ROOT_SIGNATURE_VERSION_1_2)
-}
-
-[[facade]]
-variant Format : opaque(DXGI_FORMAT) {
-    default Unknown = opaque(DXGI_FORMAT_UNKNOWN)
-    case RGBA8_UNORM = opaque(DXGI_FORMAT_R8G8B8A8_UNORM)
-    case F32_DEPTH = opaque(DXGI_FORMAT_D32_FLOAT)
 }
 
 [[facade, bitflags]]
@@ -290,10 +284,4 @@ variant WindowState {
     case Fullscreen // window is visible, and active, and fullscreen
     case Unfocused // window is visible, but not active
     case Minimized // window is not visible
-}
-
-[[bitflags]]
-variant ObjectDep {
-    case Device = (1 << 0) // all device objects
-    case SwapChain = (1 << 1) // backbuffer count, format, resolution, etc
 }

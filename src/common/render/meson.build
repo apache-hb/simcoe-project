@@ -51,10 +51,9 @@ deps = [
     stb, fastgltf,
 
     # microsoft
-    d3d12, d3dx12, d3d12ma,
-
-    # we load the redist from the dll ourselves, so dont link to the implib
+    d3d12, d3dx12, d3d12ma, pix,
     dstorage.partial_dependency(includes : true),
+
     dds_texture_loader,
 
     # hardware vendors

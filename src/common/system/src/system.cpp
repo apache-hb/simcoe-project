@@ -21,6 +21,10 @@ fs::path sys::get_appdir() {
     return gProgramDir;
 }
 
+fs::path sys::get_redist(const fs::path& name) {
+    return gProgramDir / "client.exe.local" / name;
+}
+
 void sys::create(HINSTANCE hInstance) {
     CTASSERTF(hInstance != nullptr, "system::create() invalid hInstance");
     CTASSERTF(gWindowClass == nullptr, "system::create() called twice");

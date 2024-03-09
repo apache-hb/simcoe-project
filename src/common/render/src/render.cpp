@@ -369,15 +369,16 @@ static constexpr world::MeshInfo kMeshInfo = {
 };
 
 void Context::init_scene() {
+    mWorld.info.root_node = 0;
     world::NodeInfo node;
-    node.name = "root";
+    node.name = "Scene Root";
     node.objects.push_back(0);
-    mWorld.info.nodes.emplace_back(node);
+    mWorld.info.nodes.push_back(node);
 
     world::ObjectInfo object;
-    object.name = "cube";
+    object.name = "Cube";
     object.info = kMeshInfo;
-    mWorld.info.objects.emplace_back(object);
+    mWorld.info.objects.push_back(object);
 
     mMeshes.push_back(create_mesh(kMeshInfo, float3(1.f, 0.f, 0.f)));
 }
@@ -953,8 +954,6 @@ void Context::create() {
         : mConfig.adapter_index;
 
     mConfig.bundle.get_font("public_sans");
-
-    mWorld.info = world::empty_world("empty_world");
 
     mStorage.create(mDebugFlags);
 

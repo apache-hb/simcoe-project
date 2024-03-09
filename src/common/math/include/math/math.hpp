@@ -1165,6 +1165,11 @@ namespace sm::math {
     }
 
     template<IsVector T>
+    constexpr T swizzle(const T& v, Swizzle x = X, Swizzle y = Y, Swizzle z = Z, Swizzle w = W) {
+        return swizzle(v, swizzle_mask(x, y, z, w));
+    }
+
+    template<IsVector T>
     constexpr bool nearly_equal(const T& lhs, const T& rhs, typename T::Type epsilon) {
         return (lhs - rhs).length() < epsilon;
     }

@@ -32,7 +32,6 @@ outputfile = args.bundle
 depfile = args.depfile
 
 bundle_dir = os.path.join(outputdir, 'bundle')
-redist_dir = os.path.join(outputdir, 'redist')
 
 class Logger:
     def __init__(self, path):
@@ -139,7 +138,8 @@ def copyfile(src, dst):
     log.info(f"copying {src} to {dst}\n")
     shutil.copy(src, dst)
 
-def copy_redist(outdir, indir, redists, debug_redists):
+def copy_redist(outdir, name, redists, debug_redists):
+    indir = config.get_redist(name)
     os.makedirs(outdir, exist_ok=True)
     for redist in redists:
         copyfile(pj(indir, redist), outdir)
@@ -206,35 +206,31 @@ class AtlasGenerator:
         else:
             return [ path ]
 
-def copy_redist_files(outdir, config):
-    agility = config.get_redist('agility')
-    warp = config.get_redist('warp')
-    dxcompiler = config.get_redist('dxcompiler')
-    winpixruntime = config.get_redist('winpixruntime')
-    dstorage = config.get_redist('dstorage')
-    os.makedirs(outdir, exist_ok=True)
+def copy_redist_files():
+    redist_dir = pj(outputdir, 'client.exe.local')
+    os.makedirs(redist_dir, exist_ok=True)
 
-    copy_redist(pj(outdir, 'd3d12'), agility,
+    copy_redist(pj(redist_dir, 'd3d12'), 'agility',
         [ 'D3D12Core.dll' ],
         [ 'D3D12Core.pdb', 'D3D12SDKLayers.dll', 'd3d12SDKLayers.pdb' ]
     )
 
-    copy_redist(outdir, dxcompiler,
+    copy_redist(redist_dir, 'dxcompiler',
         [ 'dxcompiler.dll', 'dxil.dll' ],
         [ 'dxcompiler.pdb', 'dxil.pdb' ]
     )
 
-    copy_redist(outdir, warp,
+    copy_redist(redist_dir, 'warp',
         [ ],
         [ 'd3d10warp.dll', 'd3d10warp.pdb' ]
     )
 
-    copy_redist(outdir, winpixruntime,
+    copy_redist(redist_dir, 'winpixruntime',
         [ ],
         [ 'WinPixEventRuntime.dll' ]
     )
 
-    copy_redist(pj(outdir, 'dstorage'), dstorage,
+    copy_redist(pj(redist_dir, 'dstorage'), 'dstorage',
         [ 'dstorage.dll', 'dstoragecore.dll' ],
         [ ]
     )
@@ -258,7 +254,7 @@ def main():
             for dir in dirs:
                 shutil.rmtree(os.path.join(root, dir))
 
-    copy_redist_files(redist_dir, config)
+    copy_redist_files()
 
     os.makedirs(bundle_dir, exist_ok=True)
 

@@ -141,9 +141,8 @@ namespace sm::graph {
             void side_effects(bool effects);
 
             template<typename F>
-            PassBuilder& bind(F&& execute) {
+            void bind(F&& execute) {
                 mRenderPass.execute = std::forward<F>(execute);
-                return *this;
             }
         };
 

@@ -6,17 +6,18 @@ using namespace sm;
 
 static void draw_node(render::Context& context, uint16 index, const math::float4x4& parent) {
     const auto& node = context.mWorld.info.nodes[index];
+    auto& cmd = context.mCommandList;
     auto model = (parent * node.transform.matrix()).transpose();
     float aspect_ratio = float(context.mSceneSize.width) / float(context.mSceneSize.height);
     auto mvp = context.camera.mvp(aspect_ratio, model).transpose();
 
     for (uint16 i : node.objects) {
         const auto& object = context.mMeshes[i];
-        context.mCommandList->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
-        context.mCommandList->IASetVertexBuffers(0, 1, &object.mVertexBufferView);
-        context.mCommandList->IASetIndexBuffer(&object.mIndexBufferView);
+        cmd->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
+        cmd->IASetVertexBuffers(0, 1, &object.mVertexBufferView);
+        cmd->IASetIndexBuffer(&object.mIndexBufferView);
 
-        context.mCommandList->DrawIndexedInstanced(object.mIndexCount, 1, 0, 0, 0);
+        cmd->DrawIndexedInstanced(object.mIndexCount, 1, 0, 0, 0);
     }
 
     for (uint16 i : node.children) {
