@@ -22,7 +22,7 @@ fs::path sys::get_appdir() {
 }
 
 fs::path sys::get_redist(const fs::path& name) {
-    return gProgramDir / "client.exe.local" / name;
+    return gProgramDir / "redist" / name;
 }
 
 void sys::create(HINSTANCE hInstance) {

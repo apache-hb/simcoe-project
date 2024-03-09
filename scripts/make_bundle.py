@@ -207,7 +207,7 @@ class AtlasGenerator:
             return [ path ]
 
 def copy_redist_files():
-    redist_dir = pj(outputdir, 'client.exe.local')
+    redist_dir = pj(outputdir, 'redist')
     os.makedirs(redist_dir, exist_ok=True)
 
     copy_redist(pj(redist_dir, 'd3d12'), 'agility',
