@@ -1,6 +1,6 @@
 #include "core/memory.hpp"
 #include "core/format.hpp"
-#include "core/text.hpp"
+#include "core/string.hpp"
 
 #include <iterator>
 

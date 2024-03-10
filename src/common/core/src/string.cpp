@@ -1,4 +1,4 @@
-#include "core/text.hpp"
+#include "core/string.hpp"
 
 #include "base/panic.h"
 

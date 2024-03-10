@@ -36,6 +36,10 @@ void WorldInfo::reparent_node(uint16 node, uint16 parent) {
     nodes[parent].children.push_back(node);
 }
 
+void WorldInfo::add_object(uint16 node, uint16 object) {
+    nodes[node].objects.push_back(object);
+}
+
 WorldInfo world::empty_world(sm::StringView name) {
     WorldInfo world = {
         .name = sm::String{name}

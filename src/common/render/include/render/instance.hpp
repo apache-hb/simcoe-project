@@ -2,20 +2,6 @@
 
 #include <simcoe_config.h>
 
-#include "core/win32.hpp" // IWYU pragma: export
-#include "core/compiler.h"
-
-#if SMC_USE_PIX_RUNTIME
-#   define USE_PIX 1
-#endif
-
-CT_CLANG_PRAGMA(clang diagnostic push)
-CT_CLANG_PRAGMA(clang diagnostic ignored "-Wunused-but-set-variable")
-
-#include "WinPixEventRuntime/pix3.h"
-
-CT_CLANG_PRAGMA(clang diagnostic pop)
-
 #include "core/vector.hpp"
 #include "core/memory.hpp"
 #include "core/library.hpp"
@@ -79,6 +65,7 @@ namespace sm::render {
         void enum_adapters();
 
         void load_wrap_redist();
+        void load_pix_runtime();
 
     public:
         Instance(InstanceConfig config);
@@ -90,5 +77,6 @@ namespace sm::render {
         Object<IDXGIFactory4> &factory();
         const DebugFlags &flags() const;
         bool tearing_support() const;
+        bool debug_support() const;
     };
 } // namespace sm::render

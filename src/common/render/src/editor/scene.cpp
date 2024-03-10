@@ -37,30 +37,53 @@ static sm::StringView get_item_name(const world::WorldInfo& info, ItemIndex inde
     }
 }
 
-bool ScenePanel::begin_tree_node(ItemIndex index, ImGuiTreeNodeFlags flags) {
-    auto name = get_item_name(mContext.mWorld.info, index);
-    if (index == mSelected) {
+static constexpr const char *kNodePayload = "NodeIndex";
+static constexpr const char *kMeshPayload = "MeshIndex";
+
+static const char *get_payload_type(ItemType type) {
+    switch (type) {
+    case ItemType::eNode:
+        return kNodePayload;
+    case ItemType::eMesh:
+        return kMeshPayload;
+
+    default:
+        SM_NEVER("Unknown item type {}", type);
+        return "Unknown";
+    }
+}
+
+bool ScenePanel::begin_tree_item(ItemIndex self, ImGuiTreeNodeFlags flags) {
+    auto name = get_item_name(mContext.mWorld.info, self);
+    if (self == mSelected) {
         flags |= ImGuiTreeNodeFlags_Selected;
     }
 
-    const bool open = ImGui::TreeNodeEx((void*)unique_id(index), flags, "%s", name.data());
+    const bool open = ImGui::TreeNodeEx((void*)unique_id(self), flags, "%s", name.data());
     if (ImGui::IsItemClicked()) {
-        mSelected = index;
-        mViewport.select(index);
+        mSelected = self;
+        mViewport.select(self);
     }
 
     if (ImGui::BeginDragDropSource()) {
-        ImGui::SetDragDropPayload("ItemIndex", &index, sizeof(ItemIndex));
+        ImGui::SetDragDropPayload(get_payload_type(self.type), &self, sizeof(ItemIndex));
         ImGui::EndDragDropSource();
     }
 
+    if (self.type == ItemType::eMesh) return open;
+
     if (ImGui::BeginDragDropTarget()) {
-        if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("ItemIndex")) {
-            ItemIndex data = *(const ItemIndex*)payload->Data;
-            if (data != index) {
-                //reparent_node(data, index);
-                // TODO: reparent node
-            }
+        if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload(kNodePayload)) {
+            ItemIndex node = *(const ItemIndex*)payload->Data;
+            SM_ASSERTF(node.type == ItemType::eNode, "Invalid payload type {}", node.type);
+            mContext.mWorld.info.reparent_node(node.index, self.index);
+        }
+        ImGui::EndDragDropTarget();
+
+        if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload(kMeshPayload)) {
+            ItemIndex mesh = *(const ItemIndex*)payload->Data;
+            SM_ASSERTF(mesh.type == ItemType::eMesh, "Invalid payload type {}", mesh.type);
+            mContext.mWorld.info.add_object(self.index, mesh.index);
         }
         ImGui::EndDragDropTarget();
     }
@@ -84,12 +107,12 @@ void ScenePanel::draw_node(uint16 index) {
 }
 
 void ScenePanel::draw_leaf(uint16 index) {
-    begin_tree_node({ItemType::eNode, index}, kLeafNodeFlags);
+    begin_tree_item({ItemType::eNode, index}, kLeafNodeFlags);
 }
 
 void ScenePanel::draw_group(uint16 index) {
     auto& node = mContext.mWorld.info.nodes[index];
-    bool is_open = begin_tree_node({ItemType::eNode, index}, kGroupNodeFlags);
+    bool is_open = begin_tree_item({ItemType::eNode, index}, kGroupNodeFlags);
 
     if (is_open) {
         for (uint16 child : node.children) {

@@ -3,7 +3,6 @@
 #include "d3dx12/d3dx12_core.h"
 #include "d3dx12/d3dx12_root_signature.h"
 #include "d3dx12/d3dx12_barriers.h"
-// #include "d3dx12/d3dx12_resource_helpers.h"
 
 using namespace sm;
 using namespace sm::render;

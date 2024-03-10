@@ -116,6 +116,9 @@ bool RenderConfig::draw_debug_flags() const {
     auto& flags = mContext.mDebugFlags;
     bool dirty = false;
 
+    bool disabled = !flags.test(DebugFlags::eFactoryDebug);
+    ImGui::BeginDisabled(disabled);
+    ImGui::BeginGroup();
     dirty |= MyGui::CheckboxFlags<render::DebugFlags>("Debug layer", flags, DebugFlags::eDeviceDebugLayer);
     ImGui::SameLine();
 
@@ -127,6 +130,10 @@ bool RenderConfig::draw_debug_flags() const {
 
     ImGui::SameLine();
     dirty |= MyGui::CheckboxFlags<render::DebugFlags>("DRED", flags, DebugFlags::eDeviceRemovedInfo);
+    ImGui::EndGroup();
+    ImGui::EndDisabled();
+    if (disabled)
+        ImGui::SetItemTooltip("Relaunch with --debug to enable");
 
     return dirty;
 }

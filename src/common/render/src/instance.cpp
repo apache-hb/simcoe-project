@@ -2,6 +2,8 @@
 
 #include "core/format.hpp" // IWYU pragma: export
 
+#include "render/vendor/microsoft/pix.hpp"
+
 using namespace sm;
 using namespace sm::render;
 
@@ -89,6 +91,19 @@ void Instance::load_wrap_redist() {
     }
 }
 
+void Instance::load_pix_runtime() {
+    if constexpr (!SMC_USE_PIX_RUNTIME) {
+        gSink.warn("pix runtime is fused off");
+        return;
+    }
+
+    if (PIXLoadLatestWinPixGpuCapturerLibrary()) {
+        gSink.info("loaded pix runtime");
+    } else {
+        gSink.warn("failed to load pix runtime: {}", sys::get_last_error());
+    }
+}
+
 Instance::Instance(InstanceConfig config)
     : mFlags(config.flags)
     , mAdapterSearch(config.preference)
@@ -104,14 +119,12 @@ Instance::Instance(InstanceConfig config)
         enable_leak_tracking();
 
     gSink.info("instance config");
-    gSink.info("| flags: {}", config.flags);
+    gSink.info("| flags: {}", mFlags);
 
     load_wrap_redist();
 
-    if (PIXLoadLatestWinPixGpuCapturerLibrary()) {
-        gSink.info("loaded pix runtime");
-    } else {
-        gSink.warn("failed to load pix runtime: {}", sys::get_last_error());
+    if (mFlags.test(DebugFlags::eWinPixEventRuntime)) {
+        load_pix_runtime();
     }
 
     if (!enum_by_preference())
@@ -151,4 +164,8 @@ const DebugFlags &Instance::flags() const {
 
 bool Instance::tearing_support() const {
     return mTearingSupport;
+}
+
+bool Instance::debug_support() const {
+    return mFlags.test(DebugFlags::eFactoryDebug);
 }

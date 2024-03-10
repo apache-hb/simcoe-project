@@ -2,7 +2,7 @@
 
 #include "core/core.hpp"
 #include "core/vector.hpp"
-#include "core/text.hpp"
+#include "core/string.hpp"
 
 #include "archive/io.hpp"
 

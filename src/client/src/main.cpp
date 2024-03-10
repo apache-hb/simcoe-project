@@ -5,7 +5,7 @@
 #include "core/macros.h"
 #include "core/format.hpp" // IWYU pragma: keep
 #include "core/span.hpp"
-#include "core/text.hpp"
+#include "core/string.hpp"
 #include "core/units.hpp"
 
 // #include "archive/io.hpp"
@@ -34,26 +34,48 @@
 using namespace sm;
 using namespace math;
 
-// void *operator new(size_t size) {
-//     NEVER("operator new called");
-// }
-
-// void operator delete(void *ptr) {
-//     NEVER("operator delete called");
-// }
-
-// void *operator new[](size_t size) {
-//     NEVER("operator new[] called");
-// }
-
-// void operator delete[](void *ptr) {
-//     NEVER("operator delete[] called");
-// }
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
+                                                             LPARAM lParam);
 
 static auto gSink = logs::get_sink(logs::Category::eGlobal);
 
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
-                                                             LPARAM lParam);
+struct ClientArgs {
+    bool help;
+    bool pix;
+    bool warp;
+    bool dred;
+    bool debug;
+
+    void parse(sm::Span<const char*> args) {
+        for (size_t i = 1; i < args.size(); ++i) {
+            sm::StringView view{args[i]};
+            if (view == "--help") {
+                help = true;
+            } else if (view == "--pix") {
+                pix = true;
+            } else if (view == "--warp") {
+                warp = true;
+            } else if (view == "--dred") {
+                dred = true;
+            } else if (view == "--debug") {
+                debug = true;
+            } else {
+                gSink.error("unknown argument: {}", view);
+            }
+        }
+    }
+
+    void print() {
+        gSink.info("client options:");
+        gSink.info("  --help   : print this message");
+        gSink.info("  --pix    : enable WinPixEventRuntime");
+        gSink.info("  --warp   : enable WARP adapter");
+        gSink.info("  --dred   : enable device removed info");
+        gSink.info("  --debug  : enable debug layers");
+    }
+};
+
+static ClientArgs gClientOptions;
 
 // TODO: clean up loggers
 
@@ -152,45 +174,6 @@ class ConsoleLog final : public logs::ILogChannel {
 public:
     ConsoleLog() = default;
 };
-
-#if 0
-class TraceArena final : public IArena {
-    logs::Sink<logs::Category::eDebug> m_log;
-    IArena &m_source;
-
-    void *impl_alloc(size_t size) override {
-        void *ptr = m_source.alloc(size);
-        m_log.trace("[{}] alloc({:#x}) = {}\n", name, size, ptr);
-        return ptr;
-    }
-
-    void *impl_resize(void *ptr, size_t new_size, size_t old_size) override {
-        void *new_ptr = m_source.resize(ptr, new_size, old_size);
-        m_log.trace("[{}] resize({}, {:#x}, {}) = {}\n", name, ptr, new_size, old_size, new_ptr);
-        return new_ptr;
-    }
-
-    void impl_release(void *ptr, size_t size) override {
-        m_source.release(ptr, size);
-        m_log.trace("[{}] release({}, {:#x})\n", name, ptr, size);
-    }
-
-    void impl_rename(const void *ptr, const char *ptr_name) override {
-        m_log.trace("[{}] rename({}, {})\n", name, ptr, ptr_name);
-    }
-
-    void impl_reparent(const void *ptr, const void *parent) override {
-        m_log.trace("[{}] reparent({}, {})\n", name, ptr, parent);
-    }
-
-public:
-    TraceArena(const char *name, IArena &source, logs::ILogger &logger)
-        : IArena(name)
-        , m_log(logger)
-        , m_source(source) {}
-};
-
-#endif
 
 static print_backtrace_t print_options_make(io_t *io) {
     print_backtrace_t print = {
@@ -324,14 +307,32 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     IoHandle tar = io_file("build/bundle.tar", eOsAccessRead, sm::global_arena());
     sm::Bundle bundle{*tar, archive::BundleFormat::eTar};
 
-    // enabling gpu based validation on the warp adapter
-    // absolutely tanks performance
-    constexpr render::DebugFlags flags = render::DebugFlags::eWarpAdapter
-        | render::DebugFlags::eDeviceDebugLayer
-        | render::DebugFlags::eFactoryDebug
-        | render::DebugFlags::eDeviceRemovedInfo
-        | render::DebugFlags::eInfoQueue
-        | render::DebugFlags::eAutoName;
+    render::DebugFlags flags = render::DebugFlags::none();
+
+    if (gClientOptions.warp) {
+        flags |= render::DebugFlags::eWarpAdapter;
+    }
+
+    if (gClientOptions.debug) {
+        flags |= render::DebugFlags::eDeviceDebugLayer;
+        flags |= render::DebugFlags::eFactoryDebug;
+        flags |= render::DebugFlags::eInfoQueue;
+        flags |= render::DebugFlags::eAutoName;
+
+        // enabling gpu based validation on the warp adapter
+        // absolutely tanks performance
+        if (!gClientOptions.warp) {
+            flags |= render::DebugFlags::eGpuValidation;
+        }
+    }
+
+    if (gClientOptions.pix) {
+        flags |= render::DebugFlags::eWinPixEventRuntime;
+    }
+
+    if (gClientOptions.dred) {
+        flags |= render::DebugFlags::eDeviceRemovedInfo;
+    }
 
     const render::RenderConfig render_config = {
         .flags = flags,
@@ -443,6 +444,13 @@ int main(int argc, const char **argv) {
 
     System sys{GetModuleHandleA(nullptr)};
 
+    gClientOptions.parse(args);
+
+    if (gClientOptions.help) {
+        gClientOptions.print();
+        return 0;
+    }
+
     return common_main(sys::ShowWindow::eShow);
 }
 
@@ -451,6 +459,8 @@ int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdL
 
     gSink.info("lpCmdLine = {}", lpCmdLine);
     gSink.info("nShowCmd = {}", nShowCmd);
+
+    // TODO: parse lpCmdLine
 
     System sys{hInstance};
 

@@ -32,7 +32,7 @@ void ViewportPanel::draw_content() {
     auto idx = mContext.mSrvPool.gpu_handle(srv);
     ImGui::Image((ImTextureID)idx.ptr, avail);
 
-    if (mSelected == ItemIndex::none()) return;
+    if (mSelected.type != ItemType::eNode) return;
 
     float2 size = ImGui::GetWindowSize();
     float2 pos = ImGui::GetWindowPos();

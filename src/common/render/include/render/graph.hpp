@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/text.hpp"
+#include "core/string.hpp"
 #include "core/vector.hpp"
 #include "math/math.hpp"
 

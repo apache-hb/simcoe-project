@@ -8,6 +8,7 @@
 #include "render/editor/debug.hpp"
 #include "render/editor/assets.hpp"
 #include "render/editor/viewport.hpp"
+#include "render/editor/pix.hpp"
 
 #include "imfilebrowser.h"
 
@@ -27,12 +28,23 @@ namespace sm::editor {
         FeatureSupportPanel mFeatureSupport;
         DebugPanel mDebug;
         AssetBrowserPanel mAssetBrowser;
+        PixPanel mPix;
+
+        struct MenuSection {
+            const char *name;
+            sm::Vector<IEditorPanel*> panels;
+        };
+
+        struct EditorMenu {
+            const char *name;
+            sm::Vector<IEditorPanel*> header;
+            sm::Vector<MenuSection> sections;
+        };
+
+        sm::Vector<EditorMenu> mMenus;
 
         ImGui::FileBrowser mSaveLevelDialog { ImGuiFileBrowserFlags_CreateNewDir | ImGuiFileBrowserFlags_EnterNewFilename | ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_ConfirmOnEnter };
         ImGui::FileBrowser mOpenLevelDialog { ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_ConfirmOnEnter };
-
-        bool mShowDemo = true;
-        bool mShowPlotDemo = true;
 
         void draw_mainmenu();
         void draw_dockspace();

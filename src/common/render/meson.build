@@ -34,6 +34,7 @@ src = [
     'src/editor/inspector.cpp',
     'src/editor/debug.cpp',
     'src/editor/assets.cpp',
+    'src/editor/pix.cpp',
     'src/editor/viewport.cpp',
 
     reflect.process('data/render.ct'),

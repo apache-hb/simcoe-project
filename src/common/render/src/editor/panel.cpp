@@ -5,20 +5,36 @@
 using namespace sm;
 using namespace sm::editor;
 
-void IEditorPanel::draw_menu_item(const char *shortcut) {
-    ImGui::MenuItem(mTitle.c_str(), shortcut, &mOpen);
+void IEditorPanel::set_window_flags(ImGuiWindowFlags flags) { mFlags = flags; }
+ImGuiWindowFlags IEditorPanel::get_window_flags() const { return mFlags; }
+
+void IEditorPanel::set_shortcut(const char *shortcut) { mShortcut = shortcut; }
+const char *IEditorPanel::get_shortcut() const { return mShortcut; }
+
+void IEditorPanel::set_title(sm::StringView title) { mTitle = title; }
+const char *IEditorPanel::get_title() const { return mTitle.c_str(); }
+
+void IEditorPanel::set_open(bool open) { mOpen = open; }
+bool IEditorPanel::is_open() const { return mOpen; }
+bool *IEditorPanel::get_open() { return &mOpen; }
+
+bool IEditorPanel::draw_menu_item(const char *shortcut) {
+    const char *hotkey = (shortcut == nullptr) ? get_shortcut() : shortcut;
+    return ImGui::MenuItem(get_title(), hotkey, &mOpen);
 }
 
-void IEditorPanel::draw_window() {
-    if (!mOpen) return;
-
-    if (ImGui::Begin(mTitle.c_str(), &mOpen, mFlags)) {
-        draw_content();
+bool IEditorPanel::draw_window() {
+    if (mOpen) {
+        if (ImGui::Begin(get_title(), &mOpen, mFlags)) {
+            draw_content();
+        }
+        ImGui::End();
     }
-    ImGui::End();
+
+    return mOpen;
 }
 
 void IEditorPanel::draw_section() {
-    ImGui::SeparatorText(mTitle.c_str());
+    ImGui::SeparatorText(get_title());
     draw_content();
 }

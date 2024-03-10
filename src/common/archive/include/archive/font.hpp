@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/text.hpp"
+#include "core/string.hpp"
 
 #include "archive/image.hpp"
 

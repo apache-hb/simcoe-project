@@ -30,7 +30,7 @@ namespace sm::editor {
         ViewportPanel& mViewport;
         ItemIndex mSelected = ItemIndex::none();
 
-        bool begin_tree_node(ItemIndex index, ImGuiTreeNodeFlags flags);
+        bool begin_tree_item(ItemIndex index, ImGuiTreeNodeFlags flags);
 
         void draw_node(uint16 index);
         void draw_leaf(uint16 index);

@@ -1,19 +1,25 @@
 #include "render/draw/scene.hpp"
 
 #include "render/render.hpp"
+#include "math/format.hpp" // IWYU pragma: keep
 
 using namespace sm;
+using namespace sm::math;
 
-static void draw_node(render::Context& context, uint16 index, const math::float4x4& parent) {
-    const auto& node = context.mWorld.info.nodes[index];
-    auto& cmd = context.mCommandList;
-    auto model = (parent * node.transform.matrix()).transpose();
+static auto gSink = logs::get_sink(logs::Category::eRender);
+
+static void draw_node(render::Context& context, uint16 index, const float4x4& parent) {
     float aspect_ratio = float(context.mSceneSize.width) / float(context.mSceneSize.height);
-    auto mvp = context.camera.mvp(aspect_ratio, model).transpose();
+    const auto& node = context.mWorld.info.nodes[index];
+
+    auto model = (parent * node.transform.matrix()).transpose();
+    float4x4 mvp = context.camera.mvp(aspect_ratio, model).transpose();
+
+    auto& cmd = context.mCommandList;
+    cmd->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
 
     for (uint16 i : node.objects) {
         const auto& object = context.mMeshes[i];
-        cmd->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
         cmd->IASetVertexBuffers(0, 1, &object.mVertexBufferView);
         cmd->IASetIndexBuffer(&object.mIndexBufferView);
 

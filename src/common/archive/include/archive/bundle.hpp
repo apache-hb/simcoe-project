@@ -3,7 +3,7 @@
 #include "core/core.hpp"
 
 #include "core/span.hpp"
-#include "core/text.hpp"
+#include "core/string.hpp"
 
 #include "archive/font.hpp"
 

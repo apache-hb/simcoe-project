@@ -4,7 +4,7 @@
 
 #include "core/arena.hpp"
 #include "core/memory.hpp"
-#include "core/text.hpp"
+#include "core/string.hpp"
 #include "core/format.hpp" // IWYU pragma: keep
 
 #include "logs/logs.hpp"

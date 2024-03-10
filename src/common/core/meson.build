@@ -13,7 +13,7 @@ core_dependencies = [
 
 src = [
     'src/arena.cpp',
-    'src/text.cpp',
+    'src/string.cpp',
     'src/error.cpp',
     'src/bitmap.cpp',
     'src/units.cpp',

@@ -59,6 +59,7 @@ namespace sm::world {
         uint16 add_camera(CameraInfo info);
 
         void reparent_node(uint16 node, uint16 parent);
+        void add_object(uint16 node, uint16 object);
     };
 
     WorldInfo empty_world(sm::StringView name);

@@ -370,12 +370,13 @@ static constexpr world::MeshInfo kMeshInfo = {
 
 void Context::init_scene() {
     mWorld.info.root_node = 0;
-    world::NodeInfo node;
+    world::NodeInfo node{};
     node.name = "Scene Root";
+    node.transform.scale = 1.f;
     node.objects.push_back(0);
     mWorld.info.nodes.push_back(node);
 
-    world::ObjectInfo object;
+    world::ObjectInfo object{};
     object.name = "Cube";
     object.info = kMeshInfo;
     mWorld.info.objects.push_back(object);
@@ -954,6 +955,8 @@ void Context::create() {
         : mConfig.adapter_index;
 
     mConfig.bundle.get_font("public_sans");
+
+    PIXSetTargetWindow(mConfig.window.get_handle());
 
     mStorage.create(mDebugFlags);
 
