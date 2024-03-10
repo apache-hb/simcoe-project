@@ -2,6 +2,9 @@
 
 #include "render/editor/panel.hpp"
 
+#include "core/map.hpp"
+#include "core/vector.hpp"
+
 #include "ImNodesEz.h"
 
 namespace sm::render {
@@ -11,8 +14,6 @@ namespace sm::render {
 namespace sm::editor {
     class GraphPanel final : public IEditorPanel {
         render::Context& mContext;
-
-        ImNodes::CanvasState mCanvasState{};
 
         void draw_graph();
         void draw_lifetimes();

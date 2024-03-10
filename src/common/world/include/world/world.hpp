@@ -55,10 +55,12 @@ namespace sm::world {
         sm::Vector<ImageInfo> images;
         sm::Vector<BufferInfo> buffers;
 
-        uint16 add_node(NodeInfo info);
-        uint16 add_camera(CameraInfo info);
+        uint16 add_node(const NodeInfo& info);
+        uint16 add_camera(const CameraInfo& info);
 
         void reparent_node(uint16 node, uint16 parent);
+        void delete_node(uint16 index);
+        bool is_root_node(uint16 node) const;
         void add_object(uint16 node, uint16 object);
     };
 

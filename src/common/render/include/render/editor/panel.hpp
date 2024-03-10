@@ -2,9 +2,14 @@
 
 #include "core/string.hpp"
 
+#include "world/world.hpp"
+
 #include "imgui/imgui.h"
 
 namespace sm::editor {
+    static constexpr const char *kNodePayload = "NodeIndex";
+    static constexpr const char *kMeshPayload = "MeshIndex";
+
     class IEditorPanel {
         bool mOpen = true;
         const char *mShortcut = nullptr;
@@ -39,4 +44,6 @@ namespace sm::editor {
         virtual bool draw_window();
         void draw_section();
     };
+
+    void edit_transform(world::Transform& transform);
 }

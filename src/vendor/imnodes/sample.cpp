@@ -191,7 +191,7 @@ void ShowDemoWindow(bool*)
                 }
                 // Then we delete our own connections, so we don't corrupt the list
                 node->Connections.clear();
-                
+
                 delete node;
                 it = nodes.erase(it);
             }

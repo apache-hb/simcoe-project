@@ -4,6 +4,8 @@
 
 #include "render/editor/panel.hpp"
 
+#include "world/world.hpp"
+
 #include "imgui/imgui.h"
 
 #include "editor.reflect.h"
@@ -29,6 +31,11 @@ namespace sm::editor {
         render::Context& mContext;
         ViewportPanel& mViewport;
         ItemIndex mSelected = ItemIndex::none();
+
+        bool mShowObjects = false;
+        bool mShowCameras = false;
+
+        world::NodeInfo mNodeInfo{.name = "Node", .transform = {.scale = 1.f}};
 
         bool begin_tree_item(ItemIndex index, ImGuiTreeNodeFlags flags);
 

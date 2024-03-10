@@ -1,6 +1,7 @@
 #pragma once
 
 #include "render/editor/features.hpp"
+#include "render/editor/graph.hpp"
 #include "render/editor/inspector.hpp"
 #include "render/editor/logger.hpp"
 #include "render/editor/config.hpp"
@@ -28,6 +29,7 @@ namespace sm::editor {
         FeatureSupportPanel mFeatureSupport;
         DebugPanel mDebug;
         AssetBrowserPanel mAssetBrowser;
+        GraphPanel mGraph;
         PixPanel mPix;
 
         struct MenuSection {

@@ -68,6 +68,7 @@ Editor::Editor(render::Context& context)
     , mInspector(context, mViewport)
     , mFeatureSupport(context)
     , mAssetBrowser(context)
+    , mGraph(context)
     , mPix(context)
 {
     mOpenLevelDialog.SetTitle("Open Level");

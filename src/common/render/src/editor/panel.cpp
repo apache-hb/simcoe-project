@@ -1,9 +1,11 @@
 #include "render/editor/panel.hpp"
 
 #include "imgui/imgui.h"
+#include "render/mygui.hpp"
 
 using namespace sm;
 using namespace sm::editor;
+using namespace sm::math;
 
 void IEditorPanel::set_window_flags(ImGuiWindowFlags flags) { mFlags = flags; }
 ImGuiWindowFlags IEditorPanel::get_window_flags() const { return mFlags; }
@@ -37,4 +39,11 @@ bool IEditorPanel::draw_window() {
 void IEditorPanel::draw_section() {
     ImGui::SeparatorText(get_title());
     draw_content();
+}
+
+void editor::edit_transform(world::Transform& transform) {
+	auto& [position, rotation, scale] = transform;
+	ImGui::DragFloat3("Translation", position.data());
+    MyGui::DragAngle3("Rotation", &rotation, 1._deg, -180._deg, 180._deg);
+	ImGui::DragFloat3("Scale", scale.data());
 }

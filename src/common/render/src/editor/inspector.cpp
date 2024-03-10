@@ -3,7 +3,6 @@
 #include "render/editor/viewport.hpp"
 
 #include "render/render.hpp"
-#include "render/mygui.hpp"
 
 using namespace sm;
 using namespace sm::editor;
@@ -30,10 +29,7 @@ void InspectorPanel::draw_content() {
     ImGui::Text("%zu children, %zu objects", node.children.size(), node.objects.size());
 
     ImGui::SeparatorText("Transform");
-	auto& [position, rotation, scale] = node.transform;
-	ImGui::DragFloat3("Translation", position.data());
-    MyGui::DragAngle3("Rotation", &rotation, 1._deg, -180._deg, 180._deg);
-	ImGui::DragFloat3("Scale", scale.data());
+    edit_transform(node.transform);
 
     ImGui::SeparatorText("Gizmo");
     mViewport.gizmo_settings_panel();

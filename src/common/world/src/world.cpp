@@ -9,17 +9,17 @@ using namespace sm::world;
 
 static auto gSink = logs::get_sink(logs::Category::eAssets);
 
-uint16 WorldInfo::add_node(NodeInfo info) {
+uint16 WorldInfo::add_node(const NodeInfo& info) {
     auto index = int_cast<uint16>(nodes.size());
     uint16 parent = info.parent;
-    nodes.emplace_back(std::move(info));
+    nodes.emplace_back(info);
     nodes[parent].children.push_back(index);
     return index;
 }
 
-uint16 WorldInfo::add_camera(CameraInfo info) {
+uint16 WorldInfo::add_camera(const CameraInfo& info) {
     auto index = int_cast<uint16>(cameras.size());
-    cameras.push_back(std::move(info));
+    cameras.push_back(info);
     return index;
 }
 
@@ -34,6 +34,25 @@ void WorldInfo::reparent_node(uint16 node, uint16 parent) {
     // add this node to the new parent
     nodes[node].parent = parent;
     nodes[parent].children.push_back(node);
+}
+
+void WorldInfo::delete_node(uint16 index) {
+    CTASSERTF(!is_root_node(index), "Cannot delete root node");
+    auto& node = nodes[index];
+    auto& parent = nodes[node.parent];
+    auto& children = parent.children;
+
+    // remove this node from the parent
+    children.erase(std::remove(children.begin(), children.end(), index), children.end());
+
+    // move all children to the parent
+    for (uint16 child : node.children) {
+        children.push_back(child);
+    }
+}
+
+bool WorldInfo::is_root_node(uint16 node) const {
+    return node == root_node;
 }
 
 void WorldInfo::add_object(uint16 node, uint16 object) {

@@ -52,7 +52,6 @@ namespace sm::graph {
     };
 
     class FrameGraph {
-    public: // TODO: this is for the debugger only
         struct IGraphNode {
             uint refcount = 0;
         };
@@ -119,6 +118,7 @@ namespace sm::graph {
 
         bool is_imported(Handle handle) const;
 
+    public:
         void optimize();
         void create_resources();
         void destroy_resources();

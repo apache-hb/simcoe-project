@@ -12,6 +12,9 @@ src = [
     'backends/imgui_impl_dx12.cpp',
     'backends/imgui_impl_win32.cpp',
 
+    # stdlib integration
+    'misc/cpp/imgui_stdlib.cpp',
+
     # freetype integration
     'misc/freetype/imgui_freetype.cpp',
 ]

@@ -2,6 +2,8 @@
 
 #include "render/render.hpp"
 
+#include "imgui/misc/imgui_stdlib.h"
+
 using namespace sm;
 using namespace sm::editor;
 
@@ -25,6 +27,8 @@ const ImGuiTreeNodeFlags kLeafNodeFlags
     | ImGuiTreeNodeFlags_Bullet
     | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 
+static auto gSink = logs::get_sink(logs::Category::eDebug);
+
 static intptr_t unique_id(ItemIndex index) {
     return (intptr_t)index.type.as_integral() << 16 | index.index;
 }
@@ -36,9 +40,6 @@ static sm::StringView get_item_name(const world::WorldInfo& info, ItemIndex inde
     default: return "Unknown";
     }
 }
-
-static constexpr const char *kNodePayload = "NodeIndex";
-static constexpr const char *kMeshPayload = "MeshIndex";
 
 static const char *get_payload_type(ItemType type) {
     switch (type) {
@@ -54,7 +55,8 @@ static const char *get_payload_type(ItemType type) {
 }
 
 bool ScenePanel::begin_tree_item(ItemIndex self, ImGuiTreeNodeFlags flags) {
-    auto name = get_item_name(mContext.mWorld.info, self);
+    auto& world = mContext.mWorld.info;
+    auto name = get_item_name(world, self);
     if (self == mSelected) {
         flags |= ImGuiTreeNodeFlags_Selected;
     }
@@ -76,28 +78,57 @@ bool ScenePanel::begin_tree_item(ItemIndex self, ImGuiTreeNodeFlags flags) {
         if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload(kNodePayload)) {
             ItemIndex node = *(const ItemIndex*)payload->Data;
             SM_ASSERTF(node.type == ItemType::eNode, "Invalid payload type {}", node.type);
-            mContext.mWorld.info.reparent_node(node.index, self.index);
+            world.reparent_node(node.index, self.index);
         }
-        ImGui::EndDragDropTarget();
 
         if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload(kMeshPayload)) {
             ItemIndex mesh = *(const ItemIndex*)payload->Data;
             SM_ASSERTF(mesh.type == ItemType::eMesh, "Invalid payload type {}", mesh.type);
-            mContext.mWorld.info.add_object(self.index, mesh.index);
+            world.add_object(self.index, mesh.index);
         }
         ImGui::EndDragDropTarget();
+    }
+
+    uint16 index = self.index;
+
+    if (ImGui::BeginPopupContextItem()) {
+        if (ImGui::Button("Add Child")) {
+            mNodeInfo.parent = index;
+            uint16 id = world.add_node(mNodeInfo);
+            world.reparent_node(id, index);
+            ImGui::CloseCurrentPopup();
+        }
+
+        if (!world.is_root_node(index)) {
+            ImGui::SameLine();
+            if (ImGui::Button("Delete")) {
+                world.delete_node(index);
+                ImGui::CloseCurrentPopup();
+            }
+        }
+
+        ImGui::InputText("Name", &mNodeInfo.name);
+        edit_transform(mNodeInfo.transform);
+
+        ImGui::EndPopup();
     }
 
     return open;
 }
 
 void ScenePanel::draw_node(uint16 index) {
-    auto& node = mContext.mWorld.info.nodes[index];
-    ImGui::PushID((void*)&node);
+    auto& world = mContext.mWorld.info;
+    const auto& node = world.nodes[index];
+    ImGui::PushID(index);
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
 
-    if (node.children.empty()) {
+    bool leaf = node.children.empty();
+    if (mShowObjects && !node.objects.empty()) {
+        leaf = false;
+    }
+
+    if (leaf) {
         draw_leaf(index);
     } else {
         draw_group(index);
@@ -108,15 +139,35 @@ void ScenePanel::draw_node(uint16 index) {
 
 void ScenePanel::draw_leaf(uint16 index) {
     begin_tree_item({ItemType::eNode, index}, kLeafNodeFlags);
+    ImGui::TableNextColumn();
+
+    ImGui::TableNextColumn();
+    ImGui::TextUnformatted("Node");
 }
 
 void ScenePanel::draw_group(uint16 index) {
-    auto& node = mContext.mWorld.info.nodes[index];
     bool is_open = begin_tree_item({ItemType::eNode, index}, kGroupNodeFlags);
 
+    ImGui::TableNextColumn();
+
+    ImGui::TableNextColumn();
+    ImGui::TextUnformatted("Node");
+
     if (is_open) {
-        for (uint16 child : node.children) {
-            draw_node(child);
+        if (mShowObjects) {
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            if (ImGui::TreeNodeEx("Objects", kGroupNodeFlags)) {
+                for (uint16 i : mContext.mWorld.info.nodes[index].objects) {
+                    begin_tree_item({ItemType::eMesh, i}, kLeafNodeFlags);
+                }
+                ImGui::TreePop();
+            }
+        }
+
+        auto& node = mContext.mWorld.info.nodes[index];
+        for (size_t i = 0; i < node.children.size(); ++i) {
+            draw_node(node.children[i]);
         }
 
         ImGui::TreePop();
@@ -124,6 +175,15 @@ void ScenePanel::draw_group(uint16 index) {
 }
 
 void ScenePanel::draw_content() {
+    if (ImGui::BeginMenuBar()) {
+        if (ImGui::BeginMenu("Show")) {
+            ImGui::MenuItem("Objects", nullptr, &mShowObjects);
+            ImGui::MenuItem("Cameras", nullptr, &mShowCameras);
+            ImGui::EndMenu();
+        }
+        ImGui::EndMenuBar();
+    }
+
     if (ImGui::BeginTable("Scene Tree", 3, kTableFlags)) {
         ImGui::TableSetupColumn("Name");
         ImGui::TableSetupColumn("Visible");
@@ -140,4 +200,6 @@ ScenePanel::ScenePanel(render::Context& context, ViewportPanel& viewport)
     : IEditorPanel("Scene Tree")
     , mContext(context)
     , mViewport(viewport)
-{ }
+{
+    mFlags |= ImGuiWindowFlags_MenuBar;
+}
