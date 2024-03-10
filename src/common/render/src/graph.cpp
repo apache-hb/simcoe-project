@@ -51,21 +51,27 @@ D3D12_CLEAR_VALUE *Clear::get_value(D3D12_CLEAR_VALUE& storage, render::Format f
     return &storage;
 }
 
-void PassBuilder::read(Handle handle, Access access) {
-    mRenderPass.reads.push_back({handle, access});
+void PassBuilder::add_write(Handle handle, sm::StringView name, Access access) {
+    mRenderPass.writes.push_back({sm::String{name}, handle, access});
 }
 
-void PassBuilder::write(Handle handle, Access access) {
-    mRenderPass.writes.push_back({handle, access});
+void PassBuilder::read(Handle handle, sm::StringView name, Access access) {
+    mRenderPass.reads.push_back({sm::String{name}, handle, access});
+}
+
+void PassBuilder::write(Handle handle, sm::StringView name, Access access) {
     if (mFrameGraph.is_imported(handle)) {
         side_effects(true);
         mRenderPass.has_side_effects = true;
     }
+
+    add_write(handle, name, access);
 }
 
-Handle PassBuilder::create(TextureInfo info, Access access) {
-    Handle handle = mFrameGraph.texture(std::move(info), access);
-    mRenderPass.creates.push_back({handle, access});
+Handle PassBuilder::create(ResourceInfo info, sm::StringView name, Access access) {
+    Handle handle = mFrameGraph.texture(info, access);
+    mRenderPass.creates.push_back({fmt::format("{}/{}", mRenderPass.name, name), handle, access});
+    add_write(handle, name, access);
     return handle;
 }
 
@@ -83,9 +89,9 @@ uint FrameGraph::add_handle(ResourceHandle handle, Access access) {
     return index;
 }
 
-Handle FrameGraph::texture(TextureInfo info, Access access) {
+Handle FrameGraph::texture(ResourceInfo info, Access access) {
     ResourceHandle handle = {
-        .info = std::move(info),
+        .info = info,
         .type = ResourceType::eTransient,
         .access = access,
         .resource = nullptr,
@@ -95,9 +101,10 @@ Handle FrameGraph::texture(TextureInfo info, Access access) {
     return {index};
 }
 
-Handle FrameGraph::include(TextureInfo info, Access access, ID3D12Resource *resource) {
+Handle FrameGraph::include(sm::StringView name, ResourceInfo info, Access access, ID3D12Resource *resource) {
     ResourceHandle handle = {
-        .info = std::move(info),
+        .name = sm::String{name},
+        .info = info,
         .type = resource ? ResourceType::eManaged : ResourceType::eImported,
         .access = access,
         .resource = resource
@@ -160,11 +167,11 @@ void FrameGraph::optimize() {
     for (auto& pass : mRenderPasses) {
         pass.refcount = (uint)pass.writes.size();
 
-        for (auto& [index, _] : pass.reads) {
+        for (auto& [_, index, _] : pass.reads) {
             mHandles[index.index].refcount += 1;
         }
 
-        for (auto& [index, _] : pass.writes) {
+        for (auto& [_, index, _] : pass.writes) {
             mHandles[index.index].producer = &pass;
         }
     }
@@ -187,7 +194,7 @@ void FrameGraph::optimize() {
 
         producer->refcount -= 1;
         if (producer->refcount == 0) {
-            for (auto& [index, access] : producer->reads) {
+            for (auto& [_, index, access] : producer->reads) {
                 auto& handle = mHandles[index.index];
                 handle.refcount -= 1;
                 if (handle.refcount == 0) {
@@ -200,19 +207,19 @@ void FrameGraph::optimize() {
     for (auto& pass : mRenderPasses) {
         if (pass.refcount == 0) continue;
 
-        for (auto& [index, access] : pass.creates) {
+        for (auto& [_, index, access] : pass.creates) {
             auto& handle = mHandles[index.index];
             handle.producer = &pass;
             handle.refcount += 1;
         }
 
-        for (auto& [index, access] : pass.reads) {
+        for (auto& [_, index, access] : pass.reads) {
             auto& handle = mHandles[index.index];
             handle.last = &pass;
             handle.refcount += 1;
         }
 
-        for (auto& [index, access] : pass.writes) {
+        for (auto& [_, index, access] : pass.writes) {
             auto& handle = mHandles[index.index];
             handle.last = &pass;
             handle.refcount += 1;
@@ -268,7 +275,7 @@ void FrameGraph::create_resources() {
         auto& resource = mResources.emplace_back();
         SM_ASSERT_HR(mContext.create_resource(resource, D3D12_HEAP_TYPE_DEFAULT, desc, state, clear));
 
-        resource.mResource.rename(info.name);
+        resource.mResource.rename(handle.name);
 
         handle.resource = resource.get();
 
@@ -377,17 +384,17 @@ void FrameGraph::execute() {
     for (auto& pass : mRenderPasses) {
         if (!pass.is_used()) continue;
 
-        for (auto& [index, access] : pass.creates) {
+        for (auto& [_, index, access] : pass.creates) {
             restoration.push_back({resource(index), access.as_facade()});
 
             update_state(index, access);
         }
 
-        for (auto& [index, access] : pass.reads) {
+        for (auto& [_, index, access] : pass.reads) {
             update_state(index, access);
         }
 
-        for (auto& [index, access] : pass.writes) {
+        for (auto& [_, index, access] : pass.writes) {
             update_state(index, access);
         }
 

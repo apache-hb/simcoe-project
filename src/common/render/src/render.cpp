@@ -838,7 +838,7 @@ void Context::build_command_list() {
 
     reset_direct_commands();
 
-    auto& [backbuffer, _0, rtv, _1] = mFrames[mFrameIndex];
+    auto& [backbuffer, _, rtv, _] = mFrames[mFrameIndex];
 
     mFrameGraph.update(mSwapChainHandle, backbuffer.get());
     mFrameGraph.update(mSwapChainHandle, rtv);
@@ -855,8 +855,11 @@ void Context::build_command_list() {
 
 void Context::create_frame_graph() {
     {
-        graph::TextureInfo info = { .name = "SwapChain", .size = mSwapChainSize, .format = mSwapChainFormat };
-        mSwapChainHandle = mFrameGraph.include(info, graph::Access::ePresent, nullptr);
+        graph::ResourceInfo info = {
+            .size = mSwapChainSize,
+            .format = mSwapChainFormat
+        };
+        mSwapChainHandle = mFrameGraph.include("BackBuffer", info, graph::Access::ePresent, nullptr);
     }
 
     draw::draw_scene(mFrameGraph, mSceneTargetHandle);

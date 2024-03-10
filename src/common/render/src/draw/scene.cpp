@@ -33,25 +33,21 @@ static void draw_node(render::Context& context, uint16 index, const float4x4& pa
 
 void draw::draw_scene(graph::FrameGraph& graph, graph::Handle& target) {
     auto& ctx = graph.get_context();
-    graph::TextureInfo depth_info = {
-        .name = "Scene/Depth",
+    graph::ResourceInfo depth_info = {
         .size = graph.render_size(),
         .format = ctx.mDepthFormat,
         .clear = graph::clear_depth(1.f)
     };
 
-    graph::TextureInfo target_info = {
-        .name = "Scene/Target",
+    graph::ResourceInfo target_info = {
         .size = graph.render_size(),
         .format = ctx.mSceneFormat,
         .clear = graph::clear_colour(render::kClearColour)
     };
 
     graph::PassBuilder pass = graph.pass("Scene");
-    target = pass.create(target_info, graph::Access::eRenderTarget);
-    auto depth = pass.create(depth_info, graph::Access::eDepthTarget);
-    pass.write(depth, graph::Access::eDepthTarget);
-    pass.write(target, graph::Access::eRenderTarget);
+    target = pass.create(target_info, "Target", graph::Access::eRenderTarget);
+    auto depth = pass.create(depth_info, "Depth", graph::Access::eDepthTarget);
 
     pass.bind([target, depth](graph::FrameGraph& graph, render::Context& context) {
         auto& cmd = context.mCommandList;

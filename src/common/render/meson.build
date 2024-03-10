@@ -61,7 +61,8 @@ deps = [
     nvapi,
 
     # gui
-    imgui, implot, imguizmo, filebrowser
+    imgui, implot, imguizmo, filebrowser,
+    imnodes
 ]
 
 librender = library('render', src,

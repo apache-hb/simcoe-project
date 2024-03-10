@@ -45,19 +45,20 @@ namespace sm::graph {
 
     Clear clear_depth(float depth);
 
-    struct TextureInfo {
-        sm::String name;
+    struct ResourceInfo {
         uint2 size;
         render::Format format;
         Clear clear;
     };
 
     class FrameGraph {
+    public: // TODO: this is for the debugger only
         struct IGraphNode {
             uint refcount = 0;
         };
 
         struct ResourceAccess {
+            sm::String name;
             Handle index;
             Access access;
         };
@@ -76,8 +77,11 @@ namespace sm::graph {
         };
 
         struct ResourceHandle final : IGraphNode {
+            // the name of the resource
+            sm::String name;
+
             // info to create the resource
-            TextureInfo info;
+            ResourceInfo info;
 
             // type of the resource (imported or transient)
             ResourceType type;
@@ -111,7 +115,7 @@ namespace sm::graph {
         sm::Vector<render::Resource> mResources;
 
         uint add_handle(ResourceHandle handle, Access access);
-        Handle texture(TextureInfo info, Access access);
+        Handle texture(ResourceInfo info, Access access);
 
         bool is_imported(Handle handle) const;
 
@@ -119,7 +123,6 @@ namespace sm::graph {
         void create_resources();
         void destroy_resources();
 
-    public:
         FrameGraph(render::Context& context)
             : mContext(context)
         { }
@@ -128,15 +131,17 @@ namespace sm::graph {
             FrameGraph& mFrameGraph;
             RenderPass& mRenderPass;
 
+            void add_write(Handle handle, sm::StringView name, Access access);
+
         public:
             PassBuilder(FrameGraph& graph, RenderPass& pass)
                 : mFrameGraph(graph)
                 , mRenderPass(pass)
             { }
 
-            void read(Handle handle, Access access);
-            void write(Handle handle, Access access);
-            Handle create(TextureInfo info, Access access);
+            void read(Handle handle, sm::StringView name, Access access);
+            void write(Handle handle, sm::StringView name, Access access);
+            Handle create(ResourceInfo info, sm::StringView name, Access access);
 
             void side_effects(bool effects);
 
@@ -159,7 +164,7 @@ namespace sm::graph {
         render::SrvIndex srv(Handle handle);
 
         PassBuilder pass(sm::StringView name);
-        Handle include(TextureInfo info, Access access, ID3D12Resource *resource);
+        Handle include(sm::StringView name, ResourceInfo info, Access access, ID3D12Resource *resource);
 
         uint2 present_size() const;
         uint2 render_size() const;

@@ -235,6 +235,7 @@ subdir('src/vendor/imgui')
 subdir('src/vendor/implot')
 subdir('src/vendor/imguizmo')
 subdir('src/vendor/imfilebrowser')
+subdir('src/vendor/imnodes')
 
 subdir('src/common/render')
 
