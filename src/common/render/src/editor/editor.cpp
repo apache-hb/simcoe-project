@@ -67,7 +67,7 @@ Editor::Editor(render::Context& context)
     , mScene(context, mViewport)
     , mInspector(context, mViewport)
     , mFeatureSupport(context)
-    , mAssetBrowser(context)
+    , mAssetBrowser(context, mViewport)
     , mGraph(context)
     , mPix(context)
 {

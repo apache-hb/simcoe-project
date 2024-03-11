@@ -37,6 +37,9 @@ static sm::StringView get_item_name(const world::WorldInfo& info, ItemIndex inde
     switch (index.type) {
     case ItemType::eNode: return info.nodes[index.index].name;
     case ItemType::eMesh: return info.objects[index.index].name;
+    case ItemType::eCamera: return info.cameras[index.index].name;
+    case ItemType::eImage: return info.images[index.index].name;
+    case ItemType::eMaterial: return info.materials[index.index].name;
     default: return "Unknown";
     }
 }
@@ -84,7 +87,7 @@ bool ScenePanel::begin_tree_item(ItemIndex self, ImGuiTreeNodeFlags flags) {
         if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload(kMeshPayload)) {
             ItemIndex mesh = *(const ItemIndex*)payload->Data;
             SM_ASSERTF(mesh.type == ItemType::eMesh, "Invalid payload type {}", mesh.type);
-            world.add_object(self.index, mesh.index);
+            world.add_node_object(self.index, mesh.index);
         }
         ImGui::EndDragDropTarget();
     }
@@ -174,6 +177,22 @@ void ScenePanel::draw_group(uint16 index) {
     }
 }
 
+void ScenePanel::draw_cameras() {
+    auto& world = mContext.mWorld.info;
+    for (size_t i = 0; i < world.cameras.size(); i++) {
+        ImGui::PushID(i);
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+
+        begin_tree_item({ItemType::eCamera, (uint16)i}, kLeafNodeFlags);
+        ImGui::TableNextColumn();
+
+        ImGui::TableNextColumn();
+        ImGui::TextUnformatted("Camera");
+        ImGui::PopID();
+    }
+}
+
 void ScenePanel::draw_content() {
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("Show")) {
@@ -191,6 +210,10 @@ void ScenePanel::draw_content() {
         ImGui::TableHeadersRow();
 
         draw_node(mContext.mWorld.info.root_node);
+
+        if (mShowCameras) {
+            draw_cameras();
+        }
 
         ImGui::EndTable();
     }

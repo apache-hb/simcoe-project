@@ -43,6 +43,8 @@ namespace sm::editor {
         void draw_leaf(uint16 index);
         void draw_group(uint16 index);
 
+        void draw_cameras();
+
         // IEditorPanel
         void draw_content() override;
 

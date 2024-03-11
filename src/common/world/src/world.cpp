@@ -23,6 +23,12 @@ uint16 WorldInfo::add_camera(const CameraInfo& info) {
     return index;
 }
 
+uint16 WorldInfo::add_object(const ObjectInfo& info) {
+    auto index = int_cast<uint16>(objects.size());
+    objects.push_back(info);
+    return index;
+}
+
 void WorldInfo::reparent_node(uint16 node, uint16 parent) {
     uint16 old_parent = nodes[node].parent;
     if (old_parent == parent) return;
@@ -55,7 +61,7 @@ bool WorldInfo::is_root_node(uint16 node) const {
     return node == root_node;
 }
 
-void WorldInfo::add_object(uint16 node, uint16 object) {
+void WorldInfo::add_node_object(uint16 node, uint16 object) {
     nodes[node].objects.push_back(object);
 }
 

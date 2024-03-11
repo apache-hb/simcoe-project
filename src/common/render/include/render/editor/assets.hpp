@@ -9,8 +9,11 @@ namespace sm::render {
 }
 
 namespace sm::editor {
+    class ViewportPanel;
+
     class AssetBrowserPanel final : public IEditorPanel {
         render::Context &mContext;
+        ViewportPanel &mViewport;
 
         float mThumbnailSize = 64.0f;
         float mThumbnailPadding = 4.0f;
@@ -21,8 +24,10 @@ namespace sm::editor {
         void draw_content() override;
 
         void draw_images();
+        void draw_models();
+        void draw_materials();
 
     public:
-        AssetBrowserPanel(render::Context& context);
+        AssetBrowserPanel(render::Context& context, ViewportPanel& viewport);
     };
 }
