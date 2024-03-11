@@ -235,6 +235,7 @@ subdir('src/vendor/dds_texture_loader')
 
 subdir('src/common/math')
 subdir('src/common/logs')
+subdir('src/common/config')
 subdir('src/common/archive')
 subdir('src/common/input')
 subdir('src/common/system')
@@ -330,37 +331,39 @@ game_bundle = custom_target('game_bundle',
 
 win_subsystem = not is_devel ? 'windows' : 'console'
 
-src = [
-    'src/client/src/main.cpp',
-    'src/client/src/delayload.cpp',
-    reflect.process('src/client/data/delayload.ct')
+link_args = [
+    '/DELAYLOAD:dxcompiler.dll',
+    '/DELAYLOAD:dxil.dll',
+    '/DELAYLOAD:WinPixEventRuntime.dll',
 ]
 
-delayimp = cc.find_library('delayimp')
-
-deps = [
-    core, system, logs, threads, imgui, render, input, archive,
-    cthulhu.get_variable('backtrace'),
-    cthulhu.get_variable('format_core'),
-    cthulhu.get_variable('io'),
-    delayimp, tracy
-]
+subdir('src/client')
 
 client = executable('client', src, game_bundle,
+    cpp_pch : pch,
     install : true,
     export_dynamic : true,
     win_subsystem : win_subsystem,
     link_depends : [ manifest, res ],
-    link_args : [
+    link_args : link_args + [
         # embed the resource file
         res[0].full_path(),
 
         # embed the manifest file
         '/manifest:embed', '/manifestinput:' + manifest,
-
-        '/delayload:dxcompiler.dll',
-        '/delayload:dxil.dll',
-        '/delayload:WinPixEventRuntime.dll',
     ],
+    dependencies : deps
+)
+
+subdir('src/editor')
+
+editor = executable('editor', src, game_bundle,
+    cpp_pch : pch,
+    include_directories : inc,
+    install : true,
+    export_dynamic : true,
+    win_subsystem : win_subsystem,
+    link_depends : [ manifest, res ],
+    link_args : link_args,
     dependencies : deps
 )

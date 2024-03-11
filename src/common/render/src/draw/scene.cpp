@@ -13,8 +13,8 @@ static void draw_node(render::Context& context, uint16 index, const float4x4& pa
     float aspect_ratio = float(context.mSceneSize.width) / float(context.mSceneSize.height);
     const auto& node = context.mWorld.info.nodes[index];
 
-    auto model = (parent * node.transform.matrix()).transpose();
-    float4x4 mvp = context.camera.mvp(aspect_ratio, model).transpose();
+    auto model = (parent * node.transform.matrix());
+    float4x4 mvp = context.camera.mvp(aspect_ratio, model.transpose()).transpose();
 
     auto& cmd = context.mCommandList;
     cmd->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
@@ -32,7 +32,7 @@ static void draw_node(render::Context& context, uint16 index, const float4x4& pa
     }
 }
 
-void draw::draw_scene(graph::FrameGraph& graph, graph::Handle& target) {
+void draw::opaque(graph::FrameGraph& graph, graph::Handle& target) {
     auto& ctx = graph.get_context();
     graph::ResourceInfo depth_info = {
         .size = graph.render_size(),

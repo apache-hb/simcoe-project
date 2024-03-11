@@ -22,8 +22,8 @@ static constexpr UINT32 get_dstorage_flags(DebugFlags flags) {
 }
 
 CopyStorage::CopyStorage()
-    : mCoreLibrary(sys::get_redist("dstorage/dstoragecore.dll"))
-    , mLibrary(sys::get_redist("dstorage/dstorage.dll"))
+    : mCoreLibrary(sm::get_redist("dstorage/dstoragecore.dll"))
+    , mLibrary(sm::get_redist("dstorage/dstorage.dll"))
 {
     auto err = mLibrary.get_error();
     SM_ASSERTF(err.success(), "Failed to load DirectStorage redist: {}", err);

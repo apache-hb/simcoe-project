@@ -850,9 +850,9 @@ void Context::create_frame_graph() {
         mSwapChainHandle = mFrameGraph.include("BackBuffer", info, graph::Access::ePresent, nullptr);
     }
 
-    draw::draw_scene(mFrameGraph, mSceneTargetHandle);
-    draw::blit_texture(mFrameGraph, mSwapChainHandle, mSceneTargetHandle);
-    draw::draw_imgui(mFrameGraph, mSwapChainHandle);
+    draw::opaque(mFrameGraph, mSceneTargetHandle);
+    draw::blit(mFrameGraph, mSwapChainHandle, mSceneTargetHandle);
+    draw::imgui(mFrameGraph, mSwapChainHandle);
 
     mFrameGraph.compile();
 }
@@ -985,6 +985,11 @@ bool Context::update() {
 }
 
 void Context::render() {
+    if (mDeviceLost) {
+        recreate_device();
+        return;
+    }
+
     ZoneScopedN("Render");
     build_command_list();
 

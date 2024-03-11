@@ -3,5 +3,5 @@
 #include "render/graph.hpp"
 
 namespace sm::draw {
-    void draw_scene(graph::FrameGraph& graph, graph::Handle& target);
+    void opaque(graph::FrameGraph& graph, graph::Handle& target);
 }

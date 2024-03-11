@@ -44,7 +44,7 @@ src = [
 deps = [
     # internal libraries
     core, logs, system, math, archive,
-    world,
+    world, config,
 
     # other vendors
     stb, fastgltf, tracy,

@@ -2,8 +2,6 @@
 
 #include "render/instance.hpp"
 
-#include "render/vendor/microsoft/pix.hpp"
-
 using namespace sm;
 using namespace sm::render;
 
@@ -83,7 +81,7 @@ void Instance::query_tearing_support() {
 }
 
 void Instance::load_wrap_redist() {
-    mWarpLibrary = sys::get_redist("d3d10warp.dll");
+    mWarpLibrary = sm::get_redist("d3d10warp.dll");
     if (OsError err = mWarpLibrary.get_error()) {
         gSink.warn("failed to load warp redist: {}", err);
     } else {

@@ -18,7 +18,6 @@ namespace sm::sys {
 
     fs::path get_app_path();
     fs::path get_appdir();
-    fs::path get_redist(const fs::path& name);
 
     void create(HINSTANCE hInstance);
     void destroy(void);

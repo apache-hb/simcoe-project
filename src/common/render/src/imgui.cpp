@@ -60,7 +60,7 @@ static constexpr world::MeshInfo get_default_info(world::ObjectType type) {
     case world::ObjectType::eCylinder: return {.type = type, .cylinder = {1.f, 1.f, 8}};
     case world::ObjectType::ePlane: return {.type = type, .plane = {1.f, 1.f}};
     case world::ObjectType::eWedge: return {.type = type, .wedge = {1.f, 1.f, 1.f}};
-    case world::ObjectType::eCapsule: return {.type = type, .capsule = {1.f, 5.f}};
+    case world::ObjectType::eCapsule: return {.type = type, .capsule = {1.f, 5.f, 12, 4}};
     case world::ObjectType::eGeoSphere: return {.type = type, .geosphere = {1.f, 2}};
     default: return {.type = type};
     }
@@ -139,6 +139,7 @@ bool Context::update_imgui() {
             static world::ObjectType type = world::ObjectType::eCube;
             static float3 colour = {1.f, 1.f, 1.f};
             MyGui::EnumCombo<world::ObjectType>("Type", type);
+            ImGui::InputText("Name", &mMeshName);
 
             auto &info = mMeshCreateInfo[type];
 
@@ -170,6 +171,8 @@ bool Context::update_imgui() {
             case world::ObjectType::eCapsule:
                 ImGui::SliderFloat("Radius", &info.capsule.radius, 0.1f, 10.f);
                 ImGui::SliderFloat("Height", &info.capsule.height, 0.1f, 10.f);
+                ImGui::SliderInt("Slices", &info.capsule.slices, 3, 32);
+                ImGui::SliderInt("Rings", &info.capsule.rings, 3, 8);
                 break;
             case world::ObjectType::eGeoSphere:
                 ImGui::SliderFloat("Radius", &info.geosphere.radius, 0.1f, 10.f);
@@ -181,6 +184,8 @@ bool Context::update_imgui() {
             ImGui::ColorEdit3("Colour", colour.data(), ImGuiColorEditFlags_Float);
 
             if (ImGui::Button("Create")) {
+                world::ObjectInfo obj = { .name = mMeshName, .info = info };
+                mWorld.info.add_object(obj);
                 mMeshes.push_back(create_mesh(info, colour));
                 ImGui::CloseCurrentPopup();
             }
@@ -227,7 +232,6 @@ bool Context::update_imgui() {
                     ImGui::Text("Radius: %f", info.geosphere.radius);
                     ImGui::Text("Subdivisions: %d", info.geosphere.subdivisions);
                     break;
-                case world::ObjectType::eImported: ImGui::Text("Imported"); break;
                 default: ImGui::Text("Unknown primitive type"); break;
                 }
                 ImGui::TreePop();

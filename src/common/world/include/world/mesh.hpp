@@ -47,17 +47,21 @@ namespace sm::world {
     };
 
     struct Capsule {
-        float radius;
+        float radius; // radius of the capsule part
+        float height; // height of the cylinder part
+        int slices; // number of vertical slices
+        int rings; // number of rings to make the top and bottom of the capsule
+    };
+
+    struct Diamond {
+        float width;
         float height;
+        float depth;
     };
 
     struct GeoSphere {
         float radius;
         int subdivisions;
-    };
-
-    struct ImportedMesh {
-        uint buffer;
     };
 
     struct MeshInfo {
@@ -69,6 +73,7 @@ namespace sm::world {
             Plane plane;
             Wedge wedge;
             Capsule capsule;
+            Diamond diamond;
             GeoSphere geosphere;
         };
     };

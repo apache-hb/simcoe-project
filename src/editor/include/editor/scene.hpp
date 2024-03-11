@@ -2,7 +2,7 @@
 
 #include "core/core.hpp"
 
-#include "render/editor/panel.hpp"
+#include "editor/panel.hpp"
 
 #include "world/world.hpp"
 
@@ -14,17 +14,19 @@ namespace sm::render {
     struct Context;
 }
 
-namespace sm::editor {
+namespace sm::ed {
     class ViewportPanel;
 
+    using ItemType = editor::ItemType;
+
     struct ItemIndex {
-        editor::ItemType type;
+        ItemType type;
         uint16 index;
 
         constexpr auto operator<=>(const ItemIndex&) const = default;
-        constexpr bool has_selection() const { return type != editor::ItemType::eNone; }
+        constexpr bool has_selection() const { return type != ed::ItemType::eNone; }
 
-        static constexpr ItemIndex none() { return {editor::ItemType::eNone, 0}; }
+        static constexpr ItemIndex none() { return {ItemType::eNone, 0}; }
     };
 
     class ScenePanel final : public IEditorPanel {

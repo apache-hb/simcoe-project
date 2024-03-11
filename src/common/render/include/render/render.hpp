@@ -286,6 +286,7 @@ namespace sm::render {
 
         editor::Editor mEditor;
 
+        sm::String mMeshName;
         world::MeshInfo mMeshCreateInfo[world::ObjectType::kCount];
         SrvIndex mImGuiSrvIndex;
 

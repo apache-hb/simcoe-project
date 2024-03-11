@@ -6,7 +6,7 @@
 
 using namespace sm;
 
-void draw::draw_imgui(graph::FrameGraph& graph, graph::Handle target) {
+void draw::imgui(graph::FrameGraph& graph, graph::Handle target) {
     graph::PassBuilder pass = graph.pass("ImGui");
     pass.write(target, "Target", graph::Access::eRenderTarget);
 

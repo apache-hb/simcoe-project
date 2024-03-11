@@ -11,11 +11,6 @@ variant ObjectType {
     [[format("Capsule")]] case Capsule
     [[format("Diamond")]] case Diamond
     [[format("Geo Sphere")]] case GeoSphere
-
-    [[format("Imported Mesh")]] case Imported
-
-    [[format("Point Light")]] case PointLight
-    [[format("Spot Light")]] case SpotLight
 }
 
 variant WorldVersion : uint32 {

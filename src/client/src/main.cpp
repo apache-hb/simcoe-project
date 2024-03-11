@@ -1,35 +1,16 @@
-#include "archive/io.hpp"
-#include "core/arena.hpp"
-#include "core/error.hpp"
-// #include "core/format.hpp"
-#include "core/macros.h"
-#include "core/format.hpp" // IWYU pragma: keep
-#include "core/span.hpp"
-#include "core/string.hpp"
-#include "core/units.hpp"
+#include "stdafx.hpp"
 
-// #include "archive/io.hpp"
-#include "archive/record.hpp"
 #include "system/input.hpp"
 #include "system/system.hpp"
-
 #include "system/timer.hpp"
+
 #include "threads/threads.hpp"
 
-#include "imgui/imgui.h"
-// #include "imgui/backends/imgui_impl_win32.h"
-// #include "imgui/backends/imgui_impl_dx12.h"
+#include "archive/record.hpp"
+#include "archive/io.hpp"
 
+#include "config/config.hpp"
 #include "render/render.hpp"
-
-#include "backtrace/backtrace.h"
-#include "base/panic.h"
-#include "format/backtrace.h"
-#include "format/colour.h"
-#include "io/console.h"
-#include "io/io.h"
-
-#include "fmt/ranges.h"
 
 using namespace sm;
 using namespace math;
@@ -38,44 +19,6 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
                                                              LPARAM lParam);
 
 static auto gSink = logs::get_sink(logs::Category::eGlobal);
-
-struct ClientArgs {
-    bool help;
-    bool pix;
-    bool warp;
-    bool dred;
-    bool debug;
-
-    void parse(sm::Span<const char*> args) {
-        for (size_t i = 1; i < args.size(); ++i) {
-            sm::StringView view{args[i]};
-            if (view == "--help") {
-                help = true;
-            } else if (view == "--pix") {
-                pix = true;
-            } else if (view == "--warp") {
-                warp = true;
-            } else if (view == "--dred") {
-                dred = true;
-            } else if (view == "--debug") {
-                debug = true;
-            } else {
-                gSink.error("unknown argument: {}", view);
-            }
-        }
-    }
-
-    void print() {
-        gSink.info("client options:");
-        gSink.info("  --help   : print this message");
-        gSink.info("  --pix    : enable WinPixEventRuntime");
-        gSink.info("  --warp   : enable WARP adapter");
-        gSink.info("  --dred   : enable device removed info");
-        gSink.info("  --debug  : enable debug layers");
-    }
-};
-
-static ClientArgs gClientOptions;
 
 // TODO: clean up loggers
 
@@ -304,17 +247,17 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     auto client = window.get_client_coords().size();
 
-    fs::path bundle_path = sys::get_appdir() / "bundle.tar";
+    fs::path bundle_path = sm::get_appdir() / "bundle.tar";
     IoHandle tar = io_file(bundle_path.string().c_str(), eOsAccessRead, sm::global_arena());
     sm::Bundle bundle{*tar, archive::BundleFormat::eTar};
 
     render::DebugFlags flags = render::DebugFlags::none();
 
-    if (gClientOptions.warp) {
+    if (sm::warp_enabled()) {
         flags |= render::DebugFlags::eWarpAdapter;
     }
 
-    if (gClientOptions.debug) {
+    if (sm::debug_enabled()) {
         flags |= render::DebugFlags::eDeviceDebugLayer;
         flags |= render::DebugFlags::eFactoryDebug;
         flags |= render::DebugFlags::eInfoQueue;
@@ -322,16 +265,16 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
         // enabling gpu based validation on the warp adapter
         // absolutely tanks performance
-        if (!gClientOptions.warp) {
+        if (!sm::warp_enabled()) {
             flags |= render::DebugFlags::eGpuValidation;
         }
     }
 
-    if (gClientOptions.pix) {
+    if (sm::pix_enabled()) {
         flags |= render::DebugFlags::eWinPixEventRuntime;
     }
 
-    if (gClientOptions.dred) {
+    if (sm::dred_enabled()) {
         flags |= render::DebugFlags::eDeviceRemovedInfo;
     }
 
@@ -445,10 +388,7 @@ int main(int argc, const char **argv) {
 
     System sys{GetModuleHandleA(nullptr)};
 
-    gClientOptions.parse(args);
-
-    if (gClientOptions.help) {
-        gClientOptions.print();
+    if (!sm::parse_command_line(argc, argv, sys::get_appdir())) {
         return 0;
     }
 

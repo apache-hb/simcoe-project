@@ -36,7 +36,7 @@ struct std::equal_to<Vertex> {
     }
 };
 
-struct PrimitiveBuilder {
+struct MeshBuilder {
     BoxBounds bounds = {.min = FLT_MAX, .max = FLT_MIN};
 
     // TODO: probably want to merge verticies that are nearly the same
@@ -147,7 +147,7 @@ static void subdivide(Mesh& mesh) {
 static Mesh cube(const world::Cube &cube) {
     auto [w, h, d] = cube;
 
-    PrimitiveBuilder builder;
+    MeshBuilder builder;
 
     builder.quad({{-w, h, -d}}, {{-w, h, d}}, {{-w, -h, d}}, {{-w, -h, -d}}); // back
 
@@ -166,36 +166,38 @@ static Mesh cube(const world::Cube &cube) {
 
 static Mesh cylinder(const world::Cylinder& cylinder) {
     auto [radius, height, slices] = cylinder;
-    PrimitiveBuilder builder;
+    MeshBuilder builder;
 
     for (int i = 0; i < slices; ++i) {
         float theta0 = float(i) * 2 * 3.14f / float(slices);
         float theta1 = float(i + 1) * 2 * 3.14f / float(slices);
+        auto [s0, c0] = math::sincos(theta0);
+        auto [s1, c1] = math::sincos(theta1);
 
-        // make top
+        // make top half of the sphere
         {
-            Vertex v0 = { float3(radius * cos(theta0), height / 2, radius * sin(theta0)) };
-            Vertex v1 = { float3(radius * cos(theta1), height / 2, radius * sin(theta1)) };
+            Vertex v0 = { float3(radius * c0, height / 2, radius * s0) };
+            Vertex v1 = { float3(radius * c1, height / 2, radius * s1) };
             Vertex v2 = { float3(0, height / 2, 0) };
 
             builder.triangle(v0, v1, v2);
         }
 
-        // make bottom
+        // make bottom half of the sphere
         {
-            Vertex v0 = { float3(radius * cos(theta0), -height / 2, radius * sin(theta0)) };
-            Vertex v1 = { float3(radius * cos(theta1), -height / 2, radius * sin(theta1)) };
+            Vertex v0 = { float3(radius * c0, -height / 2, radius * s0) };
+            Vertex v1 = { float3(radius * c1, -height / 2, radius * s1) };
             Vertex v2 = { float3(0, -height / 2, 0) };
 
             builder.triangle(v0, v2, v1);
         }
 
-        // make side
+        // make body
         {
-            Vertex v0 = { float3(radius * cos(theta0), -height / 2, radius * sin(theta0)) };
-            Vertex v1 = { float3(radius * cos(theta1), -height / 2, radius * sin(theta1)) };
-            Vertex v2 = { float3(radius * cos(theta0), height / 2, radius * sin(theta0)) };
-            Vertex v3 = { float3(radius * cos(theta1), height / 2, radius * sin(theta1)) };
+            Vertex v0 = { float3(radius * c0, -height / 2, radius * s0) };
+            Vertex v1 = { float3(radius * c1, -height / 2, radius * s1) };
+            Vertex v2 = { float3(radius * c0, height / 2, radius * s0) };
+            Vertex v3 = { float3(radius * c1, height / 2, radius * s1) };
 
             builder.quad(v0, v1, v3, v2);
         }
@@ -206,7 +208,7 @@ static Mesh cylinder(const world::Cylinder& cylinder) {
 
 static Mesh wedge(const world::Wedge& wedge) {
     auto [width, height, depth] = wedge;
-    PrimitiveBuilder builder;
+    MeshBuilder builder;
 
     float w2 = width / 2;
     float h2 = height / 2;
@@ -263,9 +265,138 @@ static Mesh wedge(const world::Wedge& wedge) {
     return builder.build();
 }
 
+static Mesh capsule(const world::Capsule& capsule) {
+    MeshBuilder builder;
+    auto [radius, height, slices, rings] = capsule;
+
+    for (int i = 0; i < slices; ++i) {
+        float theta0 = float(i) * 2 * 3.14f / float(slices);
+        float theta1 = float(i + 1) * 2 * 3.14f / float(slices);
+        auto [s0, c0] = math::sincos(theta0);
+        auto [s1, c1] = math::sincos(theta1);
+
+        for (int j = 0; j < rings; ++j) {
+            float phi0 = float(j) * 3.14f / float(rings);
+            float phi1 = float(j + 1) * 3.14f / float(rings);
+            auto [sp0, cp0] = math::sincos(phi0);
+            auto [sp1, cp1] = math::sincos(phi1);
+
+            // make top cap of the capsule
+            {
+                Vertex v0 = { float3(radius * cp0 * c0, height / 2 + radius * sp0, radius * cp0 * s0) };
+                Vertex v1 = { float3(radius * cp1 * c0, height / 2 + radius * sp1, radius * cp1 * s0) };
+                Vertex v2 = { float3(radius * cp0 * c1, height / 2 + radius * sp0, radius * cp0 * s1) };
+                Vertex v3 = { float3(radius * cp1 * c1, height / 2 + radius * sp1, radius * cp1 * s1) };
+
+                builder.quad(v0, v1, v3, v2);
+            }
+
+            // make bottom cap of the capsule
+            {
+                Vertex v0 = { float3(radius * cp0 * c0, -height / 2 - radius * sp0, radius * cp0 * s0) };
+                Vertex v1 = { float3(radius * cp1 * c0, -height / 2 - radius * sp1, radius * cp1 * s0) };
+                Vertex v2 = { float3(radius * cp0 * c1, -height / 2 - radius * sp0, radius * cp0 * s1) };
+                Vertex v3 = { float3(radius * cp1 * c1, -height / 2 - radius * sp1, radius * cp1 * s1) };
+
+                builder.quad(v0, v2, v3, v1);
+            }
+        }
+
+        // make body
+        {
+            Vertex v0 = { float3(radius * c0, -height / 2, radius * s0) };
+            Vertex v1 = { float3(radius * c1, -height / 2, radius * s1) };
+            Vertex v2 = { float3(radius * c0, height / 2, radius * s0) };
+            Vertex v3 = { float3(radius * c1, height / 2, radius * s1) };
+
+            builder.quad(v0, v1, v3, v2);
+        }
+    }
+
+    return builder.build();
+}
+
+static Mesh diamond(const world::Diamond& diamond) {
+    MeshBuilder builder;
+    auto [width, height, depth] = diamond;
+	float w2 = width / 2;
+	float h2 = height / 2;
+	float d2 = depth / 2;
+
+	// right side
+
+	{
+		Vertex v2 = { float3(0, 0, -d2), };
+		Vertex v1 = { float3(-w2, 0, 0), };
+		Vertex v0 = { float3(0, h2, 0), };
+
+		builder.triangle(v0, v1, v2);
+	}
+
+	{
+		Vertex v0 = { float3(0, 0, -d2), };
+		Vertex v2 = { float3(0, h2, 0), };
+		Vertex v1 = { float3(w2, 0, 0), };
+
+		builder.triangle(v0, v1, v2);
+	}
+
+	{
+		Vertex v0 = { float3(0, 0, -d2), };
+		Vertex v2 = { float3(-w2, 0, 0), };
+		Vertex v1 = { float3(0, -h2, 0), };
+
+		builder.triangle(v0, v2, v1);
+	}
+
+	{
+		Vertex v0 = { float3(0, 0, -d2), };
+		Vertex v2 = { float3(0, -h2, 0), };
+		Vertex v1 = { float3(w2, 0, 0), };
+
+		builder.triangle(v0, v2, v1);
+	}
+
+	// left side
+
+	{
+		Vertex v2 = { float3(0, 0, d2), };
+		Vertex v0 = { float3(-w2, 0, 0), };
+		Vertex v1 = { float3(0, h2, 0), };
+
+		builder.triangle(v0, v1, v2);
+	}
+
+	{
+		Vertex v0 = { float3(0, 0, d2), };
+		Vertex v1 = { float3(0, h2, 0), };
+		Vertex v2 = { float3(w2, 0, 0), };
+
+		builder.triangle(v0, v1, v2);
+	}
+
+	{
+		Vertex v0 = { float3(0, 0, d2), };
+		Vertex v1 = { float3(-w2, 0, 0), };
+		Vertex v2 = { float3(0, -h2, 0), };
+
+		builder.triangle(v0, v2, v1);
+	}
+
+	{
+		Vertex v0 = { float3(0, 0, d2), };
+		Vertex v1 = { float3(0, -h2, 0), };
+		Vertex v2 = { float3(w2, 0, 0), };
+
+		builder.triangle(v0, v2, v1);
+	}
+
+    return builder.build();
+}
+
 static Mesh geosphere(const world::GeoSphere& geosphere) {
     auto [radius, tessellation] = geosphere;
-    PrimitiveBuilder builder;
+    MeshBuilder builder;
 
 	sm::Vector<Vertex> vertices;
 	sm::Vector<uint16> indices;
@@ -289,7 +420,7 @@ static Mesh geosphere(const world::GeoSphere& geosphere) {
 	vertices.push_back({ .position = float3(z, -x, 0) * radius });
 	vertices.push_back({ .position = float3(-z, -x, 0) * radius });
 
-	uint16 k[60] = {
+	static constexpr uint16 k[60] = {
 		1,4,0,  4,9,0,  4,5,9,  8,5,4,  1,8,4,
 		1,10,8, 10,3,8, 8,3,5,  3,2,5,  3,7,2,
 		3,10,7, 10,6,7, 6,11,7, 6,0,11, 6,1,0,
@@ -323,6 +454,8 @@ Mesh world::primitive(const world::MeshInfo &info) {
     case ObjectType::eCube: return cube(info.cube);
     case ObjectType::eCylinder: return cylinder(info.cylinder);
     case ObjectType::eWedge: return wedge(info.wedge);
+    case ObjectType::eCapsule: return capsule(info.capsule);
+    case ObjectType::eDiamond: return diamond(info.diamond);
     case ObjectType::eGeoSphere: return geosphere(info.geosphere);
 
     default:

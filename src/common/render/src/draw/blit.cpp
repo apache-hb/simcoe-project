@@ -6,7 +6,7 @@
 
 using namespace sm;
 
-void draw::blit_texture(graph::FrameGraph& graph, graph::Handle target, graph::Handle source) {
+void draw::blit(graph::FrameGraph& graph, graph::Handle target, graph::Handle source) {
     graph::PassBuilder pass = graph.pass("Blit");
     pass.write(target, "Target", graph::Access::eRenderTarget);
     pass.read(source, "Image", graph::Access::ePixelShaderResource);

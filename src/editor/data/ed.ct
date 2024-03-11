@@ -1,0 +1,10 @@
+module sm::ed;
+
+variant ItemType {
+    default None
+    case Node
+    case Mesh
+    case Camera
+    case Material
+    case Image
+}
