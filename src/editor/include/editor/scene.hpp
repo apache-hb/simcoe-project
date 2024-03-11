@@ -17,8 +17,6 @@ namespace sm::render {
 namespace sm::ed {
     class ViewportPanel;
 
-    using ItemType = editor::ItemType;
-
     struct ItemIndex {
         ItemType type;
         uint16 index;

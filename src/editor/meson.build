@@ -2,6 +2,8 @@
 src = files([
     'src/main.cpp',
 
+    'src/panels/mygui.cpp',
+
     'src/panels/assets.cpp',
     'src/panels/config.cpp',
     'src/panels/debug.cpp',
@@ -13,15 +15,22 @@ src = files([
     'src/panels/panel.cpp',
     'src/panels/pix.cpp',
     'src/panels/scene.cpp',
-    'src/panels/viewport.cpp'
+    'src/panels/viewport.cpp',
 ])
+
+src += [
+    reflect.process('data/editor.ct')
+]
 
 deps = [
     core, system, logs, threads, imgui, render, input, archive, config,
     cthulhu.get_variable('backtrace'),
     cthulhu.get_variable('format_core'),
     cthulhu.get_variable('io'),
-    tracy
+    tracy,
+
+    imgui, implot, imguizmo, filebrowser,
+    imnodes
 ]
 
 inc = [ include_directories('include', 'src'), reflect_include ]

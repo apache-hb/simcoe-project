@@ -10,7 +10,6 @@ src = [
     'src/imgui.cpp',
 
     'src/blit.cpp',
-    'src/mygui.cpp',
 
     'src/camera.cpp',
     'src/gltf.cpp',
@@ -22,23 +21,9 @@ src = [
     'src/draw/imgui.cpp',
     'src/draw/canvas.cpp',
 
-    'src/editor/panel.cpp',
-    'src/editor/logger.cpp',
-    'src/editor/editor.cpp',
-    'src/editor/config.cpp',
-    'src/editor/scene.cpp',
-    'src/editor/graph.cpp',
-    'src/editor/features.cpp',
-    'src/editor/inspector.cpp',
-    'src/editor/debug.cpp',
-    'src/editor/assets.cpp',
-    'src/editor/pix.cpp',
-    'src/editor/viewport.cpp',
-
     reflect.process('data/render.ct'),
     reflect.process('data/draw.ct'),
-    reflect.process('data/graph.ct'),
-    reflect.process('data/editor.ct')
+    reflect.process('data/graph.ct')
 ]
 
 deps = [
@@ -59,8 +44,7 @@ deps = [
     nvapi,
 
     # gui
-    imgui, implot, imguizmo, filebrowser,
-    imnodes
+    imgui
 ]
 
 librender = library('render', src,

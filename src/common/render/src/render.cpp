@@ -851,8 +851,11 @@ void Context::create_frame_graph() {
     }
 
     draw::opaque(mFrameGraph, mSceneTargetHandle);
+
     draw::blit(mFrameGraph, mSwapChainHandle, mSceneTargetHandle);
-    draw::imgui(mFrameGraph, mSwapChainHandle);
+
+    if (mConfig.imgui)
+        draw::imgui(mFrameGraph, mSwapChainHandle);
 
     mFrameGraph.compile();
 }
@@ -937,7 +940,6 @@ Context::Context(const RenderConfig& config)
     , mPresentViewport(mSwapChainSize)
     , mSceneViewport(mSceneSize)
     , mFrameGraph(*this)
-    , mEditor(*this)
 { }
 
 void Context::create() {
@@ -977,11 +979,6 @@ void Context::destroy() {
 
     SM_ASSERT_WIN32(CloseHandle(mCopyFenceEvent));
     SM_ASSERT_WIN32(CloseHandle(mFenceEvent));
-}
-
-bool Context::update() {
-    ZoneScopedN("Update");
-    return update_imgui();
 }
 
 void Context::render() {

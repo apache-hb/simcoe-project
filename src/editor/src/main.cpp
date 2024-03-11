@@ -229,6 +229,31 @@ static void common_init(void) {
     logger.add_channel(&gConsoleLog);
 }
 
+static void init_imgui() {
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui::StyleColorsDark();
+    ImPlot::CreateContext();
+    ImPlot::StyleColorsDark();
+
+    ImGuiIO &io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+
+    ImGuiStyle &style = ImGui::GetStyle();
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+        style.WindowRounding = 0.0f;
+        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+    }
+}
+
+static void destroy_imgui() {
+    ImPlot::DestroyContext();
+    ImGui::DestroyContext();
+}
+
 static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     sys::WindowConfig window_config = {
         .mode = sys::WindowMode::eWindowed,
@@ -299,6 +324,8 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .dsv_heap_size = 64,
         .srv_heap_size = 1024,
 
+        .imgui = true,
+
         .bundle = bundle,
         .window = window,
     };
@@ -365,7 +392,9 @@ static int editor_main(sys::ShowWindow show) {
         store.reset();
     }
 
+    init_imgui();
     message_loop(show, store);
+    destroy_imgui();
 
     return 0;
 }

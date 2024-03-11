@@ -13,8 +13,6 @@
 
 #include "render/graph.hpp"
 
-#include "render/editor/editor.hpp"
-
 #include "world/world.hpp"
 
 #include "directx/d3dx12_check_feature_support.h"
@@ -50,6 +48,8 @@ namespace sm::render {
         uint rtv_heap_size;
         uint dsv_heap_size;
         uint srv_heap_size;
+
+        bool imgui = false;
 
         Bundle& bundle;
         sys::Window &window;
@@ -284,10 +284,6 @@ namespace sm::render {
 
         /// dear imgui
 
-        editor::Editor mEditor;
-
-        sm::String mMeshName;
-        world::MeshInfo mMeshCreateInfo[world::ObjectType::kCount];
         SrvIndex mImGuiSrvIndex;
 
         void create_imgui();
@@ -295,8 +291,6 @@ namespace sm::render {
 
         void create_imgui_backend();
         void destroy_imgui_backend();
-
-        bool update_imgui();
 
         /// state updates
 
@@ -313,7 +307,6 @@ namespace sm::render {
         void create();
         void destroy();
 
-        bool update();
         void render();
         void update_scene_size(math::uint2 size);
         void resize_swapchain(math::uint2 size);

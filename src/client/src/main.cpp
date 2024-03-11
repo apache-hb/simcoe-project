@@ -327,8 +327,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
         context.camera.tick(dt);
 
-        if (context.update())
-            context.render();
+        context.render();
     }
 
     context.destroy();
