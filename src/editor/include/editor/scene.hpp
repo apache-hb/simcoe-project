@@ -39,6 +39,9 @@ namespace sm::ed {
 
         world::NodeInfo mNodeInfo{.name = "Node", .transform = {.scale = 1.f}};
 
+        sm::String mMeshName;
+        world::MeshInfo mMeshCreateInfo[world::ObjectType::kCount];
+
         bool begin_tree_item(ItemIndex index, ImGuiTreeNodeFlags flags);
 
         void draw_node(uint16 index);
@@ -46,6 +49,8 @@ namespace sm::ed {
         void draw_group(uint16 index);
 
         void draw_cameras();
+
+        void create_primitive();
 
         // IEditorPanel
         void draw_content() override;

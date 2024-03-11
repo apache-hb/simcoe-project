@@ -28,7 +28,56 @@ const ImGuiTreeNodeFlags kLeafNodeFlags
     | ImGuiTreeNodeFlags_Bullet
     | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 
+static const char *kCreatePopup = "New Primitive";
+
 static auto gSink = logs::get_sink(logs::Category::eDebug);
+
+namespace MyGui {
+template<ctu::Reflected T>
+    requires (ctu::is_enum<T>())
+static bool CheckboxFlags(const char *label, T &flags, T flag) {
+    unsigned val = flags.as_integral();
+    if (ImGui::CheckboxFlags(label, &val, flag.as_integral())) {
+        flags = T(val);
+        return true;
+    }
+    return false;
+}
+
+template <ctu::Reflected T>
+    requires(ctu::is_enum<T>())
+static bool EnumCombo(const char *label, typename ctu::TypeInfo<T>::Type &choice) {
+    using Reflect = ctu::TypeInfo<T>;
+    const auto id = Reflect::to_string(choice);
+    if (ImGui::BeginCombo(label, id.c_str())) {
+        for (size_t i = 0; i < std::size(Reflect::kCases); i++) {
+            const auto &[name, value] = Reflect::kCases[i];
+            bool selected = choice == value;
+            if (ImGui::Selectable(name.c_str(), selected)) {
+                choice = value;
+            }
+            if (selected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+    return true;
+}
+} // namespace MyGui
+
+static constexpr world::MeshInfo get_default_info(world::ObjectType type) {
+    switch (type.as_enum()) {
+    case world::ObjectType::eCube: return {.type = type, .cube = {1.f, 1.f, 1.f}};
+    case world::ObjectType::eSphere: return {.type = type, .sphere = {1.f, 6, 6}};
+    case world::ObjectType::eCylinder: return {.type = type, .cylinder = {1.f, 1.f, 8}};
+    case world::ObjectType::ePlane: return {.type = type, .plane = {1.f, 1.f}};
+    case world::ObjectType::eWedge: return {.type = type, .wedge = {1.f, 1.f, 1.f}};
+    case world::ObjectType::eCapsule: return {.type = type, .capsule = {1.f, 5.f, 12, 4}};
+    case world::ObjectType::eGeoSphere: return {.type = type, .geosphere = {1.f, 2}};
+    default: return {.type = type};
+    }
+}
 
 static intptr_t unique_id(ItemIndex index) {
     return (intptr_t)index.type.as_integral() << 16 | index.index;
@@ -208,15 +257,85 @@ void ScenePanel::draw_cameras() {
     }
 }
 
+void ScenePanel::create_primitive() {
+    if (ImGui::BeginPopup(kCreatePopup)) {
+        static world::ObjectType type = world::ObjectType::eCube;
+        static math::float3 colour = {1.f, 1.f, 1.f};
+        MyGui::EnumCombo<world::ObjectType>("Type", type);
+        ImGui::InputText("Name", &mMeshName);
+
+        auto &info = mMeshCreateInfo[type];
+        auto &world = mContext.mWorld.info;
+
+        switch (type.as_enum()) {
+        case world::ObjectType::eCube:
+            ImGui::SliderFloat("Width", &info.cube.width, 0.1f, 10.f);
+            ImGui::SliderFloat("Height", &info.cube.height, 0.1f, 10.f);
+            ImGui::SliderFloat("Depth", &info.cube.depth, 0.1f, 10.f);
+            break;
+        case world::ObjectType::eSphere:
+            ImGui::SliderFloat("Radius", &info.sphere.radius, 0.1f, 10.f);
+            ImGui::SliderInt("Slices", &info.sphere.slices, 3, 32);
+            ImGui::SliderInt("Stacks", &info.sphere.stacks, 3, 32);
+            break;
+        case world::ObjectType::eCylinder:
+            ImGui::SliderFloat("Radius", &info.cylinder.radius, 0.1f, 10.f);
+            ImGui::SliderFloat("Height", &info.cylinder.height, 0.1f, 10.f);
+            ImGui::SliderInt("Slices", &info.cylinder.slices, 3, 32);
+            break;
+        case world::ObjectType::ePlane:
+            ImGui::SliderFloat("Width", &info.plane.width, 0.1f, 10.f);
+            ImGui::SliderFloat("Depth", &info.plane.depth, 0.1f, 10.f);
+            break;
+        case world::ObjectType::eWedge:
+            ImGui::SliderFloat("Width", &info.wedge.width, 0.1f, 10.f);
+            ImGui::SliderFloat("Depth", &info.wedge.depth, 0.1f, 10.f);
+            ImGui::SliderFloat("Height", &info.wedge.height, 0.1f, 10.f);
+            break;
+        case world::ObjectType::eCapsule:
+            ImGui::SliderFloat("Radius", &info.capsule.radius, 0.1f, 10.f);
+            ImGui::SliderFloat("Height", &info.capsule.height, 0.1f, 10.f);
+            ImGui::SliderInt("Slices", &info.capsule.slices, 3, 32);
+            ImGui::SliderInt("Rings", &info.capsule.rings, 3, 8);
+            break;
+        case world::ObjectType::eGeoSphere:
+            ImGui::SliderFloat("Radius", &info.geosphere.radius, 0.1f, 10.f);
+            ImGui::SliderInt("Subdivisions", &info.geosphere.subdivisions, 1, 8);
+            break;
+        default: ImGui::Text("Unimplemented primitive type"); break;
+        }
+
+        ImGui::ColorEdit3("Colour", colour.data(), ImGuiColorEditFlags_Float);
+
+        if (ImGui::Button("Create")) {
+            world::ObjectInfo obj = { .name = mMeshName, .info = info };
+            world.add_object(obj);
+            mContext.mMeshes.push_back(mContext.create_mesh(info, colour));
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+}
+
 void ScenePanel::draw_content() {
+    ImGuiID id = ImGui::GetID(kCreatePopup);
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("Show")) {
             ImGui::MenuItem("Objects", nullptr, &mShowObjects);
             ImGui::MenuItem("Cameras", nullptr, &mShowCameras);
             ImGui::EndMenu();
         }
+        if (ImGui::BeginMenu("Create")) {
+            if (ImGui::MenuItem("Primitive")) {
+                ImGui::OpenPopup(id);
+            }
+            ImGui::EndMenu();
+        }
         ImGui::EndMenuBar();
     }
+
+    create_primitive();
 
     if (ImGui::BeginTable("Scene Tree", 3, kTableFlags)) {
         ImGui::TableSetupColumn("Name");
@@ -240,4 +359,9 @@ ScenePanel::ScenePanel(render::Context& context, ViewportPanel& viewport)
     , mViewport(viewport)
 {
     mFlags |= ImGuiWindowFlags_MenuBar;
+
+    auto cases = world::ObjectType::cases();
+    for (world::ObjectType i : cases) {
+        mMeshCreateInfo[i] = get_default_info(i);
+    }
 }

@@ -304,12 +304,13 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     };
 
     render::Context context{render_config};
-    ed::Editor editor{context};
 
     events.attach_render(&context);
     input.add_client(&context.camera);
 
     context.create();
+
+    ed::Editor editor{context};
 
     sys::Ticker clock;
 
@@ -331,8 +332,13 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
         context.camera.tick(dt);
 
-        if (context.update())
-            context.render();
+        editor.begin_frame();
+
+        editor.draw();
+
+        editor.end_frame();
+
+        context.render();
     }
 
     context.destroy();
