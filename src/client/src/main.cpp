@@ -304,7 +304,8 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     auto client = window.get_client_coords().size();
 
-    IoHandle tar = io_file("build/bundle.tar", eOsAccessRead, sm::global_arena());
+    fs::path bundle_path = sys::get_appdir() / "bundle.tar";
+    IoHandle tar = io_file(bundle_path.string().c_str(), eOsAccessRead, sm::global_arena());
     sm::Bundle bundle{*tar, archive::BundleFormat::eTar};
 
     render::DebugFlags flags = render::DebugFlags::none();

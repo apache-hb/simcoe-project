@@ -3,6 +3,8 @@
 #include "imgui/imgui.h"
 #include "render/mygui.hpp"
 
+#include "stdafx.hpp"
+
 using namespace sm;
 using namespace sm::editor;
 using namespace sm::math;

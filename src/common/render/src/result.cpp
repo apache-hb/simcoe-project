@@ -1,9 +1,6 @@
 #include "render/result.hpp"
 
-#include "core/arena.hpp"
-#include "core/error.hpp"
-
-#include "os/core.h"
+#include "stdafx.hpp"
 
 using namespace sm;
 using namespace sm::render;

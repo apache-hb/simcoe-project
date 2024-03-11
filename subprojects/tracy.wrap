@@ -1,0 +1,9 @@
+[wrap-git]
+directory = tracy-0.10
+
+url = https://github.com/apache-hb/tracy.git
+revision = head
+depth = 1
+
+[provide]
+tracy = tracy_dep

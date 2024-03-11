@@ -1,8 +1,6 @@
 #include "render/render.hpp"
 
-#include "d3dx12/d3dx12_core.h"
-#include "d3dx12/d3dx12_root_signature.h"
-#include "d3dx12/d3dx12_barriers.h"
+#include "stdafx.hpp"
 
 using namespace sm;
 using namespace sm::render;

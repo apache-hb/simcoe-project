@@ -1,6 +1,6 @@
 #include "render/editor/logger.hpp"
 
-#include "imgui/imgui.h"
+#include "stdafx.hpp"
 
 using namespace sm;
 using namespace sm::editor;

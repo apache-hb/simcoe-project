@@ -17,7 +17,7 @@
 
 #include "world/world.hpp"
 
-#include "d3dx12/d3dx12_check_feature_support.h"
+#include "directx/d3dx12_check_feature_support.h"
 
 namespace sm::render {
     using namespace math;
@@ -91,7 +91,6 @@ namespace sm::render {
 
     struct Mesh {
         world::MeshInfo mInfo;
-        world::Transform mTransform;
 
         Resource mVertexBuffer;
         VertexBufferView mVertexBufferView;

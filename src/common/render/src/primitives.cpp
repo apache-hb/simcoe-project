@@ -1,8 +1,6 @@
 #include "render/draw.hpp"
 
-#include "core/map.hpp"
-
-#include "math/hash.hpp" // IWYU pragma: keep
+#include "stdafx.hpp"
 
 using namespace sm;
 using namespace sm::draw;

@@ -26,3 +26,7 @@ option('warp_redist', type : 'feature',
     description : 'Enable searching for the new warp runtime redist',
     value : 'auto'
 )
+
+option('tracy_enable', type : 'boolean',
+    value : 'false'
+)

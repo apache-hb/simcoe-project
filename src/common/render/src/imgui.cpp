@@ -1,10 +1,6 @@
 #include "render/render.hpp"
 
-#include "imgui/backends/imgui_impl_dx12.h"
-#include "imgui/backends/imgui_impl_win32.h"
-#include "imgui/imgui.h"
-#include "implot.h"
-#include "render/mygui.hpp"
+#include "stdafx.hpp"
 
 using namespace sm;
 using namespace sm::draw;
@@ -198,11 +194,6 @@ bool Context::update_imgui() {
             auto name = Reflect::to_string(info.type);
             if (ImGui::TreeNodeEx((void *)&primitive, ImGuiTreeNodeFlags_DefaultOpen, "%s",
                                   name.data())) {
-                auto &[position, rotation, scale] = primitive.mTransform;
-                ImGui::SliderFloat3("Position", position.data(), -10.f, 10.f);
-                MyGui::SliderAngle3("Rotation", &rotation, -180._deg, 180._deg);
-                ImGui::SliderFloat3("Scale", scale.data(), 0.1f, 10.f);
-
                 switch (info.type.as_enum()) {
                 case world::ObjectType::eCube:
                     ImGui::Text("Width: %f", info.cube.width);

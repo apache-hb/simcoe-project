@@ -2,7 +2,7 @@
 
 #include "render/render.hpp"
 
-#include "imgui/imgui.h"
+#include "stdafx.hpp"
 
 using namespace sm;
 using namespace sm::editor;

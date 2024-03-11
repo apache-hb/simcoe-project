@@ -2,10 +2,7 @@
 
 #include "render/render.hpp"
 
-#include "ImGuizmo.h"
-
-#include "core/format.hpp" // IWYU pragma: keep
-#include "math/format.hpp" // IWYU pragma: keep
+#include "stdafx.hpp"
 
 using namespace sm;
 using namespace sm::math;

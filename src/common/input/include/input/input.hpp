@@ -52,10 +52,10 @@ namespace sm::input {
     };
 
     class InputService {
-        sm::Vector<ISource*> m_sources;
-        sm::Vector<IClient*> m_clients;
+        sm::Vector<ISource*> mSources;
+        sm::Vector<IClient*> mClients;
 
-        InputState m_state{};
+        InputState mState{};
 
     public:
         constexpr InputService() = default;
@@ -67,6 +67,6 @@ namespace sm::input {
 
         void poll();
 
-        const InputState& get_state() const { return m_state; }
+        const InputState& get_state() const { return mState; }
     };
 }

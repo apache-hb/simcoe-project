@@ -15,7 +15,11 @@ project('simcoe', [ 'c', 'cpp' ],
         'default_library=static',
 
         # prevent system dxc from being used
-        'force_fallback_for=dxc',
+        'force_fallback_for=dxc', # TODO: this doesnt seem to actually work. meson bug?
+
+        'tracy:no_frame_image=true',
+        'tracy:callstack=true',
+        'tracy:only_localhost=true',
 
         # nobody builds with clean warnings, so disable them per subproject
         'fmt:warning_level=0',
@@ -23,6 +27,7 @@ project('simcoe', [ 'c', 'cpp' ],
         'freetype2:warning_level=0',
         'simdjson:warning_level=0',
         'fastgltf:warning_level=0',
+        'tracy:warning_level=0',
 
         # disable everything in cthulhu by default
         'cthulhu:auto_features=disabled',
@@ -57,6 +62,11 @@ library_type = get_option('default_library')
 
 package_type = get_option('package_type')
 trace_time = get_option('trace_time')
+tracy_enable = get_option('tracy_enable')
+
+if tracy_enable
+    add_global_arguments('-DTRACY_ENABLE', language : [ 'c', 'cpp' ])
+endif
 
 is_devel = package_type == 'devel'
 is_private = package_type == 'private'
@@ -83,10 +93,11 @@ stb = subproject('stb').get_variable('stb')
 dxgi = cpp.find_library('dxgi')
 dxguid = cpp.find_library('dxguid')
 
-d3d12 = dependency('d3d12')
+d3d12 = cpp.find_library('d3d12')
 dstorage = dependency('dstorage')
 pix = dependency('winpix-event-runtime')
 d3dx12 = dependency('directx-headers')
+tracy = dependency('tracy')
 nvapi = dependency('nvapi')
 
 magick = find_program('magick')
@@ -327,6 +338,14 @@ src = [
 
 delayimp = cc.find_library('delayimp')
 
+deps = [
+    core, system, logs, threads, imgui, render, input, archive,
+    cthulhu.get_variable('backtrace'),
+    cthulhu.get_variable('format_core'),
+    cthulhu.get_variable('io'),
+    delayimp, tracy
+]
+
 client = executable('client', src, game_bundle,
     install : true,
     export_dynamic : true,
@@ -343,11 +362,5 @@ client = executable('client', src, game_bundle,
         '/delayload:dxil.dll',
         '/delayload:WinPixEventRuntime.dll',
     ],
-    dependencies : [
-        core, system, logs, threads, imgui, render, input, archive,
-        cthulhu.get_variable('backtrace'),
-        cthulhu.get_variable('format_core'),
-        cthulhu.get_variable('io'),
-        delayimp
-    ]
+    dependencies : deps
 )

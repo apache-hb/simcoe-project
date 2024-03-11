@@ -2,11 +2,7 @@
 
 #include "render/render.hpp"
 
-#include "core/map.hpp"
-#include "core/stack.hpp"
-
-#include "directx/d3dx12_core.h"
-#include "directx/d3dx12_barriers.h"
+#include "stdafx.hpp"
 
 using namespace sm;
 using namespace sm::graph;

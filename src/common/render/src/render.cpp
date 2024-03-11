@@ -1,23 +1,12 @@
 #include "render/render.hpp"
 
-#include "core/format.hpp" // IWYU pragma: export
-
 #include "render/draw.hpp" // IWYU pragma: export
 
-#include "math/colour.hpp"
-
 #include "render/draw/imgui.hpp"
-#include "render/draw/present.hpp"
 #include "render/draw/scene.hpp"
+#include "render/draw/blit.hpp"
 
-#include "fmt/std.h" // IWYU pragma: export
-
-#include "d3dx12/d3dx12_core.h"
-#include "d3dx12/d3dx12_resource_helpers.h"
-#include "d3dx12/d3dx12_root_signature.h"
-#include "d3dx12/d3dx12_barriers.h"
-
-#include "DDSTextureLoader12.h"
+#include "stdafx.hpp"
 
 using namespace sm;
 using namespace sm::render;
@@ -729,7 +718,7 @@ bool Context::create_texture(Texture& result, const fs::path& path, ImageFormat 
 Mesh Context::create_mesh(const world::MeshInfo& info, const float3& colour) {
     auto mesh = draw::primitive(info);
 
-    uint32_t col = pack_colour(float4(colour, 1.0f));
+    uint32_t col = math::pack_colour(float4(colour, 1.0f));
 
     for (auto& v : mesh.vertices) {
         v.colour = col;
@@ -864,7 +853,7 @@ void Context::create_frame_graph() {
     }
 
     draw::draw_scene(mFrameGraph, mSceneTargetHandle);
-    draw::draw_present(mFrameGraph, mSwapChainHandle, mSceneTargetHandle);
+    draw::blit_texture(mFrameGraph, mSwapChainHandle, mSceneTargetHandle);
     draw::draw_imgui(mFrameGraph, mSwapChainHandle);
 
     mFrameGraph.compile();
@@ -993,10 +982,12 @@ void Context::destroy() {
 }
 
 bool Context::update() {
+    ZoneScopedN("Update");
     return update_imgui();
 }
 
 void Context::render() {
+    ZoneScopedN("Render");
     build_command_list();
 
     ID3D12CommandList *lists[] = { mCommandList.get() };
@@ -1006,6 +997,8 @@ void Context::render() {
     uint flags = tearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
 
     SM_ASSERT_HR(mSwapChain->Present(0, flags));
+
+    FrameMark;
 
     move_to_next_frame();
 }

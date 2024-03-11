@@ -1,7 +1,6 @@
 #include "render/editor/editor.hpp"
 
-#include "imgui/imgui.h"
-#include "implot.h"
+#include "stdafx.hpp"
 
 using namespace sm;
 using namespace sm::editor;

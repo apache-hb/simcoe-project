@@ -4,8 +4,8 @@
 
 using namespace sm;
 
-void draw::draw_present(graph::FrameGraph& graph, graph::Handle target, graph::Handle source) {
-    graph::PassBuilder pass = graph.pass("Present");
+void draw::blit_texture(graph::FrameGraph& graph, graph::Handle target, graph::Handle source) {
+    graph::PassBuilder pass = graph.pass("Blit");
     pass.write(target, "Target", graph::Access::eRenderTarget);
     pass.read(source, "Image", graph::Access::ePixelShaderResource);
 

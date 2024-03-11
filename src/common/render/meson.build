@@ -20,7 +20,7 @@ src = [
     'src/graph.cpp',
 
     'src/draw/scene.cpp',
-    'src/draw/present.cpp',
+    'src/draw/blit.cpp',
     'src/draw/imgui.cpp',
     'src/draw/canvas.cpp',
 
@@ -49,7 +49,7 @@ deps = [
     world,
 
     # other vendors
-    stb, fastgltf,
+    stb, fastgltf, tracy,
 
     # microsoft
     d3d12, d3dx12, d3d12ma, pix,
@@ -67,7 +67,8 @@ deps = [
 
 librender = library('render', src,
     cpp_args : [ '-DSM_RENDER_BUILD=1' ],
-    include_directories : [ render_include, reflect_include ],
+    cpp_pch : 'src/stdafx.hpp',
+    include_directories : [ render_include, reflect_include, 'src' ],
     dependencies : deps
 )
 

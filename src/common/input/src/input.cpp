@@ -25,7 +25,7 @@ math::float2 InputState::button_axis2d(ButtonAxis horizontal, ButtonAxis vertica
 }
 
 float InputState::axis(Axis id) const {
-    return axes[(size_t)id];
+    return axes[id.as_integral()];
 }
 
 math::float2 InputState::axis2d(Axis horizontal, Axis vertical) const {
@@ -35,18 +35,18 @@ math::float2 InputState::axis2d(Axis horizontal, Axis vertical) const {
 }
 
 void InputService::add_source(ISource* source) {
-    m_sources.push_back(source);
+    mSources.push_back(source);
 }
 
 void InputService::add_client(IClient* client) {
-    m_clients.push_back(client);
+    mClients.push_back(client);
 }
 
 void InputService::poll() {
     bool dirty = false;
-    for (ISource *source : m_sources) {
-        if (source->poll(m_state)) {
-            m_state.device = source->get_type();
+    for (ISource *source : mSources) {
+        if (source->poll(mState)) {
+            mState.device = source->get_type();
             dirty = true;
         }
     }
@@ -54,13 +54,13 @@ void InputService::poll() {
     if (!dirty)
         return;
 
-    for (IClient *client : m_clients) {
-        client->accept(m_state, *this);
+    for (IClient *client : mClients) {
+        client->accept(mState, *this);
     }
 }
 
 void InputService::capture_cursor(bool capture) {
-    for (ISource *source : m_sources) {
+    for (ISource *source : mSources) {
         source->capture_cursor(capture);
     }
 }

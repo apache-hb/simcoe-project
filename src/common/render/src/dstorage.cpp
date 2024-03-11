@@ -1,6 +1,6 @@
 #include "render/render.hpp"
 
-#include "core/error.hpp"
+#include "stdafx.hpp"
 
 using namespace sm;
 using namespace sm::render;

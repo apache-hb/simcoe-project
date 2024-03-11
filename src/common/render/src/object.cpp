@@ -2,6 +2,8 @@
 #include "render/render.hpp"
 #include "render/commands.hpp"
 
+#include "stdafx.hpp"
+
 using namespace sm;
 using namespace sm::render;
 

@@ -1,10 +1,8 @@
 #include "render/render.hpp"
 
-#include "fastgltf/core.hpp"
-
 #include "logs/logs.hpp"
 
-#include "fmt/std.h" // IWYU pragma: keep
+#include "stdafx.hpp"
 
 using namespace sm;
 using namespace sm::render;
