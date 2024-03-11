@@ -1,9 +1,8 @@
+#include "stdafx.hpp"
+
 #include "render/editor/panel.hpp"
 
-#include "imgui/imgui.h"
 #include "render/mygui.hpp"
-
-#include "stdafx.hpp"
 
 using namespace sm;
 using namespace sm::editor;

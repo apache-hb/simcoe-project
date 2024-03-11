@@ -1,7 +1,8 @@
+#include "stdafx.hpp"
+
 #include "render/draw/scene.hpp"
 
 #include "render/render.hpp"
-#include "math/format.hpp" // IWYU pragma: keep
 
 using namespace sm;
 using namespace sm::math;

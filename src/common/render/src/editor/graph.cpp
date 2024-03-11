@@ -1,9 +1,9 @@
+#include "stdafx.hpp"
+
 #include "render/editor/graph.hpp"
 
 #include "render/graph.hpp"
 #include "render/render.hpp"
-
-#include "stdafx.hpp"
 
 using namespace sm;
 using namespace sm::editor;

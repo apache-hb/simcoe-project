@@ -14,8 +14,6 @@ src = [
 
     'src/camera.cpp',
     'src/gltf.cpp',
-    'src/draw.cpp',
-    'src/primitives.cpp',
 
     'src/graph.cpp',
 

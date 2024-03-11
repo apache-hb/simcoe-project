@@ -1,8 +1,8 @@
+#include "stdafx.hpp"
+
 #include "render/draw/imgui.hpp"
 
 #include "render/render.hpp"
-
-#include "imgui/backends/imgui_impl_dx12.h"
 
 using namespace sm;
 

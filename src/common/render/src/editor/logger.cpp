@@ -1,6 +1,6 @@
-#include "render/editor/logger.hpp"
-
 #include "stdafx.hpp"
+
+#include "render/editor/logger.hpp"
 
 using namespace sm;
 using namespace sm::editor;

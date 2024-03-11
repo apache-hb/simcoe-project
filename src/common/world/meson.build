@@ -11,6 +11,7 @@ deps = [ core, logs, system, archive ]
 
 libworld = library('world', src,
     cpp_args : [ '-DSM_WORLD_BUILD=1' ],
+    cpp_pch : 'src/stdafx.hpp',
     include_directories : [ world_include ],
     dependencies : deps + [ fastgltf ]
 )

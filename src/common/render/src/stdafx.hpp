@@ -12,6 +12,8 @@
 #include "core/stack.hpp"
 #include "core/map.hpp"
 
+#include "logs/logs.hpp"
+
 #include "imgui/imgui.h"
 #include "implot.h"
 #include "imgui/backends/imgui_impl_win32.h"

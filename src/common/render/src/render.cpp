@@ -1,12 +1,10 @@
-#include "render/render.hpp"
+#include "stdafx.hpp"
 
-#include "render/draw.hpp" // IWYU pragma: export
+#include "render/render.hpp"
 
 #include "render/draw/imgui.hpp"
 #include "render/draw/scene.hpp"
 #include "render/draw/blit.hpp"
-
-#include "stdafx.hpp"
 
 using namespace sm;
 using namespace sm::render;
@@ -320,8 +318,8 @@ void Context::create_primitive_pipeline() {
         auto vs = mConfig.bundle.get_shader_bytecode("primitive.vs");
 
         constexpr D3D12_INPUT_ELEMENT_DESC kInputElements[] = {
-            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(draw::Vertex, position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-            { "COLOUR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, offsetof(draw::Vertex, colour), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(world::Vertex, position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "COLOUR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, offsetof(world::Vertex, colour), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         };
 
         const D3D12_GRAPHICS_PIPELINE_STATE_DESC kDesc = {
@@ -716,7 +714,7 @@ bool Context::create_texture(Texture& result, const fs::path& path, ImageFormat 
 }
 
 Mesh Context::create_mesh(const world::MeshInfo& info, const float3& colour) {
-    auto mesh = draw::primitive(info);
+    auto mesh = world::primitive(info);
 
     uint32_t col = math::pack_colour(float4(colour, 1.0f));
 
@@ -727,7 +725,7 @@ Mesh Context::create_mesh(const world::MeshInfo& info, const float3& colour) {
     Resource vbo_upload;
     Resource ibo_upload;
 
-    const uint kVertexBufferSize = mesh.vertices.size() * sizeof(draw::Vertex);
+    const uint kVertexBufferSize = mesh.vertices.size() * sizeof(world::Vertex);
     const uint kIndexBufferSize = mesh.indices.size() * sizeof(uint16);
 
     const auto kVertexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kVertexBufferSize);
@@ -795,7 +793,7 @@ Mesh Context::create_mesh(const world::MeshInfo& info, const float3& colour) {
     primitive.mVertexBufferView = {
         .BufferLocation = primitive.mVertexBuffer.get_gpu_address(),
         .SizeInBytes = kVertexBufferSize,
-        .StrideInBytes = sizeof(draw::Vertex),
+        .StrideInBytes = sizeof(world::Vertex),
     };
 
     primitive.mIndexBufferView = {

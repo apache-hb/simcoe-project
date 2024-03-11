@@ -1,6 +1,6 @@
-#include "render/editor/editor.hpp"
-
 #include "stdafx.hpp"
+
+#include "render/editor/editor.hpp"
 
 using namespace sm;
 using namespace sm::editor;

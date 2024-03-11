@@ -1,9 +1,9 @@
+#include "stdafx.hpp"
+
 #include "render/camera.hpp"
 
 #include "input/input.hpp"
 #include "system/input.hpp"
-
-#include "stdafx.hpp"
 
 using namespace sm;
 using namespace sm::draw;
@@ -79,7 +79,7 @@ void Camera::tick(float dt) {
     float3 forward = mDirection;
 
     mPosition += forward * -y * scaled;
-    mPosition += float3::cross(forward, kVectorUp).normalized() * -x * scaled;
+    mPosition += float3::cross(forward, world::kVectorUp).normalized() * -x * scaled;
 
     mPosition.z += -z * scaled;
 }
@@ -97,7 +97,7 @@ float4x4 Camera::model() const {
 }
 
 float4x4 Camera::view() const {
-    return float4x4::lookToRH(mPosition, mDirection, kVectorUp);
+    return float4x4::lookToRH(mPosition, mDirection, world::kVectorUp);
 }
 
 float4x4 Camera::projection(float aspect) const {

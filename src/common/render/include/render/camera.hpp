@@ -1,6 +1,6 @@
 #pragma once
 
-#include "render/draw.hpp"
+#include "world/world.hpp"
 
 #include "input/input.hpp"
 #include "input/toggle.hpp"
@@ -8,9 +8,11 @@
 #include "draw.reflect.h"
 
 namespace sm::draw {
+    using namespace sm::math;
+
     class Camera final : public input::IClient {
         float3 mPosition = {-3.f, 0.f, 0.f};
-        float3 mDirection = kVectorForward;
+        float3 mDirection = world::kVectorForward;
 
         radf mFieldOfView = 75._deg;
         float mCameraSpeed = 3.f;

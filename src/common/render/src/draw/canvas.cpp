@@ -1,3 +1,5 @@
+#include "stdafx.hpp"
+
 #include "render/draw/canvas.hpp"
 
 using namespace sm;

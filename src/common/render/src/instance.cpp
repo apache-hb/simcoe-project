@@ -1,8 +1,8 @@
+#include "stdafx.hpp"
+
 #include "render/instance.hpp"
 
 #include "render/vendor/microsoft/pix.hpp"
-
-#include "stdafx.hpp"
 
 using namespace sm;
 using namespace sm::render;

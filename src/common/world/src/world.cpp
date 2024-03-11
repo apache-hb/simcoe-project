@@ -1,8 +1,6 @@
+#include "stdafx.hpp"
+
 #include "world/world.hpp"
-
-#include "logs/logs.hpp"
-
-#include "core/units.hpp"
 
 using namespace sm;
 using namespace sm::world;

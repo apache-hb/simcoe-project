@@ -1,6 +1,6 @@
-#include "render/editor/debug.hpp"
-
 #include "stdafx.hpp"
+
+#include "render/editor/debug.hpp"
 
 using namespace sm;
 using namespace sm::editor;
