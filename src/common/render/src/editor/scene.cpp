@@ -156,19 +156,33 @@ void ScenePanel::draw_group(uint16 index) {
     ImGui::TableNextColumn();
     ImGui::TextUnformatted("Node");
 
+    auto& world = mContext.mWorld.info;
+    auto& node = world.nodes[index];
+
     if (is_open) {
         if (mShowObjects) {
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
+            ImVec4 cyan = {0.5f, 1.f, 1.f, 1.f};
+            ImGui::PushStyleColor(ImGuiCol_Text, cyan);
             if (ImGui::TreeNodeEx("Objects", kGroupNodeFlags)) {
-                for (uint16 i : mContext.mWorld.info.nodes[index].objects) {
+                ImGui::PopStyleColor();
+                for (uint16 i : node.objects) {
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
                     begin_tree_item({ItemType::eMesh, i}, kLeafNodeFlags);
+
+                    ImGui::TableNextColumn();
+                    ImGui::TableNextColumn();
+                    using Reflect = ctu::TypeInfo<world::ObjectType>;
+                    ImGui::TextUnformatted(Reflect::to_string(world.objects[i].info.type).c_str());
                 }
                 ImGui::TreePop();
+            } else {
+                ImGui::PopStyleColor();
             }
         }
 
-        auto& node = mContext.mWorld.info.nodes[index];
         for (size_t i = 0; i < node.children.size(); ++i) {
             draw_node(node.children[i]);
         }
