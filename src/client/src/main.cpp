@@ -253,6 +253,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     render::DebugFlags flags = render::DebugFlags::none();
 
+
     if (sm::warp_enabled()) {
         flags |= render::DebugFlags::eWarpAdapter;
     }

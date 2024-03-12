@@ -58,7 +58,6 @@ void PassBuilder::read(Handle handle, sm::StringView name, Access access) {
 void PassBuilder::write(Handle handle, sm::StringView name, Access access) {
     if (mFrameGraph.is_imported(handle)) {
         side_effects(true);
-        mRenderPass.has_side_effects = true;
     }
 
     add_write(handle, name, access);

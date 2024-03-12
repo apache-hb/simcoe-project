@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "render/draw/scene.hpp"
+#include "render/draw/draw.hpp"
 
 #include "render/render.hpp"
 

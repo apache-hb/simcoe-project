@@ -282,16 +282,6 @@ namespace sm::render {
         void wait_for_gpu();
         void flush_copy_queue();
 
-        /// dear imgui
-
-        SrvIndex mImGuiSrvIndex;
-
-        void create_imgui();
-        void destroy_imgui();
-
-        void create_imgui_backend();
-        void destroy_imgui_backend();
-
         /// state updates
 
         void update_adapter(size_t index);
@@ -301,8 +291,13 @@ namespace sm::render {
         bool mDeviceLost = false;
         void destroy_device();
 
+        virtual void on_create() { }
+        virtual void on_destroy() { }
+        virtual void setup_framegraph(graph::FrameGraph& graph);
+
     public:
         Context(const RenderConfig& config);
+        virtual ~Context() = default;
 
         void create();
         void destroy();

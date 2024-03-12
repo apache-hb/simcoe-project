@@ -1,9 +1,9 @@
 #include "stdafx.hpp"
 
-#include "render/draw/canvas.hpp"
+#include "render/draw/draw.hpp"
 
 using namespace sm;
 
-void draw::draw_canvas(graph::FrameGraph&, graph::Handle) {
+void draw::canvas(graph::FrameGraph&, graph::Handle) {
 
 }

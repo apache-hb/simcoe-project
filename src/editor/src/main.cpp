@@ -13,6 +13,7 @@
 
 #include "config/config.hpp"
 
+#include "render/draw/draw.hpp"
 #include "render/render.hpp"
 
 using namespace sm;
@@ -254,6 +255,37 @@ static void destroy_imgui() {
     ImGui::DestroyContext();
 }
 
+class EditorContext : public render::Context {
+    using Super = render::Context;
+    using Super::Super;
+
+    render::SrvIndex mImGuiSrvIndex;
+
+    void on_create() override {
+        mImGuiSrvIndex = mSrvPool.allocate();
+
+        ImGui_ImplWin32_Init(mConfig.window.get_handle());
+
+        const auto cpu = mSrvPool.cpu_handle(mImGuiSrvIndex);
+        const auto gpu = mSrvPool.gpu_handle(mImGuiSrvIndex);
+        ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mSwapChainLength), mSwapChainFormat,
+                            mSrvPool.get(), cpu, gpu);
+    }
+
+    void on_destroy() override {
+        mSrvPool.release(mImGuiSrvIndex);
+
+        ImGui_ImplDX12_Shutdown();
+        ImGui_ImplWin32_Shutdown();
+    }
+
+    void setup_framegraph(graph::FrameGraph& graph) override {
+        Super::setup_framegraph(graph);
+
+        draw::imgui(graph, mSwapChainHandle);
+    }
+};
+
 static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     sys::WindowConfig window_config = {
         .mode = sys::WindowMode::eWindowed,
@@ -330,7 +362,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .window = window,
     };
 
-    render::Context context{render_config};
+    EditorContext context{render_config};
 
     events.attach_render(&context);
     input.add_client(&context.camera);

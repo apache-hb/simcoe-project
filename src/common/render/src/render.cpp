@@ -2,9 +2,7 @@
 
 #include "render/render.hpp"
 
-#include "render/draw/imgui.hpp"
-#include "render/draw/scene.hpp"
-#include "render/draw/blit.hpp"
+#include "render/draw/draw.hpp"
 
 using namespace sm;
 using namespace sm::render;
@@ -809,9 +807,6 @@ Mesh Context::create_mesh(const world::MeshInfo& info, const float3& colour) {
 }
 
 void Context::create_assets() {
-    create_primitive_pipeline();
-    create_blit_pipeline();
-
     SM_ASSERT_HR(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, *mFrames[mFrameIndex].allocator, nullptr, IID_PPV_ARGS(&mCommandList)));
     SM_ASSERT_HR(mCommandList->Close());
 
@@ -819,6 +814,9 @@ void Context::create_assets() {
     mFrames[mFrameIndex].fence_value += 1;
 
     SM_ASSERT_WIN32(mFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr));
+
+    create_primitive_pipeline();
+    create_blit_pipeline();
 }
 
 void Context::build_command_list() {
@@ -842,20 +840,13 @@ void Context::build_command_list() {
 }
 
 void Context::create_frame_graph() {
-    {
         graph::ResourceInfo info = {
-            .size = mSwapChainSize,
-            .format = mSwapChainFormat
-        };
-        mSwapChainHandle = mFrameGraph.include("BackBuffer", info, graph::Access::ePresent, nullptr);
-    }
+        .size = mSwapChainSize,
+        .format = mSwapChainFormat
+    };
+    mSwapChainHandle = mFrameGraph.include("BackBuffer", info, graph::Access::ePresent, nullptr);
 
-    draw::opaque(mFrameGraph, mSceneTargetHandle);
-
-    draw::blit(mFrameGraph, mSwapChainHandle, mSceneTargetHandle);
-
-    if (mConfig.imgui)
-        draw::imgui(mFrameGraph, mSwapChainHandle);
+    setup_framegraph(mFrameGraph);
 
     mFrameGraph.compile();
 }
@@ -947,8 +938,6 @@ void Context::create() {
         ? mInstance.warp_adapter_index()
         : mConfig.adapter_index;
 
-    mConfig.bundle.get_font("public_sans");
-
     PIXSetTargetWindow(mConfig.window.get_handle());
 
     mStorage.create(mDebugFlags);
@@ -958,13 +947,14 @@ void Context::create() {
     create_copy_queue();
     create_copy_fence();
     create_pipeline();
-    create_assets();
+    on_create();
 
+    create_assets();
     init_scene();
 
     create_screen_quad();
     create_frame_graph();
-    create_imgui();
+    update_display_viewport();
 }
 
 void Context::destroy() {
@@ -972,7 +962,7 @@ void Context::destroy() {
     wait_for_gpu();
 
     destroy_frame_graph();
-    destroy_imgui();
+    on_destroy();
 
     mStorage.destroy_queue();
     mStorage.destroy();
@@ -1012,8 +1002,8 @@ void Context::update_adapter(size_t index) {
 
 void Context::recreate_device() {
     wait_for_gpu();
-    destroy_imgui_backend();
 
+    on_destroy();
     destroy_device();
 
     create_device(mAdapterIndex);
@@ -1021,6 +1011,8 @@ void Context::recreate_device() {
     create_copy_queue();
     create_copy_fence();
     create_pipeline();
+    on_create();
+
     create_assets();
 
     create_textures();
@@ -1028,13 +1020,17 @@ void Context::recreate_device() {
     create_scene();
     create_frame_graph();
 
-    create_imgui_backend();
-
     mDeviceLost = false;
 }
 
 void Context::set_device_lost() {
     mDeviceLost = true;
+}
+
+void Context::setup_framegraph(graph::FrameGraph& graph) {
+    draw::opaque(mFrameGraph, mSceneTargetHandle);
+
+    draw::blit(mFrameGraph, mSwapChainHandle, mSceneTargetHandle);
 }
 
 void Context::update_swapchain_length(uint length) {
@@ -1092,6 +1088,7 @@ void Context::update_scene_size(math::uint2 size) {
     if (mSceneSize == size) return;
 
     resize_draw(size);
+    update_display_viewport();
 }
 
 void Context::resize_draw(math::uint2 size) {
