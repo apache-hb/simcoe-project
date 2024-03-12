@@ -14,10 +14,6 @@
 
 #include "logs/logs.hpp"
 
-#include "imgui/imgui.h"
-#include "imgui/backends/imgui_impl_win32.h"
-#include "imgui/backends/imgui_impl_dx12.h"
-
 #include "DDSTextureLoader12.h"
 
 #include "fastgltf/core.hpp"

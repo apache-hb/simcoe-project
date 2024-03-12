@@ -13,23 +13,6 @@ static constexpr ButtonAxis kMoveForward = {Button::eW, Button::eS};
 static constexpr ButtonAxis kMoveStrafe = {Button::eD, Button::eA};
 static constexpr ButtonAxis kMoveUp = {Button::eE, Button::eQ};
 
-namespace MyGui {
-    template<math::IsAngle T>
-    void SliderAngle(const char *label, T *angle, T min, T max) {
-        float deg = angle->get_degrees();
-        ImGui::SliderFloat(label, &deg, min.get_degrees(), max.get_degrees());
-        *angle = math::Degrees(deg);
-    }
-}
-
-void Camera::draw_debug() {
-    MyGui::SliderAngle<radf>("fov", &mFieldOfView, 5._deg, 120._deg);
-    ImGui::SliderFloat3("position", &mPosition.x, -10.f, 10.f);
-    ImGui::SliderFloat3("direction", &mDirection.x, -1.f, 1.f);
-    ImGui::SliderFloat("speed", &mCameraSpeed, 0.1f, 10.f);
-    ImGui::SliderFloat("sensitivity", &mMouseSensitivity, 0.1f, 1.f);
-}
-
 void Camera::accept(const input::InputState& state, InputService& service) {
     constexpr auto key = input::Button::eTilde;
     if (mCameraActive.update(state.buttons[(size_t)key])) {

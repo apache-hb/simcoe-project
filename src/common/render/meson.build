@@ -7,7 +7,6 @@ src = [
     'src/render.cpp',
     'src/dstorage.cpp',
     'src/object.cpp',
-    'src/imgui.cpp',
 
     'src/blit.cpp',
 
@@ -18,7 +17,6 @@ src = [
 
     'src/draw/scene.cpp',
     'src/draw/blit.cpp',
-    'src/draw/imgui.cpp',
     'src/draw/canvas.cpp',
 
     reflect.process('data/render.ct'),
@@ -41,10 +39,7 @@ deps = [
     dds_texture_loader,
 
     # hardware vendors
-    nvapi,
-
-    # gui
-    imgui
+    nvapi
 ]
 
 librender = library('render', src,

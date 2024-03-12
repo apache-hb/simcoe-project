@@ -255,6 +255,24 @@ static void destroy_imgui() {
     ImGui::DestroyContext();
 }
 
+namespace MyGui {
+    template<math::IsAngle T>
+    void SliderAngle(const char *label, T *angle, T min, T max) {
+        float deg = angle->get_degrees();
+        ImGui::SliderFloat(label, &deg, min.get_degrees(), max.get_degrees());
+        *angle = math::Degrees(deg);
+    }
+}
+
+static void imgui_pass(graph::FrameGraph& graph, graph::Handle target) {
+    graph::PassBuilder pass = graph.pass("ImGui");
+    pass.write(target, "Target", graph::Access::eRenderTarget);
+
+    pass.bind([](graph::FrameGraph& graph, render::Context& context) {
+        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), *context.mCommandList);
+    });
+}
+
 class EditorContext : public render::Context {
     using Super = render::Context;
     using Super::Super;
@@ -282,7 +300,7 @@ class EditorContext : public render::Context {
     void setup_framegraph(graph::FrameGraph& graph) override {
         Super::setup_framegraph(graph);
 
-        draw::imgui(graph, mSwapChainHandle);
+        imgui_pass(graph, mSwapChainHandle);
     }
 };
 

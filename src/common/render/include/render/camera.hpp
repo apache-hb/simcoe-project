@@ -1,6 +1,6 @@
 #pragma once
 
-#include "world/world.hpp"
+#include "world/mesh.hpp"
 
 #include "input/input.hpp"
 #include "input/toggle.hpp"
@@ -30,7 +30,6 @@ namespace sm::draw {
     public:
         Camera() = default;
 
-        void draw_debug();
         void tick(float dt);
 
         // is the camera currently capturing input

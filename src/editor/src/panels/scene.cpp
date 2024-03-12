@@ -28,7 +28,7 @@ const ImGuiTreeNodeFlags kLeafNodeFlags
     | ImGuiTreeNodeFlags_Bullet
     | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 
-static const char *kCreatePopup = "New Primitive";
+static const char *const kCreatePopup = "New Primitive";
 
 static auto gSink = logs::get_sink(logs::Category::eDebug);
 

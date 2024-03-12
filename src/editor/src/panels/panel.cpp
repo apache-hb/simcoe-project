@@ -2,7 +2,7 @@
 
 #include "editor/panel.hpp"
 
-#include "render/mygui.hpp"
+#include "editor/mygui.hpp"
 
 using namespace sm;
 using namespace sm::ed;
@@ -44,7 +44,7 @@ void IEditorPanel::draw_section() {
 
 void ed::edit_transform(world::Transform& transform) {
 	auto& [position, rotation, scale] = transform;
-	ImGui::DragFloat3("Translation", position.data());
+	ImGui::DragFloat3("Translation", position.data(), 0.1f);
     MyGui::DragAngle3("Rotation", &rotation, 1._deg, -180._deg, 180._deg);
-	ImGui::DragFloat3("Scale", scale.data());
+	ImGui::DragFloat3("Scale", scale.data(), 0.1f);
 }
