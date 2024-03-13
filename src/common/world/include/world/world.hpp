@@ -47,6 +47,7 @@ namespace sm::world {
         sm::String name;
         uint16 root_node;
         uint16 active_camera;
+        uint16 default_material;
 
         sm::Vector<NodeInfo> nodes;
         sm::Vector<CameraInfo> cameras;
@@ -58,6 +59,7 @@ namespace sm::world {
         uint16 add_node(const NodeInfo& info);
         uint16 add_camera(const CameraInfo& info);
         uint16 add_object(const ObjectInfo& info);
+        uint16 add_material(const MaterialInfo& info);
 
         void reparent_node(uint16 node, uint16 parent);
         void delete_node(uint16 index);

@@ -188,13 +188,14 @@ void FrameGraph::optimize() {
         }
 
         producer->refcount -= 1;
-        if (producer->refcount == 0) {
-            for (auto& [_, index, access] : producer->reads) {
-                auto& handle = mHandles[index.index];
-                handle.refcount -= 1;
-                if (handle.refcount == 0) {
-                    queue.push(&handle);
-                }
+        if (producer->refcount != 0)
+            continue;
+
+        for (auto& [_, index, access] : producer->reads) {
+            auto& handle = mHandles[index.index];
+            handle.refcount -= 1;
+            if (handle.refcount == 0) {
+                queue.push(&handle);
             }
         }
     }
@@ -242,10 +243,9 @@ void FrameGraph::create_resources() {
     for (auto& handle : mHandles) {
         // skip resources that are not used
         if (!handle.is_used()) continue;
+        if (handle.is_imported()) continue;
 
         const auto& info = handle.info;
-
-        if (handle.is_imported()) continue;
 
         const auto flags = get_required_flags(handle.access);
 

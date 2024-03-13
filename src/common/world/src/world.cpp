@@ -27,6 +27,12 @@ uint16 WorldInfo::add_object(const ObjectInfo& info) {
     return index;
 }
 
+uint16 WorldInfo::add_material(const MaterialInfo& info) {
+    auto index = int_cast<uint16>(materials.size());
+    materials.push_back(info);
+    return index;
+}
+
 void WorldInfo::reparent_node(uint16 node, uint16 parent) {
     uint16 old_parent = nodes[node].parent;
     if (old_parent == parent) return;
@@ -173,6 +179,9 @@ struct WorldLoad {
         if (!archive.read(mWorld.active_camera))
             BADPARSE("Failed to read active camera");
 
+        if (!archive.read(mWorld.default_material))
+            BADPARSE("Failed to read default material");
+
         if (!load_vector(mWorld.nodes, "nodes", &WorldLoad::load_node))
             return false;
 
@@ -216,6 +225,7 @@ void world::save_world(Archive& archive, const WorldInfo& world) {
     archive.write_string(world.name);
     archive.write(world.root_node);
     archive.write(world.active_camera);
+    archive.write(world.default_material);
 
     write_many(archive, world.nodes, [&](const NodeInfo& it) {
         archive.write_string(it.name);

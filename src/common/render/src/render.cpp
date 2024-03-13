@@ -366,6 +366,9 @@ void Context::init_scene() {
     node.objects.push_back(index);
     mWorld.info.nodes.push_back(node);
 
+    world::MaterialInfo material{};
+    material.name = "Default";
+    mWorld.info.default_material = mWorld.info.add_material(material);
 
     mMeshes.push_back(create_mesh(kMeshInfo, float3(1.f, 0.f, 0.f)));
 }

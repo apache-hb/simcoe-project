@@ -483,6 +483,25 @@ namespace sm::math {
             return Quat {x, y, z, w};
         }
 
+        constexpr Rad3 to_euler() const {
+            T sinr_cosp = T(2) * (angle * v.x + v.y * v.z);
+            T cosr_cosp = T(1) - T(2) * (v.x * v.x + v.y * v.y);
+
+            T sinp = std::sqrt(T(1) + T(2) * (angle * v.y - v.x * v.z));
+            T cosp = std::sqrt(T(1) - T(2) * (angle * v.y - v.x * v.z));
+
+            T siny_cosp = T(2) * (angle * v.z + v.x * v.y);
+            T cosy_cosp = T(1) - T(2) * (v.y * v.y + v.z * v.z);
+
+            T roll = std::atan2(sinr_cosp, cosr_cosp);
+            T pitch = std::atan2(sinp, cosp);
+            T yaw = std::atan2(siny_cosp, cosy_cosp);
+
+            Vec3 euler = {roll, pitch, yaw};
+
+            return Rad3{euler};
+        }
+
 #if 0
         constexpr Vec3 as_euler() const {
             T sinr_cosp = T(2) * (angle * v.x + v.y * v.z);
