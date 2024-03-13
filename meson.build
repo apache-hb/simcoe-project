@@ -51,8 +51,8 @@ project('simcoe', [ 'c', 'cpp' ],
 cpp = meson.get_compiler('cpp')
 cc = meson.get_compiler('c')
 
-add_global_arguments(cc.get_supported_arguments('/GS-'), language : [ 'c', 'cpp' ])
-add_project_arguments('-D_HAS_EXCEPTIONS=0', language : 'cpp')
+add_global_arguments(cc.get_supported_arguments('/GS-', '/wd4127', '/wd4324', '/wd4200', '/wd4505'), language : [ 'c', 'cpp' ])
+add_global_arguments('-D_HAS_EXCEPTIONS=0', language : 'cpp')
 
 version = meson.project_version()
 parts = version.split('.')
@@ -75,6 +75,8 @@ is_release = package_type == 'release'
 enable_pix = get_option('enable_pix').disable_auto_if(not is_devel)
 warp_redist = get_option('warp_redist').disable_auto_if(is_release)
 
+stb = subproject('stb').get_variable('stb')
+
 # the perfect library
 cthulhu = subproject('cthulhu')
 
@@ -87,8 +89,6 @@ msdf_atlas_gen = find_program('msdf-atlas-gen')
 compressonator = find_program('compressonatorcli')
 artery = dependency('artery-font')
 fastgltf = dependency('fastgltf')
-
-stb = subproject('stb').get_variable('stb')
 
 dxgi = cpp.find_library('dxgi')
 dxguid = cpp.find_library('dxguid')

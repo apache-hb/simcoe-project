@@ -9,6 +9,7 @@
 namespace sm::ed {
     static constexpr const char *kNodePayload = "NodeIndex";
     static constexpr const char *kMeshPayload = "MeshIndex";
+    static constexpr const char *kCameraPayload = "CameraIndex";
     static constexpr const char *kMaterialPayload = "MaterialIndex";
     static constexpr const char *kTexturePayload = "TextureIndex";
 

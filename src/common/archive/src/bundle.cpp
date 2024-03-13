@@ -218,7 +218,7 @@ font::FontInfo Bundle::get_font(const char *name) const {
         gSink.info("| image: {}x{}x{}", image.width, image.height, image.channels);
 
         int width, height, channels;
-        stbi_uc *pixels = stbi_load_from_memory(data.data(), data.size(), &width, &height, &channels, 4);
+        stbi_uc *pixels = stbi_load_from_memory(data.data(), (int)data.size(), &width, &height, &channels, 4);
         if (pixels == nullptr) {
             gSink.error("failed to load font texture: {}", stbi_failure_reason());
             return {};

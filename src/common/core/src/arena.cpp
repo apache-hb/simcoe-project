@@ -46,8 +46,8 @@ void IArena::rename(const void *ptr, const char *ptr_name) {
     impl_rename(ptr, ptr_name);
 }
 
-void IArena::reparent(const void *ptr, const void *parent) {
-    impl_reparent(ptr, parent);
+void IArena::reparent(const void *ptr, const void *parent_ptr) {
+    impl_reparent(ptr, parent_ptr);
 }
 
 // default implementations
@@ -62,9 +62,9 @@ void IArena::impl_rename(const void *ptr, const char *ptr_name) {
     CT_UNUSED(ptr_name);
 }
 
-void IArena::impl_reparent(const void *ptr, const void *parent) {
+void IArena::impl_reparent(const void *ptr, const void *parent_ptr) {
     CT_UNUSED(ptr);
-    CT_UNUSED(parent);
+    CT_UNUSED(parent_ptr);
 }
 
 class DefaultArena final : public IArena {

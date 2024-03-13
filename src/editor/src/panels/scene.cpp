@@ -100,9 +100,11 @@ static const char *get_payload_type(ItemType type) {
         return kNodePayload;
     case ItemType::eMesh:
         return kMeshPayload;
+    case ItemType::eCamera:
+        return kCameraPayload;
 
     default:
-        SM_NEVER("Unknown item type {}", type);
+        gSink.warn("Unknown item type {}", type);
         return "Unknown";
     }
 }

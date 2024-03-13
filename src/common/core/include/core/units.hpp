@@ -44,7 +44,7 @@ namespace sm {
     }
 
     template<typename T, typename O>
-    T int_cast(O value) {
+    constexpr T int_cast(O value) {
 #if SMC_DEBUG
         using C = CastResult<T, O>;
 

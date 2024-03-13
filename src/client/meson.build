@@ -11,4 +11,4 @@ deps = [
     tracy
 ]
 
-pch = files('src/stdafx.hpp')
+pch = meson.current_source_dir() / 'src/stdafx.hpp'

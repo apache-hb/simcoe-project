@@ -726,8 +726,8 @@ Mesh Context::create_mesh(const world::MeshInfo& info, const float3& colour) {
     Resource vbo_upload;
     Resource ibo_upload;
 
-    const uint kVertexBufferSize = mesh.vertices.size() * sizeof(world::Vertex);
-    const uint kIndexBufferSize = mesh.indices.size() * sizeof(uint16);
+    const uint kVertexBufferSize = (uint)mesh.vertices.size() * sizeof(world::Vertex);
+    const uint kIndexBufferSize = (uint)mesh.indices.size() * sizeof(uint16);
 
     const auto kVertexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kVertexBufferSize);
     const auto kIndexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kIndexBufferSize);

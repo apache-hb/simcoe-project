@@ -34,4 +34,4 @@ deps = [
 ]
 
 inc = [ include_directories('include', 'src'), reflect_include ]
-pch = files('src/stdafx.hpp')
+pch = meson.current_source_dir() / 'src/stdafx.hpp'
