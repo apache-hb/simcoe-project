@@ -8,11 +8,70 @@ using namespace sm;
 using namespace sm::math;
 using namespace sm::ed;
 
+REFLECT_ENUM_BITFLAGS(ImGuizmo::OPERATION, int);
+
 static auto gSink = logs::get_sink(logs::Category::eRender);
+
+static bool is_mode_translate(ImGuizmo::OPERATION op) {
+    return op & ImGuizmo::TRANSLATE;
+}
+
+static bool is_mode_rotate(ImGuizmo::OPERATION op) {
+    return op & ImGuizmo::ROTATE;
+}
+
+static bool is_mode_scale(ImGuizmo::OPERATION op) {
+    return op & ImGuizmo::SCALE;
+}
+
+static ImGuizmo::OPERATION set_transform_bit(ImGuizmo::OPERATION op, ImGuizmo::OPERATION translate, ImGuizmo::OPERATION rotate, ImGuizmo::OPERATION scale) {
+    if (is_mode_translate(op))
+        return translate;
+    else if (is_mode_rotate(op))
+        return rotate;
+    else if (is_mode_scale(op))
+        return scale;
+    return op;
+}
+
+static ImGuizmo::OPERATION set_x(ImGuizmo::OPERATION op) {
+    return set_transform_bit(op, ImGuizmo::TRANSLATE_X, ImGuizmo::ROTATE_X, ImGuizmo::SCALE_X);
+}
+
+static ImGuizmo::OPERATION set_y(ImGuizmo::OPERATION op) {
+    return set_transform_bit(op, ImGuizmo::TRANSLATE_Y, ImGuizmo::ROTATE_Y, ImGuizmo::SCALE_Y);
+}
+
+static ImGuizmo::OPERATION set_z(ImGuizmo::OPERATION op) {
+    return set_transform_bit(op, ImGuizmo::TRANSLATE_Z, ImGuizmo::ROTATE_Z, ImGuizmo::SCALE_Z);
+}
 
 void ViewportPanel::begin_frame(draw::Camera& camera) {
     ImGuizmo::SetOrthographic(camera.get_projection() == draw::Projection::eOrthographic);
     ImGuizmo::BeginFrame();
+}
+
+void ViewportPanel::draw_gizmo_mode(ImGuizmo::OPERATION op, ImGuizmo::OPERATION x, ImGuizmo::OPERATION y, ImGuizmo::OPERATION z) const {
+    bool active = mOperation & op;
+    if (active) {
+        ImGui::Text("%s/%s/%s", (op & x) ? "X" : "_", (op & y) ? "Y" : "_", (op & z) ? "Z" : "_");
+    } else {
+        ImGui::TextDisabled("X/Y/Z");
+    }
+}
+
+void ViewportPanel::draw_rotate_mode() const {
+    bool active = mOperation & ImGuizmo::ROTATE;
+    if (active) {
+        ImGui::Text("%s/%s/%s/%s",
+            (mOperation & ImGuizmo::ROTATE_X) ? "X" : "_",
+            (mOperation & ImGuizmo::ROTATE_Y) ? "Y" : "_",
+            (mOperation & ImGuizmo::ROTATE_Z) ? "Z" : "_",
+            (mOperation & ImGuizmo::ROTATE_SCREEN) ? "S" : "_");
+
+    } else {
+        ImGui::TextDisabled("X/Y/Z/S");
+    }
 }
 
 void ViewportPanel::draw_content() {
@@ -79,22 +138,38 @@ void ViewportPanel::draw_content() {
 }
 
 void ViewportPanel::gizmo_settings_panel() {
-    if (ImGui::RadioButton("Translate", mOperation == ImGuizmo::TRANSLATE))
-		mOperation = ImGuizmo::TRANSLATE;
+    if (ImGui::RadioButton("Translate", is_mode_translate(mOperation)))
+        mOperation = mTranslateOperation;
+    ImGui::SameLine();
+    draw_gizmo_mode(mTranslateOperation, ImGuizmo::TRANSLATE_X, ImGuizmo::TRANSLATE_Y, ImGuizmo::TRANSLATE_Z);
+    ImGui::SameLine();
+
+	if (ImGui::RadioButton("Rotate", is_mode_rotate(mOperation)))
+		mOperation = mRotateOperation;
+    ImGui::SameLine();
+    draw_rotate_mode();
 	ImGui::SameLine();
-	if (ImGui::RadioButton("Rotate", mOperation == ImGuizmo::ROTATE))
-		mOperation = ImGuizmo::ROTATE;
-	ImGui::SameLine();
-	if (ImGui::RadioButton("Scale", mOperation == ImGuizmo::SCALE))
-		mOperation = ImGuizmo::SCALE;
+
+	if (ImGui::RadioButton("Scale", is_mode_scale(mOperation)))
+		mOperation = mScaleOperation;
+    ImGui::SameLine();
+    draw_gizmo_mode(mScaleOperation, ImGuizmo::SCALE_X, ImGuizmo::SCALE_Y, ImGuizmo::SCALE_Z);
 
     if (!mContext.camera.is_active()) {
-        if (ImGui::IsKeyPressed(ImGuiKey_T))
-            mOperation = ImGuizmo::TRANSLATE;
+        // blender keybinds
+        if (ImGui::IsKeyPressed(ImGuiKey_G))
+            mOperation = mTranslateOperation;
         if (ImGui::IsKeyPressed(ImGuiKey_R))
-            mOperation = ImGuizmo::ROTATE;
+            mOperation = mRotateOperation;
         if (ImGui::IsKeyPressed(ImGuiKey_S))
-            mOperation = ImGuizmo::SCALE;
+            mOperation = mScaleOperation;
+
+        if (ImGui::IsKeyPressed(ImGuiKey_X))
+            mOperation = set_x(mOperation);
+        if (ImGui::IsKeyPressed(ImGuiKey_Y))
+            mOperation = set_y(mOperation);
+        if (ImGui::IsKeyPressed(ImGuiKey_Z))
+            mOperation = set_z(mOperation);
     }
 
     ImGui::BeginDisabled(mOperation == ImGuizmo::SCALE);
@@ -106,6 +181,10 @@ void ViewportPanel::gizmo_settings_panel() {
     if (ImGui::RadioButton("World", mMode == ImGuizmo::WORLD))
         mMode = ImGuizmo::WORLD;
     ImGui::EndDisabled();
+    if (ImGui::CheckboxFlags("Screen space rotation", (int*)&mRotateOperation, ImGuizmo::ROTATE_SCREEN)) {
+        if (mOperation & ImGuizmo::ROTATE)
+            mOperation = mRotateOperation;
+    }
 }
 
 ViewportPanel::ViewportPanel(render::Context &context)

@@ -41,11 +41,13 @@ struct std::hash<sm::math::Quat<T>> {
     }
 };
 
+// use get_degrees() in both as hash(180deg) == hash(2pi rad) should be true
+
 template<typename T>
 struct std::hash<sm::math::Degrees<T>> {
     size_t operator()(const sm::math::Degrees<T>& m) const {
         size_t seed = 0;
-        sm::hash_combine(seed, m[0], m[1]);
+        sm::hash_combine(seed, m.get_degrees());
         return seed;
     }
 };
@@ -54,7 +56,7 @@ template<typename T>
 struct std::hash<sm::math::Radians<T>> {
     size_t operator()(const sm::math::Radians<T>& m) const {
         size_t seed = 0;
-        sm::hash_combine(seed, m[0], m[1]);
+        sm::hash_combine(seed, m.get_degrees());
         return seed;
     }
 };

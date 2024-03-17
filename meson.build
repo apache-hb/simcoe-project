@@ -334,7 +334,7 @@ win_subsystem = not is_devel ? 'windows' : 'console'
 link_args = [
     '/DELAYLOAD:dxcompiler.dll',
     '/DELAYLOAD:dxil.dll',
-    '/DELAYLOAD:WinPixEventRuntime.dll',
+    '/DELAYLOAD:WinPixEventRuntime.dll'
 ]
 
 subdir('src/client')

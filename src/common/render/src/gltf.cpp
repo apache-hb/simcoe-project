@@ -198,6 +198,5 @@ bool Context::load_gltf(const fs::path& path) {
         builder.gltf_setup_node(i, val.nodes[i]);
     }
 
-
     return true;
 }

@@ -39,9 +39,9 @@
 // - display rotation/translation/scale infos in local/world space and not only local
 // - finish local/world matrix application
 // - OPERATION as bitmask
-// 
+//
 // -------------------------------------------------------------------------------------------
-// Example 
+// Example
 #if 0
 void EditTransform(const Camera& camera, matrix_t& matrix)
 {
@@ -167,10 +167,10 @@ namespace IMGUIZMO_NAMESPACE
    IMGUI_API void DrawGrid(const float* view, const float* projection, const float* matrix, const float gridSize);
 
    // call it when you want a gizmo
-   // Needs view and projection matrices. 
+   // Needs view and projection matrices.
    // matrix parameter is the source matrix (where will be gizmo be drawn) and might be transformed by the function. Return deltaMatrix is optional
    // translation is applied in world space
-   enum OPERATION
+   enum OPERATION : int
    {
       TRANSLATE_X      = (1u << 0),
       TRANSLATE_Y      = (1u << 1),
@@ -194,7 +194,7 @@ namespace IMGUIZMO_NAMESPACE
       UNIVERSAL = TRANSLATE | ROTATE | SCALEU
    };
 
-   inline OPERATION operator|(OPERATION lhs, OPERATION rhs)
+   inline constexpr OPERATION operator|(OPERATION lhs, OPERATION rhs)
    {
      return static_cast<OPERATION>(static_cast<int>(lhs) | static_cast<int>(rhs));
    }
