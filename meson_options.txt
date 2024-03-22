@@ -30,3 +30,8 @@ option('warp_redist', type : 'feature',
 option('tracy_enable', type : 'boolean',
     value : 'false'
 )
+
+# a bit nasty to hardcode my specific path here
+option('llvm_dir', type : 'string',
+    value : 'K:/llvm'
+)
