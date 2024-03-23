@@ -23,8 +23,8 @@ project('simcoe', [ 'c', 'cpp' ],
 
         # nobody builds with clean warnings, so disable them per subproject
         'fmt:warning_level=0',
-        'harfbuzz:warning_level=0',
-        'freetype2:warning_level=0',
+        # 'harfbuzz:warning_level=0',
+        # 'freetype2:warning_level=0',
         'simdjson:warning_level=0',
         'fastgltf:warning_level=0',
         'tracy:warning_level=0',
@@ -36,15 +36,15 @@ project('simcoe', [ 'c', 'cpp' ],
         'fastgltf:custom_small_vector=true',
 
         # configure freetype before harfbuzz to pick up configuration
-        'freetype2:auto_features=disabled',
-        'freetype2:zlib=disabled',
-        'freetype2:png=disabled',
-        'freetype2:harfbuzz=disabled',
+        # 'freetype2:auto_features=disabled',
+        # 'freetype2:zlib=disabled',
+        # 'freetype2:png=disabled',
+        # 'freetype2:harfbuzz=disabled',
 
         # harfbuzz has some logic when building with c++11 that cause build issues
-        'harfbuzz:cpp_std=c++20',
-        'harfbuzz:tests=disabled',
-        'harfbuzz:freetype=enabled',
+        # 'harfbuzz:cpp_std=c++20',
+        # 'harfbuzz:tests=disabled',
+        # 'harfbuzz:freetype=enabled',
     ]
 )
 
@@ -81,8 +81,8 @@ stb = subproject('stb').get_variable('stb')
 cthulhu = subproject('cthulhu')
 
 # font rendering
-freetype2 = dependency('freetype2')
-harfbuzz = dependency('harfbuzz')
+# freetype2 = dependency('freetype2')
+# harfbuzz = dependency('harfbuzz')
 
 dxc = find_program('dxc', version : '>=1.7')
 msdf_atlas_gen = find_program('msdf-atlas-gen')

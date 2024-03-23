@@ -1,11 +1,9 @@
 #pragma once
 
 #if defined(__REFLECT__)
-#   define reflect(...) [[clang::annotate("reflect@" #__VA_ARGS__)]]
-#   define reflect_impl()
-#   define reflect_header(...) "meta/empty.hpp"
+#   define reflect(...) [simcoe::meta(#__VA_ARGS__)]
+#   define property(...) [[simcoe::meta_property(#__VA_ARGS__)]]
 #else
 #   define reflect(...)
-#   define reflect_impl()
-#   define reflect_header(...) #__VA_ARGS__
+#   define property(...)
 #endif

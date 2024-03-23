@@ -24,6 +24,12 @@ meson install -C <dir> --skip-subprojects
 ```
 
 ```sh
+# building llvm as a shared library
+cmake -S llvm -B build -G Ninja -DLLVM_ENABLE_PROJECTS="clang" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX="K:\llvm\shared"  -DLLVM_TARGETS_TO_BUILD=X86 "-DCMAKE_TOOLCHAIN_FILE=K:/vcpkg/scripts/buildsystems/vcpkg.cmake" -DBUILD_SHARED_LIBS=ON -DLLVM_ENABLE_DIA_SDK=OFF -DCMAKE_LINKER="lld-link" -DCMAKE_C_COMPILER="clang-cl" -DCMAKE_CXX_COMPILER="clang-cl"
+
+# building llvm for use in the reflect driver
+cmake -S llvm -B build -G Ninja -DLLVM_ENABLE_PROJECTS="clang" -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX="K:\llvm-reflect"  -DLLVM_TARGETS_TO_BUILD="X86" "-DCMAKE_TOOLCHAIN_FILE=K:/vcpkg/scripts/buildsystems/vcpkg.cmake" -DCMAKE_LINKER="lld-link" -DCMAKE_C_COMPILER="clang-cl" -DCMAKE_CXX_COMPILER="clang-cl" -DLLVM_ENABLE_LTO="Thin" -DLLVM_ENABLE_PLUGINS=ON -DLLVM_INTEGRATED_CRT_ALLOC="K:\github\rpmalloc" -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DLLVM_INCLUDE_TOOLS=ON -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD="DirectX"
+
 # building llvm
 cmake -S llvm -B build-stage0 -G Ninja -DLLVM_ENABLE_PROJECTS="clang;lld" -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX="K:\llvm" -DLLVM_PARALLEL_LINK_JOBS=16 -DLLVM_HOST_TRIPLE=x86_64 -DLLVM_TARGETS_TO_BUILD=X86
 

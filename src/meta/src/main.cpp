@@ -1,151 +1,191 @@
 #include "stdafx.hpp"
 
-#define META_NOCOPY(cls) cls(const cls&) = delete; cls& operator=(const cls&) = delete
+using namespace clang::tooling;
+using namespace llvm;
+using namespace clang;
 
-static constexpr CXTranslationUnit_Flags kFlags
-    = CXTranslationUnit_SkipFunctionBodies;
+static cl::OptionCategory gMetaCategory("meta reflection tool options");
 
-struct ClangString {
-    CXString str;
+static cl::extrahelp gCommonHelp(CommonOptionsParser::HelpMessage);
 
-    META_NOCOPY(ClangString);
-
-    ClangString(CXString str) : str(str) {}
-    ~ClangString() { clang_disposeString(str); }
-
-    operator const char*() const { return clang_getCString(str); }
-    const char *c_str() const { return clang_getCString(str); }
-};
-
-struct ClangCursor {
-    CXCursor cursor;
-
-    ClangCursor(CXCursor cursor) : cursor(cursor) {}
-
-    std::vector<ClangCursor> children() const {
-        std::vector<ClangCursor> result;
-
-        clang_visitChildren(cursor, [](CXCursor cursor, CXCursor parent, CXClientData client_data) -> CXChildVisitResult {
-            std::vector<ClangCursor> *result = static_cast<std::vector<ClangCursor>*>(client_data);
-            result->emplace_back(cursor);
-            return CXChildVisit_Continue;
-        }, &result);
-
-        return result;
-    }
-
-    CXCursorKind kind() const {
-        return clang_getCursorKind(cursor);
-    }
-
-    ClangString spelling() const {
-        return clang_getCursorSpelling(cursor);
-    }
-};
-
-struct MetaClass {
-    std::string name;
-};
-
-struct Context {
-    std::vector<MetaClass> classes;
-
-    void build_metaclass(ClangCursor cursor) {
-        auto children = cursor.children();
-        if (children.empty()) {
-            return;
-        }
-
-        auto first = children.front();
-        if (first.kind() != CXCursor_AnnotateAttr) {
-            return;
-        }
-
-        ClangString annotation = first.spelling();
-
-        if (std::strncmp(annotation.c_str(), "reflect@", 8) != 0) {
-            return;
-        }
-
-        (void)std::printf("found reflected class: %s\n", first.spelling().c_str());
-
-        ClangString name = cursor.spelling();
-        MetaClass cls = {name.c_str()};
-
-        children.erase(children.begin());
-
-        for (const ClangCursor &child : children) {
-            CXCursorKind kind = child.kind();
-            if (kind != CXCursor_FieldDecl) {
-                continue;
-            }
-
-            auto children = child.children();
-            for (const ClangCursor &inner : children) {
-                CXCursorKind kind = inner.kind();
-                if (kind != CXCursor_AnnotateAttr) {
-                    continue;
+struct ReflectConsumer : public clang::ASTConsumer {
+    void HandleTranslationUnit(clang::ASTContext &context) override {
+        for (const auto &decl : context.getTranslationUnitDecl()->decls()) {
+            if (const auto *record = dyn_cast<clang::CXXRecordDecl>(decl)) {
+                if (record->isClass()) {
+                    llvm::outs() << "Class: " << record->getNameAsString() << "\n";
                 }
-
-                (void)std::printf("found reflected field: %s\n", child.spelling().c_str());
             }
         }
-
-        classes.push_back(cls);
-    }
-
-    CXChildVisitResult accept(ClangCursor cursor, CXCursor parent) {
-        CXCursorKind kind = cursor.kind();
-        if (kind == CXCursor_Namespace) {
-            return CXChildVisit_Recurse;
-        }
-
-        if (kind == CXCursor_ClassDecl) {
-            build_metaclass(cursor);
-        }
-
-        return CXChildVisit_Continue;
     }
 };
 
-// usage: meta <input header> <output header> <output source> <output json> -- <clang args>
+struct ReflectAction : public clang::SyntaxOnlyAction {
+    std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance &compiler,
+                                                          llvm::StringRef file) override {
+        return std::make_unique<ReflectConsumer>();
+    }
+};
+
+namespace {
+
+struct MetaFieldAttrInfo : public ParsedAttrInfo {
+    static constexpr Spelling kSpellings[] = {
+        {ParsedAttr::AS_GNU, "meta_property"},
+        {ParsedAttr::AS_C23, "simcoe::meta_property"},
+        {ParsedAttr::AS_CXX11, "simcoe::meta_property"},
+    };
+
+    MetaFieldAttrInfo() {
+        OptArgs = 15;
+        Spellings = kSpellings;
+    }
+
+    bool diagAppertainsToDecl(Sema &S, const ParsedAttr &Attr, const Decl *D) const override {
+        // This attribute only appertains fields
+        if (isa<FieldDecl>(D))
+            return true;
+
+        S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type_str)
+            << Attr << Attr.isRegularKeywordAttribute() << "fields";
+        return false;
+    }
+
+    AttrHandling handleDeclAttribute(Sema &S, Decl *D, const ParsedAttr &Attr) const override {
+        // Check if the decl is inside a class.
+        DeclContext *DC = D->getDeclContext();
+        if (!DC->isRecord()) {
+            unsigned ID = S.getDiagnostics().getCustomDiagID(
+                DiagnosticsEngine::Error, "'simcoe::meta_property' attribute only allowed inside a class");
+            S.Diag(Attr.getLoc(), ID);
+            return AttributeNotApplied;
+        }
+
+        if (!isa<FieldDecl>(D)) {
+            unsigned ID = S.getDiagnostics().getCustomDiagID(
+                DiagnosticsEngine::Error, "'simcoe::meta_property' attribute can only be applied to fields");
+            S.Diag(Attr.getLoc(), ID);
+            return AttributeNotApplied;
+        }
+
+        FieldDecl *FD = cast<FieldDecl>(D);
+
+        RecordDecl *RD = FD->getParent();
+        RD->dump();
+
+        if (!RD->hasAttr<AnnotateAttr>()) {
+            unsigned ID = S.getDiagnostics().getCustomDiagID(
+                DiagnosticsEngine::Error, "class must have 'simcoe::meta' attribute before using 'simcoe::meta_property'");
+            S.Diag(Attr.getLoc(), ID);
+            return AttributeNotApplied;
+        }
+
+        AnnotateAttr *Annotate = RD->getAttr<AnnotateAttr>();
+        if (!Annotate->getAnnotation().starts_with("simcoe::meta")) {
+            unsigned ID = S.getDiagnostics().getCustomDiagID(
+                DiagnosticsEngine::Error, "class must have 'simcoe::meta' annotation before using 'simcoe::meta_property'");
+            S.Diag(Attr.getLoc(), ID);
+            return AttributeNotApplied;
+        }
+
+
+        // Attach an annotate attribute to the Decl.
+        FD->addAttr(AnnotateAttr::Create(S.Context, "simcoe::meta_property", nullptr, 0, Attr.getRange()));
+
+        return AttributeApplied;
+    }
+};
+
+struct MetaAttrInfo : public ParsedAttrInfo {
+    static constexpr Spelling kSpellings[] = {
+        {ParsedAttr::AS_GNU, "meta"},
+        {ParsedAttr::AS_Microsoft, "simcoe::meta"},
+    };
+
+    MetaAttrInfo() {
+        OptArgs = 15;
+        Spellings = kSpellings;
+    }
+
+    bool diagAppertainsToDecl(Sema &S, const ParsedAttr &Attr, const Decl *D) const override {
+        // This attribute only appertains classes
+        if (isa<CXXRecordDecl>(D))
+            return true;
+
+        S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type_str)
+            << Attr << Attr.isRegularKeywordAttribute() << "classes";
+        return false;
+    }
+
+    AttrHandling handleDeclAttribute(Sema &S, Decl *D, const ParsedAttr &Attr) const override {
+        // Check if the decl is at file scope.
+        if (!D->getDeclContext()->isFileContext()) {
+            unsigned ID = S.getDiagnostics().getCustomDiagID(
+                DiagnosticsEngine::Error, "'simcoe::meta' attribute only allowed at file scope");
+            S.Diag(Attr.getLoc(), ID);
+            return AttributeNotApplied;
+        }
+        // We make some rules here:
+        // 1. Only accept at most 3 arguments here.
+        // 2. The first argument must be a string literal if it exists.
+        if (Attr.getNumArgs() > 3) {
+            unsigned ID = S.getDiagnostics().getCustomDiagID(
+                DiagnosticsEngine::Error,
+                "'simcoe::meta' attribute only accepts at most three arguments");
+            S.Diag(Attr.getLoc(), ID);
+            return AttributeNotApplied;
+        }
+        // If there are arguments, the first argument should be a string literal.
+        if (Attr.getNumArgs() > 0) {
+            auto *Arg0 = Attr.getArgAsExpr(0);
+            clang::StringLiteral *Literal = dyn_cast<clang::StringLiteral>(Arg0->IgnoreParenCasts());
+            if (!Literal) {
+                unsigned ID = S.getDiagnostics().getCustomDiagID(
+                    DiagnosticsEngine::Error, "first argument to the 'simcoe::meta' "
+                                              "attribute must be a string literal");
+                S.Diag(Attr.getLoc(), ID);
+                return AttributeNotApplied;
+            }
+            SmallVector<Expr *, 16> ArgsBuf;
+            for (unsigned i = 0; i < Attr.getNumArgs(); i++) {
+                ArgsBuf.push_back(Attr.getArgAsExpr(i));
+            }
+            D->addAttr(AnnotateAttr::Create(S.Context, "simcoe::meta", ArgsBuf.data(), ArgsBuf.size(),
+                                            Attr.getRange()));
+        } else {
+            // Attach an annotate attribute to the Decl.
+            D->addAttr(AnnotateAttr::Create(S.Context, "simcoe::meta", nullptr, 0, Attr.getRange()));
+        }
+        return AttributeApplied;
+    }
+};
+
+} // namespace
+
+static ParsedAttrInfoRegistry::Add<MetaFieldAttrInfo> Y("meta-property", "");
+static ParsedAttrInfoRegistry::Add<MetaAttrInfo> X("meta-decl", "");
+
+// usage: meta [header input] [header output] [source output] -- [compiler options]
 int main(int argc, const char **argv) {
-    if (argc < 5) {
-        (void)std::fprintf(stderr, "usage: meta <input header> <output header> <output source> <output json> -- <clang args>\n");
+    if (argc < 2) {
+        llvm::errs() << "Usage: meta [header input] [header output] [source output] -- [compiler options]\n";
         return 1;
     }
 
-    const char *input = argv[1];
-    // const char *output_header = argv[2];
-    // const char *output_source = argv[3];
-    // const char *output_json = argv[4];
-
-    std::vector<const char*> args;
-    args.push_back("-x");
-    args.push_back("c++");
+    std::vector<const char*> args(argv, argv + argc);
+    args.push_back("-Xclang");
     args.push_back("-D__REFLECT__");
-    args.insert(args.end(), argv + 5, argv + argc);
+    args.push_back(nullptr);
+    argc = args.size() - 1;
 
-    CXIndex index = clang_createIndex(0, 1);
-    CXTranslationUnit tu = clang_parseTranslationUnit(index, input, args.data(), args.size(), nullptr, 0, kFlags);
-
-    if (tu == nullptr) {
-        (void)std::fprintf(stderr, "error: failed to parse translation unit\n");
+    std::string error;
+    auto options = FixedCompilationDatabase::loadFromCommandLine(argc, args.data(), error);
+    if (!options) {
+        llvm::errs() << "Failed to parse command line arguments: " << error << "\n";
         return 1;
     }
 
-    CXCursor cursor = clang_getTranslationUnitCursor(tu);
+    ClangTool tool(*options, {argv[1]});
 
-    Context context;
-
-    clang_visitChildren(cursor, [](CXCursor cursor, CXCursor parent, CXClientData client_data) -> CXChildVisitResult {
-        Context *context = static_cast<Context*>(client_data);
-        return context->accept(cursor, parent);
-    }, &context);
-
-    clang_disposeTranslationUnit(tu);
-
-    for (const MetaClass &cls : context.classes) {
-        (void)std::printf("class: %s\n", cls.name.c_str());
-    }
+    return tool.run(newFrontendActionFactory<clang::SyntaxOnlyAction>().get());
 }

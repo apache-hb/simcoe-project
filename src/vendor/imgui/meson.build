@@ -16,7 +16,7 @@ src = [
     'misc/cpp/imgui_stdlib.cpp',
 
     # freetype integration
-    'misc/freetype/imgui_freetype.cpp',
+    # 'misc/freetype/imgui_freetype.cpp',
 ]
 
 imgui_include = include_directories('include')
@@ -27,7 +27,7 @@ imgui_deps = [ dxgi, core, math ]
 libimgui = library('imgui', src,
     cpp_args : cpp.get_supported_arguments('/wd4702', '/wd4127', '-Wno-unused-function'),
     include_directories : [ imgui_include, private_imgui_include ],
-    dependencies : imgui_deps + [ d3d12, dxguid, freetype2 ]
+    dependencies : imgui_deps + [ d3d12, dxguid ] # freetype
 )
 
 imgui = declare_dependency(
