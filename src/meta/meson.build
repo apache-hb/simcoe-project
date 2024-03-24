@@ -1,4 +1,4 @@
-llvm = dependency('llvm', components : ['all'], method : 'config-tool', static : true)
+llvm = dependency('llvm', components : ['core'], method : 'config-tool', static : true)
 llvm_libdir = llvm.get_variable(configtool: 'libdir')
 
 deps = [

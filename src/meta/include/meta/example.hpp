@@ -2,16 +2,21 @@
 
 #include "meta.hpp"
 
-reflect(name = "other")
+#include "example.reflect.h"
+
+struct AAA {
+    METHOD()
+    void foo();
+};
+
+REFLECTED(name = "other")
 class Example {
-    property(range = (0, 10))
+    PROPERTY(range = (0, 10))
     int mMember = 5;
+
+    METHOD()
+    void foo();
 
 public:
     Example();
-};
-
-class Example2 {
-    property(range = (0, 10))
-    int mMember = 5;
 };

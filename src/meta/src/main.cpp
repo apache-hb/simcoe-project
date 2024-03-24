@@ -8,26 +8,80 @@ static cl::OptionCategory gMetaCategory("meta reflection tool options");
 
 static cl::extrahelp gCommonHelp(CommonOptionsParser::HelpMessage);
 
-struct ReflectConsumer : public clang::ASTConsumer {
-    void HandleTranslationUnit(clang::ASTContext &context) override {
-        for (const auto &decl : context.getTranslationUnitDecl()->decls()) {
-            if (const auto *record = dyn_cast<clang::CXXRecordDecl>(decl)) {
-                if (record->isClass()) {
-                    llvm::outs() << "Class: " << record->getNameAsString() << "\n";
-                }
-            }
+namespace {
+
+bool verifyClassIsReflected(Sema &S, const Decl *D, const ParsedAttr &Attr) {
+    if (D->hasAttr<AnnotateAttr>()) {
+        const AnnotateAttr *Annotate = D->getAttr<AnnotateAttr>();
+        if (Annotate->getAnnotation().starts_with("simcoe::meta")) {
+            return true;
         }
     }
-};
 
-struct ReflectAction : public clang::SyntaxOnlyAction {
-    std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance &compiler,
-                                                          llvm::StringRef file) override {
-        return std::make_unique<ReflectConsumer>();
+    unsigned ID = S.getDiagnostics().getCustomDiagID(
+        DiagnosticsEngine::Error, "class must have 'simcoe::meta' attribute before using '%0'");
+    DiagnosticsEngine& DE = S.getDiagnostics();
+    DE.Report(Attr.getLoc(), ID).AddString(Attr.getAttrName()->getName());
+    return false;
+}
+
+void errorNotInClass(Sema &S, const ParsedAttr &Attr) {
+    unsigned ID = S.getDiagnostics().getCustomDiagID(
+        DiagnosticsEngine::Error, "'%0' attribute only allowed inside a class");
+    DiagnosticsEngine& DE = S.getDiagnostics();
+    DE.Report(Attr.getLoc(), ID).AddString(Attr.getAttrName()->getName());
+}
+
+// verify the parent context is
+// 1. a class
+// 2. has the 'simcoe::meta' attribute
+bool verifyValidReflectContext(Sema &S, const Decl *D, const ParsedAttr &Attr) {
+    const DeclContext *DC = D->getDeclContext();
+    if (!DC->isRecord()) {
+        errorNotInClass(S, Attr);
+        return false;
+    }
+
+    const RecordDecl *RD = cast<RecordDecl>(DC);
+    if (!RD->isClass()) {
+        errorNotInClass(S, Attr);
+        return false;
+    }
+
+    return verifyClassIsReflected(S, RD, Attr);
+}
+
+struct MetaMethodAttrInfo : public ParsedAttrInfo {
+    static constexpr Spelling kSpellings[] = {
+        {ParsedAttr::AS_GNU, "meta_method"},
+        {ParsedAttr::AS_C23, "simcoe::meta_method"},
+        {ParsedAttr::AS_CXX11, "simcoe::meta_method"},
+    };
+
+    MetaMethodAttrInfo() {
+        OptArgs = 1;
+        Spellings = kSpellings;
+    }
+
+    bool diagAppertainsToDecl(Sema &S, const ParsedAttr &Attr, const Decl *D) const override {
+        // This attribute only appertains method
+        if (isa<CXXMethodDecl>(D))
+            return true;
+
+        S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type_str)
+            << Attr << Attr.isRegularKeywordAttribute() << "functions";
+        return false;
+    }
+
+    AttrHandling handleDeclAttribute(Sema &S, Decl *D, const ParsedAttr &Attr) const override {
+        if (!verifyValidReflectContext(S, D, Attr))
+            return AttributeNotApplied;
+
+
+        D->addAttr(AnnotateAttr::Create(S.Context, "simcoe::meta_method", nullptr, 0, Attr.getRange()));
+        return AttributeApplied;
     }
 };
-
-namespace {
 
 struct MetaFieldAttrInfo : public ParsedAttrInfo {
     static constexpr Spelling kSpellings[] = {
@@ -37,7 +91,7 @@ struct MetaFieldAttrInfo : public ParsedAttrInfo {
     };
 
     MetaFieldAttrInfo() {
-        OptArgs = 15;
+        OptArgs = 1;
         Spellings = kSpellings;
     }
 
@@ -52,58 +106,24 @@ struct MetaFieldAttrInfo : public ParsedAttrInfo {
     }
 
     AttrHandling handleDeclAttribute(Sema &S, Decl *D, const ParsedAttr &Attr) const override {
-        // Check if the decl is inside a class.
-        DeclContext *DC = D->getDeclContext();
-        if (!DC->isRecord()) {
-            unsigned ID = S.getDiagnostics().getCustomDiagID(
-                DiagnosticsEngine::Error, "'simcoe::meta_property' attribute only allowed inside a class");
-            S.Diag(Attr.getLoc(), ID);
+        if (!verifyValidReflectContext(S, D, Attr))
             return AttributeNotApplied;
-        }
-
-        if (!isa<FieldDecl>(D)) {
-            unsigned ID = S.getDiagnostics().getCustomDiagID(
-                DiagnosticsEngine::Error, "'simcoe::meta_property' attribute can only be applied to fields");
-            S.Diag(Attr.getLoc(), ID);
-            return AttributeNotApplied;
-        }
-
-        FieldDecl *FD = cast<FieldDecl>(D);
-
-        RecordDecl *RD = FD->getParent();
-        RD->dump();
-
-        if (!RD->hasAttr<AnnotateAttr>()) {
-            unsigned ID = S.getDiagnostics().getCustomDiagID(
-                DiagnosticsEngine::Error, "class must have 'simcoe::meta' attribute before using 'simcoe::meta_property'");
-            S.Diag(Attr.getLoc(), ID);
-            return AttributeNotApplied;
-        }
-
-        AnnotateAttr *Annotate = RD->getAttr<AnnotateAttr>();
-        if (!Annotate->getAnnotation().starts_with("simcoe::meta")) {
-            unsigned ID = S.getDiagnostics().getCustomDiagID(
-                DiagnosticsEngine::Error, "class must have 'simcoe::meta' annotation before using 'simcoe::meta_property'");
-            S.Diag(Attr.getLoc(), ID);
-            return AttributeNotApplied;
-        }
-
 
         // Attach an annotate attribute to the Decl.
-        FD->addAttr(AnnotateAttr::Create(S.Context, "simcoe::meta_property", nullptr, 0, Attr.getRange()));
+        D->addAttr(AnnotateAttr::Create(S.Context, "simcoe::meta_property", nullptr, 0, Attr.getRange()));
 
         return AttributeApplied;
     }
 };
 
-struct MetaAttrInfo : public ParsedAttrInfo {
+struct MetaClassAttrInfo : public ParsedAttrInfo {
     static constexpr Spelling kSpellings[] = {
         {ParsedAttr::AS_GNU, "meta"},
-        {ParsedAttr::AS_Microsoft, "simcoe::meta"},
+        {ParsedAttr::AS_Microsoft, "meta"},
     };
 
-    MetaAttrInfo() {
-        OptArgs = 15;
+    MetaClassAttrInfo() {
+        OptArgs = 1;
         Spellings = kSpellings;
     }
 
@@ -125,45 +145,97 @@ struct MetaAttrInfo : public ParsedAttrInfo {
             S.Diag(Attr.getLoc(), ID);
             return AttributeNotApplied;
         }
-        // We make some rules here:
-        // 1. Only accept at most 3 arguments here.
-        // 2. The first argument must be a string literal if it exists.
-        if (Attr.getNumArgs() > 3) {
+
+        CXXRecordDecl *RD = cast<CXXRecordDecl>(D);
+        if (!RD->isClass()) {
             unsigned ID = S.getDiagnostics().getCustomDiagID(
-                DiagnosticsEngine::Error,
-                "'simcoe::meta' attribute only accepts at most three arguments");
+                DiagnosticsEngine::Error, "'simcoe::meta' attribute only allowed on classes");
             S.Diag(Attr.getLoc(), ID);
             return AttributeNotApplied;
         }
-        // If there are arguments, the first argument should be a string literal.
-        if (Attr.getNumArgs() > 0) {
-            auto *Arg0 = Attr.getArgAsExpr(0);
-            clang::StringLiteral *Literal = dyn_cast<clang::StringLiteral>(Arg0->IgnoreParenCasts());
-            if (!Literal) {
-                unsigned ID = S.getDiagnostics().getCustomDiagID(
-                    DiagnosticsEngine::Error, "first argument to the 'simcoe::meta' "
-                                              "attribute must be a string literal");
-                S.Diag(Attr.getLoc(), ID);
-                return AttributeNotApplied;
-            }
-            SmallVector<Expr *, 16> ArgsBuf;
-            for (unsigned i = 0; i < Attr.getNumArgs(); i++) {
-                ArgsBuf.push_back(Attr.getArgAsExpr(i));
-            }
-            D->addAttr(AnnotateAttr::Create(S.Context, "simcoe::meta", ArgsBuf.data(), ArgsBuf.size(),
-                                            Attr.getRange()));
-        } else {
-            // Attach an annotate attribute to the Decl.
-            D->addAttr(AnnotateAttr::Create(S.Context, "simcoe::meta", nullptr, 0, Attr.getRange()));
-        }
+
+        // Attach an annotate attribute to the Decl.
+        D->addAttr(AnnotateAttr::Create(S.Context, "simcoe::meta", nullptr, 0, Attr.getRange()));
+
         return AttributeApplied;
     }
 };
 
+///
+/// overlay a file system to hide reflection headers from the tool.
+/// consuming a reflection header in here would probably cause alot of issues.
+/// they also may not exist if we're doing a clean build.
+///
+
+constexpr std::string_view kReflectHeaderContent = "#pragma once\n\n";
+
+class StubbedFile final : public vfs::File {
+    vfs::Status mStat;
+
+public:
+    StubbedFile(vfs::Status Stat)
+        : mStat(std::move(Stat))
+    { }
+
+    ErrorOr<vfs::Status> status() override {
+        return mStat;
+    }
+
+    ErrorOr<std::unique_ptr<MemoryBuffer>>
+    getBuffer(const Twine &Name, int64_t FileSize, bool RequiresNullTerminator, bool IsVolatile) override {
+        return MemoryBuffer::getMemBuffer(kReflectHeaderContent, Name.getSingleStringRef(), RequiresNullTerminator);
+    }
+
+    std::error_code close() override {
+        return std::error_code();
+    }
+};
+
+// A file system that hides reflection headers from the compiler
+class HiddenReflectFileSystem final : public vfs::ProxyFileSystem {
+    vfs::Status mStat;
+
+    static const uint64_t kUniqueID = 0x12345678;
+
+    static bool isReflectHeader(llvm::StringRef Path) {
+        return Path.ends_with(".reflect.h");
+    }
+
+public:
+    HiddenReflectFileSystem()
+        : ProxyFileSystem(vfs::getRealFileSystem())
+    {
+        mStat = vfs::Status("stub.reflect.h", sys::fs::UniqueID(0, kUniqueID), std::chrono::system_clock::now(), 0, 0, kReflectHeaderContent.size(), sys::fs::file_type::regular_file, sys::fs::all_read);
+    }
+
+
+    ErrorOr<vfs::Status> status(const llvm::Twine &Path) override {
+        if (!isReflectHeader(Path.str()))
+            return ProxyFileSystem::status(Path);
+
+        return mStat;
+    }
+
+    llvm::ErrorOr<std::unique_ptr<llvm::vfs::File>>
+    openFileForRead(const llvm::Twine &Path) override {
+        if (!isReflectHeader(Path.str()))
+            return ProxyFileSystem::openFileForRead(Path);
+
+        return std::make_unique<StubbedFile>(mStat);
+    }
+};
+
+std::unique_ptr<llvm::vfs::FileSystem> createOverlayFileSystem() {
+    auto OverlayFS = std::make_unique<llvm::vfs::OverlayFileSystem>(llvm::vfs::getRealFileSystem());
+    OverlayFS->pushOverlay(std::make_unique<HiddenReflectFileSystem>());
+    return OverlayFS;
+}
+
 } // namespace
 
-static ParsedAttrInfoRegistry::Add<MetaFieldAttrInfo> Y("meta-property", "");
-static ParsedAttrInfoRegistry::Add<MetaAttrInfo> X("meta-decl", "");
+static ParsedAttrInfoRegistry::Add<MetaMethodAttrInfo> gMethodAttr("meta-method", "");
+static ParsedAttrInfoRegistry::Add<MetaFieldAttrInfo> gPropertyAttr("meta-property", "");
+static ParsedAttrInfoRegistry::Add<MetaClassAttrInfo> gClassAttr("meta-class", "");
 
 // usage: meta [header input] [header output] [source output] -- [compiler options]
 int main(int argc, const char **argv) {
@@ -185,7 +257,9 @@ int main(int argc, const char **argv) {
         return 1;
     }
 
-    ClangTool tool(*options, {argv[1]});
+    auto fs = createOverlayFileSystem();
+
+    ClangTool tool(*options, {argv[1]}, std::make_shared<PCHContainerOperations>(), fs.get());
 
     return tool.run(newFrontendActionFactory<clang::SyntaxOnlyAction>().get());
 }
