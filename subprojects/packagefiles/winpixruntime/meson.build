@@ -23,9 +23,9 @@ winpix_event_runtime = cc.find_library(bindir / 'WinPixEventRuntime')
 
 inc = include_directories('Include')
 
-winpix_event_runtime_dep = declare_dependency(
+runtime_dep = declare_dependency(
     include_directories : inc,
     dependencies : winpix_event_runtime,
 )
 
-meson.override_dependency('winpix-event-runtime', winpix_event_runtime_dep)
+meson.override_dependency('winpixruntime', runtime_dep)

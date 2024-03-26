@@ -1,8 +1,14 @@
 #include "stdafx.hpp"
+#include "meta/utils.hpp"
+#include "meta/tags.hpp"
 
 using namespace clang::tooling;
 using namespace llvm;
+using namespace sm;
 using namespace clang;
+
+namespace m = meta::detail;
+namespace fs = std::filesystem;
 
 static cl::OptionCategory gMetaCategory("meta reflection tool options");
 
@@ -10,19 +16,74 @@ static cl::extrahelp gCommonHelp(CommonOptionsParser::HelpMessage);
 
 namespace {
 
-bool verifyClassIsReflected(Sema &S, const Decl *D, const ParsedAttr &Attr) {
-    if (D->hasAttr<AnnotateAttr>()) {
-        const AnnotateAttr *Annotate = D->getAttr<AnnotateAttr>();
-        if (Annotate->getAnnotation().starts_with("simcoe::meta")) {
-            return true;
-        }
+struct ReflectInfo {
+    const clang::Decl& decl;
+    std::string name = "";
+    std::string category = "";
+
+    std::string brief = "";
+    std::string description = "";
+
+    m::Range range = {0, 0};
+    bool isTransient = false;
+
+    ReflectInfo(const clang::Decl& decl)
+        : decl(decl)
+    { }
+};
+
+std::string getBriefComment(const comments::FullComment *FC) {
+    // TODO: implement
+    return "";
+}
+
+std::string getDescriptionComment(const comments::FullComment *FC) {
+    // TODO: implement
+    return "";
+}
+
+bool evalTagData(ReflectInfo& Info, Sema& S, const ParsedAttr& Attr) {
+    Expr *exprs[15];
+    unsigned count = Attr.getNumArgs();
+    for (unsigned i = 0; i < count; i++) {
+        exprs[i] = Attr.getArgAsExpr(i);
     }
 
-    unsigned ID = S.getDiagnostics().getCustomDiagID(
-        DiagnosticsEngine::Error, "class must have 'simcoe::meta' attribute before using '%0'");
-    DiagnosticsEngine& DE = S.getDiagnostics();
-    DE.Report(Attr.getLoc(), ID).AddString(Attr.getAttrName()->getName());
-    return false;
+    const AttributeCommonInfo AttrInfo{Attr.getLoc(), Attr.getKind(), Attr.getForm()};
+    if (!S.ConstantFoldAttrArgs(AttrInfo, MutableArrayRef<Expr*>(exprs, exprs + count))) {
+        return false;
+    }
+
+    for (unsigned i = 0; i < count; i++) {
+        ConstantExpr *expr = cast<ConstantExpr>(exprs[i]);
+        assert(expr && "expected constant expression");
+
+        APValue value = expr->getAPValueResult();
+        if (!value.isStruct()) {
+            unsigned ID = S.getDiagnostics().getCustomDiagID(
+                DiagnosticsEngine::Error, "expected struct value for attribute argument");
+            S.Diag(expr->getExprLoc(), ID);
+            return false;
+        }
+
+        expr->dump();
+
+        unsigned bases = value.getStructNumBases();
+        unsigned fields = value.getStructNumFields();
+        llvm::outs()
+            << "bases: " << bases << "\n"
+            << "fields: " << fields << "\n";
+    }
+
+    const Decl &D = Info.decl;
+
+    ASTContext& Context = S.getASTContext();
+    if (const comments::FullComment* FC = Context.getCommentForDecl(&D, &S.getPreprocessor())) {
+        Info.brief = getBriefComment(FC);
+        Info.description = getDescriptionComment(FC);
+    }
+
+    return true;
 }
 
 void errorNotInClass(Sema &S, const ParsedAttr &Attr) {
@@ -48,18 +109,18 @@ bool verifyValidReflectContext(Sema &S, const Decl *D, const ParsedAttr &Attr) {
         return false;
     }
 
-    return verifyClassIsReflected(S, RD, Attr);
+    return meta::verifyClassIsReflected(S, *RD, Attr);
 }
 
 struct MetaMethodAttrInfo : public ParsedAttrInfo {
     static constexpr Spelling kSpellings[] = {
         {ParsedAttr::AS_GNU, "meta_method"},
-        {ParsedAttr::AS_C23, "simcoe::meta_method"},
+        {ParsedAttr::AS_CXX11, "meta_method"},
         {ParsedAttr::AS_CXX11, "simcoe::meta_method"},
     };
 
     MetaMethodAttrInfo() {
-        OptArgs = 1;
+        OptArgs = 15;
         Spellings = kSpellings;
     }
 
@@ -69,7 +130,7 @@ struct MetaMethodAttrInfo : public ParsedAttrInfo {
             return true;
 
         S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type_str)
-            << Attr << Attr.isRegularKeywordAttribute() << "functions";
+            << Attr << Attr.isRegularKeywordAttribute() << "methods";
         return false;
     }
 
@@ -77,6 +138,9 @@ struct MetaMethodAttrInfo : public ParsedAttrInfo {
         if (!verifyValidReflectContext(S, D, Attr))
             return AttributeNotApplied;
 
+        ReflectInfo Info{*D};
+        if (!evalTagData(Info, S, Attr))
+            return AttributeNotApplied;
 
         D->addAttr(AnnotateAttr::Create(S.Context, "simcoe::meta_method", nullptr, 0, Attr.getRange()));
         return AttributeApplied;
@@ -86,12 +150,12 @@ struct MetaMethodAttrInfo : public ParsedAttrInfo {
 struct MetaFieldAttrInfo : public ParsedAttrInfo {
     static constexpr Spelling kSpellings[] = {
         {ParsedAttr::AS_GNU, "meta_property"},
-        {ParsedAttr::AS_C23, "simcoe::meta_property"},
+        {ParsedAttr::AS_CXX11, "meta_property"},
         {ParsedAttr::AS_CXX11, "simcoe::meta_property"},
     };
 
     MetaFieldAttrInfo() {
-        OptArgs = 1;
+        OptArgs = 15;
         Spellings = kSpellings;
     }
 
@@ -109,6 +173,10 @@ struct MetaFieldAttrInfo : public ParsedAttrInfo {
         if (!verifyValidReflectContext(S, D, Attr))
             return AttributeNotApplied;
 
+        ReflectInfo Info{*D};
+        if (!evalTagData(Info, S, Attr))
+            return AttributeNotApplied;
+
         // Attach an annotate attribute to the Decl.
         D->addAttr(AnnotateAttr::Create(S.Context, "simcoe::meta_property", nullptr, 0, Attr.getRange()));
 
@@ -116,14 +184,16 @@ struct MetaFieldAttrInfo : public ParsedAttrInfo {
     }
 };
 
-struct MetaClassAttrInfo : public ParsedAttrInfo {
+struct MetaInterfaceAttrInfo : public ParsedAttrInfo {
     static constexpr Spelling kSpellings[] = {
-        {ParsedAttr::AS_GNU, "meta"},
-        {ParsedAttr::AS_Microsoft, "meta"},
+        {ParsedAttr::AS_GNU, "meta_interface"},
+        {ParsedAttr::AS_Microsoft, "meta_interface"},
+        {ParsedAttr::AS_CXX11, "meta_interface"},
+        {ParsedAttr::AS_CXX11, "simcoe::meta_interface"},
     };
 
-    MetaClassAttrInfo() {
-        OptArgs = 1;
+    MetaInterfaceAttrInfo() {
+        OptArgs = 15;
         Spellings = kSpellings;
     }
 
@@ -138,21 +208,50 @@ struct MetaClassAttrInfo : public ParsedAttrInfo {
     }
 
     AttrHandling handleDeclAttribute(Sema &S, Decl *D, const ParsedAttr &Attr) const override {
-        // Check if the decl is at file scope.
-        if (!D->getDeclContext()->isFileContext()) {
-            unsigned ID = S.getDiagnostics().getCustomDiagID(
-                DiagnosticsEngine::Error, "'simcoe::meta' attribute only allowed at file scope");
-            S.Diag(Attr.getLoc(), ID);
+        if (!meta::verifyValidReflectClass(S, *D, Attr))
             return AttributeNotApplied;
-        }
 
-        CXXRecordDecl *RD = cast<CXXRecordDecl>(D);
-        if (!RD->isClass()) {
-            unsigned ID = S.getDiagnostics().getCustomDiagID(
-                DiagnosticsEngine::Error, "'simcoe::meta' attribute only allowed on classes");
-            S.Diag(Attr.getLoc(), ID);
+        ReflectInfo Info{*D};
+        if (!evalTagData(Info, S, Attr))
             return AttributeNotApplied;
-        }
+
+        // Attach an annotate attribute to the Decl.
+        D->addAttr(AnnotateAttr::Create(S.Context, "simcoe::meta_interface", nullptr, 0, Attr.getRange()));
+
+        return AttributeApplied;
+    }
+};
+
+struct MetaClassAttrInfo : public ParsedAttrInfo {
+    static constexpr Spelling kSpellings[] = {
+        {ParsedAttr::AS_GNU, "meta"},
+        {ParsedAttr::AS_Microsoft, "meta"},
+        {ParsedAttr::AS_CXX11, "meta"},
+        {ParsedAttr::AS_CXX11, "simcoe::meta"},
+    };
+
+    MetaClassAttrInfo() {
+        OptArgs = 15;
+        Spellings = kSpellings;
+    }
+
+    bool diagAppertainsToDecl(Sema &S, const ParsedAttr &Attr, const Decl *D) const override {
+        // This attribute only appertains classes
+        if (isa<CXXRecordDecl>(D))
+            return true;
+
+        S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type_str)
+            << Attr << Attr.isRegularKeywordAttribute() << "classes";
+        return false;
+    }
+
+    AttrHandling handleDeclAttribute(Sema &S, Decl *D, const ParsedAttr &Attr) const override {
+        if (!meta::verifyValidReflectClass(S, *D, Attr))
+            return AttributeNotApplied;
+
+        ReflectInfo Info{*D};
+        if (!evalTagData(Info, S, Attr))
+            return AttributeNotApplied;
 
         // Attach an annotate attribute to the Decl.
         D->addAttr(AnnotateAttr::Create(S.Context, "simcoe::meta", nullptr, 0, Attr.getRange()));
@@ -167,7 +266,11 @@ struct MetaClassAttrInfo : public ParsedAttrInfo {
 /// they also may not exist if we're doing a clean build.
 ///
 
-constexpr std::string_view kReflectHeaderContent = "#pragma once\n\n";
+constexpr std::string_view kReflectHeaderContent = R"(
+#pragma once
+#include "meta/meta.hpp"
+using namespace sm::meta;
+)";
 
 class StubbedFile final : public vfs::File {
     vfs::Status mStat;
@@ -236,10 +339,11 @@ std::unique_ptr<llvm::vfs::FileSystem> createOverlayFileSystem() {
 static ParsedAttrInfoRegistry::Add<MetaMethodAttrInfo> gMethodAttr("meta-method", "");
 static ParsedAttrInfoRegistry::Add<MetaFieldAttrInfo> gPropertyAttr("meta-property", "");
 static ParsedAttrInfoRegistry::Add<MetaClassAttrInfo> gClassAttr("meta-class", "");
+static ParsedAttrInfoRegistry::Add<MetaInterfaceAttrInfo> gInterfaceAttr("meta-interface", "");
 
 // usage: meta [header input] [header output] [source output] -- [compiler options]
 int main(int argc, const char **argv) {
-    if (argc < 2) {
+    if (argc < 5) {
         llvm::errs() << "Usage: meta [header input] [header output] [source output] -- [compiler options]\n";
         return 1;
     }
@@ -247,6 +351,9 @@ int main(int argc, const char **argv) {
     std::vector<const char*> args(argv, argv + argc);
     args.push_back("-Xclang");
     args.push_back("-D__REFLECT__");
+    args.push_back("-Xclang");
+    args.push_back("-fparse-all-comments");
+    args.push_back("-std=c++latest");
     args.push_back(nullptr);
     argc = args.size() - 1;
 
@@ -259,7 +366,36 @@ int main(int argc, const char **argv) {
 
     auto fs = createOverlayFileSystem();
 
-    ClangTool tool(*options, {argv[1]}, std::make_shared<PCHContainerOperations>(), fs.get());
+    const char *input = argv[1];
+    const char *headerOutput = argv[2];
+    const char *sourceOutput = argv[3];
 
-    return tool.run(newFrontendActionFactory<clang::SyntaxOnlyAction>().get());
+    ClangTool tool(*options, {input}, std::make_shared<PCHContainerOperations>(), std::move(fs));
+
+    int result = tool.run(newFrontendActionFactory<clang::SyntaxOnlyAction>().get());
+    if (result != 0)
+        return result;
+
+    // write the reflection header
+    std::ofstream header{headerOutput};
+    if (!header.is_open()) {
+        llvm::errs() << "Failed to open header output file: " << headerOutput << "\n";
+        return 1;
+    }
+
+    std::ofstream source{sourceOutput};
+    if (!source.is_open()) {
+        llvm::errs() << "Failed to open source output file: " << sourceOutput << "\n";
+        return 1;
+    }
+
+    auto path = fs::path(input).filename();
+
+    const char *note = "// This file is auto generated, do not modify directly\n";
+
+    header << note;
+    source << note;
+
+    header << "#pragma once\n\n";
+    source << "#include \"" << path.string() << "\"\n";
 }

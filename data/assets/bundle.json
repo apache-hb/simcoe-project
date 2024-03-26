@@ -143,5 +143,37 @@
             "mips": 10,
             "path": "textures/uv_coords.png"
         }
+    ],
+    "redists": [
+        {
+            "name": "agility",
+            "folder": "%redist%/d3d12",
+            "redist": [ "D3D12Core.dll" ],
+            "debug_redist": [ "D3D12Core.pdb", "D3D12SDKLayers.dll", "d3d12SDKLayers.pdb" ]
+        },
+        {
+            "name": "dxcompiler",
+            "folder": "%redist%",
+            "redist": [ "dxcompiler.dll", "dxil.dll" ],
+            "debug_redist": [ "dxcompiler.pdb", "dxil.pdb" ]
+        },
+        {
+            "name": "warp",
+            "folder": "%redist%",
+            "redist": [ ],
+            "debug_redist": [ "d3d10warp.dll", "d3d10warp.pdb" ]
+        },
+        {
+            "name": "winpixruntime",
+            "folder": "%redist%",
+            "redist": [ ],
+            "debug_redist": [ "WinPixEventRuntime.dll" ]
+        },
+        {
+            "name": "dstorage",
+            "folder": "%redist%",
+            "redist": [ "dstorage.dll", "dstoragecore.dll" ],
+            "debug_redist": [ ]
+        }
     ]
 }

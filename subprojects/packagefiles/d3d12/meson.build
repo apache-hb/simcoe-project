@@ -33,13 +33,9 @@ d3dconfig = find_program(bindir / 'd3dconfig')
 
 bindir = meson.current_source_dir() / bindir
 
-# we only need to export the include directory for d3d12
-d3d12_include = include_directories('build/native/include')
 d3d12 = declare_dependency(
-    dependencies : [ cpp.find_library('d3d12'), cpp.find_library('dxgi'), cpp.find_library('dxguid') ],
-    include_directories : d3d12_include
+    dependencies : [ cpp.find_library('d3d12'), cpp.find_library('dxgi'), cpp.find_library('dxguid') ]
 )
 
-# export everything
 meson.override_find_program('d3dconfig', d3dconfig)
 meson.override_dependency('d3d12', d3d12)

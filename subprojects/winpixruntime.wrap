@@ -9,4 +9,4 @@ lead_directory_missing = true
 patch_directory = winpixruntime
 
 [provide]
-dependency_names = winpix-event-runtime
+dependency_names = winpixruntime

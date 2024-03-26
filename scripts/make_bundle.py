@@ -230,7 +230,7 @@ def copy_redist_files():
         [ 'WinPixEventRuntime.dll' ]
     )
 
-    copy_redist(pj(redist_dir, 'dstorage'), 'dstorage',
+    copy_redist(redist_dir, 'dstorage',
         [ 'dstorage.dll', 'dstoragecore.dll' ],
         [ ]
     )

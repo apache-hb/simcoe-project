@@ -93,23 +93,15 @@ fastgltf = dependency('fastgltf')
 dxgi = cpp.find_library('dxgi')
 dxguid = cpp.find_library('dxguid')
 
-d3d12 = cpp.find_library('d3d12')
+d3d12 = dependency('d3d12')
 dstorage = dependency('dstorage')
-pix = dependency('winpix-event-runtime')
+pix = dependency('winpixruntime')
 d3dx12 = dependency('directx-headers')
 tracy = dependency('tracy')
 nvapi = dependency('nvapi')
 
 magick = find_program('magick')
 convert_utf16 = find_program('scripts/convert_utf16.py')
-
-# TODO: move off this as soon as possible
-compile_hlsl = find_program('scripts/compile_hlsl.py')
-extra_hlsl_args = is_debug ? [ '--debug' ] : []
-hlsl = generator(compile_hlsl,
-    output : [ '@BASENAME@.vs.cso', '@BASENAME@.ps.cso' ],
-    arguments : [ dxc.full_path(), '@INPUT@', '@BUILD_DIR@/@BASENAME@', '@BUILD_DIR@', 'vs,ps', '6_0' ] + extra_hlsl_args
-)
 
 args = cpp.get_supported_arguments(
     '-fstrict-aliasing',
@@ -255,7 +247,7 @@ subdir('src/vendor/imnodes')
 subdir('src/common/render')
 
 # windows specific dependencies
-agility = subproject('d3d12-agility')
+agility = subproject('d3d12')
 warp = subproject('d3d-warp')
 dxcompiler = subproject('dxc')
 winpixruntime = subproject('winpixruntime')
@@ -337,7 +329,9 @@ win_subsystem = not is_devel ? 'windows' : 'console'
 link_args = [
     '/DELAYLOAD:dxcompiler.dll',
     '/DELAYLOAD:dxil.dll',
-    '/DELAYLOAD:WinPixEventRuntime.dll'
+    '/DELAYLOAD:WinPixEventRuntime.dll',
+    '/DELAYLOAD:dstoragecore.dll',
+    '/DELAYLOAD:dstorage.dll',
 ]
 
 subdir('src/client')

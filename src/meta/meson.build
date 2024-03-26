@@ -22,9 +22,36 @@ deps = [
     llvm
 ]
 
-meta_tooling = executable('meta', 'src/main.cpp',
+src = [
+    'src/main.cpp',
+    'src/utils.cpp'
+]
+
+meta_tooling = executable('meta', src,
+    include_directories : [ 'include', 'data/include' ],
     cpp_pch : 'src/stdafx.hpp',
     dependencies : deps,
     override_options : [ 'b_vscrt=mt' ],
     cpp_args : [ '-D_ITERATOR_DEBUG_LEVEL=0' ]
 )
+
+meta_include = include_directories('data/include')
+
+meta_dep = declare_dependency(
+    include_directories : meta_include
+)
+
+args = []
+foreach arg : meta_include.full_paths()
+    args += [ '-I' + arg ]
+endforeach
+
+meta = generator(meta_tooling,
+    output : [ '@BASENAME@.reflect.h', '@BASENAME@.reflect.cpp' ],
+    depfile : '@BASENAME@.reflect.d',
+    arguments : [
+        '@INPUT@', '@OUTPUT0@', '@OUTPUT1@', '--',
+    ] + args + [ '@EXTRA_ARGS@' ]
+)
+
+subdir('tests')
