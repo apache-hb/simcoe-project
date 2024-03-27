@@ -13,6 +13,8 @@ namespace sm::meta {
     // used to check that a class is *already* reflected
     bool isReflectedClass(const clang::Decl &D);
 
+    bool isReflectedEnum(const clang::Decl &D);
+
     // decl is a class and has a `meta_interface` annotation
     // used to check that a class is *already* reflected
     bool isReflectedInterface(const clang::Decl &D);
@@ -31,8 +33,10 @@ namespace sm::meta {
 
     // verify that `isReflectedClass` returns true
     bool verifyClassIsReflected(clang::Sema &S, const clang::Decl &D, const clang::ParsedAttr &Attr);
+    bool verifyEnumIsReflected(clang::Sema &S, const clang::Decl &D, const clang::ParsedAttr &Attr);
 
     // verify that `isReflectedInterface` returns true
     bool verifyValidReflectInterface(const clang::Sema &S, const clang::Decl &D, const clang::ParsedAttr &Attr);
     bool verifyValidReflectClass(const clang::Sema &Sema, const clang::Decl &D, const clang::ParsedAttr &Attr);
+    bool verifyValidReflectEnum(const clang::Sema &Sema, const clang::Decl &D, const clang::ParsedAttr &Attr);
 }

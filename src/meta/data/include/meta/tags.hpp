@@ -1,10 +1,26 @@
 #pragma once
 
+#include <initializer_list>
+
+#define META_WRAPPER(name, type, args, ...) \
+    constinit const auto name = [] {               \
+        struct Wrapper {                      \
+            consteval type operator=args const { \
+                return type(__VA_ARGS__);                  \
+            }                                  \
+        };                                    \
+        return Wrapper{};                     \
+    }()
+
 namespace sm::meta {
     namespace detail {
         constexpr unsigned kTagName = 1;
         constexpr unsigned kTagRange = 2;
         constexpr unsigned kTagCategory = 3;
+        constexpr unsigned kTagBitFlags = 4;
+        constexpr unsigned kTagTransient = 5;
+        constexpr unsigned kTagThreadSafe = 6;
+        constexpr unsigned kTagNotThreadSafe = 7;
 
         struct Tag {
             unsigned id;
@@ -23,22 +39,15 @@ namespace sm::meta {
             { }
         };
 
-        struct Range {
-            int min;
-            int max;
-
-            consteval Range(int min, int max)
-                : min(min)
-                , max(max)
-            { }
-        };
-
+        template<typename T>
         struct RangeTag : Tag {
-            Range range;
+            T min;
+            T max;
 
-            consteval RangeTag(int min, int max)
+            consteval RangeTag(T min, T max)
                 : Tag(kTagRange)
-                , range(min, max)
+                , min(min)
+                , max(max)
             { }
         };
 
@@ -50,35 +59,39 @@ namespace sm::meta {
                 , category(category)
             { }
         };
+
+        struct RangeWrapper {
+            template<typename T>
+            consteval auto operator=(std::initializer_list<T> value) const {
+                return detail::RangeTag<T>{value.begin()[0], value.begin()[1]};
+            }
+        };
     }
 
-    constinit auto name = [] {
-        struct Wrapper {
-            consteval auto operator=(const char *name) const {
-                return detail::NameTag(name);
-            }
-        };
+    META_WRAPPER(name, detail::NameTag, (const char *name), name);
+    META_WRAPPER(category, detail::CategoryTag, (const char *category), category);
 
-        return Wrapper{};
+    // NOLINTBEGIN
+    constexpr const detail::Tag bitflags = detail::Tag(detail::kTagBitFlags);
+    constexpr const detail::Tag transient = detail::Tag(detail::kTagTransient);
+
+    constexpr auto range = [] {
+        return detail::RangeWrapper{};
     }();
 
-    constinit auto range = [] {
-        struct Wrapper {
-            consteval auto operator=(const detail::Range &range) const {
-                return detail::RangeTag(range.min, range.max);
+    constexpr auto threadsafe = [] {
+        struct ThreadSafeTag : detail::Tag {
+            consteval auto operator=(bool value) const {
+                return detail::Tag{value ? detail::kTagThreadSafe : detail::kTagNotThreadSafe};
             }
+
+            consteval ThreadSafeTag()
+                : Tag(detail::kTagThreadSafe)
+            { }
         };
 
-        return Wrapper{};
+        return ThreadSafeTag{};
     }();
 
-    constinit auto category = [] {
-        struct Wrapper {
-            consteval auto operator=(const char *category) const {
-                return detail::CategoryTag(category);
-            }
-        };
-
-        return Wrapper{};
-    }();
+    // NOLINTEND
 }

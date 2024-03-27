@@ -1,16 +1,20 @@
 #pragma once
 
 #if defined(__REFLECT__)
-#   define REFLECT(...) [meta(__VA_ARGS__)]
+#   define REFLECT(...) [meta_class(__VA_ARGS__)]
 #   define INTERFACE(...) [meta_interface(__VA_ARGS__)]
+#   define ENUM(...) [meta_enum(__VA_ARGS__)]
 #   define PROPERTY(...) [[simcoe::meta_property(__VA_ARGS__)]]
 #   define METHOD(...) [[simcoe::meta_method(__VA_ARGS__)]]
+#   define CASE(...) [meta_case(__VA_ARGS__)]
 #   define REFLECT_BODY()
 #   include "tags.hpp"
 #else
 #   define REFLECT(...)
 #   define INTERFACE(...)
+#   define ENUM(...)
 #   define PROPERTY(...)
 #   define METHOD(...)
+#   define CASE(...)
 #   define REFLECT_BODY()
 #endif

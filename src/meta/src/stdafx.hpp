@@ -2,9 +2,12 @@
 
 // IWYU pragma: begin_exports
 
+#include "llvm/ADT/PointerUnion.h"
+#include "llvm/Support/Casting.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/Comment.h"
+#include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/Sema/ParsedAttr.h"
 #include "clang/Sema/Sema.h"
 #include "clang/Sema/SemaDiagnostic.h"

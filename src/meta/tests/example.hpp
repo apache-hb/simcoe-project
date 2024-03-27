@@ -14,14 +14,23 @@
 /// esse cillum dolore eu fugiat nulla pariatur.
 /// Excepteur sint occaecat cupidatat non proident,
 /// sunt in culpa qui officia deserunt mollit anim id est laborum.
-REFLECT(name = "other")
+REFLECT("other")
 class Example {
     PROPERTY(range = {0, 10})
     int mMember = 5;
 
-    METHOD(name = "bar")
+    METHOD(name = "bar", threadsafe)
     void foo();
 
 public:
     Example();
+};
+
+ENUM("options", bitflags)
+enum class Options : unsigned {
+    CASE(name = "option 1")
+    eOption1 = (1 << 0),
+
+    CASE(name = "option 2")
+    eOption2 = (1 << 1),
 };

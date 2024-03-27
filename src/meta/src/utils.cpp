@@ -5,10 +5,21 @@ using namespace sm;
 
 using namespace clang;
 
+bool meta::isReflectedEnum(const clang::Decl &D) {
+    if (D.hasAttr<AnnotateAttr>()) {
+        const AnnotateAttr *Attr = D.getAttr<AnnotateAttr>();
+        if (Attr->getAnnotation().contains("meta_enum")) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 bool meta::isReflectedClass(const clang::Decl &D) {
     if (D.hasAttr<AnnotateAttr>()) {
         const AnnotateAttr *Attr = D.getAttr<AnnotateAttr>();
-        if (Attr->getAnnotation().starts_with("simcoe::meta")) {
+        if (Attr->getAnnotation().contains("meta_class")) {
             return true;
         }
     }
@@ -19,7 +30,7 @@ bool meta::isReflectedClass(const clang::Decl &D) {
 bool meta::isReflectedInterface(const clang::Decl &D) {
     if (D.hasAttr<AnnotateAttr>()) {
         const AnnotateAttr *Attr = D.getAttr<AnnotateAttr>();
-        if (Attr->getAnnotation().starts_with("simcoe::meta_interface")) {
+        if (Attr->getAnnotation().contains("meta_interface")) {
             return true;
         }
     }
@@ -38,14 +49,23 @@ bool meta::isInterface(const clang::Decl &D) {
     return false;
 }
 
-bool meta::canBeReflected(const clang::Decl &D);
-
 bool meta::verifyClassIsReflected(Sema &S, const clang::Decl &D, const ParsedAttr &Attr) {
     if (meta::isReflectedClass(D))
         return true;
 
     unsigned ID = S.getDiagnostics().getCustomDiagID(
-        DiagnosticsEngine::Error, "class must have 'meta' or 'meta_interface' attribute before using '%0'");
+        DiagnosticsEngine::Error, "class must have 'meta_class' or 'meta_interface' attribute before using '%0'");
+    DiagnosticsEngine& DE = S.getDiagnostics();
+    DE.Report(Attr.getLoc(), ID).AddString(Attr.getAttrName()->getName());
+    return false;
+}
+
+bool meta::verifyEnumIsReflected(clang::Sema &S, const clang::Decl &D, const clang::ParsedAttr &Attr) {
+    if (meta::isReflectedEnum(D))
+        return true;
+
+    unsigned ID = S.getDiagnostics().getCustomDiagID(
+        DiagnosticsEngine::Error, "enum must have 'meta_enum' attribute before using '%0'");
     DiagnosticsEngine& DE = S.getDiagnostics();
     DE.Report(Attr.getLoc(), ID).AddString(Attr.getAttrName()->getName());
     return false;
@@ -88,6 +108,28 @@ bool meta::verifyValidReflectClass(const clang::Sema &S, const clang::Decl &D, c
         unsigned ID = S.getDiagnostics().getCustomDiagID(
             DiagnosticsEngine::Error, "'%0' attribute only allowed on classes");
         DiagnosticsEngine& DE = S.getDiagnostics();
+        DE.Report(Attr.getLoc(), ID).AddString(Attr.getAttrName()->getName());
+        return false;
+    }
+
+    return true;
+}
+
+bool meta::verifyValidReflectEnum(const clang::Sema &Sema, const clang::Decl &D, const clang::ParsedAttr &Attr) {
+    // Check if the decl is at file scope.
+    if (!D.getDeclContext()->isFileContext()) {
+        unsigned ID = Sema.getDiagnostics().getCustomDiagID(
+            DiagnosticsEngine::Error, "'%0' attribute only allowed at file scope or inside a namespace");
+        DiagnosticsEngine& DE = Sema.getDiagnostics();
+        DE.Report(Attr.getLoc(), ID).AddString(Attr.getAttrName()->getName());
+        return false;
+    }
+
+    // make sure the decl is an enum
+    if (!isa<EnumDecl>(D)) {
+        unsigned ID = Sema.getDiagnostics().getCustomDiagID(
+            DiagnosticsEngine::Error, "'%0' attribute only allowed on enums");
+        DiagnosticsEngine& DE = Sema.getDiagnostics();
         DE.Report(Attr.getLoc(), ID).AddString(Attr.getAttrName()->getName());
         return false;
     }
