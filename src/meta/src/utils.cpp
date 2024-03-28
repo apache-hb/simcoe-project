@@ -49,6 +49,29 @@ bool meta::isInterface(const clang::Decl &D) {
     return false;
 }
 
+bool meta::canBeReflected(const clang::Decl &D) {
+    if (!isa<CXXRecordDecl>(D))
+        return false;
+
+    const CXXRecordDecl &RD = cast<CXXRecordDecl>(D);
+    if (!RD.hasDefinition())
+        return false;
+
+    if (RD.isInterfaceLike())
+        return true;
+
+    for (const CXXBaseSpecifier &Base : RD.bases()) {
+        const CXXRecordDecl *BaseRD = Base.getType()->getAsCXXRecordDecl();
+        if (!BaseRD)
+            return false;
+
+        if (!canBeReflected(*BaseRD))
+            return false;
+    }
+
+    return meta::isReflectedInterface(D) || meta::isReflectedClass(D);
+}
+
 bool meta::verifyClassIsReflected(Sema &S, const clang::Decl &D, const ParsedAttr &Attr) {
     if (meta::isReflectedClass(D))
         return true;
@@ -71,66 +94,161 @@ bool meta::verifyEnumIsReflected(clang::Sema &S, const clang::Decl &D, const cla
     return false;
 }
 
-bool meta::verifyValidReflectInterface(const clang::Sema &S, const clang::Decl &D, const clang::ParsedAttr &Attr) {
+bool meta::verifyValidReflectInterface(
+        clang::DiagnosticsEngine &DE,
+        const clang::Decl &D,
+        clang::SourceLocation loc) {
     // Check if the decl is at file scope.
     if (!D.getDeclContext()->isFileContext()) {
-        unsigned ID = S.getDiagnostics().getCustomDiagID(
+        unsigned ID = DE.getCustomDiagID(
             DiagnosticsEngine::Error, "'%0' attribute only allowed at file scope or inside a namespace");
-        DiagnosticsEngine& DE = S.getDiagnostics();
-        DE.Report(Attr.getLoc(), ID).AddString(Attr.getAttrName()->getName());
+        DE.Report(loc, ID).AddString(kInterfaceTag);
         return false;
     }
 
     if (!meta::isInterface(D)) {
-        unsigned ID = S.getDiagnostics().getCustomDiagID(
+        unsigned ID = DE.getCustomDiagID(
             DiagnosticsEngine::Error, "'%0' attribute only allowed on interfaces");
-        DiagnosticsEngine& DE = S.getDiagnostics();
-        DE.Report(Attr.getLoc(), ID).AddString(Attr.getAttrName()->getName());
+        DE.Report(loc, ID).AddString(kInterfaceTag);
         return false;
+    }
+
+    const CXXRecordDecl& RD = cast<CXXRecordDecl>(D);
+
+    if (!RD.hasDefinition()) {
+        unsigned ID = DE.getCustomDiagID(
+            DiagnosticsEngine::Error, "class must have a definition");
+        DE.Report(loc, ID);
+        return false;
+    }
+
+    if (RD.getNumVBases() != 0) {
+        unsigned ID = DE.getCustomDiagID(
+            DiagnosticsEngine::Error, "class must not have virtual bases");
+        DE.Report(loc, ID);
+        return false;
+    }
+
+    if (RD.getNumBases() >= 2) {
+        unsigned ID = DE.getCustomDiagID(
+            DiagnosticsEngine::Error, "class must not have more than one base class");
+        DE.Report(loc, ID);
+        return false;
+    }
+
+    for (const CXXBaseSpecifier &Base : RD.bases()) {
+        const CXXRecordDecl *BaseRD = Base.getType()->getAsCXXRecordDecl();
+        if (!BaseRD) {
+            unsigned ID = DE.getCustomDiagID(
+                DiagnosticsEngine::Error, "base class must be a class");
+            DE.Report(loc, ID);
+            return false;
+        }
+
+        if (!meta::isReflectedInterface(*BaseRD)) {
+            unsigned ID = DE.getCustomDiagID(
+                DiagnosticsEngine::Error, "base class '%0' must be reflected");
+            DE.Report(loc, ID).AddString(BaseRD->getName());
+            return false;
+        }
     }
 
     return true;
 }
 
-bool meta::verifyValidReflectClass(const clang::Sema &S, const clang::Decl &D, const clang::ParsedAttr &Attr) {
+bool meta::verifyValidReflectClass(
+    clang::DiagnosticsEngine &DE,
+    const clang::Decl &D,
+    clang::SourceLocation loc) {
     // Check if the decl is at file scope.
     if (!D.getDeclContext()->isFileContext()) {
-        unsigned ID = S.getDiagnostics().getCustomDiagID(
+        unsigned ID = DE.getCustomDiagID(
             DiagnosticsEngine::Error, "'%0' attribute only allowed at file scope or inside a namespace");
-        DiagnosticsEngine& DE = S.getDiagnostics();
-        DE.Report(Attr.getLoc(), ID).AddString(Attr.getAttrName()->getName());
+        DE.Report(loc, ID).AddString(kClassTag);
         return false;
     }
 
     // make sure the decl is a class
     const CXXRecordDecl& RD = cast<CXXRecordDecl>(D);
     if (!RD.isClass()) {
-        unsigned ID = S.getDiagnostics().getCustomDiagID(
+        unsigned ID = DE.getCustomDiagID(
             DiagnosticsEngine::Error, "'%0' attribute only allowed on classes");
-        DiagnosticsEngine& DE = S.getDiagnostics();
-        DE.Report(Attr.getLoc(), ID).AddString(Attr.getAttrName()->getName());
+        DE.Report(loc, ID).AddString(kClassTag);
         return false;
+    }
+
+    if (!RD.hasDefinition()) {
+        unsigned ID = DE.getCustomDiagID(
+            DiagnosticsEngine::Error, "class must have a definition");
+        DE.Report(loc, ID);
+        return false;
+    }
+
+    const CXXRecordDecl *Definition = RD.getDefinition();
+
+    if (Definition->getNumVBases() != 0) {
+        unsigned ID = DE.getCustomDiagID(
+            DiagnosticsEngine::Error, "class must not have virtual bases");
+        DE.Report(loc, ID);
+        return false;
+    }
+
+    if (Definition->getNumBases() >= 2) {
+        unsigned ID = DE.getCustomDiagID(
+            DiagnosticsEngine::Error, "class must not have more than one base class");
+        DE.Report(loc, ID);
+        return false;
+    }
+
+    llvm::outs() << Definition->getName()
+        << " has " << Definition->getNumBases() << " bases\n"
+        << " has " << Definition->getNumVBases() << " virtual bases\n";
+
+    for (const CXXBaseSpecifier &Base : Definition->bases()) {
+        auto type = Base.getType();
+        if (!type->isClassType()) {
+            unsigned ID = DE.getCustomDiagID(
+                DiagnosticsEngine::Error, "base class must be a class");
+            DE.Report(loc, ID);
+            return false;
+        }
+
+        const CXXRecordDecl *BaseRD = type->getAsCXXRecordDecl();
+        if (!BaseRD) {
+            unsigned ID = DE.getCustomDiagID(
+                DiagnosticsEngine::Error, "base class must be a class");
+            DE.Report(Base.getBaseTypeLoc(), ID);
+            return false;
+        }
+
+        if (!meta::isReflectedClass(*BaseRD)) {
+            unsigned ID = DE.getCustomDiagID(
+                DiagnosticsEngine::Error, "base class '%0' must be reflected");
+            DE.Report(BaseRD->getLocation(), ID).AddString(BaseRD->getName());
+            return false;
+        }
     }
 
     return true;
 }
 
-bool meta::verifyValidReflectEnum(const clang::Sema &Sema, const clang::Decl &D, const clang::ParsedAttr &Attr) {
+bool meta::verifyValidReflectEnum(
+        clang::DiagnosticsEngine &DE,
+        const clang::Decl &D,
+        clang::SourceLocation loc) {
     // Check if the decl is at file scope.
     if (!D.getDeclContext()->isFileContext()) {
-        unsigned ID = Sema.getDiagnostics().getCustomDiagID(
+        unsigned ID = DE.getCustomDiagID(
             DiagnosticsEngine::Error, "'%0' attribute only allowed at file scope or inside a namespace");
-        DiagnosticsEngine& DE = Sema.getDiagnostics();
-        DE.Report(Attr.getLoc(), ID).AddString(Attr.getAttrName()->getName());
+        DE.Report(loc, ID).AddString(kEnumTag);
         return false;
     }
 
     // make sure the decl is an enum
     if (!isa<EnumDecl>(D)) {
-        unsigned ID = Sema.getDiagnostics().getCustomDiagID(
+        unsigned ID = DE.getCustomDiagID(
             DiagnosticsEngine::Error, "'%0' attribute only allowed on enums");
-        DiagnosticsEngine& DE = Sema.getDiagnostics();
-        DE.Report(Attr.getLoc(), ID).AddString(Attr.getAttrName()->getName());
+        DE.Report(loc, ID).AddString(kEnumTag);
         return false;
     }
 

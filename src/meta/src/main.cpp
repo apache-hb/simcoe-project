@@ -20,6 +20,14 @@ struct Range {
     APValue max;
 };
 
+void addAnnotation(Decl &decl, const ParsedAttr& attr, const char *tag) {
+    SmallVector<Expr*, 16> exprs;
+    for (unsigned i = 0; i < attr.getNumArgs(); i++) {
+        exprs.push_back(attr.getArgAsExpr(i));
+    }
+    decl.addAttr(AnnotateAttr::Create(decl.getASTContext(), tag, exprs.data(), exprs.size(), attr.getRange()));
+}
+
 enum TriState { eFalse, eTrue, eDefault };
 
 void updateTriState(TriState& tri, Sema &S, const clang::Expr& Expr, const char *name, bool value) {
@@ -104,17 +112,73 @@ struct ReflectInfo {
     }
 
     void setRange(Sema& S, const clang::Expr& Expr, const APValue& min, const APValue& max) {
-        if (isa<clang::FieldDecl>(decl)) {
+        if (!isa<clang::FieldDecl>(decl)) {
+            unsigned ID = S.getDiagnostics().getCustomDiagID(
+            DiagnosticsEngine::Error, "range can only be applied to fields");
+
+            S.Diag(decl.getLocation(), ID);
+            return;
+        }
+
+        auto type = cast<clang::FieldDecl>(decl).getType();
+
+        if (min.isInt() && max.isInt()) {
+            int64_t lo = min.getInt().getSExtValue();
+            int64_t hi = max.getInt().getSExtValue();
+
+            if (lo > hi) {
+                unsigned ID = S.getDiagnostics().getCustomDiagID(
+                    DiagnosticsEngine::Error, "range minimum must be less than or equal to maximum");
+                S.Diag(Expr.getExprLoc(), ID);
+                return;
+            }
+
+            if (!type->isIntegerType() && !type->isFloatingType()) {
+                unsigned ID = S.getDiagnostics().getCustomDiagID(
+                    DiagnosticsEngine::Error, "range must be an integer or floating point type");
+                S.Diag(Expr.getExprLoc(), ID);
+                return;
+            }
+
             range = Range{min, max};
             return;
         }
 
-        unsigned ID = S.getDiagnostics().getCustomDiagID(
-            DiagnosticsEngine::Error, "range can only be applied to fields");
+        if (min.isFloat() && max.isFloat()) {
+            if (!type->isFloatingType()) {
+                unsigned ID = S.getDiagnostics().getCustomDiagID(
+                    DiagnosticsEngine::Error, "range must be a floating point type");
+                S.Diag(Expr.getExprLoc(), ID);
+                return;
+            }
 
-        S.Diag(decl.getLocation(), ID);
+            double lo = min.getFloat().convertToDouble();
+            double hi = max.getFloat().convertToDouble();
+
+            if (lo > hi) {
+                unsigned ID = S.getDiagnostics().getCustomDiagID(
+                    DiagnosticsEngine::Error, "range minimum must be less than or equal to maximum");
+                S.Diag(Expr.getExprLoc(), ID);
+                return;
+            }
+
+            range = Range{min, max};
+            return;
+        }
     }
 };
+
+struct RecordReflectInfo {
+    std::vector<ReflectInfo> fields;
+    std::vector<ReflectInfo> methods;
+};
+
+struct EnumReflectInfo {
+    std::vector<ReflectInfo> cases;
+};
+
+std::unordered_map<const clang::Decl*, RecordReflectInfo> gRecordReflectInfo;
+std::unordered_map<const clang::Decl*, EnumReflectInfo> gEnumReflectInfo;
 
 std::string getBriefComment(const comments::FullComment *FC) {
     // TODO: implement
@@ -441,12 +505,11 @@ struct MetaCaseAttrInfo : public ParsedAttrInfo {
         if (!verifyValidEnumContext(S, *D, Attr))
             return AttributeNotApplied;
 
-        ReflectInfo Info{*D};
-        if (!evalTagData(Info, S, Attr))
+        ReflectInfo info{*D};
+        if (!evalTagData(info, S, Attr))
             return AttributeNotApplied;
 
-        // Attach an annotate attribute to the Decl.
-        D->addAttr(AnnotateAttr::Create(S.Context, "simcoe::meta_case", nullptr, 0, Attr.getRange()));
+        gEnumReflectInfo[D].cases.push_back(info);
 
         return AttributeApplied;
     }
@@ -478,11 +541,12 @@ struct MetaMethodAttrInfo : public ParsedAttrInfo {
         if (!verifyValidReflectContext(S, D, Attr))
             return AttributeNotApplied;
 
-        ReflectInfo Info{*D};
-        if (!evalTagData(Info, S, Attr))
+        ReflectInfo info{*D};
+        if (!evalTagData(info, S, Attr))
             return AttributeNotApplied;
 
-        D->addAttr(AnnotateAttr::Create(S.Context, "simcoe::meta_method", nullptr, 0, Attr.getRange()));
+        gRecordReflectInfo[D].methods.push_back(info);
+
         return AttributeApplied;
     }
 };
@@ -513,12 +577,11 @@ struct MetaFieldAttrInfo : public ParsedAttrInfo {
         if (!verifyValidReflectContext(S, D, Attr))
             return AttributeNotApplied;
 
-        ReflectInfo Info{*D};
-        if (!evalTagData(Info, S, Attr))
+        ReflectInfo info{*D};
+        if (!evalTagData(info, S, Attr))
             return AttributeNotApplied;
 
-        // Attach an annotate attribute to the Decl.
-        D->addAttr(AnnotateAttr::Create(S.Context, "simcoe::meta_property", nullptr, 0, Attr.getRange()));
+        gRecordReflectInfo[D].fields.push_back(info);
 
         return AttributeApplied;
     }
@@ -548,16 +611,7 @@ struct MetaInterfaceAttrInfo : public ParsedAttrInfo {
     }
 
     AttrHandling handleDeclAttribute(Sema &S, Decl *D, const ParsedAttr &Attr) const override {
-        if (!meta::verifyValidReflectClass(S, *D, Attr))
-            return AttributeNotApplied;
-
-        ReflectInfo Info{*D};
-        if (!evalTagData(Info, S, Attr))
-            return AttributeNotApplied;
-
-        // Attach an annotate attribute to the Decl.
-        D->addAttr(AnnotateAttr::Create(S.Context, "simcoe::meta_interface", nullptr, 0, Attr.getRange()));
-
+        addAnnotation(*D, Attr, meta::kInterfaceTag);
         return AttributeApplied;
     }
 };
@@ -586,16 +640,7 @@ struct MetaClassAttrInfo : public ParsedAttrInfo {
     }
 
     AttrHandling handleDeclAttribute(Sema &S, Decl *D, const ParsedAttr &Attr) const override {
-        if (!meta::verifyValidReflectClass(S, *D, Attr))
-            return AttributeNotApplied;
-
-        ReflectInfo Info{*D};
-        if (!evalTagData(Info, S, Attr))
-            return AttributeNotApplied;
-
-        // Attach an annotate attribute to the Decl.
-        D->addAttr(AnnotateAttr::Create(S.Context, "simcoe::meta_class", nullptr, 0, Attr.getRange()));
-
+        addAnnotation(*D, Attr, meta::kClassTag);
         return AttributeApplied;
     }
 };
@@ -624,17 +669,55 @@ struct MetaEnumAttrInfo : public ParsedAttrInfo {
     }
 
     AttrHandling handleDeclAttribute(Sema &S, Decl *D, const ParsedAttr &Attr) const override {
-        if (!meta::verifyValidReflectEnum(S, *D, Attr))
-            return AttributeNotApplied;
-
-        ReflectInfo Info{*D};
-        if (!evalTagData(Info, S, Attr))
-            return AttributeNotApplied;
-
-        // Attach an annotate attribute to the Decl.
-        D->addAttr(AnnotateAttr::Create(S.Context, "simcoe::meta_enum", nullptr, 0, Attr.getRange()));
-
+        addAnnotation(*D, Attr, meta::kEnumTag);
         return AttributeApplied;
+    }
+};
+
+class CmdAfterConsumer : public ASTConsumer {
+    clang::DiagnosticsEngine &mDiag;
+public:
+    CmdAfterConsumer(clang::DiagnosticsEngine &Diag)
+        : mDiag(Diag)
+    { }
+
+    void HandleTranslationUnit(ASTContext &) override {
+
+    }
+
+    bool HandleTopLevelDecl(DeclGroupRef D) override {
+        for (Decl *decl : D) {
+            if (!decl->hasAttr<AnnotateAttr>())
+                continue;
+
+            AnnotateAttr *attr = decl->getAttr<AnnotateAttr>();
+            auto id = attr->getAnnotation();
+            if (id.contains(meta::kClassTag)) {
+                meta::verifyValidReflectClass(mDiag, *decl, attr->getLocation());
+            } else if (id.contains(meta::kInterfaceTag)) {
+                meta::verifyValidReflectInterface(mDiag, *decl, attr->getLocation());
+            } else if (id.contains(meta::kEnumTag)) {
+                meta::verifyValidReflectEnum(mDiag, *decl, attr->getLocation());
+            }
+        }
+        return true;
+    }
+};
+
+class CmdAfterAction : public PluginASTAction {
+public:
+    std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
+                                                    llvm::StringRef) override {
+        return std::make_unique<CmdAfterConsumer>(CI.getDiagnostics());
+    }
+
+    bool ParseArgs(const CompilerInstance &CI,
+                    const std::vector<std::string> &args) override {
+        return true;
+    }
+
+    PluginASTAction::ActionType getActionType() override {
+        return AddAfterMainAction;
     }
 };
 
@@ -720,6 +803,7 @@ static ParsedAttrInfoRegistry::Add<MetaCaseAttrInfo> gCaseAttr("meta-case", "");
 static ParsedAttrInfoRegistry::Add<MetaEnumAttrInfo> gEnumAttr("meta-enum", "");
 static ParsedAttrInfoRegistry::Add<MetaClassAttrInfo> gClassAttr("meta-class", "");
 static ParsedAttrInfoRegistry::Add<MetaInterfaceAttrInfo> gInterfaceAttr("meta-interface", "");
+static FrontendPluginRegistry::Add<CmdAfterAction> gAfterAction("cmd-after", "");
 
 // usage: meta [header input] [header output] [source output] -- [compiler options]
 int main(int argc, const char **argv) {

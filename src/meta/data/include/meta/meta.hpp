@@ -7,7 +7,7 @@
 #   define PROPERTY(...) [[simcoe::meta_property(__VA_ARGS__)]]
 #   define METHOD(...) [[simcoe::meta_method(__VA_ARGS__)]]
 #   define CASE(...) [meta_case(__VA_ARGS__)]
-#   define REFLECT_BODY()
+#   define REFLECT_BODY(ID)
 #   include "tags.hpp"
 #else
 #   define REFLECT(...)
@@ -16,5 +16,5 @@
 #   define PROPERTY(...)
 #   define METHOD(...)
 #   define CASE(...)
-#   define REFLECT_BODY()
+#   define REFLECT_BODY(ID)
 #endif
