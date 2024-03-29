@@ -11,8 +11,6 @@
 
 using namespace sm;
 
-static auto gSink = logs::get_sink(logs::Category::eAssets);
-
 static constexpr Format get_channel_format(int channels) {
     switch (channels) {
     case 1: return Format::eR8_BYTE;
@@ -36,7 +34,7 @@ ImageData sm::load_image(sm::Span<const uint8> data) {
     int width, height, channels;
     stbi_uc *pixels = stbi_load_from_memory(data.data(), int_cast<int>(data.size()), &width, &height, &channels, 4);
     if (!pixels) {
-        gSink.warn("Failed to parse image data: {}", stbi_failure_reason());
+        logs::gAssets.warn("Failed to parse image data: {}", stbi_failure_reason());
         return {};
     }
 
@@ -57,25 +55,25 @@ ImageData sm::load_image(sm::Span<const uint8> data) {
 
 ImageData sm::open_image(const fs::path& path) {
     if (!fs::exists(path)) {
-        gSink.error("Image file `{}` does not exist", path);
+        logs::gAssets.error("Image file `{}` does not exist", path);
         return {};
     }
 
     auto file = Io::file(path.string().c_str(), eOsAccessRead);
     if (!file.is_valid()) {
-        gSink.error("Failed to open image file `{}`: {}", path, file.error());
+        logs::gAssets.error("Failed to open image file `{}`: {}", path, file.error());
         return {};
     }
 
     auto size = file.size();
     if (size == 0) {
-        gSink.error("Image file `{}` is empty", path);
+        logs::gAssets.error("Image file `{}` is empty", path);
         return {};
     }
 
     void *data = io_map(*file, eOsProtectRead);
     if (!data) {
-        gSink.error("Failed to map image file `{}`: {}", path, file.error());
+        logs::gAssets.error("Failed to map image file `{}`: {}", path, file.error());
         return {};
     }
 

@@ -7,8 +7,6 @@
 
 using namespace sm;
 
-static auto gSink = logs::get_sink(logs::Category::eGlobal);
-
 static bool gOptionHelp = false;
 static bool gOptionPix = false;
 static bool gOptionWarp = false;
@@ -41,14 +39,14 @@ fs::path sm::get_redist(const fs::path& path) {
 }
 
 static void print() {
-    gSink.info("Usage: <app> [options]");
-    gSink.info("Options:");
-    gSink.info("  --help    print this message");
-    gSink.info("  --pix     enable PIX");
-    gSink.info("  --warp    enable WARP");
-    gSink.info("  --dred    enable DRED");
-    gSink.info("  --debug   enable debug");
-    gSink.info("  --appdir  set application directory");
+    logs::gGlobal.info("Usage: <app> [options]");
+    logs::gGlobal.info("Options:");
+    logs::gGlobal.info("  --help    print this message");
+    logs::gGlobal.info("  --pix     enable PIX");
+    logs::gGlobal.info("  --warp    enable WARP");
+    logs::gGlobal.info("  --dred    enable DRED");
+    logs::gGlobal.info("  --debug   enable debug");
+    logs::gGlobal.info("  --appdir  set application directory");
 }
 
 static void parse(sm::Span<const char*> args) {
@@ -69,10 +67,10 @@ static void parse(sm::Span<const char*> args) {
                 gOptionAppdir = fs::canonical(fs::current_path() / args[i + 1]);
                 ++i;
             } else {
-                gSink.error("missing argument for --appdir");
+                logs::gGlobal.error("missing argument for --appdir");
             }
         } else {
-            gSink.error("unknown argument: {}", view);
+            logs::gGlobal.error("unknown argument: {}", view);
         }
     }
 }

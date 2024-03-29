@@ -30,8 +30,6 @@ const ImGuiTreeNodeFlags kLeafNodeFlags
 
 static const char *const kCreatePopup = "New Primitive";
 
-static auto gSink = logs::get_sink(logs::Category::eDebug);
-
 namespace MyGui {
 template<ctu::Reflected T>
     requires (ctu::is_enum<T>())
@@ -104,7 +102,7 @@ static const char *get_payload_type(ItemType type) {
         return kCameraPayload;
 
     default:
-        gSink.warn("Unknown item type {}", type);
+        logs::gDebug.warn("Unknown item type {}", type);
         return "Unknown";
     }
 }

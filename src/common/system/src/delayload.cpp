@@ -13,8 +13,6 @@
 
 using namespace sm;
 
-static auto gSink = logs::get_sink(logs::Category::eDebug);
-
 static FARPROC WINAPI delay_hook(unsigned notify, PDelayLoadInfo info) {
     delayload::LoadNotify it{notify};
 
@@ -24,11 +22,11 @@ static FARPROC WINAPI delay_hook(unsigned notify, PDelayLoadInfo info) {
         auto library = LoadLibrary(path.string().c_str());
 
         if (library != nullptr) {
-            gSink.info("delay_hook: loaded: {}", path);
+            logs::gDebug.info("delay_hook: loaded: {}", path);
             return reinterpret_cast<FARPROC>(library);
         }
 
-        gSink.warn("delay_hook: failed to load: {}", path);
+        logs::gDebug.warn("delay_hook: failed to load: {}", path);
     }
 
     return nullptr;

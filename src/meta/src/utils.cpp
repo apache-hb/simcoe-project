@@ -5,75 +5,78 @@ using namespace sm;
 
 using namespace clang;
 
-bool meta::isReflectedEnum(const clang::Decl &D) {
+static bool hasReflectTag(const clang::Decl &D, const char *tag) {
     if (D.hasAttr<AnnotateAttr>()) {
         const AnnotateAttr *Attr = D.getAttr<AnnotateAttr>();
-        if (Attr->getAnnotation().contains("meta_enum")) {
+        if (Attr->getAnnotation().contains(tag)) {
             return true;
         }
     }
 
     return false;
+}
+
+bool meta::isReflectedEnum(const clang::Decl &D) {
+    return hasReflectTag(D, kEnumTag);
 }
 
 bool meta::isReflectedClass(const clang::Decl &D) {
-    if (D.hasAttr<AnnotateAttr>()) {
-        const AnnotateAttr *Attr = D.getAttr<AnnotateAttr>();
-        if (Attr->getAnnotation().contains("meta_class")) {
-            return true;
-        }
-    }
-
-    return false;
+    return hasReflectTag(D, kClassTag);
 }
 
 bool meta::isReflectedInterface(const clang::Decl &D) {
-    if (D.hasAttr<AnnotateAttr>()) {
-        const AnnotateAttr *Attr = D.getAttr<AnnotateAttr>();
-        if (Attr->getAnnotation().contains("meta_interface")) {
+    return hasReflectTag(D, kInterfaceTag);
+}
+
+bool meta::isReflectedProperty(const clang::Decl &D) {
+    return hasReflectTag(D, kPropertyTag);
+}
+
+bool meta::isReflectedMethod(const clang::Decl &D) {
+    return hasReflectTag(D, kMethodTag);
+}
+
+bool meta::isReflectedCase(const clang::Decl &D) {
+    return hasReflectTag(D, kCaseTag);
+}
+
+static bool hasVirtualMethods(const CXXRecordDecl &RD) {
+    for (const CXXMethodDecl *MD : RD.methods()) {
+        if (MD->isVirtual() || MD->isPureVirtual())
             return true;
-        }
     }
 
     return false;
 }
 
-bool meta::isInterface(const clang::Decl &D) {
+static bool isInterface(const clang::Decl &D) {
     if (!isa<CXXRecordDecl>(D))
         return false;
 
     const CXXRecordDecl &RD = cast<CXXRecordDecl>(D);
-    if (RD.isInterfaceLike())
-        return true;
-
-    return false;
-}
-
-bool meta::canBeReflected(const clang::Decl &D) {
-    if (!isa<CXXRecordDecl>(D))
+    if (!RD.isClass())
         return false;
 
-    const CXXRecordDecl &RD = cast<CXXRecordDecl>(D);
     if (!RD.hasDefinition())
         return false;
 
-    if (RD.isInterfaceLike())
-        return true;
-
     for (const CXXBaseSpecifier &Base : RD.bases()) {
-        const CXXRecordDecl *BaseRD = Base.getType()->getAsCXXRecordDecl();
-        if (!BaseRD)
-            return false;
-
-        if (!canBeReflected(*BaseRD))
+        auto type = Base.getType();
+        if (!isInterface(*type->getAsCXXRecordDecl()))
             return false;
     }
 
-    return meta::isReflectedInterface(D) || meta::isReflectedClass(D);
+    if (!hasVirtualMethods(RD))
+        return false;
+
+    if (!RD.getDestructor()->isVirtual())
+        return false;
+
+    return true;
 }
 
 bool meta::verifyClassIsReflected(Sema &S, const clang::Decl &D, const ParsedAttr &Attr) {
-    if (meta::isReflectedClass(D))
+    if (meta::isReflectedClass(D) || meta::isReflectedInterface(D))
         return true;
 
     unsigned ID = S.getDiagnostics().getCustomDiagID(
@@ -94,122 +97,65 @@ bool meta::verifyEnumIsReflected(clang::Sema &S, const clang::Decl &D, const cla
     return false;
 }
 
-bool meta::verifyValidReflectInterface(
-        clang::DiagnosticsEngine &DE,
-        const clang::Decl &D,
-        clang::SourceLocation loc) {
-    // Check if the decl is at file scope.
+static bool verifyIsInFileContext(
+    clang::DiagnosticsEngine &DE,
+    const clang::Decl &D,
+    clang::SourceLocation loc,
+    const char *tag) {
     if (!D.getDeclContext()->isFileContext()) {
         unsigned ID = DE.getCustomDiagID(
             DiagnosticsEngine::Error, "'%0' attribute only allowed at file scope or inside a namespace");
-        DE.Report(loc, ID).AddString(kInterfaceTag);
+        DE.Report(loc, ID).AddString(tag);
         return false;
-    }
-
-    if (!meta::isInterface(D)) {
-        unsigned ID = DE.getCustomDiagID(
-            DiagnosticsEngine::Error, "'%0' attribute only allowed on interfaces");
-        DE.Report(loc, ID).AddString(kInterfaceTag);
-        return false;
-    }
-
-    const CXXRecordDecl& RD = cast<CXXRecordDecl>(D);
-
-    if (!RD.hasDefinition()) {
-        unsigned ID = DE.getCustomDiagID(
-            DiagnosticsEngine::Error, "class must have a definition");
-        DE.Report(loc, ID);
-        return false;
-    }
-
-    if (RD.getNumVBases() != 0) {
-        unsigned ID = DE.getCustomDiagID(
-            DiagnosticsEngine::Error, "class must not have virtual bases");
-        DE.Report(loc, ID);
-        return false;
-    }
-
-    if (RD.getNumBases() >= 2) {
-        unsigned ID = DE.getCustomDiagID(
-            DiagnosticsEngine::Error, "class must not have more than one base class");
-        DE.Report(loc, ID);
-        return false;
-    }
-
-    for (const CXXBaseSpecifier &Base : RD.bases()) {
-        const CXXRecordDecl *BaseRD = Base.getType()->getAsCXXRecordDecl();
-        if (!BaseRD) {
-            unsigned ID = DE.getCustomDiagID(
-                DiagnosticsEngine::Error, "base class must be a class");
-            DE.Report(loc, ID);
-            return false;
-        }
-
-        if (!meta::isReflectedInterface(*BaseRD)) {
-            unsigned ID = DE.getCustomDiagID(
-                DiagnosticsEngine::Error, "base class '%0' must be reflected");
-            DE.Report(loc, ID).AddString(BaseRD->getName());
-            return false;
-        }
     }
 
     return true;
 }
 
-bool meta::verifyValidReflectClass(
+static const CXXRecordDecl *verifyHasDefinition(
     clang::DiagnosticsEngine &DE,
     const clang::Decl &D,
-    clang::SourceLocation loc) {
-    // Check if the decl is at file scope.
-    if (!D.getDeclContext()->isFileContext()) {
-        unsigned ID = DE.getCustomDiagID(
-            DiagnosticsEngine::Error, "'%0' attribute only allowed at file scope or inside a namespace");
-        DE.Report(loc, ID).AddString(kClassTag);
-        return false;
-    }
+    const char *tag) {
 
-    // make sure the decl is a class
-    const CXXRecordDecl& RD = cast<CXXRecordDecl>(D);
-    if (!RD.isClass()) {
-        unsigned ID = DE.getCustomDiagID(
-            DiagnosticsEngine::Error, "'%0' attribute only allowed on classes");
-        DE.Report(loc, ID).AddString(kClassTag);
-        return false;
-    }
+    assert(isa<CXXRecordDecl>(D) && "D must be a CXXRecordDecl");
 
+    const CXXRecordDecl &RD = cast<CXXRecordDecl>(D);
     if (!RD.hasDefinition()) {
         unsigned ID = DE.getCustomDiagID(
-            DiagnosticsEngine::Error, "class must have a definition");
-        DE.Report(loc, ID);
-        return false;
+            DiagnosticsEngine::Error, "'%0' attribute only allowed on classes with definitions");
+        DE.Report(RD.getLocation(), ID).AddString(tag);
+        return nullptr;
     }
 
-    const CXXRecordDecl *Definition = RD.getDefinition();
+    return RD.getDefinition();
+}
 
-    if (Definition->getNumVBases() != 0) {
+static bool verifyClassBases(
+    clang::DiagnosticsEngine &DE,
+    const CXXRecordDecl &RD,
+    const char *tag,
+    bool (*isReflected)(const NamedDecl &)) {
+
+    if (RD.getNumVBases() != 0) {
         unsigned ID = DE.getCustomDiagID(
-            DiagnosticsEngine::Error, "class must not have virtual bases");
-        DE.Report(loc, ID);
+            DiagnosticsEngine::Error, "reflected class must not have virtual bases");
+        DE.Report(RD.getLocation(), ID);
         return false;
     }
 
-    if (Definition->getNumBases() >= 2) {
+    if (RD.getNumBases() >= 2) {
         unsigned ID = DE.getCustomDiagID(
-            DiagnosticsEngine::Error, "class must not have more than one base class");
-        DE.Report(loc, ID);
+            DiagnosticsEngine::Error, "reflected class must not have more than one base class");
+        DE.Report(RD.getLocation(), ID);
         return false;
     }
 
-    llvm::outs() << Definition->getName()
-        << " has " << Definition->getNumBases() << " bases\n"
-        << " has " << Definition->getNumVBases() << " virtual bases\n";
-
-    for (const CXXBaseSpecifier &Base : Definition->bases()) {
+    for (const CXXBaseSpecifier &Base : RD.bases()) {
         auto type = Base.getType();
         if (!type->isClassType()) {
             unsigned ID = DE.getCustomDiagID(
                 DiagnosticsEngine::Error, "base class must be a class");
-            DE.Report(loc, ID);
+            DE.Report(RD.getLocation(), ID);
             return false;
         }
 
@@ -221,10 +167,13 @@ bool meta::verifyValidReflectClass(
             return false;
         }
 
-        if (!meta::isReflectedClass(*BaseRD)) {
+        if (!isReflected(*BaseRD)) {
             unsigned ID = DE.getCustomDiagID(
                 DiagnosticsEngine::Error, "base class '%0' must be reflected");
             DE.Report(BaseRD->getLocation(), ID).AddString(BaseRD->getName());
+
+            auto note = DE.Report(Base.getSourceRange().getBegin(), diag::note_base_class_specified_here);
+            note.AddString(BaseRD->getName());
             return false;
         }
     }
@@ -232,17 +181,58 @@ bool meta::verifyValidReflectClass(
     return true;
 }
 
+bool meta::verifyValidReflectInterface(
+        clang::DiagnosticsEngine &DE,
+        const clang::Decl &D,
+        clang::SourceLocation loc) {
+
+    if (!verifyIsInFileContext(DE, D, loc, kInterfaceTag))
+        return false;
+
+    const CXXRecordDecl *RD = verifyHasDefinition(DE, D, kInterfaceTag);
+    if (!RD) return false;
+
+    if (!isInterface(*RD)) {
+        unsigned ID = DE.getCustomDiagID(
+            DiagnosticsEngine::Error, "reflected interface must be an interface");
+        DE.Report(loc, ID);
+        return false;
+    }
+
+    return verifyClassBases(DE, *RD, kInterfaceTag, [](const NamedDecl &D) {
+        return meta::isReflectedInterface(D);
+    });
+}
+
+bool meta::verifyValidReflectClass(
+    clang::DiagnosticsEngine &DE,
+    const clang::Decl &D,
+    clang::SourceLocation loc) {
+    if (!verifyIsInFileContext(DE, D, loc, kClassTag))
+        return false;
+
+    const CXXRecordDecl *RD = verifyHasDefinition(DE, D, kClassTag);
+    if (!RD) return false;
+
+    if (!RD->isClass()) {
+        unsigned ID = DE.getCustomDiagID(
+            DiagnosticsEngine::Error, "reflected class must be a class");
+        DE.Report(loc, ID);
+        return false;
+    }
+
+    return verifyClassBases(DE, *RD, kClassTag, [](const NamedDecl &D) {
+        return meta::isReflectedClass(D);
+    });
+}
+
 bool meta::verifyValidReflectEnum(
         clang::DiagnosticsEngine &DE,
         const clang::Decl &D,
         clang::SourceLocation loc) {
-    // Check if the decl is at file scope.
-    if (!D.getDeclContext()->isFileContext()) {
-        unsigned ID = DE.getCustomDiagID(
-            DiagnosticsEngine::Error, "'%0' attribute only allowed at file scope or inside a namespace");
-        DE.Report(loc, ID).AddString(kEnumTag);
+
+    if (!verifyIsInFileContext(DE, D, loc, kEnumTag))
         return false;
-    }
 
     // make sure the decl is an enum
     if (!isa<EnumDecl>(D)) {

@@ -7,8 +7,6 @@
 using namespace sm;
 using namespace sm::math;
 
-static auto gSink = logs::get_sink(logs::Category::eRender);
-
 static void draw_node(render::Context& context, uint16 index, const float4x4& parent) {
     float aspect_ratio = float(context.mSceneSize.width) / float(context.mSceneSize.height);
     const auto& node = context.mWorld.info.nodes[index];

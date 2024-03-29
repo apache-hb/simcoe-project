@@ -7,8 +7,6 @@
 using namespace sm;
 using namespace sm::render;
 
-static auto gSink = logs::get_sink(logs::Category::eRender);
-
 static uint get_swapchain_flags(const Instance& instance) {
     return instance.tearing_support() ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 }
@@ -38,14 +36,14 @@ void Context::on_info(
     MessageSeverity s{severity};
     MessageID message{id};
 
-    gSink.log(get_severity(s), "{} {}: {}", c, message, desc);
+    logs::gRender.log(get_severity(s), "{} {}: {}", c, message, desc);
 }
 
 void Context::enable_info_queue() {
     if (Result hr = mDevice.query(&mInfoQueue)) {
         mInfoQueue->RegisterMessageCallback(&on_info, D3D12_MESSAGE_CALLBACK_FLAG_NONE, this, &mCookie);
     } else {
-        gSink.warn("failed to query info queue: {}", hr);
+        logs::gRender.warn("failed to query info queue: {}", hr);
     }
 }
 
@@ -55,13 +53,13 @@ void Context::enable_debug_layer(bool gbv, bool rename) {
 
         Object<ID3D12Debug3> debug3;
         if (mDebug.query(&debug3)) debug3->SetEnableGPUBasedValidation(gbv);
-        else gSink.warn("failed to get debug3 interface: {}", hr);
+        else logs::gRender.warn("failed to get debug3 interface: {}", hr);
 
         Object<ID3D12Debug5> debug5;
         if (mDebug.query(&debug5)) debug5->SetEnableAutoName(rename);
-        else gSink.warn("failed to get debug5 interface: {}", hr);
+        else logs::gRender.warn("failed to get debug5 interface: {}", hr);
     } else {
-        gSink.warn("failed to get debug interface: {}", hr);
+        logs::gRender.warn("failed to get debug interface: {}", hr);
     }
 }
 
@@ -70,7 +68,7 @@ void Context::disable_debug_layer() {
     if (Result hr = D3D12GetDebugInterface(IID_PPV_ARGS(&debug4))) {
         debug4->DisableDebugLayer();
     } else {
-        gSink.warn("failed to query debug4 interface: {}", hr);
+        logs::gRender.warn("failed to query debug4 interface: {}", hr);
     }
 }
 
@@ -80,21 +78,21 @@ void Context::enable_dred(bool enabled) {
         dred->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
         dred->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
     } else {
-        gSink.warn("failed to query dred settings: {}", hr);
+        logs::gRender.warn("failed to query dred settings: {}", hr);
     }
 }
 
 void Context::query_root_signature_version() {
     mRootSignatureVersion = mFeatureSupport.HighestRootSignatureVersion();
-    gSink.info("root signature version: {}", mRootSignatureVersion);
+    logs::gRender.info("root signature version: {}", mRootSignatureVersion);
 }
 
 void Context::serialize_root_signature(Object<ID3D12RootSignature>& signature, const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& desc) {
     Blob serialized;
     Blob error;
     if (Result hr = D3DX12SerializeVersionedRootSignature(&desc, mRootSignatureVersion.as_facade(), &serialized, &error); !hr) {
-        gSink.error("failed to serialize root signature: {}", hr);
-        gSink.error("| error: {}", error.as_string());
+        logs::gRender.error("failed to serialize root signature: {}", hr);
+        logs::gRender.error("| error: {}", error.as_string());
         SM_ASSERT_HR(hr);
     }
 
@@ -105,7 +103,7 @@ void Context::create_device(size_t index) {
     auto& adapter = mInstance.get_adapter(index);
 
     if (auto flags = adapter.flags(); flags.test(AdapterFlag::eSoftware) && mDebugFlags.test(DebugFlags::eGpuValidation)) {
-        gSink.warn("adapter `{}` is a software adapter, enabling gpu validation has major performance implications", adapter.name());
+        logs::gRender.warn("adapter `{}` is a software adapter, enabling gpu validation has major performance implications", adapter.name());
     }
 
     if (mDebugFlags.test(DebugFlags::eDeviceDebugLayer))
@@ -119,16 +117,16 @@ void Context::create_device(size_t index) {
 
     mAdapterIndex = index;
     if (Result hr = D3D12CreateDevice(adapter.get(), fl.as_facade(), IID_PPV_ARGS(&mDevice)); !hr) {
-        gSink.error("failed to create device `{}` at feature level `{}`", adapter.name(), fl, hr);
-        gSink.error("| hresult: {}", hr);
-        gSink.error("falling back to warp adapter...");
+        logs::gRender.error("failed to create device `{}` at feature level `{}`", adapter.name(), fl, hr);
+        logs::gRender.error("| hresult: {}", hr);
+        logs::gRender.error("falling back to warp adapter...");
 
         mAdapterIndex = mInstance.warp_adapter_index();
         auto& warp_adapter = mInstance.get_adapter(mAdapterIndex);
         SM_ASSERT_HR(D3D12CreateDevice(warp_adapter.get(), fl.as_facade(), IID_PPV_ARGS(&mDevice)));
     }
 
-    gSink.info("device created: {}", adapter.name());
+    logs::gRender.info("device created: {}", adapter.name());
 
     if (mDebugFlags.test(DebugFlags::eInfoQueue))
         enable_info_queue();
@@ -137,8 +135,8 @@ void Context::create_device(size_t index) {
 
     query_root_signature_version();
 
-    gSink.info("| feature level: {}", fl);
-    gSink.info("| flags: {}", mDebugFlags);
+    logs::gRender.info("| feature level: {}", fl);
+    logs::gRender.info("| flags: {}", mDebugFlags);
 
     mStorage.create_queue(mDevice.get());
 }
@@ -607,7 +605,7 @@ bool Context::create_texture_dds(Texture& result, const fs::path& path) {
         mips);
 
     if (hr.failed()) {
-        gSink.warn("failed to load dds {}: {}", path, hr);
+        logs::gRender.warn("failed to load dds {}: {}", path, hr);
         return false;
     }
 
@@ -696,7 +694,7 @@ bool Context::create_texture(Texture& result, const fs::path& path, ImageFormat 
             return true;
         if (create_texture_dds(result, path))
             return true;
-        gSink.warn("unable to determine image type of {}", path);
+        logs::gRender.warn("unable to determine image type of {}", path);
         break;
     case ePNG:
     case eJPG:
@@ -707,7 +705,7 @@ bool Context::create_texture(Texture& result, const fs::path& path, ImageFormat 
         return create_texture_dds(result, path);
 
     default:
-        gSink.error("unsupported image type: {}", type);
+        logs::gRender.error("unsupported image type: {}", type);
         return false;
     }
 

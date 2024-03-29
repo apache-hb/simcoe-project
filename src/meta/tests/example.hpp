@@ -4,7 +4,27 @@
 
 #include "example.reflect.h"
 
-class Stub {};
+INTERFACE()
+class IExample {
+    REFLECT_BODY(IExample);
+
+public:
+    virtual ~IExample() = default;
+
+    METHOD(name = "bar", threadsafe)
+    virtual void foo() = 0;
+};
+
+REFLECT()
+class Stub {
+    REFLECT_BODY(Stub);
+
+    PROPERTY(name = "range", range = {0, 10})
+    int mRange = 5;
+
+public:
+    Stub();
+};
 
 REFLECT("other")
 class Example : Stub {

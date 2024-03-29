@@ -30,11 +30,3 @@ variant Category {
 
     case Count = 13 // always keep this up to date
 }
-
-struct Message {
-    message: opaque("std::string_view");
-    category: Category;
-    severity: Severity;
-    timestamp: uint32; // milliseconds since program start
-    thread: uint16;
-}

@@ -31,7 +31,7 @@ void LoggerPanel::accept(const logs::Message &message) {
         .message = sm::String{message.message}
     };
 
-    mMessages[message.category.as_integral()].push_back(msg);
+    mMessages[&message.category].push_back(msg);
 }
 
 static ImVec4 get_severity_colour(logs::Severity severity) {
@@ -68,8 +68,8 @@ constexpr static ImGuiTableFlags kFlags
 using ReflectCategory = ctu::TypeInfo<logs::Category>;
 using ReflectSeverity = ctu::TypeInfo<logs::Severity>;
 
-void LoggerPanel::draw_category(logs::Category category) const {
-    const LogMessages &messages = mMessages[category.as_integral()];
+void LoggerPanel::draw_category(const logs::LogCategory& category) const {
+    const LogMessages &messages = mMessages.at(&category);
 
     if (ImGui::BeginTable("Messages", 3, kFlags)) {
         ImGui::TableSetupScrollFreeze(0, 1);
@@ -96,20 +96,13 @@ void LoggerPanel::draw_category(logs::Category category) const {
 
 void LoggerPanel::draw_content() {
     if (ImGui::BeginTabBar("Logs")) {
-        for (size_t i = 0; i < kCategoryCount; ++i) {
-            logs::Category category = (logs::Category)i;
-            const LogMessages &messages = mMessages[i];
+        for (const auto& [category, messages] : mMessages) {
+            if (messages.empty()) continue;
 
-            ImGui::BeginDisabled(messages.empty());
-
-            using ReflectCategory = ctu::TypeInfo<logs::Category>;
-
-            if (ImGui::BeginTabItem(ReflectCategory::to_string(category).c_str())) {
-                draw_category(category);
+            if (ImGui::BeginTabItem(category->name().data())) {
+                draw_category(*category);
                 ImGui::EndTabItem();
             }
-
-            ImGui::EndDisabled();
         }
         ImGui::EndTabBar();
     }

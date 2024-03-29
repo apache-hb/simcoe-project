@@ -17,8 +17,6 @@
 
 using namespace sm;
 
-static logs::Sink gSink = logs::get_sink(logs::Category::eAssets);
-
 Bundle::Bundle(fs_t *vfs)
     : mFileSystem(vfs)
 { }
@@ -27,12 +25,12 @@ Bundle::Bundle(io_t *stream, archive::BundleFormat type)
     : Bundle(fs_virtual("bundle", sm::global_arena()))
 {
     if (type != archive::BundleFormat::eTar) {
-        gSink.warn("unsupported bundle format: {}", type);
+        logs::gAssets.warn("unsupported bundle format: {}", type);
         return;
     }
 
     if (tar_result_t err = tar_extract(*mFileSystem, stream); err.error != eTarOk) {
-        gSink.error("failed to extract bundle: {}", tar_error_string(err.error));
+        logs::gAssets.error("failed to extract bundle: {}", tar_error_string(err.error));
     }
 }
 
@@ -40,7 +38,7 @@ io_t *Bundle::get_file(sm::StringView dir, sm::StringView name) const {
     sm::String path = fmt::format("bundle/{}/{}", dir, name);
     io_t *file = fs_open(*mFileSystem, path.c_str(), eOsAccessRead);
     if (OsError err = io_error(file); err.failed()) {
-        gSink.error("failed to open file: {}", err);
+        logs::gAssets.error("failed to open file: {}", err);
         return nullptr;
     }
 
@@ -56,7 +54,7 @@ sm::Span<const uint8> Bundle::get_file_data(sm::StringView dir, sm::StringView n
     size_t size = io_size(*file);
     const uint8 *data = (uint8*)io_map(*file, eOsProtectRead);
 
-    gSink.info("loaded file {} ({} bytes)", name, sm::Memory{size});
+    logs::gAssets.info("loaded file {} ({} bytes)", name, sm::Memory{size});
 
     return { data, size };
 }
@@ -192,22 +190,22 @@ font::FontInfo Bundle::get_font(const char *name) const {
     artery::FontData font;
     bool result = af::decode<wrap_io_read>(font, (void*)file.get());
     if (!result) {
-        gSink.error("failed to decode font: {}", name);
+        logs::gAssets.error("failed to decode font: {}", name);
         return {};
     }
 
-    gSink.info("font {} (images {}, variants {})", name, font.images.size(), font.variants.size());
+    logs::gAssets.info("font {} (images {}, variants {})", name, font.images.size(), font.variants.size());
 
     if (font.metadataFormat != artery_font::METADATA_NONE) {
-        gSink.info("| metadata: {}", font.metadata);
+        logs::gAssets.info("| metadata: {}", font.metadata);
     }
 
     for (const auto& appendix : font.appendices) {
-        gSink.info("| appendix: {}", appendix.metadata);
+        logs::gAssets.info("| appendix: {}", appendix.metadata);
     }
 
     if (font.images.empty()) {
-        gSink.error("font has no images, cannot load data");
+        logs::gAssets.error("font has no images, cannot load data");
         return {};
     }
 
@@ -215,16 +213,16 @@ font::FontInfo Bundle::get_font(const char *name) const {
 
     for (auto& image : font.images) {
         const auto& data = image.data;
-        gSink.info("| image: {}x{}x{}", image.width, image.height, image.channels);
+        logs::gAssets.info("| image: {}x{}x{}", image.width, image.height, image.channels);
 
         int width, height, channels;
         stbi_uc *pixels = stbi_load_from_memory(data.data(), (int)data.size(), &width, &height, &channels, 4);
         if (pixels == nullptr) {
-            gSink.error("failed to load font texture: {}", stbi_failure_reason());
+            logs::gAssets.error("failed to load font texture: {}", stbi_failure_reason());
             return {};
         }
 
-        gSink.info("| loaded image: {}x{}x{}", width, height, channels);
+        logs::gAssets.info("| loaded image: {}x{}x{}", width, height, channels);
         images.emplace_back(convert_image(pixels, width, height, channels));
     }
 

@@ -5,8 +5,6 @@
 using namespace sm;
 using namespace sm::world;
 
-static auto gSink = logs::get_sink(logs::Category::eAssets);
-
 uint16 WorldInfo::add_node(const NodeInfo& info) {
     auto index = int_cast<uint16>(nodes.size());
     uint16 parent = info.parent;
@@ -82,7 +80,7 @@ WorldInfo world::empty_world(sm::StringView name) {
     return world;
 }
 
-#define BADPARSE(...) do { gSink.error(__VA_ARGS__); return false; } while (false)
+#define BADPARSE(...) do { logs::gAssets.error(__VA_ARGS__); return false; } while (false)
 
 struct WorldLoad {
     Archive& archive;

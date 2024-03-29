@@ -5,13 +5,11 @@
 using namespace sm;
 using namespace sm::render;
 
-static auto gSink = logs::get_sink(logs::Category::eRHI);
-
 void log_adapter(const Adapter &adapter) {
-    gSink.info("|| video memory: {}", adapter.vidmem());
-    gSink.info("|| system memory: {}", adapter.sysmem());
-    gSink.info("|| shared memory: {}", adapter.sharedmem());
-    gSink.info("|| flags: {}", adapter.flags());
+    logs::gGpuApi.info("|| video memory: {}", adapter.vidmem());
+    logs::gGpuApi.info("|| system memory: {}", adapter.sysmem());
+    logs::gGpuApi.info("|| shared memory: {}", adapter.sharedmem());
+    logs::gGpuApi.info("|| flags: {}", adapter.flags());
 }
 
 Adapter::Adapter(IDXGIAdapter1 *adapter)
@@ -29,11 +27,11 @@ Adapter::Adapter(IDXGIAdapter1 *adapter)
 bool Instance::enum_by_preference() {
     Object<IDXGIFactory6> factory6;
     if (Result hr = mFactory.query(&factory6); !hr) {
-        gSink.warn("failed to query factory6: {}", hr);
+        logs::gGpuApi.warn("failed to query factory6: {}", hr);
         return false;
     }
 
-    gSink.info("querying for {} adapter", mAdapterSearch);
+    logs::gGpuApi.info("querying for {} adapter", mAdapterSearch);
 
     IDXGIAdapter1 *adapter;
     for (UINT i = 0;
@@ -41,7 +39,7 @@ bool Instance::enum_by_preference() {
                                               IID_PPV_ARGS(&adapter)) != DXGI_ERROR_NOT_FOUND;
          ++i) {
         auto &it = mAdapters.emplace_back(adapter);
-        gSink.info("| adapter {}: {}", i, it.name());
+        logs::gGpuApi.info("| adapter {}: {}", i, it.name());
         log_adapter(it);
     }
     return true;
@@ -51,7 +49,7 @@ void Instance::enum_adapters() {
     IDXGIAdapter1 *adapter;
     for (UINT i = 0; mFactory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; ++i) {
         auto &it = mAdapters.emplace_back(adapter);
-        gSink.info("| adapter {}: {}", i, it.name());
+        logs::gGpuApi.info("| adapter {}: {}", i, it.name());
         log_adapter(it);
     }
 }
@@ -60,20 +58,20 @@ void Instance::enable_leak_tracking() {
     if (Result hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&mDebug))) {
         mDebug->EnableLeakTrackingForThread();
     } else {
-        gSink.error("failed to enable dxgi debug interface: {}", hr);
+        logs::gGpuApi.error("failed to enable dxgi debug interface: {}", hr);
     }
 }
 
 void Instance::query_tearing_support() {
     Object<IDXGIFactory5> factory;
     if (Result hr = mFactory.query(&factory); !hr) {
-        gSink.warn("failed to query factory5: {}", hr);
+        logs::gGpuApi.warn("failed to query factory5: {}", hr);
         return;
     }
 
     BOOL tearing = FALSE;
     if (Result hr = factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &tearing, sizeof(tearing)); !hr) {
-        gSink.warn("failed to query tearing support: {}", hr);
+        logs::gGpuApi.warn("failed to query tearing support: {}", hr);
         return;
     }
 
@@ -83,22 +81,22 @@ void Instance::query_tearing_support() {
 void Instance::load_wrap_redist() {
     mWarpLibrary = sm::get_redist("d3d10warp.dll");
     if (OsError err = mWarpLibrary.get_error()) {
-        gSink.warn("failed to load warp redist: {}", err);
+        logs::gGpuApi.warn("failed to load warp redist: {}", err);
     } else {
-        gSink.info("loaded warp redist");
+        logs::gGpuApi.info("loaded warp redist");
     }
 }
 
 void Instance::load_pix_runtime() {
     if constexpr (!SMC_USE_PIX_RUNTIME) {
-        gSink.warn("pix runtime is fused off");
+        logs::gGpuApi.warn("pix runtime is fused off");
         return;
     }
 
     if (PIXLoadLatestWinPixGpuCapturerLibrary()) {
-        gSink.info("loaded pix runtime");
+        logs::gGpuApi.info("loaded pix runtime");
     } else {
-        gSink.warn("failed to load pix runtime: {}", sys::get_last_error());
+        logs::gGpuApi.warn("failed to load pix runtime: {}", sys::get_last_error());
     }
 }
 
@@ -111,13 +109,13 @@ Instance::Instance(InstanceConfig config)
     SM_ASSERT_HR(CreateDXGIFactory2(flags, IID_PPV_ARGS(&mFactory)));
 
     query_tearing_support();
-    gSink.info("tearing support: {}", mTearingSupport);
+    logs::gGpuApi.info("tearing support: {}", mTearingSupport);
 
     if (debug)
         enable_leak_tracking();
 
-    gSink.info("instance config");
-    gSink.info("| flags: {}", mFlags);
+    logs::gGpuApi.info("instance config");
+    logs::gGpuApi.info("| flags: {}", mFlags);
 
     load_wrap_redist();
 
@@ -131,7 +129,7 @@ Instance::Instance(InstanceConfig config)
 
 Instance::~Instance() {
     if (mDebug) {
-        gSink.info("reporting live dxgi/d3d objects");
+        logs::gGpuApi.info("reporting live dxgi/d3d objects");
         mDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
     }
 }

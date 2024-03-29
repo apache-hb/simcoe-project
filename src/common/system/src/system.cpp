@@ -25,8 +25,6 @@ void sys::create(HINSTANCE hInstance) {
     CTASSERTF(hInstance != nullptr, "system::create() invalid hInstance");
     CTASSERTF(gWindowClass == nullptr, "system::create() called twice");
 
-    auto sink = logs::get_sink(logs::Category::eSystem);
-
     gInstance = hInstance;
 
     HICON hIcon = LoadIconA(
@@ -34,7 +32,7 @@ void sys::create(HINSTANCE hInstance) {
         /* name = */ MAKEINTRESOURCEA(IDI_DEFAULT_ICON));
 
     if (hIcon == nullptr) {
-        sink.warn("failed to load icon {}", get_last_error());
+        logs::gSystem.warn("failed to load icon {}", get_last_error());
     }
 
     HCURSOR hCursor = LoadCursorA(
@@ -42,7 +40,7 @@ void sys::create(HINSTANCE hInstance) {
         /* name = */ IDC_ARROW);
 
     if (hCursor == nullptr) {
-        sink.warn("failed to load cursor {}", get_last_error());
+        logs::gSystem.warn("failed to load cursor {}", get_last_error());
     }
 
     const WNDCLASSEXA kClass = {
@@ -81,7 +79,7 @@ void sys::create(HINSTANCE hInstance) {
     }
 
     if (gExecutablePathLength == kPathMax) {
-        sink.warn("executable path longer than {}, may be truncated", kPathMax);
+        logs::gSystem.warn("executable path longer than {}, may be truncated", kPathMax);
     }
 
     gProgramPath = fs::path{gExecutablePath, gExecutablePath + gExecutablePathLength};

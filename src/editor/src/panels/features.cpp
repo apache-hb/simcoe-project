@@ -7,8 +7,6 @@
 using namespace sm;
 using namespace sm::ed;
 
-static auto gSink = logs::get_sink(logs::Category::eRender);
-
 namespace MyGui {
     template<ctu::Reflected T>
     void TextReflect(const char *name, const T &value, int base = 10) {

@@ -14,7 +14,7 @@
 using namespace sm;
 using namespace sm::threads;
 
-static auto gSink = logs::get_sink(logs::Category::eSchedule);
+static LOG_CATEGORY_IMPL(gScheduler, "scheduler");
 
 template <typename T>
 static T *advance(T *ptr, size_t bytes) {
@@ -305,7 +305,7 @@ CpuGeometry threads::global_cpu_geometry() {
 
     // print cpu geometry
 
-    gSink.info("cpu geometry: {} package(s), {} chiplet(s), {} cores, {} subcores",
+    gScheduler.info("cpu geometry: {} package(s), {} chiplet(s), {} cores, {} subcores",
              builder.packages.size(), builder.chiplets.size(), builder.cores.size(),
              builder.subcores.size());
 

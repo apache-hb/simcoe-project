@@ -11,8 +11,6 @@ using enum render::ResourceState::Inner;
 
 using PassBuilder = FrameGraph::PassBuilder;
 
-static auto gSink = logs::get_sink(logs::Category::eRender);
-
 Clear graph::clear_colour(float4 colour) {
     Clear clear;
     clear.type = Clear::eColour;

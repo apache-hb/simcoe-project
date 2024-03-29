@@ -2,7 +2,10 @@ inc = include_directories('include')
 
 deps = [ core, logs ]
 
-src = [ 'src/config.cpp' ]
+src = [
+    'src/config.cpp',
+    'src/cvar.cpp'
+]
 
 libconfig = library('config', src,
     cpp_args : [ '-DSM_CONFIG_BUILD=1' ],

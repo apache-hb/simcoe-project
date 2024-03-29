@@ -7,8 +7,6 @@ using namespace sm::render;
 
 namespace fg = fastgltf;
 
-static auto gSink = logs::get_sink(logs::Category::eAssets);
-
 static constexpr auto kExt = fg::Extensions::None;
 static constexpr auto kOptions
     = fg::Options::DontRequireValidAssetMember
@@ -38,7 +36,7 @@ public:
     uint16 gltf_load_image(uint index, fg::Image& image) {
         return std::visit(fg::visitor {
             [&](auto& arg) {
-                gSink.warn("Unknown image load type (name: {})", image.name);
+                logs::gAssets.warn("Unknown image load type (name: {})", image.name);
                 return false;
             },
             [&](fg::sources::URI& uri) {
@@ -48,7 +46,7 @@ public:
             [&](fg::sources::Array& arr) {
                 auto data = sm::load_image(arr.bytes);
                 if (data.size == 0u) {
-                    gSink.error("Failed to load image: {}", image.name);
+                    logs::gAssets.error("Failed to load image: {}", image.name);
                     return false;
                 }
 
@@ -61,14 +59,14 @@ public:
 
                 return std::visit(fg::visitor {
                     [&](auto& arg) {
-                        gSink.warn("Unknown buffer type (name: {}, buffer: {})", image.name, buffer.name);
+                        logs::gAssets.warn("Unknown buffer type (name: {}, buffer: {})", image.name, buffer.name);
                         return false;
                     },
                     [&](fg::sources::Array& arr) {
                         auto span = sm::Span<const uint8>{arr.bytes.data() + bv.byteOffset, bv.byteLength};
                         auto data = sm::load_image(span);
                         if (data.size == 0u) {
-                            gSink.error("Failed to load image: {}", image.name);
+                            logs::gAssets.error("Failed to load image: {}", image.name);
                             return false;
                         }
 
@@ -88,7 +86,7 @@ public:
         for (auto it = mesh.primitives.begin(); it != mesh.primitives.end(); ++it) {
             auto *position = it->findAttribute("POSITION");
             if (position == it->attributes.end()) {
-                gSink.error("Mesh primitive {} has no position attribute", mesh.name);
+                logs::gAssets.error("Mesh primitive {} has no position attribute", mesh.name);
                 return false;
             }
 
@@ -105,7 +103,7 @@ public:
 
     bool gltf_load_node(uint index, fg::Node& node) {
         if (!std::holds_alternative<fg::TRS>(node.transform)) {
-            gSink.error("Node {} has unknown transform type", node.name);
+            logs::gAssets.error("Node {} has unknown transform type", node.name);
             return false;
         }
         fg::TRS trs = std::get<fg::TRS>(node.transform);
@@ -147,7 +145,7 @@ public:
 
 bool Context::load_gltf(const fs::path& path) {
     if (!fs::exists(path)) {
-        gSink.error("GLTF file does not exist: {}", path);
+        logs::gAssets.error("GLTF file does not exist: {}", path);
         return false;
     }
 
@@ -159,7 +157,7 @@ bool Context::load_gltf(const fs::path& path) {
     auto parent = path.parent_path();
     auto asset = parser.loadGltf(&data, parent, kOptions, fg::Category::OnlyRenderable);
     if (asset.error() != fg::Error::None) {
-        gSink.error("Failed to parse GLTF file: {} (parent path: {})", fg::getErrorMessage(asset.error()), parent);
+        logs::gAssets.error("Failed to parse GLTF file: {} (parent path: {})", fg::getErrorMessage(asset.error()), parent);
         return false;
     }
 
@@ -167,7 +165,7 @@ bool Context::load_gltf(const fs::path& path) {
 
     Builder builder{*this, val};
 
-    gSink.info("Loading GLTF: {}", path);
+    logs::gAssets.info("Loading GLTF: {}", path);
 
     for (size_t i = 0; i < val.images.size(); ++i) {
         if (!builder.gltf_load_image((uint)i, val.images[i]))

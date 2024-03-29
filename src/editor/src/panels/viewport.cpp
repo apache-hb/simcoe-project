@@ -10,8 +10,6 @@ using namespace sm::ed;
 
 REFLECT_ENUM_BITFLAGS(ImGuizmo::OPERATION, int);
 
-static auto gSink = logs::get_sink(logs::Category::eRender);
-
 static bool is_mode_translate(ImGuizmo::OPERATION op) {
     return op & ImGuizmo::TRANSLATE;
 }

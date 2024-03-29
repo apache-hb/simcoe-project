@@ -1,7 +1,7 @@
 #pragma once
 
+#include "core/map.hpp"
 #include "logs/logs.hpp"
-#include "core/array.hpp"
 
 #include "editor/panel.hpp"
 
@@ -17,11 +17,9 @@ namespace sm::ed {
 
         using LogMessages = sm::Vector<Message>;
 
-        static constexpr size_t kCategoryCount = (size_t)logs::Category::eCount;
+        sm::Map<const logs::LogCategory*, LogMessages> mMessages;
 
-        sm::Array<LogMessages, kCategoryCount> mMessages;
-
-        void draw_category(logs::Category category) const;
+        void draw_category(const logs::LogCategory& category) const;
 
         // logs::ILogChannel
         void accept(const logs::Message &message) override;

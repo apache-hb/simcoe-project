@@ -34,7 +34,7 @@ namespace sm::sys {
 #define SM_CHECK_WIN32(expr)                                                                 \
     [&](source_info_t where) -> bool {                                                             \
         if (auto result = (expr); !result) {                                                       \
-            logs::get_sink(logs::Category::eSystem).error("[{}:{}] {}: " #expr " = {}. {}", where.file, where.line, where.function, \
+            logs::gSystem.error("[{}:{}] {}: " #expr " = {}. {}", where.file, where.line, where.function, \
                          result, sm::sys::get_last_error());                                       \
             return false;                                                                          \
         }                                                                                          \

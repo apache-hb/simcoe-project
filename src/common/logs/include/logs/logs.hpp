@@ -2,62 +2,34 @@
 
 #include <simcoe_config.h>
 
+#include "core/core.hpp"
+#include "core/string.hpp"
 #include "core/vector.hpp"
 
 #include "fmtlib/format.h"
 
 #include "logs.reflect.h"
 
+#define LOG_CATEGORY(id) \
+    extern sm::logs::LogCategory id;
+
+#define LOG_CATEGORY_IMPL(id, name) \
+    sm::logs::LogCategory id(name);
+
 namespace sm::logs {
-    class ILogChannel {
-    public:
-        virtual ~ILogChannel() = default;
+    class LogCategory {
+        sm::String mName;
 
-        virtual void accept(const Message &message) = 0;
-    };
-
-    class Logger {
-        Severity mSeverity;
-        sm::Vector<ILogChannel*> mChannels;
-
-        void log(const Message &message);
+        void vlog(Severity severity, fmt::string_view format, fmt::format_args args) const;
 
     public:
-        constexpr Logger(Severity severity) noexcept
-            : mSeverity(severity)
+        constexpr LogCategory(sm::StringView name)
+            : mName(name)
         { }
 
-        virtual ~Logger() = default;
-
-        void log(Category category, Severity severity, std::string_view msg);
-
-        void add_channel(ILogChannel *channel);
-        void remove_channel(ILogChannel *channel);
-
-        void set_severity(Severity severity);
-        Severity get_severity() const;
-
-        constexpr bool will_accept(Severity severity) const {
-            return severity >= mSeverity;
+        constexpr sm::StringView name() const {
+            return mName;
         }
-    };
-
-    class Sink final {
-        Logger& mLogger;
-        Category mCategory;
-
-        void vlog(Severity severity, fmt::string_view format, fmt::format_args args) const {
-            if (!mLogger.will_accept(severity)) return;
-
-            auto text = fmt::vformat(format, args);
-            mLogger.log(mCategory, severity, text);
-        }
-
-    public:
-        constexpr Sink(Logger& logger, Category category)
-            : mLogger(logger)
-            , mCategory(category)
-        { }
 
         template<typename... A>
         void log(Severity severity, fmt::format_string<A...> msg, A&&... args) const {
@@ -98,8 +70,64 @@ namespace sm::logs {
         void panic(fmt::format_string<A...> msg, A&&... args) const {
             vlog(Severity::ePanic, msg, fmt::make_format_args(args...));
         }
+
+        constexpr auto operator<=>(const LogCategory&) const = default;
     };
 
+    struct Message {
+        sm::StringView message;
+        const LogCategory& category;
+        Severity severity;
+        uint32 timestamp;
+        uint16 thread;
+    };
+
+    class ILogChannel {
+    public:
+        virtual ~ILogChannel() = default;
+
+        virtual void accept(const Message &message) = 0;
+    };
+
+    class Logger {
+        Severity mSeverity;
+        sm::Vector<ILogChannel*> mChannels;
+
+        void log(const Message &message);
+
+    public:
+        constexpr Logger(Severity severity)
+            : mSeverity(severity)
+        { }
+
+        virtual ~Logger() = default;
+
+        void log(Category category, Severity severity, sm::StringView msg);
+        void log(const LogCategory& category, Severity severity, sm::StringView msg);
+
+        void add_channel(ILogChannel *channel);
+        void remove_channel(ILogChannel *channel);
+
+        void set_severity(Severity severity);
+        Severity get_severity() const;
+
+        constexpr bool will_accept(Severity severity) const {
+            return severity >= mSeverity;
+        }
+    };
+
+    LOG_CATEGORY(gGlobal);
+    LOG_CATEGORY(gRender);
+    LOG_CATEGORY(gSystem);
+    LOG_CATEGORY(gInput);
+    LOG_CATEGORY(gAudio);
+    LOG_CATEGORY(gNetwork);
+    LOG_CATEGORY(gService);
+    LOG_CATEGORY(gPhysics);
+    LOG_CATEGORY(gUi);
+    LOG_CATEGORY(gDebug);
+    LOG_CATEGORY(gGpuApi);
+    LOG_CATEGORY(gAssets);
+
     Logger& get_logger() noexcept;
-    Sink get_sink(Category category) noexcept;
 } // namespace sm::logs

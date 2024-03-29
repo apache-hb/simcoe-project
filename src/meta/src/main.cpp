@@ -96,7 +96,7 @@ struct ReflectInfo {
         if (!ok) {
             if (isa<clang::CXXRecordDecl>(decl)) {
                 const auto& RD = cast<clang::CXXRecordDecl>(decl);
-                ok = RD.isClass() || RD.isInterface();
+                ok = RD.isClass();
             }
         }
 
@@ -168,17 +168,7 @@ struct ReflectInfo {
     }
 };
 
-struct RecordReflectInfo {
-    std::vector<ReflectInfo> fields;
-    std::vector<ReflectInfo> methods;
-};
-
-struct EnumReflectInfo {
-    std::vector<ReflectInfo> cases;
-};
-
-std::unordered_map<const clang::Decl*, RecordReflectInfo> gRecordReflectInfo;
-std::unordered_map<const clang::Decl*, EnumReflectInfo> gEnumReflectInfo;
+std::unordered_map<const clang::Decl*, ReflectInfo> gReflectInfo;
 
 std::string getBriefComment(const comments::FullComment *FC) {
     // TODO: implement
@@ -375,15 +365,17 @@ bool updateInfoFromTag(ReflectInfo& Info, Sema &S, const ConstantExpr &Expr, uns
     }
 }
 
-bool evalTagData(ReflectInfo& Info, Sema& S, const ParsedAttr& Attr) {
-    Expr *exprs[15];
+bool evalTagData(const Decl *D, Sema& S, const ParsedAttr& Attr) {
+    ReflectInfo info(*D);
+
+    SmallVector<Expr*, 15> exprs;
     unsigned count = Attr.getNumArgs();
     for (unsigned i = 0; i < count; i++) {
-        exprs[i] = Attr.getArgAsExpr(i);
+        exprs.push_back(Attr.getArgAsExpr(i));
     }
 
     const AttributeCommonInfo AttrInfo{Attr.getLoc(), Attr.getKind(), Attr.getForm()};
-    if (!S.ConstantFoldAttrArgs(AttrInfo, MutableArrayRef<Expr*>(exprs, exprs + count))) {
+    if (!S.ConstantFoldAttrArgs(AttrInfo, exprs)) {
         return false;
     }
 
@@ -394,7 +386,7 @@ bool evalTagData(ReflectInfo& Info, Sema& S, const ParsedAttr& Attr) {
             APValue value = CE->getAPValueResult();
             auto name = getStringFromValue(S, *CE, value);
             if (!name.empty()) {
-                Info.name = name;
+                info.name = name;
                 start = 1;
             }
         }
@@ -419,17 +411,17 @@ bool evalTagData(ReflectInfo& Info, Sema& S, const ParsedAttr& Attr) {
         if (tag == 0)
             continue;
 
-        if (updateInfoFromTag(Info, S, *expr, tag, value))
+        if (updateInfoFromTag(info, S, *expr, tag, value))
             continue;
     }
 
-    const Decl &D = Info.decl;
-
     ASTContext& Context = S.getASTContext();
-    if (const comments::FullComment* FC = Context.getCommentForDecl(&D, &S.getPreprocessor())) {
-        Info.brief = getBriefComment(FC);
-        Info.description = getDescriptionComment(FC);
+    if (const comments::FullComment* FC = Context.getCommentForDecl(D, &S.getPreprocessor())) {
+        info.brief = getBriefComment(FC);
+        info.description = getDescriptionComment(FC);
     }
+
+    gReflectInfo.emplace(D, info);
 
     return true;
 }
@@ -451,7 +443,7 @@ void errorNotInEnum(Sema &S, const ParsedAttr &Attr) {
 // verify the parent context is
 // 1. a class
 // 2. has the 'simcoe::meta' attribute
-bool verifyValidReflectContext(Sema &S, const Decl *D, const ParsedAttr &Attr) {
+bool verifyValidClassContext(Sema &S, const Decl *D, const ParsedAttr &Attr) {
     const DeclContext *DC = D->getDeclContext();
     if (!DC->isRecord()) {
         errorNotInClass(S, Attr);
@@ -474,8 +466,9 @@ bool verifyValidEnumContext(Sema &S, const Decl &D, const ParsedAttr &Attr) {
         return false;
     }
 
-    const EnumDecl *ED = cast<EnumDecl>(DC);
-    return meta::verifyEnumIsReflected(S, *ED, Attr);
+    const Decl* E = cast<Decl>(DC);
+
+    return meta::verifyEnumIsReflected(S, *E, Attr);
 }
 
 struct MetaCaseAttrInfo : public ParsedAttrInfo {
@@ -502,15 +495,9 @@ struct MetaCaseAttrInfo : public ParsedAttrInfo {
     }
 
     AttrHandling handleDeclAttribute(Sema &S, Decl *D, const ParsedAttr &Attr) const override {
-        if (!verifyValidEnumContext(S, *D, Attr))
-            return AttributeNotApplied;
-
-        ReflectInfo info{*D};
-        if (!evalTagData(info, S, Attr))
-            return AttributeNotApplied;
-
-        gEnumReflectInfo[D].cases.push_back(info);
-
+        verifyValidEnumContext(S, *D, Attr);
+        addAnnotation(*D, Attr, meta::kCaseTag);
+        evalTagData(D, S, Attr);
         return AttributeApplied;
     }
 };
@@ -538,15 +525,9 @@ struct MetaMethodAttrInfo : public ParsedAttrInfo {
     }
 
     AttrHandling handleDeclAttribute(Sema &S, Decl *D, const ParsedAttr &Attr) const override {
-        if (!verifyValidReflectContext(S, D, Attr))
-            return AttributeNotApplied;
-
-        ReflectInfo info{*D};
-        if (!evalTagData(info, S, Attr))
-            return AttributeNotApplied;
-
-        gRecordReflectInfo[D].methods.push_back(info);
-
+        verifyValidClassContext(S, D, Attr);
+        addAnnotation(*D, Attr, meta::kMethodTag);
+        evalTagData(D, S, Attr);
         return AttributeApplied;
     }
 };
@@ -574,15 +555,9 @@ struct MetaFieldAttrInfo : public ParsedAttrInfo {
     }
 
     AttrHandling handleDeclAttribute(Sema &S, Decl *D, const ParsedAttr &Attr) const override {
-        if (!verifyValidReflectContext(S, D, Attr))
-            return AttributeNotApplied;
-
-        ReflectInfo info{*D};
-        if (!evalTagData(info, S, Attr))
-            return AttributeNotApplied;
-
-        gRecordReflectInfo[D].fields.push_back(info);
-
+        verifyValidClassContext(S, D, Attr);
+        addAnnotation(*D, Attr, meta::kPropertyTag);
+        evalTagData(D, S, Attr);
         return AttributeApplied;
     }
 };
@@ -612,6 +587,7 @@ struct MetaInterfaceAttrInfo : public ParsedAttrInfo {
 
     AttrHandling handleDeclAttribute(Sema &S, Decl *D, const ParsedAttr &Attr) const override {
         addAnnotation(*D, Attr, meta::kInterfaceTag);
+        evalTagData(D, S, Attr);
         return AttributeApplied;
     }
 };
@@ -641,6 +617,7 @@ struct MetaClassAttrInfo : public ParsedAttrInfo {
 
     AttrHandling handleDeclAttribute(Sema &S, Decl *D, const ParsedAttr &Attr) const override {
         addAnnotation(*D, Attr, meta::kClassTag);
+        evalTagData(D, S, Attr);
         return AttributeApplied;
     }
 };
@@ -670,12 +647,168 @@ struct MetaEnumAttrInfo : public ParsedAttrInfo {
 
     AttrHandling handleDeclAttribute(Sema &S, Decl *D, const ParsedAttr &Attr) const override {
         addAnnotation(*D, Attr, meta::kEnumTag);
+        evalTagData(D, S, Attr);
         return AttributeApplied;
     }
 };
 
+std::string gHeaderInputPath;
+std::string gHeaderOutPath;
+std::string gSourceOutPath;
+
 class CmdAfterConsumer : public ASTConsumer {
     clang::DiagnosticsEngine &mDiag;
+
+    std::ofstream mHeaderOut;
+    std::ofstream mSourceOut;
+
+    void handleClass(const Decl &D, const AnnotateAttr &Attr) {
+        if (!meta::verifyValidReflectClass(mDiag, D, Attr.getLocation()))
+            return;
+
+        // was this declared in the header?
+        if (!D.getLocation().isFileID())
+            return;
+
+        const SourceManager &SM = D.getASTContext().getSourceManager();
+        const FileEntry *FE = SM.getFileEntryForID(SM.getFileID(D.getLocation()));
+        if (!FE->tryGetRealPathName().contains(gHeaderInputPath))
+            return;
+
+        const ReflectInfo& Info = gReflectInfo.at(&D);
+        const CXXRecordDecl &RD = cast<CXXRecordDecl>(D);
+
+        mHeaderOut << "#define " << RD.getNameAsString() << "_REFLECT \\\n"
+            << "public: \\\n"
+            << "\tstatic const sm::meta::Class& static_class();\\\n"
+            << "private: \n";
+
+        mSourceOut << "template<>\n"
+            << "struct sm::meta::detail::GlobalClass<" << RD.getQualifiedNameAsString() << "> {\n"
+            << "\tstatic constexpr std::string_view kName = \"" << RD.getNameAsString() << "\";\n"
+            << "\tstatic constexpr std::string_view kQualifiedName = \"" << RD.getQualifiedNameAsString() << "\";\n"
+            << "\tstatic constexpr std::string_view kCategory = \"" << Info.category << "\";\n"
+            << "\tstatic constexpr std::array<const sm::meta::Class*, 0> kBaseClasses{};\n"
+            << "\tstatic constexpr std::array<sm::meta::Method, 0> kMethods{};\n"
+            << "\tstatic constexpr std::array<sm::meta::Property, 0> kProperties{};\n"
+            << "\tstatic constexpr const sm::meta::Class kClass = sm::meta::Class(kName, kQualifiedName, kCategory, kBaseClasses, kMethods, kProperties);\n"
+            << "};\n";
+
+        mSourceOut << "const sm::meta::Class& " << RD.getQualifiedNameAsString() << "::static_class() { \n"
+            << "\treturn sm::meta::detail::GlobalClass<" << RD.getQualifiedNameAsString() << ">::kClass;\n"
+            << "}\n";
+
+        for (const CXXBaseSpecifier &Base : RD.bases()) {
+            auto type = Base.getType();
+            const Decl *BaseRD = type->getAsCXXRecordDecl();
+            const ReflectInfo& BaseInfo = gReflectInfo.at(BaseRD);
+            llvm::outs() << " - base: " << BaseInfo.qualified << "\n";
+        }
+
+        for (const CXXMethodDecl *MD : RD.methods()) {
+            if (!meta::isReflectedMethod(*MD))
+                continue;
+
+            const ReflectInfo& MethodInfo = gReflectInfo.at(MD);
+            llvm::outs() << " - method: " << MethodInfo.qualified << "\n";
+        }
+
+        for (const FieldDecl *FD : RD.fields()) {
+            if (!meta::isReflectedProperty(*FD))
+                continue;
+
+            const ReflectInfo& PropertyInfo = gReflectInfo.at(FD);
+            llvm::outs() << " - property: " << PropertyInfo.qualified << "\n";
+        }
+    }
+
+    void handleInterface(const Decl &D, const AnnotateAttr &Attr) {
+        if (!meta::verifyValidReflectInterface(mDiag, D, Attr.getLocation()))
+            return;
+
+        // was this declared in the header?
+        if (!D.getLocation().isFileID())
+            return;
+
+        const SourceManager &SM = D.getASTContext().getSourceManager();
+        const FileEntry *FE = SM.getFileEntryForID(SM.getFileID(D.getLocation()));
+        if (!FE->tryGetRealPathName().contains(gHeaderInputPath))
+            return;
+
+        const ReflectInfo& Info = gReflectInfo.at(&D);
+        const CXXRecordDecl &RD = cast<CXXRecordDecl>(D);
+
+        mHeaderOut << "#define " << RD.getNameAsString() << "_REFLECT \\\n"
+            << "public: \\\n"
+            << "\tstatic const sm::meta::Class& static_class();\\\n"
+            << "private: \n";
+
+        mSourceOut << "template<>\n"
+            << "struct sm::meta::detail::GlobalClass<" << RD.getQualifiedNameAsString() << "> {\n"
+            << "\tstatic constexpr std::string_view kName = \"" << RD.getNameAsString() << "\";\n"
+            << "\tstatic constexpr std::string_view kQualifiedName = \"" << RD.getQualifiedNameAsString() << "\";\n"
+            << "\tstatic constexpr std::string_view kCategory = \"" << Info.category << "\";\n"
+            << "\tstatic constexpr std::array<const sm::meta::Class*, 0> kBaseClasses{};\n"
+            << "\tstatic constexpr std::array<sm::meta::Method, 0> kMethods{};\n"
+            << "\tstatic constexpr std::array<sm::meta::Property, 0> kProperties{};\n"
+            << "\tstatic constexpr const sm::meta::Class kClass = sm::meta::Class(kName, kQualifiedName, kCategory, kBaseClasses, kMethods, kProperties);\n"
+            << "};\n";
+
+        mSourceOut << "const sm::meta::Class& " << RD.getQualifiedNameAsString() << "::static_class() { \n"
+            << "\treturn sm::meta::detail::GlobalClass<" << RD.getQualifiedNameAsString() << ">::kClass;\n"
+            << "}\n";
+
+        for (const CXXBaseSpecifier &Base : RD.bases()) {
+            auto type = Base.getType();
+            const Decl *BaseRD = type->getAsCXXRecordDecl();
+            const ReflectInfo& BaseInfo = gReflectInfo.at(BaseRD);
+            llvm::outs() << " - base: " << BaseInfo.qualified << "\n";
+        }
+
+        for (const CXXMethodDecl *MD : RD.methods()) {
+            if (!meta::isReflectedMethod(*MD))
+                continue;
+
+            const ReflectInfo& MethodInfo = gReflectInfo.at(MD);
+            llvm::outs() << " - method: " << MethodInfo.qualified << "\n";
+        }
+
+        for (const FieldDecl *FD : RD.fields()) {
+            if (!meta::isReflectedProperty(*FD))
+                continue;
+
+            const ReflectInfo& PropertyInfo = gReflectInfo.at(FD);
+            llvm::outs() << " - property: " << PropertyInfo.qualified << "\n";
+        }
+    }
+
+    void handleEnum(const Decl &D, const AnnotateAttr &Attr) {
+        if (!meta::verifyValidReflectEnum(mDiag, D, Attr.getLocation()))
+            return;
+    }
+
+    void Initialize(ASTContext&) override {
+        mHeaderOut.open(gHeaderOutPath);
+        mSourceOut.open(gSourceOutPath);
+
+        if (!mHeaderOut.is_open()) {
+            mDiag.Report(clang::diag::err_cannot_open_file) << gHeaderOutPath;
+            return;
+        }
+
+        if (!mSourceOut.is_open()) {
+            mDiag.Report(clang::diag::err_cannot_open_file) << gSourceOutPath;
+            return;
+        }
+
+        mHeaderOut << "/* This file is generated by the meta reflection tool. */\n";
+        mHeaderOut << "#pragma once\n";
+        mHeaderOut << "#include \"meta/class.hpp\"\n";
+
+        mSourceOut << "/* This file is generated by the meta reflection tool. */\n";
+        mSourceOut << "#include \"" << fs::path{gHeaderOutPath}.filename().string() << "\"\n";
+        mSourceOut << "#include \"" << fs::path{gHeaderInputPath}.filename().string() << "\"\n";
+    }
 public:
     CmdAfterConsumer(clang::DiagnosticsEngine &Diag)
         : mDiag(Diag)
@@ -693,11 +826,11 @@ public:
             AnnotateAttr *attr = decl->getAttr<AnnotateAttr>();
             auto id = attr->getAnnotation();
             if (id.contains(meta::kClassTag)) {
-                meta::verifyValidReflectClass(mDiag, *decl, attr->getLocation());
+                handleClass(*decl, *attr);
             } else if (id.contains(meta::kInterfaceTag)) {
-                meta::verifyValidReflectInterface(mDiag, *decl, attr->getLocation());
+                handleInterface(*decl, *attr);
             } else if (id.contains(meta::kEnumTag)) {
-                meta::verifyValidReflectEnum(mDiag, *decl, attr->getLocation());
+                handleEnum(*decl, *attr);
             }
         }
         return true;
@@ -834,32 +967,11 @@ int main(int argc, const char **argv) {
     const char *headerOutput = argv[2];
     const char *sourceOutput = argv[3];
 
+    gHeaderInputPath = fs::path{input}.filename().string();
+    gHeaderOutPath = headerOutput;
+    gSourceOutPath = sourceOutput;
+
     ClangTool tool(*options, {input}, std::make_shared<PCHContainerOperations>(), std::move(fs));
 
-    int result = tool.run(newFrontendActionFactory<clang::SyntaxOnlyAction>().get());
-    if (result != 0)
-        return result;
-
-    // write the reflection header
-    std::ofstream header{headerOutput};
-    if (!header.is_open()) {
-        llvm::errs() << "Failed to open header output file: " << headerOutput << "\n";
-        return 1;
-    }
-
-    std::ofstream source{sourceOutput};
-    if (!source.is_open()) {
-        llvm::errs() << "Failed to open source output file: " << sourceOutput << "\n";
-        return 1;
-    }
-
-    auto path = fs::path(input).filename();
-
-    const char *note = "// This file is auto generated, do not modify directly\n";
-
-    header << note;
-    source << note;
-
-    header << "#pragma once\n\n";
-    source << "#include \"" << path.string() << "\"\n";
+    return tool.run(newFrontendActionFactory<clang::SyntaxOnlyAction>().get());
 }

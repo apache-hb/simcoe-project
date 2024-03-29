@@ -6,7 +6,6 @@ namespace clang {
     class Sema;
     class Decl;
     class ParsedAttr;
-    class DiagnosticsEngine;
 }
 
 namespace sm::meta {
@@ -25,15 +24,9 @@ namespace sm::meta {
     bool isReflectedEnum(const clang::Decl &D);
     bool isReflectedInterface(const clang::Decl &D);
 
-    // decl is a class
-    // and has a virtual destructor
-    // used to check that a class can be reflected
-    bool isInterface(const clang::Decl &D);
-
-    // decl is a class
-    // if it inherits from a class, make sure that class is reflected
-    // same for interfaces
-    bool canBeReflected(const clang::Decl &D);
+    bool isReflectedProperty(const clang::Decl &D);
+    bool isReflectedMethod(const clang::Decl &D);
+    bool isReflectedCase(const clang::Decl &D);
 
     // these `verify` prefixed functions report errors when they return false
 

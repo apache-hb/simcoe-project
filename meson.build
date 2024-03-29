@@ -246,6 +246,8 @@ subdir('src/vendor/imnodes')
 
 subdir('src/common/render')
 
+subdir('src/common/game')
+
 # windows specific dependencies
 agility = subproject('d3d12')
 warp = subproject('d3d-warp')

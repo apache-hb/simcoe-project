@@ -22,8 +22,6 @@ using namespace math;
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
                                                              LPARAM lParam);
 
-static auto gSink = logs::get_sink(logs::Category::eGlobal);
-
 // TODO: clean up loggers
 
 static std::string format_log(const logs::Message &message, const char *colour, const char *reset) {
@@ -37,7 +35,7 @@ static std::string format_log(const logs::Message &message, const char *colour, 
 
     auto header = fmt::format("{}[{}]{}[{:02}:{:02}:{:02}.{:03}] {}:", colour,
                    message.severity, reset, hours, minutes, seconds, milliseconds,
-                   message.category);
+                   message.category.name());
 
     return header;
 }
@@ -174,7 +172,7 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     }
 
     void create(sys::Window &window) override {
-        gSink.info("create window");
+        logs::gGlobal.info("create window");
         if (mPlacementLookup = mStore.get_record(&mWindowPlacement); mPlacementLookup == archive::RecordLookup::eOpened) {
             window.set_placement(*mWindowPlacement);
         } else {
@@ -218,7 +216,7 @@ static void common_init(void) {
 
         auto message = sm::vformat(msg, args);
 
-        gSink.log(logs::Severity::ePanic, "{}", message);
+        logs::gGlobal.log(logs::Severity::ePanic, "{}", message);
 
         bt_report_t *report = bt_report_collect(arena);
         print_backtrace(kPrintOptions, report);
@@ -450,12 +448,12 @@ static int editor_main(sys::ShowWindow show) {
 }
 
 static int common_main(sys::ShowWindow show) {
-    gSink.info("SMC_DEBUG = {}", SMC_DEBUG);
-    gSink.info("CTU_DEBUG = {}", CTU_DEBUG);
+    logs::gGlobal.info("SMC_DEBUG = {}", SMC_DEBUG);
+    logs::gGlobal.info("CTU_DEBUG = {}", CTU_DEBUG);
 
     int result = editor_main(show);
 
-    gSink.info("editor exiting with {}", result);
+    logs::gGlobal.info("editor exiting with {}", result);
 
     return result;
 }
@@ -473,7 +471,7 @@ int main(int argc, const char **argv) {
     common_init();
 
     sm::Span<const char*> args{argv, size_t(argc)};
-    gSink.info("args = [{}]", fmt::join(args, ", "));
+    logs::gGlobal.info("args = [{}]", fmt::join(args, ", "));
 
     System sys{GetModuleHandleA(nullptr)};
 
@@ -487,8 +485,8 @@ int main(int argc, const char **argv) {
 int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
     common_init();
 
-    gSink.info("lpCmdLine = {}", lpCmdLine);
-    gSink.info("nShowCmd = {}", nShowCmd);
+    logs::gGlobal.info("lpCmdLine = {}", lpCmdLine);
+    logs::gGlobal.info("nShowCmd = {}", nShowCmd);
 
     // TODO: parse lpCmdLine
 
