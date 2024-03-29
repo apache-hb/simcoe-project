@@ -372,8 +372,6 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .dsv_heap_size = 64,
         .srv_heap_size = 1024,
 
-        .imgui = true,
-
         .bundle = bundle,
         .window = window,
     };

@@ -6,7 +6,7 @@
 #include "core/string.hpp"
 #include "core/vector.hpp"
 
-#include "fmtlib/format.h"
+#include "fmtlib/format.h" // IWYU pragma: export
 
 #include "logs.reflect.h"
 
@@ -118,13 +118,6 @@ namespace sm::logs {
 
     LOG_CATEGORY(gGlobal);
     LOG_CATEGORY(gRender);
-    LOG_CATEGORY(gSystem);
-    LOG_CATEGORY(gInput);
-    LOG_CATEGORY(gAudio);
-    LOG_CATEGORY(gNetwork);
-    LOG_CATEGORY(gService);
-    LOG_CATEGORY(gPhysics);
-    LOG_CATEGORY(gUi);
     LOG_CATEGORY(gDebug);
     LOG_CATEGORY(gGpuApi);
     LOG_CATEGORY(gAssets);

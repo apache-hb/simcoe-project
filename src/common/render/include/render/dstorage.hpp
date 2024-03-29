@@ -2,18 +2,10 @@
 
 #include "render/object.hpp"
 
-#include "core/library.hpp"
-
 #include "render.reflect.h"
 
 namespace sm::render {
     class CopyStorage {
-        using GetFactoryFn = decltype(&DStorageGetFactory);
-
-        Library mCoreLibrary;
-        Library mLibrary;
-        GetFactoryFn mGetFactory;
-
         Object<IDStorageFactory> mFactory;
         Object<IDStorageQueue2> mQueue;
 

@@ -7,13 +7,6 @@ using namespace sm::logs;
 
 LOG_CATEGORY_IMPL(logs::gGlobal, "global");
 LOG_CATEGORY_IMPL(logs::gRender, "render");
-LOG_CATEGORY_IMPL(logs::gSystem, "system");
-LOG_CATEGORY_IMPL(logs::gInput, "input");
-LOG_CATEGORY_IMPL(logs::gAudio, "audio");
-LOG_CATEGORY_IMPL(logs::gNetwork, "network");
-LOG_CATEGORY_IMPL(logs::gService, "service");
-LOG_CATEGORY_IMPL(logs::gPhysics, "physics");
-LOG_CATEGORY_IMPL(logs::gUi, "ui");
 LOG_CATEGORY_IMPL(logs::gDebug, "debug");
 LOG_CATEGORY_IMPL(logs::gGpuApi, "rhi");
 LOG_CATEGORY_IMPL(logs::gAssets, "assets");

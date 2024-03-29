@@ -49,8 +49,6 @@ namespace sm::render {
         uint dsv_heap_size;
         uint srv_heap_size;
 
-        bool imgui = false;
-
         Bundle& bundle;
         sys::Window &window;
     };

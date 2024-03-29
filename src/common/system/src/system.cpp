@@ -32,7 +32,7 @@ void sys::create(HINSTANCE hInstance) {
         /* name = */ MAKEINTRESOURCEA(IDI_DEFAULT_ICON));
 
     if (hIcon == nullptr) {
-        logs::gSystem.warn("failed to load icon {}", get_last_error());
+        gSystemLog.warn("failed to load icon {}", get_last_error());
     }
 
     HCURSOR hCursor = LoadCursorA(
@@ -40,7 +40,7 @@ void sys::create(HINSTANCE hInstance) {
         /* name = */ IDC_ARROW);
 
     if (hCursor == nullptr) {
-        logs::gSystem.warn("failed to load cursor {}", get_last_error());
+        gSystemLog.warn("failed to load cursor {}", get_last_error());
     }
 
     const WNDCLASSEXA kClass = {
@@ -79,7 +79,7 @@ void sys::create(HINSTANCE hInstance) {
     }
 
     if (gExecutablePathLength == kPathMax) {
-        logs::gSystem.warn("executable path longer than {}, may be truncated", kPathMax);
+        gSystemLog.warn("executable path longer than {}, may be truncated", kPathMax);
     }
 
     gProgramPath = fs::path{gExecutablePath, gExecutablePath + gExecutablePathLength};

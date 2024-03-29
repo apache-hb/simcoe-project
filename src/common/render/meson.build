@@ -33,8 +33,7 @@ deps = [
     stb, fastgltf, tracy,
 
     # microsoft
-    d3d12, d3dx12, d3d12ma, pix,
-    dstorage.partial_dependency(includes : true),
+    d3d12, d3dx12, d3d12ma, pix, dstorage,
 
     dds_texture_loader,
 

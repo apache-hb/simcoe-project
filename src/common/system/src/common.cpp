@@ -6,6 +6,8 @@
 
 using namespace sm;
 
+LOG_CATEGORY_IMPL(gSystemLog, "system");
+
 HINSTANCE gInstance = nullptr;
 LPTSTR gWindowClass = nullptr;
 size_t gTimerFrequency = 0;

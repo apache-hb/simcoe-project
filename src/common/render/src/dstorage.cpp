@@ -21,19 +21,10 @@ static constexpr UINT32 get_dstorage_flags(DebugFlags flags) {
     return result;
 }
 
-CopyStorage::CopyStorage()
-    : mCoreLibrary(sm::get_redist("dstorage/dstoragecore.dll"))
-    , mLibrary(sm::get_redist("dstorage/dstorage.dll"))
-{
-    auto err = mLibrary.get_error();
-    SM_ASSERTF(err.success(), "Failed to load DirectStorage redist: {}", err);
-
-    mGetFactory = mLibrary.fn<GetFactoryFn>("DStorageGetFactory");
-    SM_ASSERTF(mGetFactory, "Failed to find DStorageGetFactory in DirectStorage redist");
-}
+CopyStorage::CopyStorage() { }
 
 void CopyStorage::create(DebugFlags flags) {
-    SM_ASSERT_HR(mGetFactory(IID_PPV_ARGS(&mFactory)));
+    SM_ASSERT_HR(DStorageGetFactory(IID_PPV_ARGS(&mFactory)));
 
     mFactory->SetDebugFlags(get_dstorage_flags(flags));
 }
