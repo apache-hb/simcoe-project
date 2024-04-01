@@ -48,7 +48,8 @@ void draw::opaque(graph::FrameGraph& graph, graph::Handle& target) {
     target = pass.create(target_info, "Target", graph::Access::eRenderTarget);
     auto depth = pass.create(depth_info, "Depth", graph::Access::eDepthTarget);
 
-    pass.bind([target, depth](graph::FrameGraph& graph, render::Context& context) {
+    pass.bind([target, depth](graph::FrameGraph& graph) {
+        auto& context = graph.get_context();
         auto& cmd = context.mCommandList;
         auto rtv = graph.rtv(target);
         auto dsv = graph.dsv(depth);

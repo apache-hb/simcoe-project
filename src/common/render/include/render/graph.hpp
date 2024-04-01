@@ -70,7 +70,7 @@ namespace sm::graph {
             sm::SmallVector<ResourceAccess, 4> reads;
             sm::SmallVector<ResourceAccess, 4> writes;
 
-            std::function<void(FrameGraph&, render::Context&)> execute;
+            std::function<void(FrameGraph&)> execute;
 
             bool is_used() const { return has_side_effects || refcount > 0; }
         };
@@ -146,8 +146,9 @@ namespace sm::graph {
             void side_effects(bool effects);
 
             template<typename F>
+                requires std::invocable<F, FrameGraph&>
             void bind(F&& execute) {
-                mRenderPass.execute = std::forward<F>(execute);
+                mRenderPass.execute = execute;
             }
         };
 

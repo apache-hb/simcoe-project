@@ -138,7 +138,7 @@ void Context::create_device(size_t index) {
     logs::gRender.info("| feature level: {}", fl);
     logs::gRender.info("| flags: {}", mDebugFlags);
 
-    mStorage.create_queue(mDevice.get());
+    mStorage.create_queues(mDevice.get());
 }
 
 static constexpr D3D12MA::ALLOCATOR_FLAGS kAllocatorFlags = D3D12MA::ALLOCATOR_FLAG_DEFAULT_POOLS_NOT_ZEROED | D3D12MA::ALLOCATOR_FLAG_SINGLETHREADED;
@@ -903,7 +903,7 @@ void Context::destroy_device() {
 
     // allocator
     mAllocator.reset();
-    mStorage.destroy_queue();
+    mStorage.destroy_queues();
 
     // descriptor heaps
     mRtvPool.reset();
@@ -965,8 +965,7 @@ void Context::destroy() {
     destroy_frame_graph();
     on_destroy();
 
-    mStorage.destroy_queue();
-    mStorage.destroy();
+    destroy_dstorage();
 
     SM_ASSERT_WIN32(CloseHandle(mCopyFenceEvent));
     SM_ASSERT_WIN32(CloseHandle(mFenceEvent));

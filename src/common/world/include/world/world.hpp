@@ -91,12 +91,33 @@ namespace sm::world {
     struct Model {
         sm::String name;
         MeshData mesh;
-
-        // TODO: materials
     };
 
     struct Node {
         sm::String name;
+
+        Transform transform;
+
+        sm::Vector<IndexOf<Node>> children;
+        sm::Vector<IndexOf<Model>> models;
+    };
+
+    struct Camera {
+        sm::String name;
+
+        float3 position;
+        float3 direction;
+
+        float fov;
+    };
+
+    struct Scene {
+        sm::String name;
+
+        IndexOf<Node> root;
+        IndexOf<Camera> camera;
+
+        sm::Vector<IndexOf<Camera>> cameras;
     };
 
     struct WorldInfo {

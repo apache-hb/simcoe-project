@@ -12,5 +12,5 @@ extern "C" {
 	__declspec(dllexport) extern const char* D3D12SDKPath = ".\\redist\\d3d12\\"; // NOLINT
 
 	// dstorage, TODO: doesnt work. possible bug in dstorage
-	__declspec(dllexport) extern const char *DStorageSDKPath = ".\\redist\\dstorage\\"; // NOLINT
+	__declspec(dllexport) extern const char *DStorageSDKPath = ".\\redist\\"; // NOLINT
 }

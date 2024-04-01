@@ -7,7 +7,7 @@ src = [
 
 inc = include_directories('include')
 
-deps = [ input, render, logs, world, meta ]
+deps = [ input, render, logs, world, meta, flecs ]
 
 libgame = library('game', src,
     include_directories : [ inc, 'include/game' ],

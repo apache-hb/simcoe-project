@@ -33,28 +33,43 @@ void CopyStorage::destroy() {
     mFactory.reset();
 }
 
-void CopyStorage::create_queue(ID3D12Device1 *device) {
-    const DSTORAGE_QUEUE_DESC desc = {
-        .SourceType = DSTORAGE_REQUEST_SOURCE_MEMORY,
-        .Capacity = DSTORAGE_MAX_QUEUE_CAPACITY,
-        .Priority = DSTORAGE_PRIORITY_NORMAL,
-        .Name = "Memory -> Video Queue",
-        .Device = device,
-    };
+void CopyStorage::create_queues(ID3D12Device1 *device) {
+    {
+        const DSTORAGE_QUEUE_DESC desc = {
+            .SourceType = DSTORAGE_REQUEST_SOURCE_MEMORY,
+            .Capacity = DSTORAGE_MAX_QUEUE_CAPACITY,
+            .Priority = DSTORAGE_PRIORITY_NORMAL,
+            .Name = "Memory -> Video",
+            .Device = device,
+        };
 
-    SM_ASSERT_HR(mFactory->CreateQueue(&desc, IID_PPV_ARGS(&mQueue)));
+        SM_ASSERT_HR(mFactory->CreateQueue(&desc, IID_PPV_ARGS(&mMemoryQueue)));
+    }
+
+    {
+        const DSTORAGE_QUEUE_DESC desc = {
+            .SourceType = DSTORAGE_REQUEST_SOURCE_FILE,
+            .Capacity = DSTORAGE_MAX_QUEUE_CAPACITY,
+            .Priority = DSTORAGE_PRIORITY_NORMAL,
+            .Name = "File -> Video",
+            .Device = device,
+        };
+
+        SM_ASSERT_HR(mFactory->CreateQueue(&desc, IID_PPV_ARGS(&mFileQueue)));
+    }
 }
 
-void CopyStorage::destroy_queue() {
-    mQueue.reset();
+void CopyStorage::destroy_queues() {
+    mMemoryQueue.reset();
+    mFileQueue.reset();
 }
 
 void Context::create_dstorage() {
     mStorage.create(mDebugFlags);
-    mStorage.create_queue(mDevice.get());
+    mStorage.create_queues(mDevice.get());
 }
 
 void Context::destroy_dstorage() {
-    mStorage.destroy_queue();
+    mStorage.destroy_queues();
     mStorage.destroy();
 }

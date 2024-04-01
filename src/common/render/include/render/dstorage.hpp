@@ -7,7 +7,8 @@
 namespace sm::render {
     class CopyStorage {
         Object<IDStorageFactory> mFactory;
-        Object<IDStorageQueue2> mQueue;
+        Object<IDStorageQueue2> mFileQueue;
+        Object<IDStorageQueue2> mMemoryQueue;
 
     public:
         CopyStorage();
@@ -15,7 +16,7 @@ namespace sm::render {
         void create(DebugFlags flags);
         void destroy();
 
-        void create_queue(ID3D12Device1 *device);
-        void destroy_queue();
+        void create_queues(ID3D12Device1 *device);
+        void destroy_queues();
     };
 }

@@ -151,7 +151,7 @@ PassBuilder FrameGraph::pass(sm::StringView name) {
     RenderPass pass;
     pass.name = name;
 
-    auto& ref = mRenderPasses.emplace_back(pass);
+    auto& ref = mRenderPasses.emplace_back(std::move(pass));
     return { *this, ref };
 }
 
@@ -397,7 +397,7 @@ void FrameGraph::execute() {
 
         barriers.submit(cmd);
 
-        pass.execute(*this, mContext);
+        pass.execute(*this);
 
         PIXEndEvent(cmd);
     }

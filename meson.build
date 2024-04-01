@@ -76,6 +76,7 @@ enable_pix = get_option('enable_pix').disable_auto_if(not is_devel)
 warp_redist = get_option('warp_redist').disable_auto_if(is_release)
 
 stb = subproject('stb').get_variable('stb')
+flecs = subproject('flecs').get_variable('flecs_dep')
 
 # the perfect library
 cthulhu = subproject('cthulhu')
@@ -222,6 +223,7 @@ subdir('src/meta')
 # extra_args must contain the name of the target, idk how to get it otherwise
 meta_tool = generator(find_program('scripts/meta_tool.py'),
     output : [ '@BASENAME@.reflect.h', '@BASENAME@.reflect.cpp' ],
+    depends : meta_tooling,
     arguments : [
         '--builddir', meson.global_build_root(),
         '--metatool', meta_tooling.full_path(),

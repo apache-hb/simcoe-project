@@ -22,6 +22,8 @@
 
 #include "directx/d3dx12.h"
 
+#include <dstorage.h>
+
 #include "math/math.hpp"
 #include "math/format.hpp"
 #include "math/hash.hpp"

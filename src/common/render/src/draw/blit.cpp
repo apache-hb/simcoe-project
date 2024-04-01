@@ -11,7 +11,8 @@ void draw::blit(graph::FrameGraph& graph, graph::Handle target, graph::Handle so
     pass.write(target, "Target", graph::Access::eRenderTarget);
     pass.read(source, "Image", graph::Access::ePixelShaderResource);
 
-    pass.bind([target, source](graph::FrameGraph& graph, render::Context& context) {
+    pass.bind([target, source](graph::FrameGraph& graph) {
+        auto& context = graph.get_context();
         auto& cmd = context.mCommandList;
         auto rtv = graph.rtv(target);
         auto srv = graph.srv(source);
