@@ -81,7 +81,9 @@ void ViewportPanel::draw_content() {
         mContext.update_scene_size(sz.as<uint>());
     }
 
-    const auto& handle = mContext.mSceneTargetHandle;
+    const auto& camera = mContext.cameras[0];
+
+    const auto& handle = camera.target;
     auto srv = mContext.mFrameGraph.srv(handle);
     auto idx = mContext.mSrvPool.gpu_handle(srv);
     ImGui::Image((ImTextureID)idx.ptr, avail);
@@ -115,8 +117,8 @@ void ViewportPanel::draw_content() {
     float matrix[16];
     ImGuizmo::RecomposeMatrixFromComponents(t.data(), euler.data(), s.data(), matrix);
 
-    float4x4 view = mCamera.view();
-    float4x4 proj = mCamera.projection(size.width / size.height);
+    float4x4 view = camera.camera.view();
+    float4x4 proj = camera.camera.projection(size.width / size.height);
 
     if (ImGuizmo::Manipulate(view.data(), proj.data(), mOperation, mMode, matrix)) {
         float3 t, r, s;
@@ -152,7 +154,9 @@ void ViewportPanel::gizmo_settings_panel() {
     ImGui::SameLine();
     draw_gizmo_mode(mScaleOperation, ImGuizmo::SCALE_X, ImGuizmo::SCALE_Y, ImGuizmo::SCALE_Z);
 
-    if (!mCamera.is_active()) {
+    const auto& camera = mContext.cameras[0];
+
+    if (!camera.camera.is_active()) {
         // blender keybinds
         if (ImGui::IsKeyPressed(ImGuiKey_G))
             mOperation = mTranslateOperation;
@@ -184,8 +188,7 @@ void ViewportPanel::gizmo_settings_panel() {
     }
 }
 
-ViewportPanel::ViewportPanel(render::Context &context, draw::Camera& camera)
+ViewportPanel::ViewportPanel(ed::EditorContext &context)
     : IEditorPanel("Viewport")
     , mContext(context)
-    , mCamera(camera)
 { }

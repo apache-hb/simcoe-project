@@ -1,5 +1,6 @@
 #pragma once
 
+#include "editor/draw.hpp"
 #include "editor/panel.hpp"
 #include "editor/scene.hpp"
 
@@ -21,8 +22,7 @@ namespace sm::ed {
         void draw_gizmo_mode(ImGuizmo::OPERATION op, ImGuizmo::OPERATION x, ImGuizmo::OPERATION y, ImGuizmo::OPERATION z) const;
         void draw_rotate_mode() const;
 
-        render::Context &mContext;
-        draw::Camera& mCamera;
+        ed::EditorContext &mContext;
 
         ItemIndex mSelected = ItemIndex::none();
         ImGuizmo::OPERATION mOperation = ImGuizmo::TRANSLATE;
@@ -39,7 +39,7 @@ namespace sm::ed {
         void draw_content() override;
 
     public:
-        ViewportPanel(render::Context &context, draw::Camera& camera);
+        ViewportPanel(ed::EditorContext &context);
 
         void select(ItemIndex index) { mSelected = index; }
         ItemIndex get_selected() const { return mSelected; }

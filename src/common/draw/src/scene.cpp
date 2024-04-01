@@ -98,7 +98,7 @@ void draw::opaque(graph::FrameGraph& graph, graph::Handle& target, const Camera&
         .clear = graph::clear_colour(render::kClearColour)
     };
 
-    graph::PassBuilder pass = graph.pass("Scene");
+    graph::PassBuilder pass = graph.pass(fmt::format("Scene ({})", camera.name()));
     target = pass.create(target_info, "Target", graph::Access::eRenderTarget);
     auto depth = pass.create(depth_info, "Depth", graph::Access::eDepthTarget);
 

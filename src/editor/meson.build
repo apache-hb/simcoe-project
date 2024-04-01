@@ -1,6 +1,7 @@
 
 src = files([
     'src/main.cpp',
+    'src/context.cpp',
 
     'src/panels/mygui.cpp',
 

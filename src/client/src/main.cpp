@@ -231,12 +231,13 @@ struct ClientContext final : public render::Context {
     using Super = render::Context;
     using Super::Super;
 
+    graph::Handle mSceneTargetHandle;
+    draw::Camera camera{"client"};
+
     void setup_framegraph(graph::FrameGraph& graph) override {
         draw::opaque(graph, mSceneTargetHandle, camera);
         draw::blit(graph, mSwapChainHandle, mSceneTargetHandle);
     }
-
-    draw::Camera camera;
 };
 
 static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {

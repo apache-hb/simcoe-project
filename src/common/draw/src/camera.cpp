@@ -13,6 +13,10 @@ static constexpr ButtonAxis kMoveForward = {Button::eW, Button::eS};
 static constexpr ButtonAxis kMoveStrafe = {Button::eD, Button::eA};
 static constexpr ButtonAxis kMoveUp = {Button::eE, Button::eQ};
 
+Camera::Camera(sm::StringView name)
+    : mName(name)
+{ }
+
 void Camera::accept(const input::InputState& state, InputService& service) {
     constexpr auto key = input::Button::eTilde;
     if (mCameraActive.update(state.buttons[(size_t)key])) {
@@ -65,6 +69,10 @@ void Camera::tick(float dt) {
     mPosition += float3::cross(forward, world::kVectorUp).normalized() * -x * scaled;
 
     mPosition.z += -z * scaled;
+}
+
+sm::StringView Camera::name() const {
+    return mName;
 }
 
 bool Camera::is_active() const {

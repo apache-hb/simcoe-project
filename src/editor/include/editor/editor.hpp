@@ -10,6 +10,7 @@
 #include "editor/assets.hpp"
 #include "editor/viewport.hpp"
 #include "editor/pix.hpp"
+#include "editor/draw.hpp"
 
 #include "imfilebrowser.h"
 
@@ -19,8 +20,7 @@ namespace sm::render {
 
 namespace sm::ed {
     class Editor {
-        render::Context &mContext;
-        draw::Camera& mCamera;
+        EditorContext &mContext;
 
         LoggerPanel& mLogger;
         RenderConfig mConfig;
@@ -53,7 +53,7 @@ namespace sm::ed {
         void draw_dockspace();
 
     public:
-        Editor(render::Context &context, draw::Camera& camera);
+        Editor(ed::EditorContext &context);
 
         void begin_frame();
         void end_frame();
@@ -61,6 +61,6 @@ namespace sm::ed {
         void draw();
 
         render::Context& get_context() { return mContext; }
-        draw::Camera& get_camera() { return mCamera; }
+        draw::Camera& get_camera() { return mContext.cameras[0].camera; }
     };
 }

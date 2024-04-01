@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/string.hpp"
+
 #include "world/mesh.hpp"
 
 #include "input/input.hpp"
@@ -9,6 +11,8 @@ namespace sm::draw {
     using namespace sm::math;
 
     class Camera final : public input::IClient {
+        sm::String mName;
+
         float3 mPosition = {-3.f, 0.f, 0.f};
         float3 mDirection = world::kVectorForward;
 
@@ -26,9 +30,10 @@ namespace sm::draw {
         input::Toggle mCameraActive = false;
 
     public:
-        Camera() = default;
+        Camera(sm::StringView name);
 
         void tick(float dt);
+        sm::StringView name() const;
 
         // is the camera currently capturing input
         bool is_active() const;

@@ -254,7 +254,6 @@ namespace sm::render {
 
         // render graph
         graph::Handle mSwapChainHandle;
-        graph::Handle mSceneTargetHandle;
         graph::FrameGraph mFrameGraph;
 
         /// synchronization

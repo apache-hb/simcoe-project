@@ -13,7 +13,7 @@
 
 #include "config/config.hpp"
 
-#include "draw/draw.hpp"
+#include "editor/draw.hpp"
 #include "render/render.hpp"
 
 using namespace sm;
@@ -262,48 +262,6 @@ namespace MyGui {
     }
 }
 
-static void imgui_pass(graph::FrameGraph& graph, graph::Handle target) {
-    graph::PassBuilder pass = graph.pass("ImGui");
-    pass.write(target, "Target", graph::Access::eRenderTarget);
-
-    pass.bind([](graph::FrameGraph& graph) {
-        auto& context = graph.get_context();
-        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), *context.mCommandList);
-    });
-}
-
-struct EditorContext : public render::Context {
-    using Super = render::Context;
-    using Super::Super;
-
-    render::SrvIndex index;
-    draw::Camera camera;
-
-    void on_create() override {
-        index = mSrvPool.allocate();
-
-        ImGui_ImplWin32_Init(mConfig.window.get_handle());
-
-        const auto cpu = mSrvPool.cpu_handle(index);
-        const auto gpu = mSrvPool.gpu_handle(index);
-        ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mSwapChainLength), mSwapChainFormat,
-                            mSrvPool.get(), cpu, gpu);
-    }
-
-    void on_destroy() override {
-        mSrvPool.release(index);
-
-        ImGui_ImplDX12_Shutdown();
-        ImGui_ImplWin32_Shutdown();
-    }
-
-    void setup_framegraph(graph::FrameGraph& graph) override {
-        draw::opaque(graph, mSceneTargetHandle, camera);
-        draw::blit(graph, mSwapChainHandle, mSceneTargetHandle);
-        imgui_pass(graph, mSwapChainHandle);
-    }
-};
-
 static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     sys::WindowConfig window_config = {
         .mode = sys::WindowMode::eWindowed,
@@ -378,14 +336,14 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .window = window,
     };
 
-    EditorContext context{render_config};
+    ed::EditorContext context{render_config};
 
     events.attach_render(&context);
-    input.add_client(&context.camera);
+    input.add_client(&context.cameras[0].camera);
 
     context.create();
 
-    ed::Editor editor{context, context.camera};
+    ed::Editor editor{context};
 
     Ticker clock;
 
@@ -405,7 +363,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
         float dt = clock.tick();
 
-        context.camera.tick(dt);
+        context.tick(dt);
 
         editor.begin_frame();
 
