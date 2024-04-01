@@ -1,3 +1,4 @@
+#include "draw/camera.hpp"
 #include "stdafx.hpp"
 
 #include "system/input.hpp"
@@ -231,9 +232,11 @@ struct ClientContext final : public render::Context {
     using Super::Super;
 
     void setup_framegraph(graph::FrameGraph& graph) override {
-        draw::opaque(graph, mSceneTargetHandle);
+        draw::opaque(graph, mSceneTargetHandle, camera);
         draw::blit(graph, mSwapChainHandle, mSceneTargetHandle);
     }
+
+    draw::Camera camera;
 };
 
 static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {

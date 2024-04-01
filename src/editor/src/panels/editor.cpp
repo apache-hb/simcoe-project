@@ -60,11 +60,12 @@ public:
     { }
 };
 
-Editor::Editor(render::Context& context)
+Editor::Editor(render::Context& context, draw::Camera& camera)
     : mContext(context)
+    , mCamera(camera)
     , mLogger(LoggerPanel::get())
     , mConfig(context)
-    , mViewport(context)
+    , mViewport(context, camera)
     , mScene(context, mViewport)
     , mInspector(context, mViewport)
     , mFeatureSupport(context)

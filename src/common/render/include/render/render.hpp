@@ -7,7 +7,6 @@
 #include "render/instance.hpp"
 #include "render/heap.hpp"
 #include "render/commands.hpp"
-#include "render/camera.hpp"
 #include "render/resource.hpp"
 #include "render/dstorage.hpp"
 
@@ -290,7 +289,5 @@ namespace sm::render {
         void recreate_device();
 
         void set_device_lost();
-
-        draw::Camera camera;
     };
 }

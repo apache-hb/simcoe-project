@@ -891,8 +891,8 @@ void Context::create() {
     create_assets();
     init_scene();
 
-    create_frame_graph();
     update_display_viewport();
+    create_frame_graph();
 }
 
 void Context::destroy() {

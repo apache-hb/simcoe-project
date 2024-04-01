@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "render/camera.hpp"
+#include "draw/camera.hpp"
 
 #include "input/input.hpp"
 #include "system/input.hpp"

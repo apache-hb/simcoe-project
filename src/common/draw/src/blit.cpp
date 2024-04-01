@@ -107,33 +107,9 @@ static void create_screen_quad(render::Resource& quad, render::VertexBufferView&
     std::memcpy(data, blit::kScreenQuad, sizeof(blit::kScreenQuad));
     upload.unmap(&read);
 
-    // sm::Vector<D3D12_SUBRESOURCE_DATA> mips;
-    // SM_ASSERT_HR(load_dds_texture(mTexture.mResource, mips, "uv_coords"));
-
-    // const uint64 kUploadSize = GetRequiredIntermediateSize(mTexture.mResource.get(), 0, int_cast<uint>(mips.size()));
-    // const auto kUploadDesc = CD3DX12_RESOURCE_DESC::Buffer(kUploadSize);
-
-    // Resource texture_upload;
-    // SM_ASSERT_HR(create_resource(texture_upload, D3D12_HEAP_TYPE_UPLOAD, kUploadDesc, D3D12_RESOURCE_STATE_GENERIC_READ));
-
-    // const D3D12_SHADER_RESOURCE_VIEW_DESC kSrvDesc = {
-    //     .Format = DXGI_FORMAT_BC7_UNORM,
-    //     .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
-    //     .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
-    //     .Texture2D = {
-    //         .MostDetailedMip = 0,
-    //         .MipLevels = 10,
-    //         .ResourceMinLODClamp = 0.f,
-    //     },
-    // };
-
-    // mTexture.mSrvIndex = mSrvAllocator.allocate();
-    // mDevice->CreateShaderResourceView(mTexture.mResource.get(), &kSrvDesc, mSrvAllocator.cpu_descriptor_handle(mTexture.mSrvIndex));
-
     context.reset_direct_commands();
     context.reset_copy_commands();
 
-    // UpdateSubresources<16>(mCommandList.get(), mTexture.mResource.get(), texture_upload.get(), 0, 0, int_cast<uint>(mips.size()), mips.data());
     context.copy_buffer(context.mCopyCommands, quad, upload, sizeof(blit::kScreenQuad));
 
     const D3D12_RESOURCE_BARRIER kBarriers[] = {
@@ -143,12 +119,6 @@ static void create_screen_quad(render::Resource& quad, render::VertexBufferView&
             D3D12_RESOURCE_STATE_COPY_DEST,
             D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
         ),
-        // temp texture
-        // CD3DX12_RESOURCE_BARRIER::Transition(
-        //     mTexture.mResource.get(),
-        //     D3D12_RESOURCE_STATE_COPY_DEST,
-        //     D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
-        // )
     };
 
     context.mCommandList.submit_barriers(kBarriers);
@@ -204,8 +174,8 @@ void draw::blit(graph::FrameGraph& graph, graph::Handle target, graph::Handle so
         cmd->SetGraphicsRootSignature(*data.pipeline.signature);
         cmd->SetPipelineState(*data.pipeline.pso);
 
-        cmd->RSSetViewports(1, &context.mSceneViewport.mViewport);
-        cmd->RSSetScissorRects(1, &context.mSceneViewport.mScissorRect);
+        cmd->RSSetViewports(1, &context.mPresentViewport.mViewport);
+        cmd->RSSetScissorRects(1, &context.mPresentViewport.mScissorRect);
 
         cmd->OMSetRenderTargets(1, &rtv_cpu, false, nullptr);
 

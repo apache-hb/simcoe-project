@@ -1,6 +1,8 @@
 #include "stdafx.hpp"
 
 #include "draw/draw.hpp"
+#include "draw/camera.hpp"
+
 #include "render/render.hpp"
 #include <directx/d3dx12_core.h>
 #include <directx/d3dx12_root_signature.h>
@@ -8,12 +10,12 @@
 using namespace sm;
 using namespace sm::math;
 
-static void draw_node(render::Context& context, uint16 index, const float4x4& parent) {
+static void draw_node(render::Context& context, const draw::Camera& camera, uint16 index, const float4x4& parent) {
     float aspect_ratio = float(context.mSceneSize.width) / float(context.mSceneSize.height);
     const auto& node = context.mWorld.info.nodes[index];
 
     auto model = (parent * node.transform.matrix());
-    float4x4 mvp = context.camera.mvp(aspect_ratio, model.transpose()).transpose();
+    float4x4 mvp = camera.mvp(aspect_ratio, model.transpose()).transpose();
 
     auto& cmd = context.mCommandList;
     cmd->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
@@ -27,7 +29,7 @@ static void draw_node(render::Context& context, uint16 index, const float4x4& pa
     }
 
     for (uint16 i : node.children) {
-        draw_node(context, i, model);
+        draw_node(context, camera, i, model);
     }
 }
 
@@ -82,7 +84,7 @@ static void create_primitive_pipeline(render::Pipeline& pipeline, render::Contex
     }
 }
 
-void draw::opaque(graph::FrameGraph& graph, graph::Handle& target) {
+void draw::opaque(graph::FrameGraph& graph, graph::Handle& target, const Camera& camera) {
     auto& ctx = graph.get_context();
     graph::ResourceInfo depth_info = {
         .size = graph.render_size(),
@@ -110,7 +112,7 @@ void draw::opaque(graph::FrameGraph& graph, graph::Handle& target) {
         return info;
     });
 
-    pass.bind([target, depth, &data](graph::FrameGraph& graph) {
+    pass.bind([target, depth, &data, &camera](graph::FrameGraph& graph) {
         auto& context = graph.get_context();
         auto& cmd = context.mCommandList;
         auto rtv = graph.rtv(target);
@@ -131,6 +133,6 @@ void draw::opaque(graph::FrameGraph& graph, graph::Handle& target) {
 
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-        draw_node(context, context.mWorld.info.root_node, math::float4x4::identity());
+        draw_node(context, camera, context.mWorld.info.root_node, math::float4x4::identity());
     });
 }

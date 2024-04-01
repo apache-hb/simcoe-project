@@ -272,32 +272,33 @@ static void imgui_pass(graph::FrameGraph& graph, graph::Handle target) {
     });
 }
 
-class EditorContext : public render::Context {
+struct EditorContext : public render::Context {
     using Super = render::Context;
     using Super::Super;
 
-    render::SrvIndex mImGuiSrvIndex;
+    render::SrvIndex index;
+    draw::Camera camera;
 
     void on_create() override {
-        mImGuiSrvIndex = mSrvPool.allocate();
+        index = mSrvPool.allocate();
 
         ImGui_ImplWin32_Init(mConfig.window.get_handle());
 
-        const auto cpu = mSrvPool.cpu_handle(mImGuiSrvIndex);
-        const auto gpu = mSrvPool.gpu_handle(mImGuiSrvIndex);
+        const auto cpu = mSrvPool.cpu_handle(index);
+        const auto gpu = mSrvPool.gpu_handle(index);
         ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mSwapChainLength), mSwapChainFormat,
                             mSrvPool.get(), cpu, gpu);
     }
 
     void on_destroy() override {
-        mSrvPool.release(mImGuiSrvIndex);
+        mSrvPool.release(index);
 
         ImGui_ImplDX12_Shutdown();
         ImGui_ImplWin32_Shutdown();
     }
 
     void setup_framegraph(graph::FrameGraph& graph) override {
-        draw::opaque(graph, mSceneTargetHandle);
+        draw::opaque(graph, mSceneTargetHandle, camera);
         draw::blit(graph, mSwapChainHandle, mSceneTargetHandle);
         imgui_pass(graph, mSwapChainHandle);
     }
@@ -384,7 +385,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     context.create();
 
-    ed::Editor editor{context};
+    ed::Editor editor{context, context.camera};
 
     Ticker clock;
 

@@ -3,7 +3,7 @@
 #include "editor/panel.hpp"
 #include "editor/scene.hpp"
 
-#include "render/camera.hpp"
+#include "draw/camera.hpp"
 
 #include "ImGuizmo.h"
 
@@ -22,6 +22,7 @@ namespace sm::ed {
         void draw_rotate_mode() const;
 
         render::Context &mContext;
+        draw::Camera& mCamera;
 
         ItemIndex mSelected = ItemIndex::none();
         ImGuizmo::OPERATION mOperation = ImGuizmo::TRANSLATE;
@@ -38,7 +39,7 @@ namespace sm::ed {
         void draw_content() override;
 
     public:
-        ViewportPanel(render::Context &context);
+        ViewportPanel(render::Context &context, draw::Camera& camera);
 
         void select(ItemIndex index) { mSelected = index; }
         ItemIndex get_selected() const { return mSelected; }

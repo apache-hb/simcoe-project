@@ -10,7 +10,6 @@ src = [
 
     'src/blit.cpp',
 
-    'src/camera.cpp',
     'src/gltf.cpp',
 
     'src/graph.cpp',

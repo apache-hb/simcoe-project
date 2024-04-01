@@ -20,6 +20,7 @@ namespace sm::render {
 namespace sm::ed {
     class Editor {
         render::Context &mContext;
+        draw::Camera& mCamera;
 
         LoggerPanel& mLogger;
         RenderConfig mConfig;
@@ -52,7 +53,7 @@ namespace sm::ed {
         void draw_dockspace();
 
     public:
-        Editor(render::Context &context);
+        Editor(render::Context &context, draw::Camera& camera);
 
         void begin_frame();
         void end_frame();
@@ -60,5 +61,6 @@ namespace sm::ed {
         void draw();
 
         render::Context& get_context() { return mContext; }
+        draw::Camera& get_camera() { return mCamera; }
     };
 }

@@ -2,10 +2,11 @@ draw_include = include_directories('.', 'include')
 
 src = [
     'src/scene.cpp',
-    'src/blit.cpp'
+    'src/blit.cpp',
+    'src/camera.cpp'
 ]
 
-deps = [ render ]
+deps = [ render, input ]
 
 libdraw = library('draw', src,
     cpp_args : [ '-DSM_DRAW_BUILD=1' ],
