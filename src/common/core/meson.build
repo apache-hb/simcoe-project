@@ -19,6 +19,7 @@ src = [
     'src/units.cpp',
     'src/utf8.cpp',
     'src/library.cpp',
+    'src/timer.cpp',
     reflect.process('data/core.ct')
 ]
 

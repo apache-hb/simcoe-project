@@ -1,11 +1,18 @@
 #pragma once
 
+#include "core/variant.hpp"
+
 #include "world/mesh.hpp"
 
 #include "archive/archive.hpp"
 
 namespace sm::world {
     using vtxindex = uint16; // NOLINT
+
+    template<typename T>
+    class IndexOf {
+        uint16 mIndex;
+    };
 
     struct NodeInfo {
         sm::String name;
@@ -41,6 +48,55 @@ namespace sm::world {
     struct BufferInfo {
         sm::String name;
         sm::Vector<byte> data;
+    };
+
+    struct File {
+        sm::String path;
+    };
+
+    struct Buffer {
+        sm::String name;
+        sm::Vector<uint8> data;
+    };
+
+    struct BufferView {
+        sm::Variant<File, Buffer> source;
+
+        uint64 offset;
+        uint32 file_size;
+        uint32 buffer_size;
+    };
+
+    struct MeshObject {
+        uint32 vtx_count;
+        uint32 idx_count;
+        BufferView vertices;
+        BufferView indices;
+    };
+
+    struct MeshData {
+        sm::Variant<
+            MeshObject,
+            Cube,
+            Sphere,
+            Cylinder,
+            Plane,
+            Wedge,
+            Capsule,
+            Diamond,
+            GeoSphere
+        > data;
+    };
+
+    struct Model {
+        sm::String name;
+        MeshData mesh;
+
+        // TODO: materials
+    };
+
+    struct Node {
+        sm::String name;
     };
 
     struct WorldInfo {

@@ -219,6 +219,19 @@ subdir('src/vendor/fmtlib')
 # reflection tool
 subdir('src/meta')
 
+# extra_args must contain the name of the target, idk how to get it otherwise
+meta_tool = generator(find_program('scripts/meta_tool.py'),
+    output : [ '@BASENAME@.reflect.h', '@BASENAME@.reflect.cpp' ],
+    arguments : [
+        '--builddir', meson.global_build_root(),
+        '--metatool', meta_tooling.full_path(),
+        '--reflect', '@INPUT@',
+        '--header', '@OUTPUT0@',
+        '--source', '@OUTPUT1@',
+        '--target', '@EXTRA_ARGS@'
+    ]
+)
+
 subdir('src/vendor/reflect')
 
 subdir('src/common/core')

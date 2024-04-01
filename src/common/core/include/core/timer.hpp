@@ -1,8 +1,10 @@
 #pragma once
 
-namespace sm::sys {
+#include <chrono>
+
+namespace sm {
     class Timer {
-        size_t mStart;
+        std::chrono::steady_clock::time_point mStart;
 
     public:
         Timer();

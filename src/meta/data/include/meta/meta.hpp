@@ -9,6 +9,8 @@
 #   define META_ANNOTATE(...)
 #endif
 
+#undef INTERFACE
+
 #if defined(__REFLECT__)
 #   define REFLECT(...) [meta_class(__VA_ARGS__)]
 #   define INTERFACE(...) [meta_interface(__VA_ARGS__)]

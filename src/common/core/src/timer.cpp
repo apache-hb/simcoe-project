@@ -1,17 +1,14 @@
-#include "system/timer.hpp"
-
-#include "common.hpp"
+#include "core/timer.hpp"
 
 using namespace sm;
-using namespace sm::sys;
 
 Timer::Timer()
-    : mStart(query_timer())
+    : mStart(std::chrono::steady_clock::now())
 { }
 
 float Timer::elapsed() const {
-    size_t now = query_timer();
-    return float(now - mStart) / float(gTimerFrequency);
+    auto now = std::chrono::steady_clock::now();
+    return std::chrono::duration<float>(now - mStart).count();
 }
 
 Ticker::Ticker()

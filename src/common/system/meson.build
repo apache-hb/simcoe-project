@@ -15,8 +15,6 @@ src = [
     # windowing
     'src/window.cpp',
 
-    'src/timer.cpp',
-
     # win32 input source
     'src/input.cpp',
     reflect.process('data/system.ct'),

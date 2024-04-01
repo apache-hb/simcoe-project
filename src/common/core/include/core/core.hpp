@@ -38,14 +38,9 @@ namespace sm {
         constexpr Empty() = default;
         constexpr Empty(const T&) { }
         constexpr Empty(T&&) { }
-    };
 
-    struct Ignore {
-        template<typename T>
         constexpr void operator=(T&&) const { }
     };
-
-    inline constexpr Ignore kIgnore{};
 }
 
 /// @brief debug member variables and required macros
@@ -56,12 +51,10 @@ namespace sm {
 
 #if SMC_DEBUG
 #   define DBG_MEMBER(T) T
-#   define DBG_REF(name) name
 #   define DBG_MEMBER_OR(name, ...) name
 #   define DBG_ASSERT(expr, ...) SM_ASSERTF(expr, __VA_ARGS__)
 #else
 #   define DBG_MEMBER(T) SM_NO_UNIQUE_ADDRESS sm::Empty<T>
-#   define DBG_REF(name) sm::kIgnore
 #   define DBG_MEMBER_OR(name, ...) __VA_ARGS__
 #   define DBG_ASSERT(expr, ...) do { } while (0)
 #endif

@@ -60,11 +60,6 @@ void sys::create(HINSTANCE hInstance) {
         gWindowClass = MAKEINTATOM(atom);
     }
 
-    LARGE_INTEGER frequency;
-    SM_ASSERT_WIN32(QueryPerformanceFrequency(&frequency));
-
-    gTimerFrequency = frequency.QuadPart;
-
     static constexpr size_t kPathMax = 2048;
     TCHAR gExecutablePath[kPathMax];
     DWORD gExecutablePathLength = 0;
@@ -78,7 +73,7 @@ void sys::create(HINSTANCE hInstance) {
         assert_last_error(CT_SOURCE_CURRENT, "GetModuleFileNameA");
     }
 
-    if (gExecutablePathLength == kPathMax) {
+    if (gExecutablePathLength >= kPathMax) {
         gSystemLog.warn("executable path longer than {}, may be truncated", kPathMax);
     }
 

@@ -111,9 +111,9 @@ namespace sm {
     public:
         using Super::Super;
 
-        constexpr UniquePtr(T *data, size_t size)
-            : Super(data)
-            , m_size(size)
+        constexpr UniquePtr(T *data, size_t size, TDelete del = TDelete{})
+            : Super(data, del)
+            , mSize(size)
         { }
 
         constexpr UniquePtr()
@@ -126,8 +126,12 @@ namespace sm {
         { }
 
         constexpr void reset(size_t size) {
-            Super::reset(new T[size]);
-            DBG_REF(m_size) = size;
+            reset(new T[size], size);
+        }
+
+        constexpr void reset(T *data, size_t size) {
+            Super::reset(data);
+            mSize = size;
         }
 
         constexpr T &operator[](size_t index) {
@@ -142,11 +146,21 @@ namespace sm {
 
     private:
         constexpr void verify_index(SM_UNUSED size_t index) const {
-            DBG_ASSERT(index < m_size, "index out of bounds (%zu < %zu)", index, m_size);
+            DBG_ASSERT(index < mSize, "index out of bounds (%zu < %zu)", index, mSize);
         }
 
-        DBG_MEMBER(size_t) m_size;
+        DBG_MEMBER(size_t) mSize;
     };
+
+    template<typename T, typename TDelete = DefaultDelete<T>>
+    UniquePtr<T, TDelete> make_unique(T *data, TDelete del = TDelete{}) {
+        return UniquePtr<T, TDelete>(data);
+    }
+
+    template<typename T, typename TDelete = DefaultDelete<T>>
+    UniquePtr<T, TDelete> make_unique(T *data, size_t size, TDelete del = TDelete{}) {
+        return UniquePtr<T, TDelete>(data, size);
+    }
 
     DBG_STATIC_ASSERT(sizeof(sm::UniquePtr<int>) == sizeof(int*),
         "UniquePtr<T> should be the same size as T* in release"

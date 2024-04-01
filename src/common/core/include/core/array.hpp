@@ -5,16 +5,16 @@
 namespace sm {
     template<typename T, size_t N>
     class Array {
-        T m_data[N];
+        T mData[N];
     public:
-        constexpr T &operator[](size_t index) { verify_index(index); return m_data[index]; }
-        constexpr const T &operator[](size_t index) const { verify_index(index); return m_data[index]; }
+        constexpr T &operator[](size_t index) { verify_index(index); return mData[index]; }
+        constexpr const T &operator[](size_t index) const { verify_index(index); return mData[index]; }
 
-        constexpr T *begin() { return m_data; }
-        constexpr const T *begin() const { return m_data; }
+        constexpr T *begin() { return mData; }
+        constexpr const T *begin() const { return mData; }
 
-        constexpr T *end() { return m_data + N; }
-        constexpr const T *end() const { return m_data + N; }
+        constexpr T *end() { return mData + N; }
+        constexpr const T *end() const { return mData + N; }
 
         constexpr size_t length() const { return N; }
 
@@ -41,7 +41,7 @@ namespace sm {
     template<typename T, typename TDelete = DefaultDelete<T[]>>
     class UniqueArray : public UniquePtr<T, TDelete> {
         using Super = UniquePtr<T, TDelete>;
-        size_t m_length = 0;
+        size_t mLength = 0;
 
     public:
         using Iterator = T *;
@@ -51,7 +51,7 @@ namespace sm {
 
         constexpr UniqueArray(T *data, size_t capacity)
             : Super(data)
-            , m_length(capacity)
+            , mLength(capacity)
         { }
 
         constexpr UniqueArray(size_t capacity)
@@ -65,23 +65,17 @@ namespace sm {
         }
 
         constexpr void resize(size_t capacity) {
-            if (m_length >= capacity)
-                return;
-
             Super::reset(new T[capacity]());
-            m_length = capacity;
+            mLength = capacity;
         }
 
         constexpr void resize(size_t capacity, T init) {
-            if (m_length >= capacity)
-                return;
-
             Super::reset(new T[capacity]);
-            m_length = capacity;
+            mLength = capacity;
             fill(init);
         }
 
-        constexpr size_t length() const { return m_length; }
+        constexpr size_t length() const { return mLength; }
 
         constexpr T &operator[](size_t index) { return Super::get()[index]; }
         constexpr const T &operator[](size_t index) const { return Super::get()[index]; }
@@ -89,8 +83,8 @@ namespace sm {
         constexpr T *begin() { return Super::get(); }
         constexpr const T *begin() const { return Super::get(); }
 
-        constexpr T *end() { return Super::get() + m_length; }
-        constexpr const T *end() const { return Super::get() + m_length; }
+        constexpr T *end() { return Super::get() + mLength; }
+        constexpr const T *end() const { return Super::get() + mLength; }
 
         constexpr void fill(const T &value) {
             for (auto& it : *this) {

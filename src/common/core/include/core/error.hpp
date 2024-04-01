@@ -11,55 +11,55 @@
 #include <string_view>
 
 namespace sm {
-CT_NORETURN
-panic(source_info_t info, std::string_view msg);
+    CT_NORETURN
+    panic(source_info_t info, std::string_view msg);
 
-CT_NORETURN
-vpanic(source_info_t info, std::string_view msg, auto &&...args) {
-    panic(info, fmt::vformat(msg, fmt::make_format_args(args...)));
-}
-
-class OsError {
-    os_error_t mError;
-
-public:
-    constexpr OsError(os_error_t error)
-        : mError(error) {}
-
-    constexpr os_error_t error() const {
-        return mError;
-    }
-    constexpr operator bool() const {
-        return mError != 0;
-    }
-    constexpr bool success() const {
-        return mError == 0;
-    }
-    constexpr bool failed() const {
-        return mError != 0;
+    CT_NORETURN
+    vpanic(source_info_t info, std::string_view msg, auto &&...args) {
+        panic(info, fmt::vformat(msg, fmt::make_format_args(args...)));
     }
 
-    constexpr bool operator==(const OsError &other) const {
-        return mError == other.mError;
-    }
+    class OsError {
+        os_error_t mError;
 
-    char *to_string() const;
-};
+    public:
+        constexpr OsError(os_error_t error)
+            : mError(error) {}
 
-class ISystemError : public bt_error_t {
-    static void wrap_begin(size_t error, void *user);
-    static void wrap_frame(const bt_frame_t *frame, void *user);
-    static void wrap_end(void *user);
+        constexpr os_error_t error() const {
+            return mError;
+        }
+        constexpr operator bool() const {
+            return mError != 0;
+        }
+        constexpr bool success() const {
+            return mError == 0;
+        }
+        constexpr bool failed() const {
+            return mError != 0;
+        }
 
-protected:
-    virtual void error_begin(OsError error) = 0;
-    virtual void error_frame(const bt_frame_t *frame) = 0;
-    virtual void error_end() = 0;
+        constexpr bool operator==(const OsError &other) const {
+            return mError == other.mError;
+        }
 
-    constexpr ISystemError()
-        : bt_error_t{wrap_begin, wrap_end, wrap_frame, this}
-    { }
-};
+        char *to_string() const;
+    };
+
+    class ISystemError : public bt_error_t {
+        static void wrap_begin(size_t error, void *user);
+        static void wrap_frame(const bt_frame_t *frame, void *user);
+        static void wrap_end(void *user);
+
+    protected:
+        virtual void error_begin(OsError error) = 0;
+        virtual void error_frame(const bt_frame_t *frame) = 0;
+        virtual void error_end() = 0;
+
+        constexpr ISystemError()
+            : bt_error_t{wrap_begin, wrap_end, wrap_frame, this}
+        { }
+    };
 } // namespace sm
 
 template <>

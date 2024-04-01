@@ -2,7 +2,7 @@
 
 #include "system/input.hpp"
 #include "system/system.hpp"
-#include "system/timer.hpp"
+#include "core/timer.hpp"
 
 #include "threads/threads.hpp"
 
@@ -306,7 +306,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     context.create();
 
-    sys::Ticker clock;
+    Ticker clock;
 
     bool done = false;
     while (!done) {

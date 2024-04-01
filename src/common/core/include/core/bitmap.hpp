@@ -23,10 +23,7 @@ namespace sm {
 
             constexpr void resize(size_t bitcount) {
                 size_t words = bitcount / kBitsPerWord + 1;
-                if (words > mStorage.length()) {
-                    mStorage.resize(words);
-                }
-
+                mStorage.resize(words);
                 reset();
             }
 
