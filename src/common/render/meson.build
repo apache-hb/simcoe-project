@@ -15,12 +15,7 @@ src = [
 
     'src/graph.cpp',
 
-    'src/draw/scene.cpp',
-    'src/draw/blit.cpp',
-    'src/draw/canvas.cpp',
-
     reflect.process('data/render.ct'),
-    reflect.process('data/draw.ct'),
     reflect.process('data/graph.ct')
 ]
 

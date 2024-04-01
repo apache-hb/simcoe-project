@@ -199,28 +199,12 @@ namespace sm::render {
 
         /// blit pipeline + assets
         Viewport mPresentViewport;
-        Pipeline mBlitPipeline;
-
-        struct {
-            Resource mVertexBuffer;
-            VertexBufferView mVertexBufferView;
-        } mScreenQuad;
 
         void update_display_viewport();
-
-        void create_blit_pipeline();
-        void destroy_blit_pipeline();
-
-        void create_screen_quad();
-        void destroy_screen_quad();
 
         /// scene pipeline + assets
         Viewport mSceneViewport;
         void update_scene_viewport();
-
-        Pipeline mPrimitivePipeline;
-        void create_primitive_pipeline();
-        void destroy_primitive_pipeline();
 
         struct {
             // meshes and textures both line up with the objects, and images in the info struct
@@ -291,7 +275,7 @@ namespace sm::render {
 
         virtual void on_create() { }
         virtual void on_destroy() { }
-        virtual void setup_framegraph(graph::FrameGraph& graph);
+        virtual void setup_framegraph(graph::FrameGraph& graph) = 0;
 
     public:
         Context(const RenderConfig& config);

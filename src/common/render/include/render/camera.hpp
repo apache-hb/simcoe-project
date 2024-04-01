@@ -5,8 +5,6 @@
 #include "input/input.hpp"
 #include "input/toggle.hpp"
 
-#include "draw.reflect.h"
-
 namespace sm::draw {
     using namespace sm::math;
 
@@ -34,7 +32,6 @@ namespace sm::draw {
 
         // is the camera currently capturing input
         bool is_active() const;
-        Projection get_projection() const;
 
         float4x4 model() const;
         float4x4 view() const;

@@ -303,6 +303,10 @@ void FrameGraph::destroy_resources() {
     mResources.clear();
 }
 
+void FrameGraph::reset_device_data() {
+    mDeviceData.clear();
+}
+
 void FrameGraph::reset() {
     destroy_resources();
     mRenderPasses.clear();

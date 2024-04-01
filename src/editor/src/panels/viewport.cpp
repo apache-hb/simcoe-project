@@ -45,7 +45,7 @@ static ImGuizmo::OPERATION set_z(ImGuizmo::OPERATION op) {
 }
 
 void ViewportPanel::begin_frame(draw::Camera& camera) {
-    ImGuizmo::SetOrthographic(camera.get_projection() == draw::Projection::eOrthographic);
+    ImGuizmo::SetOrthographic(false);
     ImGuizmo::BeginFrame();
 }
 

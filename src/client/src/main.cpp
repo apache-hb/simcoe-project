@@ -10,6 +10,8 @@
 #include "archive/io.hpp"
 
 #include "config/config.hpp"
+
+#include "draw/draw.hpp"
 #include "render/render.hpp"
 
 using namespace sm;
@@ -224,6 +226,16 @@ static void common_init(void) {
     logger.add_channel(&gConsoleLog);
 }
 
+struct ClientContext final : public render::Context {
+    using Super = render::Context;
+    using Super::Super;
+
+    void setup_framegraph(graph::FrameGraph& graph) override {
+        draw::opaque(graph, mSceneTargetHandle);
+        draw::blit(graph, mSwapChainHandle, mSceneTargetHandle);
+    }
+};
+
 static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     sys::WindowConfig window_config = {
         .mode = sys::WindowMode::eWindowed,
@@ -299,7 +311,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .window = window,
     };
 
-    render::Context context{render_config};
+    ClientContext context{render_config};
 
     events.attach_render(&context);
     input.add_client(&context.camera);

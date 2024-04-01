@@ -20,6 +20,7 @@ src = [
     'src/utf8.cpp',
     'src/library.cpp',
     'src/timer.cpp',
+    'src/typeindex.cpp',
     reflect.process('data/core.ct')
 ]
 

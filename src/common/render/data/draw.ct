@@ -1,6 +1,0 @@
-module sm::draw;
-
-variant Projection {
-    case Perspective
-    case Orthographic
-}

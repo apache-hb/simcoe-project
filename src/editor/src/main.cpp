@@ -13,7 +13,7 @@
 
 #include "config/config.hpp"
 
-#include "render/draw/draw.hpp"
+#include "draw/draw.hpp"
 #include "render/render.hpp"
 
 using namespace sm;
@@ -297,8 +297,8 @@ class EditorContext : public render::Context {
     }
 
     void setup_framegraph(graph::FrameGraph& graph) override {
-        Super::setup_framegraph(graph);
-
+        draw::opaque(graph, mSceneTargetHandle);
+        draw::blit(graph, mSwapChainHandle, mSceneTargetHandle);
         imgui_pass(graph, mSwapChainHandle);
     }
 };

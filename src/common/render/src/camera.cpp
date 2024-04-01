@@ -71,10 +71,6 @@ bool Camera::is_active() const {
     return mCameraActive.is_active();
 }
 
-Projection Camera::get_projection() const {
-    return Projection::ePerspective;
-}
-
 float4x4 Camera::model() const {
     return float4x4::identity();
 }

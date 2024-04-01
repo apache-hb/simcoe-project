@@ -2,8 +2,6 @@
 
 #include "render/render.hpp"
 
-#include "render/draw/draw.hpp"
-
 using namespace sm;
 using namespace sm::render;
 
@@ -287,59 +285,6 @@ Result Context::create_resource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_
 
 void Context::copy_buffer(Object<ID3D12GraphicsCommandList1>& list, Resource& dst, Resource& src, size_t size) {
     list->CopyBufferRegion(*dst.mResource, 0, *src.mResource, 0, size);
-}
-
-static const D3D12_ROOT_SIGNATURE_FLAGS kPrimitiveRootFlags
-    = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
-    | D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS
-    | D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS
-    | D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS
-    | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS
-    | D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
-
-void Context::create_primitive_pipeline() {
-    {
-        // mvp matrix
-        CD3DX12_ROOT_PARAMETER1 params[1];
-        params[0].InitAsConstants(16, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-
-        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
-        desc.Init_1_1(1, params, 0, nullptr, kPrimitiveRootFlags);
-
-        serialize_root_signature(mPrimitivePipeline.signature, desc);
-    }
-
-    {
-        auto ps = mConfig.bundle.get_shader_bytecode("primitive.ps");
-        auto vs = mConfig.bundle.get_shader_bytecode("primitive.vs");
-
-        constexpr D3D12_INPUT_ELEMENT_DESC kInputElements[] = {
-            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(world::Vertex, position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-            { "COLOUR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, offsetof(world::Vertex, colour), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        };
-
-        const D3D12_GRAPHICS_PIPELINE_STATE_DESC kDesc = {
-            .pRootSignature = mPrimitivePipeline.signature.get(),
-            .VS = CD3DX12_SHADER_BYTECODE(vs.data(), vs.size()),
-            .PS = CD3DX12_SHADER_BYTECODE(ps.data(), ps.size()),
-            .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
-            .SampleMask = UINT_MAX,
-            .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
-            .DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT),
-            .InputLayout = { kInputElements, _countof(kInputElements) },
-            .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
-            .NumRenderTargets = 1,
-            .RTVFormats = { mSceneFormat },
-            .DSVFormat = mDepthFormat,
-            .SampleDesc = { 1, 0 },
-        };
-
-        SM_ASSERT_HR(mDevice->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&mPrimitivePipeline.pso)));
-    }
-}
-
-void Context::destroy_primitive_pipeline() {
-    mPrimitivePipeline.reset();
 }
 
 static constexpr world::MeshInfo kMeshInfo = {
@@ -815,9 +760,6 @@ void Context::create_assets() {
     mFrames[mFrameIndex].fence_value += 1;
 
     SM_ASSERT_WIN32(mFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr));
-
-    create_primitive_pipeline();
-    create_blit_pipeline();
 }
 
 void Context::build_command_list() {
@@ -874,6 +816,7 @@ void Context::create_textures() {
 
 void Context::destroy_device() {
     destroy_frame_graph();
+    mFrameGraph.reset_device_data();
 
     // release frame resources
     for (uint i = 0; i < mSwapChainLength; i++) {
@@ -888,11 +831,6 @@ void Context::destroy_device() {
     // assets
     destroy_textures();
     destroy_scene();
-    destroy_screen_quad();
-
-    // pipeline state
-    destroy_primitive_pipeline();
-    destroy_blit_pipeline();
 
     // copy commands
     destroy_copy_queue();
@@ -953,7 +891,6 @@ void Context::create() {
     create_assets();
     init_scene();
 
-    create_screen_quad();
     create_frame_graph();
     update_display_viewport();
 }
@@ -1016,7 +953,6 @@ void Context::recreate_device() {
     create_assets();
 
     create_textures();
-    create_screen_quad();
     create_scene();
     create_frame_graph();
 
@@ -1025,12 +961,6 @@ void Context::recreate_device() {
 
 void Context::set_device_lost() {
     mDeviceLost = true;
-}
-
-void Context::setup_framegraph(graph::FrameGraph& graph) {
-    draw::opaque(mFrameGraph, mSceneTargetHandle);
-
-    draw::blit(mFrameGraph, mSwapChainHandle, mSceneTargetHandle);
 }
 
 void Context::update_swapchain_length(uint length) {
