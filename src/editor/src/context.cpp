@@ -30,8 +30,7 @@ void EditorContext::imgui(graph::FrameGraph& graph, graph::Handle target) {
 EditorContext::EditorContext(const render::RenderConfig& config)
     : Super(config)
 {
-    draw::ViewportConfig vp { { 1920, 1080}, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT };
-    cameras.push_back({ sm::make_unique<draw::Camera>("Camera 0", vp) });
+    push_camera(0, { 1920, 1080 });
 }
 
 void EditorContext::tick(float dt) {
@@ -44,12 +43,18 @@ void EditorContext::tick(float dt) {
 size_t EditorContext::add_camera() {
     size_t index = cameras.size();
 
-    draw::ViewportConfig vp { { 800, 600}, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT };
-    cameras.push_back({ sm::make_unique<draw::Camera>(fmt::format("Camera {}", index), vp) });
+    push_camera(index, { 800, 600 });
 
     update_framegraph();
 
     return index;
+}
+
+void EditorContext::push_camera(size_t index, math::uint2 size) {
+    draw::ViewportConfig vp { size, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT };
+    CameraData data { sm::make_unique<draw::Camera>(fmt::format("Camera {}", index), vp) };
+    input.add_client(data.camera.get());
+    cameras.emplace_back(std::move(data));
 }
 
 void EditorContext::on_create() {

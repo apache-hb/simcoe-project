@@ -265,10 +265,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     sys::Window window{window_config, events};
     sys::DesktopInput desktop_input{window};
-
-    input::InputService input;
     events.attach_input(&desktop_input);
-    input.add_source(&desktop_input);
 
     window.show_window(show);
 
@@ -327,8 +324,9 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     ed::EditorContext context{render_config};
 
+    context.input.add_source(&desktop_input);
+
     events.attach_render(&context);
-    input.add_client(context.cameras[0].camera.get());
 
     context.create();
 
@@ -348,7 +346,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         }
 
         if (done) break;
-        input.poll();
+        context.input.poll();
 
         float dt = clock.tick();
 

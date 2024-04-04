@@ -34,6 +34,7 @@ namespace sm::ed {
 
         ItemIndex selected = ItemIndex::none();
         render::SrvIndex index;
+        input::InputService input;
 
         struct CameraData {
             sm::UniquePtr<draw::Camera> camera;
@@ -44,6 +45,7 @@ namespace sm::ed {
         size_t active = 0;
 
     private:
+        void push_camera(size_t index, math::uint2 size);
         void imgui(graph::FrameGraph& graph, graph::Handle target);
     };
 }
