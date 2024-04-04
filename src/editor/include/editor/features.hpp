@@ -1,19 +1,21 @@
 #pragma once
 
-#include "editor/panel.hpp"
+#include "render/render.hpp"
 
 namespace sm::render {
     struct Context;
 }
 
 namespace sm::ed {
-    class FeatureSupportPanel final : public IEditorPanel {
+    class FeatureSupportPanel final {
         render::Context &mContext;
 
-        // IEditorPanel
-        void draw_content() override;
+        void draw_content();
 
     public:
         FeatureSupportPanel(render::Context &context);
+
+        bool mOpen = true;
+        void draw_window();
     };
 }

@@ -1,7 +1,7 @@
+#include "editor/panel.hpp"
 #include "stdafx.hpp"
 
 #include "editor/scene.hpp"
-#include "editor/viewport.hpp"
 
 #include "render/render.hpp"
 
@@ -110,14 +110,13 @@ static const char *get_payload_type(ItemType type) {
 bool ScenePanel::begin_tree_item(ItemIndex self, ImGuiTreeNodeFlags flags) {
     auto& world = mContext.mWorld.info;
     auto name = get_item_name(world, self);
-    if (self == mSelected) {
+    if (self == mContext.selected) {
         flags |= ImGuiTreeNodeFlags_Selected;
     }
 
     const bool open = ImGui::TreeNodeEx((void*)unique_id(self), flags, "%s", name.data());
     if (ImGui::IsItemClicked()) {
-        mSelected = self;
-        mViewport.select(self);
+        mContext.selected = self;
     }
 
     if (ImGui::BeginDragDropSource()) {
@@ -353,15 +352,20 @@ void ScenePanel::draw_content() {
     }
 }
 
-ScenePanel::ScenePanel(render::Context& context, ViewportPanel& viewport)
-    : IEditorPanel("Scene Tree")
-    , mContext(context)
-    , mViewport(viewport)
+ScenePanel::ScenePanel(ed::EditorContext& context)
+    : mContext(context)
 {
-    mFlags |= ImGuiWindowFlags_MenuBar;
-
     auto cases = world::ObjectType::cases();
     for (world::ObjectType i : cases) {
         mMeshCreateInfo[i] = get_default_info(i);
     }
+}
+
+void ScenePanel::draw_window() {
+    if (!mOpen) return;
+
+    if (ImGui::Begin("Scene Tree", &mOpen, ImGuiWindowFlags_MenuBar)) {
+        draw_content();
+    }
+    ImGui::End();
 }

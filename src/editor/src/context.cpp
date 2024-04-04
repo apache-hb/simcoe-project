@@ -10,7 +10,7 @@ using namespace sm::ed;
 void EditorContext::imgui(graph::FrameGraph& graph, graph::Handle target) {
     graph::PassBuilder pass = graph.pass("ImGui");
     for (auto& [camera, target] : cameras) {
-        pass.read(target, camera.name(), graph::Access::ePixelShaderResource);
+        pass.read(target, camera->name(), graph::Access::ePixelShaderResource);
     }
 
     pass.write(target, "Target", graph::Access::eRenderTarget);
@@ -31,15 +31,25 @@ EditorContext::EditorContext(const render::RenderConfig& config)
     : Super(config)
 {
     draw::ViewportConfig vp { { 1920, 1080}, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT };
-    draw::Camera camera{ "Camera 0", vp };
-    cameras.push_back({ camera });
+    cameras.push_back({ sm::make_unique<draw::Camera>("Camera 0", vp) });
 }
 
 void EditorContext::tick(float dt) {
     for (auto& viewport : cameras) {
         auto& camera = viewport.camera;
-        camera.tick(dt);
+        camera->tick(dt);
     }
+}
+
+size_t EditorContext::add_camera() {
+    size_t index = cameras.size();
+
+    draw::ViewportConfig vp { { 800, 600}, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT };
+    cameras.push_back({ sm::make_unique<draw::Camera>(fmt::format("Camera {}", index), vp) });
+
+    update_framegraph();
+
+    return index;
 }
 
 void EditorContext::on_create() {
@@ -63,7 +73,7 @@ void EditorContext::on_destroy() {
 void EditorContext::setup_framegraph(graph::FrameGraph& graph) {
     render::Viewport vp { mSwapChainConfig.size };
     for (auto& [camera, target] : cameras) {
-        draw::opaque(graph, target, camera);
+        draw::opaque(graph, target, *camera.get());
     }
 
     imgui(graph, mSwapChainHandle);

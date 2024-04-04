@@ -1,7 +1,7 @@
 #include "stdafx.hpp"
 
 #include "editor/inspector.hpp"
-#include "editor/viewport.hpp"
+#include "editor/panel.hpp"
 
 #include "render/render.hpp"
 
@@ -27,8 +27,8 @@ void InspectorPanel::draw_node(ItemIndex index) {
     ImGui::SeparatorText("Transform");
     edit_transform(node.transform);
 
-    ImGui::SeparatorText("Gizmo");
-    mViewport.gizmo_settings_panel();
+    // ImGui::SeparatorText("Gizmo");
+    // mViewport.gizmo_settings_panel();
 }
 
 void InspectorPanel::draw_camera(ItemIndex index) {
@@ -65,7 +65,7 @@ void InspectorPanel::draw_material(ItemIndex index) {
 }
 
 void InspectorPanel::draw_content() {
-    auto selected = mViewport.get_selected();
+    auto selected = mContext.selected;
     switch (selected.type) {
     case ItemType::eNone:
         ImGui::Text("Nothing selected");
@@ -88,8 +88,15 @@ void InspectorPanel::draw_content() {
     }
 }
 
-InspectorPanel::InspectorPanel(render::Context &context, ViewportPanel &viewport)
-    : IEditorPanel("Inspector")
-    , mContext(context)
-    , mViewport(viewport)
+void InspectorPanel::draw_window() {
+    if (!mOpen) return;
+
+    if (ImGui::Begin("Inspector", &mOpen)) {
+        draw_content();
+    }
+    ImGui::End();
+}
+
+InspectorPanel::InspectorPanel(ed::EditorContext &context)
+    : mContext(context)
 { }

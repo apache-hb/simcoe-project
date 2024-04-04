@@ -39,7 +39,7 @@ void PixPanel::draw_content() {
 
 bool PixPanel::draw_menu_item(const char *shortcut) {
     bool disabled = !is_pix_enabled();
-    ImGui::MenuItem(get_title(), shortcut, get_open(), !disabled);
+    ImGui::MenuItem("PIX", shortcut, &mOpen, !disabled);
     if (disabled)
         ImGui::SetItemTooltip("Relaunch with --pix to enable");
 
@@ -47,8 +47,16 @@ bool PixPanel::draw_menu_item(const char *shortcut) {
 }
 
 PixPanel::PixPanel(render::Context& context)
-    : IEditorPanel("PIX Options")
-    , mContext(context)
+    : mContext(context)
 {
-    set_open(is_pix_enabled());
+    mOpen = is_pix_enabled();
+}
+
+void PixPanel::draw_window() {
+    if (!mOpen) return;
+
+    if (ImGui::Begin("PIX", &mOpen)) {
+        draw_content();
+    }
+    ImGui::End();
 }

@@ -1,12 +1,13 @@
 #pragma once
 
-#include "editor/panel.hpp"
-
 namespace sm::ed {
-    class DebugPanel final : public IEditorPanel {
+    class DebugPanel final {
         // IEditorPanel
-        void draw_content() override;
+        void draw_content();
     public:
-        DebugPanel();
+        DebugPanel() = default;
+
+        bool mOpen = true;
+        void draw_window();
     };
 }

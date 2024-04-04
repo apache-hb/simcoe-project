@@ -158,6 +158,11 @@ namespace sm {
     }
 
     template<typename T, typename TDelete = DefaultDelete<T>>
+    UniquePtr<T, TDelete> make_unique(auto&&... args) {
+        return UniquePtr<T, TDelete>(new T(std::forward<decltype(args)>(args)...));
+    }
+
+    template<typename T, typename TDelete = DefaultDelete<T>>
     UniquePtr<T, TDelete> make_unique(T *data, size_t size, TDelete del = TDelete{}) {
         return UniquePtr<T, TDelete>(data, size);
     }

@@ -11,9 +11,7 @@ LoggerPanel& LoggerPanel::get() {
     return gInstance;
 }
 
-LoggerPanel::LoggerPanel()
-    : IEditorPanel("Logs")
-{
+LoggerPanel::LoggerPanel() {
     auto& instance = logs::get_logger();
     instance.add_channel(this);
 }
@@ -94,16 +92,21 @@ void LoggerPanel::draw_category(const logs::LogCategory& category) const {
     }
 }
 
-void LoggerPanel::draw_content() {
-    if (ImGui::BeginTabBar("Logs")) {
-        for (const auto& [category, messages] : mMessages) {
-            if (messages.empty()) continue;
+void LoggerPanel::draw_window() {
+    if (!mOpen) return;
 
-            if (ImGui::BeginTabItem(category->name().data())) {
-                draw_category(*category);
-                ImGui::EndTabItem();
+    if (ImGui::Begin("Logs", &mOpen)) {
+        if (ImGui::BeginTabBar("Logs")) {
+            for (const auto& [category, messages] : mMessages) {
+                if (messages.empty()) continue;
+
+                if (ImGui::BeginTabItem(category->name().data())) {
+                    draw_category(*category);
+                    ImGui::EndTabItem();
+                }
             }
+            ImGui::EndTabBar();
         }
-        ImGui::EndTabBar();
     }
+    ImGui::End();
 }

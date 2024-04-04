@@ -12,6 +12,11 @@ void DebugPanel::draw_content() {
     ImGui::SetItemTooltip("Warning: This button will crash the editor!");
 }
 
-DebugPanel::DebugPanel()
-    : IEditorPanel("Debug")
-{ }
+void DebugPanel::draw_window() {
+    if (!mOpen) return;
+
+    if (ImGui::Begin("Debug", &mOpen)) {
+        draw_content();
+    }
+    ImGui::End();
+}

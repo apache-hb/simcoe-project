@@ -2,13 +2,11 @@
 
 #include "core/core.hpp"
 
-#include "editor/panel.hpp"
+#include "editor/draw.hpp"
 
 #include "world/world.hpp"
 
 #include "imgui/imgui.h"
-
-#include "editor.reflect.h"
 
 namespace sm::render {
     struct Context;
@@ -17,20 +15,8 @@ namespace sm::render {
 namespace sm::ed {
     class ViewportPanel;
 
-    struct ItemIndex {
-        ItemType type;
-        uint16 index;
-
-        constexpr auto operator<=>(const ItemIndex&) const = default;
-        constexpr bool has_selection() const { return type != ed::ItemType::eNone; }
-
-        static constexpr ItemIndex none() { return {ItemType::eNone, 0}; }
-    };
-
-    class ScenePanel final : public IEditorPanel {
-        render::Context& mContext;
-        ViewportPanel& mViewport;
-        ItemIndex mSelected = ItemIndex::none();
+    class ScenePanel final {
+        ed::EditorContext& mContext;
 
         bool mShowObjects = false;
         bool mShowCameras = false;
@@ -51,9 +37,12 @@ namespace sm::ed {
         void create_primitive();
 
         // IEditorPanel
-        void draw_content() override;
+        void draw_content();
 
     public:
-        ScenePanel(render::Context& context, ViewportPanel& viewport);
+        ScenePanel(ed::EditorContext& context);
+
+        bool mOpen = true;
+        void draw_window();
     };
 }

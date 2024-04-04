@@ -1,8 +1,7 @@
+#include "editor/panel.hpp"
 #include "stdafx.hpp"
 
 #include "editor/assets.hpp"
-
-#include "editor/viewport.hpp"
 
 #include "render/render.hpp"
 
@@ -35,7 +34,7 @@ void AssetBrowserPanel::draw_models() {
         ImGui::BeginGroup();
         using Reflect = ctu::TypeInfo<world::ObjectType>;
         if (ImGui::Button(model.name.c_str(), ImVec2(mThumbnailSize, mThumbnailSize))) {
-            mViewport.select(ItemIndex{ ItemType::eMesh, (uint16)i });
+            mContext.selected = ItemIndex{ ItemType::eMesh, (uint16)i };
         }
 
         if (ImGui::BeginDragDropSource()) {
@@ -71,7 +70,7 @@ void AssetBrowserPanel::draw_images() {
         ImGui::PushID((int)i);
         ImGui::BeginGroup();
         if (ImGui::ImageButton(name.c_str(), (ImTextureID)gpu.ptr, math::float2(mThumbnailSize))) {
-            mViewport.select(ItemIndex{ ItemType::eImage, (uint16)i });
+            mContext.selected = ItemIndex{ ItemType::eImage, (uint16)i };
         }
         if (ImGui::BeginItemTooltip()) {
             ImGui::Text("%s (%s)", path.string().c_str(), ReflectImageType::to_string(texture.format).c_str());
@@ -144,10 +143,17 @@ void AssetBrowserPanel::draw_content() {
     }
 }
 
-AssetBrowserPanel::AssetBrowserPanel(render::Context& context, ViewportPanel& viewport)
-    : IEditorPanel("Asset Browser")
-    , mContext(context)
-    , mViewport(viewport)
+AssetBrowserPanel::AssetBrowserPanel(ed::EditorContext& context)
+    : mContext(context)
 {
     mFileBrowser.SetTitle("Import Assets");
+}
+
+void AssetBrowserPanel::draw_window() {
+    if (!mOpen) return;
+
+    if (ImGui::Begin("Asset Browser", &mOpen)) {
+        draw_content();
+    }
+    ImGui::End();
 }

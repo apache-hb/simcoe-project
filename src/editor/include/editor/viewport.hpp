@@ -1,7 +1,6 @@
 #pragma once
 
 #include "editor/draw.hpp"
-#include "editor/panel.hpp"
 #include "editor/scene.hpp"
 
 #include "draw/camera.hpp"
@@ -13,7 +12,7 @@ namespace sm::render {
 }
 
 namespace sm::ed {
-    class ViewportPanel final : public IEditorPanel {
+    class ViewportPanel final {
         static constexpr const ImGuizmo::OPERATION kRotateXYZ
             = ImGuizmo::ROTATE_X
             | ImGuizmo::ROTATE_Y
@@ -37,19 +36,23 @@ namespace sm::ed {
         ImGuizmo::MODE mMode = ImGuizmo::WORLD;
 
         bool mScaleViewport = true;
+        sm::String mName;
+        ImGuiWindowFlags mFlags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
 
         // IEditorPanel
-        void draw_content() override;
+        void draw_content();
 
     public:
         ViewportPanel(ed::EditorContext &context, size_t index);
 
-        bool draw_window() override;
+        bool mOpen = true;
+        void draw_window();
 
         void select(ItemIndex index) { mSelected = index; }
         ItemIndex get_selected() const { return mSelected; }
 
         void gizmo_settings_panel();
+        const char *get_title() const { return mName.c_str(); }
 
         static void begin_frame(draw::Camera& camera);
     };

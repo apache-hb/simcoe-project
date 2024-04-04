@@ -151,8 +151,8 @@ void RenderConfig::draw_content() {
     }
 
     for (const auto& [camera, _] : mContext.cameras) {
-        auto size = camera.config().size;
-        ImGui::Text("Camera: %s (%u x %u)", camera.name().data(), size.width, size.height);
+        auto size = camera->config().size;
+        ImGui::Text("Camera: %s (%u x %u)", camera->name().data(), size.width, size.height);
     }
 
     // {
@@ -180,4 +180,13 @@ void RenderConfig::draw_content() {
     if (draw_debug_flags()) {
         mContext.set_device_lost();
     }
+}
+
+void RenderConfig::draw_window() {
+    if (!mOpen) return;
+
+    if (ImGui::Begin("Render Config", &mOpen)) {
+        draw_content();
+    }
+    ImGui::End();
 }

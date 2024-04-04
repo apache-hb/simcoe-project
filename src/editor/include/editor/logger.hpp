@@ -3,10 +3,8 @@
 #include "core/map.hpp"
 #include "logs/logs.hpp"
 
-#include "editor/panel.hpp"
-
 namespace sm::ed {
-    class LoggerPanel final : public logs::ILogChannel, public IEditorPanel {
+    class LoggerPanel final : public logs::ILogChannel {
         struct Message {
             logs::Severity severity;
             uint32 timestamp;
@@ -24,9 +22,6 @@ namespace sm::ed {
         // logs::ILogChannel
         void accept(const logs::Message &message) override;
 
-        // IEditorPanel
-        void draw_content() override;
-
         LoggerPanel();
         ~LoggerPanel();
 
@@ -34,5 +29,9 @@ namespace sm::ed {
 
     public:
         static LoggerPanel& get();
+
+        bool mOpen = false;
+
+        void draw_window();
     };
 }

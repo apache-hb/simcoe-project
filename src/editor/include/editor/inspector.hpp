@@ -1,15 +1,12 @@
 #pragma once
 
-#include "editor/panel.hpp"
-#include "editor/scene.hpp"
+#include "editor/draw.hpp"
 
 namespace sm::ed {
-    class InspectorPanel final : public IEditorPanel {
-        render::Context &mContext;
-        ViewportPanel &mViewport;
+    class InspectorPanel final {
+        ed::EditorContext &mContext;
 
-        // IEditorPanel
-        void draw_content() override;
+        void draw_content();
 
         void draw_mesh(ItemIndex index);
         void draw_node(ItemIndex index);
@@ -18,6 +15,9 @@ namespace sm::ed {
         void draw_material(ItemIndex index);
 
     public:
-        InspectorPanel(render::Context &context, ViewportPanel &viewport);
+        InspectorPanel(ed::EditorContext &context);
+
+        bool mOpen = true;
+        void draw_window();
     };
 }

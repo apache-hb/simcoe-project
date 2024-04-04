@@ -208,6 +208,14 @@ void FeatureSupportPanel::draw_content() {
 }
 
 FeatureSupportPanel::FeatureSupportPanel(render::Context &context)
-    : IEditorPanel("D3D12 Feature Support")
-    , mContext(context)
+    : mContext(context)
 { }
+
+void FeatureSupportPanel::draw_window() {
+    if (!mOpen) return;
+
+    if (ImGui::Begin("Feature Support", &mOpen)) {
+        draw_content();
+    }
+    ImGui::End();
+}

@@ -25,7 +25,6 @@ namespace sm::ed {
         LoggerPanel& mLogger;
         RenderConfig mConfig;
         sm::Vector<ViewportPanel> mViewports;
-        ViewportPanel mViewport;
         ScenePanel mScene;
         InspectorPanel mInspector;
         FeatureSupportPanel mFeatureSupport;
@@ -34,18 +33,14 @@ namespace sm::ed {
         GraphPanel mGraph;
         PixPanel mPix;
 
-        struct MenuSection {
-            const char *name;
-            sm::Vector<IEditorPanel*> panels;
-        };
+        bool mShowImGuiDemo = false;
+        bool mShowImPlotDemo = false;
 
-        struct EditorMenu {
-            const char *name;
-            sm::Vector<IEditorPanel*> header;
-            sm::Vector<MenuSection> sections;
-        };
-
-        sm::Vector<EditorMenu> mMenus;
+        enum Theme {
+            eDark,
+            eLight,
+            eClassic
+        } mTheme = Theme::eDark;
 
         ImGui::FileBrowser mSaveLevelDialog { ImGuiFileBrowserFlags_CreateNewDir | ImGuiFileBrowserFlags_EnterNewFilename | ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_ConfirmOnEnter };
         ImGui::FileBrowser mOpenLevelDialog { ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_ConfirmOnEnter };
@@ -62,6 +57,6 @@ namespace sm::ed {
         void draw();
 
         render::Context& get_context() { return mContext; }
-        draw::Camera& get_camera() { return mContext.cameras[mContext.active].camera; }
+        draw::Camera& get_camera() { return *mContext.cameras[mContext.active].camera.get(); }
     };
 }

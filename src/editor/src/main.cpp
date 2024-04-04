@@ -328,7 +328,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     ed::EditorContext context{render_config};
 
     events.attach_render(&context);
-    input.add_client(&context.cameras[0].camera);
+    input.add_client(context.cameras[0].camera.get());
 
     context.create();
 

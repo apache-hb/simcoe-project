@@ -1,15 +1,13 @@
 #pragma once
 
-#include "editor/panel.hpp"
-
 namespace sm::ed {
     struct EditorContext;
 
-    class RenderConfig final : public IEditorPanel {
+    class RenderConfig final {
         ed::EditorContext& mContext;
 
         // IEditorPanel
-        void draw_content() override;
+        void draw_content();
 
         void draw_adapters() const;
         void draw_allocator_info() const;
@@ -17,8 +15,10 @@ namespace sm::ed {
 
     public:
         RenderConfig(EditorContext& context)
-            : IEditorPanel("Render Config")
-            , mContext(context)
+            : mContext(context)
         { }
+
+        bool mOpen = true;
+        void draw_window();
     };
 }

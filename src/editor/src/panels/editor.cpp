@@ -62,11 +62,10 @@ Editor::Editor(ed::EditorContext& context)
     : mContext(context)
     , mLogger(LoggerPanel::get())
     , mConfig(context)
-    , mViewport(context, 0)
-    , mScene(context, mViewport)
-    , mInspector(context, mViewport)
+    , mScene(context)
+    , mInspector(context)
     , mFeatureSupport(context)
-    , mAssetBrowser(context, mViewport)
+    , mAssetBrowser(context)
     , mGraph(context)
     , mPix(context)
 {
@@ -75,41 +74,9 @@ Editor::Editor(ed::EditorContext& context)
     mSaveLevelDialog.SetTypeFilters({ ".bin" });
     mSaveLevelDialog.SetInputName("level.bin");
 
-    EditorMenu view_menu = {
-        .name = "View",
-        .header = { &mLogger, &mScene, &mViewport, &mAssetBrowser, &mInspector },
-        .sections = {
-            MenuSection {
-                .name = "Debugging",
-                .panels = { &mDebug, &mPix, &mFeatureSupport }
-            },
-            MenuSection {
-                .name = "Demo Windows",
-                .panels = { new ImGuiDemoPanel(), new ImPlotDemoPanel() }
-            },
-            MenuSection {
-                .name = "Viewports",
-            }
-        }
-    };
-
-    EditorMenu settings_menu = {
-        .name = "Settings",
-        .header = { &mConfig },
-        .sections = {
-            MenuSection {
-                .name = "Style",
-                .panels = {
-                    new StyleMenuItem("Dark", [] { ImGui::StyleColorsDark(); ImPlot::StyleColorsDark(); }),
-                    new StyleMenuItem("Light", [] { ImGui::StyleColorsLight(); ImPlot::StyleColorsLight(); }),
-                    new StyleMenuItem("Classic", [] { ImGui::StyleColorsClassic(); ImPlot::StyleColorsClassic(); })
-                }
-            }
-        }
-    };
-
-    mMenus.push_back(view_menu);
-    mMenus.push_back(settings_menu);
+    for (size_t i = 0; i < mContext.cameras.size(); i++) {
+        mViewports.emplace_back(mContext, i);
+    }
 }
 
 void Editor::draw_mainmenu() {
@@ -137,20 +104,54 @@ void Editor::draw_mainmenu() {
             ImGui::EndMenu();
         }
 
-        for (const auto& [name, header, sections] : mMenus) {
-            if (ImGui::BeginMenu(name)) {
-                for (IEditorPanel *panel : header) {
-                    panel->draw_menu_item();
+        if (ImGui::BeginMenu("View")) {
+            ImGui::MenuItem("Logger", nullptr, &mLogger.mOpen);
+            ImGui::MenuItem("Scene Tree", nullptr, &mScene.mOpen);
+            ImGui::MenuItem("Inspector", nullptr, &mInspector.mOpen);
+            ImGui::MenuItem("Asset Browser", nullptr, &mAssetBrowser.mOpen);
+
+            ImGui::SeparatorText("Debugging");
+            ImGui::MenuItem("Debug", nullptr, &mDebug.mOpen);
+            mPix.draw_menu_item(nullptr);
+            ImGui::MenuItem("Feature Support", nullptr, &mFeatureSupport.mOpen);
+
+            ImGui::Separator();
+            if (ImGui::BeginMenu("Theme")) {
+                if (ImGui::MenuItem("Dark", nullptr, mTheme == Theme::eDark)) {
+                    ImGui::StyleColorsDark();
+                    ImPlot::StyleColorsDark();
+                    mTheme = Theme::eDark;
                 }
 
-                for (auto& [section_name, panels] : sections) {
-                    ImGui::SeparatorText(section_name);
-                    for (IEditorPanel *panel : panels) {
-                        panel->draw_menu_item();
-                    }
+                if (ImGui::MenuItem("Light", nullptr, mTheme == Theme::eLight)) {
+                    ImGui::StyleColorsLight();
+                    ImPlot::StyleColorsLight();
+                    mTheme = Theme::eLight;
+                }
+
+                if (ImGui::MenuItem("Classic", nullptr, mTheme == Theme::eClassic)) {
+                    ImGui::StyleColorsClassic();
+                    ImPlot::StyleColorsClassic();
+                    mTheme = Theme::eClassic;
                 }
                 ImGui::EndMenu();
             }
+
+            ImGui::SeparatorText("Viewports");
+            for (ViewportPanel &viewport : mViewports) {
+                ImGui::MenuItem(viewport.get_title(), nullptr, &viewport.mOpen);
+            }
+            if (ImGui::SmallButton("Add Viewport")) {
+                size_t index = mContext.add_camera();
+                mViewports.emplace_back(mContext, index);
+            }
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Help")) {
+            ImGui::MenuItem("ImGui Demo", nullptr, &mShowImGuiDemo);
+            ImGui::MenuItem("ImPlot Demo", nullptr, &mShowImPlotDemo);
+            ImGui::EndMenu();
         }
 
         ImGui::EndMainMenuBar();
@@ -205,16 +206,17 @@ void Editor::draw() {
     draw_mainmenu();
     draw_dockspace();
 
-    for (auto& [_, header, sections] : mMenus) {
-        for (IEditorPanel *panel : header) {
-            panel->draw_window();
-        }
+    mLogger.draw_window();
+    mScene.draw_window();
+    mInspector.draw_window();
+    mFeatureSupport.draw_window();
+    mDebug.draw_window();
+    mAssetBrowser.draw_window();
+    mGraph.draw_window();
+    mPix.draw_window();
 
-        for (auto& [_, panels] : sections) {
-            for (IEditorPanel *panel : panels) {
-                panel->draw_window();
-            }
-        }
+    for (ViewportPanel &viewport : mViewports) {
+        viewport.draw_window();
     }
 
     mOpenLevelDialog.Display();

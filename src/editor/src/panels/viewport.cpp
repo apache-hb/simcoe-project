@@ -72,10 +72,15 @@ void ViewportPanel::draw_rotate_mode() const {
     }
 }
 
-bool ViewportPanel::draw_window() {
+void ViewportPanel::draw_window() {
+    if (!mOpen) return;
+
     ImGui::SetNextWindowSizeConstraints(ImVec2(200.f, 200.f), ImVec2(8192.f, 8192.f));
 
-    return IEditorPanel::draw_window();
+    if (ImGui::Begin(mName.c_str(), &mOpen, mFlags)) {
+        draw_content();
+    }
+    ImGui::End();
 }
 
 void ViewportPanel::draw_content() {
@@ -85,7 +90,7 @@ void ViewportPanel::draw_content() {
     float2 avail = ImGui::GetContentRegionAvail();
     if (mScaleViewport) {
         uint2 sz = avail.as<uint>();
-        if (camera.resize(sz)) {
+        if (camera->resize(sz)) {
             mContext.update_framegraph();
         }
     }
@@ -123,8 +128,8 @@ void ViewportPanel::draw_content() {
     float matrix[16];
     ImGuizmo::RecomposeMatrixFromComponents(t.data(), euler.data(), s.data(), matrix);
 
-    float4x4 view = camera.view();
-    float4x4 proj = camera.projection(size.width / size.height);
+    float4x4 view = camera->view();
+    float4x4 proj = camera->projection(size.width / size.height);
 
     if (ImGuizmo::Manipulate(view.data(), proj.data(), mOperation, mMode, matrix)) {
         float3 t, r, s;
@@ -162,7 +167,7 @@ void ViewportPanel::gizmo_settings_panel() {
 
     const auto& camera = get_camera();
 
-    if (!camera.camera.is_active()) {
+    if (!camera.camera->is_active()) {
         // blender keybinds
         if (ImGui::IsKeyPressed(ImGuiKey_G))
             mOperation = mTranslateOperation;
@@ -195,7 +200,7 @@ void ViewportPanel::gizmo_settings_panel() {
 }
 
 ViewportPanel::ViewportPanel(ed::EditorContext &context, size_t index)
-    : IEditorPanel(std::format("Viewport {}", index))
-    , mContext(context)
+    : mContext(context)
     , mCameraIndex(index)
+    , mName(fmt::format("Viewport {}", index))
 { }
