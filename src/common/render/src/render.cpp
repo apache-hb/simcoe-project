@@ -777,7 +777,7 @@ void Context::build_command_list() {
     SM_ASSERT_HR(mCommandList->Close());
 }
 
-void Context::create_frame_graph() {
+void Context::create_framegraph() {
     graph::ResourceInfo info = {
         .size = mSwapChainConfig.size,
         .format = mSwapChainConfig.format,
@@ -789,7 +789,7 @@ void Context::create_frame_graph() {
     mFrameGraph.compile();
 }
 
-void Context::destroy_frame_graph() {
+void Context::destroy_framegraph() {
     mFrameGraph.reset();
 }
 
@@ -810,7 +810,7 @@ void Context::create_textures() {
 }
 
 void Context::destroy_device() {
-    destroy_frame_graph();
+    destroy_framegraph();
     mFrameGraph.reset_device_data();
 
     // release frame resources
@@ -879,14 +879,14 @@ void Context::create() {
     create_assets();
     init_scene();
 
-    create_frame_graph();
+    create_framegraph();
 }
 
 void Context::destroy() {
     flush_copy_queue();
     wait_for_gpu();
 
-    destroy_frame_graph();
+    destroy_framegraph();
     on_destroy();
 
     destroy_dstorage();
@@ -941,7 +941,7 @@ void Context::recreate_device() {
 
     create_textures();
     create_scene();
-    create_frame_graph();
+    create_framegraph();
 
     mDeviceLost = false;
 }
@@ -986,7 +986,7 @@ void Context::resize_swapchain(math::uint2 size) {
         mFrames[i].fence_value = mFrames[mFrameIndex].fence_value;
     }
 
-    destroy_frame_graph();
+    destroy_framegraph();
     destroy_frame_rtvs();
 
     const uint flags = get_swapchain_flags(mInstance);
@@ -997,13 +997,13 @@ void Context::resize_swapchain(math::uint2 size) {
 
     create_frame_rtvs();
     create_render_targets();
-    create_frame_graph();
+    create_framegraph();
 }
 
 void Context::update_framegraph() {
     wait_for_gpu();
-    destroy_frame_graph();
-    create_frame_graph();
+    destroy_framegraph();
+    create_framegraph();
 }
 
 void Context::move_to_next_frame() {

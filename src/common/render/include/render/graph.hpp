@@ -158,43 +158,41 @@ namespace sm::graph {
 
             void side_effects(bool effects);
 
-            template<typename F> requires std::invocable<F, render::Context&>
-            auto& device_data(F&& setup) {
-                using ActualData = std::invoke_result_t<F, render::Context&>;
-                struct DeviceData final : IDeviceData {
-                    F exec;
-                    ActualData data;
-
-                    void setup(render::Context& context) override {
-                        data = std::move(exec(context));
-                    }
-
-                    bool has_type(uint32 index) const override {
-                        return TypeIndex<ActualData>::index() == index;
-                    }
-
-                    DeviceData(F&& exec) : exec(std::move(exec)) { }
-                };
-
-                uint32 index = TypeIndex<ActualData>::index();
-                auto& data = mFrameGraph.mDeviceData;
-                if (auto it = data.find(index); it != data.end()) {
-                    return static_cast<ActualData&>(static_cast<DeviceData*>(it->second.get())->data);
-                }
-
-                auto [it, _] = data.emplace(index, new DeviceData(std::forward<F>(setup)));
-
-                mRenderPass.data = it->second.get();
-                mRenderPass.data->setup(mFrameGraph.mContext);
-
-                return static_cast<ActualData&>(static_cast<DeviceData*>(mRenderPass.data)->data);
-            }
-
             template<typename F> requires std::invocable<F, FrameGraph&>
             void bind(F&& execute) {
                 mRenderPass.execute = execute;
             }
         };
+
+        template<typename F> requires std::invocable<F, render::Context&>
+        auto& device_data(F&& setup) {
+            using ActualData = std::invoke_result_t<F, render::Context&>;
+            struct DeviceData final : IDeviceData {
+                F exec;
+                ActualData data;
+
+                void setup(render::Context& context) override {
+                    data = std::move(exec(context));
+                }
+
+                bool has_type(uint32 index) const override {
+                    return TypeIndex<ActualData>::index() == index;
+                }
+
+                DeviceData(F&& exec) : exec(std::move(exec)) { }
+            };
+
+            uint32 index = TypeIndex<ActualData>::index();
+            if (auto it = mDeviceData.find(index); it != mDeviceData.end()) {
+                return static_cast<DeviceData*>(it->second.get())->data;
+            }
+
+            auto [it, _] = mDeviceData.emplace(index, new DeviceData(std::forward<F>(setup)));
+
+            it->second->setup(mContext);
+
+            return static_cast<DeviceData*>(it->second.get())->data;
+        }
 
         // update a handle with new data
         // this is quite dangerous, only really used for the swapchain

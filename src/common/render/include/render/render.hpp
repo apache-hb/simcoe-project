@@ -128,8 +128,12 @@ namespace sm::render {
         Instance mInstance;
         WindowState mWindowState;
 
-        static void CALLBACK on_info(D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERITY severity,
-                                 D3D12_MESSAGE_ID id, LPCSTR desc, void *user);
+        static void CALLBACK on_info(
+            D3D12_MESSAGE_CATEGORY category,
+            D3D12_MESSAGE_SEVERITY severity,
+            D3D12_MESSAGE_ID id,
+            LPCSTR desc,
+            void *user);
 
         /// device creation and physical adapters
         size_t mAdapterIndex;
@@ -175,9 +179,9 @@ namespace sm::render {
 
         void reset_direct_commands(ID3D12PipelineState *pso = nullptr);
 
-        uint min_rtv_heap_size() const { return DXGI_MAX_SWAP_CHAIN_BUFFERS + 1 + mConfig.rtv_heap_size; }
-        uint min_srv_heap_size() const { return 1 + 1 + mConfig.srv_heap_size; }
-        uint min_dsv_heap_size() const { return 1 + mConfig.dsv_heap_size; }
+        uint min_rtv_heap_size() const { return DXGI_MAX_SWAP_CHAIN_BUFFERS + mConfig.rtv_heap_size; }
+        uint min_srv_heap_size() const { return mConfig.srv_heap_size; }
+        uint min_dsv_heap_size() const { return mConfig.dsv_heap_size; }
 
         RtvPool mRtvPool;
         DsvPool mDsvPool;
@@ -208,7 +212,6 @@ namespace sm::render {
         void create_world_resources();
 
         sm::Vector<Mesh> mMeshes;
-
         sm::Vector<Texture> mTextures;
         texindex load_texture(const fs::path& path);
         texindex load_texture(const ImageData& image);
@@ -224,8 +227,8 @@ namespace sm::render {
         void create_scene();
         void destroy_scene();
 
-        void create_frame_graph();
-        void destroy_frame_graph();
+        void create_framegraph();
+        void destroy_framegraph();
 
         void create_pipeline();
         void create_assets();

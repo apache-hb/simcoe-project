@@ -103,7 +103,7 @@ void draw::opaque(graph::FrameGraph& graph, graph::Handle& target, const Camera&
     target = pass.create(target_info, "Target", graph::Access::eRenderTarget);
     auto depth = pass.create(depth_info, "Depth", graph::Access::eDepthTarget);
 
-    auto& data = pass.device_data([config](render::Context& context) {
+    auto& data = graph.device_data([config](render::Context& context) {
         struct {
             render::Pipeline pipeline;
         } info;
