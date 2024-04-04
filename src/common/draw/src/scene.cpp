@@ -4,6 +4,7 @@
 #include "draw/camera.hpp"
 
 #include "render/render.hpp"
+
 #include <directx/d3dx12_core.h>
 #include <directx/d3dx12_root_signature.h>
 
@@ -11,11 +12,11 @@ using namespace sm;
 using namespace sm::math;
 
 static void draw_node(render::Context& context, const draw::Camera& camera, uint16 index, const float4x4& parent) {
-    float aspect_ratio = float(context.mSceneSize.width) / float(context.mSceneSize.height);
+    float ar = camera.config().aspect_ratio();
     const auto& node = context.mWorld.info.nodes[index];
 
     auto model = (parent * node.transform.matrix());
-    float4x4 mvp = camera.mvp(aspect_ratio, model.transpose()).transpose();
+    float4x4 mvp = camera.mvp(ar, model.transpose()).transpose();
 
     auto& cmd = context.mCommandList;
     cmd->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
@@ -41,7 +42,7 @@ static const D3D12_ROOT_SIGNATURE_FLAGS kPrimitiveRootFlags
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
 
-static void create_primitive_pipeline(render::Pipeline& pipeline, render::Context& context) {
+static void create_primitive_pipeline(render::Pipeline& pipeline, const draw::ViewportConfig& config, render::Context& context) {
     {
         // mvp matrix
         CD3DX12_ROOT_PARAMETER1 params[1];
@@ -73,8 +74,8 @@ static void create_primitive_pipeline(render::Pipeline& pipeline, render::Contex
             .InputLayout = { kInputElements, _countof(kInputElements) },
             .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
             .NumRenderTargets = 1,
-            .RTVFormats = { context.mSceneFormat },
-            .DSVFormat = context.mDepthFormat,
+            .RTVFormats = { config.colour },
+            .DSVFormat = config.depth,
             .SampleDesc = { 1, 0 },
         };
 
@@ -85,16 +86,16 @@ static void create_primitive_pipeline(render::Pipeline& pipeline, render::Contex
 }
 
 void draw::opaque(graph::FrameGraph& graph, graph::Handle& target, const Camera& camera) {
-    auto& ctx = graph.get_context();
+    auto config = camera.config();
     graph::ResourceInfo depth_info = {
-        .size = graph.render_size(),
-        .format = ctx.mDepthFormat,
+        .size = config.size,
+        .format = config.depth,
         .clear = graph::clear_depth(1.f)
     };
 
     graph::ResourceInfo target_info = {
-        .size = graph.render_size(),
-        .format = ctx.mSceneFormat,
+        .size = config.size,
+        .format = config.colour,
         .clear = graph::clear_colour(render::kClearColour)
     };
 
@@ -102,18 +103,19 @@ void draw::opaque(graph::FrameGraph& graph, graph::Handle& target, const Camera&
     target = pass.create(target_info, "Target", graph::Access::eRenderTarget);
     auto depth = pass.create(depth_info, "Depth", graph::Access::eDepthTarget);
 
-    auto& data = pass.device_data([](render::Context& context) {
+    auto& data = pass.device_data([config](render::Context& context) {
         struct {
             render::Pipeline pipeline;
         } info;
 
-        create_primitive_pipeline(info.pipeline, context);
+        create_primitive_pipeline(info.pipeline, config, context);
 
         return info;
     });
 
     pass.bind([target, depth, &data, &camera](graph::FrameGraph& graph) {
         auto& context = graph.get_context();
+        auto viewport = camera.viewport();
         auto& cmd = context.mCommandList;
         auto rtv = graph.rtv(target);
         auto dsv = graph.dsv(depth);
@@ -124,8 +126,8 @@ void draw::opaque(graph::FrameGraph& graph, graph::Handle& target, const Camera&
         cmd->SetGraphicsRootSignature(*data.pipeline.signature);
         cmd->SetPipelineState(*data.pipeline.pso);
 
-        cmd->RSSetViewports(1, &context.mSceneViewport.mViewport);
-        cmd->RSSetScissorRects(1, &context.mSceneViewport.mScissorRect);
+        cmd->RSSetViewports(1, &viewport.mViewport);
+        cmd->RSSetScissorRects(1, &viewport.mScissorRect);
 
         cmd->OMSetRenderTargets(1, &rtv_cpu, false, &dsv_cpu);
         cmd->ClearRenderTargetView(rtv_cpu, render::kClearColour.data(), 0, nullptr);

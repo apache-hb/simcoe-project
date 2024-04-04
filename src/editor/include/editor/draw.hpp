@@ -25,5 +25,6 @@ namespace sm::ed {
         };
 
         sm::Vector<CameraData> cameras;
+        size_t active = 0;
     };
 }

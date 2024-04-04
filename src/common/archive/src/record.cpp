@@ -101,7 +101,7 @@ bool RecordStore::create() {
 
     size_t size_as_bytes = mSize.as_bytes();
 
-    if (OsError err = os_file_expand(&mFileHandle, size_as_bytes)) {
+    if (OsError err = os_file_resize(&mFileHandle, size_as_bytes)) {
         logs::gAssets.error("unable to expand file, {}", err);
         return false;
     }
@@ -173,7 +173,7 @@ void RecordStore::destroy() {
     mMemory = nullptr;
 
     if (os_mapping_active(&mMapHandle)) {
-        if (OsError err = os_file_unmap(&mMapHandle)) {
+        if (OsError err = os_unmap(&mMapHandle)) {
             logs::gAssets.error("unable to unmap file, {}", err);
         }
     }

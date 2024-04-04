@@ -23,6 +23,9 @@ namespace sm::ed {
         void draw_rotate_mode() const;
 
         ed::EditorContext &mContext;
+        size_t mCameraIndex;
+
+        auto& get_camera() { return mContext.cameras[mCameraIndex]; }
 
         ItemIndex mSelected = ItemIndex::none();
         ImGuizmo::OPERATION mOperation = ImGuizmo::TRANSLATE;
@@ -39,7 +42,9 @@ namespace sm::ed {
         void draw_content() override;
 
     public:
-        ViewportPanel(ed::EditorContext &context);
+        ViewportPanel(ed::EditorContext &context, size_t index);
+
+        bool draw_window() override;
 
         void select(ItemIndex index) { mSelected = index; }
         ItemIndex get_selected() const { return mSelected; }

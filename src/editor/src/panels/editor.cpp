@@ -2,8 +2,6 @@
 
 #include "editor/editor.hpp"
 
-#include "render/render.hpp"
-
 using namespace sm;
 using namespace sm::ed;
 
@@ -64,7 +62,7 @@ Editor::Editor(ed::EditorContext& context)
     : mContext(context)
     , mLogger(LoggerPanel::get())
     , mConfig(context)
-    , mViewport(context)
+    , mViewport(context, 0)
     , mScene(context, mViewport)
     , mInspector(context, mViewport)
     , mFeatureSupport(context)
@@ -88,6 +86,9 @@ Editor::Editor(ed::EditorContext& context)
             MenuSection {
                 .name = "Demo Windows",
                 .panels = { new ImGuiDemoPanel(), new ImPlotDemoPanel() }
+            },
+            MenuSection {
+                .name = "Viewports",
             }
         }
     };

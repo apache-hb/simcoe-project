@@ -8,7 +8,7 @@
 #include "os/os.h"
 
 constexpr bool operator!=(const os_library_t& lhs, const os_library_t& rhs) {
-    return lhs.library != rhs.library;
+    return lhs.impl != rhs.impl;
 }
 
 namespace sm {
@@ -17,7 +17,7 @@ namespace sm {
     class Library : LibraryHandle {
         OsError mError = 0;
 
-        os_symbol_t get_symbol(const char *name);
+        void *get_symbol(const char *name);
 
     public:
         Library() = default;

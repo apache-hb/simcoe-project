@@ -82,7 +82,7 @@ static void create_blit_pipeline(render::Pipeline& pipeline, render::Context& co
             .InputLayout = { kInputElements, _countof(kInputElements) },
             .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
             .NumRenderTargets = 1,
-            .RTVFormats = { context.mSwapChainFormat },
+            .RTVFormats = { context.mSwapChainConfig.format },
             .SampleDesc = { 1, 0 },
         };
         auto& device = context.mDevice;
@@ -144,7 +144,7 @@ static void create_screen_quad(render::Resource& quad, render::VertexBufferView&
     };
 }
 
-void draw::blit(graph::FrameGraph& graph, graph::Handle target, graph::Handle source) {
+void draw::blit(graph::FrameGraph& graph, graph::Handle target, graph::Handle source, const render::Viewport& viewport) {
     graph::PassBuilder pass = graph.pass("Blit");
     pass.write(target, "Target", graph::Access::eRenderTarget);
     pass.read(source, "Image", graph::Access::ePixelShaderResource);
@@ -162,7 +162,7 @@ void draw::blit(graph::FrameGraph& graph, graph::Handle target, graph::Handle so
         return info;
     });
 
-    pass.bind([target, source, &data](graph::FrameGraph& graph) {
+    pass.bind([target, source, viewport, &data](graph::FrameGraph& graph) {
         auto& context = graph.get_context();
         auto& cmd = context.mCommandList;
         auto rtv = graph.rtv(target);
@@ -174,8 +174,8 @@ void draw::blit(graph::FrameGraph& graph, graph::Handle target, graph::Handle so
         cmd->SetGraphicsRootSignature(*data.pipeline.signature);
         cmd->SetPipelineState(*data.pipeline.pso);
 
-        cmd->RSSetViewports(1, &context.mPresentViewport.mViewport);
-        cmd->RSSetScissorRects(1, &context.mPresentViewport.mScissorRect);
+        cmd->RSSetViewports(1, &viewport.mViewport);
+        cmd->RSSetScissorRects(1, &viewport.mScissorRect);
 
         cmd->OMSetRenderTargets(1, &rtv_cpu, false, nullptr);
 

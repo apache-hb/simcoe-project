@@ -107,14 +107,6 @@ Handle FrameGraph::include(sm::StringView name, ResourceInfo info, Access access
     return {index};
 }
 
-uint2 FrameGraph::present_size() const {
-    return mContext.mSwapChainSize;
-}
-
-uint2 FrameGraph::render_size() const {
-    return mContext.mSceneSize;
-}
-
 void FrameGraph::update(Handle handle, ID3D12Resource *resource) {
     mHandles[handle.index].resource = resource;
 }

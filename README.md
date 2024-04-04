@@ -23,15 +23,21 @@ python scripts\ninjatracing\ninjatracing.py build\.ninja_log > trace.json
 meson install -C <dir> --skip-subprojects
 ```
 
+
+```sh
+# blender
+cmake -S . -B build -G Ninja -DCMAKE_LINKER="lld-link" -DCMAKE_C_COMPILER="clang-cl" -DCMAKE_CXX_COMPILER="clang-cl" -DCMAKE_INSTALL_PREFIX="K:\blender" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+```
+
 ```sh
 # building llvm as a shared library
 cmake -S llvm -B build -G Ninja -DLLVM_ENABLE_PROJECTS="clang" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX="K:\llvm\shared"  -DLLVM_TARGETS_TO_BUILD=X86 "-DCMAKE_TOOLCHAIN_FILE=K:/vcpkg/scripts/buildsystems/vcpkg.cmake" -DBUILD_SHARED_LIBS=ON -DLLVM_ENABLE_DIA_SDK=OFF -DCMAKE_LINKER="lld-link" -DCMAKE_C_COMPILER="clang-cl" -DCMAKE_CXX_COMPILER="clang-cl"
 
-# building llvm for use in the reflect driver
-cmake -S llvm -B build -G Ninja -DLLVM_ENABLE_PROJECTS="clang" -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX="K:\llvm-reflect"  -DLLVM_TARGETS_TO_BUILD="X86" "-DCMAKE_TOOLCHAIN_FILE=K:/vcpkg/scripts/buildsystems/vcpkg.cmake" -DCMAKE_LINKER="lld-link" -DCMAKE_C_COMPILER="clang-cl" -DCMAKE_CXX_COMPILER="clang-cl" -DLLVM_ENABLE_LTO="Thin" -DLLVM_ENABLE_PLUGINS=ON -DLLVM_INTEGRATED_CRT_ALLOC="K:\github\rpmalloc" -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DLLVM_INCLUDE_TOOLS=ON -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD="DirectX"
-
 # build llvm for local use
-cmake -S llvm -B build-native -G Ninja -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;lld" -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX="K:\llvm"  -DLLVM_TARGETS_TO_BUILD="X86" "-DCMAKE_TOOLCHAIN_FILE=K:/vcpkg/scripts/buildsystems/vcpkg.cmake" -DCMAKE_LINKER="lld-link" -DCMAKE_C_COMPILER="clang-cl" -DCMAKE_CXX_COMPILER="clang-cl" -DLLVM_ENABLE_LTO="Thin" -DLLVM_INTEGRATED_CRT_ALLOC="K:\github\rpmalloc" -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DLLVM_INCLUDE_TOOLS=ON -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD="DirectX" -DCMAKE_CXX_FLAGS="-march=native -mtune=native" -DCMAKE_C_FLAGS="-march=native -mtune=native"
+cmake -S llvm -B build -G Ninja -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;lld;openmp;compiler-rt" -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX="K:\llvm"  -DLLVM_TARGETS_TO_BUILD="X86" "-DCMAKE_TOOLCHAIN_FILE=K:/vcpkg/scripts/buildsystems/vcpkg.cmake" -DCMAKE_LINKER="lld-link" -DCMAKE_C_COMPILER="clang-cl" -DCMAKE_CXX_COMPILER="clang-cl" -DLLVM_ENABLE_LTO="Thin" -DLLVM_INTEGRATED_CRT_ALLOC="K:\github\rpmalloc" -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DLLVM_INCLUDE_TOOLS=ON -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD="DirectX" -DCMAKE_CXX_FLAGS="-march=native -mtune=native" -DCMAKE_C_FLAGS="-march=native -mtune=native" -DCLANG_ENABLE_HLSL=ON -DCMAKE_CL_SHOWINCLUDES_PREFIX="Note: including file: " -DCMAKE_RC_COMPILER="llvm-rc.exe"
+
+# build llvm for local use + time trace
+cmake -S llvm -B build -G Ninja -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;lld;openmp;compiler-rt" -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX="K:\llvm"  -DLLVM_TARGETS_TO_BUILD="X86" "-DCMAKE_TOOLCHAIN_FILE=K:/vcpkg/scripts/buildsystems/vcpkg.cmake" -DCMAKE_LINKER="lld-link" -DCMAKE_C_COMPILER="clang-cl" -DCMAKE_CXX_COMPILER="clang-cl" -DLLVM_ENABLE_LTO="Thin" -DLLVM_INTEGRATED_CRT_ALLOC="K:\github\rpmalloc" -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DLLVM_INCLUDE_TOOLS=ON -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD="DirectX" -DCMAKE_CXX_FLAGS="-march=native -mtune=native -ftime-trace" -DCMAKE_C_FLAGS="-march=native -mtune=native -ftime-trace" -DCLANG_ENABLE_HLSL=ON -DCMAKE_CL_SHOWINCLUDES_PREFIX="Note: including file: " -DCMAKE_RC_COMPILER="llvm-rc.exe"
 
 # building llvm
 cmake -S llvm -B build-stage0 -G Ninja -DLLVM_ENABLE_PROJECTS="clang;lld" -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX="K:\llvm" -DLLVM_PARALLEL_LINK_JOBS=16 -DLLVM_HOST_TRIPLE=x86_64 -DLLVM_TARGETS_TO_BUILD=X86

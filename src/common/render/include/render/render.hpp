@@ -30,19 +30,19 @@ namespace sm::render {
     using texindex = uint16; // NOLINT
     using meshindex = uint16; // NOLINT
 
+    struct SwapChainConfig {
+        math::uint2 size;
+        uint length;
+        DXGI_FORMAT format;
+    };
+
     struct RenderConfig {
         DebugFlags flags;
         AdapterPreference preference;
         FeatureLevel feature_level;
         size_t adapter_index;
 
-        uint swapchain_length;
-        DXGI_FORMAT swapchain_format;
-        math::uint2 swapchain_size; // present resolution
-
-        DXGI_FORMAT scene_format;
-        DXGI_FORMAT depth_format;
-        math::uint2 scene_size; // internal resolution
+        SwapChainConfig swapchain;
 
         uint rtv_heap_size;
         uint dsv_heap_size;
@@ -63,7 +63,14 @@ namespace sm::render {
         D3D12_VIEWPORT mViewport;
         D3D12_RECT mScissorRect;
 
+        Viewport() = default;
         Viewport(math::uint2 size);
+        Viewport(D3D12_VIEWPORT viewport, D3D12_RECT scissor)
+            : mViewport(viewport)
+            , mScissorRect(scissor)
+        { }
+
+        static Viewport letterbox(math::uint2 display, math::uint2 render);
     };
 
     struct Pipeline {
@@ -154,13 +161,7 @@ namespace sm::render {
         Object<IDXGISwapChain3> mSwapChain;
 
         // render info
-        DXGI_FORMAT mSwapChainFormat;
-        math::uint2 mSwapChainSize; // present resolution
-        uint mSwapChainLength; // number of swap chain buffers
-
-        DXGI_FORMAT mSceneFormat;
-        DXGI_FORMAT mDepthFormat;
-        math::uint2 mSceneSize; // render resolution
+        SwapChainConfig mSwapChainConfig;
 
         sm::UniqueArray<FrameData> mFrames;
         void create_frame_allocators();
@@ -195,15 +196,6 @@ namespace sm::render {
         HANDLE mCopyFenceEvent;
         uint64 mCopyFenceValue;
         void create_copy_fence();
-
-        /// blit pipeline + assets
-        Viewport mPresentViewport;
-
-        void update_display_viewport();
-
-        /// scene pipeline + assets
-        Viewport mSceneViewport;
-        void update_scene_viewport();
 
         struct {
             // meshes and textures both line up with the objects, and images in the info struct
@@ -283,9 +275,9 @@ namespace sm::render {
         void destroy();
 
         void render();
-        void update_scene_size(math::uint2 size);
         void resize_swapchain(math::uint2 size);
         void recreate_device();
+        void update_framegraph();
 
         void set_device_lost();
     };

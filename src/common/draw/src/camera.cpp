@@ -13,8 +13,10 @@ static constexpr ButtonAxis kMoveForward = {Button::eW, Button::eS};
 static constexpr ButtonAxis kMoveStrafe = {Button::eD, Button::eA};
 static constexpr ButtonAxis kMoveUp = {Button::eE, Button::eQ};
 
-Camera::Camera(sm::StringView name)
+Camera::Camera(sm::StringView name, const ViewportConfig& config)
     : mName(name)
+    , mConfig(config)
+    , mViewport(config.size)
 { }
 
 void Camera::accept(const input::InputState& state, InputService& service) {
@@ -53,9 +55,8 @@ void Camera::accept(const input::InputState& state, InputService& service) {
 }
 
 void Camera::tick(float dt) {
-    if (!mCameraActive.is_active()) {
+    if (!mCameraActive.is_active())
         return;
-    }
 
     float scaled = mCameraSpeed * dt;
 
@@ -77,6 +78,15 @@ sm::StringView Camera::name() const {
 
 bool Camera::is_active() const {
     return mCameraActive.is_active();
+}
+
+bool Camera::resize(const math::uint2& size) {
+    if (size == mConfig.size) return false;
+
+    mConfig.size = size;
+    mViewport = render::Viewport(size);
+
+    return true;
 }
 
 float4x4 Camera::model() const {

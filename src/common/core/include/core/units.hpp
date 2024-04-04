@@ -14,11 +14,11 @@ namespace sm {
         using From = O;
         using To = T;
 
-        static constexpr T dst_min() { return std::numeric_limits<T>::min(); }
-        static constexpr T dst_max() { return std::numeric_limits<T>::max(); }
+        static constexpr T dst_min() { return (std::numeric_limits<T>::min)(); }
+        static constexpr T dst_max() { return (std::numeric_limits<T>::max)(); }
 
-        static constexpr O src_min() { return std::numeric_limits<O>::min(); }
-        static constexpr O src_max() { return std::numeric_limits<O>::max(); }
+        static constexpr O src_min() { return (std::numeric_limits<O>::min)(); }
+        static constexpr O src_max() { return (std::numeric_limits<O>::max)(); }
 
         T value;
         CastError error = CastError::eNone;
@@ -28,15 +28,15 @@ namespace sm {
     CastResult<T, O> checked_cast(O value) {
         using C = CastResult<T, O>;
 
-        if constexpr (C::kDstMax > C::kSrcMax) {
-            if (value < C::kSrcMin) {
-                return { C::kDstMin, CastError::eUnderflow };
+        if constexpr (C::dst_max() > C::src_max()) {
+            if (value < C::src_min()) {
+                return { C::dst_min(), CastError::eUnderflow };
             }
         }
 
-        if constexpr (C::kDstMin < C::kSrcMin) {
-            if (value > C::kSrcMax) {
-                return { C::kDstMax, CastError::eOverflow };
+        if constexpr (C::dst_min() < C::src_min()) {
+            if (value > C::src_max()) {
+                return { C::dst_max(), CastError::eOverflow };
             }
         }
 

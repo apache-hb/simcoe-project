@@ -211,9 +211,6 @@ namespace sm::graph {
         PassBuilder pass(sm::StringView name);
         Handle include(sm::StringView name, ResourceInfo info, Access access, ID3D12Resource *resource);
 
-        uint2 present_size() const;
-        uint2 render_size() const;
-
         render::Context& get_context() { return mContext; }
 
         void reset();

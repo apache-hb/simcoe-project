@@ -139,23 +139,23 @@ bool RenderConfig::draw_debug_flags() const {
 }
 
 void RenderConfig::draw_content() {
-    int backbuffers = int_cast<int>(mContext.mSwapChainLength);
+    int backbuffers = int_cast<int>(mContext.mSwapChainConfig.length);
 
     if (ImGui::SliderInt("SwapChain Length", &backbuffers, 2, kMaxLength)) {
         mContext.update_swapchain_length(int_cast<uint>(backbuffers));
     }
 
     {
-        auto [width, height] = mContext.mSwapChainSize;
+        auto [width, height] = mContext.mSwapChainConfig.size.as<int>();
         ImGui::Text("Display Resolution: %u x %u", width, height);
     }
 
-    {
-        auto size = mContext.mSceneSize.as<int>();
-        if (ImGui::SliderInt2("Render Resolution", size.data(), 64, 4096)) {
-            mContext.update_scene_size(size.as<uint>());
-        }
-    }
+    // {
+    //     auto size = mContext.mSceneSize.as<int>();
+    //     if (ImGui::SliderInt2("Render Resolution", size.data(), 64, 4096)) {
+    //         mContext.update_scene_size(size.as<uint>());
+    //     }
+    // }
 
     ImGui::SeparatorText("Adapters");
     draw_adapters();

@@ -12,8 +12,8 @@ Library::Library(const fs::path& path)
     : Library(path.string().c_str())
 { }
 
-os_symbol_t Library::get_symbol(const char *name) {
-    os_symbol_t result;
+void *Library::get_symbol(const char *name) {
+    void *result;
     mError = os_library_symbol(LibraryHandle::address(), &result, name);
 
     if (mError.failed())

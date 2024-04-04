@@ -20,7 +20,9 @@ static void imgui_pass(graph::FrameGraph& graph, graph::Handle target) {
 EditorContext::EditorContext(const render::RenderConfig& config)
     : Super(config)
 {
-    cameras.push_back({ draw::Camera("Camera 0") });
+    draw::ViewportConfig vp { { 1920, 1080}, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT };
+    draw::Camera camera{ "Camera 0", vp };
+    cameras.push_back({ camera });
 }
 
 void EditorContext::tick(float dt) {
@@ -37,7 +39,7 @@ void EditorContext::on_create() {
 
     const auto cpu = mSrvPool.cpu_handle(index);
     const auto gpu = mSrvPool.gpu_handle(index);
-    ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mSwapChainLength), mSwapChainFormat,
+    ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mSwapChainConfig.length), mSwapChainConfig.format,
                         mSrvPool.get(), cpu, gpu);
 }
 
@@ -49,12 +51,13 @@ void EditorContext::on_destroy() {
 }
 
 void EditorContext::setup_framegraph(graph::FrameGraph& graph) {
+    render::Viewport vp { mSwapChainConfig.size };
     for (auto& viewport : cameras) {
         auto& camera = viewport.camera;
         auto& target = viewport.target;
 
         draw::opaque(graph, target, camera);
-        draw::blit(graph, mSwapChainHandle, target);
+        draw::blit(graph, mSwapChainHandle, target, vp);
     }
 
     imgui_pass(graph, mSwapChainHandle);

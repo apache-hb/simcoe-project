@@ -2,11 +2,17 @@
 
 #include "core/unique.hpp"
 #include "core/error.hpp"
+#include "core/win32.hpp" // IWYU pragma: export
+#include "os/os.h"
 
 #include "io.reflect.h"
 
 namespace sm {
-    using IoHandle = sm::FnUniquePtr<io_t, io_close>;
+    constexpr auto kIoClose = [](io_t *io) {
+        CTASSERTF(io_close(io) == eOsSuccess, "Failed to close io handle");
+    };
+
+    using IoHandle = sm::UniquePtr<io_t, decltype(kIoClose)>;
 
     struct Io : IoHandle {
         static Io file(const char *path, archive::IoAccess access);

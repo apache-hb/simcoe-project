@@ -5,9 +5,9 @@
 using namespace sm;
 using namespace sm::render;
 
-void Context::update_display_viewport() {
-    auto [renderWidth, renderHeight] = mSceneSize.as<float>();
-    auto [displayWidth, displayHeight] = mSwapChainSize.as<float>();
+Viewport Viewport::letterbox(math::uint2 display, math::uint2 render) {
+    auto [renderWidth, renderHeight] = render.as<float>();
+    auto [displayWidth, displayHeight] = display.as<float>();
 
     auto widthRatio = renderWidth / displayWidth;
     auto heightRatio = renderHeight / displayHeight;
@@ -26,7 +26,7 @@ void Context::update_display_viewport() {
     float viewport_width = x * displayWidth;
     float viewport_height = y * displayHeight;
 
-    mPresentViewport.mViewport = {
+    D3D12_VIEWPORT viewport = {
         .TopLeftX = viewport_x,
         .TopLeftY = viewport_y,
         .Width = viewport_width,
@@ -35,10 +35,12 @@ void Context::update_display_viewport() {
         .MaxDepth = 1.f,
     };
 
-    mPresentViewport.mScissorRect = {
+    D3D12_RECT scissor = {
         .left = LONG(viewport_x),
         .top = LONG(viewport_y),
         .right = LONG(viewport_x + viewport_width),
         .bottom = LONG(viewport_y + viewport_height),
     };
+
+    return { viewport, scissor };
 }

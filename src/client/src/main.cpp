@@ -122,7 +122,7 @@ public:
 static print_backtrace_t print_options_make(io_t *io) {
     print_backtrace_t print = {
         .options = {.arena = sm::global_arena(), .io = io, .pallete = &kColourDefault},
-        .heading_style = eHeadingGeneric,
+        .header = eHeadingGeneric,
         .zero_indexed_lines = false,
         .project_source_path = SMC_SOURCE_DIR,
     };
@@ -139,7 +139,7 @@ class DefaultSystemError final : public ISystemError {
         io_printf(io, "System error detected: (%s)\n", error.to_string());
     }
 
-    void error_frame(const bt_frame_t *it) override {
+    void error_frame(bt_address_t it) override {
         bt_report_add(mReport, it);
     }
 
@@ -231,12 +231,19 @@ struct ClientContext final : public render::Context {
     using Super = render::Context;
     using Super::Super;
 
+    draw::ViewportConfig viewport = {
+        .size = { 1920, 1080 },
+        .colour = DXGI_FORMAT_R8G8B8A8_UNORM,
+        .depth = DXGI_FORMAT_D32_FLOAT,
+    };
+
     graph::Handle mSceneTargetHandle;
-    draw::Camera camera{"client"};
+    draw::Camera camera{"client", viewport};
 
     void setup_framegraph(graph::FrameGraph& graph) override {
+        render::Viewport vp = render::Viewport::letterbox(mSwapChainConfig.size, viewport.size);
         draw::opaque(graph, mSceneTargetHandle, camera);
-        draw::blit(graph, mSwapChainHandle, mSceneTargetHandle);
+        draw::blit(graph, mSwapChainHandle, mSceneTargetHandle, vp);
     }
 };
 
@@ -266,7 +273,6 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     sm::Bundle bundle{*tar, archive::BundleFormat::eTar};
 
     render::DebugFlags flags = render::DebugFlags::none();
-
 
     if (sm::warp_enabled()) {
         flags |= render::DebugFlags::eWarpAdapter;
@@ -299,13 +305,11 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .feature_level = render::FeatureLevel::eLevel_11_0,
         .adapter_index = 0,
 
-        .swapchain_length = 2,
-        .swapchain_format = DXGI_FORMAT_R8G8B8A8_UNORM,
-        .swapchain_size = client.as<uint>(),
-
-        .scene_format = DXGI_FORMAT_R8G8B8A8_UNORM,
-        .depth_format = DXGI_FORMAT_D32_FLOAT,
-        .scene_size = { 1920, 1080 },
+        .swapchain = {
+            .size = client.as<uint>(),
+            .length = 2,
+            .format = DXGI_FORMAT_R8G8B8A8_UNORM,
+        },
 
         .rtv_heap_size = 64,
         .dsv_heap_size = 64,

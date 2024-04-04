@@ -72,19 +72,25 @@ void ViewportPanel::draw_rotate_mode() const {
     }
 }
 
+bool ViewportPanel::draw_window() {
+    ImGui::SetNextWindowSizeConstraints(ImVec2(200.f, 200.f), ImVec2(8192.f, 8192.f));
+
+    return IEditorPanel::draw_window();
+}
+
 void ViewportPanel::draw_content() {
     ImGui::Checkbox("Scale to viewport", &mScaleViewport);
+    auto& [camera, target] = get_camera();
 
-    ImVec2 avail = ImGui::GetContentRegionAvail();
+    float2 avail = ImGui::GetContentRegionAvail();
     if (mScaleViewport) {
-        float2 sz = { avail.x, avail.y };
-        mContext.update_scene_size(sz.as<uint>());
+        uint2 sz = avail.as<uint>();
+        if (camera.resize(sz)) {
+            mContext.update_framegraph();
+        }
     }
 
-    const auto& camera = mContext.cameras[0];
-
-    const auto& handle = camera.target;
-    auto srv = mContext.mFrameGraph.srv(handle);
+    auto srv = mContext.mFrameGraph.srv(target);
     auto idx = mContext.mSrvPool.gpu_handle(srv);
     ImGui::Image((ImTextureID)idx.ptr, avail);
 
@@ -117,8 +123,8 @@ void ViewportPanel::draw_content() {
     float matrix[16];
     ImGuizmo::RecomposeMatrixFromComponents(t.data(), euler.data(), s.data(), matrix);
 
-    float4x4 view = camera.camera.view();
-    float4x4 proj = camera.camera.projection(size.width / size.height);
+    float4x4 view = camera.view();
+    float4x4 proj = camera.projection(size.width / size.height);
 
     if (ImGuizmo::Manipulate(view.data(), proj.data(), mOperation, mMode, matrix)) {
         float3 t, r, s;
@@ -154,7 +160,7 @@ void ViewportPanel::gizmo_settings_panel() {
     ImGui::SameLine();
     draw_gizmo_mode(mScaleOperation, ImGuizmo::SCALE_X, ImGuizmo::SCALE_Y, ImGuizmo::SCALE_Z);
 
-    const auto& camera = mContext.cameras[0];
+    const auto& camera = get_camera();
 
     if (!camera.camera.is_active()) {
         // blender keybinds
@@ -188,7 +194,8 @@ void ViewportPanel::gizmo_settings_panel() {
     }
 }
 
-ViewportPanel::ViewportPanel(ed::EditorContext &context)
-    : IEditorPanel("Viewport")
+ViewportPanel::ViewportPanel(ed::EditorContext &context, size_t index)
+    : IEditorPanel(std::format("Viewport {}", index))
     , mContext(context)
+    , mCameraIndex(index)
 { }

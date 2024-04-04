@@ -196,12 +196,12 @@ void Context::create_pipeline() {
 
     bool tearing = mInstance.tearing_support();
     const DXGI_SWAP_CHAIN_DESC1 kSwapChainDesc = {
-        .Width = mSwapChainSize.width,
-        .Height = mSwapChainSize.height,
-        .Format = mSwapChainFormat,
+        .Width = mSwapChainConfig.size.width,
+        .Height = mSwapChainConfig.size.height,
+        .Format = mSwapChainConfig.format,
         .SampleDesc = { 1, 0 },
         .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
-        .BufferCount = mSwapChainLength,
+        .BufferCount = mSwapChainConfig.length,
         .SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
         .Flags = get_swapchain_flags(mInstance),
     };
@@ -224,14 +224,13 @@ void Context::create_pipeline() {
     SM_ASSERT_HR(mDsvPool.init(*mDevice, min_dsv_heap_size(), D3D12_DESCRIPTOR_HEAP_FLAG_NONE));
     SM_ASSERT_HR(mSrvPool.init(*mDevice, min_srv_heap_size(), D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE));
 
-    mFrames.resize(mSwapChainLength);
+    mFrames.resize(mSwapChainConfig.length);
 
-    update_scene_viewport();
     create_frame_rtvs();
     create_render_targets();
     create_frame_allocators();
 
-    for (uint i = 0; i < mSwapChainLength; i++) {
+    for (uint i = 0; i < mSwapChainConfig.length; i++) {
         mFrames[i].fence_value = 0;
     }
 }
@@ -253,9 +252,9 @@ void Context::destroy_frame_rtvs() {
 }
 
 void Context::create_render_targets() {
-    CTASSERTF(mSwapChainLength <= DXGI_MAX_SWAP_CHAIN_BUFFERS, "too many swap chain buffers (%u > %u)", mSwapChainLength, DXGI_MAX_SWAP_CHAIN_BUFFERS);
+    CTASSERTF(mSwapChainConfig.length <= DXGI_MAX_SWAP_CHAIN_BUFFERS, "too many swap chain buffers (%u > %u)", mSwapChainConfig.length, DXGI_MAX_SWAP_CHAIN_BUFFERS);
 
-    for (uint i = 0; i < mSwapChainLength; i++) {
+    for (uint i = 0; i < mSwapChainConfig.length; i++) {
         auto& backbuffer = mFrames[i].target;
         auto rtv = mRtvPool.cpu_handle(mFrames[i].rtv_index);
         SM_ASSERT_HR(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&backbuffer)));
@@ -266,13 +265,9 @@ void Context::create_render_targets() {
 }
 
 void Context::create_frame_allocators() {
-    for (uint i = 0; i < mSwapChainLength; i++) {
+    for (uint i = 0; i < mSwapChainConfig.length; i++) {
         SM_ASSERT_HR(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&mFrames[i].allocator)));
     }
-}
-
-void Context::update_scene_viewport() {
-    mSceneViewport = Viewport{mSceneSize};
 }
 
 Result Context::create_resource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state, const D3D12_CLEAR_VALUE *clear) {
@@ -783,9 +778,9 @@ void Context::build_command_list() {
 }
 
 void Context::create_frame_graph() {
-        graph::ResourceInfo info = {
-        .size = mSwapChainSize,
-        .format = mSwapChainFormat
+    graph::ResourceInfo info = {
+        .size = mSwapChainConfig.size,
+        .format = mSwapChainConfig.format,
     };
     mSwapChainHandle = mFrameGraph.include("BackBuffer", info, graph::Access::ePresent, nullptr);
 
@@ -819,7 +814,7 @@ void Context::destroy_device() {
     mFrameGraph.reset_device_data();
 
     // release frame resources
-    for (uint i = 0; i < mSwapChainLength; i++) {
+    for (uint i = 0; i < mSwapChainConfig.length; i++) {
         mFrames[i].target.reset();
         mFrames[i].allocator.reset();
     }
@@ -861,14 +856,7 @@ Context::Context(const RenderConfig& config)
     : mConfig(config)
     , mDebugFlags(config.flags)
     , mInstance({ mDebugFlags, config.preference })
-    , mSwapChainFormat(config.swapchain_format)
-    , mSwapChainSize(config.swapchain_size)
-    , mSwapChainLength(config.swapchain_length)
-    , mSceneFormat(config.scene_format)
-    , mDepthFormat(config.depth_format)
-    , mSceneSize(config.scene_size)
-    , mPresentViewport(mSwapChainSize)
-    , mSceneViewport(mSceneSize)
+    , mSwapChainConfig(config.swapchain)
     , mFrameGraph(*this)
 { }
 
@@ -891,7 +879,6 @@ void Context::create() {
     create_assets();
     init_scene();
 
-    update_display_viewport();
     create_frame_graph();
 }
 
@@ -976,8 +963,8 @@ void Context::update_swapchain_length(uint length) {
     destroy_frame_rtvs();
 
     const uint flags = get_swapchain_flags(mInstance);
-    SM_ASSERT_HR(mSwapChain->ResizeBuffers(length, mSwapChainSize.width, mSwapChainSize.height, mSwapChainFormat, flags));
-    mSwapChainLength = length;
+    SM_ASSERT_HR(mSwapChain->ResizeBuffers(length, mSwapChainConfig.size.width, mSwapChainConfig.size.height, mSwapChainConfig.format, flags));
+    mSwapChainConfig.length = length;
 
     mFrames.resize(length);
     for (uint i = 0; i < length; i++) {
@@ -994,7 +981,7 @@ void Context::update_swapchain_length(uint length) {
 void Context::resize_swapchain(math::uint2 size) {
     wait_for_gpu();
 
-    for (uint i = 0; i < mSwapChainLength; i++) {
+    for (uint i = 0; i < mSwapChainConfig.length; i++) {
         mFrames[i].target.reset();
         mFrames[i].fence_value = mFrames[mFrameIndex].fence_value;
     }
@@ -1003,33 +990,19 @@ void Context::resize_swapchain(math::uint2 size) {
     destroy_frame_rtvs();
 
     const uint flags = get_swapchain_flags(mInstance);
-    SM_ASSERT_HR(mSwapChain->ResizeBuffers(mSwapChainLength, size.width, size.height, mSwapChainFormat, flags));
-    mSwapChainSize = size;
+    SM_ASSERT_HR(mSwapChain->ResizeBuffers(mSwapChainConfig.length, size.width, size.height, mSwapChainConfig.format, flags));
+    mSwapChainConfig.size = size;
 
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
 
     create_frame_rtvs();
-    update_display_viewport();
     create_render_targets();
     create_frame_graph();
 }
 
-void Context::update_scene_size(math::uint2 size) {
-    if (mSceneSize == size) return;
-
-    resize_draw(size);
-    update_display_viewport();
-}
-
-void Context::resize_draw(math::uint2 size) {
+void Context::update_framegraph() {
     wait_for_gpu();
-
     destroy_frame_graph();
-
-    mSceneSize = size;
-
-    update_scene_viewport();
-    update_display_viewport();
     create_frame_graph();
 }
 

@@ -24,6 +24,7 @@ namespace sm::ed {
 
         LoggerPanel& mLogger;
         RenderConfig mConfig;
+        sm::Vector<ViewportPanel> mViewports;
         ViewportPanel mViewport;
         ScenePanel mScene;
         InspectorPanel mInspector;
@@ -61,6 +62,6 @@ namespace sm::ed {
         void draw();
 
         render::Context& get_context() { return mContext; }
-        draw::Camera& get_camera() { return mContext.cameras[0].camera; }
+        draw::Camera& get_camera() { return mContext.cameras[mContext.active].camera; }
     };
 }
