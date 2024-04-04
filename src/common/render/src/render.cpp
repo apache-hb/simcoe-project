@@ -282,33 +282,8 @@ void Context::copy_buffer(Object<ID3D12GraphicsCommandList1>& list, Resource& ds
     list->CopyBufferRegion(*dst.mResource, 0, *src.mResource, 0, size);
 }
 
-static constexpr world::MeshInfo kMeshInfo = {
-    .type = world::ObjectType::eCube,
-    .cube = {
-        .width = 1.f,
-        .height = 1.f,
-        .depth = 1.f,
-    },
-};
-
 void Context::init_scene() {
-    world::ObjectInfo object{};
-    object.name = "Cube";
-    object.info = kMeshInfo;
-    auto index = mWorld.info.add_object(object);
-
-    mWorld.info.root_node = 0;
-    world::NodeInfo node{};
-    node.name = "Scene Root";
-    node.transform.scale = 1.f;
-    node.objects.push_back(index);
-    mWorld.info.nodes.push_back(node);
-
-    world::MaterialInfo material{};
-    material.name = "Default";
-    mWorld.info.default_material = mWorld.info.add_material(material);
-
-    mMeshes.push_back(create_mesh(kMeshInfo, float3(1.f, 0.f, 0.f)));
+    mWorld.info = world::default_world("Default World");
 }
 
 void Context::create_scene() {

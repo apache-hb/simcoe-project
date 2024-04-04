@@ -81,7 +81,7 @@ static intptr_t unique_id(ItemIndex index) {
     return (intptr_t)index.type.as_integral() << 16 | index.index;
 }
 
-static sm::StringView get_item_name(const world::WorldInfo& info, ItemIndex index) {
+static sm::StringView get_item_name(const world::AnyIndex& info, ItemIndex index) {
     switch (index.type) {
     case ItemType::eNode: return info.nodes[index.index].name;
     case ItemType::eMesh: return info.objects[index.index].name;

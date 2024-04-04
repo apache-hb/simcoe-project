@@ -85,7 +85,7 @@ namespace sm::world {
 
     struct Transform {
         float3 position;
-        radf3 rotation;
+        radf3 rotation; // TODO: use quaternion
         float3 scale;
 
         float4x4 matrix() const;
@@ -100,4 +100,13 @@ namespace sm::world {
     };
 
     Mesh primitive(const MeshInfo& info);
+
+    Mesh primitive(const Cube& cube);
+    Mesh primitive(const Sphere& sphere);
+    Mesh primitive(const Cylinder& cylinder);
+    Mesh primitive(const Plane& plane);
+    Mesh primitive(const Wedge& wedge);
+    Mesh primitive(const Capsule& capsule);
+    Mesh primitive(const Diamond& diamond);
+    Mesh primitive(const GeoSphere& geosphere);
 }

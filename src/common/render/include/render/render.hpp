@@ -204,7 +204,7 @@ namespace sm::render {
         struct {
             // meshes and textures both line up with the objects, and images in the info struct
             // nodes are all done inside the info struct
-            world::WorldInfo info;
+            world::World info;
             sm::Vector<MeshResource> meshes;
             sm::Vector<TextureResource> textures;
         } mWorld;

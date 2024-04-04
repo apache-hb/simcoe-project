@@ -21,7 +21,7 @@ namespace sm::ed {
         bool mShowObjects = false;
         bool mShowCameras = false;
 
-        world::NodeInfo mNodeInfo{.name = "Node", .transform = {.scale = 1.f}};
+        world::Node mNodeInfo{.name = "Node", .transform = {.scale = 1.f}};
 
         sm::String mMeshName;
         world::MeshInfo mMeshCreateInfo[world::ObjectType::kCount];

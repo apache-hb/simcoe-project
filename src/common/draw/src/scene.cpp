@@ -10,8 +10,9 @@
 
 using namespace sm;
 using namespace sm::math;
+using namespace sm::world;
 
-static void draw_node(render::Context& context, const draw::Camera& camera, uint16 index, const float4x4& parent) {
+static void draw_node(render::Context& context, const draw::Camera& camera, IndexOf<world::Node> index, const float4x4& parent) {
     float ar = camera.config().aspect_ratio();
     const auto& node = context.mWorld.info.nodes[index];
 
@@ -21,7 +22,7 @@ static void draw_node(render::Context& context, const draw::Camera& camera, uint
     auto& cmd = context.mCommandList;
     cmd->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
 
-    for (uint16 i : node.objects) {
+    for (IndexOf i : node.models) {
         const auto& object = context.mMeshes[i];
         cmd->IASetVertexBuffers(0, 1, &object.mVertexBufferView);
         cmd->IASetIndexBuffer(&object.mIndexBufferView);
@@ -29,7 +30,7 @@ static void draw_node(render::Context& context, const draw::Camera& camera, uint
         cmd->DrawIndexedInstanced(object.mIndexCount, 1, 0, 0, 0);
     }
 
-    for (uint16 i : node.children) {
+    for (IndexOf i : node.children) {
         draw_node(context, camera, i, model);
     }
 }
@@ -135,6 +136,7 @@ void draw::opaque(graph::FrameGraph& graph, graph::Handle& target, const Camera&
 
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-        draw_node(context, camera, context.mWorld.info.root_node, math::float4x4::identity());
+        // TODO: support multiple scenes
+        draw_node(context, camera, context.mWorld.info.scenes[0].root, math::float4x4::identity());
     });
 }

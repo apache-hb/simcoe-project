@@ -5,50 +5,30 @@
 #include "world/mesh.hpp"
 
 #include "archive/archive.hpp"
+#include <dxgiformat.h>
 
 namespace sm::world {
     using vtxindex = uint16; // NOLINT
 
+    static constexpr uint16 kInvalidIndex = UINT16_MAX;
+
     template<typename T>
     class IndexOf {
         uint16 mIndex;
+
+    public:
+        IndexOf(uint16 index = kInvalidIndex)
+            : mIndex(index)
+        { }
+
+        bool is_valid() const { return mIndex != kInvalidIndex; }
+
+        operator uint16() const { return mIndex; }
+        uint16 get() const { return mIndex; }
     };
 
-    struct NodeInfo {
-        sm::String name;
-        sm::Vector<uint16> children;
-        sm::Vector<uint16> objects;
-
-        Transform transform;
-
-        // transient
-        uint16 parent;
-    };
-
-    struct CameraInfo {
-        sm::String name;
-
-        float3 position;
-        float3 direction;
-    };
-
-    struct ObjectInfo {
-        sm::String name;
-        MeshInfo info;
-    };
-
-    struct MaterialInfo {
-        sm::String name;
-    };
-
-    struct ImageInfo {
-        sm::String name;
-    };
-
-    struct BufferInfo {
-        sm::String name;
-        sm::Vector<byte> data;
-    };
+    template<typename... T>
+    using ChoiceOf = sm::Variant<IndexOf<T>...>;
 
     struct File {
         sm::String path;
@@ -60,23 +40,44 @@ namespace sm::world {
     };
 
     struct BufferView {
-        sm::Variant<File, Buffer> source;
+        ChoiceOf<File, Buffer> source;
 
         uint64 offset;
         uint32 file_size;
         uint32 buffer_size;
     };
 
-    struct MeshObject {
+    struct Image {
+        sm::String name;
+        BufferView source;
+        DXGI_FORMAT format;
+        math::uint2 size;
+    };
+
+    struct Texture {
+        sm::String name;
+
+        IndexOf<Image> image;
+    };
+
+    struct Material {
+        sm::String name;
+
+        float4 albedo;
+        IndexOf<Texture> albedo_texture;
+    };
+
+    struct Object {
         uint32 vtx_count;
         uint32 idx_count;
         BufferView vertices;
         BufferView indices;
     };
 
-    struct MeshData {
+    struct Model {
+        sm::String name;
         sm::Variant<
-            MeshObject,
+            Object,
             Cube,
             Sphere,
             Cylinder,
@@ -85,12 +86,9 @@ namespace sm::world {
             Capsule,
             Diamond,
             GeoSphere
-        > data;
-    };
+        > mesh;
 
-    struct Model {
-        sm::String name;
-        MeshData mesh;
+        IndexOf<Material> material;
     };
 
     struct Node {
@@ -116,36 +114,64 @@ namespace sm::world {
 
         IndexOf<Node> root;
         IndexOf<Camera> camera;
-
-        sm::Vector<IndexOf<Camera>> cameras;
     };
 
-    struct WorldInfo {
+    using AnyIndex = ChoiceOf<Scene, Node, Camera, Model, File, Buffer, Material, Image, Texture>;
+
+    struct World {
         sm::String name;
-        uint16 root_node;
-        uint16 active_camera;
-        uint16 default_material;
+        IndexOf<Scene> active_scene;
+        IndexOf<Material> default_material;
 
-        sm::Vector<NodeInfo> nodes;
-        sm::Vector<CameraInfo> cameras;
-        sm::Vector<ObjectInfo> objects;
-        sm::Vector<MaterialInfo> materials;
-        sm::Vector<ImageInfo> images;
-        sm::Vector<BufferInfo> buffers;
+        sm::Vector<Scene> scenes;
+        sm::Vector<Node> nodes;
+        sm::Vector<Camera> cameras;
+        sm::Vector<Model> models;
+        sm::Vector<File> files;
+        sm::Vector<Buffer> buffers;
+        sm::Vector<Material> materials;
+        sm::Vector<Image> images;
+        sm::Vector<Texture> textures;
 
-        uint16 add_node(const NodeInfo& info);
-        uint16 add_camera(const CameraInfo& info);
-        uint16 add_object(const ObjectInfo& info);
-        uint16 add_material(const MaterialInfo& info);
+        template<typename T>
+        IndexOf<T> add(T&& value) {
+            auto& vec = get_vector<T>();
+            uint16 index = int_cast<uint16>(vec.size());
+            vec.push_back(std::forward<T>(value));
+            return IndexOf<T>(index);
+        }
 
-        void reparent_node(uint16 node, uint16 parent);
-        void delete_node(uint16 index);
-        bool is_root_node(uint16 node) const;
-        void add_node_object(uint16 node, uint16 object);
+        template<typename T>
+        T *try_get(IndexOf<T> index) {
+            if (index.is_valid())
+                return &get<T>(index);
+
+            return nullptr;
+        }
+
+        template<typename T>
+        T &get(IndexOf<T> index) { return get_vector<T>()[index]; }
+
+        auto visit(AnyIndex index, auto&& fn) {
+            return std::visit([&](auto index) { return fn(get(index)); }, index);
+        }
+
+        template<typename T>
+        sm::Vector<T>& get_vector();
+
+        template<> sm::Vector<Node>& get_vector() { return nodes; }
+        template<> sm::Vector<Camera>& get_vector() { return cameras; }
+        template<> sm::Vector<Model>& get_vector() { return models; }
+        template<> sm::Vector<File>& get_vector() { return files; }
+        template<> sm::Vector<Buffer>& get_vector() { return buffers; }
+        template<> sm::Vector<Material>& get_vector() { return materials; }
+        template<> sm::Vector<Image>& get_vector() { return images; }
+        template<> sm::Vector<Texture>& get_vector() { return textures; }
     };
 
-    WorldInfo empty_world(sm::StringView name);
+    World empty_world(sm::String name);
+    World default_world(sm::String name);
 
-    bool load_world(WorldInfo& info, Archive& archive);
-    void save_world(Archive& archive, const WorldInfo& world);
+    bool load_world(World& info, Archive& archive);
+    void save_world(Archive& archive, const World& world);
 }
