@@ -209,6 +209,7 @@ void FrameGraph::optimize() {
         for (auto& [_, index, access] : pass.writes) {
             auto& handle = mHandles[index.index];
             handle.last = &pass;
+            handle.refcount += 1;
         }
     }
 }
@@ -347,7 +348,6 @@ void FrameGraph::execute() {
 
         if (states.contains(resource)) {
             barriers.transition(resource, states[resource], state);
-            logs::gRender.info("transitioning {} from {} to {}", mHandles[index.index].name, Access(states[resource]), Access(state));
         }
 
         states[resource] = state;
@@ -367,8 +367,6 @@ void FrameGraph::execute() {
 
         restoration.push_back({handle.resource, state});
         states[handle.resource] = state;
-
-        logs::gRender.info("initial state of {} is {}", handle.name, handle.access);
     }
 
     SM_UNUSED BYTE colour_index = PIX_COLOR_DEFAULT;
@@ -377,7 +375,6 @@ void FrameGraph::execute() {
 
         for (auto& [_, index, access] : pass.creates) {
             restoration.push_back({resource(index), access.as_facade()});
-            logs::gRender.info("initial state of {} is {}", mHandles[index.index].name, access);
 
             update_state(index, access);
         }
@@ -393,7 +390,6 @@ void FrameGraph::execute() {
         auto& cmd = commands.get();
 
         PIXBeginEvent(cmd, PIX_COLOR_INDEX(colour_index++), "%s", pass.name.c_str());
-        logs::gRender.info("executing pass {}", pass.name);
 
         barriers.submit(cmd);
 
