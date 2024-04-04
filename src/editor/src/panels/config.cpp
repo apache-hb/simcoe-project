@@ -2,7 +2,7 @@
 
 #include "editor/config.hpp"
 
-#include "render/render.hpp"
+#include "editor/draw.hpp"
 
 using namespace sm;
 using namespace sm::ed;
@@ -148,6 +148,11 @@ void RenderConfig::draw_content() {
     {
         auto [width, height] = mContext.mSwapChainConfig.size.as<int>();
         ImGui::Text("Display Resolution: %u x %u", width, height);
+    }
+
+    for (const auto& [camera, _] : mContext.cameras) {
+        auto size = camera.config().size;
+        ImGui::Text("Camera: %s (%u x %u)", camera.name().data(), size.width, size.height);
     }
 
     // {

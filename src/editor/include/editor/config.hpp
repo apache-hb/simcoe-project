@@ -2,13 +2,11 @@
 
 #include "editor/panel.hpp"
 
-namespace sm::render {
-    struct Context;
-}
-
 namespace sm::ed {
+    struct EditorContext;
+
     class RenderConfig final : public IEditorPanel {
-        render::Context& mContext;
+        ed::EditorContext& mContext;
 
         // IEditorPanel
         void draw_content() override;
@@ -18,7 +16,7 @@ namespace sm::ed {
         bool draw_debug_flags() const;
 
     public:
-        RenderConfig(render::Context& context)
+        RenderConfig(EditorContext& context)
             : IEditorPanel("Render Config")
             , mContext(context)
         { }

@@ -26,5 +26,8 @@ namespace sm::ed {
 
         sm::Vector<CameraData> cameras;
         size_t active = 0;
+
+    private:
+        void imgui(graph::FrameGraph& graph, graph::Handle target);
     };
 }

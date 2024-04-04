@@ -253,15 +253,6 @@ static void destroy_imgui() {
     ImGui::DestroyContext();
 }
 
-namespace MyGui {
-    template<math::IsAngle T>
-    void SliderAngle(const char *label, T *angle, T min, T max) {
-        float deg = angle->get_degrees();
-        ImGui::SliderFloat(label, &deg, min.get_degrees(), max.get_degrees());
-        *angle = math::Degrees(deg);
-    }
-}
-
 static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     sys::WindowConfig window_config = {
         .mode = sys::WindowMode::eWindowed,
@@ -300,7 +291,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         flags |= render::DebugFlags::eAutoName;
 
         // enabling gpu based validation on the warp adapter
-        // absolutely tanks performance
+        // tanks performance
         if (!sm::warp_enabled()) {
             flags |= render::DebugFlags::eGpuValidation;
         }

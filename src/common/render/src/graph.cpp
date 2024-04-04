@@ -62,8 +62,9 @@ void PassBuilder::write(Handle handle, sm::StringView name, Access access) {
 }
 
 Handle PassBuilder::create(ResourceInfo info, sm::StringView name, Access access) {
-    Handle handle = mFrameGraph.texture(info, access);
-    mRenderPass.creates.push_back({fmt::format("{}/{}", mRenderPass.name, name), handle, access});
+    auto id = fmt::format("{}/{}", mRenderPass.name, name);
+    Handle handle = mFrameGraph.texture(info, access, id);
+    mRenderPass.creates.push_back({id, handle, access});
     add_write(handle, name, access);
     return handle;
 }
@@ -82,8 +83,9 @@ uint FrameGraph::add_handle(ResourceHandle handle, Access access) {
     return index;
 }
 
-Handle FrameGraph::texture(ResourceInfo info, Access access) {
+Handle FrameGraph::texture(ResourceInfo info, Access access, sm::StringView name) {
     ResourceHandle handle = {
+        .name = sm::String{name},
         .info = info,
         .type = ResourceType::eTransient,
         .access = access,
@@ -191,24 +193,22 @@ void FrameGraph::optimize() {
     }
 
     for (auto& pass : mRenderPasses) {
-        if (pass.refcount == 0) continue;
+        if (pass.refcount == 0)
+            continue;
 
         for (auto& [_, index, access] : pass.creates) {
             auto& handle = mHandles[index.index];
             handle.producer = &pass;
-            handle.refcount += 1;
         }
 
         for (auto& [_, index, access] : pass.reads) {
             auto& handle = mHandles[index.index];
             handle.last = &pass;
-            handle.refcount += 1;
         }
 
         for (auto& [_, index, access] : pass.writes) {
             auto& handle = mHandles[index.index];
             handle.last = &pass;
-            handle.refcount += 1;
         }
     }
 }
@@ -216,9 +216,9 @@ void FrameGraph::optimize() {
 static constexpr D3D12_RESOURCE_FLAGS get_required_flags(Access access) {
     D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE;
 
-    if (access.test(eRenderTarget)) {
+    if (access == eRenderTarget) {
         flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-    } else if (access.test(eDepthTarget)) {
+    } else if (access == eDepthTarget) {
         flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
     }
 
@@ -265,7 +265,7 @@ void FrameGraph::create_resources() {
         handle.resource = resource.get();
 
         // TODO: this seems a little weird
-        if (handle.access.test(eRenderTarget)) {
+        if (handle.access == eRenderTarget) {
             handle.rtv = mContext.mRtvPool.allocate();
             handle.srv = mContext.mSrvPool.allocate();
 
@@ -274,7 +274,7 @@ void FrameGraph::create_resources() {
 
             const auto srv_handle = mContext.mSrvPool.cpu_handle(handle.srv);
             device->CreateShaderResourceView(handle.resource, nullptr, srv_handle);
-        } else if (handle.access.test(eDepthTarget)) {
+        } else if (handle.access == eDepthTarget) {
             handle.dsv = mContext.mDsvPool.allocate();
 
             const auto dsv_handle = mContext.mDsvPool.cpu_handle(handle.dsv);
@@ -316,8 +316,7 @@ struct BarrierList {
     void transition(ID3D12Resource *resource, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to) {
         if (from == to) return;
 
-        const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(resource, from, to);
-        barriers.push_back(barrier);
+        barriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(resource, from, to));
     }
 
     uint length() const {
@@ -348,6 +347,7 @@ void FrameGraph::execute() {
 
         if (states.contains(resource)) {
             barriers.transition(resource, states[resource], state);
+            logs::gRender.info("transitioning {} from {} to {}", mHandles[index.index].name, Access(states[resource]), Access(state));
         }
 
         states[resource] = state;
@@ -367,6 +367,8 @@ void FrameGraph::execute() {
 
         restoration.push_back({handle.resource, state});
         states[handle.resource] = state;
+
+        logs::gRender.info("initial state of {} is {}", handle.name, handle.access);
     }
 
     SM_UNUSED BYTE colour_index = PIX_COLOR_DEFAULT;
@@ -375,6 +377,7 @@ void FrameGraph::execute() {
 
         for (auto& [_, index, access] : pass.creates) {
             restoration.push_back({resource(index), access.as_facade()});
+            logs::gRender.info("initial state of {} is {}", mHandles[index.index].name, access);
 
             update_state(index, access);
         }
@@ -390,6 +393,7 @@ void FrameGraph::execute() {
         auto& cmd = commands.get();
 
         PIXBeginEvent(cmd, PIX_COLOR_INDEX(colour_index++), "%s", pass.name.c_str());
+        logs::gRender.info("executing pass {}", pass.name);
 
         barriers.submit(cmd);
 

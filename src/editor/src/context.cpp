@@ -7,13 +7,23 @@
 using namespace sm;
 using namespace sm::ed;
 
-static void imgui_pass(graph::FrameGraph& graph, graph::Handle target) {
+void EditorContext::imgui(graph::FrameGraph& graph, graph::Handle target) {
     graph::PassBuilder pass = graph.pass("ImGui");
+    for (auto& [camera, target] : cameras) {
+        pass.read(target, camera.name(), graph::Access::ePixelShaderResource);
+    }
+
     pass.write(target, "Target", graph::Access::eRenderTarget);
 
-    pass.bind([](graph::FrameGraph& graph) {
+    pass.bind([target](graph::FrameGraph& graph) {
         auto& context = graph.get_context();
-        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), *context.mCommandList);
+        auto& cmd = context.mCommandList;
+
+        auto rtv = graph.rtv(target);
+        auto rtv_cpu = context.mRtvPool.cpu_handle(rtv);
+
+        cmd->OMSetRenderTargets(1, &rtv_cpu, false, nullptr);
+        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), *cmd);
     });
 }
 
@@ -52,13 +62,9 @@ void EditorContext::on_destroy() {
 
 void EditorContext::setup_framegraph(graph::FrameGraph& graph) {
     render::Viewport vp { mSwapChainConfig.size };
-    for (auto& viewport : cameras) {
-        auto& camera = viewport.camera;
-        auto& target = viewport.target;
-
+    for (auto& [camera, target] : cameras) {
         draw::opaque(graph, target, camera);
-        draw::blit(graph, mSwapChainHandle, target, vp);
     }
 
-    imgui_pass(graph, mSwapChainHandle);
+    imgui(graph, mSwapChainHandle);
 }

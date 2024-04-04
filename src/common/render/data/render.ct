@@ -222,9 +222,8 @@ variant RootSignatureVersion : opaque(D3D_ROOT_SIGNATURE_VERSION) {
     [[format("version 1.2")]] case Version_1_2 = opaque(D3D_ROOT_SIGNATURE_VERSION_1_2)
 }
 
-[[facade, bitflags]]
+[[facade]]
 variant ResourceState : opaque(D3D12_RESOURCE_STATES) {
-    case Common = opaque(D3D12_RESOURCE_STATE_COMMON)
     case Present = opaque(D3D12_RESOURCE_STATE_PRESENT)
     case RenderTarget = opaque(D3D12_RESOURCE_STATE_RENDER_TARGET)
     case PixelShaderResource = opaque(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)

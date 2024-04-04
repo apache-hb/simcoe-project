@@ -242,6 +242,7 @@ struct ClientContext final : public render::Context {
 
     void setup_framegraph(graph::FrameGraph& graph) override {
         render::Viewport vp = render::Viewport::letterbox(mSwapChainConfig.size, viewport.size);
+
         draw::opaque(graph, mSceneTargetHandle, camera);
         draw::blit(graph, mSwapChainHandle, mSceneTargetHandle, vp);
     }

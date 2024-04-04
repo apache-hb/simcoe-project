@@ -127,7 +127,7 @@ namespace sm::graph {
         sm::HashMap<uint32, sm::UniquePtr<IDeviceData>> mDeviceData;
 
         uint add_handle(ResourceHandle handle, Access access);
-        Handle texture(ResourceInfo info, Access access);
+        Handle texture(ResourceInfo info, Access access, sm::StringView name);
 
         bool is_imported(Handle handle) const;
 
