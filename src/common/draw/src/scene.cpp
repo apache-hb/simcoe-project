@@ -14,7 +14,7 @@ using namespace sm::world;
 
 static void draw_node(render::Context& context, const draw::Camera& camera, IndexOf<world::Node> index, const float4x4& parent) {
     float ar = camera.config().aspect_ratio();
-    const auto& node = context.mWorld.info.nodes[index];
+    const auto& node = context.mWorld.nodes[index];
 
     auto model = (parent * node.transform.matrix());
     float4x4 mvp = camera.mvp(ar, model.transpose()).transpose();
@@ -24,10 +24,10 @@ static void draw_node(render::Context& context, const draw::Camera& camera, Inde
 
     for (IndexOf i : node.models) {
         const auto& object = context.mMeshes[i];
-        cmd->IASetVertexBuffers(0, 1, &object.mVertexBufferView);
-        cmd->IASetIndexBuffer(&object.mIndexBufferView);
+        cmd->IASetVertexBuffers(0, 1, &object.vbo_view);
+        cmd->IASetIndexBuffer(&object.ibo_view);
 
-        cmd->DrawIndexedInstanced(object.mIndexCount, 1, 0, 0, 0);
+        cmd->DrawIndexedInstanced(object.index_count, 1, 0, 0, 0);
     }
 
     for (IndexOf i : node.children) {
@@ -137,6 +137,6 @@ void draw::opaque(graph::FrameGraph& graph, graph::Handle& target, const Camera&
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
         // TODO: support multiple scenes
-        draw_node(context, camera, context.mWorld.info.scenes[0].root, math::float4x4::identity());
+        draw_node(context, camera, context.mWorld.scenes[0].root, math::float4x4::identity());
     });
 }

@@ -12,7 +12,7 @@ namespace sm::ed {
     class ViewportPanel;
 
     class AssetBrowserPanel final {
-        ed::EditorContext &mContext;
+        [[maybe_unused]] ed::EditorContext &mContext;
 
         float mThumbnailSize = 64.0f;
         float mThumbnailPadding = 4.0f;

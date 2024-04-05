@@ -7,6 +7,7 @@ using namespace sm::render;
 
 namespace fg = fastgltf;
 
+#if 0
 static constexpr auto kExt = fg::Extensions::None;
 static constexpr auto kOptions
     = fg::Options::DontRequireValidAssetMember
@@ -198,3 +199,4 @@ bool Context::load_gltf(const fs::path& path) {
 
     return true;
 }
+#endif

@@ -10,6 +10,7 @@ using namespace sm::ed;
 
 using ReflectImageType = ctu::TypeInfo<ImageFormat>;
 
+#if 0
 namespace MyGui {
     static void TextCutoff(const char *text, float width) {
         ImVec2 cursor = ImGui::GetCursorPos();
@@ -18,9 +19,10 @@ namespace MyGui {
         ImGui::PopTextWrapPos();
     }
 }
-
+#endif
 void AssetBrowserPanel::draw_models() {
-    auto& models = mContext.mWorld.info.objects;
+#if 0
+    auto& models = mContext.mWorld.info.models;
 
     ImVec2 avail = ImGui::GetContentRegionAvail();
     uint columns = (uint)(avail.x / (mThumbnailSize + mThumbnailPadding));
@@ -52,9 +54,11 @@ void AssetBrowserPanel::draw_models() {
             ImGui::SameLine();
         }
     }
+#endif
 }
 
 void AssetBrowserPanel::draw_images() {
+#if 0
     auto& textures = mContext.mTextures;
 
     ImVec2 avail = ImGui::GetContentRegionAvail();
@@ -86,6 +90,7 @@ void AssetBrowserPanel::draw_images() {
             ImGui::SameLine();
         }
     }
+#endif
 }
 
 void AssetBrowserPanel::draw_materials() {
@@ -134,10 +139,10 @@ void AssetBrowserPanel::draw_content() {
         auto selected = mFileBrowser.GetMultiSelected();
         for (const auto& file : selected) {
             auto ext = file.extension();
-            if (ext == ".png" || ext == ".jpg" || ext == ".bmp" || ext == ".dds")
-                mContext.load_texture(file);
-            else if (ext == ".glb" || ext == ".gltf")
-                mContext.load_gltf(file);
+            // if (ext == ".png" || ext == ".jpg" || ext == ".bmp" || ext == ".dds")
+            //     mContext.load_texture(file);
+            // else if (ext == ".glb" || ext == ".gltf")
+            //     mContext.load_gltf(file);
         }
         mFileBrowser.ClearSelected();
     }

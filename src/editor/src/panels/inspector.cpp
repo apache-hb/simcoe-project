@@ -9,10 +9,11 @@ using namespace sm;
 using namespace sm::ed;
 using namespace sm::math;
 
+#if 0
 void InspectorPanel::draw_mesh(ItemIndex index) {
     SM_ASSERTF(index.type == ItemType::eMesh, "Invalid item type {}", index.type);
 
-    auto& mesh = mContext.mWorld.info.objects[index.index];
+    auto& mesh = mContext.mWorld.info.models[index.index];
     ImGui::Text("Mesh %s selected", mesh.name.c_str());
 }
 
@@ -22,7 +23,7 @@ void InspectorPanel::draw_node(ItemIndex index) {
     auto& node = mContext.mWorld.info.nodes[index.index];
     ImGui::Text("Node %s selected", node.name.c_str());
 
-    ImGui::Text("%zu children, %zu objects", node.children.size(), node.objects.size());
+    ImGui::Text("%zu children, %zu models", node.children.size(), node.models.size());
 
     ImGui::SeparatorText("Transform");
     edit_transform(node.transform);
@@ -87,12 +88,12 @@ void InspectorPanel::draw_content() {
         break;
     }
 }
-
+#endif
 void InspectorPanel::draw_window() {
     if (!mOpen) return;
 
     if (ImGui::Begin("Inspector", &mOpen)) {
-        draw_content();
+        // draw_content();
     }
     ImGui::End();
 }

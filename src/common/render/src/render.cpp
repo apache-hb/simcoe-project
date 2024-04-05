@@ -283,22 +283,23 @@ void Context::copy_buffer(Object<ID3D12GraphicsCommandList1>& list, Resource& ds
 }
 
 void Context::init_scene() {
-    mWorld.info = world::default_world("Default World");
+    mWorld = world::default_world("Default World");
 }
 
 void Context::create_scene() {
-    for (auto& primitive : mMeshes) {
-        primitive = create_mesh(primitive.mInfo, float3(1.f, 0.f, 0.f));
-    }
+    // for (auto& primitive : mMeshes) {
+    //     primitive = create_mesh(primitive.mInfo, float3(1.f, 0.f, 0.f));
+    // }
 }
 
 void Context::destroy_scene() {
-    for (auto& primitive : mMeshes) {
-        primitive.mVertexBuffer.reset();
-        primitive.mIndexBuffer.reset();
-    }
+    // for (auto& primitive : mMeshes) {
+    //     primitive.mVertexBuffer.reset();
+    //     primitive.mIndexBuffer.reset();
+    // }
 }
 
+#if 0
 texindex Context::load_texture(const fs::path& path) {
     Texture tex;
     if (create_texture(tex, path, ImageFormat::eUnknown)) {
@@ -721,6 +722,7 @@ Mesh Context::create_mesh(const world::MeshInfo& info, const float3& colour) {
 
     return primitive;
 }
+#endif
 
 void Context::create_assets() {
     SM_ASSERT_HR(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, *mFrames[mFrameIndex].allocator, nullptr, IID_PPV_ARGS(&mCommandList)));
@@ -768,6 +770,7 @@ void Context::destroy_framegraph() {
     mFrameGraph.reset();
 }
 
+#if 0
 void Context::destroy_textures() {
     for (auto& texture : mTextures) {
         mSrvPool.release(texture.srv);
@@ -783,6 +786,7 @@ void Context::create_textures() {
         create_texture(texture, texture.path, texture.format);
     }
 }
+#endif
 
 void Context::destroy_device() {
     destroy_framegraph();
@@ -799,7 +803,7 @@ void Context::destroy_device() {
     mCopyFence.reset();
 
     // assets
-    destroy_textures();
+    // destroy_textures();
     destroy_scene();
 
     // copy commands
@@ -914,7 +918,7 @@ void Context::recreate_device() {
 
     create_assets();
 
-    create_textures();
+    // create_textures();
     create_scene();
     create_framegraph();
 

@@ -8,6 +8,7 @@
 using namespace sm;
 using namespace sm::ed;
 
+#if 0
 static constexpr ImGuiTableFlags kTableFlags
     = ImGuiTableFlags_BordersV
     | ImGuiTableFlags_BordersOuterH
@@ -351,21 +352,24 @@ void ScenePanel::draw_content() {
         ImGui::EndTable();
     }
 }
+#endif
 
 ScenePanel::ScenePanel(ed::EditorContext& context)
     : mContext(context)
 {
-    auto cases = world::ObjectType::cases();
+    //auto cases = world::ObjectType::cases();
+#if 0
     for (world::ObjectType i : cases) {
         mMeshCreateInfo[i] = get_default_info(i);
     }
+#endif
 }
 
 void ScenePanel::draw_window() {
     if (!mOpen) return;
 
     if (ImGui::Begin("Scene Tree", &mOpen, ImGuiWindowFlags_MenuBar)) {
-        draw_content();
+        //draw_content();
     }
     ImGui::End();
 }

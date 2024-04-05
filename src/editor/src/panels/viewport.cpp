@@ -113,7 +113,7 @@ void ViewportPanel::draw_content() {
         mFlags &= ~ImGuiWindowFlags_NoMove;
     }
 
-    auto& scene = mContext.mWorld.info;
+    auto& scene = mContext.mWorld;
     SM_ASSERTF(mSelected.index < scene.nodes.size(), "Invalid node index: {}", mSelected.index);
     SM_ASSERTF(mSelected.type == ItemType::eNode, "Invalid node type: {}", mSelected.type);
     auto& item = scene.nodes[mSelected.index];

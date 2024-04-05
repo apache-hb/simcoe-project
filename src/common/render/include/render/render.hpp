@@ -201,6 +201,11 @@ namespace sm::render {
         uint64 mCopyFenceValue;
         void create_copy_fence();
 
+        world::World mWorld;
+        sm::HashMap<world::IndexOf<world::Model>, MeshResource> mMeshes;
+        sm::HashMap<world::IndexOf<world::Image>, TextureResource> mImages;
+
+#if 0
         struct {
             // meshes and textures both line up with the objects, and images in the info struct
             // nodes are all done inside the info struct
@@ -208,20 +213,19 @@ namespace sm::render {
             sm::Vector<MeshResource> meshes;
             sm::Vector<TextureResource> textures;
         } mWorld;
-
         void create_world_resources();
 
         sm::Vector<Mesh> mMeshes;
         sm::Vector<Texture> mTextures;
         texindex load_texture(const fs::path& path);
         texindex load_texture(const ImageData& image);
-
         Mesh create_mesh(const world::MeshInfo& info, const float3& colour);
         bool create_texture(Texture& result, const fs::path& path, ImageFormat type);
         bool create_texture_stb(Texture& result, const fs::path& path);
         bool create_texture_dds(Texture& result, const fs::path& path);
 
         bool load_gltf(const fs::path& path);
+#endif
 
         void init_scene();
         void create_scene();

@@ -74,6 +74,31 @@ namespace sm::world {
         BufferView indices;
     };
 
+    struct PointLight {
+        float3 position;
+        float3 color;
+        float intensity;
+    };
+
+    struct SpotLight {
+        float3 position;
+        float3 direction;
+        float3 color;
+        float intensity;
+        float angle;
+    };
+
+    struct DirectionalLight {
+        float3 direction;
+        float3 color;
+        float intensity;
+    };
+
+    struct Light {
+        sm::String name;
+        sm::Variant<PointLight, SpotLight, DirectionalLight> light;
+    };
+
     struct Model {
         sm::String name;
         sm::Variant<
@@ -98,6 +123,7 @@ namespace sm::world {
 
         sm::Vector<IndexOf<Node>> children;
         sm::Vector<IndexOf<Model>> models;
+        sm::Vector<IndexOf<Light>> lights;
     };
 
     struct Camera {
@@ -116,7 +142,7 @@ namespace sm::world {
         IndexOf<Camera> camera;
     };
 
-    using AnyIndex = ChoiceOf<Scene, Node, Camera, Model, File, Buffer, Material, Image, Texture>;
+    using AnyIndex = ChoiceOf<Scene, Node, Camera, Model, File, Light, Buffer, Material, Image, Texture>;
 
     struct World {
         sm::String name;
@@ -125,6 +151,7 @@ namespace sm::world {
 
         sm::Vector<Scene> scenes;
         sm::Vector<Node> nodes;
+        sm::Vector<Light> lights;
         sm::Vector<Camera> cameras;
         sm::Vector<Model> models;
         sm::Vector<File> files;
@@ -161,6 +188,8 @@ namespace sm::world {
 
         template<> sm::Vector<Node>& get_vector() { return nodes; }
         template<> sm::Vector<Camera>& get_vector() { return cameras; }
+        template<> sm::Vector<Scene>& get_vector() { return scenes; }
+        template<> sm::Vector<Light>& get_vector() { return lights; }
         template<> sm::Vector<Model>& get_vector() { return models; }
         template<> sm::Vector<File>& get_vector() { return files; }
         template<> sm::Vector<Buffer>& get_vector() { return buffers; }
@@ -169,9 +198,15 @@ namespace sm::world {
         template<> sm::Vector<Texture>& get_vector() { return textures; }
     };
 
-    World empty_world(sm::String name);
     World default_world(sm::String name);
 
     bool load_world(World& info, Archive& archive);
     void save_world(Archive& archive, const World& world);
 }
+
+template<typename T>
+struct std::hash<sm::world::IndexOf<T>> {
+    size_t operator()(sm::world::IndexOf<T> index) const {
+        return std::hash<sm::uint16>{}(index.get());
+    }
+};

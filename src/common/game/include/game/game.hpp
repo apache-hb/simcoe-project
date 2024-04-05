@@ -1,6 +1,5 @@
 #pragma once
 
-#include "flecs.h" // IWYU pragma: export
 #include "math/math.hpp"
 
 namespace sm::game {
@@ -61,5 +60,5 @@ namespace sm::game {
         math::float4 colour;
     };
 
-    void init(flecs::world& ecs);
+    void init();
 }

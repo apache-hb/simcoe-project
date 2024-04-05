@@ -24,7 +24,7 @@ namespace sm::ed {
         world::Node mNodeInfo{.name = "Node", .transform = {.scale = 1.f}};
 
         sm::String mMeshName;
-        world::MeshInfo mMeshCreateInfo[world::ObjectType::kCount];
+        //world::MeshInfo mMeshCreateInfo[world::ObjectType::kCount];
 
         bool begin_tree_item(ItemIndex index, ImGuiTreeNodeFlags flags);
 

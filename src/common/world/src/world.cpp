@@ -69,7 +69,7 @@ void WorldInfo::add_node_object(uint16 node, uint16 object) {
 }
 #endif
 
-World world::empty_world(sm::String name) {
+World world::default_world(sm::String name) {
     World world = {
         .name = std::move(name)
     };
