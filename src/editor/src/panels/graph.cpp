@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "editor/graph.hpp"
+#include "editor/panels/graph.hpp"
 
 #include "render/graph.hpp"
 #include "render/render.hpp"

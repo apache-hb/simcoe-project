@@ -1,6 +1,6 @@
 #pragma once
 
-#include "editor/panel.hpp"
+#include "editor/panels/panel.hpp"
 
 #include "core/map.hpp"
 #include "core/vector.hpp"

@@ -27,9 +27,6 @@ namespace sm::render {
     constexpr math::float4 kClearColour = { 0.0f, 0.2f, 0.4f, 1.0f };
     constexpr math::float4 kColourBlack = { 0.0f, 0.0f, 0.0f, 1.0f };
 
-    using texindex = uint16; // NOLINT
-    using meshindex = uint16; // NOLINT
-
     struct SwapChainConfig {
         math::uint2 size;
         uint length;
@@ -80,6 +77,7 @@ namespace sm::render {
         void reset();
     };
 
+#if 0
     struct Texture {
         fs::path path;
 
@@ -104,6 +102,7 @@ namespace sm::render {
 
         uint32 mIndexCount;
     };
+#endif
 
     struct MeshResource {
         Resource vbo;
@@ -267,7 +266,6 @@ namespace sm::render {
         void update_swapchain_length(uint length);
         void resize_draw(math::uint2 size);
 
-        bool mDeviceLost = false;
         void destroy_device();
 
         virtual void on_create() { }
@@ -275,8 +273,8 @@ namespace sm::render {
         virtual void setup_framegraph(graph::FrameGraph& graph) = 0;
 
     public:
-        Context(const RenderConfig& config);
         virtual ~Context() = default;
+        Context(const RenderConfig& config);
 
         void create();
         void destroy();
@@ -285,7 +283,5 @@ namespace sm::render {
         void resize_swapchain(math::uint2 size);
         void recreate_device();
         void update_framegraph();
-
-        void set_device_lost();
     };
 }

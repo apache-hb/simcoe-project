@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "editor/features.hpp"
+#include "editor/panels/features.hpp"
 
 #include "render/render.hpp"
 

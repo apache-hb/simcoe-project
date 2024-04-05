@@ -1,7 +1,7 @@
 #include "stdafx.hpp"
 
-#include "editor/inspector.hpp"
-#include "editor/panel.hpp"
+#include "editor/panels/inspector.hpp"
+#include "editor/panels/panel.hpp"
 
 #include "render/render.hpp"
 

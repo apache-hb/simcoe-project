@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "editor/config.hpp"
+#include "editor/panels/config.hpp"
 
 #include "editor/draw.hpp"
 
@@ -33,7 +33,7 @@ void RenderConfig::draw_adapters() const {
         (void)snprintf(label, sizeof(label), "##%zu", i);
 
         if (ImGui::RadioButton(label, (int*)&mContext.mAdapterIndex, int_cast<int>(i))) {
-            mContext.set_device_lost();
+            mContext.recreate_device = true;
         }
         ImGui::SameLine();
 
@@ -178,7 +178,7 @@ void RenderConfig::draw_content() {
 
     ImGui::SeparatorText("Debug Flags");
     if (draw_debug_flags()) {
-        mContext.set_device_lost();
+        mContext.recreate_device = true;
     }
 }
 

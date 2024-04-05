@@ -875,11 +875,6 @@ void Context::destroy() {
 }
 
 void Context::render() {
-    if (mDeviceLost) {
-        recreate_device();
-        return;
-    }
-
     ZoneScopedN("Render");
     build_command_list();
 
@@ -921,12 +916,6 @@ void Context::recreate_device() {
     // create_textures();
     create_scene();
     create_framegraph();
-
-    mDeviceLost = false;
-}
-
-void Context::set_device_lost() {
-    mDeviceLost = true;
 }
 
 void Context::update_swapchain_length(uint length) {

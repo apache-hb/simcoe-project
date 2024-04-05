@@ -1,7 +1,7 @@
-#include "editor/panel.hpp"
 #include "stdafx.hpp"
 
-#include "editor/scene.hpp"
+#include "editor/panels/panel.hpp"
+#include "editor/panels/scene.hpp"
 
 #include "render/render.hpp"
 

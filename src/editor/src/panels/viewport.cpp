@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "editor/viewport.hpp"
+#include "editor/panels/viewport.hpp"
 
 #include "render/render.hpp"
 

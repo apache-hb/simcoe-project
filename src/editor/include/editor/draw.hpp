@@ -30,6 +30,8 @@ namespace sm::ed {
 
         void tick(float dt);
 
+        void render();
+
         size_t add_camera();
 
         ItemIndex selected = ItemIndex::none();
@@ -43,6 +45,9 @@ namespace sm::ed {
 
         sm::Vector<CameraData> cameras;
         size_t active = 0;
+
+        // should the device be recreated?
+        bool recreate_device = false;
 
     private:
         void push_camera(size_t index, math::uint2 size);

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "editor/draw.hpp"
-#include "editor/scene.hpp"
+#include "editor/panels/scene.hpp"
 
 #include "draw/camera.hpp"
 

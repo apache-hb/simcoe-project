@@ -3,12 +3,12 @@ src = files([
     'src/main.cpp',
     'src/context.cpp',
 
-    'src/panels/mygui.cpp',
+    'src/mygui.cpp',
+    'src/editor.cpp',
 
     'src/panels/assets.cpp',
     'src/panels/config.cpp',
     'src/panels/debug.cpp',
-    'src/panels/editor.cpp',
     'src/panels/features.cpp',
     'src/panels/graph.cpp',
     'src/panels/inspector.cpp',

@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "editor/pix.hpp"
+#include "editor/panels/pix.hpp"
 
 #include "render/render.hpp"
 

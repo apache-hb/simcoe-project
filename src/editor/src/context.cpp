@@ -40,6 +40,15 @@ void EditorContext::tick(float dt) {
     }
 }
 
+void EditorContext::render() {
+    if (recreate_device) {
+        recreate_device = false;
+        Context::recreate_device();
+    } else {
+        Context::render();
+    }
+}
+
 size_t EditorContext::add_camera() {
     size_t index = cameras.size();
 

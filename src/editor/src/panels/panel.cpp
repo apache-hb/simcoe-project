@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "editor/panel.hpp"
+#include "editor/panels/panel.hpp"
 
 #include "editor/mygui.hpp"
 
