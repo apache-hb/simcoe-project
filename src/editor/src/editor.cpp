@@ -5,59 +5,6 @@
 using namespace sm;
 using namespace sm::ed;
 
-class ImGuiDemoPanel final : public IEditorPanel {
-    // IEditorPanel
-    void draw_content() override { }
-
-    bool draw_window() override {
-        if (bool open = is_open()) {
-            ImGui::ShowDemoWindow(get_open());
-        }
-
-        return is_open();
-    }
-
-public:
-    ImGuiDemoPanel() : IEditorPanel("ImGui Demo") { }
-};
-
-class ImPlotDemoPanel final : public IEditorPanel {
-    // IEditorPanel
-    void draw_content() override { }
-
-    bool draw_window() override {
-        if (bool open = is_open()) {
-            ImPlot::ShowDemoWindow(get_open());
-        }
-
-        return is_open();
-    }
-public:
-    ImPlotDemoPanel() : IEditorPanel("ImPlot Demo") { }
-};
-
-template<typename F>
-class StyleMenuItem final : public IEditorPanel {
-    F mStyle;
-
-    // IEditorPanel
-    void draw_content() override { }
-    bool draw_window() override { return false; }
-
-    bool draw_menu_item(const char *shortcut) override {
-        bool result = IEditorPanel::draw_menu_item(shortcut);
-        if (result)
-            mStyle();
-
-        return result;
-    }
-public:
-    StyleMenuItem(sm::StringView title, F style)
-        : IEditorPanel(title)
-        , mStyle(style)
-    { }
-};
-
 Editor::Editor(ed::EditorContext& context)
     : mContext(context)
     , mLogger(LoggerPanel::get())
@@ -151,6 +98,10 @@ void Editor::draw_mainmenu() {
         if (ImGui::BeginMenu("Help")) {
             ImGui::MenuItem("ImGui Demo", nullptr, &mShowImGuiDemo);
             ImGui::MenuItem("ImPlot Demo", nullptr, &mShowImPlotDemo);
+
+            ImGui::Separator();
+
+            ImGui::MenuItem("Settings", nullptr, &mConfig.mOpen);
             ImGui::EndMenu();
         }
 
@@ -214,6 +165,7 @@ void Editor::draw() {
     mAssetBrowser.draw_window();
     mGraph.draw_window();
     mPix.draw_window();
+    mConfig.draw_window();
 
     for (ViewportPanel &viewport : mViewports) {
         viewport.draw_window();
@@ -221,4 +173,10 @@ void Editor::draw() {
 
     mOpenLevelDialog.Display();
     mSaveLevelDialog.Display();
+
+    if (mShowImGuiDemo)
+        ImGui::ShowDemoWindow(&mShowImGuiDemo);
+
+    if (mShowImPlotDemo)
+        ImPlot::ShowDemoWindow(&mShowImPlotDemo);
 }

@@ -13,6 +13,7 @@ static bool gOptionWarp = false;
 static bool gOptionDred = false;
 static bool gOptionDebug = false;
 static fs::path gOptionAppdir;
+static LUID gOptionAdapterLuid = {0, 0};
 
 bool sm::pix_enabled() {
     return gOptionPix;
@@ -38,6 +39,14 @@ fs::path sm::get_redist(const fs::path& path) {
     return gOptionAppdir / "redist" / path;
 }
 
+std::optional<LUID> sm::override_adapter_luid() {
+    if (gOptionAdapterLuid.LowPart == 0 && gOptionAdapterLuid.HighPart == 0) {
+        return std::nullopt;
+    }
+
+    return gOptionAdapterLuid;
+}
+
 static void print() {
     logs::gGlobal.info("Usage: <app> [options]");
     logs::gGlobal.info("Options:");
@@ -47,6 +56,7 @@ static void print() {
     logs::gGlobal.info("  --dred    enable DRED");
     logs::gGlobal.info("  --debug   enable debug");
     logs::gGlobal.info("  --appdir  set application directory");
+    logs::gGlobal.info("  --adapter <high>:<low> set adapter LUID");
 }
 
 static void parse(sm::Span<const char*> args) {
@@ -68,6 +78,22 @@ static void parse(sm::Span<const char*> args) {
                 ++i;
             } else {
                 logs::gGlobal.error("missing argument for --appdir");
+            }
+        } else if (view == "--adapter") {
+            if (i + 1 < args.size()) {
+                sm::StringView arg = args[i + 1];
+                size_t index = arg.find(':');
+                if (index != sm::StringView::npos) {
+                    auto high = arg.substr(0, index);
+                    auto low = arg.substr(index + 1);
+                    gOptionAdapterLuid.HighPart = std::stoul(high.data(), nullptr, 16);
+                    gOptionAdapterLuid.LowPart = std::stoul(low.data(), nullptr, 16);
+                } else {
+                    logs::gGlobal.error("invalid argument for --adapter");
+                }
+                ++i;
+            } else {
+                logs::gGlobal.error("missing argument for --adapter");
             }
         } else {
             logs::gGlobal.error("unknown argument: {}", view);

@@ -22,28 +22,54 @@ static bool CheckboxFlags(const char *label, T &flags, T flag) {
 }
 } // namespace MyGui
 
-void RenderConfig::draw_adapters() const {
-    const auto& adapters = mContext.mInstance.get_adapters();
-    for (size_t i = 0; i < adapters.size(); i++) {
-        auto &adapter = adapters[i];
-        auto name = adapter.name();
-        using Reflect = ctu::TypeInfo<render::AdapterFlag>;
+static bool draw_adapter_info(render::Context& context, const render::Adapter& adapter) {
+    bool result = false;
+    auto luid = adapter.luid();
+    std::string label = fmt::format("##{}{}", luid.high, luid.low);
 
-        char label[32];
-        (void)snprintf(label, sizeof(label), "##%zu", i);
+    if (ImGui::RadioButton(label.c_str(), *context.mCurrentAdapter == adapter)) {
+        result = true;
+    }
+    ImGui::SameLine();
 
-        if (ImGui::RadioButton(label, (int*)&mContext.mAdapterIndex, int_cast<int>(i))) {
-            mContext.recreate_device = true;
-        }
+    auto name = adapter.name();
+
+    if (ImGui::TreeNodeEx((void *)name.data(), ImGuiTreeNodeFlags_None, "%s",
+                            name.data())) {
+        ImGui::Text("Video memory: %s", adapter.vidmem().to_string().c_str());
+        ImGui::Text("System memory: %s", adapter.sysmem().to_string().c_str());
+        ImGui::Text("Shared memory: %s", adapter.sharedmem().to_string().c_str());
+        ImGui::Text("Flags: %s", ctu::TypeInfo<render::AdapterFlag>::to_string(adapter.flags()).data());
+        ImGui::Text("LUID: %08lX:%08X", luid.high, luid.low);
         ImGui::SameLine();
+        if (ImGui::SmallButton("Copy##LUID")) {
+            auto arg = fmt::format("--adapter {:08x}:{:08x}", luid.high, luid.low);
+            ImGui::SetClipboardText(arg.c_str());
+        }
+        auto info = adapter.info();
+        ImGui::Text("Vendor: %04X Device: %04X Subsystem: %04X Revision: %04X",
+                    info.vendor, info.device, info.subsystem, info.revision);
+        ImGui::TreePop();
+    }
 
-        if (ImGui::TreeNodeEx((void *)name.data(), ImGuiTreeNodeFlags_None, "%s",
-                                name.data())) {
-            ImGui::Text("Video memory: %s", adapter.vidmem().to_string().c_str());
-            ImGui::Text("System memory: %s", adapter.sysmem().to_string().c_str());
-            ImGui::Text("Shared memory: %s", adapter.sharedmem().to_string().c_str());
-            ImGui::Text("Flags: %s", Reflect::to_string(adapter.flags()).data());
-            ImGui::TreePop();
+    return result;
+}
+
+void RenderConfig::draw_adapters() const {
+    auto& instance = mContext.mInstance;
+    auto& warp = instance.get_warp_adapter();
+
+    if (draw_adapter_info(mContext, warp)) {
+        mContext.recreate_device = true;
+        mContext.set_current_adapter(warp);
+    }
+
+    for (auto& adapter : instance.get_adapters()) {
+        if (adapter == instance.get_warp_adapter()) continue;
+
+        if (draw_adapter_info(mContext, adapter)) {
+            mContext.recreate_device = true;
+            mContext.set_current_adapter(adapter);
         }
     }
 }

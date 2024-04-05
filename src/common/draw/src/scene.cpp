@@ -137,6 +137,7 @@ void draw::opaque(graph::FrameGraph& graph, graph::Handle& target, const Camera&
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
         // TODO: support multiple scenes
-        draw_node(context, camera, context.mWorld.scenes[0].root, math::float4x4::identity());
+        auto& world = context.mWorld;
+        draw_node(context, camera, world.get(world.active_scene).root, math::float4x4::identity());
     });
 }

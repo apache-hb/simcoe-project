@@ -18,14 +18,6 @@ namespace sm::ed {
     class ScenePanel final {
         ed::EditorContext& mContext;
 
-        bool mShowObjects = false;
-        bool mShowCameras = false;
-
-        world::Node mNodeInfo{.name = "Node", .transform = {.scale = 1.f}};
-
-        sm::String mMeshName;
-        //world::MeshInfo mMeshCreateInfo[world::ObjectType::kCount];
-
         bool begin_tree_item(ItemIndex index, ImGuiTreeNodeFlags flags);
 
         void draw_node(uint16 index);
@@ -36,7 +28,7 @@ namespace sm::ed {
 
         void create_primitive();
 
-        // IEditorPanel
+        void draw_menu();
         void draw_content();
 
     public:

@@ -1,0 +1,11 @@
+[wrap-git]
+directory = jolt-5.0.0
+
+url = https://github.com/jrouwe/JoltPhysics
+revision = head
+depth = 1
+
+patch_directory = jolt
+
+[provide]
+dependency_names = jolt

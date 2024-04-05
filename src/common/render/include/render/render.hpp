@@ -37,7 +37,7 @@ namespace sm::render {
         DebugFlags flags;
         AdapterPreference preference;
         FeatureLevel feature_level;
-        size_t adapter_index;
+        LUID adapter_luid = { 0, 0 };
 
         SwapChainConfig swapchain;
 
@@ -135,7 +135,7 @@ namespace sm::render {
             void *user);
 
         /// device creation and physical adapters
-        size_t mAdapterIndex;
+        Adapter *mCurrentAdapter;
         DeviceHandle mDevice;
         CD3DX12FeatureSupport mFeatureSupport;
         RootSignatureVersion mRootSignatureVersion;
@@ -145,12 +145,14 @@ namespace sm::render {
 
         FeatureLevel get_feature_level() const { return mConfig.feature_level; }
 
+        void set_current_adapter(Adapter& adapter) { mCurrentAdapter = std::addressof(adapter); }
+
         void enable_debug_layer(bool gbv, bool rename);
         void disable_debug_layer();
         void enable_dred(bool enabled);
         void enable_info_queue();
         void query_root_signature_version();
-        void create_device(size_t adapter);
+        void create_device(Adapter& adapter);
 
         // resource allocator
         Object<D3D12MA::Allocator> mAllocator;
@@ -262,7 +264,7 @@ namespace sm::render {
 
         /// state updates
 
-        void update_adapter(size_t index);
+        void update_adapter(Adapter& adapter);
         void update_swapchain_length(uint length);
         void resize_draw(math::uint2 size);
 
@@ -283,5 +285,7 @@ namespace sm::render {
         void resize_swapchain(math::uint2 size);
         void recreate_device();
         void update_framegraph();
+
+        Adapter& get_current_adapter() { return *mCurrentAdapter; }
     };
 }

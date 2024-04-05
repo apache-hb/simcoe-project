@@ -22,6 +22,14 @@ Adapter::Adapter(IDXGIAdapter1 *adapter)
     mSystemMemory = desc.DedicatedSystemMemory;
     mSharedMemory = desc.SharedSystemMemory;
     mFlags = desc.Flags;
+    mAdapterLuid = desc.AdapterLuid;
+
+    mDeviceInfo = {
+        .vendor = desc.VendorId,
+        .device = desc.DeviceId,
+        .subsystem = desc.SubSysId,
+        .revision = desc.Revision,
+    };
 }
 
 bool Instance::enum_by_preference() {
@@ -54,6 +62,18 @@ void Instance::enum_adapters() {
     }
 }
 
+void Instance::enum_warp_adapter() {
+    IDXGIAdapter1 *adapter;
+    if (Result hr = mFactory->EnumWarpAdapter(IID_PPV_ARGS(&adapter)); !hr) {
+        logs::gGpuApi.warn("failed to enum warp adapter: {}", hr);
+        return;
+    }
+
+    mWarpAdapter = Adapter(adapter);
+    logs::gGpuApi.info("warp adapter: {}", mWarpAdapter.name());
+    log_adapter(mWarpAdapter);
+}
+
 void Instance::enable_leak_tracking() {
     if (Result hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&mDebug))) {
         mDebug->EnableLeakTrackingForThread();
@@ -78,7 +98,7 @@ void Instance::query_tearing_support() {
     mTearingSupport = tearing;
 }
 
-void Instance::load_wrap_redist() {
+void Instance::load_warp_redist() {
     mWarpLibrary = sm::get_redist("d3d10warp.dll");
     if (OsError err = mWarpLibrary.get_error()) {
         logs::gGpuApi.warn("failed to load warp redist: {}", err);
@@ -117,11 +137,13 @@ Instance::Instance(InstanceConfig config)
     logs::gGpuApi.info("instance config");
     logs::gGpuApi.info("| flags: {}", mFlags);
 
-    load_wrap_redist();
+    load_warp_redist();
 
     if (mFlags.test(DebugFlags::eWinPixEventRuntime)) {
         load_pix_runtime();
     }
+
+    enum_warp_adapter();
 
     if (!enum_by_preference())
         enum_adapters();
@@ -134,20 +156,28 @@ Instance::~Instance() {
     }
 }
 
-size_t Instance::warp_adapter_index() {
-    for (size_t i = 0; i < mAdapters.size(); i++) {
-        if (mAdapters[i].flags().test(AdapterFlag::eSoftware))
-            return i;
-    }
-    return SIZE_MAX;
-}
-
-Adapter &Instance::get_adapter(size_t index) {
-    return mAdapters[index];
-}
-
 sm::Vector<Adapter> &Instance::get_adapters() {
     return mAdapters;
+}
+
+bool Instance::has_viable_adapter() const {
+    return mWarpAdapter.is_valid() || !mAdapters.empty();
+}
+
+Adapter *Instance::get_adapter_by_luid(LUID luid) {
+    for (auto &adapter : mAdapters) {
+        if (adapter.luid() == luid)
+            return std::addressof(adapter);
+    }
+    return nullptr;
+}
+
+Adapter& Instance::get_warp_adapter() {
+    return mWarpAdapter;
+}
+
+Adapter& Instance::get_default_adapter() {
+    return mAdapters.empty() ? get_warp_adapter() : mAdapters.front();
 }
 
 Object<IDXGIFactory4> &Instance::factory() {

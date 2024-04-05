@@ -8,7 +8,6 @@
 using namespace sm;
 using namespace sm::ed;
 
-#if 0
 static constexpr ImGuiTableFlags kTableFlags
     = ImGuiTableFlags_BordersV
     | ImGuiTableFlags_BordersOuterH
@@ -17,6 +16,7 @@ static constexpr ImGuiTableFlags kTableFlags
     | ImGuiTableFlags_RowBg
     | ImGuiTableFlags_NoBordersInBody;
 
+#if 0
 const ImGuiTreeNodeFlags kGroupNodeFlags
     = ImGuiTreeNodeFlags_SpanAllColumns
     | ImGuiTreeNodeFlags_OpenOnArrow
@@ -354,22 +354,63 @@ void ScenePanel::draw_content() {
 }
 #endif
 
+void ScenePanel::draw_menu() {
+    if (ImGui::BeginMenuBar()) {
+        if (ImGui::BeginMenu("New")) {
+            ImGui::MenuItem("Object");
+            ImGui::MenuItem("Camera");
+            ImGui::MenuItem("Texture");
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMenuBar();
+    }
+}
+
+static bool scene_select(world::World& world) {
+    auto& active = world.get(world.active_scene);
+    if (ImGui::BeginCombo("Scene", active.name.c_str())) {
+        for (size_t i = 0; i < world.scenes.size(); i++) {
+            auto& scene = world.scenes[i];
+            bool selected = i == world.active_scene;
+            if (ImGui::Selectable(scene.name.c_str(), selected)) {
+                world.active_scene = i;
+            }
+            if (selected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+    return false;
+}
+
+void ScenePanel::draw_content() {
+    if (scene_select(mContext.mWorld)) {
+        // TODO: load new scene
+    }
+
+    if (ImGui::BeginTable("Scene Tree", 2, kTableFlags)) {
+        ImGui::TableSetupColumn("Name");
+        ImGui::TableSetupColumn("Type");
+        ImGui::TableSetupScrollFreeze(1, 0);
+        ImGui::TableHeadersRow();
+
+
+        ImGui::EndTable();
+    }
+}
+
 ScenePanel::ScenePanel(ed::EditorContext& context)
     : mContext(context)
-{
-    //auto cases = world::ObjectType::cases();
-#if 0
-    for (world::ObjectType i : cases) {
-        mMeshCreateInfo[i] = get_default_info(i);
-    }
-#endif
-}
+{ }
 
 void ScenePanel::draw_window() {
     if (!mOpen) return;
 
     if (ImGui::Begin("Scene Tree", &mOpen, ImGuiWindowFlags_MenuBar)) {
-        //draw_content();
+        draw_menu();
+        draw_content();
     }
     ImGui::End();
 }

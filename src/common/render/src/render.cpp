@@ -97,9 +97,7 @@ void Context::serialize_root_signature(Object<ID3D12RootSignature>& signature, c
     SM_ASSERT_HR(mDevice->CreateRootSignature(0, serialized.data(), serialized.size(), IID_PPV_ARGS(&signature)));
 }
 
-void Context::create_device(size_t index) {
-    auto& adapter = mInstance.get_adapter(index);
-
+void Context::create_device(Adapter& adapter) {
     if (auto flags = adapter.flags(); flags.test(AdapterFlag::eSoftware) && mDebugFlags.test(DebugFlags::eGpuValidation)) {
         logs::gRender.warn("adapter `{}` is a software adapter, enabling gpu validation has major performance implications", adapter.name());
     }
@@ -113,18 +111,18 @@ void Context::create_device(size_t index) {
 
     auto fl = get_feature_level();
 
-    mAdapterIndex = index;
+    set_current_adapter(adapter);
     if (Result hr = D3D12CreateDevice(adapter.get(), fl.as_facade(), IID_PPV_ARGS(&mDevice)); !hr) {
         logs::gRender.error("failed to create device `{}` at feature level `{}`", adapter.name(), fl, hr);
         logs::gRender.error("| hresult: {}", hr);
         logs::gRender.error("falling back to warp adapter...");
 
-        mAdapterIndex = mInstance.warp_adapter_index();
-        auto& warp_adapter = mInstance.get_adapter(mAdapterIndex);
-        SM_ASSERT_HR(D3D12CreateDevice(warp_adapter.get(), fl.as_facade(), IID_PPV_ARGS(&mDevice)));
+        auto& warp = mInstance.get_warp_adapter();
+        set_current_adapter(warp);
+        SM_ASSERT_HR(D3D12CreateDevice(warp.get(), fl.as_facade(), IID_PPV_ARGS(&mDevice)));
     }
 
-    logs::gRender.info("device created: {}", adapter.name());
+    logs::gRender.info("device created: {}", mCurrentAdapter->name());
 
     if (mDebugFlags.test(DebugFlags::eInfoQueue))
         enable_info_queue();
@@ -145,7 +143,7 @@ void Context::create_allocator() {
     const D3D12MA::ALLOCATOR_DESC kAllocatorDesc = {
         .Flags = kAllocatorFlags,
         .pDevice = mDevice.get(),
-        .pAdapter = *mInstance.get_adapter(mAdapterIndex),
+        .pAdapter = mCurrentAdapter->get()
     };
 
     SM_ASSERT_HR(D3D12MA::CreateAllocator(&kAllocatorDesc, &mAllocator));
@@ -840,15 +838,32 @@ Context::Context(const RenderConfig& config)
 { }
 
 void Context::create() {
-    size_t index = mDebugFlags.test(DebugFlags::eWarpAdapter)
-        ? mInstance.warp_adapter_index()
-        : mConfig.adapter_index;
+    if (!mInstance.has_viable_adapter()) {
+        logs::gRender.error("no viable adapter found, exiting...");
+        return;
+    }
+
+    Adapter& adapter = [&] -> Adapter& {
+        if (auto luid = sm::override_adapter_luid(); luid.has_value()) {
+            auto& v = luid.value();
+            if (Adapter *adapter = mInstance.get_adapter_by_luid(v)) {
+                return *adapter;
+            }
+
+            logs::gRender.warn("adapter with luid {:x}:{:x} not found, falling back to default adapter", v.HighPart, v.LowPart);
+            return mInstance.get_default_adapter();
+        } else if (mDebugFlags.test(DebugFlags::eWarpAdapter)) {
+            return mInstance.get_warp_adapter();
+        } else {
+            return mInstance.get_default_adapter();
+        }
+    }();
 
     PIXSetTargetWindow(mConfig.window.get_handle());
 
     mStorage.create(mDebugFlags);
 
-    create_device(index);
+    create_device(adapter);
     create_allocator();
     create_copy_queue();
     create_copy_fence();
@@ -891,9 +906,8 @@ void Context::render() {
     move_to_next_frame();
 }
 
-void Context::update_adapter(size_t index) {
-    if (index == mAdapterIndex) return;
-    mAdapterIndex = index;
+void Context::update_adapter(Adapter& adapter) {
+    if (adapter == *mCurrentAdapter) return;
 
     recreate_device();
 }
@@ -904,7 +918,7 @@ void Context::recreate_device() {
     on_destroy();
     destroy_device();
 
-    create_device(mAdapterIndex);
+    create_device(*mCurrentAdapter);
     create_allocator();
     create_copy_queue();
     create_copy_fence();

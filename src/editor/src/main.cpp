@@ -306,7 +306,6 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .flags = flags,
         .preference = render::AdapterPreference::eMinimumPower,
         .feature_level = render::FeatureLevel::eLevel_11_0,
-        .adapter_index = 0,
 
         .swapchain = {
             .size = client.as<uint>(),
