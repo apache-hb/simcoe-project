@@ -154,17 +154,30 @@ void Editor::end_frame() {
     }
 }
 
-void Editor::draw() {
-    draw_mainmenu();
-    draw_dockspace();
+world::IndexOf<world::Node> Editor::get_picked_node() {
+    if (!mContext.selected.has_value())
+        return mContext.get_scene().root;
 
+    auto index = world::get<world::Node>(*mContext.selected);
+    if (index == world::kInvalidIndex)
+        return mContext.get_scene().root;
+
+    return index;
+}
+
+void Editor::draw_create_popup() {
     if (ImGui::IsKeyChordPressed(ImGuiMod_Shift | ImGuiKey_A)) {
         ImGui::OpenPopup("Create");
     }
 
     if (MyGui::BeginPopupWindow("Create", ImGuiWindowFlags_NoMove)) {
         if (ImGui::BeginMenu("Object")) {
-            ImGui::MenuItem("Empty");
+            if (ImGui::MenuItem("Empty")) {
+                auto root = get_picked_node();
+
+                auto added = mContext.mWorld.add(world::Node { .name = "New Empty", .transform = world::default_transform() });
+                mContext.mWorld.get(root).children.push_back(added);
+            }
             ImGui::EndMenu();
         }
 
@@ -176,6 +189,12 @@ void Editor::draw() {
         }
         ImGui::EndPopup();
     }
+}
+
+void Editor::draw() {
+    draw_mainmenu();
+    draw_dockspace();
+    draw_create_popup();
 
     mLogger.draw_window();
     mScene.draw_window();

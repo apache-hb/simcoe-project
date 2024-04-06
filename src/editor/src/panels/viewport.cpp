@@ -99,7 +99,9 @@ void ViewportPanel::draw_content() {
     auto idx = mContext.mSrvPool.gpu_handle(srv);
     ImGui::Image((ImTextureID)idx.ptr, avail);
 
-    if (mSelected.type != ItemType::eNode) return;
+    if (!mContext.selected.has_value()) return;
+    auto selected = world::get<world::Node>(*mContext.selected);
+    if (selected == world::kInvalidIndex) return;
 
     float2 size = ImGui::GetWindowSize();
     float2 pos = ImGui::GetWindowPos();
@@ -114,9 +116,7 @@ void ViewportPanel::draw_content() {
     }
 
     auto& scene = mContext.mWorld;
-    SM_ASSERTF(mSelected.index < scene.nodes.size(), "Invalid node index: {}", mSelected.index);
-    SM_ASSERTF(mSelected.type == ItemType::eNode, "Invalid node type: {}", mSelected.type);
-    auto& item = scene.nodes[mSelected.index];
+    auto& item = scene.get(selected);
 
     const auto& [t, r, s] = item.transform;
 

@@ -45,8 +45,12 @@ namespace sm::ed {
         ImGui::FileBrowser mSaveLevelDialog { ImGuiFileBrowserFlags_CreateNewDir | ImGuiFileBrowserFlags_EnterNewFilename | ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_ConfirmOnEnter };
         ImGui::FileBrowser mOpenLevelDialog { ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_ConfirmOnEnter };
 
+        world::IndexOf<world::Node> get_picked_node();
+
         void draw_mainmenu();
         void draw_dockspace();
+
+        void draw_create_popup();
 
     public:
         Editor(ed::EditorContext &context);

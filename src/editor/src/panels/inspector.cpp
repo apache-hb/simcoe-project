@@ -89,11 +89,40 @@ void InspectorPanel::draw_content() {
     }
 }
 #endif
+
+void InspectorPanel::inspect(world::IndexOf<world::Model> index) {
+    auto& model = mContext.mWorld.get(index);
+    ImGui::InputText("Name", &model.name);
+}
+
+void InspectorPanel::inspect(world::IndexOf<world::Node> index) {
+    auto& node = mContext.mWorld.get(index);
+    ImGui::InputText("Name", &node.name);
+
+    ImGui::SeparatorText("Children");
+    for (auto child : node.children) {
+        ImGui::Text("Child %u", child.get());
+    }
+
+    ImGui::SeparatorText("Models");
+    for (auto model : node.models) {
+        ImGui::Text("Model %u", model.get());
+    }
+}
+
+void InspectorPanel::draw_content() {
+    if (mContext.selected.has_value()) {
+        std::visit([&](auto index) {
+            inspect(index);
+        }, mContext.selected.value());
+    }
+}
+
 void InspectorPanel::draw_window() {
     if (!mOpen) return;
 
     if (ImGui::Begin("Inspector", &mOpen)) {
-        // draw_content();
+        draw_content();
     }
     ImGui::End();
 }

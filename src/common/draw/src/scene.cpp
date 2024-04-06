@@ -136,7 +136,7 @@ void draw::opaque(graph::FrameGraph& graph, graph::Handle& target, const Camera&
 
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-        const auto& scene = context.mWorld.get(context.get_scene());
+        const auto& scene = context.get_scene();
         draw_node(context, camera, scene.root, math::float4x4::identity());
     });
 }

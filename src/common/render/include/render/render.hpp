@@ -77,33 +77,6 @@ namespace sm::render {
         void reset();
     };
 
-#if 0
-    struct Texture {
-        fs::path path;
-
-        sm::String name;
-        ImageFormat format;
-        uint2 size;
-        uint mips;
-        sm::Vector<uint8> data;
-
-        Resource resource;
-        SrvIndex srv;
-    };
-
-    struct Mesh {
-        world::MeshInfo mInfo;
-
-        Resource mVertexBuffer;
-        VertexBufferView mVertexBufferView;
-
-        Resource mIndexBuffer;
-        IndexBufferView mIndexBufferView;
-
-        uint32 mIndexCount;
-    };
-#endif
-
     struct MeshResource {
         Resource vbo;
         VertexBufferView vbo_view;
@@ -229,6 +202,8 @@ namespace sm::render {
         bool load_gltf(const fs::path& path);
 #endif
 
+        void load_image(world::IndexOf<world::Image> index);
+
         void load_object(world::IndexOf<world::Model> index, const world::Object& object);
         void load_mesh_buffer(world::IndexOf<world::Model> index, const world::Mesh& mesh);
         void load_buffer_view(world::IndexOf<world::Model> index, const world::BufferView& view);
@@ -267,6 +242,11 @@ namespace sm::render {
         void create_dstorage();
         void destroy_dstorage();
 
+        IDStorageFile *get_storage_file(world::IndexOf<world::File> index);
+        const uint8 *get_storage_buffer(world::IndexOf<world::Buffer> index);
+
+        void upload_buffer_view(RequestBuilder& request, const world::BufferView& view);
+
         // render graph
         graph::Handle mSwapChainHandle;
         graph::FrameGraph mFrameGraph;
@@ -301,8 +281,10 @@ namespace sm::render {
         void recreate_device();
         void update_framegraph();
 
-        world::IndexOf<world::Scene> get_scene() const { return mCurrentScene; }
+        world::IndexOf<world::Scene> get_current_scene() const { return mCurrentScene; }
         void set_scene(world::IndexOf<world::Scene> scene);
+
+        world::Scene& get_scene() { return mWorld.get(mCurrentScene); }
 
         Adapter& get_current_adapter() { return *mCurrentAdapter; }
     };

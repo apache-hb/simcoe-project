@@ -8,11 +8,13 @@ namespace sm::ed {
 
         void draw_content();
 
-        void draw_mesh(ItemIndex index);
-        void draw_node(ItemIndex index);
-        void draw_camera(ItemIndex index);
-        void draw_image(ItemIndex index);
-        void draw_material(ItemIndex index);
+        template<world::IsWorldObject T>
+        void inspect(world::IndexOf<T> index) {
+            ImGui::TextUnformatted("Unimplemented :(");
+        }
+
+        void inspect(world::IndexOf<world::Model> index);
+        void inspect(world::IndexOf<world::Node> index);
 
     public:
         InspectorPanel(ed::EditorContext &context);

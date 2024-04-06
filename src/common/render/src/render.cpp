@@ -285,6 +285,50 @@ void Context::init_scene() {
     mCurrentScene = mWorld.default_scene;
 }
 
+void Context::upload_buffer_view(RequestBuilder& request, const world::BufferView& view) {
+    if (world::IndexOf file = world::get<world::File>(view.source); file != world::kInvalidIndex) {
+        request.src(get_storage_file(file), view.offset, view.source_size);
+        mStorage.submit_file_copy(request);
+    } else if (world::IndexOf buffer = world::get<world::Buffer>(view.source); buffer != world::kInvalidIndex) {
+        request.src(get_storage_buffer(buffer) + view.offset, view.source_size);
+        mStorage.submit_memory_copy(request);
+    } else {
+        CT_NEVER("invalid image source");
+    }
+}
+
+void Context::load_image(world::IndexOf<world::Image> index) {
+    const auto& image = mWorld.get(index);
+
+    Resource data;
+    auto desc = CD3DX12_RESOURCE_DESC::Tex2D(image.format, image.size.width, image.size.height, 1, image.mips);
+    SM_ASSERT_HR(create_resource(data, D3D12_HEAP_TYPE_UPLOAD, desc, D3D12_RESOURCE_STATE_COPY_DEST));
+
+    RequestBuilder request;
+    request.dst(DSTORAGE_DESTINATION_MULTIPLE_SUBRESOURCES{ data.get(), 0 });
+
+    upload_buffer_view(request, image.source);
+
+    mStorage.signal_file_queue(*mCopyFence, mCopyFenceValue);
+    mStorage.signal_memory_queue(*mCopyFence, mCopyFenceValue);
+
+    reset_direct_commands();
+
+    D3D12_RESOURCE_BARRIER barriers[] = {
+        CD3DX12_RESOURCE_BARRIER::Transition(data.get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
+    };
+
+    mCommandList.submit_barriers(barriers);
+
+    SM_ASSERT_HR(mCommandList->Close());
+
+    ID3D12CommandList *lists[] = { mCommandList.get() };
+    mDirectQueue->Wait(*mCopyFence, mCopyFenceValue);
+    mDirectQueue->ExecuteCommandLists(1, lists);
+
+    wait_for_gpu();
+}
+
 void Context::load_mesh_buffer(world::IndexOf<world::Model> index, const world::Mesh& mesh) {
     Resource vbo_upload;
     Resource ibo_upload;
@@ -294,13 +338,13 @@ void Context::load_mesh_buffer(world::IndexOf<world::Model> index, const world::
 
     auto vbo_desc = CD3DX12_RESOURCE_DESC::Buffer(vbo_size);
     auto ibo_desc = CD3DX12_RESOURCE_DESC::Buffer(ibo_size);
-    SM_ASSERT_HR(create_resource(vbo_upload, D3D12_HEAP_TYPE_UPLOAD, vbo_desc, D3D12_RESOURCE_STATE_GENERIC_READ));
-    SM_ASSERT_HR(create_resource(ibo_upload, D3D12_HEAP_TYPE_UPLOAD, ibo_desc, D3D12_RESOURCE_STATE_GENERIC_READ));
+    SM_ASSERT_HR(create_resource(vbo_upload, D3D12_HEAP_TYPE_UPLOAD, vbo_desc, D3D12_RESOURCE_STATE_COMMON));
+    SM_ASSERT_HR(create_resource(ibo_upload, D3D12_HEAP_TYPE_UPLOAD, ibo_desc, D3D12_RESOURCE_STATE_COMMON));
 
     Resource vbo;
     Resource ibo;
-    SM_ASSERT_HR(create_resource(vbo, D3D12_HEAP_TYPE_DEFAULT, vbo_desc, D3D12_RESOURCE_STATE_GENERIC_READ));
-    SM_ASSERT_HR(create_resource(ibo, D3D12_HEAP_TYPE_DEFAULT, ibo_desc, D3D12_RESOURCE_STATE_GENERIC_READ));
+    SM_ASSERT_HR(create_resource(vbo, D3D12_HEAP_TYPE_DEFAULT, vbo_desc, D3D12_RESOURCE_STATE_COMMON));
+    SM_ASSERT_HR(create_resource(ibo, D3D12_HEAP_TYPE_DEFAULT, ibo_desc, D3D12_RESOURCE_STATE_COMMON));
 
     SM_ASSERT_HR(vbo_upload.write(mesh.vertices.data(), vbo_size));
     SM_ASSERT_HR(ibo_upload.write(mesh.indices.data(), ibo_size));
@@ -312,8 +356,8 @@ void Context::load_mesh_buffer(world::IndexOf<world::Model> index, const world::
     copy_buffer(mCopyCommands.get(), ibo, ibo_upload, ibo_size);
 
     const D3D12_RESOURCE_BARRIER kBarriers[] = {
-        CD3DX12_RESOURCE_BARRIER::Transition(*vbo.mResource, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER),
-        CD3DX12_RESOURCE_BARRIER::Transition(*ibo.mResource, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_INDEX_BUFFER),
+        CD3DX12_RESOURCE_BARRIER::Transition(vbo.get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER),
+        CD3DX12_RESOURCE_BARRIER::Transition(ibo.get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_INDEX_BUFFER),
     };
 
     mCommandList.submit_barriers(kBarriers);

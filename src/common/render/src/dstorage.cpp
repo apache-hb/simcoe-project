@@ -21,7 +21,11 @@ static constexpr UINT32 get_dstorage_flags(DebugFlags flags) {
     return result;
 }
 
-CopyStorage::CopyStorage() { }
+CopyStorage::CopyStorage() {
+}
+
+CopyStorage::~CopyStorage() {
+}
 
 void CopyStorage::create(DebugFlags flags) {
     SM_ASSERT_HR(DStorageGetFactory(IID_PPV_ARGS(&mFactory)));
@@ -39,7 +43,7 @@ void CopyStorage::create_queues(ID3D12Device1 *device) {
             .SourceType = DSTORAGE_REQUEST_SOURCE_MEMORY,
             .Capacity = DSTORAGE_MAX_QUEUE_CAPACITY,
             .Priority = DSTORAGE_PRIORITY_NORMAL,
-            .Name = "Memory -> Video",
+            .Name = "host -> device",
             .Device = device,
         };
 
@@ -51,7 +55,7 @@ void CopyStorage::create_queues(ID3D12Device1 *device) {
             .SourceType = DSTORAGE_REQUEST_SOURCE_FILE,
             .Capacity = DSTORAGE_MAX_QUEUE_CAPACITY,
             .Priority = DSTORAGE_PRIORITY_NORMAL,
-            .Name = "File -> Video",
+            .Name = "disk -> device",
             .Device = device,
         };
 
@@ -64,6 +68,26 @@ void CopyStorage::destroy_queues() {
     mFileQueue.reset();
 }
 
+Result CopyStorage::open(const fs::path& path, IDStorageFile **file) {
+    return mFactory->OpenFile(path.c_str(), IID_PPV_ARGS(file));
+}
+
+void CopyStorage::submit_file_copy(const DSTORAGE_REQUEST& request) {
+    mFileQueue->EnqueueRequest(&request);
+}
+
+void CopyStorage::submit_memory_copy(const DSTORAGE_REQUEST& request) {
+    mMemoryQueue->EnqueueRequest(&request);
+}
+
+void CopyStorage::signal_file_queue(ID3D12Fence *fence, uint64 value) {
+    mFileQueue->EnqueueSignal(fence, value);
+}
+
+void CopyStorage::signal_memory_queue(ID3D12Fence *fence, uint64 value) {
+    mMemoryQueue->EnqueueSignal(fence, value);
+}
+
 void Context::create_dstorage() {
     mStorage.create(mDebugFlags);
     mStorage.create_queues(mDevice.get());
@@ -72,4 +96,26 @@ void Context::create_dstorage() {
 void Context::destroy_dstorage() {
     mStorage.destroy_queues();
     mStorage.destroy();
+}
+
+IDStorageFile *Context::get_storage_file(world::IndexOf<world::File> index) {
+    if (auto it = mStorageFiles.find(index); it != mStorageFiles.end()) {
+        return it->second.get();
+    }
+
+    const auto& file = mWorld.get(index);
+
+    Object<IDStorageFile> dsfile;
+    SM_ASSERT_HR(mStorage.open(file.path, &dsfile));
+
+    auto [it, _] = mStorageFiles.emplace(index, std::move(dsfile));
+    auto& [_, fd] = *it;
+
+    return fd.get();
+}
+
+const uint8 *Context::get_storage_buffer(world::IndexOf<world::Buffer> index) {
+    auto& buffer = mWorld.get(index);
+
+    return buffer.data.data();
 }

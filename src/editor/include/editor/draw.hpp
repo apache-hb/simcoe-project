@@ -4,19 +4,7 @@
 
 #include "render/render.hpp"
 
-#include "editor.reflect.h"
-
 namespace sm::ed {
-    struct ItemIndex {
-        ItemType type;
-        uint16 index;
-
-        constexpr auto operator<=>(const ItemIndex&) const = default;
-        constexpr bool has_selection() const { return type != ed::ItemType::eNone; }
-
-        static constexpr ItemIndex none() { return {ItemType::eNone, 0}; }
-    };
-
     struct EditorContext final : public render::Context {
         using Super = render::Context;
         using Super::Super;

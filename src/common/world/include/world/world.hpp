@@ -52,11 +52,19 @@ namespace sm::world {
         static IndexType type() { return T::kType; }
     };
 
-    template<typename... T>
+    template<IsWorldObject... T>
     using ChoiceOf = sm::Variant<IndexOf<T>...>;
 
-    template<typename... T>
+    template<IsWorldObject... T>
     using OptionOf = sm::Variant<IndexOf<T>..., std::monostate>;
+
+    template<IsWorldObject T, typename... A>
+    IndexOf<T> get(ChoiceOf<A...> index) {
+        if (auto *value = std::get_if<IndexOf<T>>(&index))
+            return *value;
+
+        return kInvalidIndex;
+    }
 
     struct File {
         static constexpr IndexType kType = eFile;
@@ -75,8 +83,8 @@ namespace sm::world {
         ChoiceOf<File, Buffer> source;
 
         uint64 offset;
-        uint32 file_size;
-        uint32 buffer_size;
+        uint32 source_size;
+        // uint32 buffer_size;
     };
 
     struct Image {
@@ -86,6 +94,7 @@ namespace sm::world {
         BufferView source;
         DXGI_FORMAT format;
         math::uint2 size;
+        uint mips;
     };
 
     struct Texture {
@@ -254,7 +263,7 @@ namespace sm::world {
 }
 
 template<typename T>
-struct std::hash<sm::world::IndexOf<T>> {
+struct std::hash<sm::world::IndexOf<T>> { // NOLINT
     size_t operator()(sm::world::IndexOf<T> index) const {
         return std::hash<sm::uint16>{}(index.get());
     }

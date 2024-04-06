@@ -372,8 +372,7 @@ bool ScenePanel::begin_tree_item(world::AnyIndex index, ImGuiTreeNodeFlags flags
 
 void ScenePanel::node_context_popup(world::IndexOf<world::Node> index) {
     if (ImGui::BeginPopupContextItem()) {
-        auto& world = mContext.mWorld;
-        auto& scene = world.get(mContext.get_scene());
+        auto& scene = mContext.get_scene();
         if (ImGui::Button("Add Child")) {
             // mNodeInfo.parent = index;
             // uint16 id = world.add_node(mNodeInfo);
@@ -455,14 +454,14 @@ void ScenePanel::draw_menu() {
 }
 
 world::IndexOf<world::Scene> ScenePanel::scene_select() {
-    world::IndexOf<world::Scene> result = mContext.get_scene();
+    world::IndexOf<world::Scene> result = mContext.get_current_scene();
 
     auto& world = mContext.mWorld;
-    auto& active = world.get(mContext.get_scene());
+    auto& active = world.get(mContext.get_current_scene());
     if (ImGui::BeginCombo("Scene", active.name.c_str())) {
         for (size_t i = 0; i < world.scenes.size(); i++) {
             auto& scene = world.scenes[i];
-            bool selected = i == mContext.get_scene();
+            bool selected = i == mContext.get_current_scene();
             if (ImGui::Selectable(scene.name.c_str(), selected)) {
                 result = i;
             }
@@ -477,8 +476,7 @@ world::IndexOf<world::Scene> ScenePanel::scene_select() {
 }
 
 void ScenePanel::draw_content() {
-    auto& world = mContext.mWorld;
-    if (IndexOf scene = scene_select(); scene != mContext.get_scene()) {
+    if (IndexOf scene = scene_select(); scene != mContext.get_current_scene()) {
         mContext.set_scene(scene);
     }
 
@@ -488,8 +486,7 @@ void ScenePanel::draw_content() {
         ImGui::TableSetupScrollFreeze(1, 0);
         ImGui::TableHeadersRow();
 
-        auto& scene = world.get(mContext.get_scene());
-        draw_node(scene.root);
+        draw_node(mContext.get_scene().root);
 
         ImGui::EndTable();
     }

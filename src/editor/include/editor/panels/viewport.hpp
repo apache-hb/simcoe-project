@@ -26,7 +26,6 @@ namespace sm::ed {
 
         auto& get_camera() { return mContext.cameras[mCameraIndex]; }
 
-        ItemIndex mSelected = ItemIndex::none();
         ImGuizmo::OPERATION mOperation = ImGuizmo::TRANSLATE;
 
         ImGuizmo::OPERATION mTranslateOperation = ImGuizmo::TRANSLATE;
@@ -47,9 +46,6 @@ namespace sm::ed {
 
         bool mOpen = true;
         void draw_window();
-
-        void select(ItemIndex index) { mSelected = index; }
-        ItemIndex get_selected() const { return mSelected; }
 
         void gizmo_settings_panel();
         const char *get_title() const { return mName.c_str(); }
