@@ -276,25 +276,134 @@ Result Context::create_resource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_
     return mAllocator->CreateResource(&kAllocDesc, &desc, state, clear, &resource.mAllocation, IID_PPV_ARGS(&resource.mResource));
 }
 
-void Context::copy_buffer(Object<ID3D12GraphicsCommandList1>& list, Resource& dst, Resource& src, size_t size) {
+void Context::copy_buffer(ID3D12GraphicsCommandList1 *list, Resource& dst, Resource& src, size_t size) {
     list->CopyBufferRegion(*dst.mResource, 0, *src.mResource, 0, size);
 }
 
 void Context::init_scene() {
     mWorld = world::default_world("Default World");
+    mCurrentScene = mWorld.default_scene;
+}
+
+void Context::load_mesh_buffer(world::IndexOf<world::Model> index, const world::Mesh& mesh) {
+    Resource vbo_upload;
+    Resource ibo_upload;
+
+    size_t vbo_size = mesh.vertices.size() * sizeof(world::Vertex);
+    size_t ibo_size = mesh.indices.size() * sizeof(uint16);
+
+    auto vbo_desc = CD3DX12_RESOURCE_DESC::Buffer(vbo_size);
+    auto ibo_desc = CD3DX12_RESOURCE_DESC::Buffer(ibo_size);
+    SM_ASSERT_HR(create_resource(vbo_upload, D3D12_HEAP_TYPE_UPLOAD, vbo_desc, D3D12_RESOURCE_STATE_GENERIC_READ));
+    SM_ASSERT_HR(create_resource(ibo_upload, D3D12_HEAP_TYPE_UPLOAD, ibo_desc, D3D12_RESOURCE_STATE_GENERIC_READ));
+
+    Resource vbo;
+    Resource ibo;
+    SM_ASSERT_HR(create_resource(vbo, D3D12_HEAP_TYPE_DEFAULT, vbo_desc, D3D12_RESOURCE_STATE_GENERIC_READ));
+    SM_ASSERT_HR(create_resource(ibo, D3D12_HEAP_TYPE_DEFAULT, ibo_desc, D3D12_RESOURCE_STATE_GENERIC_READ));
+
+    SM_ASSERT_HR(vbo_upload.write(mesh.vertices.data(), vbo_size));
+    SM_ASSERT_HR(ibo_upload.write(mesh.indices.data(), ibo_size));
+
+    reset_copy_commands();
+    reset_direct_commands();
+
+    copy_buffer(mCopyCommands.get(), vbo, vbo_upload, vbo_size);
+    copy_buffer(mCopyCommands.get(), ibo, ibo_upload, ibo_size);
+
+    const D3D12_RESOURCE_BARRIER kBarriers[] = {
+        CD3DX12_RESOURCE_BARRIER::Transition(*vbo.mResource, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER),
+        CD3DX12_RESOURCE_BARRIER::Transition(*ibo.mResource, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_INDEX_BUFFER),
+    };
+
+    mCommandList.submit_barriers(kBarriers);
+
+    SM_ASSERT_HR(mCopyCommands->Close());
+    SM_ASSERT_HR(mCommandList->Close());
+
+    ID3D12CommandList *copy_lists[] = { mCopyCommands.get() };
+    mCopyQueue->ExecuteCommandLists(1, copy_lists);
+    SM_ASSERT_HR(mCopyQueue->Signal(*mCopyFence, mCopyFenceValue));
+
+    ID3D12CommandList *direct_lists[] = { mCommandList.get() };
+    SM_ASSERT_HR(mDirectQueue->Wait(*mCopyFence, mCopyFenceValue));
+    mDirectQueue->ExecuteCommandLists(1, direct_lists);
+
+    wait_for_gpu();
+
+    D3D12_VERTEX_BUFFER_VIEW vbo_view = {
+        .BufferLocation = vbo.get_gpu_address(),
+        .SizeInBytes = static_cast<uint>(vbo_size),
+        .StrideInBytes = sizeof(world::Vertex),
+    };
+
+    D3D12_INDEX_BUFFER_VIEW ibo_view = {
+        .BufferLocation = ibo.get_gpu_address(),
+        .SizeInBytes = static_cast<uint>(ibo_size),
+        .Format = DXGI_FORMAT_R16_UINT,
+    };
+
+    MeshResource resource = {
+        .vbo = std::move(vbo),
+        .vbo_view = vbo_view,
+
+        .ibo = std::move(ibo),
+        .ibo_view = ibo_view,
+
+        .index_count = int_cast<uint>(mesh.indices.size()),
+    };
+
+    mMeshes.emplace(index, std::move(resource));
+}
+
+void Context::load_buffer_view(world::IndexOf<world::Model> index, const world::BufferView& view) {
+
+}
+
+void Context::load_object(world::IndexOf<world::Model> index, const world::Object& object) {
+
+}
+
+void Context::create_node(world::IndexOf<world::Node> node) {
+    const auto& info = mWorld.get(node);
+    for (auto model : info.models) {
+        create_model(model);
+    }
+
+    for (auto child : info.children) {
+        create_node(child);
+    }
+}
+
+void Context::create_model(world::IndexOf<world::Model> model) {
+    if (mMeshes.contains(model)) return;
+
+    const auto& info = mWorld.get(model);
+
+    if (const auto *object = std::get_if<world::Object>(&info.mesh)) {
+        // this is a mesh loaded from a buffer or file
+        load_object(model, *object);
+    } else {
+        // this is a primitive mesh
+        auto mesh = std::visit([&](auto&& arg) -> world::Mesh {
+            if constexpr (!std::is_same_v<std::decay_t<decltype(arg)>, world::Object>)
+                return world::primitive(arg);
+            else
+                CT_NEVER("invalid mesh type");
+        }, info.mesh);
+
+        load_mesh_buffer(model, mesh);
+    }
 }
 
 void Context::create_scene() {
-    // for (auto& primitive : mMeshes) {
-    //     primitive = create_mesh(primitive.mInfo, float3(1.f, 0.f, 0.f));
-    // }
+    const world::Scene& scene = mWorld.get(mCurrentScene);
+    create_node(scene.root);
 }
 
 void Context::destroy_scene() {
-    // for (auto& primitive : mMeshes) {
-    //     primitive.mVertexBuffer.reset();
-    //     primitive.mIndexBuffer.reset();
-    // }
+    mMeshes.clear();
+    mImages.clear();
 }
 
 #if 0
@@ -722,6 +831,16 @@ Mesh Context::create_mesh(const world::MeshInfo& info, const float3& colour) {
 }
 #endif
 
+void Context::set_scene(world::IndexOf<world::Scene> scene) {
+    if (scene == mCurrentScene) return;
+
+    mCurrentScene = scene;
+
+    wait_for_gpu();
+    destroy_scene();
+    create_scene();
+}
+
 void Context::create_assets() {
     SM_ASSERT_HR(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, *mFrames[mFrameIndex].allocator, nullptr, IID_PPV_ARGS(&mCommandList)));
     SM_ASSERT_HR(mCommandList->Close());
@@ -872,6 +991,7 @@ void Context::create() {
 
     create_assets();
     init_scene();
+    create_scene();
 
     create_framegraph();
 }

@@ -7,6 +7,7 @@
 
 using namespace sm;
 using namespace sm::ed;
+using namespace sm::world;
 
 static constexpr ImGuiTableFlags kTableFlags
     = ImGuiTableFlags_BordersV
@@ -16,7 +17,6 @@ static constexpr ImGuiTableFlags kTableFlags
     | ImGuiTableFlags_RowBg
     | ImGuiTableFlags_NoBordersInBody;
 
-#if 0
 const ImGuiTreeNodeFlags kGroupNodeFlags
     = ImGuiTreeNodeFlags_SpanAllColumns
     | ImGuiTreeNodeFlags_OpenOnArrow
@@ -28,6 +28,7 @@ const ImGuiTreeNodeFlags kLeafNodeFlags
     | ImGuiTreeNodeFlags_Leaf
     | ImGuiTreeNodeFlags_Bullet
     | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+#if 0
 
 static const char *const kCreatePopup = "New Primitive";
 
@@ -106,67 +107,6 @@ static const char *get_payload_type(ItemType type) {
         logs::gDebug.warn("Unknown item type {}", type);
         return "Unknown";
     }
-}
-
-bool ScenePanel::begin_tree_item(ItemIndex self, ImGuiTreeNodeFlags flags) {
-    auto& world = mContext.mWorld.info;
-    auto name = get_item_name(world, self);
-    if (self == mContext.selected) {
-        flags |= ImGuiTreeNodeFlags_Selected;
-    }
-
-    const bool open = ImGui::TreeNodeEx((void*)unique_id(self), flags, "%s", name.data());
-    if (ImGui::IsItemClicked()) {
-        mContext.selected = self;
-    }
-
-    if (ImGui::BeginDragDropSource()) {
-        ImGui::SetDragDropPayload(get_payload_type(self.type), &self, sizeof(ItemIndex));
-        ImGui::EndDragDropSource();
-    }
-
-    if (self.type == ItemType::eMesh) return open;
-
-    if (ImGui::BeginDragDropTarget()) {
-        if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload(kNodePayload)) {
-            ItemIndex node = *(const ItemIndex*)payload->Data;
-            SM_ASSERTF(node.type == ItemType::eNode, "Invalid payload type {}", node.type);
-            world.reparent_node(node.index, self.index);
-        }
-
-        if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload(kMeshPayload)) {
-            ItemIndex mesh = *(const ItemIndex*)payload->Data;
-            SM_ASSERTF(mesh.type == ItemType::eMesh, "Invalid payload type {}", mesh.type);
-            world.add_node_object(self.index, mesh.index);
-        }
-        ImGui::EndDragDropTarget();
-    }
-
-    uint16 index = self.index;
-
-    if (ImGui::BeginPopupContextItem()) {
-        if (ImGui::Button("Add Child")) {
-            mNodeInfo.parent = index;
-            uint16 id = world.add_node(mNodeInfo);
-            world.reparent_node(id, index);
-            ImGui::CloseCurrentPopup();
-        }
-
-        if (!world.is_root_node(index)) {
-            ImGui::SameLine();
-            if (ImGui::Button("Delete")) {
-                world.delete_node(index);
-                ImGui::CloseCurrentPopup();
-            }
-        }
-
-        ImGui::InputText("Name", &mNodeInfo.name);
-        edit_transform(mNodeInfo.transform);
-
-        ImGui::EndPopup();
-    }
-
-    return open;
 }
 
 void ScenePanel::draw_node(uint16 index) {
@@ -354,6 +294,153 @@ void ScenePanel::draw_content() {
 }
 #endif
 
+static int unique_id(world::AnyIndex index) {
+    return index.index() | std::visit<uint16>([](auto index) -> uint16 { return index.get(); }, index) << 16;
+}
+
+static const char *get_name(world::World& world, world::AnyIndex index) {
+    return world.visit(index, [](auto& info) {
+        if constexpr (std::is_same_v<std::decay_t<decltype(info)>, File>) {
+            return info.path.c_str();
+        } else {
+            return info.name.c_str();
+        }
+    });
+}
+
+bool ScenePanel::begin_tree_item(world::AnyIndex index, ImGuiTreeNodeFlags flags) {
+    auto& world = mContext.mWorld;
+    if (index == mContext.selected) {
+        flags |= ImGuiTreeNodeFlags_Selected;
+    }
+
+    const bool open = ImGui::TreeNodeEx((void*)(intptr_t)unique_id(index), flags, "%s", get_name(world, index));
+    if (ImGui::IsItemClicked()) {
+        mContext.selected = index;
+    }
+
+    if (ImGui::BeginDragDropSource()) {
+        ImGui::SetDragDropPayload(kIndexPayload, &index, sizeof(world::AnyIndex));
+        ImGui::EndDragDropSource();
+    }
+
+#if 0
+    if (self.type == ItemType::eMesh) return open;
+
+    if (ImGui::BeginDragDropTarget()) {
+        if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload(kNodePayload)) {
+            ItemIndex node = *(const ItemIndex*)payload->Data;
+            SM_ASSERTF(node.type == ItemType::eNode, "Invalid payload type {}", node.type);
+            world.reparent_node(node.index, self.index);
+        }
+
+        if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload(kMeshPayload)) {
+            ItemIndex mesh = *(const ItemIndex*)payload->Data;
+            SM_ASSERTF(mesh.type == ItemType::eMesh, "Invalid payload type {}", mesh.type);
+            world.add_node_object(self.index, mesh.index);
+        }
+        ImGui::EndDragDropTarget();
+    }
+
+    uint16 index = self.index;
+
+    if (ImGui::BeginPopupContextItem()) {
+        if (ImGui::Button("Add Child")) {
+            mNodeInfo.parent = index;
+            uint16 id = world.add_node(mNodeInfo);
+            world.reparent_node(id, index);
+            ImGui::CloseCurrentPopup();
+        }
+
+        if (!world.is_root_node(index)) {
+            ImGui::SameLine();
+            if (ImGui::Button("Delete")) {
+                world.delete_node(index);
+                ImGui::CloseCurrentPopup();
+            }
+        }
+
+        ImGui::InputText("Name", &mNodeInfo.name);
+        edit_transform(mNodeInfo.transform);
+
+        ImGui::EndPopup();
+    }
+#endif
+
+    return open;
+}
+
+void ScenePanel::node_context_popup(world::IndexOf<world::Node> index) {
+    if (ImGui::BeginPopupContextItem()) {
+        auto& world = mContext.mWorld;
+        auto& scene = world.get(mContext.get_scene());
+        if (ImGui::Button("Add Child")) {
+            // mNodeInfo.parent = index;
+            // uint16 id = world.add_node(mNodeInfo);
+            // world.reparent_node(id, index);
+            ImGui::CloseCurrentPopup();
+        }
+
+        if (scene.root != index) {
+            ImGui::SameLine();
+            if (ImGui::Button("Delete")) {
+                // world.delete_node(index);
+                ImGui::CloseCurrentPopup();
+            }
+        }
+
+        // ImGui::InputText("Name", &mNodeInfo.name);
+        // edit_transform(mNodeInfo.transform);
+
+        ImGui::EndPopup();
+    }
+}
+
+void ScenePanel::draw_leaf(IndexOf<Node> index) {
+    begin_tree_item(index, kLeafNodeFlags);
+    node_context_popup(index);
+
+    ImGui::TableNextColumn();
+    ImGui::TextUnformatted("Node");
+}
+
+void ScenePanel::draw_group(IndexOf<Node> index) {
+
+    bool is_open = begin_tree_item(index, kGroupNodeFlags);
+    node_context_popup(index);
+
+    ImGui::TableNextColumn();
+    ImGui::TextUnformatted("Node");
+
+    if (is_open) {
+        auto& world = mContext.mWorld;
+        auto& node = world.get(index);
+        for (auto child : node.children) {
+            draw_node(child);
+        }
+
+        ImGui::TreePop();
+    }
+}
+
+void ScenePanel::draw_node(IndexOf<Node> index) {
+    auto& world = mContext.mWorld;
+    auto& node = world.get(index);
+    ImGui::PushID(index.get());
+    ImGui::TableNextRow();
+    ImGui::TableNextColumn();
+
+    bool leaf = node.children.empty();
+
+    if (leaf) {
+        draw_leaf(index);
+    } else {
+        draw_group(index);
+    }
+
+    ImGui::PopID();
+}
+
 void ScenePanel::draw_menu() {
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("New")) {
@@ -367,14 +454,17 @@ void ScenePanel::draw_menu() {
     }
 }
 
-static bool scene_select(world::World& world) {
-    auto& active = world.get(world.active_scene);
+world::IndexOf<world::Scene> ScenePanel::scene_select() {
+    world::IndexOf<world::Scene> result = mContext.get_scene();
+
+    auto& world = mContext.mWorld;
+    auto& active = world.get(mContext.get_scene());
     if (ImGui::BeginCombo("Scene", active.name.c_str())) {
         for (size_t i = 0; i < world.scenes.size(); i++) {
             auto& scene = world.scenes[i];
-            bool selected = i == world.active_scene;
+            bool selected = i == mContext.get_scene();
             if (ImGui::Selectable(scene.name.c_str(), selected)) {
-                world.active_scene = i;
+                result = i;
             }
             if (selected) {
                 ImGui::SetItemDefaultFocus();
@@ -382,12 +472,14 @@ static bool scene_select(world::World& world) {
         }
         ImGui::EndCombo();
     }
-    return false;
+
+    return result;
 }
 
 void ScenePanel::draw_content() {
-    if (scene_select(mContext.mWorld)) {
-        // TODO: load new scene
+    auto& world = mContext.mWorld;
+    if (IndexOf scene = scene_select(); scene != mContext.get_scene()) {
+        mContext.set_scene(scene);
     }
 
     if (ImGui::BeginTable("Scene Tree", 2, kTableFlags)) {
@@ -396,6 +488,8 @@ void ScenePanel::draw_content() {
         ImGui::TableSetupScrollFreeze(1, 0);
         ImGui::TableHeadersRow();
 
+        auto& scene = world.get(mContext.get_scene());
+        draw_node(scene.root);
 
         ImGui::EndTable();
     }

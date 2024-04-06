@@ -110,7 +110,7 @@ static void create_screen_quad(render::Resource& quad, render::VertexBufferView&
     context.reset_direct_commands();
     context.reset_copy_commands();
 
-    context.copy_buffer(context.mCopyCommands, quad, upload, sizeof(blit::kScreenQuad));
+    context.copy_buffer(*context.mCopyCommands, quad, upload, sizeof(blit::kScreenQuad));
 
     const D3D12_RESOURCE_BARRIER kBarriers[] = {
         // screen quad verts

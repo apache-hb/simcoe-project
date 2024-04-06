@@ -11,6 +11,7 @@ namespace sm::render {
 
         Result map(const D3D12_RANGE *range, void **data);
         void unmap(const D3D12_RANGE *range);
+        Result write(const void *data, size_t size);
 
         D3D12_GPU_VIRTUAL_ADDRESS get_gpu_address();
         void reset();

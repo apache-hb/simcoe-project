@@ -14,7 +14,9 @@ namespace sm::world {
 
     struct Vertex {
         float3 position;
-        uint32_t colour;
+        float2 texcoord;
+
+        constexpr bool operator==(const Vertex&) const = default;
     };
 
     struct Cube {
@@ -64,20 +66,6 @@ namespace sm::world {
         int subdivisions;
     };
 
-    struct MeshInfo {
-        ObjectType type;
-        union {
-            Cube cube;
-            Sphere sphere;
-            Cylinder cylinder;
-            Plane plane;
-            Wedge wedge;
-            Capsule capsule;
-            Diamond diamond;
-            GeoSphere geosphere;
-        };
-    };
-
     struct BoxBounds {
         float3 min;
         float3 max;
@@ -98,8 +86,6 @@ namespace sm::world {
         sm::Vector<Vertex> vertices;
         sm::Vector<uint16> indices;
     };
-
-    Mesh primitive(const MeshInfo& info);
 
     Mesh primitive(const Cube& cube);
     Mesh primitive(const Sphere& sphere);

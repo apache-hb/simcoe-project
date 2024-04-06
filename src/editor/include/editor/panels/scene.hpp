@@ -1,7 +1,5 @@
 #pragma once
 
-#include "core/core.hpp"
-
 #include "editor/draw.hpp"
 
 #include "world/world.hpp"
@@ -18,16 +16,15 @@ namespace sm::ed {
     class ScenePanel final {
         ed::EditorContext& mContext;
 
-        bool begin_tree_item(ItemIndex index, ImGuiTreeNodeFlags flags);
+        bool begin_tree_item(world::AnyIndex index, ImGuiTreeNodeFlags flags);
 
-        void draw_node(uint16 index);
-        void draw_leaf(uint16 index);
-        void draw_group(uint16 index);
+        void node_context_popup(world::IndexOf<world::Node> index);
 
-        void draw_cameras();
+        void draw_leaf(world::IndexOf<world::Node> index);
+        void draw_group(world::IndexOf<world::Node> index);
+        void draw_node(world::IndexOf<world::Node> index);
 
-        void create_primitive();
-
+        world::IndexOf<world::Scene> scene_select();
         void draw_menu();
         void draw_content();
 

@@ -24,15 +24,8 @@ struct std::hash<Vertex> {
     constexpr auto operator()(const Vertex &vertex) const {
         size_t hash = 0;
         sm::hash_combine(hash, vertex.position);
-        sm::hash_combine(hash, vertex.colour);
+        sm::hash_combine(hash, vertex.texcoord);
         return hash;
-    }
-};
-
-template<>
-struct std::equal_to<Vertex> {
-    constexpr bool operator()(const Vertex &lhs, const Vertex &rhs) const {
-        return lhs.position == rhs.position && lhs.colour == rhs.colour;
     }
 };
 
@@ -94,9 +87,7 @@ struct MeshBuilder {
 static Vertex midpoint(const Vertex& v0, const Vertex& v1) {
 	return {
 		.position = (v0.position + v1.position) / 2.f,
-		//.normal = ((v0.normal + v1.normal) / 2.f).normalized(),
-		//.uv = ((v0.uv + v1.uv) / 2.f).normalized(),
-		.colour = (v0.colour + v1.colour) / 2,
+        .texcoord = (v0.texcoord + v1.texcoord) / 2.f,
 	};
 }
 
@@ -449,17 +440,36 @@ static Mesh geosphere(const world::GeoSphere& geosphere) {
     return mesh;
 }
 
-Mesh world::primitive(const world::MeshInfo &info) {
-    switch (info.type.as_enum()) {
-    case ObjectType::eCube: return cube(info.cube);
-    case ObjectType::eCylinder: return cylinder(info.cylinder);
-    case ObjectType::eWedge: return wedge(info.wedge);
-    case ObjectType::eCapsule: return capsule(info.capsule);
-    case ObjectType::eDiamond: return diamond(info.diamond);
-    case ObjectType::eGeoSphere: return geosphere(info.geosphere);
+Mesh world::primitive(const Cube& cube) {
+    return ::cube(cube);
+}
 
-    default:
-        using Reflect = ctu::TypeInfo<ObjectType>;
-        CT_NEVER("Unhandled primitive type %s", Reflect::to_string(info.type).data());
-    }
+Mesh world::primitive(const Sphere& sphere) {
+    CT_NEVER("Not implemented");
+    //return ::geosphere(sphere);
+}
+
+Mesh world::primitive(const Cylinder& cylinder) {
+    return ::cylinder(cylinder);
+}
+
+Mesh world::primitive(const Plane& plane) {
+    CT_NEVER("Not implemented");
+    //return ::plane(plane);
+}
+
+Mesh world::primitive(const Wedge& wedge) {
+    return ::wedge(wedge);
+}
+
+Mesh world::primitive(const Capsule& capsule) {
+    return ::capsule(capsule);
+}
+
+Mesh world::primitive(const Diamond& diamond) {
+    return ::diamond(diamond);
+}
+
+Mesh world::primitive(const GeoSphere& geosphere) {
+    return ::geosphere(geosphere);
 }

@@ -84,7 +84,7 @@ World world::default_world(sm::String name) {
 
     IndexOf scene = world.add(Scene{ .name = "Scene", .root = root, .camera = camera });
 
-    world.active_scene = scene;
+    world.default_scene = scene;
     world.default_material = mat;
 
     return world;

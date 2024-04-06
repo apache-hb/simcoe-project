@@ -34,7 +34,7 @@ namespace sm::ed {
 
         size_t add_camera();
 
-        ItemIndex selected = ItemIndex::none();
+        std::optional<world::AnyIndex> selected;
         render::SrvIndex index;
         input::InputService input;
 

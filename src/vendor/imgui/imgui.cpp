@@ -11503,7 +11503,7 @@ void ImGui::CloseCurrentPopup()
 }
 
 // Attention! BeginPopup() adds default flags which BeginPopupEx()!
-bool ImGui::BeginPopupEx(ImGuiID id, ImGuiWindowFlags flags)
+bool ImGui::BeginPopupEx(ImGuiID id, ImGuiWindowFlags flags, const char *title)
 {
     ImGuiContext& g = *GImGui;
     if (!IsPopupOpen(id, ImGuiPopupFlags_None))
@@ -11512,11 +11512,12 @@ bool ImGui::BeginPopupEx(ImGuiID id, ImGuiWindowFlags flags)
         return false;
     }
 
-    char name[20];
+    const char *prefix = title ? title : "";
+    char name[128];
     if (flags & ImGuiWindowFlags_ChildMenu)
-        ImFormatString(name, IM_ARRAYSIZE(name), "##Menu_%02d", g.BeginMenuCount); // Recycle windows based on depth
+        ImFormatString(name, IM_ARRAYSIZE(name), "%s##Menu_%02d", prefix, g.BeginMenuCount); // Recycle windows based on depth
     else
-        ImFormatString(name, IM_ARRAYSIZE(name), "##Popup_%08x", id); // Not recycling, so we can close/open during the same frame
+        ImFormatString(name, IM_ARRAYSIZE(name), "%s##Popup_%08x", prefix, id); // Not recycling, so we can close/open during the same frame
 
     flags |= ImGuiWindowFlags_Popup | ImGuiWindowFlags_NoDocking;
     bool is_open = Begin(name, NULL, flags);

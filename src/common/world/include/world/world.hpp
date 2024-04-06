@@ -8,11 +8,31 @@
 #include <dxgiformat.h>
 
 namespace sm::world {
-    using vtxindex = uint16; // NOLINT
-
     static constexpr uint16 kInvalidIndex = UINT16_MAX;
 
+    enum IndexType {
+        eNone,
+
+        eScene,
+        eNode,
+        eCamera,
+        eModel,
+        eFile,
+        eLight,
+        eBuffer,
+        eMaterial,
+        eImage,
+        eTexture,
+
+        eCount
+    };
+
     template<typename T>
+    concept IsWorldObject = requires {
+        { T::kType } -> std::convertible_to<IndexType>;
+    };
+
+    template<IsWorldObject T>
     class IndexOf {
         uint16 mIndex;
 
@@ -21,20 +41,32 @@ namespace sm::world {
             : mIndex(index)
         { }
 
+        template<typename O> requires (!std::is_same_v<T, O>)
+        IndexOf(IndexOf<O>) = delete;
+
         bool is_valid() const { return mIndex != kInvalidIndex; }
 
         operator uint16() const { return mIndex; }
         uint16 get() const { return mIndex; }
+
+        static IndexType type() { return T::kType; }
     };
 
     template<typename... T>
     using ChoiceOf = sm::Variant<IndexOf<T>...>;
 
+    template<typename... T>
+    using OptionOf = sm::Variant<IndexOf<T>..., std::monostate>;
+
     struct File {
+        static constexpr IndexType kType = eFile;
+
         sm::String path;
     };
 
     struct Buffer {
+        static constexpr IndexType kType = eBuffer;
+
         sm::String name;
         sm::Vector<uint8> data;
     };
@@ -48,6 +80,8 @@ namespace sm::world {
     };
 
     struct Image {
+        static constexpr IndexType kType = eImage;
+
         sm::String name;
         BufferView source;
         DXGI_FORMAT format;
@@ -55,12 +89,16 @@ namespace sm::world {
     };
 
     struct Texture {
+        static constexpr IndexType kType = eTexture;
+
         sm::String name;
 
         IndexOf<Image> image;
     };
 
     struct Material {
+        static constexpr IndexType kType = eMaterial;
+
         sm::String name;
 
         float4 albedo;
@@ -95,11 +133,15 @@ namespace sm::world {
     };
 
     struct Light {
+        static constexpr IndexType kType = eLight;
+
         sm::String name;
         sm::Variant<PointLight, SpotLight, DirectionalLight> light;
     };
 
     struct Model {
+        static constexpr IndexType kType = eModel;
+
         sm::String name;
         sm::Variant<
             Object,
@@ -117,6 +159,8 @@ namespace sm::world {
     };
 
     struct Node {
+        static constexpr IndexType kType = eNode;
+
         sm::String name;
 
         Transform transform;
@@ -127,6 +171,8 @@ namespace sm::world {
     };
 
     struct Camera {
+        static constexpr IndexType kType = eCamera;
+
         sm::String name;
 
         float3 position;
@@ -136,6 +182,8 @@ namespace sm::world {
     };
 
     struct Scene {
+        static constexpr IndexType kType = eScene;
+
         sm::String name;
 
         IndexOf<Node> root;
@@ -143,10 +191,11 @@ namespace sm::world {
     };
 
     using AnyIndex = ChoiceOf<Scene, Node, Camera, Model, File, Light, Buffer, Material, Image, Texture>;
+    using OptionIndex = OptionOf<Scene, Node, Camera, Model, File, Light, Buffer, Material, Image, Texture>;
 
     struct World {
         sm::String name;
-        IndexOf<Scene> active_scene;
+        IndexOf<Scene> default_scene;
         IndexOf<Material> default_material;
 
         sm::Vector<Scene> scenes;

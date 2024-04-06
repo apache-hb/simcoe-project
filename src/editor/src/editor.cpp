@@ -1,6 +1,7 @@
 #include "stdafx.hpp"
 
 #include "editor/editor.hpp"
+#include "editor/mygui.hpp"
 
 using namespace sm;
 using namespace sm::ed;
@@ -156,6 +157,25 @@ void Editor::end_frame() {
 void Editor::draw() {
     draw_mainmenu();
     draw_dockspace();
+
+    if (ImGui::IsKeyChordPressed(ImGuiMod_Shift | ImGuiKey_A)) {
+        ImGui::OpenPopup("Create");
+    }
+
+    if (MyGui::BeginPopupWindow("Create", ImGuiWindowFlags_NoMove)) {
+        if (ImGui::BeginMenu("Object")) {
+            ImGui::MenuItem("Empty");
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Primitive")) {
+            ImGui::MenuItem("Cube");
+            ImGui::MenuItem("Sphere");
+            ImGui::MenuItem("Cylinder");
+            ImGui::EndMenu();
+        }
+        ImGui::EndPopup();
+    }
 
     mLogger.draw_window();
     mScene.draw_window();

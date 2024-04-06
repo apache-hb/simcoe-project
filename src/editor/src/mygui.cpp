@@ -2,6 +2,8 @@
 
 #include "editor/mygui.hpp"
 
+#include "imgui/imgui_internal.h"
+
 using namespace sm;
 using namespace sm::math;
 
@@ -73,4 +75,15 @@ bool MyGui::EditSwizzle(const char *label, uint8 *mask, int components) {
     }
 
     return false;
+}
+
+bool MyGui::BeginPopupWindow(const char *title, ImGuiWindowFlags flags) {
+    ImGuiContext& g = *GImGui;
+    if (g.OpenPopupStack.Size <= g.BeginPopupStack.Size) { // Early out for performance
+        g.NextWindowData.ClearFlags(); // We behave like Begin() and need to consume those values
+        return false;
+    }
+    flags |= ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings;
+    ImGuiID id = g.CurrentWindow->GetID(title);
+    return ImGui::BeginPopupEx(id, flags, title);
 }

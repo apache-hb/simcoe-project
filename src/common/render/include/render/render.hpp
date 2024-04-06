@@ -203,6 +203,7 @@ namespace sm::render {
         void create_copy_fence();
 
         world::World mWorld;
+        world::IndexOf<world::Scene> mCurrentScene = world::kInvalidIndex;
         sm::HashMap<world::IndexOf<world::Model>, MeshResource> mMeshes;
         sm::HashMap<world::IndexOf<world::Image>, TextureResource> mImages;
 
@@ -228,7 +229,18 @@ namespace sm::render {
         bool load_gltf(const fs::path& path);
 #endif
 
+        void load_object(world::IndexOf<world::Model> index, const world::Object& object);
+        void load_mesh_buffer(world::IndexOf<world::Model> index, const world::Mesh& mesh);
+        void load_buffer_view(world::IndexOf<world::Model> index, const world::BufferView& view);
+
+        void create_node(world::IndexOf<world::Node> node);
+        void create_model(world::IndexOf<world::Model> model);
+
         void init_scene();
+
+        void load_scene();
+        void reset_scene();
+
         void create_scene();
         void destroy_scene();
 
@@ -245,10 +257,13 @@ namespace sm::render {
         HANDLE mFenceEvent;
         Object<ID3D12Fence> mFence;
 
-        void copy_buffer(Object<ID3D12GraphicsCommandList1>& list, Resource& dst, Resource& src, size_t size);
+        void copy_buffer(ID3D12GraphicsCommandList1 *list, Resource& dst, Resource& src, size_t size);
 
         // dstorage
+        size_t mStorageMeshCount = 0;
         CopyStorage mStorage;
+        sm::HashMap<world::IndexOf<world::File>, Object<IDStorageFile>> mStorageFiles;
+        sm::HashMap<size_t, world::Mesh> mStorageMeshes;
         void create_dstorage();
         void destroy_dstorage();
 
@@ -285,6 +300,9 @@ namespace sm::render {
         void resize_swapchain(math::uint2 size);
         void recreate_device();
         void update_framegraph();
+
+        world::IndexOf<world::Scene> get_scene() const { return mCurrentScene; }
+        void set_scene(world::IndexOf<world::Scene> scene);
 
         Adapter& get_current_adapter() { return *mCurrentAdapter; }
     };
