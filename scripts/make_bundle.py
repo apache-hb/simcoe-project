@@ -161,7 +161,7 @@ class ShaderCompiler:
         self.pdb_dir = pdb_dir
         self.debug = debug
 
-        self.args = [ self.dxc, '/WX', '/Ges', '-enable-16bit-types' ]
+        self.args = [ self.dxc, '/WX', '/Ges' ]
         if self.debug:
             self.args += [ '/Zi', '/Fd', self.pdb_dir + '\\' ]
 
@@ -170,9 +170,15 @@ class ShaderCompiler:
     # model is the shader model to use
     # target is the shader target to compile for
     # entrypoint is the entry point to use
-    def compile_hlsl(self, name, file, model, target, entrypoint):
+    def compile_hlsl(self, name, file, model, target, entrypoint, enable_16bit = False, defines = []):
         output = os.path.join(self.target_dir, f'{name}.{target}.cso')
         extra_args = [ '-T' + target + '_' + model, '-E' + entrypoint, '-Fo' + output ]
+
+        if enable_16bit:
+            extra_args += [ '-enable-16bit-types' ]
+
+        for define in defines:
+            extra_args += [ '-D', define ]
 
         return run_command([ self.args, extra_args, file ])
 
@@ -312,7 +318,14 @@ def main():
         deps.add(itempath)
 
         for target in item['targets']:
-            result = hlsl.compile_hlsl(name, itempath, '6_0', target['target'], target['entry'])
+            result = hlsl.compile_hlsl(
+                name = name,
+                file = itempath,
+                model = target.get('model', '6_0'),
+                target = target['target'],
+                entrypoint = target['entry'],
+                enable_16bit = target.get('16bit_types', False),
+                defines = target.get('defines', []))
             tool_exit(result)
 
     compressor = config.get_tool('compressonator')

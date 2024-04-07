@@ -30,17 +30,18 @@ namespace sm::render {
         uint spot_light_count;
     };
 
-    struct PointLight {
+    struct LightVolumeData {
         float3 position;
-        float3 colour;
         float radius;
     };
 
+    struct PointLight {
+        float3 colour;
+    };
+
     struct SpotLight {
-        float3 position;
         float3 direction;
         float3 colour;
-        float radius;
         float angle;
     };
 
@@ -59,4 +60,12 @@ namespace sm::render {
 
         uint normal_texture;
     };
+
+    constexpr uint get_tile_count(uint2 size, uint tile) {
+        return ((size.x + tile - 1) / tile) * ((size.y + tile - 1) / tile);
+    }
+
+    constexpr uint get_max_lights(uint tiles, uint lights) {
+        return tiles * lights;
+    }
 }

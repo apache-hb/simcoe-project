@@ -74,48 +74,8 @@
             ]
         },
         {
-            "name": "canvas",
-            "path": "shaders/canvas.hlsl",
-            "targets": [
-                { "entry": "vs_main", "target": "vs" },
-                { "entry": "ps_main", "target": "ps" }
-            ]
-        },
-        {
-            "name": "object",
-            "path": "shaders/object.hlsl",
-            "targets": [
-                { "entry": "vs_main", "target": "vs" },
-                { "entry": "ps_main", "target": "ps" }
-            ]
-        },
-        {
             "name": "primitive",
             "path": "shaders/primitive.hlsl",
-            "targets": [
-                { "entry": "vs_main", "target": "vs" },
-                { "entry": "ps_main", "target": "ps" }
-            ]
-        },
-        {
-            "name": "simple",
-            "path": "shaders/simple.hlsl",
-            "targets": [
-                { "entry": "vs_main", "target": "vs" },
-                { "entry": "ps_main", "target": "ps" }
-            ]
-        },
-        {
-            "name": "msdf_font",
-            "path": "shaders/msdf_font.hlsl",
-            "targets": [
-                { "entry": "vs_main", "target": "vs" },
-                { "entry": "ps_main", "target": "ps" }
-            ]
-        },
-        {
-            "name": "diffuse",
-            "path": "shaders/diffuse.hlsl",
             "targets": [
                 { "entry": "vs_main", "target": "vs" },
                 { "entry": "ps_main", "target": "ps" }
