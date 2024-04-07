@@ -123,22 +123,19 @@ namespace sm::world {
     };
 
     struct PointLight {
-        float3 position;
-        float3 color;
+        float3 colour;
         float intensity;
     };
 
     struct SpotLight {
-        float3 position;
-        float3 direction;
-        float3 color;
+        radf3 direction;
+        float3 colour;
         float intensity;
-        float angle;
     };
 
     struct DirectionalLight {
-        float3 direction;
-        float3 color;
+        radf3 direction;
+        float3 colour;
         float intensity;
     };
 
@@ -242,6 +239,9 @@ namespace sm::world {
 
         template<typename T>
         T &get(IndexOf<T> index) { return get_vector<T>()[index]; }
+
+        template<typename T>
+        const sm::Vector<T>& all() const { return get_vector<T>(); }
 
         auto visit(AnyIndex index, auto&& fn) {
             return std::visit([&](auto index) { return fn(get(index)); }, index);

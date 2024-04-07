@@ -93,13 +93,12 @@ static void create_blit_pipeline(render::Pipeline& pipeline, render::Context& co
 
 static void create_screen_quad(render::Resource& quad, render::VertexBufferView& vbo, render::Context& context) {
     const auto kBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(blit::kScreenQuad));
-    const auto kVertexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(blit::kScreenQuad));
 
     render::Resource upload;
 
     SM_ASSERT_HR(context.create_resource(upload, D3D12_HEAP_TYPE_UPLOAD, kBufferDesc, D3D12_RESOURCE_STATE_COPY_SOURCE));
 
-    SM_ASSERT_HR(context.create_resource(quad, D3D12_HEAP_TYPE_DEFAULT, kVertexBufferDesc, D3D12_RESOURCE_STATE_COMMON));
+    SM_ASSERT_HR(context.create_resource(quad, D3D12_HEAP_TYPE_DEFAULT, kBufferDesc, D3D12_RESOURCE_STATE_COMMON));
 
     void *data;
     D3D12_RANGE read{0, 0};

@@ -1,0 +1,11 @@
+[wrap-git]
+directory = directx-mesh
+
+url = https://github.com/microsoft/DirectXMesh
+revision = head
+depth = 1
+
+patch_directory = directx-mesh
+
+[provide]
+dependency_names = directx-mesh

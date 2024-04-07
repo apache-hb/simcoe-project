@@ -45,6 +45,8 @@ namespace sm::render {
         uint dsv_heap_size;
         uint srv_heap_size;
 
+        uint max_lights = 4096;
+
         Bundle& bundle;
         sys::Window &window;
     };
@@ -90,6 +92,12 @@ namespace sm::render {
     struct TextureResource {
         Resource resource;
         SrvIndex srv;
+    };
+
+    struct PointLight {
+        math::float3 position;
+        math::float3 colour;
+        float intensity;
     };
 
     struct Context {
@@ -175,32 +183,28 @@ namespace sm::render {
         uint64 mCopyFenceValue;
         void create_copy_fence();
 
+        struct {
+            Resource upload;
+            void *mapped;
+            sm::Span<PointLight> lights;
+            uint count;
+
+            Resource resource;
+            SrvIndex srv;
+        } mPointLights;
+
+        void create_lights();
+        void destroy_lights();
+
+        void update_node_lights(world::IndexOf<world::Node> node, uint& index, const float4x4& parent);
+
+        void update_lights(ID3D12GraphicsCommandList1 *list);
+
+        // world data
         world::World mWorld;
         world::IndexOf<world::Scene> mCurrentScene = world::kInvalidIndex;
         sm::HashMap<world::IndexOf<world::Model>, MeshResource> mMeshes;
         sm::HashMap<world::IndexOf<world::Image>, TextureResource> mImages;
-
-#if 0
-        struct {
-            // meshes and textures both line up with the objects, and images in the info struct
-            // nodes are all done inside the info struct
-            world::World info;
-            sm::Vector<MeshResource> meshes;
-            sm::Vector<TextureResource> textures;
-        } mWorld;
-        void create_world_resources();
-
-        sm::Vector<Mesh> mMeshes;
-        sm::Vector<Texture> mTextures;
-        texindex load_texture(const fs::path& path);
-        texindex load_texture(const ImageData& image);
-        Mesh create_mesh(const world::MeshInfo& info, const float3& colour);
-        bool create_texture(Texture& result, const fs::path& path, ImageFormat type);
-        bool create_texture_stb(Texture& result, const fs::path& path);
-        bool create_texture_dds(Texture& result, const fs::path& path);
-
-        bool load_gltf(const fs::path& path);
-#endif
 
         void load_image(world::IndexOf<world::Image> index);
 

@@ -12,6 +12,7 @@ namespace sm::ed {
         void inspect(world::IndexOf<world::Node> index);
         void inspect(world::IndexOf<world::Material> index);
         void inspect(world::IndexOf<world::Image> index);
+        void inspect(world::IndexOf<world::Light> index);
 
         template<world::IsWorldObject T>
         void inspect(world::IndexOf<T> index) {

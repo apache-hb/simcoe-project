@@ -42,6 +42,7 @@ namespace sm::ed {
 
         void draw_images();
         void draw_models();
+        void draw_lights();
         void draw_materials();
 
     public:

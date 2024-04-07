@@ -280,6 +280,63 @@ void Context::copy_buffer(ID3D12GraphicsCommandList1 *list, Resource& dst, Resou
     list->CopyBufferRegion(*dst.mResource, 0, *src.mResource, 0, size);
 }
 
+void Context::create_lights() {
+    auto desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(PointLight) * mConfig.max_lights);
+    SM_ASSERT_HR(create_resource(mPointLights.resource, D3D12_HEAP_TYPE_DEFAULT, desc, D3D12_RESOURCE_STATE_GENERIC_READ));
+    SM_ASSERT_HR(create_resource(mPointLights.upload, D3D12_HEAP_TYPE_UPLOAD, desc, D3D12_RESOURCE_STATE_GENERIC_READ));
+
+    D3D12_RANGE read{0, 0};
+    SM_ASSERT_HR(mPointLights.upload.map(&read, &mPointLights.mapped));
+
+    mPointLights.lights = { reinterpret_cast<PointLight *>(mPointLights.mapped), mConfig.max_lights };
+}
+
+void Context::destroy_lights() {
+    mPointLights.resource.reset();
+    mPointLights.upload.reset();
+    mPointLights.mapped = nullptr;
+}
+
+static render::PointLight make_point_light(const world::PointLight& it, float3 position) {
+    render::PointLight light = {
+        .position = position,
+        .colour = it.colour,
+        .intensity = it.intensity,
+    };
+
+    return light;
+}
+
+void Context::update_node_lights(world::IndexOf<world::Node> node, uint& index, const float4x4& parent) {
+    auto& info = mWorld.get(node);
+    auto local = parent * info.transform.matrix();
+    float3 position = local.get_translation();
+
+    for (auto light : info.lights) {
+        auto& data = mWorld.get(light);
+
+        if (std::holds_alternative<world::PointLight>(data.light)) {
+            auto& light = std::get<world::PointLight>(data.light);
+
+            mPointLights.lights[index++] = make_point_light(light, position);
+        }
+    }
+
+    for (auto child : info.children) {
+        update_node_lights(child, index, local);
+    }
+}
+
+void Context::update_lights(ID3D12GraphicsCommandList1 *list) {
+    auto root = mWorld.get(mCurrentScene).root;
+
+    uint index = 0;
+    update_node_lights(root, index, float4x4::identity());
+    mPointLights.count = index;
+
+    copy_buffer(list, mPointLights.resource, mPointLights.upload, sizeof(PointLight) * index);
+}
+
 void Context::init_scene() {
     mWorld = world::default_world("Default World");
     mCurrentScene = mWorld.default_scene;
@@ -469,12 +526,24 @@ void Context::end_upload() {
 }
 
 void Context::create_scene() {
-    const world::Scene& scene = mWorld.get(mCurrentScene);
-    create_node(scene.root);
+    for (size_t i = 0; i < mWorld.models.size(); i++) {
+        create_model(i);
+    }
+
+    for (size_t i = 0; i < mWorld.images.size(); i++) {
+        load_image(i);
+    }
+
+    create_lights();
 }
 
 void Context::destroy_scene() {
+    destroy_lights();
+
     mMeshes.clear();
+
+    for (auto& [_, data] : mImages)
+        mSrvPool.release(data.srv);
     mImages.clear();
 }
 

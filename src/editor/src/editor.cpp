@@ -220,6 +220,51 @@ void Editor::draw_create_popup() {
 
             ImGui::EndMenu();
         }
+
+        if (ImGui::BeginMenu("Light")) {
+            if (ImGui::MenuItem("Point Light")) {
+                auto root = get_best_node();
+
+                auto added = world.add(world::Light {
+                    .name = "Point Light",
+                    .light = world::PointLight {
+                        .colour = 1.f,
+                        .intensity = 1.f
+                    }
+                });
+                world.get(root).lights.push_back(added);
+            }
+
+            if (ImGui::MenuItem("Spot Light")) {
+                auto root = get_best_node();
+
+                auto added = world.add(world::Light {
+                    .name = "Spot Light",
+                    .light = world::SpotLight {
+                        .direction = math::radf3(0.f),
+                        .colour = 1.f,
+                        .intensity = 1.f
+                    }
+                });
+                world.get(root).lights.push_back(added);
+            }
+
+            if (ImGui::MenuItem("Directional Light")) {
+                auto root = get_best_node();
+
+                auto added = world.add(world::Light {
+                    .name = "Directional Light",
+                    .light = world::DirectionalLight {
+                        .direction = math::radf3(0.f),
+                        .colour = 1.f,
+                        .intensity = 1.f
+                    }
+                });
+                world.get(root).lights.push_back(added);
+            }
+
+            ImGui::EndMenu();
+        }
         ImGui::EndPopup();
     }
 }

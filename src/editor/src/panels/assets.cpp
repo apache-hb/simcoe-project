@@ -27,8 +27,8 @@ static const char *get_index_name(world::IndexType type) {
 }
 
 template<world::IsWorldObject T>
-static void dragdop_source(world::IndexOf<T> index, const char *name) {
-    if (ImGui::BeginDragDropSource()) {
+static void dragdop_source(world::IndexOf<T> index, const char *name, ImGuiDragDropFlags flags = 0) {
+    if (ImGui::BeginDragDropSource(flags)) {
         // typed payload
         ImGui::SetDragDropPayload(name, &index, sizeof(index));
 
@@ -37,6 +37,26 @@ static void dragdop_source(world::IndexOf<T> index, const char *name) {
         ImGui::SetDragDropPayload(kIndexPayload, &any, sizeof(world::AnyIndex));
         ImGui::EndDragDropSource();
     }
+}
+
+void AssetBrowserPanel::draw_lights() {
+    auto& lights = mContext.mWorld.lights;
+
+    draw_grid(lights.size(), [&](size_t i) {
+        const auto& light = lights[i];
+        const auto& name = light.name;
+        auto idx = world::IndexOf<world::Light>(i);
+
+        if (ImGui::Button(name.c_str(), ImVec2(mThumbnailSize, mThumbnailSize))) {
+            mContext.selected = idx;
+        }
+
+        dragdop_source(idx, "LIGHT");
+
+        ImGui::PushTextWrapPos(ImGui::GetCursorPos().x + mThumbnailSize);
+        ImGui::TextWrapped("Light %s", name.c_str());
+        ImGui::PopTextWrapPos();
+    });
 }
 
 void AssetBrowserPanel::draw_models() {
@@ -73,7 +93,7 @@ void AssetBrowserPanel::draw_images() {
             mContext.selected = index;
         }
 
-        dragdop_source(index, "IMAGE");
+        dragdop_source(index, "IMAGE", ImGuiDragDropFlags_SourceAllowNullID);
 
         ImGui::PushTextWrapPos(ImGui::GetCursorPos().x + mThumbnailSize);
         ImGui::TextWrapped("Image %s", name.c_str());
@@ -132,7 +152,7 @@ void AssetBrowserPanel::draw_content() {
         case world::eCamera: break;
         case world::eModel: draw_models(); break;
         case world::eFile: break;
-        case world::eLight: break;
+        case world::eLight: draw_lights(); break;
         case world::eBuffer: break;
         case world::eMaterial: draw_materials(); break;
         case world::eImage: draw_images(); break;

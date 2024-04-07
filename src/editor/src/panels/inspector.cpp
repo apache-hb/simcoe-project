@@ -8,6 +8,33 @@ using namespace sm;
 using namespace sm::ed;
 using namespace sm::math;
 
+template<typename... T>
+struct overloaded : T... {
+    using T::operator()...;
+};
+
+void InspectorPanel::inspect(world::IndexOf<world::Light> index) {
+    auto& light = mContext.mWorld.get(index);
+    ImGui::InputText("Name", &light.name);
+
+    ImGui::SeparatorText("Properties");
+
+    std::visit(overloaded {
+        [&](world::PointLight& it) {
+            ImGui::ColorEdit3("Colour", it.colour.data());
+            ImGui::DragFloat("Intensity", &it.intensity, 0.1f, 0.0f, 100.0f);
+        },
+        [&](world::DirectionalLight& it) {
+            ImGui::ColorEdit3("Colour", it.colour.data());
+            ImGui::DragFloat("Intensity", &it.intensity, 0.1f, 0.0f, 100.0f);
+        },
+        [&](world::SpotLight& it) {
+            ImGui::ColorEdit3("Colour", it.colour.data());
+            ImGui::DragFloat("Intensity", &it.intensity, 0.1f, 0.0f, 100.0f);
+        },
+    }, light.light);
+}
+
 void InspectorPanel::inspect(world::IndexOf<world::Image> index) {
     auto& image = mContext.mWorld.get(index);
     ImGui::InputText("Name", &image.name);
@@ -21,7 +48,6 @@ void InspectorPanel::inspect(world::IndexOf<world::Image> index) {
     float aspect = (float)image.size.width / (float)image.size.height;
     float width = avail.x;
     float height = width / aspect;
-
 
     auto& texture = mContext.mImages[index];
     auto srv = mContext.mSrvPool.gpu_handle(texture.srv);
