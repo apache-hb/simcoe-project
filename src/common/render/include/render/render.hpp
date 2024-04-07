@@ -211,6 +211,15 @@ namespace sm::render {
         void create_node(world::IndexOf<world::Node> node);
         void create_model(world::IndexOf<world::Model> model);
 
+        void begin_upload();
+        void end_upload();
+
+        void upload(auto&& fn) {
+            begin_upload();
+            fn();
+            end_upload();
+        }
+
         void init_scene();
 
         void load_scene();
@@ -287,5 +296,9 @@ namespace sm::render {
         world::Scene& get_scene() { return mWorld.get(mCurrentScene); }
 
         Adapter& get_current_adapter() { return *mCurrentAdapter; }
+
+        uint64 get_image_footprint(
+            world::IndexOf<world::Image> image,
+            sm::Span<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> footprints);
     };
 }

@@ -302,15 +302,17 @@ void Context::load_image(world::IndexOf<world::Image> index) {
 
     Resource data;
     auto desc = CD3DX12_RESOURCE_DESC::Tex2D(image.format, image.size.width, image.size.height, 1, image.mips);
-    SM_ASSERT_HR(create_resource(data, D3D12_HEAP_TYPE_UPLOAD, desc, D3D12_RESOURCE_STATE_COPY_DEST));
+    SM_ASSERT_HR(create_resource(data, D3D12_HEAP_TYPE_DEFAULT, desc, D3D12_RESOURCE_STATE_COPY_DEST));
 
     RequestBuilder request;
     request.dst(DSTORAGE_DESTINATION_MULTIPLE_SUBRESOURCES{ data.get(), 0 });
 
     upload_buffer_view(request, image.source);
 
-    mStorage.signal_file_queue(*mCopyFence, mCopyFenceValue);
-    mStorage.signal_memory_queue(*mCopyFence, mCopyFenceValue);
+    mStorage.signal_file_queue(*mCopyFence, 1);
+    mStorage.signal_memory_queue(*mCopyFence, 2);
+
+    mStorage.flush_queues();
 
     reset_direct_commands();
 
@@ -323,10 +325,28 @@ void Context::load_image(world::IndexOf<world::Image> index) {
     SM_ASSERT_HR(mCommandList->Close());
 
     ID3D12CommandList *lists[] = { mCommandList.get() };
-    mDirectQueue->Wait(*mCopyFence, mCopyFenceValue);
+    mDirectQueue->Wait(*mCopyFence, 2);
     mDirectQueue->ExecuteCommandLists(1, lists);
 
-    wait_for_gpu();
+    mDirectQueue->Signal(*mCopyFence, 3);
+
+    uint64 completed = mCopyFence->GetCompletedValue();
+    if (completed < 3) {
+        mCopyFence->SetEventOnCompletion(3, mCopyFenceEvent);
+        WaitForSingleObject(mCopyFenceEvent, INFINITE);
+    }
+
+    SrvIndex srv = mSrvPool.allocate();
+    auto cpu = mSrvPool.cpu_handle(srv);
+
+    mDevice->CreateShaderResourceView(data.get(), nullptr, cpu);
+
+    TextureResource resource = {
+        .resource = std::move(data),
+        .srv = srv,
+    };
+
+    mImages.emplace(index, std::move(resource));
 }
 
 void Context::load_mesh_buffer(world::IndexOf<world::Model> index, const world::Mesh& mesh) {
@@ -440,6 +460,14 @@ void Context::create_model(world::IndexOf<world::Model> model) {
     }
 }
 
+void Context::begin_upload() {
+    wait_for_gpu();
+}
+
+void Context::end_upload() {
+    // TODO: empty for now
+}
+
 void Context::create_scene() {
     const world::Scene& scene = mWorld.get(mCurrentScene);
     create_node(scene.root);
@@ -450,6 +478,315 @@ void Context::destroy_scene() {
     mImages.clear();
 }
 
+void Context::set_scene(world::IndexOf<world::Scene> scene) {
+    if (scene == mCurrentScene) return;
+
+    mCurrentScene = scene;
+
+    wait_for_gpu();
+    destroy_scene();
+    create_scene();
+}
+
+void Context::create_assets() {
+    SM_ASSERT_HR(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, *mFrames[mFrameIndex].allocator, nullptr, IID_PPV_ARGS(&mCommandList)));
+    SM_ASSERT_HR(mCommandList->Close());
+
+    SM_ASSERT_HR(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
+    mFrames[mFrameIndex].fence_value += 1;
+
+    SM_ASSERT_WIN32(mFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr));
+}
+
+void Context::build_command_list() {
+    mAllocator->SetCurrentFrameIndex(mFrameIndex);
+
+    reset_direct_commands();
+
+    auto& [backbuffer, _, rtv, _] = mFrames[mFrameIndex];
+
+    mFrameGraph.update(mSwapChainHandle, backbuffer.get());
+    mFrameGraph.update(mSwapChainHandle, rtv);
+
+    {
+        ID3D12DescriptorHeap *heaps[] = { mSrvPool.get() };
+        mCommandList->SetDescriptorHeaps(_countof(heaps), heaps);
+
+        mFrameGraph.execute();
+    }
+
+    SM_ASSERT_HR(mCommandList->Close());
+}
+
+void Context::create_framegraph() {
+    graph::ResourceInfo info = {
+        .size = mSwapChainConfig.size,
+        .format = mSwapChainConfig.format,
+    };
+    mSwapChainHandle = mFrameGraph.include("BackBuffer", info, graph::Access::ePresent, nullptr);
+
+    setup_framegraph(mFrameGraph);
+
+    mFrameGraph.compile();
+}
+
+void Context::destroy_framegraph() {
+    mFrameGraph.reset();
+}
+
+uint64 Context::get_image_footprint(
+    world::IndexOf<world::Image> image,
+    sm::Span<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> footprints)
+{
+    const auto& info = mWorld.get(image);
+    const auto& data = mImages.at(image);
+
+    D3D12_RESOURCE_DESC desc = data.resource.get()->GetDesc();
+    uint64 offset = 0;
+
+    if (!D3DX12GetCopyableFootprints(desc, 0, info.mips, 0, footprints.data(), nullptr, nullptr, &offset))
+        CT_NEVER("failed to get image footprints");
+
+    return offset;
+}
+
+void Context::destroy_device() {
+    destroy_framegraph();
+    mFrameGraph.reset_device_data();
+
+    // release frame resources
+    for (uint i = 0; i < mSwapChainConfig.length; i++) {
+        mFrames[i].target.reset();
+        mFrames[i].allocator.reset();
+    }
+
+    // release sync objects
+    mFence.reset();
+    mCopyFence.reset();
+
+    // assets
+    // destroy_textures();
+    destroy_scene();
+
+    // copy commands
+    destroy_copy_queue();
+
+    // direct commands
+    mDirectQueue.reset();
+    mCommandList.reset();
+
+    // allocator
+    mAllocator.reset();
+    mStorage.destroy_queues();
+
+    // descriptor heaps
+    mRtvPool.reset();
+    mDsvPool.reset();
+    mSrvPool.reset();
+
+    // swapchain
+    mSwapChain.reset();
+
+    // device
+    mDebug.reset();
+    mInfoQueue.reset();
+    mDevice.reset();
+}
+
+Context::Context(const RenderConfig& config)
+    : mConfig(config)
+    , mDebugFlags(config.flags)
+    , mInstance({ mDebugFlags, config.preference })
+    , mSwapChainConfig(config.swapchain)
+    , mFrameGraph(*this)
+{ }
+
+void Context::create() {
+    if (!mInstance.has_viable_adapter()) {
+        logs::gRender.error("no viable adapter found, exiting...");
+        return;
+    }
+
+    Adapter& adapter = [&] -> Adapter& {
+        if (auto luid = sm::override_adapter_luid(); luid.has_value()) {
+            auto& v = luid.value();
+            if (Adapter *adapter = mInstance.get_adapter_by_luid(v)) {
+                return *adapter;
+            }
+
+            logs::gRender.warn("adapter with luid {:x}:{:x} not found, falling back to default adapter", v.HighPart, v.LowPart);
+            return mInstance.get_default_adapter();
+        } else if (mDebugFlags.test(DebugFlags::eWarpAdapter)) {
+            return mInstance.get_warp_adapter();
+        } else {
+            return mInstance.get_default_adapter();
+        }
+    }();
+
+    PIXSetTargetWindow(mConfig.window.get_handle());
+
+    mStorage.create(mDebugFlags);
+
+    create_device(adapter);
+    create_allocator();
+    create_copy_queue();
+    create_copy_fence();
+    create_pipeline();
+    on_create();
+
+    create_assets();
+    init_scene();
+    create_scene();
+
+    create_framegraph();
+}
+
+void Context::destroy() {
+    flush_copy_queue();
+    wait_for_gpu();
+
+    destroy_framegraph();
+    on_destroy();
+
+    destroy_dstorage();
+
+    SM_ASSERT_WIN32(CloseHandle(mCopyFenceEvent));
+    SM_ASSERT_WIN32(CloseHandle(mFenceEvent));
+}
+
+void Context::render() {
+    ZoneScopedN("Render");
+    build_command_list();
+
+    ID3D12CommandList *lists[] = { mCommandList.get() };
+    mDirectQueue->ExecuteCommandLists(1, lists);
+
+    bool tearing = mInstance.tearing_support();
+    uint flags = tearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
+
+    SM_ASSERT_HR(mSwapChain->Present(0, flags));
+
+    FrameMark;
+
+    move_to_next_frame();
+}
+
+void Context::update_adapter(Adapter& adapter) {
+    if (adapter == *mCurrentAdapter) return;
+
+    recreate_device();
+}
+
+void Context::recreate_device() {
+    wait_for_gpu();
+
+    on_destroy();
+    destroy_device();
+
+    create_device(*mCurrentAdapter);
+    create_allocator();
+    create_copy_queue();
+    create_copy_fence();
+    create_pipeline();
+    on_create();
+
+    create_assets();
+
+    create_scene();
+    create_framegraph();
+}
+
+void Context::update_swapchain_length(uint length) {
+    wait_for_gpu();
+
+    uint64 current = mFrames[mFrameIndex].fence_value;
+
+    for (auto& frame : mFrames) {
+        frame.target.reset();
+        frame.allocator.reset();
+    }
+
+    destroy_frame_rtvs();
+
+    const uint flags = get_swapchain_flags(mInstance);
+    SM_ASSERT_HR(mSwapChain->ResizeBuffers(length, mSwapChainConfig.size.width, mSwapChainConfig.size.height, mSwapChainConfig.format, flags));
+    mSwapChainConfig.length = length;
+
+    mFrames.resize(length);
+    for (uint i = 0; i < length; i++) {
+        mFrames[i].fence_value = current;
+    }
+
+    create_frame_rtvs();
+    create_render_targets();
+    create_frame_allocators();
+
+    mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
+}
+
+void Context::resize_swapchain(math::uint2 size) {
+    wait_for_gpu();
+
+    for (uint i = 0; i < mSwapChainConfig.length; i++) {
+        mFrames[i].target.reset();
+        mFrames[i].fence_value = mFrames[mFrameIndex].fence_value;
+    }
+
+    destroy_framegraph();
+    destroy_frame_rtvs();
+
+    const uint flags = get_swapchain_flags(mInstance);
+    SM_ASSERT_HR(mSwapChain->ResizeBuffers(mSwapChainConfig.length, size.width, size.height, mSwapChainConfig.format, flags));
+    mSwapChainConfig.size = size;
+
+    mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
+
+    create_frame_rtvs();
+    create_render_targets();
+    create_framegraph();
+}
+
+void Context::update_framegraph() {
+    wait_for_gpu();
+    destroy_framegraph();
+    create_framegraph();
+}
+
+void Context::move_to_next_frame() {
+    const uint64 current = mFrames[mFrameIndex].fence_value;
+    SM_ASSERT_HR(mDirectQueue->Signal(*mFence, current));
+
+    mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
+
+    if (mFence->GetCompletedValue() < mFrames[mFrameIndex].fence_value) {
+        SM_ASSERT_HR(mFence->SetEventOnCompletion(mFrames[mFrameIndex].fence_value, mFenceEvent));
+        WaitForSingleObject(mFenceEvent, INFINITE);
+    }
+
+    mFrames[mFrameIndex].fence_value = current + 1;
+}
+
+void Context::wait_for_gpu() {
+    const uint64 current = mFrames[mFrameIndex].fence_value++;
+    SM_ASSERT_HR(mDirectQueue->Signal(*mFence, current));
+
+    SM_ASSERT_HR(mFence->SetEventOnCompletion(current, mFenceEvent));
+    WaitForSingleObject(mFenceEvent, INFINITE);
+}
+
+void Context::flush_copy_queue() {
+    const uint64 current = mCopyFenceValue++;
+    SM_ASSERT_HR(mCopyQueue->Signal(*mCopyFence, current));
+
+    const uint64 completed = mCopyFence->GetCompletedValue();
+
+    if (completed < current) {
+        SM_ASSERT_HR(mCopyFence->SetEventOnCompletion(current, mCopyFenceEvent));
+        WaitForSingleObject(mCopyFenceEvent, INFINITE);
+    }
+}
+
+/**
 #if 0
 texindex Context::load_texture(const fs::path& path) {
     Texture tex;
@@ -874,314 +1211,4 @@ Mesh Context::create_mesh(const world::MeshInfo& info, const float3& colour) {
     return primitive;
 }
 #endif
-
-void Context::set_scene(world::IndexOf<world::Scene> scene) {
-    if (scene == mCurrentScene) return;
-
-    mCurrentScene = scene;
-
-    wait_for_gpu();
-    destroy_scene();
-    create_scene();
-}
-
-void Context::create_assets() {
-    SM_ASSERT_HR(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, *mFrames[mFrameIndex].allocator, nullptr, IID_PPV_ARGS(&mCommandList)));
-    SM_ASSERT_HR(mCommandList->Close());
-
-    SM_ASSERT_HR(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
-    mFrames[mFrameIndex].fence_value += 1;
-
-    SM_ASSERT_WIN32(mFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr));
-}
-
-void Context::build_command_list() {
-    mAllocator->SetCurrentFrameIndex(mFrameIndex);
-
-    reset_direct_commands();
-
-    auto& [backbuffer, _, rtv, _] = mFrames[mFrameIndex];
-
-    mFrameGraph.update(mSwapChainHandle, backbuffer.get());
-    mFrameGraph.update(mSwapChainHandle, rtv);
-
-    {
-        ID3D12DescriptorHeap *heaps[] = { mSrvPool.get() };
-        mCommandList->SetDescriptorHeaps(_countof(heaps), heaps);
-
-        mFrameGraph.execute();
-    }
-
-    SM_ASSERT_HR(mCommandList->Close());
-}
-
-void Context::create_framegraph() {
-    graph::ResourceInfo info = {
-        .size = mSwapChainConfig.size,
-        .format = mSwapChainConfig.format,
-    };
-    mSwapChainHandle = mFrameGraph.include("BackBuffer", info, graph::Access::ePresent, nullptr);
-
-    setup_framegraph(mFrameGraph);
-
-    mFrameGraph.compile();
-}
-
-void Context::destroy_framegraph() {
-    mFrameGraph.reset();
-}
-
-#if 0
-void Context::destroy_textures() {
-    for (auto& texture : mTextures) {
-        mSrvPool.release(texture.srv);
-        texture.resource.reset();
-    }
-}
-
-void Context::create_textures() {
-    // TODO: create default texture
-
-    for (auto& texture : mTextures) {
-        // recreate all textures
-        create_texture(texture, texture.path, texture.format);
-    }
-}
-#endif
-
-void Context::destroy_device() {
-    destroy_framegraph();
-    mFrameGraph.reset_device_data();
-
-    // release frame resources
-    for (uint i = 0; i < mSwapChainConfig.length; i++) {
-        mFrames[i].target.reset();
-        mFrames[i].allocator.reset();
-    }
-
-    // release sync objects
-    mFence.reset();
-    mCopyFence.reset();
-
-    // assets
-    // destroy_textures();
-    destroy_scene();
-
-    // copy commands
-    destroy_copy_queue();
-
-    // direct commands
-    mDirectQueue.reset();
-    mCommandList.reset();
-
-    // allocator
-    mAllocator.reset();
-    mStorage.destroy_queues();
-
-    // descriptor heaps
-    mRtvPool.reset();
-    mDsvPool.reset();
-    mSrvPool.reset();
-
-    // swapchain
-    mSwapChain.reset();
-
-    // device
-    mDebug.reset();
-    mInfoQueue.reset();
-    mDevice.reset();
-}
-
-Context::Context(const RenderConfig& config)
-    : mConfig(config)
-    , mDebugFlags(config.flags)
-    , mInstance({ mDebugFlags, config.preference })
-    , mSwapChainConfig(config.swapchain)
-    , mFrameGraph(*this)
-{ }
-
-void Context::create() {
-    if (!mInstance.has_viable_adapter()) {
-        logs::gRender.error("no viable adapter found, exiting...");
-        return;
-    }
-
-    Adapter& adapter = [&] -> Adapter& {
-        if (auto luid = sm::override_adapter_luid(); luid.has_value()) {
-            auto& v = luid.value();
-            if (Adapter *adapter = mInstance.get_adapter_by_luid(v)) {
-                return *adapter;
-            }
-
-            logs::gRender.warn("adapter with luid {:x}:{:x} not found, falling back to default adapter", v.HighPart, v.LowPart);
-            return mInstance.get_default_adapter();
-        } else if (mDebugFlags.test(DebugFlags::eWarpAdapter)) {
-            return mInstance.get_warp_adapter();
-        } else {
-            return mInstance.get_default_adapter();
-        }
-    }();
-
-    PIXSetTargetWindow(mConfig.window.get_handle());
-
-    mStorage.create(mDebugFlags);
-
-    create_device(adapter);
-    create_allocator();
-    create_copy_queue();
-    create_copy_fence();
-    create_pipeline();
-    on_create();
-
-    create_assets();
-    init_scene();
-    create_scene();
-
-    create_framegraph();
-}
-
-void Context::destroy() {
-    flush_copy_queue();
-    wait_for_gpu();
-
-    destroy_framegraph();
-    on_destroy();
-
-    destroy_dstorage();
-
-    SM_ASSERT_WIN32(CloseHandle(mCopyFenceEvent));
-    SM_ASSERT_WIN32(CloseHandle(mFenceEvent));
-}
-
-void Context::render() {
-    ZoneScopedN("Render");
-    build_command_list();
-
-    ID3D12CommandList *lists[] = { mCommandList.get() };
-    mDirectQueue->ExecuteCommandLists(1, lists);
-
-    bool tearing = mInstance.tearing_support();
-    uint flags = tearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
-
-    SM_ASSERT_HR(mSwapChain->Present(0, flags));
-
-    FrameMark;
-
-    move_to_next_frame();
-}
-
-void Context::update_adapter(Adapter& adapter) {
-    if (adapter == *mCurrentAdapter) return;
-
-    recreate_device();
-}
-
-void Context::recreate_device() {
-    wait_for_gpu();
-
-    on_destroy();
-    destroy_device();
-
-    create_device(*mCurrentAdapter);
-    create_allocator();
-    create_copy_queue();
-    create_copy_fence();
-    create_pipeline();
-    on_create();
-
-    create_assets();
-
-    // create_textures();
-    create_scene();
-    create_framegraph();
-}
-
-void Context::update_swapchain_length(uint length) {
-    wait_for_gpu();
-
-    uint64 current = mFrames[mFrameIndex].fence_value;
-
-    for (auto& frame : mFrames) {
-        frame.target.reset();
-        frame.allocator.reset();
-    }
-
-    destroy_frame_rtvs();
-
-    const uint flags = get_swapchain_flags(mInstance);
-    SM_ASSERT_HR(mSwapChain->ResizeBuffers(length, mSwapChainConfig.size.width, mSwapChainConfig.size.height, mSwapChainConfig.format, flags));
-    mSwapChainConfig.length = length;
-
-    mFrames.resize(length);
-    for (uint i = 0; i < length; i++) {
-        mFrames[i].fence_value = current;
-    }
-
-    create_frame_rtvs();
-    create_render_targets();
-    create_frame_allocators();
-
-    mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
-}
-
-void Context::resize_swapchain(math::uint2 size) {
-    wait_for_gpu();
-
-    for (uint i = 0; i < mSwapChainConfig.length; i++) {
-        mFrames[i].target.reset();
-        mFrames[i].fence_value = mFrames[mFrameIndex].fence_value;
-    }
-
-    destroy_framegraph();
-    destroy_frame_rtvs();
-
-    const uint flags = get_swapchain_flags(mInstance);
-    SM_ASSERT_HR(mSwapChain->ResizeBuffers(mSwapChainConfig.length, size.width, size.height, mSwapChainConfig.format, flags));
-    mSwapChainConfig.size = size;
-
-    mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
-
-    create_frame_rtvs();
-    create_render_targets();
-    create_framegraph();
-}
-
-void Context::update_framegraph() {
-    wait_for_gpu();
-    destroy_framegraph();
-    create_framegraph();
-}
-
-void Context::move_to_next_frame() {
-    const uint64 current = mFrames[mFrameIndex].fence_value;
-    SM_ASSERT_HR(mDirectQueue->Signal(*mFence, current));
-
-    mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
-
-    if (mFence->GetCompletedValue() < mFrames[mFrameIndex].fence_value) {
-        SM_ASSERT_HR(mFence->SetEventOnCompletion(mFrames[mFrameIndex].fence_value, mFenceEvent));
-        WaitForSingleObject(mFenceEvent, INFINITE);
-    }
-
-    mFrames[mFrameIndex].fence_value = current + 1;
-}
-
-void Context::wait_for_gpu() {
-    const uint64 current = mFrames[mFrameIndex].fence_value++;
-    SM_ASSERT_HR(mDirectQueue->Signal(*mFence, current));
-
-    SM_ASSERT_HR(mFence->SetEventOnCompletion(current, mFenceEvent));
-    WaitForSingleObject(mFenceEvent, INFINITE);
-}
-
-void Context::flush_copy_queue() {
-    const uint64 current = mCopyFenceValue++;
-    SM_ASSERT_HR(mCopyQueue->Signal(*mCopyFence, current));
-
-    const uint64 completed = mCopyFence->GetCompletedValue();
-
-    if (completed < current) {
-        SM_ASSERT_HR(mCopyFence->SetEventOnCompletion(current, mCopyFenceEvent));
-        WaitForSingleObject(mCopyFenceEvent, INFINITE);
-    }
-}
+*/

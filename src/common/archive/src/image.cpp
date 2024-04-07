@@ -31,8 +31,8 @@ static constexpr ImageFormat get_image_format(int type) {
 }
 
 ImageData sm::load_image(sm::Span<const uint8> data) {
-    int width, height, channels;
-    stbi_uc *pixels = stbi_load_from_memory(data.data(), int_cast<int>(data.size()), &width, &height, &channels, 4);
+    int width, height;
+    stbi_uc *pixels = stbi_load_from_memory(data.data(), int_cast<int>(data.size()), &width, &height, nullptr, 4);
     if (!pixels) {
         logs::gAssets.warn("Failed to parse image data: {}", stbi_failure_reason());
         return {};
@@ -43,7 +43,7 @@ ImageData sm::load_image(sm::Span<const uint8> data) {
 
     const ImageData image = {
         .format = imgtype,
-        .pxformat = get_channel_format(channels),
+        .pxformat = get_channel_format(4),
         .size = { int_cast<uint32_t>(width), int_cast<uint32_t>(height) },
         .data = sm::Vector<uint8>(pixels, pixels + int_cast<ptrdiff_t>(width * height * 4)),
     };

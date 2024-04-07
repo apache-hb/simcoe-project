@@ -37,4 +37,8 @@
 
 #include "render/vendor/microsoft/pix.hpp"
 
+#define __d3d11_1_h__
+#include "DirectXTex/DirectXTex.h"
+#undef __d3d11_1_h__
+
 // IWYU pragma: end_exports

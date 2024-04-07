@@ -10,154 +10,148 @@ using namespace sm::ed;
 
 using ReflectImageType = ctu::TypeInfo<ImageFormat>;
 
-#if 0
-namespace MyGui {
-    static void TextCutoff(const char *text, float width) {
-        ImVec2 cursor = ImGui::GetCursorPos();
-        ImGui::PushTextWrapPos(cursor.x + width);
-        ImGui::Text("%s", text);
-        ImGui::PopTextWrapPos();
+static const char *get_index_name(world::IndexType type) {
+    switch (type) {
+    case world::eNone: return "None";
+    case world::eScene: return "Scene";
+    case world::eNode: return "Node";
+    case world::eCamera: return "Camera";
+    case world::eModel: return "Model";
+    case world::eFile: return "File";
+    case world::eLight: return "Light";
+    case world::eBuffer: return "Buffer";
+    case world::eMaterial: return "Material";
+    case world::eImage: return "Image";
+    default: return "Unknown";
     }
 }
-#endif
-void AssetBrowserPanel::draw_models() {
-#if 0
-    auto& models = mContext.mWorld.info.models;
 
-    ImVec2 avail = ImGui::GetContentRegionAvail();
-    uint columns = (uint)(avail.x / (mThumbnailSize + mThumbnailPadding));
-    if (columns < 1) columns = 1;
+template<world::IsWorldObject T>
+static void dragdop_source(world::IndexOf<T> index, const char *name) {
+    if (ImGui::BeginDragDropSource()) {
+        // typed payload
+        ImGui::SetDragDropPayload(name, &index, sizeof(index));
 
-    for (size_t i = 0; i < models.size(); i++) {
-        const auto& model = models[i];
-        const auto& mesh = mContext.mMeshes[i];
-
-        ImGui::PushID((int)i);
-        ImGui::BeginGroup();
-        using Reflect = ctu::TypeInfo<world::ObjectType>;
-        if (ImGui::Button(model.name.c_str(), ImVec2(mThumbnailSize, mThumbnailSize))) {
-            mContext.selected = ItemIndex{ ItemType::eMesh, (uint16)i };
-        }
-
-        if (ImGui::BeginDragDropSource()) {
-            ItemIndex index{ ItemType::eMesh, (uint16)i };
-            ImGui::SetDragDropPayload(kMeshPayload, &index, sizeof(ItemIndex));
-            ImGui::EndDragDropSource();
-        }
-        ImGui::PushTextWrapPos(ImGui::GetCursorPos().x + mThumbnailSize);
-        ImGui::TextWrapped("Model %s (%s)", model.name.c_str(), Reflect::to_string(mesh.mInfo.type).c_str());
-        ImGui::PopTextWrapPos();
-        ImGui::EndGroup();
-        ImGui::PopID();
-
-        if ((i + 1) % columns != 0) {
-            ImGui::SameLine();
-        }
+        // generic payload
+        world::AnyIndex any { index };
+        ImGui::SetDragDropPayload(kIndexPayload, &any, sizeof(world::AnyIndex));
+        ImGui::EndDragDropSource();
     }
-#endif
+}
+
+void AssetBrowserPanel::draw_models() {
+    auto& models = mContext.mWorld.models;
+
+    draw_grid(models.size(), [&](size_t i) {
+        const auto& model = models[i];
+        const auto& name = model.name;
+        auto idx = world::IndexOf<world::Model>(i);
+
+        if (ImGui::Button(name.c_str(), ImVec2(mThumbnailSize, mThumbnailSize))) {
+            mContext.selected = idx;
+        }
+
+        dragdop_source(idx, "MODEL");
+
+        ImGui::PushTextWrapPos(ImGui::GetCursorPos().x + mThumbnailSize);
+        ImGui::TextWrapped("Model %s", name.c_str());
+        ImGui::PopTextWrapPos();
+    });
 }
 
 void AssetBrowserPanel::draw_images() {
-#if 0
-    auto& textures = mContext.mTextures;
+    auto& images = mContext.mWorld.images;
 
-    ImVec2 avail = ImGui::GetContentRegionAvail();
-    uint columns = (uint)(avail.x / (mThumbnailSize + mThumbnailPadding));
-    if (columns < 1) columns = 1;
+    draw_grid(images.size(), [&](size_t i) {
+        const auto& image = images[i];
+        const auto& name = image.name;
+        auto index = world::IndexOf<world::Image>(i);
+        const auto& handle = mContext.mImages[index];
+        auto gpu = mContext.mSrvPool.gpu_handle(handle.srv);
 
-    for (size_t i = 0; i < textures.size(); i++) {
-        const auto& texture = textures[i];
-        const auto& path = texture.path;
-
-        const auto& name = texture.name;
-        auto gpu = mContext.mSrvPool.gpu_handle(texture.srv);
-        ImGui::PushID((int)i);
-        ImGui::BeginGroup();
-        if (ImGui::ImageButton(name.c_str(), (ImTextureID)gpu.ptr, math::float2(mThumbnailSize))) {
-            mContext.selected = ItemIndex{ ItemType::eImage, (uint16)i };
+        if (ImGui::ImageButton(name.c_str(), (ImTextureID)gpu.ptr, ImVec2(mThumbnailSize, mThumbnailSize))) {
+            mContext.selected = index;
         }
-        if (ImGui::BeginItemTooltip()) {
-            ImGui::Text("%s (%s)", path.string().c_str(), ReflectImageType::to_string(texture.format).c_str());
-            auto [w, h] = texture.size;
-            ImGui::Text("%u x %u (%u mips)", w, h, texture.mips);
-            ImGui::EndTooltip();
-        }
-        MyGui::TextCutoff(name.c_str(), mThumbnailSize);
-        ImGui::EndGroup();
-        ImGui::PopID();
 
-        if ((i + 1) % columns != 0) {
-            ImGui::SameLine();
-        }
-    }
-#endif
+        dragdop_source(index, "IMAGE");
+
+        ImGui::PushTextWrapPos(ImGui::GetCursorPos().x + mThumbnailSize);
+        ImGui::TextWrapped("Image %s", name.c_str());
+        ImGui::PopTextWrapPos();
+    });
 }
 
 void AssetBrowserPanel::draw_materials() {
+    auto& materials = mContext.mWorld.materials;
 
+    draw_grid(materials.size(), [&](size_t i) {
+        const auto& material = materials[i];
+        const auto& name = material.name;
+        auto idx = world::IndexOf<world::Material>(i);
+
+        if (ImGui::Button(name.c_str(), ImVec2(mThumbnailSize, mThumbnailSize))) {
+            mContext.selected = idx;
+        }
+
+        dragdop_source(idx, "MATERIAL");
+
+        ImGui::PushTextWrapPos(ImGui::GetCursorPos().x + mThumbnailSize);
+        ImGui::TextWrapped("Material %s", name.c_str());
+        ImGui::PopTextWrapPos();
+    });
 }
 
 void AssetBrowserPanel::draw_content() {
-    if (ImGui::Button("Import")) {
-        mFileBrowser.Open();
+    if (ImGui::BeginMenuBar()) {
+        if (ImGui::BeginMenu("Settings")) {
+            ImGui::SliderFloat("Thumbnail Size", &mThumbnailSize, 32.0f, 256.0f);
+            ImGui::SliderFloat("Thumbnail Padding", &mThumbnailPadding, 0.0f, 32.0f);
+            ImGui::EndMenu();
+        }
+        ImGui::EndMenuBar();
     }
 
+    {
+        ImGui::BeginChild("AssetList", ImVec2(150, 0), ImGuiChildFlags_Border | ImGuiChildFlags_ResizeX);
+        for (int i = world::eNone + 1; i < world::eCount; i++)
+        {
+            if (ImGui::Selectable(get_index_name((world::IndexType)i), mActiveTab == i))
+                mActiveTab = i;
+        }
+        ImGui::EndChild();
+    }
     ImGui::SameLine();
 
-    if (ImGui::Button("Settings")) {
-        ImGui::OpenPopup("Settings");
-    }
+    {
+        ImGui::BeginGroup();
+        ImGui::BeginChild("AssetView", ImVec2(0, -ImGui::GetFrameHeightWithSpacing()));
 
-    if (ImGui::BeginPopup("Settings")) {
-        ImGui::SliderFloat("Thumbnail Size", &mThumbnailSize, 32.0f, 256.0f);
-        ImGui::SliderFloat("Thumbnail Padding", &mThumbnailPadding, 0.0f, 32.0f);
-        ImGui::EndPopup();
-    }
-
-    if (ImGui::BeginTabBar("Assets", ImGuiTabBarFlags_NoCloseWithMiddleMouseButton)) {
-        if (ImGui::BeginTabItem("Models")) {
-            draw_models();
-            ImGui::EndTabItem();
+        switch (mActiveTab) {
+        case world::eScene: break;
+        case world::eNode: break;
+        case world::eCamera: break;
+        case world::eModel: draw_models(); break;
+        case world::eFile: break;
+        case world::eLight: break;
+        case world::eBuffer: break;
+        case world::eMaterial: draw_materials(); break;
+        case world::eImage: draw_images(); break;
+        default: break;
         }
 
-        if (ImGui::BeginTabItem("Images")) {
-            draw_images();
-            ImGui::EndTabItem();
-        }
-
-        if (ImGui::BeginTabItem("Materials")) {
-            draw_materials();
-            ImGui::EndTabItem();
-        }
-
-        ImGui::EndTabBar();
-    }
-
-    mFileBrowser.Display();
-
-    if (mFileBrowser.HasSelected()) {
-        auto selected = mFileBrowser.GetMultiSelected();
-        for (const auto& file : selected) {
-            auto ext = file.extension();
-            // if (ext == ".png" || ext == ".jpg" || ext == ".bmp" || ext == ".dds")
-            //     mContext.load_texture(file);
-            // else if (ext == ".glb" || ext == ".gltf")
-            //     mContext.load_gltf(file);
-        }
-        mFileBrowser.ClearSelected();
+        ImGui::EndChild();
+        ImGui::EndGroup();
     }
 }
 
 AssetBrowserPanel::AssetBrowserPanel(ed::EditorContext& context)
     : mContext(context)
-{
-    mFileBrowser.SetTitle("Import Assets");
-}
+{ }
 
 void AssetBrowserPanel::draw_window() {
     if (!mOpen) return;
 
-    if (ImGui::Begin("Asset Browser", &mOpen)) {
+    if (ImGui::Begin("Asset Browser", &mOpen, ImGuiWindowFlags_MenuBar)) {
         draw_content();
     }
     ImGui::End();

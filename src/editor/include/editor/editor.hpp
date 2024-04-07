@@ -44,13 +44,22 @@ namespace sm::ed {
 
         ImGui::FileBrowser mSaveLevelDialog { ImGuiFileBrowserFlags_CreateNewDir | ImGuiFileBrowserFlags_EnterNewFilename | ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_ConfirmOnEnter };
         ImGui::FileBrowser mOpenLevelDialog { ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_ConfirmOnEnter };
+        ImGui::FileBrowser mImportDialog { ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_ConfirmOnEnter | ImGuiFileBrowserFlags_MultipleSelection };
 
-        world::IndexOf<world::Node> get_picked_node();
+        world::IndexOf<world::Node> get_best_node();
+
+        void import_dds(const fs::path& path);
+
+        void import_file(const fs::path& path);
 
         void draw_mainmenu();
         void draw_dockspace();
 
         void draw_create_popup();
+
+        std::string mErrorMessage;
+        void alert_error(std::string message);
+        void draw_error_modal();
 
     public:
         Editor(ed::EditorContext &context);

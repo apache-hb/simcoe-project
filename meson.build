@@ -237,11 +237,11 @@ meta_tool = generator(find_program('scripts/meta_tool.py'),
 subdir('src/vendor/reflect')
 
 subdir('src/common/core')
-# also hook assets into d3d12ma
+# also hook asserts into d3d12ma
 subdir('src/vendor/d3d12ma')
 
 # patch dds_texture_loader to use d3d12ma
-subdir('src/vendor/dds_texture_loader')
+# subdir('src/vendor/dds_texture_loader')
 
 subdir('src/common/math')
 subdir('src/common/logs')

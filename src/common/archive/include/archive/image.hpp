@@ -14,6 +14,8 @@ namespace sm {
         Format pxformat;
         math::uint2 size;
         sm::Vector<byte> data;
+
+        bool is_valid() const { return !data.empty(); }
     };
 
     ImageData load_image(sm::Span<const uint8> data);

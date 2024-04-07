@@ -8,13 +8,15 @@ namespace sm::ed {
 
         void draw_content();
 
+        void inspect(world::IndexOf<world::Model> index);
+        void inspect(world::IndexOf<world::Node> index);
+        void inspect(world::IndexOf<world::Material> index);
+        void inspect(world::IndexOf<world::Image> index);
+
         template<world::IsWorldObject T>
         void inspect(world::IndexOf<T> index) {
             ImGui::TextUnformatted("Unimplemented :(");
         }
-
-        void inspect(world::IndexOf<world::Model> index);
-        void inspect(world::IndexOf<world::Node> index);
 
     public:
         InspectorPanel(ed::EditorContext &context);

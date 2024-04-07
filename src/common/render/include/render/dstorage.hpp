@@ -5,15 +5,25 @@
 #include "render.reflect.h"
 
 namespace sm::render {
-    class CopyStorage {
-        Object<IDStorageFactory> mFactory;
-        Object<IDStorageQueue2> mFileQueue;
-        Object<IDStorageQueue2> mMemoryQueue;
+    class StorageQueue {
+        Object<IDStorageQueue2> mQueue;
+        Object<IDStorageStatusArray> mStatusArray;
 
     public:
-        CopyStorage();
-        ~CopyStorage();
+        Result init(IDStorageFactory *factory, const DSTORAGE_QUEUE_DESC& desc);
+        void reset();
 
+        void enqueue(const DSTORAGE_REQUEST& request);
+        void signal(ID3D12Fence *fence, uint64 value);
+        void submit();
+    };
+
+    class CopyStorage {
+        Object<IDStorageFactory> mFactory;
+        StorageQueue mFileQueue;
+        StorageQueue mMemoryQueue;
+
+    public:
         void create(DebugFlags flags);
         void destroy();
 
@@ -27,9 +37,17 @@ namespace sm::render {
 
         void signal_file_queue(ID3D12Fence *fence, uint64 value);
         void signal_memory_queue(ID3D12Fence *fence, uint64 value);
+
+        void flush_queues();
+
+        // TODO: check errors
     };
 
     struct RequestBuilder : DSTORAGE_REQUEST {
+        RequestBuilder() {
+            static_cast<DSTORAGE_REQUEST&>(*this) = {};
+        }
+
         RequestBuilder& compression(DSTORAGE_COMPRESSION_FORMAT format, uint32 size) {
             Options.CompressionFormat = format;
             UncompressedSize = size;

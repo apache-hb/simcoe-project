@@ -48,6 +48,10 @@ void Editor::draw_mainmenu() {
             }
             ImGui::Separator();
 
+            if (ImGui::MenuItem("Import")) {
+                mImportDialog.Open();
+            }
+
             ImGui::MenuItem("Exit");
             ImGui::EndMenu();
         }
@@ -154,7 +158,7 @@ void Editor::end_frame() {
     }
 }
 
-world::IndexOf<world::Node> Editor::get_picked_node() {
+world::IndexOf<world::Node> Editor::get_best_node() {
     if (!mContext.selected.has_value())
         return mContext.get_scene().root;
 
@@ -171,21 +175,158 @@ void Editor::draw_create_popup() {
     }
 
     if (MyGui::BeginPopupWindow("Create", ImGuiWindowFlags_NoMove)) {
+        auto& world = mContext.mWorld;
         if (ImGui::BeginMenu("Object")) {
             if (ImGui::MenuItem("Empty")) {
-                auto root = get_picked_node();
+                auto root = get_best_node();
 
-                auto added = mContext.mWorld.add(world::Node { .name = "New Empty", .transform = world::default_transform() });
-                mContext.mWorld.get(root).children.push_back(added);
+                auto added = world.add(world::Node { .name = "New Empty", .transform = world::default_transform() });
+                world.get(root).children.push_back(added);
+
+                mContext.upload([this, added] {
+                    mContext.create_node(added);
+                });
             }
             ImGui::EndMenu();
         }
 
         if (ImGui::BeginMenu("Primitive")) {
-            ImGui::MenuItem("Cube");
-            ImGui::MenuItem("Sphere");
-            ImGui::MenuItem("Cylinder");
+            if (ImGui::MenuItem("Cube")) {
+                mContext.upload([this, &world] {
+                    auto root = get_best_node();
+                    auto added = world.add(world::Model { .name = "Cube", .mesh = world::Cube { 1.f, 1.f, 1.f }, .material = world.default_material });
+                    world.get(root).models.push_back(added);
+                    mContext.create_model(added);
+                });
+            }
+
+            if (ImGui::MenuItem("Sphere")) {
+                mContext.upload([this, &world] {
+                    auto root = get_best_node();
+                    auto added = world.add(world::Model { .name = "Sphere", .mesh = world::Sphere { 1.f }, .material = world.default_material });
+                    world.get(root).models.push_back(added);
+                    mContext.create_model(added);
+                });
+            }
+
+            if (ImGui::MenuItem("Cylinder")) {
+                mContext.upload([this, &world] {
+                    auto root = get_best_node();
+                    auto added = world.add(world::Model { .name = "Cylinder", .mesh = world::Cylinder { 1.f, 1.f }, .material = world.default_material });
+                    world.get(root).models.push_back(added);
+                    mContext.create_model(added);
+                });
+            }
+
             ImGui::EndMenu();
+        }
+        ImGui::EndPopup();
+    }
+}
+
+void Editor::import_dds(const fs::path& path) {
+    DirectX::ScratchImage image;
+    render::Result hr = DirectX::LoadFromDDSFile(path.c_str(), DirectX::DDS_FLAGS_FORCE_RGB, nullptr, image);
+
+    if (hr.failed()) {
+        alert_error(fmt::format("Failed to load DDS image {}", path.string()));
+        return;
+    }
+
+    size_t len = image.GetPixelsSize();
+
+    world::Buffer buffer = {
+        .name = path.filename().string(),
+        .data = std::vector<uint8>(image.GetPixels(), image.GetPixels() + len),
+    };
+
+    auto idx = mContext.mWorld.add(std::move(buffer));
+
+    world::BufferView view = {
+        .source = idx,
+        .offset = 0,
+        .source_size = uint32(len),
+    };
+
+    auto metadata = image.GetMetadata();
+
+    world::Image info = {
+        .name = path.filename().string(),
+        .source = view,
+        .format = metadata.format,
+        .size = { uint(metadata.width), uint(metadata.height) },
+        .mips = uint(metadata.mipLevels),
+    };
+
+    auto img = mContext.mWorld.add(std::move(info));
+
+    mContext.upload([this, img] {
+        mContext.load_image(img);
+    });
+}
+
+void Editor::import_file(const fs::path& path) {
+    auto ext = path.extension();
+    if (ext == ".dds") {
+        import_dds(path);
+        return;
+    }
+
+    if (!(ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp")) {
+        alert_error(fmt::format("Unsupported file format {}", ext.string()));
+        return;
+    }
+
+    ImageData image = sm::open_image(path);
+    if (!image.is_valid()) {
+        alert_error(fmt::format("Failed to load image {}", path.string()));
+        return;
+    }
+
+    size_t len = image.data.size();
+
+    world::Buffer buffer = {
+        .name = path.filename().string(),
+        .data = std::move(image.data),
+    };
+
+    auto idx = mContext.mWorld.add(std::move(buffer));
+
+    world::BufferView view = {
+        .source = idx,
+        .offset = 0,
+        .source_size = uint32(len),
+    };
+
+    world::Image info = {
+        .name = path.filename().string(),
+        .source = view,
+        .format = DXGI_FORMAT_R8G8B8A8_UNORM,
+        .size = image.size,
+        .mips = 1,
+    };
+
+    auto img = mContext.mWorld.add(std::move(info));
+
+    mContext.upload([this, img] {
+        mContext.load_image(img);
+    });
+}
+
+void Editor::alert_error(std::string message) {
+    mErrorMessage = std::move(message);
+    ImGui::OpenPopup("Error");
+}
+
+void Editor::draw_error_modal() {
+    if (mErrorMessage.empty())
+        return;
+
+    if (ImGui::BeginPopupModal("Error", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text("%s", mErrorMessage.c_str());
+        if (ImGui::Button("OK")) {
+            mErrorMessage.clear();
+            ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();
     }
@@ -210,12 +351,22 @@ void Editor::draw() {
         viewport.draw_window();
     }
 
+    draw_error_modal();
+
     mOpenLevelDialog.Display();
     mSaveLevelDialog.Display();
+    mImportDialog.Display();
 
     if (mShowImGuiDemo)
         ImGui::ShowDemoWindow(&mShowImGuiDemo);
 
     if (mShowImPlotDemo)
         ImPlot::ShowDemoWindow(&mShowImPlotDemo);
+
+    if (mImportDialog.HasSelected()) {
+        for (const auto &file : mImportDialog.GetMultiSelected()) {
+            import_file(file);
+        }
+        mImportDialog.ClearSelected();
+    }
 }

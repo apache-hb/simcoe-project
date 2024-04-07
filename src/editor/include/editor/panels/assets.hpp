@@ -12,12 +12,30 @@ namespace sm::ed {
     class ViewportPanel;
 
     class AssetBrowserPanel final {
-        [[maybe_unused]] ed::EditorContext &mContext;
+        ed::EditorContext &mContext;
 
         float mThumbnailSize = 64.0f;
         float mThumbnailPadding = 4.0f;
 
-        ImGui::FileBrowser mFileBrowser { ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_MultipleSelection | ImGuiFileBrowserFlags_ConfirmOnEnter };
+        int mActiveTab = world::eScene;
+
+        void draw_grid(size_t count, auto&& fn) {
+            ImVec2 avail = ImGui::GetContentRegionAvail();
+            uint columns = (uint)(avail.x / (mThumbnailSize + mThumbnailPadding));
+            if (columns < 1) columns = 1;
+
+            for (size_t i = 0; i < count; i++) {
+                ImGui::PushID((int)i);
+                ImGui::BeginGroup();
+                fn(i);
+                ImGui::EndGroup();
+                ImGui::PopID();
+
+                if ((i + 1) % columns != 0) {
+                    ImGui::SameLine();
+                }
+            }
+        }
 
         // IEditorPanel
         void draw_content();

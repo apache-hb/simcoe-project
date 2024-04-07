@@ -22,7 +22,6 @@ namespace sm::world {
         eBuffer,
         eMaterial,
         eImage,
-        eTexture,
 
         eCount
     };
@@ -68,12 +67,14 @@ namespace sm::world {
 
     struct File {
         static constexpr IndexType kType = eFile;
+        static constexpr sm::StringView kName = "File";
 
         sm::String path;
     };
 
     struct Buffer {
         static constexpr IndexType kType = eBuffer;
+        static constexpr sm::StringView kName = "Buffer";
 
         sm::String name;
         sm::Vector<uint8> data;
@@ -89,6 +90,7 @@ namespace sm::world {
 
     struct Image {
         static constexpr IndexType kType = eImage;
+        static constexpr sm::StringView kName = "Image";
 
         sm::String name;
         BufferView source;
@@ -98,20 +100,19 @@ namespace sm::world {
     };
 
     struct Texture {
-        static constexpr IndexType kType = eTexture;
-
-        sm::String name;
-
         IndexOf<Image> image;
+
+        // TODO: sampler
     };
 
     struct Material {
         static constexpr IndexType kType = eMaterial;
+        static constexpr sm::StringView kName = "Material";
 
         sm::String name;
 
         float4 albedo;
-        IndexOf<Texture> albedo_texture;
+        Texture albedo_texture;
     };
 
     struct Object {
@@ -143,6 +144,7 @@ namespace sm::world {
 
     struct Light {
         static constexpr IndexType kType = eLight;
+        static constexpr sm::StringView kName = "Light";
 
         sm::String name;
         sm::Variant<PointLight, SpotLight, DirectionalLight> light;
@@ -150,6 +152,7 @@ namespace sm::world {
 
     struct Model {
         static constexpr IndexType kType = eModel;
+        static constexpr sm::StringView kName = "Model";
 
         sm::String name;
         sm::Variant<
@@ -169,6 +172,7 @@ namespace sm::world {
 
     struct Node {
         static constexpr IndexType kType = eNode;
+        static constexpr sm::StringView kName = "Node";
 
         sm::String name;
 
@@ -181,6 +185,7 @@ namespace sm::world {
 
     struct Camera {
         static constexpr IndexType kType = eCamera;
+        static constexpr sm::StringView kName = "Camera";
 
         sm::String name;
 
@@ -192,6 +197,7 @@ namespace sm::world {
 
     struct Scene {
         static constexpr IndexType kType = eScene;
+        static constexpr sm::StringView kName = "Scene";
 
         sm::String name;
 
@@ -199,8 +205,8 @@ namespace sm::world {
         IndexOf<Camera> camera;
     };
 
-    using AnyIndex = ChoiceOf<Scene, Node, Camera, Model, File, Light, Buffer, Material, Image, Texture>;
-    using OptionIndex = OptionOf<Scene, Node, Camera, Model, File, Light, Buffer, Material, Image, Texture>;
+    using AnyIndex = ChoiceOf<Scene, Node, Camera, Model, File, Light, Buffer, Material, Image>;
+    using OptionIndex = OptionOf<Scene, Node, Camera, Model, File, Light, Buffer, Material, Image>;
 
     struct World {
         sm::String name;

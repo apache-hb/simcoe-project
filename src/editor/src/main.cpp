@@ -286,6 +286,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         flags |= render::DebugFlags::eFactoryDebug;
         flags |= render::DebugFlags::eInfoQueue;
         flags |= render::DebugFlags::eAutoName;
+        flags |= render::DebugFlags::eDirectStorageDebug;
 
         // enabling gpu based validation on the warp adapter
         // tanks performance

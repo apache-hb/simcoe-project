@@ -5,7 +5,32 @@
 using namespace sm;
 using namespace sm::render;
 
-using GetFactoryFn = decltype(&DStorageGetFactory);
+Result StorageQueue::init(IDStorageFactory *factory, const DSTORAGE_QUEUE_DESC& desc) {
+    if (Result hr = factory->CreateQueue(&desc, IID_PPV_ARGS(&mQueue)))
+        return hr;
+
+    if(Result hr = factory->CreateStatusArray(4, desc.Name, IID_PPV_ARGS(&mStatusArray)))
+        return hr;
+
+    return S_OK;
+}
+
+void StorageQueue::reset() {
+    mQueue.reset();
+    mStatusArray.reset();
+}
+
+void StorageQueue::enqueue(const DSTORAGE_REQUEST& request) {
+    mQueue->EnqueueRequest(&request);
+}
+
+void StorageQueue::signal(ID3D12Fence *fence, uint64 value) {
+    mQueue->EnqueueSignal(fence, value);
+}
+
+void StorageQueue::submit() {
+    mQueue->Submit();
+}
 
 static constexpr UINT32 get_dstorage_flags(DebugFlags flags) {
     UINT32 result = DSTORAGE_DEBUG_NONE;
@@ -19,12 +44,6 @@ static constexpr UINT32 get_dstorage_flags(DebugFlags flags) {
         result |= DSTORAGE_DEBUG_RECORD_OBJECT_NAMES;
     }
     return result;
-}
-
-CopyStorage::CopyStorage() {
-}
-
-CopyStorage::~CopyStorage() {
 }
 
 void CopyStorage::create(DebugFlags flags) {
@@ -47,7 +66,7 @@ void CopyStorage::create_queues(ID3D12Device1 *device) {
             .Device = device,
         };
 
-        SM_ASSERT_HR(mFactory->CreateQueue(&desc, IID_PPV_ARGS(&mMemoryQueue)));
+        SM_ASSERT_HR(mMemoryQueue.init(mFactory.get(), desc));
     }
 
     {
@@ -59,7 +78,7 @@ void CopyStorage::create_queues(ID3D12Device1 *device) {
             .Device = device,
         };
 
-        SM_ASSERT_HR(mFactory->CreateQueue(&desc, IID_PPV_ARGS(&mFileQueue)));
+        SM_ASSERT_HR(mFileQueue.init(mFactory.get(), desc));
     }
 }
 
@@ -73,19 +92,24 @@ Result CopyStorage::open(const fs::path& path, IDStorageFile **file) {
 }
 
 void CopyStorage::submit_file_copy(const DSTORAGE_REQUEST& request) {
-    mFileQueue->EnqueueRequest(&request);
+    mFileQueue.enqueue(request);
 }
 
 void CopyStorage::submit_memory_copy(const DSTORAGE_REQUEST& request) {
-    mMemoryQueue->EnqueueRequest(&request);
+    mMemoryQueue.enqueue(request);
 }
 
 void CopyStorage::signal_file_queue(ID3D12Fence *fence, uint64 value) {
-    mFileQueue->EnqueueSignal(fence, value);
+    mFileQueue.signal(fence, value);
 }
 
 void CopyStorage::signal_memory_queue(ID3D12Fence *fence, uint64 value) {
-    mMemoryQueue->EnqueueSignal(fence, value);
+    mMemoryQueue.signal(fence, value);
+}
+
+void CopyStorage::flush_queues() {
+    mFileQueue.submit();
+    mMemoryQueue.submit();
 }
 
 void Context::create_dstorage() {

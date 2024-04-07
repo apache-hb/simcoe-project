@@ -14,8 +14,6 @@
 
 #include "logs/logs.hpp"
 
-#include "DDSTextureLoader12.h"
-
 #include "fastgltf/core.hpp"
 
 #include "fmt/std.h"

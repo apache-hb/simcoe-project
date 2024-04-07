@@ -29,8 +29,6 @@ deps = [
     # microsoft
     d3d12, d3dx12, d3d12ma, pix, dstorage,
 
-    dds_texture_loader,
-
     # hardware vendors
     nvapi
 ]

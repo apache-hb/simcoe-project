@@ -1,0 +1,11 @@
+[wrap-git]
+directory = directx-tex
+
+url = https://github.com/microsoft/DirectXTex
+revision = head
+depth = 1
+
+patch_directory = directx-tex
+
+[provide]
+dependency_names = directx-tex

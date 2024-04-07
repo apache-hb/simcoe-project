@@ -31,7 +31,9 @@ deps = [
     tracy,
 
     imgui, implot, imguizmo, filebrowser,
-    imnodes
+    imnodes,
+
+    dependency('directx-tex')
 ]
 
 inc = [ include_directories('include', 'src'), reflect_include ]
