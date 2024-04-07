@@ -5,6 +5,31 @@
 namespace sm::render {
     using namespace sm::math;
 
+    // TODO: merge these headers
+    // keep in sync with shaders/common.hlsli
+
+    struct alignas(256) ObjectData {
+        float4x4 world_view_projection;
+        float4x4 world_view;
+        float4x4 world;
+    };
+
+    struct alignas(256) ViewportData {
+        float4x4 projection;
+        float4x4 inv_projection;
+        float3 camera_position;
+        float alpha_test;
+        uint width;
+        uint height;
+        uint point_light_count;
+        uint spot_light_count;
+    };
+
+    struct TileLightData {
+        uint point_light_count;
+        uint spot_light_count;
+    };
+
     struct PointLight {
         float3 position;
         float3 colour;

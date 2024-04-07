@@ -140,17 +140,47 @@ static Mesh cube(const world::Cube &cube) {
 
     MeshBuilder builder;
 
-    builder.quad({{-w, h, -d}}, {{-w, h, d}}, {{-w, -h, d}}, {{-w, -h, -d}}); // back
+    builder.quad(
+        {{-w, h, -d}, {0, 1}},
+        {{-w, h, d}, {0, 0}},
+        {{-w, -h, d}, {1, 0}},
+        {{-w, -h, -d}, {1, 1}}
+    ); // back
 
-    builder.quad({{w, -h, -d}}, {{w, -h, d}}, {{w, h, d}}, {{w, h, -d}}); // front
+    builder.quad(
+        {{w, -h, -d}, {0, 1}},
+        {{w, -h, d}, {0, 0}},
+        {{w, h, d}, {1, 0}},
+        {{w, h, -d}, {1, 1}}
+    ); // front
 
-    builder.quad({{-w, -h, -d}}, {{-w, -h, d}}, {{w, -h, d}}, {{w, -h, -d}}); // left
+    builder.quad(
+        {{-w, -h, -d}, {0, 1}},
+        {{-w, -h, d}, {0, 0}},
+        {{w, -h, d}, {1, 0}},
+        {{w, -h, -d}, {1, 1}}
+    ); // left
 
-    builder.quad({{w, h, -d}}, {{w, h, d}}, {{-w, h, d}}, {{-w, h, -d}}); // right
+    builder.quad(
+        {{w, h, -d}, {0, 1}},
+        {{w, h, d}, {0, 0}},
+        {{-w, h, d}, {1, 0}},
+        {{-w, h, -d}, {1, 1}}
+    ); // right
 
-    builder.quad({{w, -h, -d}}, {{w, h, -d}}, {{-w, h, -d}}, {{-w, -h, -d}}); // bottom
+    builder.quad(
+        {{w, -h, -d}, {0, 1}},
+        {{w, h, -d}, {0, 0}},
+        {{-w, h, -d}, {1, 0}},
+        {{-w, -h, -d}, {1, 1}}
+    ); // bottom
 
-    builder.quad({{-w, -h, d}}, {{-w, h, d}}, {{w, h, d}}, {{w, -h, d}}); // top
+    builder.quad(
+        {{-w, -h, d}, {0, 1}},
+        {{-w, h, d}, {0, 0}},
+        {{w, h, d}, {1, 0}},
+        {{w, -h, d}, {1, 1}}
+    ); // top
 
     return builder.build();
 }
@@ -167,28 +197,58 @@ static Mesh cylinder(const world::Cylinder& cylinder) {
 
         // make top half of the sphere
         {
-            Vertex v0 = { float3(radius * c0, height / 2, radius * s0) };
-            Vertex v1 = { float3(radius * c1, height / 2, radius * s1) };
-            Vertex v2 = { float3(0, height / 2, 0) };
+            Vertex v0 = {
+                .position = float3(radius * c0, height / 2, radius * s0),
+                .texcoord = float2(float(i) / float(slices), 0)
+            };
+            Vertex v1 = {
+                .position = float3(radius * c1, height / 2, radius * s1),
+                .texcoord = float2(float(i + 1) / float(slices), 0)
+            };
+            Vertex v2 = {
+                .position = float3(0, height / 2, 0),
+                .texcoord = float2(0.5f, 0)
+            };
 
             builder.triangle(v0, v1, v2);
         }
 
         // make bottom half of the sphere
         {
-            Vertex v0 = { float3(radius * c0, -height / 2, radius * s0) };
-            Vertex v1 = { float3(radius * c1, -height / 2, radius * s1) };
-            Vertex v2 = { float3(0, -height / 2, 0) };
+            Vertex v0 = {
+                .position = float3(radius * c0, -height / 2, radius * s0),
+                .texcoord = float2(float(i) / float(slices), 1)
+            };
+            Vertex v1 = {
+                .position = float3(radius * c1, -height / 2, radius * s1),
+                .texcoord = float2(float(i + 1) / float(slices), 1)
+            };
+            Vertex v2 = {
+                .position = float3(0, -height / 2, 0),
+                .texcoord = float2(0.5f, 1)
+            };
 
             builder.triangle(v0, v2, v1);
         }
 
         // make body
         {
-            Vertex v0 = { float3(radius * c0, -height / 2, radius * s0) };
-            Vertex v1 = { float3(radius * c1, -height / 2, radius * s1) };
-            Vertex v2 = { float3(radius * c0, height / 2, radius * s0) };
-            Vertex v3 = { float3(radius * c1, height / 2, radius * s1) };
+            Vertex v0 = {
+                .position = float3(radius * c0, -height / 2, radius * s0),
+                .texcoord = float2(float(i) / float(slices), 0)
+            };
+            Vertex v1 = {
+                .position = float3(radius * c1, -height / 2, radius * s1),
+                .texcoord = float2(float(i + 1) / float(slices), 0)
+            };
+            Vertex v2 = {
+                .position = float3(radius * c0, height / 2, radius * s0),
+                .texcoord = float2(float(i) / float(slices), 1)
+            };
+            Vertex v3 = {
+                .position = float3(radius * c1, height / 2, radius * s1),
+                .texcoord = float2(float(i + 1) / float(slices), 1)
+            };
 
             builder.quad(v0, v1, v3, v2);
         }

@@ -27,7 +27,7 @@
 //--------------------------------------------------------------------------------------
 
 
-#include "ForwardPlus11Common.hlsl"
+#include "ForwardPlus11Common.hlsli"
 
 #define FLT_MAX         3.402823466e+38F
 
@@ -198,7 +198,7 @@ void CullLightsCS( uint3 globalIdx : SV_DispatchThreadID, uint3 localIdx : SV_Gr
         uint uWindowHeightEvenlyDivisibleByTileRes = TILE_RES*GetNumTilesY();
 
         // four corners of the tile, clockwise from top-left
-        float3 frustum0 = ConvertProjToView( float4( pxm/(float)uWindowWidthEvenlyDivisibleByTileRes*2.f-1.f, (uWindowHeightEvenlyDivisibleByTileRes-pym)/(float)uWindowHeightEvenlyDivisibleByTileRes*2.f-1.f,1.f,1.f) ).xyz;
+        float3 frustum0 = ConvertProjToView( float4( pxm/(float)uWindowWidthEvenlyDivisibleByTileRes*2.f-1.f, (uWindowHeightEvenlyDivisibleByTileRes-pym)/(float)uWindowHeightEvenlyDivisibleByTileRes*2.f-1.f,1.f,1.f)).xyz;
         float3 frustum1 = ConvertProjToView( float4( pxp/(float)uWindowWidthEvenlyDivisibleByTileRes*2.f-1.f, (uWindowHeightEvenlyDivisibleByTileRes-pym)/(float)uWindowHeightEvenlyDivisibleByTileRes*2.f-1.f,1.f,1.f) ).xyz;
         float3 frustum2 = ConvertProjToView( float4( pxp/(float)uWindowWidthEvenlyDivisibleByTileRes*2.f-1.f, (uWindowHeightEvenlyDivisibleByTileRes-pyp)/(float)uWindowHeightEvenlyDivisibleByTileRes*2.f-1.f,1.f,1.f) ).xyz;
         float3 frustum3 = ConvertProjToView( float4( pxm/(float)uWindowWidthEvenlyDivisibleByTileRes*2.f-1.f, (uWindowHeightEvenlyDivisibleByTileRes-pyp)/(float)uWindowHeightEvenlyDivisibleByTileRes*2.f-1.f,1.f,1.f) ).xyz;

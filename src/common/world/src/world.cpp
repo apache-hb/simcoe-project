@@ -69,20 +69,65 @@ void WorldInfo::add_node_object(uint16 node, uint16 object) {
 }
 #endif
 
+void World::move_node(IndexOf<Node> node, IndexOf<Node> parent) {
+    auto& node_ref = get(node);
+    auto& parent_ref = get(parent);
+
+    if (node_ref.parent == parent) return;
+
+    if (node_ref.parent != kInvalidIndex) {
+        auto& old_parent = get(node_ref.parent);
+        auto& children = old_parent.children;
+        children.erase(std::remove(children.begin(), children.end(), node), children.end());
+    }
+
+    node_ref.parent = parent;
+    parent_ref.children.push_back(node);
+}
+
+void World::clone_node(IndexOf<Node> node, IndexOf<Node> parent) {
+    auto cloned = clone(node);
+    auto& clone_ref = get(cloned);
+
+    auto& parent_ref = get(parent);
+    clone_ref.parent = parent;
+    parent_ref.children.push_back(cloned);
+}
+
 World world::default_world(sm::String name) {
     World world = {
         .name = std::move(name)
     };
 
-    IndexOf mat = world.add(Material{ .name = "Default", .albedo = float4(0.5f, 0.5f, 0.5f, 1.f) });
+    IndexOf mat = world.add(Material{
+        .name = "Default",
+        .albedo = float3(0.5f, 0.5f, 0.5f)
+    });
 
-    IndexOf cube = world.add(Model{ .name = "Cube", .mesh = Cube{1, 1, 1}, .material = mat });
+    IndexOf cube = world.add(Model{
+        .name = "Cube",
+        .mesh = Cube{1, 1, 1},
+        .material = mat
+    });
 
-    IndexOf root = world.add(Node{ .name = "Scene Root", .transform = default_transform(), .models = { cube } });
+    IndexOf root = world.add(Node{
+        .name = "Scene Root",
+        .transform = default_transform(),
+        .models = { cube }
+    });
 
-    IndexOf camera = world.add(Camera{ .name = "Camera", .position = 0.f, .direction = float3(0.f, 1.f, 0.f) });
+    IndexOf camera = world.add(Camera{
+        .name = "Camera",
+        .position = { -3.f, 0.f, 0.f },
+        .direction = world::kVectorForward,
+        .fov = 75._deg
+    });
 
-    IndexOf scene = world.add(Scene{ .name = "Scene", .root = root, .camera = camera });
+    IndexOf scene = world.add(Scene{
+        .name = "Scene",
+        .root = root,
+        .camera = camera
+    });
 
     world.default_scene = scene;
     world.default_material = mat;

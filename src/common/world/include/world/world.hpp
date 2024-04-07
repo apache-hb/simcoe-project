@@ -5,7 +5,9 @@
 #include "world/mesh.hpp"
 
 #include "archive/archive.hpp"
-#include <dxgiformat.h>
+
+#include <directx/dxgiformat.h>
+#include <directx/d3d12.h>
 
 namespace sm::world {
     static constexpr uint16 kInvalidIndex = UINT16_MAX;
@@ -111,13 +113,16 @@ namespace sm::world {
 
         sm::String name;
 
-        float4 albedo;
+        float3 albedo;
         Texture albedo_texture;
     };
 
     struct Object {
         uint32 vtx_count;
         uint32 idx_count;
+
+        DXGI_FORMAT index_format;
+
         BufferView vertices;
         BufferView indices;
     };
@@ -171,6 +176,8 @@ namespace sm::world {
         static constexpr IndexType kType = eNode;
         static constexpr sm::StringView kName = "Node";
 
+        IndexOf<Node> parent;
+
         sm::String name;
 
         Transform transform;
@@ -189,7 +196,7 @@ namespace sm::world {
         float3 position;
         float3 direction;
 
-        float fov;
+        radf fov;
     };
 
     struct Scene {
@@ -220,6 +227,15 @@ namespace sm::world {
         sm::Vector<Material> materials;
         sm::Vector<Image> images;
         sm::Vector<Texture> textures;
+
+        void move_node(IndexOf<Node> node, IndexOf<Node> parent);
+        void clone_node(IndexOf<Node> node, IndexOf<Node> parent);
+
+        template<typename T>
+        IndexOf<T> clone(IndexOf<T> index) {
+            T clone = get<T>(index);
+            return add(std::move(clone));
+        }
 
         template<typename T>
         IndexOf<T> add(T&& value) {

@@ -1,14 +1,18 @@
-struct PointLight {
+// only the data needed for binning/culling
+struct LightVolumeData {
     float3 position;
-    float3 colour;
     float radius;
 };
 
+// data needed for shading point lights
+struct PointLight {
+    float3 colour;
+};
+
+// data needed for shading spot lights
 struct SpotLight {
-    float3 position;
     float3 direction;
     float3 colour;
-    float radius;
     float angle;
 };
 

@@ -1,4 +1,4 @@
-#include "common.hlsli"
+#include "types.hlsli"
 
 struct Input {
     float4 position : SV_POSITION;
@@ -11,6 +11,8 @@ cbuffer ObjectBuffer : register(b0) {
 
 cbuffer CameraBuffer : register(b1) {
     float4x4 mvp;
+    uint gPointLightCount;
+    uint gSpotLightCount;
 };
 
 Texture2D gTextures[] : register(t0);
@@ -18,6 +20,7 @@ SamplerState gSampler : register(s0);
 
 StructuredBuffer<Material> gMaterials : register(t1);
 StructuredBuffer<PointLight> gPointLights : register(t2);
+StructuredBuffer<SpotLight> gSpotLights : register(t3);
 
 float4 camera(float3 position) {
     return mul(float4(position, 1.f), mvp);

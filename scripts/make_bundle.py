@@ -161,7 +161,7 @@ class ShaderCompiler:
         self.pdb_dir = pdb_dir
         self.debug = debug
 
-        self.args = [ self.dxc, '/WX', '/Ges' ]
+        self.args = [ self.dxc, '/WX', '/Ges', '-enable-16bit-types' ]
         if self.debug:
             self.args += [ '/Zi', '/Fd', self.pdb_dir + '\\' ]
 

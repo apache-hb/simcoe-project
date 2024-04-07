@@ -3,8 +3,6 @@
 #include "core/vector.hpp"
 #include "math/math.hpp"
 
-#include "world.reflect.h"
-
 namespace sm::world {
     using namespace math;
 

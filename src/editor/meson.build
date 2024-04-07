@@ -33,7 +33,8 @@ deps = [
     imgui, implot, imguizmo, filebrowser,
     imnodes,
 
-    dependency('directx-tex')
+    dependency('directx-tex'),
+    dependency('directx-mesh')
 ]
 
 inc = [ include_directories('include', 'src'), reflect_include ]
