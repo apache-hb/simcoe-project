@@ -18,6 +18,7 @@
 !*.py
 !*.build
 !*.txt
+!*.ps1
 
 # config files
 !*.ini
