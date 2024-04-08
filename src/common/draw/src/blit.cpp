@@ -144,7 +144,7 @@ static void create_screen_quad(render::Resource& quad, render::VertexBufferView&
 }
 
 void draw::blit(graph::FrameGraph& graph, graph::Handle target, graph::Handle source, const render::Viewport& viewport) {
-    graph::PassBuilder pass = graph.pass("Blit");
+    graph::PassBuilder pass = graph.graphics("Blit");
     pass.write(target, "Target", graph::Access::eRenderTarget);
     pass.read(source, "Image", graph::Access::ePixelShaderResource);
 

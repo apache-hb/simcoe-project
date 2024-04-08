@@ -3,13 +3,13 @@
 #include "draw/draw.hpp"
 
 using namespace sm;
-using namespace draw;
+using namespace sm::draw;
 
 void forward_plus::opaque(
     graph::FrameGraph& graph,
     graph::Handle& target,
     graph::Handle indices,
-    const DrawData& data)
+    DrawData dd)
 {
 
 }

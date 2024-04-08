@@ -6,6 +6,15 @@ namespace sm::draw {
 using namespace sm::math;
 #endif
 
+#define TILE_SIZE 32
+
+#ifndef MAX_LIGHTS_PER_TILE
+#   define MAX_LIGHTS_PER_TILE 256
+#endif
+
+#define MAX_POINT_LIGHTS_PER_TILE (MAX_LIGHTS_PER_TILE / 2)
+#define MAX_SPOT_LIGHTS_PER_TILE  (MAX_LIGHTS_PER_TILE / 2)
+
 struct ObjectData {
     float4x4 worldViewProjection;
     float4x4 worldView;
@@ -30,10 +39,6 @@ struct ViewportData {
     uint depth_height() { return depthBufferSize.y; }
 };
 
-struct TileLightData {
-    uint pointLightCount;
-    uint spotLightCount;
-};
 
 struct LightVolumeData {
     float3 position;
@@ -48,6 +53,14 @@ struct SpotLightData {
     float3 direction;
     float3 colour;
     float angle;
+};
+
+struct TileLightData {
+    uint pointLightCount;
+    uint spotLightCount;
+
+    uint pointLightIndices[MAX_SPOT_LIGHTS_PER_TILE];
+    uint spotLightIndices[MAX_POINT_LIGHTS_PER_TILE];
 };
 
 struct MaterialData {

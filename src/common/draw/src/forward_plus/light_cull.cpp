@@ -1,5 +1,9 @@
 #include "stdafx.hpp"
 
+#include "draw/camera.hpp"
+#include "draw/common.hpp"
+#include "draw/shared.hpp"
+
 #include "draw/draw.hpp"
 
 #include <directx/d3dx12_core.h>
@@ -26,7 +30,6 @@ enum Bindings {
     eDepthTexture = 4, // register(t2)
 
     eLightIndexBuffer = 5, // register(u0)
-    eTileLightBuffer = 6, // register(u1)
 
     eBindingCount
 };
@@ -44,7 +47,6 @@ static void create_tiling_pipeline(render::Pipeline& pipeline, render::Context& 
         params[eDepthTexture].InitAsShaderResourceView(2);
 
         params[eLightIndexBuffer].InitAsUnorderedAccessView(0);
-        params[eTileLightBuffer].InitAsUnorderedAccessView(1);
 
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
         desc.Init_1_1(1, params, 0, nullptr, kPrimitiveRootFlags);
@@ -72,7 +74,50 @@ void forward_plus::light_culling(
     graph::FrameGraph &graph,
     graph::Handle &indices,
     graph::Handle depth,
-    const DrawData &data)
+    DrawData dd)
 {
+    const auto& camera = dd.camera.config();
+    uint tile_count = draw::get_tile_count(camera.size, 16);
 
+    graph::ResourceInfo info = {
+        .sz = graph::ResourceSize::buffer(sizeof(TileLightData) * tile_count),
+        .format = DXGI_FORMAT_UNKNOWN,
+    };
+
+    graph::PassBuilder pass = graph.compute(fmt::format("Light Culling ({})", dd.camera.name()));
+    pass.read(depth, "Depth", graph::Access::eDepthRead);
+    indices = pass.create(info, "Indices", graph::Access::eUnorderedAccess);
+
+    auto& data = graph.device_data([](render::Context& context) {
+        struct {
+            render::Pipeline pipeline;
+        } info;
+
+        create_tiling_pipeline(info.pipeline, context);
+
+        return info;
+    });
+
+    pass.bind([depth, indices, dd, &data](graph::FrameGraph& graph) {
+        [[maybe_unused]] auto _ = dd;
+
+        auto& context = graph.get_context();
+        auto& cmd = context.mCommandList;
+        auto dsv = graph.dsv(depth);
+        auto uav = graph.srv(indices);
+
+        auto dsv_gpu = context.mDsvPool.gpu_handle(dsv);
+        auto uav_gpu = context.mSrvPool.gpu_handle(uav);
+
+        cmd->SetComputeRootSignature(data.pipeline.signature.get());
+        cmd->SetPipelineState(data.pipeline.pso.get());
+
+        // TODO: everything else
+
+        cmd->SetComputeRootDescriptorTable(eDepthTexture, dsv_gpu);
+
+        cmd->SetComputeRootDescriptorTable(ePointLightData, uav_gpu);
+
+        cmd->Dispatch(TILE_SIZE, TILE_SIZE, 1);
+    });
 }

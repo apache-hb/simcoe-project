@@ -8,7 +8,7 @@ using namespace sm;
 using namespace sm::ed;
 
 void EditorContext::imgui(graph::FrameGraph& graph, graph::Handle target) {
-    graph::PassBuilder pass = graph.pass("ImGui");
+    graph::PassBuilder pass = graph.graphics("ImGui");
     for (auto& [camera, target] : cameras) {
         pass.read(target, camera->name(), graph::Access::ePixelShaderResource);
     }

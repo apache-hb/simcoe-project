@@ -85,6 +85,8 @@ namespace sm::graph {
         };
 
         struct RenderPass final : IGraphNode {
+            enum Type { eDirect, eCompute, eCopy } type;
+
             sm::String name;
             IDeviceData *data;
             bool has_side_effects = false;
@@ -218,7 +220,12 @@ namespace sm::graph {
         render::DsvIndex dsv(Handle handle);
         render::SrvIndex srv(Handle handle);
 
-        PassBuilder pass(sm::StringView name);
+        PassBuilder pass(sm::StringView name, RenderPass::Type type);
+
+        PassBuilder graphics(sm::StringView name);
+        PassBuilder compute(sm::StringView name);
+        PassBuilder copy(sm::StringView name);
+
         Handle include(sm::StringView name, ResourceInfo info, Access access, ID3D12Resource *resource);
 
         render::Context& get_context() { return mContext; }

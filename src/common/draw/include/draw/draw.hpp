@@ -31,23 +31,23 @@ namespace sm::draw {
         ///
         /// @param graph the render graph
         /// @param depth_target the depth target that will be rendered to
-        /// @param data the draw data
+        /// @param dd the draw data
         void depth_prepass(
             graph::FrameGraph& graph,
             graph::Handle& depth_target,
-            const DrawData& data);
+            DrawData dd);
 
         /// @brief forward+ light culling/binning pass
         ///
         /// @param graph the render graph
         /// @param[out] indices the uav that light indices will be written to
         /// @param depth the depth target that will be read from
-        /// @param data the draw data
+        /// @param dd the draw data
         void light_culling(
             graph::FrameGraph& graph,
             graph::Handle& indices,
             graph::Handle depth,
-            const DrawData& data);
+            DrawData dd);
 
         /// @brief forward+ opaque rendering pass
         /// @pre @a camera must be the same camera used in the forward_cull pass
@@ -55,12 +55,12 @@ namespace sm::draw {
         /// @param graph the render graph
         /// @param[out] target the render target that will be rendered to
         /// @param indices the uav that light indices will be read from
-        /// @param data the draw data
+        /// @param dd the draw data
         void opaque(
             graph::FrameGraph& graph,
             graph::Handle& target,
             graph::Handle indices,
-            const DrawData& data);
+            DrawData dd);
     }
 
     ///

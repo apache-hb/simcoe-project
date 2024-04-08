@@ -20,11 +20,8 @@ Texture2D<float> gDepthTexture : register(t2);
 
 // output buffer for light indices
 
-// uint[MAX_LIGHTS_PER_TILE * tile_count.x * tile_count.y]
-RWBuffer<uint> gLightIndexBuffer : register(u0);
-
-// TileLightData[MAX_LIGHTS_PER_TILE * tile_count.x * tile_count.y]
-RWStructuredBuffer<TileLightData> gTileLightBuffer : register(u1);
+// TileLightData[tile_count.x * tile_count.y]
+RWStructuredBuffer<TileLightData> gLightIndexBuffer : register(u0);
 
 // shared memory for light culling
 
@@ -227,23 +224,21 @@ void cs_cull_lights(
 
     // write the light indices to the buffer
     uint globalTileIndex = groupId.x + groupId.y * tile_count.x;
-    uint start = MAX_LIGHTS_PER_TILE * globalTileIndex;
 
+    // save the light counts for this tile
+    gLightIndexBuffer[globalTileIndex].pointLightCount = pointLightsInTile;
+    gLightIndexBuffer[globalTileIndex].spotLightCount = spotLightsInTile;
+
+    // copy the light indices to the buffer
     {
-        for (uint i = globalTileIndex; i < pointLightsInTile; i += THREADS_PER_TILE) {
-            gLightIndexBuffer[start + i] = gLightIndex[i];
+        for (uint i = 0; i < pointLightsInTile; i += THREADS_PER_TILE) {
+            gLightIndexBuffer[globalTileIndex].pointLightIndices[i] = gLightIndex[i];
         }
     }
 
     {
-        for (uint j = globalTileIndex + MAX_POINT_LIGHTS_PER_TILE; j < gLightIndexCount; j += THREADS_PER_TILE) {
-            gLightIndexBuffer[start + j] = gLightIndex[j];
+        for (uint j = 0; j < gLightIndexCount; j += THREADS_PER_TILE) {
+            gLightIndexBuffer[globalTileIndex].spotLightIndices[j] = gLightIndex[j + pointLightsInTile];
         }
-    }
-
-    // write out the light counts for this tile
-    if (localIndex == 0) {
-        TileLightData tileInfo = { pointLightsInTile, spotLightsInTile };
-        gTileLightBuffer[globalTileIndex] = tileInfo;
     }
 }

@@ -141,8 +141,36 @@ render::SrvIndex FrameGraph::srv(Handle handle) {
     return mHandles[handle.index].srv;
 }
 
-PassBuilder FrameGraph::pass(sm::StringView name) {
+PassBuilder FrameGraph::pass(sm::StringView name, RenderPass::Type type) {
     RenderPass pass;
+    pass.type = type;
+    pass.name = name;
+
+    auto& ref = mRenderPasses.emplace_back(std::move(pass));
+    return { *this, ref };
+}
+
+PassBuilder FrameGraph::graphics(sm::StringView name) {
+    RenderPass pass;
+    pass.type = RenderPass::eDirect;
+    pass.name = name;
+
+    auto& ref = mRenderPasses.emplace_back(std::move(pass));
+    return { *this, ref };
+}
+
+PassBuilder FrameGraph::compute(sm::StringView name) {
+    RenderPass pass;
+    pass.type = RenderPass::eCompute;
+    pass.name = name;
+
+    auto& ref = mRenderPasses.emplace_back(std::move(pass));
+    return { *this, ref };
+}
+
+PassBuilder FrameGraph::copy(sm::StringView name) {
+    RenderPass pass;
+    pass.type = RenderPass::eCopy;
     pass.name = name;
 
     auto& ref = mRenderPasses.emplace_back(std::move(pass));

@@ -88,9 +88,9 @@ static void create_pipeline(render::Pipeline& pipeline, render::Context& context
 void forward_plus::depth_prepass(
     graph::FrameGraph &graph,
     graph::Handle &depth_target,
-    const DrawData &drawdata)
+    DrawData dd)
 {
-    const auto& config = drawdata.camera.config();
+    const auto& config = dd.camera.config();
 
     graph::ResourceInfo info = {
         .size = config.size,
@@ -98,10 +98,8 @@ void forward_plus::depth_prepass(
         .clear = graph::clear_depth(1.f),
     };
 
-    graph::PassBuilder pass = graph.pass(fmt::format("Depth Prepass ({})", drawdata.camera.name()));
+    graph::PassBuilder pass = graph.graphics(fmt::format("Depth Prepass ({})", dd.camera.name()));
     depth_target = pass.create(info, "Depth", graph::Access::eDepthTarget);
-
-    // pass.side_effects(true);
 
     auto& data = graph.device_data([](render::Context& context) {
         struct {
@@ -113,7 +111,7 @@ void forward_plus::depth_prepass(
         return info;
     });
 
-    pass.bind([depth_target, &data, dd=drawdata](graph::FrameGraph& graph) {
+    pass.bind([depth_target, &data, dd](graph::FrameGraph& graph) {
         auto& context = graph.get_context();
         auto& cmd = context.mCommandList;
         auto viewport = dd.camera.viewport();
