@@ -87,6 +87,9 @@ void EditorContext::on_destroy() {
 void EditorContext::setup_framegraph(graph::FrameGraph& graph) {
     render::Viewport vp { mSwapChainConfig.size };
     for (auto& [camera, target] : cameras) {
+        graph::Handle depth_target;
+        draw::forward_plus::DrawData dd{*camera.get(), draw::forward_plus::DepthBoundsMode::eEnabled};
+        draw::forward_plus::depth_prepass(graph, depth_target, dd);
         draw::opaque(graph, target, *camera.get());
     }
 

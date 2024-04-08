@@ -18,15 +18,16 @@ struct ViewportData {
     float3 cameraPosition;
     float alphaTest;
     uint2 window;
-    uint2 depth;
+    uint2 depthBufferSize;
+    uint depthBufferSampleCount;
     uint pointLightCount;
     uint spotLightCount;
 
     uint window_width() { return window.x; }
     uint window_height() { return window.y; }
 
-    uint depth_width() { return depth.x; }
-    uint depth_height() { return depth.y; }
+    uint depth_width() { return depthBufferSize.x; }
+    uint depth_height() { return depthBufferSize.y; }
 };
 
 struct TileLightData {

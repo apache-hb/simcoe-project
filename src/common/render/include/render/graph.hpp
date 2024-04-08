@@ -48,7 +48,19 @@ namespace sm::graph {
 
     Clear clear_depth(float depth);
 
+    struct ResourceSize {
+        static ResourceSize tex2d(uint2 size);
+        static ResourceSize buffer(uint size);
+
+        enum { eTex2D, eBuffer } type;
+        union {
+            uint2 tex2d_size;
+            uint buffer_size;
+        };
+    };
+
     struct ResourceInfo {
+        ResourceSize sz;
         uint2 size;
         render::Format format;
         Clear clear;

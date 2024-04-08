@@ -18,13 +18,17 @@ struct VertexInput {
 
 // vertex shader for depth prepass
 
+cbuffer ObjectBuffer : register(b0) {
+    float4x4 gWorldViewProjection;
+}
+
 struct DepthPassVertexOutput {
     float4 position : SV_POSITION;
 };
 
-DepthPassVertexOutput vs_depth_pass(VertexInput input) {
+DepthPassVertexOutput vs_depth_pass(float3 position : POSITION) {
     DepthPassVertexOutput output;
-    output.position = mul(float4(input.position, 1.0f), gObjectData.worldViewProjection);
+    output.position = mul(float4(position, 1.0f), gWorldViewProjection);
     return output;
 }
 
@@ -35,10 +39,10 @@ struct DepthPassAlphaTestVertexOutput {
     float2 uv : TEXCOORD0;
 };
 
-DepthPassAlphaTestVertexOutput vs_depth_pass_alpha_test(VertexInput input) {
+DepthPassAlphaTestVertexOutput vs_depth_pass_alpha_test(float3 position : POSITION, float2 uv : TEXCOORD) {
     DepthPassAlphaTestVertexOutput output;
-    output.position = mul(float4(input.position, 1.0f), gObjectData.worldViewProjection);
-    output.uv = input.uv;
+    output.position = mul(float4(position, 1.0f), gObjectData.worldViewProjection);
+    output.uv = uv;
     return output;
 }
 

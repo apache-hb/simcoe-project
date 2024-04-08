@@ -24,7 +24,9 @@ struct std::hash<Vertex> {
     constexpr auto operator()(const Vertex &vertex) const {
         size_t hash = 0;
         sm::hash_combine(hash, vertex.position);
-        sm::hash_combine(hash, vertex.texcoord);
+        sm::hash_combine(hash, vertex.normal);
+        sm::hash_combine(hash, vertex.uv);
+        sm::hash_combine(hash, vertex.tangent);
         return hash;
     }
 };
@@ -87,7 +89,9 @@ struct MeshBuilder {
 static Vertex midpoint(const Vertex& v0, const Vertex& v1) {
 	return {
 		.position = (v0.position + v1.position) / 2.f,
-        .texcoord = (v0.texcoord + v1.texcoord) / 2.f,
+        .normal = (v0.normal + v1.normal) / 2.f,
+        .uv = (v0.uv + v1.uv) / 2.f,
+        .tangent = (v0.tangent + v1.tangent) / 2.f
 	};
 }
 
@@ -141,45 +145,45 @@ static Mesh cube(const world::Cube &cube) {
     MeshBuilder builder;
 
     builder.quad(
-        {{-w, h, -d}, {0, 1}},
-        {{-w, h, d}, {0, 0}},
-        {{-w, -h, d}, {1, 0}},
-        {{-w, -h, -d}, {1, 1}}
+        {.position = {-w, h, -d}, .uv = {0, 1}},
+        {.position = {-w, h, d}, .uv = {0, 0}},
+        {.position = {-w, -h, d}, .uv = {1, 0}},
+        {.position = {-w, -h, -d}, .uv = {1, 1}}
     ); // back
 
     builder.quad(
-        {{w, -h, -d}, {0, 1}},
-        {{w, -h, d}, {0, 0}},
-        {{w, h, d}, {1, 0}},
-        {{w, h, -d}, {1, 1}}
+        {.position = {w, -h, -d}, .uv = {0, 1}},
+        {.position = {w, -h, d}, .uv = {0, 0}},
+        {.position = {w, h, d}, .uv = {1, 0}},
+        {.position = {w, h, -d}, .uv = {1, 1}}
     ); // front
 
     builder.quad(
-        {{-w, -h, -d}, {0, 1}},
-        {{-w, -h, d}, {0, 0}},
-        {{w, -h, d}, {1, 0}},
-        {{w, -h, -d}, {1, 1}}
+        {.position = {-w, -h, -d}, .uv = {0, 1}},
+        {.position = {-w, -h, d}, .uv = {0, 0}},
+        {.position = {w, -h, d}, .uv = {1, 0}},
+        {.position = {w, -h, -d}, .uv = {1, 1}}
     ); // left
 
     builder.quad(
-        {{w, h, -d}, {0, 1}},
-        {{w, h, d}, {0, 0}},
-        {{-w, h, d}, {1, 0}},
-        {{-w, h, -d}, {1, 1}}
+        {.position = {w, h, -d}, .uv = {0, 1}},
+        {.position = {w, h, d}, .uv = {0, 0}},
+        {.position = {-w, h, d}, .uv = {1, 0}},
+        {.position = {-w, h, -d}, .uv = {1, 1}}
     ); // right
 
     builder.quad(
-        {{w, -h, -d}, {0, 1}},
-        {{w, h, -d}, {0, 0}},
-        {{-w, h, -d}, {1, 0}},
-        {{-w, -h, -d}, {1, 1}}
+        {.position = {w, -h, -d}, .uv = {0, 1}},
+        {.position = {w, h, -d}, .uv = {0, 0}},
+        {.position = {-w, h, -d}, .uv = {1, 0}},
+        {.position = {-w, -h, -d}, .uv = {1, 1}}
     ); // bottom
 
     builder.quad(
-        {{-w, -h, d}, {0, 1}},
-        {{-w, h, d}, {0, 0}},
-        {{w, h, d}, {1, 0}},
-        {{w, -h, d}, {1, 1}}
+        {.position = {-w, -h, d}, .uv = {0, 1}},
+        {.position = {-w, h, d}, .uv = {0, 0}},
+        {.position = {w, h, d}, .uv = {1, 0}},
+        {.position = {w, -h, d}, .uv = {1, 1}}
     ); // top
 
     return builder.build();
@@ -199,15 +203,15 @@ static Mesh cylinder(const world::Cylinder& cylinder) {
         {
             Vertex v0 = {
                 .position = float3(radius * c0, height / 2, radius * s0),
-                .texcoord = float2(float(i) / float(slices), 0)
+                .uv = float2(float(i) / float(slices), 0)
             };
             Vertex v1 = {
                 .position = float3(radius * c1, height / 2, radius * s1),
-                .texcoord = float2(float(i + 1) / float(slices), 0)
+                .uv = float2(float(i + 1) / float(slices), 0)
             };
             Vertex v2 = {
                 .position = float3(0, height / 2, 0),
-                .texcoord = float2(0.5f, 0)
+                .uv = float2(0.5f, 0)
             };
 
             builder.triangle(v0, v1, v2);
@@ -217,15 +221,15 @@ static Mesh cylinder(const world::Cylinder& cylinder) {
         {
             Vertex v0 = {
                 .position = float3(radius * c0, -height / 2, radius * s0),
-                .texcoord = float2(float(i) / float(slices), 1)
+                .uv = float2(float(i) / float(slices), 1)
             };
             Vertex v1 = {
                 .position = float3(radius * c1, -height / 2, radius * s1),
-                .texcoord = float2(float(i + 1) / float(slices), 1)
+                .uv = float2(float(i + 1) / float(slices), 1)
             };
             Vertex v2 = {
                 .position = float3(0, -height / 2, 0),
-                .texcoord = float2(0.5f, 1)
+                .uv = float2(0.5f, 1)
             };
 
             builder.triangle(v0, v2, v1);
@@ -235,19 +239,19 @@ static Mesh cylinder(const world::Cylinder& cylinder) {
         {
             Vertex v0 = {
                 .position = float3(radius * c0, -height / 2, radius * s0),
-                .texcoord = float2(float(i) / float(slices), 0)
+                .uv = float2(float(i) / float(slices), 0)
             };
             Vertex v1 = {
                 .position = float3(radius * c1, -height / 2, radius * s1),
-                .texcoord = float2(float(i + 1) / float(slices), 0)
+                .uv = float2(float(i + 1) / float(slices), 0)
             };
             Vertex v2 = {
                 .position = float3(radius * c0, height / 2, radius * s0),
-                .texcoord = float2(float(i) / float(slices), 1)
+                .uv = float2(float(i) / float(slices), 1)
             };
             Vertex v3 = {
                 .position = float3(radius * c1, height / 2, radius * s1),
-                .texcoord = float2(float(i + 1) / float(slices), 1)
+                .uv = float2(float(i + 1) / float(slices), 1)
             };
 
             builder.quad(v0, v1, v3, v2);

@@ -2,51 +2,10 @@
 
 #include "math/math.hpp"
 
-namespace sm::render {
+#include "draw/common.hpp"
+
+namespace sm::draw {
     using namespace sm::math;
-
-    // TODO: merge these headers
-    // keep in sync with shaders/common.hlsli
-
-    ///
-    /// forward+ data
-    ///
-    struct alignas(256) ObjectData {
-        float4x4 world_view_projection;
-        float4x4 world_view;
-        float4x4 world;
-    };
-
-    struct alignas(256) ViewportData {
-        float4x4 projection;
-        float4x4 inv_projection;
-        float3 camera_position;
-        float alpha_test;
-        uint2 window;
-        uint2 depth;
-        uint point_light_count;
-        uint spot_light_count;
-    };
-
-    struct TileLightData {
-        uint point_light_count;
-        uint spot_light_count;
-    };
-
-    struct LightVolumeData {
-        float3 position;
-        float radius;
-    };
-
-    struct PointLight {
-        float3 colour;
-    };
-
-    struct SpotLight {
-        float3 direction;
-        float3 colour;
-        float angle;
-    };
 
     constexpr uint get_tile_count(uint2 size, uint tile) {
         return ((size.x + tile - 1) / tile) * ((size.y + tile - 1) / tile);

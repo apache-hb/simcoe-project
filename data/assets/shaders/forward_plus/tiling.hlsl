@@ -212,11 +212,7 @@ void cs_cull_lights(
 
     frustum.update_from_lds();
 #elif DEPTH_BOUNDS_MODE == DEPTH_BOUNDS_MSAA
-    uint depthBufferWidth, depthBufferHeight, depthSampleCount;
-
-    // TODO: using GetDimensions is slow apparently
-    gDepthTexture.GetDimensions(depthBufferWidth, depthBufferHeight, depthSampleCount);
-    compute_depth_bounds_msaa(globalId, depthSampleCount);
+    compute_depth_bounds_msaa(globalId, gCameraData.depthBufferSampleCount);
 
     frustum.update_from_lds();
 #endif

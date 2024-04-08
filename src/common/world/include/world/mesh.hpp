@@ -12,7 +12,9 @@ namespace sm::world {
 
     struct Vertex {
         float3 position;
-        float2 texcoord;
+        float3 normal;
+        float2 uv;
+        float3 tangent;
 
         constexpr bool operator==(const Vertex&) const = default;
     };
