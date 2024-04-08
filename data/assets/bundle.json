@@ -80,6 +80,35 @@
                 { "entry": "vs_main", "target": "vs" },
                 { "entry": "ps_main", "target": "ps" }
             ]
+        },
+        {
+            "name": "forward_plus_tiling",
+            "path": "shaders/forward_plus/tiling.hlsl",
+            "targets": [
+                { "entry": "cs_cull_lights", "target": "cs" }
+            ]
+        },
+        {
+            "name": "forward_plus_depth_pass",
+            "path": "shaders/forward_plus/opaque.hlsl",
+            "targets": [
+                { "entry": "vs_depth_pass", "target": "vs" }
+            ]
+        },
+        {
+            "name": "forward_plus_depth_alpha_test",
+            "path": "shaders/forward_plus/opaque.hlsl",
+            "targets": [
+                { "entry": "vs_depth_pass_alpha_test", "target": "vs" }
+            ]
+        },
+        {
+            "name": "forward_plus_opaque",
+            "path": "shaders/forward_plus/opaque.hlsl",
+            "targets": [
+                { "entry": "vs_opaque", "target": "vs" },
+                { "entry": "ps_opaque", "target": "ps" }
+            ]
         }
     ],
     "fonts": [

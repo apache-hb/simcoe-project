@@ -5,8 +5,8 @@ SamplerState gSampler : register(s0);
 
 StructuredBuffer<LightVolumeData> gPointLightVolumes : register(t0);
 StructuredBuffer<LightVolumeData> gSpotLightVolumes : register(t1);
-StructuredBuffer<PointLight> gPointLightParams : register(t2);
-StructuredBuffer<SpotLight> gSpotLightParams : register(t3);
+StructuredBuffer<PointLightData> gPointLightParams : register(t2);
+StructuredBuffer<SpotLightData> gSpotLightParams : register(t3);
 Buffer<uint> gTileIndexBuffer : register(t4);
 
 struct VertexInput {
@@ -22,7 +22,7 @@ struct DepthPassVertexOutput {
     float4 position : SV_POSITION;
 };
 
-DepthPassVertexOutput vsDepthPass(VertexInput input) {
+DepthPassVertexOutput vs_depth_pass(VertexInput input) {
     DepthPassVertexOutput output;
     output.position = mul(float4(input.position, 1.0f), gObjectData.worldViewProjection);
     return output;
@@ -35,7 +35,7 @@ struct DepthPassAlphaTestVertexOutput {
     float2 uv : TEXCOORD0;
 };
 
-DepthPassAlphaTestVertexOutput vsDepthPassAlphaTest(VertexInput input) {
+DepthPassAlphaTestVertexOutput vs_depth_pass_alpha_test(VertexInput input) {
     DepthPassAlphaTestVertexOutput output;
     output.position = mul(float4(input.position, 1.0f), gObjectData.worldViewProjection);
     output.uv = input.uv;
@@ -52,7 +52,7 @@ struct VertexOutput {
     float3 worldPosition : TEXCOORD2;
 };
 
-VertexOutput vsOpaque(VertexInput input) {
+VertexOutput vs_opaque(VertexInput input) {
     VertexOutput output;
     output.position = mul(float4(input.position, 1.0f), gObjectData.worldViewProjection);
 
@@ -66,7 +66,7 @@ VertexOutput vsOpaque(VertexInput input) {
     return output;
 }
 
-float4 psOpaque(VertexOutput vin) : SV_TARGET {
+float4 ps_opaque(VertexOutput vin) : SV_TARGET {
     // TODO: implement all this
 
     return float4(vin.worldPosition.xyz, 1.0f);

@@ -1,7 +1,7 @@
 project('simcoe', [ 'c', 'cpp' ],
     # UNLICENSED does not mean public domain, this is my code do not use it
     license : 'UNLICENSED',
-    version : '1.0.1',
+    version : '1.1.0',
     default_options : [
         'cpp_std=c++latest',
 
@@ -305,8 +305,6 @@ res = windows.compile_resources(rc,
     include_directories : res_include
 )
 
-manifest = meson.current_source_dir() / 'data/win32/client.exe.manifest'
-
 bundle_cdata = configuration_data()
 bundle_cdata.set('DXC_EXE_PATH', dxc.full_path())
 bundle_cdata.set('MSDF_EXE_PATH', msdf_atlas_gen.full_path())
@@ -339,6 +337,7 @@ game_bundle = custom_target('game_bundle',
         '--outdir', '@OUTDIR@',
         '--bundle', '@OUTPUT@',
         '--depfile', '@DEPFILE@',
+        '--root', meson.current_source_dir()
     ]
 )
 
@@ -353,6 +352,8 @@ link_args = [
 ]
 
 subdir('src/client')
+
+manifest = meson.current_source_dir() / 'data/win32/client.exe.manifest'
 
 client = executable('client', src, game_bundle,
     cpp_pch : pch,

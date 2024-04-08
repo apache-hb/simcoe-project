@@ -1,4 +1,5 @@
-#include "../types.hlsli"
+// shared data types between C++ and shader code
+#include "common.hpp"
 
 // configuration
 
@@ -28,42 +29,18 @@
 #   define MAX_LIGHTS_PER_TILE 256
 #endif
 
+#define MAX_POINT_LIGHTS_PER_TILE (MAX_LIGHTS_PER_TILE / 2)
+#define MAX_SPOT_LIGHTS_PER_TILE  (MAX_LIGHTS_PER_TILE / 2)
+
 #ifndef TILE_SIZE
 #   define TILE_SIZE 16
 #endif
 
+#define FLOAT_MAX 3.402823466e+38f
+
 // TODO: get this working
 // * use uint16_t for light indices, counts, window size, depth texture size, etc
 // * test everything
-
-struct ObjectData {
-    float4x4 worldViewProjection;
-    float4x4 worldView;
-    float4x4 world;
-};
-
-struct ViewportData {
-    float4x4 projection;
-    float4x4 invProjection;
-    float3 cameraPosition;
-    float alphaTest;
-    uint2 window;
-    uint2 depth;
-    uint pointLightCount;
-    uint spotLightCount;
-    uint maxLightsPerTile;
-
-    uint window_width() { return window.x; }
-    uint window_height() { return window.y; }
-
-    uint depth_width() { return depth.x; }
-    uint depth_height() { return depth.y; }
-};
-
-struct TileLightData {
-    uint pointLightCount;
-    uint spotLightCount;
-};
 
 cbuffer ObjectBuffer : register(b0) {
     ObjectData gObjectData;

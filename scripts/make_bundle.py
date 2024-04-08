@@ -23,6 +23,7 @@ argparser.add_argument("--bundle", help="output tar file")
 argparser.add_argument("--depfile", help="the output dependency file")
 argparser.add_argument("--config", help="config file with tool paths")
 argparser.add_argument("--debug", help="enable debug mode", action="store_true")
+argparser.add_argument("--root", help="source root directory")
 args = argparser.parse_args()
 
 bundlefile = args.desc
@@ -30,6 +31,7 @@ inputdir = args.dir
 outputdir = args.outdir
 outputfile = args.bundle
 depfile = args.depfile
+rootdir = args.root
 
 bundle_dir = os.path.join(outputdir, 'bundle')
 
@@ -161,7 +163,9 @@ class ShaderCompiler:
         self.pdb_dir = pdb_dir
         self.debug = debug
 
-        self.args = [ self.dxc, '/WX', '/Ges' ]
+        # TODO: this include path is a bit of a hack but meson is just so shit
+        # at producing build directories with any rigid structure
+        self.args = [ self.dxc, '/WX', '/Ges', '-I' + rootdir + '\\src\\common\\draw\\include\\draw' ]
         if self.debug:
             self.args += [ '/Zi', '/Fd', self.pdb_dir + '\\' ]
 
@@ -172,7 +176,11 @@ class ShaderCompiler:
     # entrypoint is the entry point to use
     def compile_hlsl(self, name, file, model, target, entrypoint, enable_16bit = False, defines = []):
         output = os.path.join(self.target_dir, f'{name}.{target}.cso')
-        extra_args = [ '-T' + target + '_' + model, '-E' + entrypoint, '-Fo' + output ]
+        extra_args = [
+            '-T' + target + '_' + model,
+            '-E' + entrypoint,
+            '-Fo' + output
+        ]
 
         if enable_16bit:
             extra_args += [ '-enable-16bit-types' ]

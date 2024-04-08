@@ -3,7 +3,11 @@ draw_include = include_directories('.', 'include')
 src = [
     'src/scene.cpp',
     'src/blit.cpp',
-    'src/camera.cpp'
+    'src/camera.cpp',
+
+    'src/forward_plus/depth_prepass.cpp',
+    'src/forward_plus/light_cull.cpp',
+    'src/forward_plus/opaque.cpp'
 ]
 
 deps = [ render, input ]

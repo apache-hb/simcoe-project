@@ -8,6 +8,9 @@ namespace sm::render {
     // TODO: merge these headers
     // keep in sync with shaders/common.hlsli
 
+    ///
+    /// forward+ data
+    ///
     struct alignas(256) ObjectData {
         float4x4 world_view_projection;
         float4x4 world_view;
@@ -19,8 +22,8 @@ namespace sm::render {
         float4x4 inv_projection;
         float3 camera_position;
         float alpha_test;
-        uint width;
-        uint height;
+        uint2 window;
+        uint2 depth;
         uint point_light_count;
         uint spot_light_count;
     };
@@ -45,6 +48,18 @@ namespace sm::render {
         float angle;
     };
 
+    constexpr uint get_tile_count(uint2 size, uint tile) {
+        return ((size.x + tile - 1) / tile) * ((size.y + tile - 1) / tile);
+    }
+
+    constexpr uint get_max_lights(uint tiles, uint lights) {
+        return tiles * lights;
+    }
+
+    ///
+    /// everything else
+    ///
+
     struct Material {
         float3 albedo;
         uint albedo_texture;
@@ -60,12 +75,4 @@ namespace sm::render {
 
         uint normal_texture;
     };
-
-    constexpr uint get_tile_count(uint2 size, uint tile) {
-        return ((size.x + tile - 1) / tile) * ((size.y + tile - 1) / tile);
-    }
-
-    constexpr uint get_max_lights(uint tiles, uint lights) {
-        return tiles * lights;
-    }
 }
