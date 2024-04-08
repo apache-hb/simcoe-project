@@ -98,7 +98,7 @@ void forward_plus::depth_prepass(
         .clear = graph::clear_depth(1.f),
     };
 
-    graph::PassBuilder pass = graph.graphics(fmt::format("Depth Prepass ({})", dd.camera.name()));
+    graph::PassBuilder pass = graph.graphics(fmt::format("Forward+ Depth Prepass ({})", dd.camera.name()));
     depth_target = pass.create(info, "Depth", graph::Access::eDepthTarget);
 
     auto& data = graph.device_data([](render::Context& context) {

@@ -84,7 +84,7 @@ void forward_plus::light_culling(
         .format = DXGI_FORMAT_UNKNOWN,
     };
 
-    graph::PassBuilder pass = graph.compute(fmt::format("Light Culling ({})", dd.camera.name()));
+    graph::PassBuilder pass = graph.compute(fmt::format("Forward+ Light Culling ({})", dd.camera.name()));
     pass.read(depth, "Depth", graph::Access::eDepthRead);
     indices = pass.create(info, "Indices", graph::Access::eUnorderedAccess);
 
@@ -104,7 +104,7 @@ void forward_plus::light_culling(
         auto& context = graph.get_context();
         auto& cmd = context.mCommandList;
         auto dsv = graph.dsv(depth);
-        auto uav = graph.srv(indices);
+        auto uav = graph.uav(indices);
 
         auto dsv_gpu = context.mDsvPool.gpu_handle(dsv);
         auto uav_gpu = context.mSrvPool.gpu_handle(uav);

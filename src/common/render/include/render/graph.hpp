@@ -126,6 +126,7 @@ namespace sm::graph {
             render::RtvIndex rtv = render::RtvIndex::eInvalid;
             render::DsvIndex dsv = render::DsvIndex::eInvalid;
             render::SrvIndex srv = render::SrvIndex::eInvalid;
+            render::SrvIndex uav = render::SrvIndex::eInvalid;
 
             bool is_imported() const { return type == ResourceType::eImported; }
             bool is_managed() const { return type == ResourceType::eManaged || type == ResourceType::eTransient; }
@@ -211,14 +212,16 @@ namespace sm::graph {
         // update a handle with new data
         // this is quite dangerous, only really used for the swapchain
         void update(Handle handle, ID3D12Resource *resource);
-        void update(Handle handle, render::RtvIndex rtv);
-        void update(Handle handle, render::DsvIndex dsv);
-        void update(Handle handle, render::SrvIndex srv);
+        void update_rtv(Handle handle, render::RtvIndex rtv);
+        void update_dsv(Handle handle, render::DsvIndex dsv);
+        void update_srv(Handle handle, render::SrvIndex srv);
+        void update_uav(Handle handle, render::SrvIndex uav);
 
         ID3D12Resource *resource(Handle handle);
         render::RtvIndex rtv(Handle handle);
         render::DsvIndex dsv(Handle handle);
         render::SrvIndex srv(Handle handle);
+        render::SrvIndex uav(Handle handle);
 
         PassBuilder pass(sm::StringView name, RenderPass::Type type);
 

@@ -575,7 +575,7 @@ void Context::build_command_list() {
     auto& [backbuffer, _, rtv, _] = mFrames[mFrameIndex];
 
     mFrameGraph.update(mSwapChainHandle, backbuffer.get());
-    mFrameGraph.update(mSwapChainHandle, rtv);
+    mFrameGraph.update_rtv(mSwapChainHandle, rtv);
 
     {
         ID3D12DescriptorHeap *heaps[] = { mSrvPool.get() };

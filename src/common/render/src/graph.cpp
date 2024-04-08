@@ -113,16 +113,20 @@ void FrameGraph::update(Handle handle, ID3D12Resource *resource) {
     mHandles[handle.index].resource = resource;
 }
 
-void FrameGraph::update(Handle handle, render::RtvIndex rtv) {
+void FrameGraph::update_rtv(Handle handle, render::RtvIndex rtv) {
     mHandles[handle.index].rtv = rtv;
 }
 
-void FrameGraph::update(Handle handle, render::DsvIndex dsv) {
+void FrameGraph::update_dsv(Handle handle, render::DsvIndex dsv) {
     mHandles[handle.index].dsv = dsv;
 }
 
-void FrameGraph::update(Handle handle, render::SrvIndex srv) {
+void FrameGraph::update_srv(Handle handle, render::SrvIndex srv) {
     mHandles[handle.index].srv = srv;
+}
+
+void FrameGraph::update_uav(Handle handle, render::SrvIndex uav) {
+    mHandles[handle.index].uav = uav;
 }
 
 ID3D12Resource *FrameGraph::resource(Handle handle) {
@@ -139,6 +143,10 @@ render::DsvIndex FrameGraph::dsv(Handle handle) {
 
 render::SrvIndex FrameGraph::srv(Handle handle) {
     return mHandles[handle.index].srv;
+}
+
+render::SrvIndex FrameGraph::uav(Handle handle) {
+    return mHandles[handle.index].uav;
 }
 
 PassBuilder FrameGraph::pass(sm::StringView name, RenderPass::Type type) {
@@ -247,12 +255,46 @@ static constexpr D3D12_RESOURCE_FLAGS get_required_flags(Access access) {
 
     if (access == eRenderTarget) {
         flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-    } else if (access == eDepthTarget) {
+    } else if (access == eDepthTarget || access == eDepthRead) {
         flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
+    } else if (access == ePixelShaderResource) {
+        flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
     }
 
     return flags;
 }
+
+struct UsageTracker {
+    sm::HashMap<ID3D12Resource*, D3D12_RESOURCE_STATES> states;
+
+    D3D12_RESOURCE_STATES at_or(ID3D12Resource *resource, D3D12_RESOURCE_STATES state) const {
+        if (states.contains(resource)) {
+            return states.at(resource);
+        }
+
+        return state;
+    }
+
+    void access(ID3D12Resource *resource, D3D12_RESOURCE_STATES state) {
+        states[resource] |= state;
+    }
+
+    bool needs_uav(ID3D12Resource *resource) const {
+        return (at_or(resource, D3D12_RESOURCE_STATE_COMMON) & D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    }
+
+    bool needs_srv(ID3D12Resource *resource) const {
+        return (at_or(resource, D3D12_RESOURCE_STATE_COMMON) & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    }
+
+    bool needs_rtv(ID3D12Resource *resource) const {
+        return (at_or(resource, D3D12_RESOURCE_STATE_COMMON) & D3D12_RESOURCE_STATE_RENDER_TARGET);
+    }
+
+    bool needs_dsv(ID3D12Resource *resource) const {
+        return (at_or(resource, D3D12_RESOURCE_STATE_COMMON) & (D3D12_RESOURCE_STATE_DEPTH_WRITE | D3D12_RESOURCE_STATE_DEPTH_READ));
+    }
+};
 
 void FrameGraph::create_resources() {
     mResources.clear();
@@ -294,20 +336,79 @@ void FrameGraph::create_resources() {
         handle.resource = resource.get();
 
         // TODO: this seems a little weird
-        if (handle.access == eRenderTarget) {
-            handle.rtv = mContext.mRtvPool.allocate();
-            handle.srv = mContext.mSrvPool.allocate();
+        // if (handle.access == eRenderTarget) {
+        //     handle.rtv = mContext.mRtvPool.allocate();
+        //     handle.srv = mContext.mSrvPool.allocate();
 
-            const auto rtv_handle = mContext.mRtvPool.cpu_handle(handle.rtv);
-            device->CreateRenderTargetView(handle.resource, nullptr, rtv_handle);
+        //     const auto rtv_handle = mContext.mRtvPool.cpu_handle(handle.rtv);
+        //     device->CreateRenderTargetView(handle.resource, nullptr, rtv_handle);
+
+        //     const auto srv_handle = mContext.mSrvPool.cpu_handle(handle.srv);
+        //     device->CreateShaderResourceView(handle.resource, nullptr, srv_handle);
+        // } else if (handle.access == eDepthTarget) {
+        //     handle.dsv = mContext.mDsvPool.allocate();
+
+        //     const auto dsv_handle = mContext.mDsvPool.cpu_handle(handle.dsv);
+        //     device->CreateDepthStencilView(handle.resource, nullptr, dsv_handle);
+        // }
+    }
+
+    UsageTracker tracker;
+
+    for (auto& pass : mRenderPasses) {
+        if (!pass.is_used()) continue;
+
+        for (auto& [_, index, access] : pass.reads) {
+            logs::gRender.info("Read: {} {}", mHandles[index.index].name, access);
+            tracker.access(resource(index), access.as_facade());
+        }
+
+        for (auto& [_, index, access] : pass.writes) {
+            logs::gRender.info("Write: {} {}", mHandles[index.index].name, access);
+            tracker.access(resource(index), access.as_facade());
+        }
+
+        for (auto& [_, index, access] : pass.creates) {
+            logs::gRender.info("Create: {} {}", mHandles[index.index].name, access);
+            tracker.access(resource(index), access.as_facade());
+        }
+    }
+
+    for (auto& handle : mHandles) {
+        if (!handle.is_used()) continue;
+        if (handle.is_imported()) continue;
+
+        if (tracker.needs_uav(handle.resource)) {
+            logs::gRender.info("UAV: {}", handle.name);
+            handle.uav = mContext.mSrvPool.allocate();
+
+            const auto srv_handle = mContext.mSrvPool.cpu_handle(handle.uav);
+            device->CreateUnorderedAccessView(handle.resource, nullptr, nullptr, srv_handle);
+        }
+
+        if (tracker.needs_srv(handle.resource)) {
+            logs::gRender.info("SRV: {}", handle.name);
+            handle.srv = mContext.mSrvPool.allocate();
 
             const auto srv_handle = mContext.mSrvPool.cpu_handle(handle.srv);
             device->CreateShaderResourceView(handle.resource, nullptr, srv_handle);
-        } else if (handle.access == eDepthTarget) {
+        }
+
+        if (tracker.needs_dsv(handle.resource)) {
+            logs::gRender.info("DSV: {}", handle.name);
             handle.dsv = mContext.mDsvPool.allocate();
 
             const auto dsv_handle = mContext.mDsvPool.cpu_handle(handle.dsv);
             device->CreateDepthStencilView(handle.resource, nullptr, dsv_handle);
+        }
+
+        if (tracker.needs_rtv(handle.resource)) {
+            logs::gRender.info("RTV: {}", handle.name);
+
+            handle.rtv = mContext.mRtvPool.allocate();
+
+            const auto rtv_handle = mContext.mRtvPool.cpu_handle(handle.rtv);
+            device->CreateRenderTargetView(handle.resource, nullptr, rtv_handle);
         }
     }
 }
