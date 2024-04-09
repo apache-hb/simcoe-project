@@ -12,8 +12,9 @@
 using namespace sm;
 using namespace draw;
 
-static const D3D12_ROOT_SIGNATURE_FLAGS kPrimitiveRootFlags
-    = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
+static constexpr D3D12_ROOT_SIGNATURE_FLAGS kComputeRootFlags
+    = D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS
+    | D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS
@@ -21,35 +22,34 @@ static const D3D12_ROOT_SIGNATURE_FLAGS kPrimitiveRootFlags
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
 
 enum Bindings {
-    eObjectBuffer = 0, // register(b0)
-    eFrameBuffer = 1, // register(b1)
+    eFrameBuffer, // register(b1)
 
-    ePointLightData = 2, // register(t0)
-    eSpotLightData = 3, // register(t1)
+    ePointLightData, // register(t0)
+    eSpotLightData, // register(t1)
 
-    eDepthTexture = 4, // register(t2)
+    eDepthTexture, // register(t2)
 
-    eLightIndexBuffer = 5, // register(u0)
+    eLightIndexBuffer, // register(u0)
 
     eBindingCount
 };
 
 static void create_tiling_pipeline(render::Pipeline& pipeline, render::Context& context) {
     {
-        // mvp matrix
         CD3DX12_ROOT_PARAMETER1 params[eBindingCount];
-        params[eObjectBuffer].InitAsConstantBufferView(0);
-        params[eFrameBuffer].InitAsConstantBufferView(1);
+        params[eFrameBuffer].InitAsConstantBufferView(0);
 
         params[ePointLightData].InitAsShaderResourceView(0);
         params[eSpotLightData].InitAsShaderResourceView(1);
 
-        params[eDepthTexture].InitAsShaderResourceView(2);
+        CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
+        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0);
+        params[eDepthTexture].InitAsDescriptorTable(_countof(ranges), ranges);
 
         params[eLightIndexBuffer].InitAsUnorderedAccessView(0);
 
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
-        desc.Init_1_1(1, params, 0, nullptr, kPrimitiveRootFlags);
+        desc.Init_1_1(_countof(params), params, 0, nullptr, kComputeRootFlags);
 
         context.serialize_root_signature(pipeline.signature, desc);
     }
@@ -98,11 +98,13 @@ void forward_plus::light_culling(
         return info;
     });
 
-    pass.bind([depth, indices, dd, &data](graph::FrameGraph& graph) {
+    pass.bind([depth, indices, dd, &data](graph::RenderContext& ctx) {
         [[maybe_unused]] auto _ = dd;
 
-        auto& context = graph.get_context();
-        auto& cmd = context.mCommandList;
+        auto& context = ctx.context;
+        auto *cmd = ctx.commands;
+        auto& graph = ctx.graph;
+
         auto dsv = graph.dsv(depth);
         auto uav = graph.uav(indices);
 

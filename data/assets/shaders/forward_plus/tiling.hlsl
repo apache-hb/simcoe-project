@@ -18,9 +18,8 @@ Texture2DMS<float> gDepthTexture : register(t2);
 Texture2D<float> gDepthTexture : register(t2);
 #endif
 
-// output buffer for light indices
-
 // TileLightData[tile_count.x * tile_count.y]
+// output buffer for light indices
 RWStructuredBuffer<TileLightData> gLightIndexBuffer : register(u0);
 
 // shared memory for light culling
@@ -69,7 +68,7 @@ float signed_distance_from_plane(float3 plane, float3 eqn) {
 #if DEPTH_BOUNDS_MODE == DEPTH_BOUNDS_ENABLED
 
 void compute_depth_bounds(uint3 globalId) {
-    float depth = gDepthTexture.LightVolumeData(uint3(globalId.xy, 0)).x;
+    float depth = gDepthTexture.Load(uint3(globalId.xy, 0)).x;
     float viewPositionZ = convert_projection_depth_to_view(depth);
     uint z = asuint(viewPositionZ);
     if (depth != 0.f) {
@@ -147,7 +146,7 @@ struct FrustumData {
         for (uint i = localIndex; i < count; i += THREADS_PER_TILE) {
             LightVolumeData light = data[i];
 
-            float3 center = mul(float4(light.position, 1), gObjectData.worldView).xyz;
+            float3 center = mul(float4(light.position, 1), gCameraData.worldView).xyz;
 
             if (test_frustum_sides(center, light.radius)) {
                 if (depth_test(center.z, light.radius)) {

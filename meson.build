@@ -13,6 +13,7 @@ project('simcoe', [ 'c', 'cpp' ],
 
         'unity=subprojects',
         'default_library=static',
+        'b_vscrt=static_from_buildtype',
 
         # prevent system dxc from being used
         'force_fallback_for=dxc', # TODO: this doesnt seem to actually work. meson bug?

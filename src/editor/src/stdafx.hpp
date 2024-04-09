@@ -2,6 +2,10 @@
 
 // IWYU pragma: begin_exports
 
+#define NOMINMAX
+#include <directx/d3d12.h>
+#include "DirectXTex/DirectXTex.h"
+
 #include "backtrace/backtrace.h"
 #include "base/panic.h"
 #include "format/backtrace.h"
@@ -36,9 +40,5 @@
 #include "math/colour.hpp"
 
 #include "render/vendor/microsoft/pix.hpp"
-
-#define __d3d11_1_h__
-#include "DirectXTex/DirectXTex.h"
-#undef __d3d11_1_h__
 
 // IWYU pragma: end_exports

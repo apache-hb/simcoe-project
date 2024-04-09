@@ -286,3 +286,14 @@ variant WindowState {
     case Unfocused // window is visible, but not active
     case Minimized // window is not visible
 }
+
+[[facade]]
+variant CommandListType : opaque(D3D12_COMMAND_LIST_TYPE) {
+    case Direct = opaque(D3D12_COMMAND_LIST_TYPE_DIRECT)
+    case Bundle = opaque(D3D12_COMMAND_LIST_TYPE_BUNDLE)
+    case Compute = opaque(D3D12_COMMAND_LIST_TYPE_COMPUTE)
+    case Copy = opaque(D3D12_COMMAND_LIST_TYPE_COPY)
+    case VideoDecode = opaque(D3D12_COMMAND_LIST_TYPE_VIDEO_DECODE)
+    case VideoProcess = opaque(D3D12_COMMAND_LIST_TYPE_VIDEO_PROCESS)
+    case VideoEncode = opaque(D3D12_COMMAND_LIST_TYPE_VIDEO_ENCODE)
+}

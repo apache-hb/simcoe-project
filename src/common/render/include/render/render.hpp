@@ -6,7 +6,6 @@
 
 #include "render/instance.hpp"
 #include "render/heap.hpp"
-#include "render/commands.hpp"
 #include "render/resource.hpp"
 #include "render/dstorage.hpp"
 
@@ -155,9 +154,11 @@ namespace sm::render {
         void destroy_frame_rtvs();
         void create_render_targets();
 
+        /// TODO: remove this command list, should be created elsewhere
+
         /// graphics pipeline objects
         Object<ID3D12CommandQueue> mDirectQueue;
-        CommandList mCommandList;
+        Object<ID3D12GraphicsCommandList1> mCommandList;
 
         void reset_direct_commands(ID3D12PipelineState *pso = nullptr);
 
@@ -168,6 +169,20 @@ namespace sm::render {
         RtvPool mRtvPool;
         DsvPool mDsvPool;
         SrvPool mSrvPool;
+
+        /// compute queue and commands
+        Object<ID3D12CommandQueue> mComputeQueue;
+        Object<ID3D12GraphicsCommandList1> mComputeCommands;
+
+        void create_compute_queue();
+        void destroy_compute_queue();
+
+        /// device sync fence
+        Object<ID3D12Fence> mDeviceFence;
+        uint mDeviceFenceValue;
+
+        void create_device_fence();
+        void destroy_device_fence();
 
         /// copy queue and commands
         Object<ID3D12CommandQueue> mCopyQueue;
@@ -182,6 +197,8 @@ namespace sm::render {
         HANDLE mCopyFenceEvent;
         uint64 mCopyFenceValue;
         void create_copy_fence();
+
+        ID3D12CommandQueue *get_queue(CommandListType type);
 
         struct {
             Resource upload;

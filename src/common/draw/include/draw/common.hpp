@@ -22,6 +22,8 @@ struct ObjectData {
 };
 
 struct ViewportData {
+    float4x4 worldView;
+
     float4x4 projection;
     float4x4 invProjection;
     float3 cameraPosition;

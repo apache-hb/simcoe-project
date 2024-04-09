@@ -1,13 +1,21 @@
 #include "common.hlsli"
 
+cbuffer ObjectBuffer : register(b1) {
+    uint gObjectIndex;
+};
+
+// per object data
+StructuredBuffer<ObjectData> gObjectData : register(t0);
+
 Texture2D gTextures[] : register(t0, space1);
 SamplerState gSampler : register(s0);
 
-StructuredBuffer<LightVolumeData> gPointLightVolumes : register(t0);
-StructuredBuffer<LightVolumeData> gSpotLightVolumes : register(t1);
-StructuredBuffer<PointLightData> gPointLightParams : register(t2);
-StructuredBuffer<SpotLightData> gSpotLightParams : register(t3);
-Buffer<uint> gTileIndexBuffer : register(t4);
+StructuredBuffer<LightVolumeData> gPointLightData : register(t1);
+StructuredBuffer<LightVolumeData> gSpotLightData : register(t2);
+StructuredBuffer<PointLightData> gPointLightParams : register(t3);
+StructuredBuffer<SpotLightData> gSpotLightParams : register(t4);
+
+StructuredBuffer<TileLightData> gLightIndexBuffer : register(t5);
 
 struct VertexInput {
     float3 position : POSITION;
@@ -41,7 +49,7 @@ struct DepthPassAlphaTestVertexOutput {
 
 DepthPassAlphaTestVertexOutput vs_depth_pass_alpha_test(float3 position : POSITION, float2 uv : TEXCOORD) {
     DepthPassAlphaTestVertexOutput output;
-    output.position = mul(float4(position, 1.0f), gObjectData.worldViewProjection);
+    output.position = mul(float4(position, 1.0f), gObjectData[gObjectIndex].worldViewProjection);
     output.uv = uv;
     return output;
 }
@@ -58,12 +66,13 @@ struct VertexOutput {
 
 VertexOutput vs_opaque(VertexInput input) {
     VertexOutput output;
-    output.position = mul(float4(input.position, 1.0f), gObjectData.worldViewProjection);
+    output.position = mul(float4(input.position, 1.0f), gObjectData[gObjectIndex].worldViewProjection);
 
     // these are all in world space
-    output.worldPosition = mul(input.position, (float3x3)gObjectData.world);
-    output.normal = mul(input.normal, (float3x3)gObjectData.world);
-    output.tangent = mul(input.tangent, (float3x3)gObjectData.world);
+    float3x3 world = (float3x3)gObjectData[gObjectIndex].world;
+    output.worldPosition = mul(input.position, world);
+    output.normal = mul(input.normal, world);
+    output.tangent = mul(input.tangent, world);
 
     output.uv = input.uv;
 

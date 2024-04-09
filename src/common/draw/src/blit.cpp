@@ -120,7 +120,7 @@ static void create_screen_quad(render::Resource& quad, render::VertexBufferView&
         ),
     };
 
-    context.mCommandList.submit_barriers(kBarriers);
+    context.mCommandList->ResourceBarrier(_countof(kBarriers), kBarriers);
 
     SM_ASSERT_HR(context.mCopyCommands->Close());
     SM_ASSERT_HR(context.mCommandList->Close());
@@ -161,9 +161,10 @@ void draw::blit(graph::FrameGraph& graph, graph::Handle target, graph::Handle so
         return info;
     });
 
-    pass.bind([target, source, viewport, &data](graph::FrameGraph& graph) {
-        auto& context = graph.get_context();
-        auto& cmd = context.mCommandList;
+    pass.bind([target, source, viewport, &data](graph::RenderContext& ctx) {
+        auto& context = ctx.context;
+        auto& graph = ctx.graph;
+        auto *cmd = ctx.commands;
         auto rtv = graph.rtv(target);
         auto srv = graph.srv(source);
 

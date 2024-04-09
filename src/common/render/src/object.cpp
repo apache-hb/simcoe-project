@@ -1,21 +1,10 @@
 #include "render/object.hpp"
 #include "render/render.hpp"
-#include "render/commands.hpp"
 
 #include "stdafx.hpp"
 
 using namespace sm;
 using namespace sm::render;
-
-void CommandList::reset(ID3D12CommandAllocator *allocator, ID3D12PipelineState *pso) {
-    SM_ASSERT_HR(get()->Reset(allocator, pso));
-}
-
-void CommandList::submit_barriers(sm::Span<const D3D12_RESOURCE_BARRIER> barriers) {
-    if (barriers.empty()) return;
-
-    get()->ResourceBarrier(barriers.size(), barriers.data());
-}
 
 std::string_view Blob::as_string() const {
     return {reinterpret_cast<const char*>(data()), size()};

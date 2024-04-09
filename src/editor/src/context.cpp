@@ -15,15 +15,15 @@ void EditorContext::imgui(graph::FrameGraph& graph, graph::Handle target) {
 
     pass.write(target, "Target", graph::Access::eRenderTarget);
 
-    pass.bind([target](graph::FrameGraph& graph) {
-        auto& context = graph.get_context();
-        auto& cmd = context.mCommandList;
+    pass.bind([target](graph::RenderContext& ctx) {
+        auto& context = ctx.context;
+        auto *cmd = ctx.commands;
 
-        auto rtv = graph.rtv(target);
+        auto rtv = ctx.graph.rtv(target);
         auto rtv_cpu = context.mRtvPool.cpu_handle(rtv);
 
         cmd->OMSetRenderTargets(1, &rtv_cpu, false, nullptr);
-        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), *cmd);
+        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd);
     });
 }
 
@@ -88,8 +88,10 @@ void EditorContext::setup_framegraph(graph::FrameGraph& graph) {
     render::Viewport vp { mSwapChainConfig.size };
     for (auto& [camera, target] : cameras) {
         graph::Handle depth_target;
+        graph::Handle light_indices;
         draw::forward_plus::DrawData dd{*camera.get(), draw::forward_plus::DepthBoundsMode::eEnabled};
         draw::forward_plus::depth_prepass(graph, depth_target, dd);
+        draw::forward_plus::light_culling(graph, light_indices, depth_target, dd);
         draw::opaque(graph, target, *camera.get());
     }
 

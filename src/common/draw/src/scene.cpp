@@ -12,26 +12,25 @@ using namespace sm;
 using namespace sm::math;
 using namespace sm::world;
 
-static void draw_node(render::Context& context, const draw::Camera& camera, IndexOf<world::Node> index, const float4x4& parent) {
+static void draw_node(render::Context& context, ID3D12GraphicsCommandList1 *commands, const draw::Camera& camera, IndexOf<world::Node> index, const float4x4& parent) {
     float ar = camera.config().aspect_ratio();
     const auto& node = context.mWorld.nodes[index];
 
     auto model = (parent * node.transform.matrix());
     float4x4 mvp = camera.mvp(ar, model.transpose()).transpose();
 
-    auto& cmd = context.mCommandList;
-    cmd->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
+    commands->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
 
     for (IndexOf i : node.models) {
         const auto& object = context.mMeshes[i];
-        cmd->IASetVertexBuffers(0, 1, &object.vbo_view);
-        cmd->IASetIndexBuffer(&object.ibo_view);
+        commands->IASetVertexBuffers(0, 1, &object.vbo_view);
+        commands->IASetIndexBuffer(&object.ibo_view);
 
-        cmd->DrawIndexedInstanced(object.index_count, 1, 0, 0, 0);
+        commands->DrawIndexedInstanced(object.index_count, 1, 0, 0, 0);
     }
 
     for (IndexOf i : node.children) {
-        draw_node(context, camera, i, model);
+        draw_node(context, commands, camera, i, model);
     }
 }
 
@@ -89,13 +88,13 @@ static void create_primitive_pipeline(render::Pipeline& pipeline, const draw::Vi
 void draw::opaque(graph::FrameGraph& graph, graph::Handle& target, const Camera& camera) {
     auto config = camera.config();
     graph::ResourceInfo depth_info = {
-        .size = config.size,
+        .sz = graph::ResourceSize::tex2d(config.size),
         .format = config.depth,
         .clear = graph::clear_depth(1.f)
     };
 
     graph::ResourceInfo target_info = {
-        .size = config.size,
+        .sz = graph::ResourceSize::tex2d(config.size),
         .format = config.colour,
         .clear = graph::clear_colour(render::kClearColour)
     };
@@ -114,10 +113,11 @@ void draw::opaque(graph::FrameGraph& graph, graph::Handle& target, const Camera&
         return info;
     });
 
-    pass.bind([target=target, depth=depth, &data, &camera](graph::FrameGraph& graph) {
-        auto& context = graph.get_context();
+    pass.bind([target=target, depth=depth, &data, &camera](graph::RenderContext& ctx) {
+        auto& context = ctx.context;
+        auto& graph = ctx.graph;
+        auto *cmd = ctx.commands;
         auto viewport = camera.viewport();
-        auto& cmd = context.mCommandList;
         auto rtv = graph.rtv(target);
         auto dsv = graph.dsv(depth);
 
@@ -137,6 +137,6 @@ void draw::opaque(graph::FrameGraph& graph, graph::Handle& target, const Camera&
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
         const auto& scene = context.get_scene();
-        draw_node(context, camera, scene.root, math::float4x4::identity());
+        draw_node(context, cmd, camera, scene.root, math::float4x4::identity());
     });
 }

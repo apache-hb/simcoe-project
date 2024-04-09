@@ -40,6 +40,8 @@ void Context::on_info(
 void Context::enable_info_queue() {
     if (Result hr = mDevice.query(&mInfoQueue)) {
         mInfoQueue->RegisterMessageCallback(&on_info, D3D12_MESSAGE_CALLBACK_FLAG_NONE, this, &mCookie);
+        mInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+        mInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
     } else {
         logs::gRender.warn("failed to query info queue: {}", hr);
     }
@@ -152,7 +154,28 @@ void Context::create_allocator() {
 void Context::reset_direct_commands(ID3D12PipelineState *pso) {
     auto& allocator = mFrames[mFrameIndex].allocator;
     SM_ASSERT_HR(allocator->Reset());
-    mCommandList.reset(*allocator, pso);
+    SM_ASSERT_HR(mCommandList->Reset(*allocator, pso));
+}
+
+void Context::create_compute_queue() {
+    constexpr D3D12_COMMAND_QUEUE_DESC kQueueDesc = {
+        .Type = D3D12_COMMAND_LIST_TYPE_COMPUTE,
+    };
+
+    SM_ASSERT_HR(mDevice->CreateCommandQueue(&kQueueDesc, IID_PPV_ARGS(&mComputeQueue)));
+}
+
+void Context::destroy_compute_queue() {
+    mComputeQueue.reset();
+}
+
+void Context::create_device_fence() {
+    SM_ASSERT_HR(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mDeviceFence)));
+    mDeviceFenceValue = 1;
+}
+
+void Context::destroy_device_fence() {
+    mDeviceFence.reset();
 }
 
 void Context::create_copy_queue() {
@@ -183,6 +206,16 @@ void Context::create_copy_fence() {
     mCopyFenceValue = 1;
 
     SM_ASSERT_WIN32(mCopyFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr));
+}
+
+ID3D12CommandQueue *Context::get_queue(CommandListType type) {
+    switch (type) {
+    case CommandListType::eDirect: return mDirectQueue.get();
+    case CommandListType::eCompute: return mComputeQueue.get();
+    case CommandListType::eCopy: return mCopyQueue.get();
+
+    default: CT_NEVER("invalid command list type");
+    }
 }
 
 void Context::create_pipeline() {
@@ -373,11 +406,11 @@ void Context::load_image(world::IndexOf<world::Image> index) {
 
     reset_direct_commands();
 
-    D3D12_RESOURCE_BARRIER barriers[] = {
+    const D3D12_RESOURCE_BARRIER kBarriers[] = {
         CD3DX12_RESOURCE_BARRIER::Transition(data.get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
     };
 
-    mCommandList.submit_barriers(barriers);
+    mCommandList->ResourceBarrier(_countof(kBarriers), kBarriers);
 
     SM_ASSERT_HR(mCommandList->Close());
 
@@ -437,7 +470,7 @@ void Context::load_mesh_buffer(world::IndexOf<world::Model> index, const world::
         CD3DX12_RESOURCE_BARRIER::Transition(ibo.get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_INDEX_BUFFER),
     };
 
-    mCommandList.submit_barriers(kBarriers);
+    mCommandList->ResourceBarrier(_countof(kBarriers), kBarriers);
 
     SM_ASSERT_HR(mCopyCommands->Close());
     SM_ASSERT_HR(mCommandList->Close());
@@ -570,26 +603,17 @@ void Context::create_assets() {
 void Context::build_command_list() {
     mAllocator->SetCurrentFrameIndex(mFrameIndex);
 
-    reset_direct_commands();
-
     auto& [backbuffer, _, rtv, _] = mFrames[mFrameIndex];
 
     mFrameGraph.update(mSwapChainHandle, backbuffer.get());
     mFrameGraph.update_rtv(mSwapChainHandle, rtv);
 
-    {
-        ID3D12DescriptorHeap *heaps[] = { mSrvPool.get() };
-        mCommandList->SetDescriptorHeaps(_countof(heaps), heaps);
-
-        mFrameGraph.execute();
-    }
-
-    SM_ASSERT_HR(mCommandList->Close());
+    mFrameGraph.execute();
 }
 
 void Context::create_framegraph() {
     graph::ResourceInfo info = {
-        .size = mSwapChainConfig.size,
+        .sz = graph::ResourceSize::tex2d(mSwapChainConfig.size),
         .format = mSwapChainConfig.format,
     };
     mSwapChainHandle = mFrameGraph.include("BackBuffer", info, graph::Access::ePresent, nullptr);
@@ -634,8 +658,9 @@ void Context::destroy_device() {
     mCopyFence.reset();
 
     // assets
-    // destroy_textures();
     destroy_scene();
+
+    destroy_compute_queue();
 
     // copy commands
     destroy_copy_queue();
@@ -643,6 +668,8 @@ void Context::destroy_device() {
     // direct commands
     mDirectQueue.reset();
     mCommandList.reset();
+
+    destroy_device_fence();
 
     // allocator
     mAllocator.reset();
@@ -697,7 +724,9 @@ void Context::create() {
     mStorage.create(mDebugFlags);
 
     create_device(adapter);
+    create_device_fence();
     create_allocator();
+    create_compute_queue();
     create_copy_queue();
     create_copy_fence();
     create_pipeline();
@@ -727,8 +756,10 @@ void Context::render() {
     ZoneScopedN("Render");
     build_command_list();
 
+#if 0
     ID3D12CommandList *lists[] = { mCommandList.get() };
     mDirectQueue->ExecuteCommandLists(1, lists);
+#endif
 
     bool tearing = mInstance.tearing_support();
     uint flags = tearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
@@ -754,8 +785,11 @@ void Context::recreate_device() {
 
     create_device(*mCurrentAdapter);
     create_allocator();
+    create_device_fence();
+    create_compute_queue();
     create_copy_queue();
     create_copy_fence();
+
     create_pipeline();
     on_create();
 

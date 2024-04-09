@@ -11,26 +11,25 @@ using namespace sm::draw;
 using namespace sm::world;
 
 // todo: dedup this with opaque
-static void draw_node(render::Context& context, const draw::Camera& camera, IndexOf<Node> index, const float4x4& parent) {
+static void draw_node(render::Context& context, ID3D12GraphicsCommandList1* commands, const draw::Camera& camera, IndexOf<Node> index, const float4x4& parent) {
     float ar = camera.config().aspect_ratio();
     const auto& node = context.mWorld.nodes[index];
 
     auto model = (parent * node.transform.matrix());
     float4x4 mvp = camera.mvp(ar, model.transpose()).transpose();
 
-    auto& cmd = context.mCommandList;
-    cmd->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
+    commands->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
 
     for (IndexOf i : node.models) {
         const auto& object = context.mMeshes[i];
-        cmd->IASetVertexBuffers(0, 1, &object.vbo_view);
-        cmd->IASetIndexBuffer(&object.ibo_view);
+        commands->IASetVertexBuffers(0, 1, &object.vbo_view);
+        commands->IASetIndexBuffer(&object.ibo_view);
 
-        cmd->DrawIndexedInstanced(object.index_count, 1, 0, 0, 0);
+        commands->DrawIndexedInstanced(object.index_count, 1, 0, 0, 0);
     }
 
     for (IndexOf i : node.children) {
-        draw_node(context, camera, i, model);
+        draw_node(context, commands, camera, i, model);
     }
 }
 
@@ -93,7 +92,7 @@ void forward_plus::depth_prepass(
     const auto& config = dd.camera.config();
 
     graph::ResourceInfo info = {
-        .size = config.size,
+        .sz = graph::ResourceSize::tex2d(config.size),
         .format = kDepthFormat,
         .clear = graph::clear_depth(1.f),
     };
@@ -111,9 +110,11 @@ void forward_plus::depth_prepass(
         return info;
     });
 
-    pass.bind([depth_target, &data, dd](graph::FrameGraph& graph) {
-        auto& context = graph.get_context();
-        auto& cmd = context.mCommandList;
+    pass.bind([depth_target, &data, dd](graph::RenderContext& ctx) {
+        auto& context = ctx.context;
+        auto *cmd = ctx.commands;
+        auto& graph = ctx.graph;
+
         auto viewport = dd.camera.viewport();
 
         auto dsv = graph.dsv(depth_target);
@@ -131,6 +132,6 @@ void forward_plus::depth_prepass(
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
         const auto& scene = context.get_scene();
-        draw_node(context, dd.camera, scene.root, float4x4::identity());
+        draw_node(context, cmd, dd.camera, scene.root, float4x4::identity());
     });
 }

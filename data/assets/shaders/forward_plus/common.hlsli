@@ -8,14 +8,14 @@
 #define DEPTH_BOUNDS_MSAA 2
 
 #ifndef DEPTH_BOUNDS_MODE
-#   define DEPTH_BOUNDS_MODE DEPTH_BOUNDS_DISABLED
+#   define DEPTH_BOUNDS_MODE DEPTH_BOUNDS_ENABLED
 #endif
 
 #define LIGHT_CULLING_DISABLED 0
 #define LIGHT_CULLING_ENABLED 1
 
 #ifndef LIGHT_CULLING_MODE
-#   define LIGHT_CULLING_MODE LIGHT_CULLING_DISABLED
+#   define LIGHT_CULLING_MODE LIGHT_CULLING_ENABLED
 #endif
 
 #define ALPHA_TEST_DISABLED 0
@@ -47,11 +47,7 @@
 // * use uint16_t for light indices, counts, window size, depth texture size, etc
 // * test everything
 
-cbuffer ObjectBuffer : register(b0) {
-    ObjectData gObjectData;
-};
-
-cbuffer FrameBuffer : register(b1) {
+cbuffer FrameBuffer : register(b0) {
     ViewportData gCameraData;
 };
 

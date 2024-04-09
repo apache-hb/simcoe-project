@@ -4,6 +4,7 @@
 #include "core/vector.hpp"
 #include "core/typeindex.hpp"
 #include "core/map.hpp"
+#include "core/variant.hpp"
 
 #include "math/math.hpp"
 
@@ -26,10 +27,22 @@ namespace sm::render {
 namespace sm::graph {
     using namespace sm::math;
 
+    class FrameGraph;
+
     using Access = render::ResourceState;
 
+    // handle to a resource
     struct Handle {
         uint index;
+
+        constexpr auto operator<=>(const Handle&) const = default;
+    };
+
+    // a render pass
+    struct PassHandle {
+        uint index;
+
+        constexpr auto operator<=>(const PassHandle&) const = default;
     };
 
     struct Clear {
@@ -49,8 +62,13 @@ namespace sm::graph {
     Clear clear_depth(float depth);
 
     struct ResourceSize {
-        static ResourceSize tex2d(uint2 size);
-        static ResourceSize buffer(uint size);
+        static ResourceSize tex2d(uint2 size) {
+            return { .type = eTex2D, .tex2d_size = size };
+        }
+
+        static ResourceSize buffer(uint size) {
+            return { .type = eBuffer, .buffer_size = size };
+        }
 
         enum { eTex2D, eBuffer } type;
         union {
@@ -61,7 +79,6 @@ namespace sm::graph {
 
     struct ResourceInfo {
         ResourceSize sz;
-        uint2 size;
         render::Format format;
         Clear clear;
     };
@@ -72,6 +89,75 @@ namespace sm::graph {
         virtual void setup(render::Context& context) = 0;
         virtual bool has_type(uint32 index) const = 0;
     };
+
+    struct FrameCommandData {
+        render::CommandListType type;
+        sm::UniqueArray<render::Object<ID3D12CommandAllocator>> allocators;
+        render::Object<ID3D12GraphicsCommandList1> commands;
+    };
+
+    struct CommandListHandle {
+        uint index;
+    };
+
+    // TODO: this kind of structure cant model
+    // multiple events happening in parallel
+    namespace events {
+        struct DeviceSync {
+            render::CommandListType signal;
+            render::CommandListType wait;
+        };
+
+        struct ResourceBarrier {
+            struct Transition {
+                Handle handle;
+                D3D12_RESOURCE_STATES before;
+                D3D12_RESOURCE_STATES after;
+            };
+
+            CommandListHandle handle;
+            sm::Vector<Transition> barriers;
+            sm::Vector<D3D12_RESOURCE_BARRIER> raw;
+
+            ResourceBarrier(CommandListHandle cmd, sm::Vector<Transition> it)
+                : handle(cmd)
+                , barriers(std::move(it))
+                , raw(barriers.size())
+            { }
+
+            size_t size() const { return barriers.size(); }
+            D3D12_RESOURCE_BARRIER *data() { return raw.data(); }
+        };
+
+        struct OpenCommands {
+            CommandListHandle handle;
+        };
+
+        struct RecordCommands {
+            CommandListHandle handle;
+            PassHandle pass;
+        };
+
+        struct SubmitCommands {
+            CommandListHandle handle;
+        };
+
+        using Event = sm::Variant<
+            DeviceSync,
+            ResourceBarrier,
+            OpenCommands,
+            RecordCommands,
+            SubmitCommands
+        >;
+    }
+
+    struct RenderContext {
+        render::Context& context;
+        FrameGraph& graph;
+        ID3D12GraphicsCommandList1* commands;
+    };
+
+    using FrameSchedule = sm::Vector<events::Event>;
 
     class FrameGraph {
         struct IGraphNode {
@@ -85,7 +171,7 @@ namespace sm::graph {
         };
 
         struct RenderPass final : IGraphNode {
-            enum Type { eDirect, eCompute, eCopy } type;
+            render::CommandListType type;
 
             sm::String name;
             IDeviceData *data;
@@ -95,7 +181,7 @@ namespace sm::graph {
             sm::SmallVector<ResourceAccess, 4> reads;
             sm::SmallVector<ResourceAccess, 4> writes;
 
-            std::function<void(FrameGraph&)> execute;
+            std::function<void(RenderContext&)> execute;
 
             bool is_used() const { return has_side_effects || refcount > 0; }
         };
@@ -141,15 +227,39 @@ namespace sm::graph {
 
         sm::HashMap<uint32, sm::UniquePtr<IDeviceData>> mDeviceData;
 
+        FrameSchedule mFrameSchedule;
+
+        sm::Vector<FrameCommandData> mFrameData;
+
+        void reset_frame_commands();
+        void init_frame_commands();
+        CommandListHandle add_commands(render::CommandListType type);
+        render::CommandListType get_command_type(CommandListHandle handle);
+
+        void open_commands(CommandListHandle handle);
+        void close_commands(CommandListHandle handle);
+        ID3D12GraphicsCommandList1 *get_commands(CommandListHandle handle);
+
         uint add_handle(ResourceHandle handle, Access access);
         Handle texture(ResourceInfo info, Access access, sm::StringView name);
 
         bool is_imported(Handle handle) const;
 
-    public:
-        void optimize();
+        void build_raw_events(events::ResourceBarrier& barrier);
+
         void create_resources();
+        void create_resource_descriptors();
+
+        // figure out what passes should be run on which queues
+        // and when to insert sync points and barriers
+        // has to be run after the graph is optimized
+        void schedule_graph();
+
+        // cull passes from the graph that are not used
+        void optimize();
+
         void destroy_resources();
+    public:
 
         FrameGraph(render::Context& context)
             : mContext(context)
@@ -173,7 +283,7 @@ namespace sm::graph {
 
             void side_effects(bool effects);
 
-            template<typename F> requires std::invocable<F, FrameGraph&>
+            template<typename F> requires std::invocable<F, RenderContext&>
             void bind(F&& execute) {
                 mRenderPass.execute = execute;
             }
@@ -223,7 +333,7 @@ namespace sm::graph {
         render::SrvIndex srv(Handle handle);
         render::SrvIndex uav(Handle handle);
 
-        PassBuilder pass(sm::StringView name, RenderPass::Type type);
+        PassBuilder pass(sm::StringView name, render::CommandListType type);
 
         PassBuilder graphics(sm::StringView name);
         PassBuilder compute(sm::StringView name);
@@ -233,7 +343,10 @@ namespace sm::graph {
 
         render::Context& get_context() { return mContext; }
 
+        // destroy the render passes and resources
         void reset();
+
+        // also destroy the device data
         void reset_device_data();
         void compile();
         void execute();
@@ -241,3 +354,10 @@ namespace sm::graph {
 
     using PassBuilder = FrameGraph::PassBuilder;
 }
+
+template<>
+struct std::hash<sm::graph::Handle> {
+    size_t operator()(const sm::graph::Handle& handle) const {
+        return std::hash<sm::uint>{}(handle.index);
+    }
+};
