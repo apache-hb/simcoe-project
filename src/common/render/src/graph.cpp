@@ -650,7 +650,9 @@ struct overloaded : T... {
 };
 
 void FrameGraph::execute() {
-    for (auto& event : mFrameSchedule) {
+    SM_UNUSED BYTE colour = PIX_COLOR_DEFAULT;
+
+    for (auto& step : mFrameSchedule) {
         std::visit(overloaded {
             [&](events::DeviceSync sync) {
                 ID3D12CommandQueue *signal = mContext.get_queue(sync.signal);
@@ -672,8 +674,12 @@ void FrameGraph::execute() {
             },
             [&](events::RecordCommands record) {
                 ID3D12GraphicsCommandList1 *commands = get_commands(record.handle);
+                auto& pass = mRenderPasses[record.pass.index];
                 RenderContext ctx{mContext, *this, commands};
-                mRenderPasses[record.pass.index].execute(ctx);
+
+                PIXBeginEvent(commands, PIX_COLOR_INDEX(colour++), "%s", pass.name.c_str());
+                pass.execute(ctx);
+                PIXEndEvent(commands);
             },
             [&](events::SubmitCommands submit) {
                 close_commands(submit.handle);
@@ -683,7 +689,7 @@ void FrameGraph::execute() {
                 ID3D12CommandList *lists[] = { commands };
                 queue->ExecuteCommandLists(1, lists);
             }
-        }, event);
+        }, step);
     }
 
 #if 0

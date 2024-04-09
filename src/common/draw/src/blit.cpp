@@ -127,6 +127,7 @@ static void create_screen_quad(render::Resource& quad, render::VertexBufferView&
 
     ID3D12CommandList *copy_lists[] = { context.mCopyCommands.get() };
     context.mCopyQueue->ExecuteCommandLists(1, copy_lists);
+
     SM_ASSERT_HR(context.mCopyQueue->Signal(*context.mCopyFence, context.mCopyFenceValue));
 
     ID3D12CommandList *direct_lists[] = { context.mCommandList.get() };

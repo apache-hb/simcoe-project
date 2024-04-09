@@ -172,6 +172,8 @@ void Context::destroy_compute_queue() {
 void Context::create_device_fence() {
     SM_ASSERT_HR(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mDeviceFence)));
     mDeviceFenceValue = 1;
+
+    mDeviceFence.rename("Device Fence");
 }
 
 void Context::destroy_device_fence() {
@@ -756,11 +758,6 @@ void Context::render() {
     ZoneScopedN("Render");
     build_command_list();
 
-#if 0
-    ID3D12CommandList *lists[] = { mCommandList.get() };
-    mDirectQueue->ExecuteCommandLists(1, lists);
-#endif
-
     bool tearing = mInstance.tearing_support();
     uint flags = tearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
 
@@ -863,6 +860,7 @@ void Context::move_to_next_frame() {
 
     if (mFence->GetCompletedValue() < mFrames[mFrameIndex].fence_value) {
         SM_ASSERT_HR(mFence->SetEventOnCompletion(mFrames[mFrameIndex].fence_value, mFenceEvent));
+        PIXNotifyWakeFromFenceSignal(mFenceEvent);
         WaitForSingleObject(mFenceEvent, INFINITE);
     }
 
@@ -874,6 +872,7 @@ void Context::wait_for_gpu() {
     SM_ASSERT_HR(mDirectQueue->Signal(*mFence, current));
 
     SM_ASSERT_HR(mFence->SetEventOnCompletion(current, mFenceEvent));
+    PIXNotifyWakeFromFenceSignal(mFenceEvent);
     WaitForSingleObject(mFenceEvent, INFINITE);
 }
 
@@ -885,6 +884,7 @@ void Context::flush_copy_queue() {
 
     if (completed < current) {
         SM_ASSERT_HR(mCopyFence->SetEventOnCompletion(current, mCopyFenceEvent));
+        PIXNotifyWakeFromFenceSignal(mCopyFenceEvent);
         WaitForSingleObject(mCopyFenceEvent, INFINITE);
     }
 }
