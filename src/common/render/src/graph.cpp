@@ -4,6 +4,8 @@
 
 #include "render/render.hpp"
 
+#include "core/set.hpp"
+
 using namespace sm;
 using namespace sm::graph;
 
@@ -424,8 +426,10 @@ void FrameGraph::open_commands(CommandListHandle handle) {
     SM_ASSERT_HR(commands->Reset(allocator, nullptr));
 
     // TODO: should we do this here?
-    ID3D12DescriptorHeap *heaps[] = { mContext.mSrvPool.get() };
-    commands->SetDescriptorHeaps(1, heaps);
+    if (type != render::CommandListType::eCopy) {
+        ID3D12DescriptorHeap *heaps[] = { mContext.mSrvPool.get() };
+        commands->SetDescriptorHeaps(1, heaps);
+    }
 }
 
 void FrameGraph::close_commands(CommandListHandle handle) {
@@ -454,6 +458,8 @@ struct BarrierRecord {
     void submit(FrameSchedule& schedule, CommandListHandle handle) {
         if (transitions.empty()) return;
 
+        logs::gRender.info("Submit {} barriers", transitions.size());
+
         events::ResourceBarrier event{handle, transitions};
         schedule.push_back(event);
 
@@ -462,6 +468,96 @@ struct BarrierRecord {
 };
 
 void FrameGraph::schedule_graph() {
+    struct GraphSorter {
+        sm::Vector<RenderPass>& passes;
+
+        sm::Vector<uint> indices;
+        sm::Vector<sm::Set<uint>> adjacency;
+
+        GraphSorter(sm::Vector<RenderPass>& passes)
+            : passes(passes)
+        {
+            for (uint i = 0; i < passes.size(); i++) {
+                if (passes[i].is_used())
+                    indices.push_back(i);
+            }
+
+            build_adjacency();
+        }
+
+        void build_adjacency() {
+            adjacency.resize(indices.size());
+
+            for (uint i = 0; i < indices.size(); i++) {
+                auto& pass = passes[indices[i]];
+
+                for (auto& [_, index, _] : pass.reads) {
+                    adjacency[i].emplace(index.index);
+                }
+
+                for (auto& [_, index, _] : pass.writes) {
+                    adjacency[i].emplace(index.index);
+                }
+
+                for (auto& [_, index, _] : pass.creates) {
+                    adjacency[i].emplace(index.index);
+                }
+            }
+        }
+
+        void dfs(uint current,
+                 sm::Vector<bool>& visited,
+                 sm::Vector<int>& departure,
+                 int& time) {
+
+            visited[current] = true;
+
+            time += 1;
+
+            for (auto& index : adjacency[current]) {
+                if (!visited[index]) {
+                    dfs(index, visited, departure, time);
+                }
+            }
+
+            departure[time] = current;
+            time += 1;
+        }
+
+        sm::Vector<uint> toposort() {
+#if 0
+            sm::Vector<int> departure(indices.size() * 2, -1);
+            sm::Vector<bool> visited(indices.size());
+            int time = 0;
+
+            for (uint i = 0; i < indices.size(); i++) {
+                if (!visited[i]) {
+                    dfs(i, visited, departure, time);
+                }
+            }
+
+            sm::Vector<RenderPass> sorted;
+            for (int i = indices.size() * 2 - 1; i >= 0; i--) {
+                int index = departure[i];
+                if (index == -1) continue;
+
+                sorted.push_back(passes[indices[index]]);
+            }
+#endif
+
+            // TODO: sorting is disabled for now
+            sm::Vector<uint> sorted;
+            for (uint i = 0; i < indices.size(); i++) {
+                sorted.push_back(indices[i]);
+            }
+
+            return sorted;
+        }
+    };
+
+    // collect all the used render passes
+    GraphSorter sorter{mRenderPasses};
+
     // track the expected state of each resource
     sm::HashMap<Handle, D3D12_RESOURCE_STATES> initial;
     BarrierRecord barriers;
@@ -493,8 +589,14 @@ void FrameGraph::schedule_graph() {
         initial[Handle{i}] = state;
     }
 
+    auto passes = sorter.toposort();
+    for (size_t i = 0; i < passes.size(); i++) {
+        logs::gRender.info("{}: {}", i, mRenderPasses[passes[i]].name);
+    }
+
     const render::CommandListType queue = [&] {
-        for (auto& pass : mRenderPasses) {
+        for (uint i : passes) {
+            auto& pass = mRenderPasses[i];
             if (!pass.is_used()) continue;
 
             return pass.type;
@@ -512,9 +614,8 @@ void FrameGraph::schedule_graph() {
 
     mFrameSchedule.push_back(open);
 
-    for (uint i = 0; i < mRenderPasses.size(); i++) {
+    for (uint i : passes) {
         auto& pass = mRenderPasses[i];
-        if (!pass.is_used()) continue;
 
         // if the queue type changes, add a sync event
         if (pass.type != get_command_type(cmd)) {
@@ -525,15 +626,26 @@ void FrameGraph::schedule_graph() {
 
             mFrameSchedule.push_back(submit);
 
+            logs::gRender.info("Submit commands for {}", get_command_type(cmd));
+
             // assume the next queue depends on the current one
             events::DeviceSync sync = {
-                .signal = queue,
+                .signal = get_command_type(cmd),
                 .wait = pass.type
             };
 
             mFrameSchedule.push_back(sync);
 
+            logs::gRender.info("Sync {} -> {}", sync.signal, sync.wait);
+
             cmd = add_commands(pass.type);
+
+            // open the next command list
+            events::OpenCommands open = {
+                .handle = cmd
+            };
+
+            mFrameSchedule.push_back(open);
         }
 
         for (auto& [_, index, access] : pass.creates) {
@@ -559,6 +671,8 @@ void FrameGraph::schedule_graph() {
         };
 
         mFrameSchedule.push_back(record);
+
+        logs::gRender.info("Record commands for {}", pass.name);
     }
 
     // transition imported and created resources back to their initial state

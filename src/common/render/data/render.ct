@@ -230,6 +230,8 @@ variant ResourceState : opaque(D3D12_RESOURCE_STATES) {
     case DepthTarget = opaque(D3D12_RESOURCE_STATE_DEPTH_WRITE)
     case DepthRead = opaque(D3D12_RESOURCE_STATE_DEPTH_READ)
     case UnorderedAccess = opaque(D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
+    case CopyTarget = opaque(D3D12_RESOURCE_STATE_COPY_DEST)
+    case CopySource = opaque(D3D12_RESOURCE_STATE_COPY_SOURCE)
 }
 
 [[facade]]

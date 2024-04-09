@@ -229,6 +229,10 @@ namespace sm::graph {
 
         FrameSchedule mFrameSchedule;
 
+
+        ///
+        /// frame data resources
+        ///
         sm::Vector<FrameCommandData> mFrameData;
 
         void reset_frame_commands();
@@ -239,6 +243,11 @@ namespace sm::graph {
         void open_commands(CommandListHandle handle);
         void close_commands(CommandListHandle handle);
         ID3D12GraphicsCommandList1 *get_commands(CommandListHandle handle);
+
+
+        ///
+        /// resource handles
+        ///
 
         uint add_handle(ResourceHandle handle, Access access);
         Handle texture(ResourceInfo info, Access access, sm::StringView name);

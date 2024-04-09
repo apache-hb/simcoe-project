@@ -15,7 +15,7 @@ StructuredBuffer<LightVolumeData> gSpotLightData : register(t2);
 StructuredBuffer<PointLightData> gPointLightParams : register(t3);
 StructuredBuffer<SpotLightData> gSpotLightParams : register(t4);
 
-StructuredBuffer<TileLightData> gLightIndexBuffer : register(t5);
+Buffer<uint> gLightIndexBuffer : register(t5);
 
 struct VertexInput {
     float3 position : POSITION;

@@ -6,14 +6,28 @@ namespace sm::draw {
 using namespace sm::math;
 #endif
 
-#define TILE_SIZE 32
+#define TILE_SIZE 16
+
+#define MAX_LIGHTS 0x1000
+
+#define MAX_POINT_LIGHTS (MAX_LIGHTS / 2)
+#define MAX_SPOT_LIGHTS  (MAX_LIGHTS / 2)
 
 #ifndef MAX_LIGHTS_PER_TILE
-#   define MAX_LIGHTS_PER_TILE 256
+#   define MAX_LIGHTS_PER_TILE 512
 #endif
 
 #define MAX_POINT_LIGHTS_PER_TILE (MAX_LIGHTS_PER_TILE / 2)
 #define MAX_SPOT_LIGHTS_PER_TILE  (MAX_LIGHTS_PER_TILE / 2)
+
+// struct PointLightData {
+//   uint pointLightCount;
+//   uint spotLightCount;
+//   uint pointLightIndices[MAX_POINT_LIGHTS_PER_TILE];
+//   uint spotLightIndices[MAX_SPOT_LIGHTS_PER_TILE];
+// };
+#define LIGHT_INDEX_BUFFER_HEADER (1 + 1)
+#define LIGHT_INDEX_BUFFER_STRIDE (LIGHT_INDEX_BUFFER_HEADER + MAX_POINT_LIGHTS_PER_TILE + MAX_SPOT_LIGHTS_PER_TILE)
 
 struct ObjectData {
     float4x4 worldViewProjection;
@@ -41,7 +55,6 @@ struct ViewportData {
     uint depth_height() { return depthBufferSize.y; }
 };
 
-
 struct LightVolumeData {
     float3 position;
     float radius;
@@ -55,14 +68,6 @@ struct SpotLightData {
     float3 direction;
     float3 colour;
     float angle;
-};
-
-struct TileLightData {
-    uint pointLightCount;
-    uint spotLightCount;
-
-    uint pointLightIndices[MAX_SPOT_LIGHTS_PER_TILE];
-    uint spotLightIndices[MAX_POINT_LIGHTS_PER_TILE];
 };
 
 struct MaterialData {

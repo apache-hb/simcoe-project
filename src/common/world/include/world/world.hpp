@@ -152,6 +152,15 @@ namespace sm::world {
         sm::Variant<PointLight, SpotLight, DirectionalLight> light;
     };
 
+    // struct PointLight2 {
+    //     static constexpr IndexType kType = eLight;
+    //     static constexpr sm::StringView kName = "PointLight";
+
+    //     float3 position;
+    //     float3 colour;
+    //     float intensity;
+    // };
+
     struct Model {
         static constexpr IndexType kType = eModel;
         static constexpr sm::StringView kName = "Model";
