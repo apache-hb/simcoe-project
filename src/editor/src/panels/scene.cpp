@@ -459,8 +459,8 @@ world::IndexOf<world::Scene> ScenePanel::scene_select() {
     auto& world = mContext.mWorld;
     auto& active = world.get(mContext.get_current_scene());
     if (ImGui::BeginCombo("Scene", active.name.c_str())) {
-        for (size_t i = 0; i < world.scenes.size(); i++) {
-            auto& scene = world.scenes[i];
+        for (size_t i = 0; i < world.mScenes.size(); i++) {
+            auto& scene = world.mScenes[i];
             bool selected = i == mContext.get_current_scene();
             if (ImGui::Selectable(scene.name.c_str(), selected)) {
                 result = i;

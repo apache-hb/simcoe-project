@@ -16,6 +16,8 @@
 #include "editor/draw.hpp"
 #include "render/render.hpp"
 
+#include "game/game.hpp"
+
 using namespace sm;
 using namespace math;
 
@@ -303,7 +305,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         flags |= render::DebugFlags::eDeviceRemovedInfo;
     }
 
-    const render::RenderConfig render_config = {
+    const render::RenderConfig kRenderConfig = {
         .flags = flags,
         .preference = render::AdapterPreference::eMinimumPower,
         .feature_level = render::FeatureLevel::eLevel_11_0,
@@ -322,13 +324,15 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .window = window,
     };
 
-    ed::EditorContext context{render_config};
+    ed::EditorContext context{kRenderConfig};
 
     context.input.add_source(&desktop_input);
 
     events.attach_render(&context);
 
     context.create();
+
+    auto& game = game::init(context.mWorld);
 
     ed::Editor editor{context};
 
@@ -350,6 +354,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
         float dt = clock.tick();
 
+        // game.tick(dt);
         context.tick(dt);
 
         editor.begin_frame();
@@ -362,6 +367,8 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     }
 
     context.destroy();
+
+    game.shutdown();
 }
 
 static int editor_main(sys::ShowWindow show) {

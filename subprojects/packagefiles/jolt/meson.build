@@ -313,7 +313,7 @@ all = [
 	root/'Physics/Constraints/ConstraintPart/DualAxisConstraintPart.h',
 	root/'Physics/Constraints/ConstraintPart/GearConstraintPart.h',
 	root/'Physics/Constraints/ConstraintPart/HingeRotationConstraintPart.h',
-	root/'Physics/Constraints/ConstraintPart/IndependentAxisConstraintPart.',h
+	root/'Physics/Constraints/ConstraintPart/IndependentAxisConstraintPart.',
 	root/'Physics/Constraints/ConstraintPart/PointConstraintPart.h',
 	root/'Physics/Constraints/ConstraintPart/RackAndPinionConstraintPart.h',
 	root/'Physics/Constraints/ConstraintPart/RotationEulerConstraintPart.h',
@@ -490,7 +490,7 @@ if profiler.allowed()
 endif
 
 jolt = library('jolt', sources,
-    include_directories : root,
+    include_directories : '.',
     extra_files : headers,
 	cpp_pch : root/'Jolt.h',
 	cpp_args : args,
@@ -498,7 +498,7 @@ jolt = library('jolt', sources,
 )
 
 jolt_dep = declare_dependency(
-    include_directories : root,
+    include_directories : '.',
     link_with : jolt,
 	compile_args : args
 )

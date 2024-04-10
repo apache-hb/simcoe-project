@@ -103,6 +103,9 @@ namespace sm {
         constexpr T& ref() { return *Super::get(); }
         constexpr const T& ref() const { return *Super::get(); }
 
+        constexpr T *ptr() { return Super::get(); }
+        constexpr const T *ptr() const { return Super::get(); }
+
         constexpr void reset(T *data = nullptr) {
             Super::reset(data);
         }

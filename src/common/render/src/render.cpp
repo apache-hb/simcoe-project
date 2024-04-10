@@ -561,11 +561,11 @@ void Context::end_upload() {
 }
 
 void Context::create_scene() {
-    for (size_t i = 0; i < mWorld.models.size(); i++) {
+    for (world::IndexOf i : mWorld.indices<world::Model>()) {
         create_model(i);
     }
 
-    for (size_t i = 0; i < mWorld.images.size(); i++) {
+    for (world::IndexOf i : mWorld.indices<world::Image>()) {
         load_image(i);
     }
 

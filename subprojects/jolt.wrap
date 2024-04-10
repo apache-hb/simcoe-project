@@ -1,9 +1,9 @@
-[wrap-git]
-directory = jolt-5.0.0
+[wrap-file]
+directory = JoltPhysics-5.0.0
 
-url = https://github.com/jrouwe/JoltPhysics
-revision = head
-depth = 1
+source_url = https://github.com/jrouwe/JoltPhysics/archive/refs/tags/v5.0.0.zip
+source_hash = 2c98750316d565d553cb2c15d494b6b2ea4fbe55eb2ca18df536c9f4ac340d36
+source_filename = jolt-5.0.0.zip
 
 patch_directory = jolt
 

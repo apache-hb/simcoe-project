@@ -13,7 +13,7 @@ using namespace sm::world;
 // todo: dedup this with opaque
 static void draw_node(render::Context& context, ID3D12GraphicsCommandList1* commands, const draw::Camera& camera, IndexOf<Node> index, const float4x4& parent) {
     float ar = camera.config().aspect_ratio();
-    const auto& node = context.mWorld.nodes[index];
+    const auto& node = context.mWorld.get(index);
 
     auto model = (parent * node.transform.matrix());
     float4x4 mvp = camera.mvp(ar, model.transpose()).transpose();

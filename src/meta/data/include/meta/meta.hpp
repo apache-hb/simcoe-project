@@ -27,11 +27,5 @@
 #   define PROPERTY(...)
 #   define METHOD(...)
 #   define CASE(...)
-#   define REFLECT_BODY(ID) META_CONCAT(ID, _REFLECT)
+#   define REFLECT_BODY(ID)
 #endif
-
-namespace sm::meta {
-    class META_ANNOTATE("meta_object") Object {
-
-    };
-}

@@ -40,7 +40,7 @@ static void dragdop_source(world::IndexOf<T> index, const char *name, ImGuiDragD
 }
 
 void AssetBrowserPanel::draw_lights() {
-    auto& lights = mContext.mWorld.lights;
+    auto& lights = mContext.mWorld.mLights;
 
     draw_grid(lights.size(), [&](size_t i) {
         const auto& light = lights[i];
@@ -60,7 +60,7 @@ void AssetBrowserPanel::draw_lights() {
 }
 
 void AssetBrowserPanel::draw_models() {
-    auto& models = mContext.mWorld.models;
+    auto& models = mContext.mWorld.all<world::Model>();
 
     draw_grid(models.size(), [&](size_t i) {
         const auto& model = models[i];
@@ -80,7 +80,7 @@ void AssetBrowserPanel::draw_models() {
 }
 
 void AssetBrowserPanel::draw_images() {
-    auto& images = mContext.mWorld.images;
+    auto& images = mContext.mWorld.all<world::Image>();
 
     draw_grid(images.size(), [&](size_t i) {
         const auto& image = images[i];
@@ -102,7 +102,7 @@ void AssetBrowserPanel::draw_images() {
 }
 
 void AssetBrowserPanel::draw_materials() {
-    auto& materials = mContext.mWorld.materials;
+    auto& materials = mContext.mWorld.mMaterials;
 
     draw_grid(materials.size(), [&](size_t i) {
         const auto& material = materials[i];

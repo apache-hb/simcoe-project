@@ -221,32 +221,51 @@ namespace sm::world {
     using AnyIndex = ChoiceOf<Scene, Node, Camera, Model, File, Light, Buffer, Material, Image>;
     using OptionIndex = OptionOf<Scene, Node, Camera, Model, File, Light, Buffer, Material, Image>;
 
+    template<IsWorldObject T>
+    class IndexIterator {
+        uint16 mIndex;
+
+    public:
+        IndexIterator(IndexOf<T> index)
+            : mIndex(index)
+        { }
+
+        IndexIterator& operator++() {
+            ++mIndex;
+            return *this;
+        }
+
+        bool operator!=(const IndexIterator& other) const {
+            return mIndex != other.mIndex;
+        }
+
+        IndexOf<T> operator*() const { return mIndex; }
+    };
+
+    template<IsWorldObject T>
+    struct IndexRange {
+        IndexOf<T> first;
+        IndexOf<T> last;
+
+        IndexIterator<T> begin() const { return {first}; }
+        IndexIterator<T> end() const { return {last}; }
+    };
+
     struct World {
         sm::String name;
         IndexOf<Scene> default_scene;
         IndexOf<Material> default_material;
 
-        sm::Vector<Scene> scenes;
-        sm::Vector<Node> nodes;
-        sm::Vector<Light> lights;
-        sm::Vector<Camera> cameras;
-        sm::Vector<Model> models;
-        sm::Vector<File> files;
-        sm::Vector<Buffer> buffers;
-        sm::Vector<Material> materials;
-        sm::Vector<Image> images;
-        sm::Vector<Texture> textures;
-
         void move_node(IndexOf<Node> node, IndexOf<Node> parent);
         void clone_node(IndexOf<Node> node, IndexOf<Node> parent);
 
-        template<typename T>
+        template<IsWorldObject T>
         IndexOf<T> clone(IndexOf<T> index) {
             T clone = get<T>(index);
             return add(std::move(clone));
         }
 
-        template<typename T>
+        template<IsWorldObject T>
         IndexOf<T> add(T&& value) {
             auto& vec = get_vector<T>();
             uint16 index = int_cast<uint16>(vec.size());
@@ -254,7 +273,7 @@ namespace sm::world {
             return IndexOf<T>(index);
         }
 
-        template<typename T>
+        template<IsWorldObject T>
         T *try_get(IndexOf<T> index) {
             if (index.is_valid())
                 return &get<T>(index);
@@ -262,29 +281,50 @@ namespace sm::world {
             return nullptr;
         }
 
-        template<typename T>
+        template<IsWorldObject T>
         T &get(IndexOf<T> index) { return get_vector<T>()[index]; }
 
-        template<typename T>
+        template<IsWorldObject T>
         const sm::Vector<T>& all() const { return get_vector<T>(); }
+
+        template<IsWorldObject T>
+        IndexRange<T> indices() const {
+            const auto& vec = all<T>();
+            return IndexRange<T>{0, int_cast<uint16>(vec.size())};
+        }
 
         auto visit(AnyIndex index, auto&& fn) {
             return std::visit([&](auto index) { return fn(get(index)); }, index);
         }
 
-        template<typename T>
-        sm::Vector<T>& get_vector();
+        template<IsWorldObject T>
+        const sm::Vector<T>& get_vector() const {
+            // ugh
+            return const_cast<World*>(this)->get_vector<T>();
+        }
 
-        template<> sm::Vector<Node>& get_vector() { return nodes; }
-        template<> sm::Vector<Camera>& get_vector() { return cameras; }
-        template<> sm::Vector<Scene>& get_vector() { return scenes; }
-        template<> sm::Vector<Light>& get_vector() { return lights; }
-        template<> sm::Vector<Model>& get_vector() { return models; }
-        template<> sm::Vector<File>& get_vector() { return files; }
-        template<> sm::Vector<Buffer>& get_vector() { return buffers; }
-        template<> sm::Vector<Material>& get_vector() { return materials; }
-        template<> sm::Vector<Image>& get_vector() { return images; }
-        template<> sm::Vector<Texture>& get_vector() { return textures; }
+        template<IsWorldObject T> sm::Vector<T>& get_vector();
+
+        template<> sm::Vector<Node>& get_vector() { return mNodes; }
+        template<> sm::Vector<Camera>& get_vector() { return mCameras; }
+        template<> sm::Vector<Scene>& get_vector() { return mScenes; }
+        template<> sm::Vector<Light>& get_vector() { return mLights; }
+        template<> sm::Vector<Model>& get_vector() { return mModels; }
+        template<> sm::Vector<File>& get_vector() { return mFiles; }
+        template<> sm::Vector<Buffer>& get_vector() { return mBuffers; }
+        template<> sm::Vector<Material>& get_vector() { return mMaterials; }
+        template<> sm::Vector<Image>& get_vector() { return mImages; }
+
+        sm::Vector<Scene> mScenes;
+        sm::Vector<Node> mNodes;
+        sm::Vector<Light> mLights;
+        sm::Vector<Camera> mCameras;
+        sm::Vector<Model> mModels;
+        sm::Vector<File> mFiles;
+        sm::Vector<Buffer> mBuffers;
+        sm::Vector<Material> mMaterials;
+        sm::Vector<Image> mImages;
+        // sm::Vector<Texture> mTextures;
     };
 
     World default_world(sm::String name);

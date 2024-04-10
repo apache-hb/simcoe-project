@@ -22,6 +22,8 @@ project('simcoe', [ 'c', 'cpp' ],
         'tracy:callstack=true',
         'tracy:only_localhost=true',
 
+        'jolt:default_library=static',
+
         # nobody builds with clean warnings, so disable them per subproject
         'fmt:warning_level=0',
         # 'harfbuzz:warning_level=0',

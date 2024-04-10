@@ -7,7 +7,9 @@ src = [
     reflect.process('data/world.ct')
 ]
 
-deps = [ core, logs, system, archive, d3d12, d3dx12 ]
+jolt = dependency('jolt')
+
+deps = [ core, logs, system, archive, d3d12, d3dx12, jolt ]
 
 libworld = library('world', src,
     cpp_args : [ '-DSM_WORLD_BUILD=1' ],
