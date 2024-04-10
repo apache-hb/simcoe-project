@@ -1,7 +1,6 @@
 #pragma once
 
 #include "editor/draw.hpp"
-#include "editor/panels/scene.hpp"
 
 #include "draw/camera.hpp"
 
@@ -21,10 +20,11 @@ namespace sm::ed {
         void draw_gizmo_mode(ImGuizmo::OPERATION op, ImGuizmo::OPERATION x, ImGuizmo::OPERATION y, ImGuizmo::OPERATION z) const;
         void draw_rotate_mode() const;
 
-        ed::EditorContext &mContext;
-        size_t mCameraIndex;
+        ed::EditorContext *mContext;
+        ed::CameraData *mCamera;
 
-        auto& get_camera() { return mContext.cameras[mCameraIndex]; }
+        draw::Camera& get_camera() { return mCamera->camera; }
+        graph::Handle& get_target() { return mCamera->target; }
 
         ImGuizmo::OPERATION mOperation = ImGuizmo::TRANSLATE;
 
@@ -42,7 +42,7 @@ namespace sm::ed {
         void draw_content();
 
     public:
-        ViewportPanel(ed::EditorContext &context, size_t index);
+        ViewportPanel(ed::EditorContext *context, ed::CameraData *camera);
 
         bool mOpen = true;
         void draw_window();

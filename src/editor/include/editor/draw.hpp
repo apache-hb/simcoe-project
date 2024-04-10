@@ -5,6 +5,11 @@
 #include "render/render.hpp"
 
 namespace sm::ed {
+    struct CameraData {
+        draw::Camera camera;
+        graph::Handle target;
+    };
+
     struct EditorContext final : public render::Context {
         using Super = render::Context;
         using Super::Super;
@@ -20,25 +25,26 @@ namespace sm::ed {
 
         void render();
 
-        size_t add_camera();
+        CameraData& add_camera();
+
+        draw::Camera& get_active_camera() { return mActiveCamera->camera; }
+
+        sm::Span<sm::UniquePtr<CameraData>> get_cameras() { return mCameras; }
+
+        void erase_camera(size_t index);
 
         std::optional<world::AnyIndex> selected;
         render::SrvIndex index;
         input::InputService input;
 
-        struct CameraData {
-            sm::UniquePtr<draw::Camera> camera;
-            graph::Handle target;
-        };
-
-        sm::Vector<CameraData> cameras;
-        size_t active = 0;
-
         // should the device be recreated?
         bool recreate_device = false;
 
     private:
-        void push_camera(size_t index, math::uint2 size);
-        void imgui(graph::FrameGraph& graph, graph::Handle target);
+        sm::Vector<sm::UniquePtr<CameraData>> mCameras;
+        CameraData *mActiveCamera = nullptr;
+
+        CameraData& push_camera(math::uint2 size);
+        void imgui(graph::FrameGraph& graph, graph::Handle render_target);
     };
 }

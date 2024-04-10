@@ -2,8 +2,6 @@
 
 #include "editor/panels/viewport.hpp"
 
-#include "render/render.hpp"
-
 using namespace sm;
 using namespace sm::math;
 using namespace sm::ed;
@@ -85,22 +83,23 @@ void ViewportPanel::draw_window() {
 
 void ViewportPanel::draw_content() {
     ImGui::Checkbox("Scale to viewport", &mScaleViewport);
-    auto& [camera, target] = get_camera();
+    auto& camera = get_camera();
+    auto& context = *mContext;
 
     float2 avail = ImGui::GetContentRegionAvail();
     if (mScaleViewport) {
         uint2 sz = avail.as<uint>();
-        if (camera->resize(sz)) {
-            mContext.update_framegraph();
+        if (camera.resize(sz)) {
+            context.update_framegraph();
         }
     }
 
-    auto srv = mContext.mFrameGraph.srv(target);
-    auto idx = mContext.mSrvPool.gpu_handle(srv);
+    auto srv = context.mFrameGraph.srv(get_target());
+    auto idx = context.mSrvPool.gpu_handle(srv);
     ImGui::Image((ImTextureID)idx.ptr, avail);
 
-    if (!mContext.selected.has_value()) return;
-    auto selected = world::get<world::Node>(*mContext.selected);
+    if (!context.selected.has_value()) return;
+    auto selected = world::get<world::Node>(*context.selected);
     if (selected == world::kInvalidIndex) return;
 
     float2 size = ImGui::GetWindowSize();
@@ -115,7 +114,7 @@ void ViewportPanel::draw_content() {
         mFlags &= ~ImGuiWindowFlags_NoMove;
     }
 
-    auto& scene = mContext.mWorld;
+    auto& scene = context.mWorld;
     auto& item = scene.get(selected);
 
     const auto& [t, r, s] = item.transform;
@@ -128,8 +127,8 @@ void ViewportPanel::draw_content() {
     float matrix[16];
     ImGuizmo::RecomposeMatrixFromComponents(t.data(), euler.data(), s.data(), matrix);
 
-    float4x4 view = camera->view();
-    float4x4 proj = camera->projection(size.width / size.height);
+    float4x4 view = camera.view();
+    float4x4 proj = camera.projection(size.width / size.height);
 
     if (ImGuizmo::Manipulate(view.data(), proj.data(), mOperation, mMode, matrix)) {
         float3 t, r, s;
@@ -167,7 +166,7 @@ void ViewportPanel::gizmo_settings_panel() {
 
     const auto& camera = get_camera();
 
-    if (!camera.camera->is_active()) {
+    if (!camera.is_active()) {
         // blender keybinds
         if (ImGui::IsKeyPressed(ImGuiKey_G))
             mOperation = mTranslateOperation;
@@ -199,8 +198,9 @@ void ViewportPanel::gizmo_settings_panel() {
     }
 }
 
-ViewportPanel::ViewportPanel(ed::EditorContext &context, size_t index)
+ViewportPanel::ViewportPanel(ed::EditorContext *context, ed::CameraData *camera)
     : mContext(context)
-    , mCameraIndex(index)
-    , mName(fmt::format("Viewport {}", index))
-{ }
+    , mCamera(camera)
+{
+    mName = get_camera().name();
+}

@@ -42,6 +42,14 @@ void InputService::add_client(IClient* client) {
     mClients.push_back(client);
 }
 
+void InputService::erase_source(ISource* source) {
+    mSources.erase(std::remove(mSources.begin(), mSources.end(), source), mSources.end());
+}
+
+void InputService::erase_client(IClient* client) {
+    mClients.erase(std::remove(mClients.begin(), mClients.end(), client), mClients.end());
+}
+
 void InputService::poll() {
     bool dirty = false;
     for (ISource *source : mSources) {

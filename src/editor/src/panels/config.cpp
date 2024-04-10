@@ -176,9 +176,10 @@ void RenderConfig::draw_content() {
         ImGui::Text("Display Resolution: %u x %u", width, height);
     }
 
-    for (const auto& [camera, _] : mContext.cameras) {
-        auto size = camera->config().size;
-        ImGui::Text("Camera: %s (%u x %u)", camera->name().data(), size.width, size.height);
+    for (const auto& data : mContext.get_cameras()) {
+        auto& camera = data->camera;
+        auto size = camera.config().size;
+        ImGui::Text("Camera: %s (%u x %u)", camera.name().data(), size.width, size.height);
     }
 
     // {

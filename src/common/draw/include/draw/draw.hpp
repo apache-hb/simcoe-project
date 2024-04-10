@@ -27,6 +27,16 @@ namespace sm::draw {
             { }
         };
 
+        /// @brief upload light data to the gpu
+        ///
+        /// @param graph the render graph
+        /// @param[out] point_light_data the handle to the point light data
+        /// @param[out] spot_light_data the handle to the spot light data
+        void upload_light_data(
+            graph::FrameGraph& graph,
+            graph::Handle& point_light_data,
+            graph::Handle& spot_light_data);
+
         /// @brief forward+ depth prepass
         ///
         /// @param graph the render graph
@@ -37,16 +47,20 @@ namespace sm::draw {
             graph::Handle& depth_target,
             DrawData dd);
 
-        /// @brief forward+ light culling/binning pass
+        /// @brief forward+ light binning pass
         ///
         /// @param graph the render graph
         /// @param[out] indices the uav that light indices will be written to
         /// @param depth the depth target that will be read from
+        /// @param point_light_data the point light data
+        /// @param spot_light_data the spot light data
         /// @param dd the draw data
-        void light_culling(
+        void light_binning(
             graph::FrameGraph& graph,
             graph::Handle& indices,
             graph::Handle depth,
+            graph::Handle point_light_data,
+            graph::Handle spot_light_data,
             DrawData dd);
 
         /// @brief forward+ opaque rendering pass

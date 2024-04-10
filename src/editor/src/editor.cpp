@@ -22,8 +22,8 @@ Editor::Editor(ed::EditorContext& context)
     mSaveLevelDialog.SetTypeFilters({ ".bin" });
     mSaveLevelDialog.SetInputName("level.bin");
 
-    for (size_t i = 0; i < mContext.cameras.size(); i++) {
-        mViewports.emplace_back(mContext, i);
+    for (auto& camera : mContext.get_cameras()) {
+        mViewports.emplace_back(&mContext, camera.get());
     }
 }
 
@@ -90,12 +90,22 @@ void Editor::draw_mainmenu() {
             }
 
             ImGui::SeparatorText("Viewports");
-            for (ViewportPanel &viewport : mViewports) {
+            size_t erase = SIZE_MAX;
+            for (size_t i = 0; i < mViewports.size(); i++) {
+                ViewportPanel& viewport = mViewports[i];
                 ImGui::MenuItem(viewport.get_title(), nullptr, &viewport.mOpen);
+
+                if (!viewport.mOpen) {
+                    erase = i;
+                }
             }
+
+            if (erase != SIZE_MAX) {
+                mViewports.erase(mViewports.begin() + erase);
+            }
+
             if (ImGui::SmallButton("Add Viewport")) {
-                size_t index = mContext.add_camera();
-                mViewports.emplace_back(mContext, index);
+                mViewports.emplace_back(&mContext, &mContext.add_camera());
             }
             ImGui::EndMenu();
         }

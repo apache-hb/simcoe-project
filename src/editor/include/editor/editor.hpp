@@ -70,6 +70,6 @@ namespace sm::ed {
         void draw();
 
         render::Context& get_context() { return mContext; }
-        draw::Camera& get_camera() { return *mContext.cameras[mContext.active].camera.get(); }
+        draw::Camera& get_camera() { return mContext.get_active_camera(); }
     };
 }

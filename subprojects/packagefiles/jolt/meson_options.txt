@@ -1,0 +1,4 @@
+option('broadphase_stats', type : 'feature', value : 'auto')
+option('narrowphase_stats', type : 'feature', value : 'auto')
+option('debug_render', type : 'feature', value : 'auto')
+option('profiler', type : 'feature', value : 'auto')

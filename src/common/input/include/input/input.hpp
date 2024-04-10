@@ -63,6 +63,9 @@ namespace sm::input {
         void add_source(ISource* source);
         void add_client(IClient* client);
 
+        void erase_source(ISource* source);
+        void erase_client(IClient* client);
+
         void capture_cursor(bool capture);
 
         void poll();

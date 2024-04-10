@@ -460,14 +460,47 @@ foreach item : all
     endif
 endforeach
 
+args = []
+
+if get_option('default_library') == 'shared'
+	args += [ '-DJPH_SHARED_LIBRARY' ]
+endif
+
+buildtype = get_option('buildtype')
+
+broadphase_stats = get_option('broadphase_stats').disable_auto_if(not buildtype.contains('debug'))
+narrowphase_stats = get_option('narrowphase_stats').disable_auto_if(not buildtype.contains('debug'))
+debug_render = get_option('debug_render').disable_auto_if(not buildtype.contains('debug'))
+profiler = get_option('profiler').disable_auto_if(not buildtype.contains('debug'))
+
+if broadphase_stats.allowed()
+	args += [ '-DJPH_TRACK_BROADPHASE_STATS' ]
+endif
+
+if narrowphase_stats.allowed()
+	args += [ '-DJPH_TRACK_NARROWPHASE_STATS' ]
+endif
+
+if debug_render.allowed()
+	args += [ '-DJPH_DEBUG_RENDERER' ]
+endif
+
+if profiler.allowed()
+	args += [ '-DJPH_PROFILE_ENABLED' ]
+endif
+
 jolt = library('jolt', sources,
     include_directories : root,
-    extra_files : headers
+    extra_files : headers,
+	cpp_pch : root/'Jolt.h',
+	cpp_args : args,
+	cpp_shared_args : [ '-DJPH_BUILD_SHARED_LIBRARY' ]
 )
 
 jolt_dep = declare_dependency(
     include_directories : root,
-    link_with : jolt
+    link_with : jolt,
+	compile_args : args
 )
 
 meson.override_dependency('jolt', jolt_dep)

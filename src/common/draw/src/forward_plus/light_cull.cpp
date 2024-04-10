@@ -52,7 +52,7 @@ struct SceneLightBuffer {
     }
 };
 
-static auto& upload_light_data(
+void forward_plus::upload_light_data(
     graph::FrameGraph &graph,
     graph::Handle &point_light_data,
     graph::Handle &spot_light_data)
@@ -81,7 +81,7 @@ static auto& upload_light_data(
     spot_light_data = pass.create(light_data_info, "Spot Light Data", graph::Usage::eCopyTarget)
         .override_desc(uav);
 
-    auto& data = graph.device_data([](render::Context& context) {
+    graph.device_data([](render::Context& context) {
         struct {
             SceneLightBuffer lights;
 
@@ -112,8 +112,6 @@ static auto& upload_light_data(
     pass.bind([](graph::RenderContext& ctx) {
 
     });
-
-    return data;
 }
 
 static constexpr D3D12_ROOT_SIGNATURE_FLAGS kComputeRootFlags
@@ -176,7 +174,7 @@ static void create_tiling_pipeline(render::Pipeline& pipeline, render::Context& 
     }
 }
 
-static void light_binning(
+void forward_plus::light_binning(
     graph::FrameGraph &graph,
     graph::Handle &indices,
     graph::Handle depth,
@@ -247,20 +245,4 @@ static void light_binning(
 
         cmd->Dispatch(TILE_SIZE, TILE_SIZE, 1);
     });
-
-    pass.side_effects(true);
-}
-
-void forward_plus::light_culling(
-    graph::FrameGraph &graph,
-    graph::Handle &indices,
-    graph::Handle depth,
-    DrawData dd)
-{
-    graph::Handle point_light_data;
-    graph::Handle spot_light_data;
-
-    upload_light_data(graph, point_light_data, spot_light_data);
-
-    light_binning(graph, indices, depth, point_light_data, spot_light_data, dd);
 }

@@ -43,11 +43,14 @@ namespace sm {
             return *this;
         }
 
-        constexpr T& get() { CTASSERT(is_valid()); return mHandle; }
-        constexpr const T& get() const { CTASSERT(is_valid()); return mHandle; }
+        constexpr T get() { return ref(); }
+        constexpr const T get() const { return ref(); }
 
-        constexpr T& operator*() { return get(); }
-        constexpr const T& operator*() const { return get(); }
+        constexpr T& ref() { CTASSERT(is_valid()); return mHandle; }
+        constexpr const T& ref() const { CTASSERT(is_valid()); return mHandle; }
+
+        constexpr T& operator*() { return ref(); }
+        constexpr const T& operator*() const { return ref(); }
 
         constexpr T *address() { return &mHandle; }
         constexpr T *const address() const { return &mHandle; }
@@ -96,6 +99,9 @@ namespace sm {
 
         constexpr T** operator&() { return Super::address(); }
         constexpr T* const* operator&() const { return Super::address(); }
+
+        constexpr T& ref() { return *Super::get(); }
+        constexpr const T& ref() const { return *Super::get(); }
 
         constexpr void reset(T *data = nullptr) {
             Super::reset(data);
@@ -171,3 +177,20 @@ namespace sm {
         "UniquePtr<T> should be the same size as T* in release"
         "a compiler that supports [[no_unique_address]] or [[msvc::no_unique_address]] is required");
 }
+
+// NOLINTBEGIN
+
+template<typename T>
+struct std::tuple_size<sm::UniquePtr<T>> : std::tuple_size<T> { };
+
+template<size_t I, typename T>
+struct std::tuple_element<I, sm::UniquePtr<T>> : std::tuple_element<I, T> { };
+
+namespace std {
+    template<size_t I, typename T>
+    constexpr decltype(auto) get(sm::UniquePtr<T>& ptr) {
+        return std::get<I>(ptr.ref());
+    }
+}
+
+// NOLINTEND

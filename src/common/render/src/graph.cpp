@@ -799,7 +799,6 @@ void FrameGraph::execute() {
     for (auto& step : mFrameSchedule) {
         std::visit(overloaded {
             [&](events::DeviceSync sync) {
-                logs::gRender.info("Step: Sync {} -> {}", sync.signal, sync.wait);
                 ID3D12CommandQueue *signal = mContext.get_queue(sync.signal);
                 ID3D12CommandQueue *wait = mContext.get_queue(sync.wait);
 
@@ -810,17 +809,14 @@ void FrameGraph::execute() {
                 SM_ASSERT_HR(wait->Wait(fence, value));
             },
             [&](events::ResourceBarrier& barrier) {
-                logs::gRender.info("Step: Resource Barriers {}", barrier.size());
                 build_raw_events(barrier);
                 ID3D12GraphicsCommandList1 *commands = get_commands(barrier.handle);
                 commands->ResourceBarrier(barrier.size(), barrier.data());
             },
             [&](events::OpenCommands open) {
                 open_commands(open.handle);
-                logs::gRender.info("Step: Open Commands {} of type {}", open.handle.index, get_command_type(open.handle));
             },
             [&](events::RecordCommands record) {
-                logs::gRender.info("Step: Record Commands {} on commands of type {}", record.handle.index, get_command_type(record.handle));
                 ID3D12GraphicsCommandList1 *commands = get_commands(record.handle);
                 auto& pass = mRenderPasses[record.pass.index];
                 RenderContext ctx{mContext, *this, pass, commands};
@@ -830,7 +826,6 @@ void FrameGraph::execute() {
                 PIXEndEvent(commands);
             },
             [&](events::SubmitCommands submit) {
-                logs::gRender.info("Step: Submit Commands {} on commands of type {}", submit.handle.index, get_command_type(submit.handle));
                 close_commands(submit.handle);
                 ID3D12GraphicsCommandList1 *commands = get_commands(submit.handle);
                 ID3D12CommandQueue *queue = mContext.get_queue(get_command_type(submit.handle));
