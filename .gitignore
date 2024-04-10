@@ -35,6 +35,7 @@ subprojects/*
 !subprojects/*.wrap
 !subprojects/stb
 !subprojects/dds_texture_loader
+!subprojects/dynamic_bitset
 !subprojects/packagefiles
 !subprojects/packagefiles/**
 !subprojects/.clang-tidy

@@ -91,6 +91,7 @@ msdf_atlas_gen = find_program('msdf-atlas-gen')
 compressonator = find_program('compressonatorcli')
 artery = dependency('artery-font')
 fastgltf = dependency('fastgltf')
+dynamic_bitset = subproject('dynamic_bitset').get_variable('dynamic_bitset')
 
 dxgi = cpp.find_library('dxgi')
 dxguid = cpp.find_library('dxguid')

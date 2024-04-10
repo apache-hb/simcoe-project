@@ -98,7 +98,17 @@ void forward_plus::depth_prepass(
     };
 
     graph::PassBuilder pass = graph.graphics(fmt::format("Forward+ Depth Prepass ({})", dd.camera.name()));
-    depth_target = pass.create(info, "Depth", graph::Usage::eDepthWrite);
+
+    depth_target = pass.create(info, "Depth", graph::Usage::eDepthWrite)
+        .override_srv({
+            .Format = DXGI_FORMAT_R32_FLOAT,
+            .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
+            .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+            .Texture2D = {
+                .MostDetailedMip = 0,
+                .MipLevels = 1,
+            },
+        });
 
     auto& data = graph.device_data([](render::Context& context) {
         struct {

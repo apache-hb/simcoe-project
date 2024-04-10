@@ -40,8 +40,6 @@ namespace sm::graph {
         };
 
         Clear() : type(eEmpty) { }
-
-        D3D12_CLEAR_VALUE *get_value(D3D12_CLEAR_VALUE& storage, render::Format format) const;
     };
 
     Clear clear_colour(float4 colour);
@@ -74,15 +72,15 @@ namespace sm::graph {
         Usage usage;
     };
 
-    struct FrameCommandData {
-        render::CommandListType type;
-        sm::UniqueArray<render::Object<ID3D12CommandAllocator>> allocators;
-        render::Object<ID3D12GraphicsCommandList1> commands;
-    };
-
-    using FrameSchedule = sm::Vector<events::Event>;
-
     class FrameGraph {
+        struct FrameCommandData {
+            render::CommandListType type;
+            sm::UniqueArray<render::Object<ID3D12CommandAllocator>> allocators;
+            render::Object<ID3D12GraphicsCommandList1> commands;
+        };
+
+        using FrameSchedule = sm::Vector<events::Event>;
+
         struct RenderPassHandle {
             uint index;
 
@@ -118,6 +116,11 @@ namespace sm::graph {
             render::DsvIndex dsv = render::DsvIndex::eInvalid;
             render::SrvIndex srv = render::SrvIndex::eInvalid;
             render::SrvIndex uav = render::SrvIndex::eInvalid;
+
+            std::optional<D3D12_SHADER_RESOURCE_VIEW_DESC> srv_desc;
+            std::optional<D3D12_UNORDERED_ACCESS_VIEW_DESC> uav_desc;
+            std::optional<D3D12_RENDER_TARGET_VIEW_DESC> rtv_desc;
+            std::optional<D3D12_DEPTH_STENCIL_VIEW_DESC> dsv_desc;
 
             bool is_imported() const { return type == ResourceType::eImported; }
             bool is_managed() const { return type == ResourceType::eManaged || type == ResourceType::eTransient; }
@@ -193,11 +196,45 @@ namespace sm::graph {
             : mContext(context)
         { }
 
+        class AccessBuilder {
+            FrameGraph& mFrameGraph;
+            Handle mHandle;
+
+        public:
+            AccessBuilder(FrameGraph& graph, Handle handle)
+                : mFrameGraph(graph)
+                , mHandle(handle)
+            { }
+
+            operator Handle() const { return mHandle; }
+
+            AccessBuilder& override_srv(D3D12_SHADER_RESOURCE_VIEW_DESC desc) {
+                return override_desc(desc);
+            }
+
+            AccessBuilder& override_uav(D3D12_UNORDERED_ACCESS_VIEW_DESC desc) {
+                return override_desc(desc);
+            }
+
+            AccessBuilder& override_rtv(D3D12_RENDER_TARGET_VIEW_DESC desc) {
+                return override_desc(desc);
+            }
+
+            AccessBuilder& override_dsv(D3D12_DEPTH_STENCIL_VIEW_DESC desc) {
+                return override_desc(desc);
+            }
+
+            AccessBuilder& override_desc(D3D12_SHADER_RESOURCE_VIEW_DESC desc);
+            AccessBuilder& override_desc(D3D12_UNORDERED_ACCESS_VIEW_DESC desc);
+            AccessBuilder& override_desc(D3D12_RENDER_TARGET_VIEW_DESC desc);
+            AccessBuilder& override_desc(D3D12_DEPTH_STENCIL_VIEW_DESC desc);
+        };
+
         class PassBuilder {
             FrameGraph& mFrameGraph;
             RenderPass& mRenderPass;
 
-            void add_write(Handle handle, sm::StringView name, Usage access, ResourceView view);
+            void add_write(Handle handle, sm::StringView name, Usage access);
 
         public:
             PassBuilder(FrameGraph& graph, RenderPass& pass)
@@ -205,9 +242,9 @@ namespace sm::graph {
                 , mRenderPass(pass)
             { }
 
-            void read(Handle handle,         sm::StringView name, Usage access, ResourceView view = std::monostate{});
-            void write(Handle handle,        sm::StringView name, Usage access, ResourceView view = std::monostate{});
-            Handle create(ResourceInfo info, sm::StringView name, Usage access, ResourceView view = std::monostate{});
+            AccessBuilder read(Handle handle,       sm::StringView name, Usage access);
+            AccessBuilder write(Handle handle,      sm::StringView name, Usage access);
+            AccessBuilder create(ResourceInfo info, sm::StringView name, Usage access);
 
             void side_effects(bool effects);
 

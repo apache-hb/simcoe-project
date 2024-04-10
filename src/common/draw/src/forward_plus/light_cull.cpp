@@ -74,8 +74,12 @@ static auto& upload_light_data(
     };
 
     graph::PassBuilder pass = graph.copy("Upload Light Data");
-    point_light_data = pass.create(light_data_info, "Point Light Data", graph::Usage::eCopyTarget, uav);
-    spot_light_data = pass.create(light_data_info, "Spot Light Data", graph::Usage::eCopyTarget, uav);
+
+    point_light_data = pass.create(light_data_info, "Point Light Data", graph::Usage::eCopyTarget)
+        .override_desc(uav);
+
+    spot_light_data = pass.create(light_data_info, "Spot Light Data", graph::Usage::eCopyTarget)
+        .override_desc(uav);
 
     auto& data = graph.device_data([](render::Context& context) {
         struct {
@@ -183,15 +187,6 @@ static void light_binning(
     const auto& camera = dd.camera.config();
     uint tile_count = draw::get_tile_count(camera.size, TILE_SIZE);
 
-    D3D12_UNORDERED_ACCESS_VIEW_DESC uav = {
-        .Format = DXGI_FORMAT_R32_UINT,
-        .ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
-        .Buffer = {
-            .FirstElement = 0,
-            .NumElements = LIGHT_INDEX_BUFFER_STRIDE * tile_count,
-        },
-    };
-
     graph::ResourceInfo info = {
         .sz = graph::ResourceSize::buffer(sizeof(uint) * LIGHT_INDEX_BUFFER_STRIDE * tile_count),
         .format = DXGI_FORMAT_R32_UINT,
@@ -199,45 +194,19 @@ static void light_binning(
 
     graph::PassBuilder pass = graph.compute(fmt::format("Forward+ Light Binning ({})", dd.camera.name()));
 
-    // TODO: find a better way to do this
-    D3D12_SHADER_RESOURCE_VIEW_DESC depth_srv = {
-        .Format = DXGI_FORMAT_R32_FLOAT,
-        .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
-        .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
-        .Texture2D = {
-            .MostDetailedMip = 0,
-            .MipLevels = 1,
-            .PlaneSlice = 0,
-            .ResourceMinLODClamp = 0.f,
-        },
-    };
+    pass.read(depth, "Depth", graph::Usage::eTextureRead);
+    pass.read(point_light_data, "Point Light Data", graph::Usage::eBufferRead);
+    pass.read(spot_light_data, "Spot Light Data", graph::Usage::eBufferRead);
 
-    pass.read(depth, "Depth", graph::Usage::eTextureRead, depth_srv);
-
-    D3D12_UNORDERED_ACCESS_VIEW_DESC point_light_uav = {
-        .Format = DXGI_FORMAT_UNKNOWN,
-        .ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
-        .Buffer = {
-            .FirstElement = 0,
-            .NumElements = MAX_POINT_LIGHTS,
-            .StructureByteStride = sizeof(PointLightData),
-        },
-    };
-    pass.read(point_light_data, "Point Light Data", graph::Usage::eBufferRead, point_light_uav);
-
-    D3D12_UNORDERED_ACCESS_VIEW_DESC spot_light_uav = {
-        .Format = DXGI_FORMAT_UNKNOWN,
-        .ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
-        .Buffer = {
-            .FirstElement = 0,
-            .NumElements = MAX_SPOT_LIGHTS,
-            .StructureByteStride = sizeof(SpotLightData),
-        },
-    };
-
-    pass.read(spot_light_data, "Spot Light Data", graph::Usage::eBufferRead, spot_light_uav);
-
-    indices = pass.create(info, "Light Indices", graph::Usage::eBufferWrite, uav);
+    indices = pass.create(info, "Light Indices", graph::Usage::eBufferWrite)
+        .override_uav({
+            .Format = DXGI_FORMAT_R32_UINT,
+            .ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
+            .Buffer = {
+                .FirstElement = 0,
+                .NumElements = LIGHT_INDEX_BUFFER_STRIDE * tile_count,
+            },
+        });
 
     auto& data = graph.device_data([](render::Context& context) {
         struct {

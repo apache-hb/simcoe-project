@@ -3,7 +3,6 @@
 #include "core/variant.hpp"
 
 #include "render/graph/handle.hpp"
-#include "render/heap.hpp"
 
 #include <functional>
 
@@ -35,40 +34,12 @@ namespace sm::graph {
         FrameGraph& graph;
         RenderPass& pass;
         ID3D12GraphicsCommandList1* commands;
-
-        D3D12_GPU_VIRTUAL_ADDRESS gpu_address(Handle handle) const;
-
-        D3D12_CPU_DESCRIPTOR_HANDLE srv_host(AccessHandle handle) const;
-        D3D12_GPU_DESCRIPTOR_HANDLE srv_device(AccessHandle handle) const;
-
-        D3D12_CPU_DESCRIPTOR_HANDLE uav_host(AccessHandle handle) const;
-        D3D12_GPU_DESCRIPTOR_HANDLE uav_device(AccessHandle handle) const;
-
-        D3D12_CPU_DESCRIPTOR_HANDLE rtv_host(AccessHandle handle) const;
-        D3D12_GPU_DESCRIPTOR_HANDLE rtv_device(AccessHandle handle) const;
-
-        D3D12_CPU_DESCRIPTOR_HANDLE dsv_host(AccessHandle handle) const;
-        D3D12_GPU_DESCRIPTOR_HANDLE dsv_device(AccessHandle handle) const;
-
-        ID3D12Resource* resource(Handle handle) const;
     };
-
-    using ResourceView = sm::Variant<
-        D3D12_SHADER_RESOURCE_VIEW_DESC,
-        D3D12_UNORDERED_ACCESS_VIEW_DESC,
-        D3D12_RENDER_TARGET_VIEW_DESC,
-        D3D12_DEPTH_STENCIL_VIEW_DESC,
-        std::monostate
-    >;
 
     struct ResourceAccess {
         sm::String name;
         Handle index;
         Usage usage;
-
-        ResourceView view = std::monostate{};
-
-        uint descriptor = UINT_MAX;
     };
 
     enum : int {
@@ -89,8 +60,6 @@ namespace sm::graph {
         sm::SmallVector<ResourceAccess, 4> writes;
 
         std::function<void(RenderContext&)> execute;
-
-        const ResourceAccess& get_access(AccessHandle handle) const;
 
         void foreach(int flags, auto&& fn) {
             if (flags & eRead) {

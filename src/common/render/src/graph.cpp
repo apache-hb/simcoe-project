@@ -25,48 +25,32 @@ Clear graph::clear_depth(float depth) {
     return clear;
 }
 
-D3D12_CLEAR_VALUE *Clear::get_value(D3D12_CLEAR_VALUE& storage, render::Format format) const {
-    storage = { .Format = format };
-    switch (type) {
-    case eColour:
-        storage.Color[0] = colour.r;
-        storage.Color[1] = colour.g;
-        storage.Color[2] = colour.b;
-        storage.Color[3] = colour.a;
-        break;
-    case eDepth:
-        storage.DepthStencil.Depth = depth;
-        storage.DepthStencil.Stencil = 0;
-        break;
-    case eEmpty:
-        return nullptr;
-    }
-
-    return &storage;
+void PassBuilder::add_write(Handle handle, sm::StringView name, Usage access) {
+    mRenderPass.writes.push_back({sm::String{name}, handle, access});
 }
 
-void PassBuilder::add_write(Handle handle, sm::StringView name, Usage access, ResourceView view) {
-    mRenderPass.writes.push_back({sm::String{name}, handle, access, view});
+FrameGraph::AccessBuilder PassBuilder::read(Handle handle, sm::StringView name, Usage access) {
+    mRenderPass.reads.push_back({sm::String{name}, handle, access});
+
+    return FrameGraph::AccessBuilder{mFrameGraph, handle};
 }
 
-void PassBuilder::read(Handle handle, sm::StringView name, Usage access, ResourceView view) {
-    mRenderPass.reads.push_back({sm::String{name}, handle, access, view});
-}
-
-void PassBuilder::write(Handle handle, sm::StringView name, Usage access, ResourceView view) {
+FrameGraph::AccessBuilder PassBuilder::write(Handle handle, sm::StringView name, Usage access) {
     if (mFrameGraph.is_imported(handle)) {
         side_effects(true);
     }
 
-    add_write(handle, name, access, view);
+    add_write(handle, name, access);
+
+    return FrameGraph::AccessBuilder{mFrameGraph, handle};
 }
 
-Handle PassBuilder::create(ResourceInfo info, sm::StringView name, Usage access, ResourceView view) {
+FrameGraph::AccessBuilder PassBuilder::create(ResourceInfo info, sm::StringView name, Usage access) {
     auto id = fmt::format("{}/{}", mRenderPass.name, name);
     Handle handle = mFrameGraph.add_transient(info, access, id);
-    mRenderPass.creates.push_back({id, handle, access, view});
-    add_write(handle, name, access, view);
-    return handle;
+    mRenderPass.creates.push_back({id, handle, access});
+    add_write(handle, name, access);
+    return FrameGraph::AccessBuilder{mFrameGraph, handle};
 }
 
 void PassBuilder::side_effects(bool effects) {
@@ -238,7 +222,9 @@ static constexpr D3D12_RESOURCE_STATES get_usage_state(Usage usage) {
     case ePresent: return D3D12_RESOURCE_STATE_PRESENT;
     case eUnknown: return D3D12_RESOURCE_STATE_COMMON;
 
-    case eTextureRead: return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+    case ePixelShaderResource: return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+
+    case eTextureRead: return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
     case eTextureWrite: return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 
     case eRenderTarget: return D3D12_RESOURCE_STATE_RENDER_TARGET;
@@ -257,20 +243,30 @@ static constexpr D3D12_RESOURCE_STATES get_usage_state(Usage usage) {
     }
 }
 
-static bool used_as_srv(Usage usage) {
-    return (usage == Usage::eTextureRead);
+using AccessBuilder = FrameGraph::AccessBuilder;
+
+AccessBuilder& AccessBuilder::override_desc(D3D12_SHADER_RESOURCE_VIEW_DESC desc) {
+    mFrameGraph.mHandles[mHandle.index].srv_desc = desc;
+
+    return *this;
 }
 
-static bool used_as_rtv(Usage usage) {
-    return (usage == Usage::eRenderTarget);
+AccessBuilder& AccessBuilder::override_desc(D3D12_UNORDERED_ACCESS_VIEW_DESC desc) {
+    mFrameGraph.mHandles[mHandle.index].uav_desc = desc;
+
+    return *this;
 }
 
-static bool used_as_dsv(Usage usage) {
-    return (usage == Usage::eDepthWrite || usage == Usage::eDepthRead);
+AccessBuilder& AccessBuilder::override_desc(D3D12_RENDER_TARGET_VIEW_DESC desc) {
+    mFrameGraph.mHandles[mHandle.index].rtv_desc = desc;
+
+    return *this;
 }
 
-static bool used_as_uav(Usage usage) {
-    return (usage == Usage::eTextureWrite || usage == Usage::eBufferWrite || usage == Usage::eBufferRead);
+AccessBuilder& AccessBuilder::override_desc(D3D12_DEPTH_STENCIL_VIEW_DESC desc) {
+    mFrameGraph.mHandles[mHandle.index].dsv_desc = desc;
+
+    return *this;
 }
 
 static constexpr std::optional<D3D12_CLEAR_VALUE> get_clear_value(const Clear& info) {
@@ -297,34 +293,65 @@ static constexpr std::optional<D3D12_CLEAR_VALUE> get_clear_value(const Clear& i
 }
 
 struct UsageTracker {
-    sm::HashMap<uint, D3D12_RESOURCE_STATES> states;
+    struct UsageBits {
+        bool uav : 1 = false;
+        bool srv : 1 = false;
+        bool rtv : 1 = false;
+        bool dsv : 1 = false;
+    };
 
-    D3D12_RESOURCE_STATES at_or(uint resource, D3D12_RESOURCE_STATES state) const {
+    sm::HashMap<uint, UsageBits> states;
+
+    UsageBits try_get(uint resource) const {
         if (states.contains(resource)) {
             return states.at(resource);
         }
 
-        return state;
+        return {};
     }
 
-    void access(uint resource, D3D12_RESOURCE_STATES state) {
-        states[resource] |= state;
+    void access(uint resource, Usage usage) {
+        using enum Usage::Inner;
+        switch (usage) {
+        case ePixelShaderResource:
+        case eTextureRead:
+            states[resource].srv = true;
+            break;
+
+        case eTextureWrite:
+        case eBufferRead:
+        case eBufferWrite:
+            states[resource].uav = true;
+            break;
+
+        case eRenderTarget:
+            states[resource].rtv = true;
+            break;
+
+        case eDepthRead:
+        case eDepthWrite:
+            states[resource].dsv = true;
+            break;
+
+        default:
+            break;
+        }
     }
 
     bool needs_uav(uint resource) const {
-        return (at_or(resource, D3D12_RESOURCE_STATE_COMMON) & D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        return try_get(resource).uav;
     }
 
     bool needs_srv(uint resource) const {
-        return (at_or(resource, D3D12_RESOURCE_STATE_COMMON) & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        return try_get(resource).srv;
     }
 
     bool needs_rtv(uint resource) const {
-        return (at_or(resource, D3D12_RESOURCE_STATE_COMMON) & D3D12_RESOURCE_STATE_RENDER_TARGET);
+        return try_get(resource).rtv;
     }
 
     bool needs_dsv(uint resource) const {
-        return (at_or(resource, D3D12_RESOURCE_STATE_COMMON) & (D3D12_RESOURCE_STATE_DEPTH_WRITE | D3D12_RESOURCE_STATE_DEPTH_READ));
+        return try_get(resource).dsv;
     }
 
     D3D12_RESOURCE_FLAGS get_resource_flags(uint resource) const {
@@ -342,9 +369,9 @@ struct UsageTracker {
             flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
         }
 
-        if (!needs_srv(resource) && !needs_uav(resource)) {
-            flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
-        }
+        // if (!needs_srv(resource) && !needs_uav(resource)) {
+        //     flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
+        // }
 
         return flags;
     }
@@ -374,14 +401,14 @@ void FrameGraph::create_resources() {
         auto& handle = mHandles[i];
         if (!handle.is_used() || handle.is_imported()) continue;
 
-        tracker.access(i, get_usage_state(handle.access));
+        tracker.access(i, handle.access);
     }
 
     for (auto& pass : mRenderPasses) {
         if (!pass.is_used()) continue;
 
         pass.foreach(eRead | eWrite | eCreate, [&](const ResourceAccess& access) {
-            tracker.access(access.index.index, get_usage_state(access.usage));
+            tracker.access(access.index.index, access.usage);
         });
     }
 
@@ -398,7 +425,10 @@ void FrameGraph::create_resources() {
         const auto flags = tracker.get_resource_flags(i);
         auto desc = build_desc(info, flags);
 
-        D3D12_RESOURCE_STATES state = get_usage_state(info.usage);
+        auto usage = (info.usage == Usage::eUnknown) ? handle.access : info.usage;
+
+        D3D12_RESOURCE_STATES state = get_usage_state(usage);
+        logs::gRender.info("Create resource {} with state {}", handle.name, usage);
         auto& resource = mResources.emplace_back();
         SM_ASSERT_HR(mContext.create_resource(resource, D3D12_HEAP_TYPE_DEFAULT, desc, state, ptr));
 
@@ -406,50 +436,48 @@ void FrameGraph::create_resources() {
 
         handle.resource = resource.get();
     }
+
+    for (uint i = 0; i < mHandles.size(); i++) {
+        auto& handle = mHandles[i];
+        if (!handle.is_managed()) continue;
+
+        if (tracker.needs_srv(i)) {
+            handle.srv = mContext.mSrvPool.allocate();
+
+            const auto srv_handle = mContext.mSrvPool.cpu_handle(handle.srv);
+            D3D12_SHADER_RESOURCE_VIEW_DESC *desc = handle.srv_desc ? &*handle.srv_desc : nullptr;
+            mContext.mDevice->CreateShaderResourceView(handle.resource, desc, srv_handle);
+        }
+
+        if (tracker.needs_uav(i)) {
+            handle.uav = mContext.mSrvPool.allocate();
+
+            const auto uav_handle = mContext.mSrvPool.cpu_handle(handle.uav);
+            D3D12_UNORDERED_ACCESS_VIEW_DESC *desc = handle.uav_desc ? &*handle.uav_desc : nullptr;
+            mContext.mDevice->CreateUnorderedAccessView(handle.resource, nullptr, desc, uav_handle);
+        }
+
+        if (tracker.needs_dsv(i)) {
+            handle.dsv = mContext.mDsvPool.allocate();
+
+            const auto dsv_handle = mContext.mDsvPool.cpu_handle(handle.dsv);
+            D3D12_DEPTH_STENCIL_VIEW_DESC *desc = handle.dsv_desc ? &*handle.dsv_desc : nullptr;
+            mContext.mDevice->CreateDepthStencilView(handle.resource, desc, dsv_handle);
+        }
+
+        if (tracker.needs_rtv(i)) {
+            handle.rtv = mContext.mRtvPool.allocate();
+
+            const auto rtv_handle = mContext.mRtvPool.cpu_handle(handle.rtv);
+            D3D12_RENDER_TARGET_VIEW_DESC *desc = handle.rtv_desc ? &*handle.rtv_desc : nullptr;
+            mContext.mDevice->CreateRenderTargetView(handle.resource, desc, rtv_handle);
+        }
+    }
 }
 
 void FrameGraph::create_resource_descriptors() {
-    auto& device = mContext.mDevice;
+    // UsageTracker tracker;
 
-    for (auto& pass : mRenderPasses) {
-        pass.foreach(eRead | eWrite | eCreate, [&](ResourceAccess& access) {
-            auto& handle = mHandles[access.index.index];
-            if (handle.is_imported()) return;
-
-            if (used_as_uav(access.usage)) {
-                auto uav = mContext.mSrvPool.allocate();
-
-                const auto srv_handle = mContext.mSrvPool.cpu_handle(uav);
-                device->CreateUnorderedAccessView(handle.resource, nullptr, std::get_if<D3D12_UNORDERED_ACCESS_VIEW_DESC>(&access.view), srv_handle);
-
-                access.descriptor = (uint)uav;
-            }
-            else if (used_as_srv(access.usage)) {
-                auto srv = mContext.mSrvPool.allocate();
-
-                const auto srv_handle = mContext.mSrvPool.cpu_handle(srv);
-                device->CreateShaderResourceView(handle.resource, std::get_if<D3D12_SHADER_RESOURCE_VIEW_DESC>(&access.view), srv_handle);
-
-                access.descriptor = (uint)srv;
-            }
-            else if (used_as_dsv(access.usage)) {
-                auto dsv = mContext.mDsvPool.allocate();
-
-                const auto dsv_handle = mContext.mDsvPool.cpu_handle(dsv);
-                device->CreateDepthStencilView(handle.resource, std::get_if<D3D12_DEPTH_STENCIL_VIEW_DESC>(&access.view), dsv_handle);
-
-                access.descriptor = (uint)dsv;
-            }
-            else if (used_as_rtv(access.usage)) {
-                auto rtv = mContext.mRtvPool.allocate();
-
-                const auto rtv_handle = mContext.mRtvPool.cpu_handle(rtv);
-                device->CreateRenderTargetView(handle.resource, std::get_if<D3D12_RENDER_TARGET_VIEW_DESC>(&access.view), rtv_handle);
-
-                access.descriptor = (uint)rtv;
-            }
-        });
-    }
 }
 
 ///
@@ -518,31 +546,42 @@ ID3D12GraphicsCommandList1 *FrameGraph::get_commands(CommandListHandle handle) {
 /// execution
 ///
 
-struct BarrierRecord {
-    sm::Vector<events::ResourceBarrier::Transition> transitions;
-
-    void transition(Handle handle, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to) {
-        if (from == to) return;
-
-        transitions.push_back({handle, from, to});
-    }
-
-    void submit(FrameSchedule& schedule, CommandListHandle handle) {
-        if (transitions.empty()) return;
-
-        logs::gRender.info("Submit {} barriers", transitions.size());
-
-        events::ResourceBarrier event{handle, transitions};
-        schedule.push_back(event);
-
-        transitions.clear();
-    }
-};
-
 void FrameGraph::schedule_graph() {
+    struct BarrierRecord {
+        FrameGraph& graph;
+        sm::Vector<events::ResourceBarrier::Transition> transitions;
+
+        BarrierRecord(FrameGraph& graph)
+            : graph(graph)
+        { }
+
+        void transition(Handle handle, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to) {
+            if (from == to) return;
+
+            transitions.push_back({handle, from, to});
+        }
+
+        void submit(FrameSchedule& schedule, CommandListHandle handle) {
+            if (transitions.empty()) return;
+
+            logs::gRender.info("Submit {} barriers", transitions.size());
+
+            for (uint i = 0; i < transitions.size(); i++) {
+                logs::gRender.info(" - {}", graph.mHandles[transitions[i].handle.index].name);
+                logs::gRender.info(" | before: {}", render::ResourceState(transitions[i].before));
+                logs::gRender.info(" | after: {}", render::ResourceState(transitions[i].after));
+            }
+
+            events::ResourceBarrier event{handle, transitions};
+            schedule.push_back(event);
+
+            transitions.clear();
+        }
+    };
+
     // track the expected state of each resource
     sm::HashMap<Handle, D3D12_RESOURCE_STATES> initial;
-    BarrierRecord barriers;
+    BarrierRecord barriers{*this};
 
     auto update_state = [&](Handle index, Usage access) {
         D3D12_RESOURCE_STATES state = get_usage_state(access);
@@ -609,7 +648,7 @@ void FrameGraph::schedule_graph() {
 
             mFrameSchedule.push_back(submit);
 
-            logs::gRender.info("Submit commands for {}", get_command_type(cmd));
+            logs::gRender.info("Submit work to queue {}", get_command_type(cmd));
 
             for (auto& p : stack) {
                 if (pass.depends_on(p) && pass.type != p.type) {
@@ -624,7 +663,7 @@ void FrameGraph::schedule_graph() {
 
                         synced[ty] = true;
 
-                        logs::gRender.info("Sync {} -> {}", sync.signal, sync.wait);
+                        logs::gRender.info("Sync queues {} -> {}", sync.signal, sync.wait);
                     }
                 }
             }
@@ -639,6 +678,8 @@ void FrameGraph::schedule_graph() {
             };
 
             mFrameSchedule.push_back(open);
+
+            logs::gRender.info("Open command list for queue {}", pass.type);
 
             stack.push_back(pass);
         }
@@ -665,7 +706,7 @@ void FrameGraph::schedule_graph() {
 
         mFrameSchedule.push_back(record);
 
-        logs::gRender.info("Record commands for {}", pass.name);
+        logs::gRender.info("Record commands for pass {}", pass.name);
 
         // only add early barriers on direct command list
         // not sure of all the special cases yet
@@ -675,11 +716,11 @@ void FrameGraph::schedule_graph() {
         logs::gRender.info("Searching for early barriers {}", pass.name);
 
         // if we can add barriers for the next pass, do so
-        pass.foreach(eRead | eWrite | eCreate, [&](const auto& access) {
+        pass.foreach(eRead | eWrite, [&](const auto& access) {
             auto n = find_next_use(i, access.index);
-            logs::gRender.info("Next use of {} is {}", access.index.index, n.index);
             if (!n.is_valid()) return;
 
+            logs::gRender.info("Next use of {} is {}", mHandles[access.index.index].name, mRenderPasses[n.index].name);
             auto state = mRenderPasses[n.index].get_handle_usage(access.index);
             update_state(access.index, state);
         });
@@ -715,25 +756,6 @@ void FrameGraph::destroy_resources() {
         mContext.mRtvPool.safe_release(handle.rtv);
     }
 
-    for (auto& pass : mRenderPasses) {
-        pass.foreach(eRead | eWrite | eCreate, [&](ResourceAccess& access) {
-            if (is_imported(access.index)) return;
-
-            if (used_as_srv(access.usage)) {
-                mContext.mSrvPool.safe_release((render::SrvIndex)access.descriptor);
-            }
-            else if (used_as_uav(access.usage)) {
-                mContext.mSrvPool.safe_release((render::SrvIndex)access.descriptor);
-            }
-            else if (used_as_dsv(access.usage)) {
-                mContext.mDsvPool.safe_release((render::DsvIndex)access.descriptor);
-            }
-            else if (used_as_rtv(access.usage)) {
-                mContext.mRtvPool.safe_release((render::RtvIndex)access.descriptor);
-            }
-        });
-    }
-
     mResources.clear();
 }
 
@@ -757,32 +779,6 @@ void FrameGraph::compile() {
     init_frame_commands();
 }
 
-struct BarrierList {
-    sm::SmallVector<D3D12_RESOURCE_BARRIER, 4> barriers;
-
-    void transition(ID3D12Resource *resource, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to) {
-        if (from == to) return;
-
-        barriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(resource, from, to));
-    }
-
-    uint length() const {
-        return int_cast<uint>(barriers.size());
-    }
-
-    const D3D12_RESOURCE_BARRIER *data() const {
-        return barriers.data();
-    }
-
-    void submit(ID3D12GraphicsCommandList *commands) {
-        if (barriers.empty()) return;
-
-        commands->ResourceBarrier(length(), data());
-
-        barriers.clear();
-    }
-};
-
 void FrameGraph::build_raw_events(events::ResourceBarrier& barrier) {
     for (size_t i = 0; i < barrier.size(); i++) {
         auto& detail = barrier.barriers[i];
@@ -803,6 +799,7 @@ void FrameGraph::execute() {
     for (auto& step : mFrameSchedule) {
         std::visit(overloaded {
             [&](events::DeviceSync sync) {
+                logs::gRender.info("Step: Sync {} -> {}", sync.signal, sync.wait);
                 ID3D12CommandQueue *signal = mContext.get_queue(sync.signal);
                 ID3D12CommandQueue *wait = mContext.get_queue(sync.wait);
 
@@ -813,14 +810,17 @@ void FrameGraph::execute() {
                 SM_ASSERT_HR(wait->Wait(fence, value));
             },
             [&](events::ResourceBarrier& barrier) {
+                logs::gRender.info("Step: Resource Barriers {}", barrier.size());
                 build_raw_events(barrier);
                 ID3D12GraphicsCommandList1 *commands = get_commands(barrier.handle);
                 commands->ResourceBarrier(barrier.size(), barrier.data());
             },
             [&](events::OpenCommands open) {
                 open_commands(open.handle);
+                logs::gRender.info("Step: Open Commands {} of type {}", open.handle.index, get_command_type(open.handle));
             },
             [&](events::RecordCommands record) {
+                logs::gRender.info("Step: Record Commands {} on commands of type {}", record.handle.index, get_command_type(record.handle));
                 ID3D12GraphicsCommandList1 *commands = get_commands(record.handle);
                 auto& pass = mRenderPasses[record.pass.index];
                 RenderContext ctx{mContext, *this, pass, commands};
@@ -830,6 +830,7 @@ void FrameGraph::execute() {
                 PIXEndEvent(commands);
             },
             [&](events::SubmitCommands submit) {
+                logs::gRender.info("Step: Submit Commands {} on commands of type {}", submit.handle.index, get_command_type(submit.handle));
                 close_commands(submit.handle);
                 ID3D12GraphicsCommandList1 *commands = get_commands(submit.handle);
                 ID3D12CommandQueue *queue = mContext.get_queue(get_command_type(submit.handle));

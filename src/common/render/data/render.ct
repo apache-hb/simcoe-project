@@ -227,6 +227,7 @@ variant ResourceState : opaque(D3D12_RESOURCE_STATES) {
     case Present = opaque(D3D12_RESOURCE_STATE_PRESENT)
     case RenderTarget = opaque(D3D12_RESOURCE_STATE_RENDER_TARGET)
     case PixelShaderResource = opaque(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
+    case NonPixelShaderResource = opaque(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)
     case DepthTarget = opaque(D3D12_RESOURCE_STATE_DEPTH_WRITE)
     case DepthRead = opaque(D3D12_RESOURCE_STATE_DEPTH_READ)
     case UnorderedAccess = opaque(D3D12_RESOURCE_STATE_UNORDERED_ACCESS)

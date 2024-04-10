@@ -6,13 +6,7 @@
 
 #include "imgui/imgui.h"
 
-namespace sm::render {
-    struct Context;
-}
-
 namespace sm::ed {
-    class ViewportPanel;
-
     class ScenePanel final {
         ed::EditorContext& mContext;
 

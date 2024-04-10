@@ -4,13 +4,7 @@
 
 #include "imfilebrowser.h"
 
-namespace sm::render {
-    struct Context;
-}
-
 namespace sm::ed {
-    class ViewportPanel;
-
     class AssetBrowserPanel final {
         ed::EditorContext &mContext;
 

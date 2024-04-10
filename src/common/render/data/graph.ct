@@ -11,6 +11,8 @@ variant Usage {
 
     case Present
 
+    case PixelShaderResource
+
     case TextureRead
     case TextureWrite
 

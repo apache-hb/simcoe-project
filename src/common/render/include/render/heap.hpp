@@ -2,6 +2,8 @@
 
 #include "core/bitmap.hpp"
 
+// #include "sul/dynamic_bitset.hpp"
+
 #include "render.reflect.h"
 
 namespace sm::render {
