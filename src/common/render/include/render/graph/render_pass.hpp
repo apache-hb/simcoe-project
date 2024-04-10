@@ -3,6 +3,7 @@
 #include "core/variant.hpp"
 
 #include "render/graph/handle.hpp"
+#include "render/heap.hpp"
 
 #include <functional>
 
@@ -15,6 +16,7 @@ namespace sm::render {
 
 namespace sm::graph {
     class FrameGraph;
+    struct RenderPass;
 
     struct IDeviceData {
         virtual ~IDeviceData() = default;
@@ -23,36 +25,51 @@ namespace sm::graph {
         virtual bool has_type(uint32 index) const = 0;
     };
 
+    struct AccessHandle {
+        enum { eRead, eWrite, eCreate } type;
+        uint index;
+    };
+
     struct RenderContext {
         render::Context& context;
         FrameGraph& graph;
+        RenderPass& pass;
         ID3D12GraphicsCommandList1* commands;
-    };
 
-    struct TextureRead {
-        std::optional<D3D12_SHADER_RESOURCE_VIEW_DESC> srv;
-    };
+        D3D12_GPU_VIRTUAL_ADDRESS gpu_address(Handle handle) const;
 
-    struct TextureWrite {
-        std::optional<D3D12_UNORDERED_ACCESS_VIEW_DESC> uav;
-    };
+        D3D12_CPU_DESCRIPTOR_HANDLE srv_cpu_handle(Handle handle) const;
+        D3D12_GPU_DESCRIPTOR_HANDLE srv_gpu_handle(Handle handle) const;
 
-    struct RenderTarget {
-        std::optional<D3D12_RENDER_TARGET_VIEW_DESC> rtv;
-    };
+        D3D12_CPU_DESCRIPTOR_HANDLE uav_cpu_handle(Handle handle) const;
+        D3D12_GPU_DESCRIPTOR_HANDLE uav_gpu_handle(Handle handle) const;
 
-    struct BufferRead {
-        D3D12_SHADER_RESOURCE_VIEW_DESC srv;
-    };
+        D3D12_CPU_DESCRIPTOR_HANDLE rtv_cpu_handle(Handle handle) const;
+        D3D12_GPU_DESCRIPTOR_HANDLE rtv_gpu_handle(Handle handle) const;
 
-    struct BufferWrite {
-        D3D12_UNORDERED_ACCESS_VIEW_DESC uav;
+        D3D12_CPU_DESCRIPTOR_HANDLE dsv_cpu_handle(Handle handle) const;
+        D3D12_GPU_DESCRIPTOR_HANDLE dsv_gpu_handle(Handle handle) const;
+
+        ID3D12Resource* resource(Handle handle) const;
     };
 
     struct ResourceAccess {
         sm::String name;
         Handle index;
         Usage usage;
+
+        sm::Variant<
+            std::monostate,
+            D3D12_SHADER_RESOURCE_VIEW_DESC,
+            D3D12_UNORDERED_ACCESS_VIEW_DESC,
+            D3D12_RENDER_TARGET_VIEW_DESC,
+            D3D12_DEPTH_STENCIL_VIEW_DESC
+        > view = std::monostate{};
+
+        render::RtvIndex rtv = render::RtvIndex::eInvalid;
+        render::DsvIndex dsv = render::DsvIndex::eInvalid;
+        render::SrvIndex srv = render::SrvIndex::eInvalid;
+        render::SrvIndex uav = render::SrvIndex::eInvalid;
     };
 
     enum : int {

@@ -174,12 +174,12 @@ void FrameGraph::optimize() {
     for (auto& pass : mRenderPasses) {
         pass.refcount = (uint)pass.writes.size();
 
-        for (auto& [_, index, _] : pass.reads) {
-            mHandles[index.index].refcount += 1;
+        for (auto& access : pass.reads) {
+            mHandles[access.index.index].refcount += 1;
         }
 
-        for (auto& [_, index, _] : pass.writes) {
-            mHandles[index.index].producer = &pass;
+        for (auto& access : pass.writes) {
+            mHandles[access.index.index].producer = &pass;
         }
     }
 
@@ -203,8 +203,8 @@ void FrameGraph::optimize() {
         if (producer->refcount != 0)
             continue;
 
-        for (auto& [_, index, access] : producer->reads) {
-            auto& handle = mHandles[index.index];
+        for (auto& access : producer->reads) {
+            auto& handle = mHandles[access.index.index];
             handle.refcount -= 1;
             if (handle.refcount == 0) {
                 queue.push(&handle);
@@ -216,18 +216,18 @@ void FrameGraph::optimize() {
         if (pass.refcount == 0)
             continue;
 
-        for (auto& [_, index, access] : pass.creates) {
-            auto& handle = mHandles[index.index];
+        for (auto& access : pass.creates) {
+            auto& handle = mHandles[access.index.index];
             handle.producer = &pass;
         }
 
-        for (auto& [_, index, access] : pass.reads) {
-            auto& handle = mHandles[index.index];
+        for (auto& access : pass.reads) {
+            auto& handle = mHandles[access.index.index];
             handle.last = &pass;
         }
 
-        for (auto& [_, index, access] : pass.writes) {
-            auto& handle = mHandles[index.index];
+        for (auto& access : pass.writes) {
+            auto& handle = mHandles[access.index.index];
             handle.last = &pass;
             handle.refcount += 1;
         }
@@ -256,8 +256,23 @@ static constexpr D3D12_RESOURCE_STATES get_usage_state(Usage usage) {
 
     case eIndexBuffer: return D3D12_RESOURCE_STATE_INDEX_BUFFER;
     case eVertexBuffer: return D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
-
     }
+}
+
+static bool used_as_srv(Usage usage) {
+    return (usage == Usage::eTextureRead);
+}
+
+static bool used_as_rtv(Usage usage) {
+    return (usage == Usage::eRenderTarget);
+}
+
+static bool used_as_dsv(Usage usage) {
+    return (usage == Usage::eDepthWrite || usage == Usage::eDepthRead);
+}
+
+static bool used_as_uav(Usage usage) {
+    return (usage == Usage::eTextureWrite || usage == Usage::eBufferWrite || usage == Usage::eBufferRead);
 }
 
 static constexpr std::optional<D3D12_CLEAR_VALUE> get_clear_value(const Clear& info) {
@@ -396,49 +411,39 @@ void FrameGraph::create_resources() {
 }
 
 void FrameGraph::create_resource_descriptors() {
-    UsageTracker tracker;
-
-    for (auto& pass : mRenderPasses) {
-        if (!pass.is_used()) continue;
-
-        pass.foreach(eRead | eWrite | eCreate, [&](const ResourceAccess& access) {
-            tracker.access(access.index.index, get_usage_state(access.usage));
-        });
-    }
-
     auto& device = mContext.mDevice;
 
-    for (uint i = 0; i < mHandles.size(); i++) {
-        auto& handle = mHandles[i];
-        if (!handle.is_used() || handle.is_imported()) continue;
+    for (auto& pass : mRenderPasses) {
+        pass.foreach(eRead | eWrite | eCreate, [&](ResourceAccess& access) {
+            auto& handle = mHandles[access.index.index];
+            if (used_as_uav(access.usage)) {
+                access.uav = mContext.mSrvPool.allocate();
 
-        if (tracker.needs_uav(i)) {
-            handle.uav = mContext.mSrvPool.allocate();
+                const auto srv_handle = mContext.mSrvPool.cpu_handle(access.uav);
+                device->CreateUnorderedAccessView(handle.resource, nullptr, std::get_if<D3D12_UNORDERED_ACCESS_VIEW_DESC>(&access.view), srv_handle);
+            }
 
-            const auto srv_handle = mContext.mSrvPool.cpu_handle(handle.uav);
-            device->CreateUnorderedAccessView(handle.resource, nullptr, &handle.info.uav, srv_handle);
-        }
+            if (used_as_srv(access.usage)) {
+                access.srv = mContext.mSrvPool.allocate();
 
-        if (tracker.needs_srv(i)) {
-            handle.srv = mContext.mSrvPool.allocate();
+                const auto srv_handle = mContext.mSrvPool.cpu_handle(access.srv);
+                device->CreateShaderResourceView(handle.resource, std::get_if<D3D12_SHADER_RESOURCE_VIEW_DESC>(&access.view), srv_handle);
+            }
 
-            const auto srv_handle = mContext.mSrvPool.cpu_handle(handle.srv);
-            device->CreateShaderResourceView(handle.resource, nullptr, srv_handle);
-        }
+            if (used_as_dsv(access.usage)) {
+                access.dsv = mContext.mDsvPool.allocate();
 
-        if (tracker.needs_dsv(i)) {
-            handle.dsv = mContext.mDsvPool.allocate();
+                const auto dsv_handle = mContext.mDsvPool.cpu_handle(access.dsv);
+                device->CreateDepthStencilView(handle.resource, std::get_if<D3D12_DEPTH_STENCIL_VIEW_DESC>(&access.view), dsv_handle);
+            }
 
-            const auto dsv_handle = mContext.mDsvPool.cpu_handle(handle.dsv);
-            device->CreateDepthStencilView(handle.resource, nullptr, dsv_handle);
-        }
+            if (used_as_rtv(access.usage)) {
+                access.rtv = mContext.mRtvPool.allocate();
 
-        if (tracker.needs_rtv(i)) {
-            handle.rtv = mContext.mRtvPool.allocate();
-
-            const auto rtv_handle = mContext.mRtvPool.cpu_handle(handle.rtv);
-            device->CreateRenderTargetView(handle.resource, nullptr, rtv_handle);
-        }
+                const auto rtv_handle = mContext.mRtvPool.cpu_handle(access.rtv);
+                device->CreateRenderTargetView(handle.resource, std::get_if<D3D12_RENDER_TARGET_VIEW_DESC>(&access.view), rtv_handle);
+            }
+        });
     }
 }
 
@@ -635,9 +640,9 @@ void FrameGraph::schedule_graph() {
 
         stack.push_back(pass);
 
-        for (auto& [_, index, access] : pass.creates) {
-            restore.push_back({index, get_usage_state(access)});
-            update_state(index, access);
+        for (auto& access : pass.creates) {
+            restore.push_back({access.index, get_usage_state(access.usage)});
+            update_state(access.index, access.usage);
         }
 
         pass.foreach(eRead | eWrite, [&](const ResourceAccess& access) {
@@ -698,11 +703,17 @@ void FrameGraph::schedule_graph() {
 void FrameGraph::destroy_resources() {
     for (auto& handle : mHandles) {
         if (handle.is_imported()) continue;
+    }
 
-        mContext.mRtvPool.safe_release(handle.rtv);
-        mContext.mDsvPool.safe_release(handle.dsv);
-        mContext.mSrvPool.safe_release(handle.srv);
-        mContext.mSrvPool.safe_release(handle.uav);
+    for (auto& pass : mRenderPasses) {
+        pass.foreach(eRead | eWrite | eCreate, [&](ResourceAccess& access) {
+            if (is_imported(access.index)) return;
+
+            mContext.mSrvPool.safe_release(access.srv);
+            mContext.mSrvPool.safe_release(access.uav);
+            mContext.mDsvPool.safe_release(access.dsv);
+            mContext.mRtvPool.safe_release(access.rtv);
+        });
     }
 
     mResources.clear();
