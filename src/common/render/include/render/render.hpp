@@ -124,8 +124,6 @@ namespace sm::render {
         Object<ID3D12InfoQueue1> mInfoQueue;
         DWORD mCookie = ULONG_MAX;
 
-        FeatureLevel get_feature_level() const { return mConfig.feature_level; }
-
         void set_current_adapter(Adapter& adapter) { mCurrentAdapter = std::addressof(adapter); }
 
         void enable_debug_layer(bool gbv, bool rename);
@@ -281,7 +279,6 @@ namespace sm::render {
         // render graph
         graph::Handle mSwapChainHandle;
         graph::FrameGraph mFrameGraph;
-
         /// synchronization
         void build_command_list();
         void move_to_next_frame();
@@ -289,11 +286,11 @@ namespace sm::render {
         void flush_copy_queue();
 
         /// state updates
-
         void update_adapter(Adapter& adapter);
         void update_swapchain_length(uint length);
         void resize_draw(math::uint2 size);
 
+    private:
         void destroy_device();
 
         virtual void on_create() { }
@@ -316,6 +313,7 @@ namespace sm::render {
         void set_scene(world::IndexOf<world::Scene> scene);
 
         world::Scene& get_scene() { return mWorld.get(mCurrentScene); }
+        FeatureLevel get_feature_level() const { return mConfig.feature_level; }
 
         Adapter& get_current_adapter() { return *mCurrentAdapter; }
 

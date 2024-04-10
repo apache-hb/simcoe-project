@@ -72,12 +72,6 @@ namespace sm::graph {
         // specify the usage of this resource, in cases
         // where its created in a different state than its used
         Usage usage;
-        D3D12_UNORDERED_ACCESS_VIEW_DESC uav;
-    };
-
-    struct Read {
-        D3D12_SHADER_RESOURCE_VIEW_DESC srv;
-        D3D12_RESOURCE_STATES usage;
     };
 
     struct FrameCommandData {
@@ -203,7 +197,7 @@ namespace sm::graph {
             FrameGraph& mFrameGraph;
             RenderPass& mRenderPass;
 
-            void add_write(Handle handle, sm::StringView name, Usage access);
+            void add_write(Handle handle, sm::StringView name, Usage access, ResourceView view);
 
         public:
             PassBuilder(FrameGraph& graph, RenderPass& pass)
@@ -211,9 +205,9 @@ namespace sm::graph {
                 , mRenderPass(pass)
             { }
 
-            void read(Handle handle,         sm::StringView name, Usage access);
-            void write(Handle handle,        sm::StringView name, Usage access);
-            Handle create(ResourceInfo info, sm::StringView name, Usage access);
+            void read(Handle handle,         sm::StringView name, Usage access, ResourceView view = std::monostate{});
+            void write(Handle handle,        sm::StringView name, Usage access, ResourceView view = std::monostate{});
+            Handle create(ResourceInfo info, sm::StringView name, Usage access, ResourceView view = std::monostate{});
 
             void side_effects(bool effects);
 

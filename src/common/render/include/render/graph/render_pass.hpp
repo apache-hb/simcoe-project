@@ -38,38 +38,37 @@ namespace sm::graph {
 
         D3D12_GPU_VIRTUAL_ADDRESS gpu_address(Handle handle) const;
 
-        D3D12_CPU_DESCRIPTOR_HANDLE srv_cpu_handle(Handle handle) const;
-        D3D12_GPU_DESCRIPTOR_HANDLE srv_gpu_handle(Handle handle) const;
+        D3D12_CPU_DESCRIPTOR_HANDLE srv_host(AccessHandle handle) const;
+        D3D12_GPU_DESCRIPTOR_HANDLE srv_device(AccessHandle handle) const;
 
-        D3D12_CPU_DESCRIPTOR_HANDLE uav_cpu_handle(Handle handle) const;
-        D3D12_GPU_DESCRIPTOR_HANDLE uav_gpu_handle(Handle handle) const;
+        D3D12_CPU_DESCRIPTOR_HANDLE uav_host(AccessHandle handle) const;
+        D3D12_GPU_DESCRIPTOR_HANDLE uav_device(AccessHandle handle) const;
 
-        D3D12_CPU_DESCRIPTOR_HANDLE rtv_cpu_handle(Handle handle) const;
-        D3D12_GPU_DESCRIPTOR_HANDLE rtv_gpu_handle(Handle handle) const;
+        D3D12_CPU_DESCRIPTOR_HANDLE rtv_host(AccessHandle handle) const;
+        D3D12_GPU_DESCRIPTOR_HANDLE rtv_device(AccessHandle handle) const;
 
-        D3D12_CPU_DESCRIPTOR_HANDLE dsv_cpu_handle(Handle handle) const;
-        D3D12_GPU_DESCRIPTOR_HANDLE dsv_gpu_handle(Handle handle) const;
+        D3D12_CPU_DESCRIPTOR_HANDLE dsv_host(AccessHandle handle) const;
+        D3D12_GPU_DESCRIPTOR_HANDLE dsv_device(AccessHandle handle) const;
 
         ID3D12Resource* resource(Handle handle) const;
     };
+
+    using ResourceView = sm::Variant<
+        D3D12_SHADER_RESOURCE_VIEW_DESC,
+        D3D12_UNORDERED_ACCESS_VIEW_DESC,
+        D3D12_RENDER_TARGET_VIEW_DESC,
+        D3D12_DEPTH_STENCIL_VIEW_DESC,
+        std::monostate
+    >;
 
     struct ResourceAccess {
         sm::String name;
         Handle index;
         Usage usage;
 
-        sm::Variant<
-            std::monostate,
-            D3D12_SHADER_RESOURCE_VIEW_DESC,
-            D3D12_UNORDERED_ACCESS_VIEW_DESC,
-            D3D12_RENDER_TARGET_VIEW_DESC,
-            D3D12_DEPTH_STENCIL_VIEW_DESC
-        > view = std::monostate{};
+        ResourceView view = std::monostate{};
 
-        render::RtvIndex rtv = render::RtvIndex::eInvalid;
-        render::DsvIndex dsv = render::DsvIndex::eInvalid;
-        render::SrvIndex srv = render::SrvIndex::eInvalid;
-        render::SrvIndex uav = render::SrvIndex::eInvalid;
+        uint descriptor = UINT_MAX;
     };
 
     enum : int {
@@ -90,6 +89,8 @@ namespace sm::graph {
         sm::SmallVector<ResourceAccess, 4> writes;
 
         std::function<void(RenderContext&)> execute;
+
+        const ResourceAccess& get_access(AccessHandle handle) const;
 
         void foreach(int flags, auto&& fn) {
             if (flags & eRead) {

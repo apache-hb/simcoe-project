@@ -4,8 +4,6 @@
 
 #include "render/render.hpp"
 
-#include "core/set.hpp"
-
 using namespace sm;
 using namespace sm::graph;
 
@@ -47,27 +45,27 @@ D3D12_CLEAR_VALUE *Clear::get_value(D3D12_CLEAR_VALUE& storage, render::Format f
     return &storage;
 }
 
-void PassBuilder::add_write(Handle handle, sm::StringView name, Usage access) {
-    mRenderPass.writes.push_back({sm::String{name}, handle, access});
+void PassBuilder::add_write(Handle handle, sm::StringView name, Usage access, ResourceView view) {
+    mRenderPass.writes.push_back({sm::String{name}, handle, access, view});
 }
 
-void PassBuilder::read(Handle handle, sm::StringView name, Usage access) {
-    mRenderPass.reads.push_back({sm::String{name}, handle, access});
+void PassBuilder::read(Handle handle, sm::StringView name, Usage access, ResourceView view) {
+    mRenderPass.reads.push_back({sm::String{name}, handle, access, view});
 }
 
-void PassBuilder::write(Handle handle, sm::StringView name, Usage access) {
+void PassBuilder::write(Handle handle, sm::StringView name, Usage access, ResourceView view) {
     if (mFrameGraph.is_imported(handle)) {
         side_effects(true);
     }
 
-    add_write(handle, name, access);
+    add_write(handle, name, access, view);
 }
 
-Handle PassBuilder::create(ResourceInfo info, sm::StringView name, Usage access) {
+Handle PassBuilder::create(ResourceInfo info, sm::StringView name, Usage access, ResourceView view) {
     auto id = fmt::format("{}/{}", mRenderPass.name, name);
     Handle handle = mFrameGraph.add_transient(info, access, id);
-    mRenderPass.creates.push_back({id, handle, access});
-    add_write(handle, name, access);
+    mRenderPass.creates.push_back({id, handle, access, view});
+    add_write(handle, name, access, view);
     return handle;
 }
 
@@ -416,32 +414,39 @@ void FrameGraph::create_resource_descriptors() {
     for (auto& pass : mRenderPasses) {
         pass.foreach(eRead | eWrite | eCreate, [&](ResourceAccess& access) {
             auto& handle = mHandles[access.index.index];
+            if (handle.is_imported()) return;
+
             if (used_as_uav(access.usage)) {
-                access.uav = mContext.mSrvPool.allocate();
+                auto uav = mContext.mSrvPool.allocate();
 
-                const auto srv_handle = mContext.mSrvPool.cpu_handle(access.uav);
+                const auto srv_handle = mContext.mSrvPool.cpu_handle(uav);
                 device->CreateUnorderedAccessView(handle.resource, nullptr, std::get_if<D3D12_UNORDERED_ACCESS_VIEW_DESC>(&access.view), srv_handle);
+
+                access.descriptor = (uint)uav;
             }
+            else if (used_as_srv(access.usage)) {
+                auto srv = mContext.mSrvPool.allocate();
 
-            if (used_as_srv(access.usage)) {
-                access.srv = mContext.mSrvPool.allocate();
-
-                const auto srv_handle = mContext.mSrvPool.cpu_handle(access.srv);
+                const auto srv_handle = mContext.mSrvPool.cpu_handle(srv);
                 device->CreateShaderResourceView(handle.resource, std::get_if<D3D12_SHADER_RESOURCE_VIEW_DESC>(&access.view), srv_handle);
+
+                access.descriptor = (uint)srv;
             }
+            else if (used_as_dsv(access.usage)) {
+                auto dsv = mContext.mDsvPool.allocate();
 
-            if (used_as_dsv(access.usage)) {
-                access.dsv = mContext.mDsvPool.allocate();
-
-                const auto dsv_handle = mContext.mDsvPool.cpu_handle(access.dsv);
+                const auto dsv_handle = mContext.mDsvPool.cpu_handle(dsv);
                 device->CreateDepthStencilView(handle.resource, std::get_if<D3D12_DEPTH_STENCIL_VIEW_DESC>(&access.view), dsv_handle);
+
+                access.descriptor = (uint)dsv;
             }
+            else if (used_as_rtv(access.usage)) {
+                auto rtv = mContext.mRtvPool.allocate();
 
-            if (used_as_rtv(access.usage)) {
-                access.rtv = mContext.mRtvPool.allocate();
-
-                const auto rtv_handle = mContext.mRtvPool.cpu_handle(access.rtv);
+                const auto rtv_handle = mContext.mRtvPool.cpu_handle(rtv);
                 device->CreateRenderTargetView(handle.resource, std::get_if<D3D12_RENDER_TARGET_VIEW_DESC>(&access.view), rtv_handle);
+
+                access.descriptor = (uint)rtv;
             }
         });
     }
@@ -589,6 +594,8 @@ void FrameGraph::schedule_graph() {
 
     sm::Vector<RenderPass> stack;
 
+    std::array<bool, D3D12_COMMAND_LIST_TYPE_VIDEO_ENCODE + 1> synced = { false };
+
     for (uint i = 0; i < mRenderPasses.size(); i++) {
         auto& pass = mRenderPasses[i];
         if (!pass.is_used()) continue;
@@ -604,27 +611,25 @@ void FrameGraph::schedule_graph() {
 
             logs::gRender.info("Submit commands for {}", get_command_type(cmd));
 
-            bool has_dependency = [&] {
-                for (auto& p : stack) {
-                    if (pass.depends_on(p)) return true;
+            for (auto& p : stack) {
+                if (pass.depends_on(p) && pass.type != p.type) {
+                    D3D12_COMMAND_LIST_TYPE ty = p.type.as_facade();
+                    if (!synced[ty]) {
+                        events::DeviceSync sync = {
+                            .signal = p.type,
+                            .wait = pass.type
+                        };
+
+                        mFrameSchedule.push_back(sync);
+
+                        synced[ty] = true;
+
+                        logs::gRender.info("Sync {} -> {}", sync.signal, sync.wait);
+                    }
                 }
-
-                return false;
-            }();
-
-            stack.clear();
-
-            if (has_dependency) {
-                // assume the next queue depends on the current one
-                events::DeviceSync sync = {
-                    .signal = get_command_type(cmd),
-                    .wait = pass.type
-                };
-
-                mFrameSchedule.push_back(sync);
-
-                logs::gRender.info("Sync {} -> {}", sync.signal, sync.wait);
             }
+
+            synced.fill(false);
 
             cmd = add_commands(pass.type);
 
@@ -703,16 +708,29 @@ void FrameGraph::schedule_graph() {
 void FrameGraph::destroy_resources() {
     for (auto& handle : mHandles) {
         if (handle.is_imported()) continue;
+
+        mContext.mSrvPool.safe_release(handle.srv);
+        mContext.mSrvPool.safe_release(handle.uav);
+        mContext.mDsvPool.safe_release(handle.dsv);
+        mContext.mRtvPool.safe_release(handle.rtv);
     }
 
     for (auto& pass : mRenderPasses) {
         pass.foreach(eRead | eWrite | eCreate, [&](ResourceAccess& access) {
             if (is_imported(access.index)) return;
 
-            mContext.mSrvPool.safe_release(access.srv);
-            mContext.mSrvPool.safe_release(access.uav);
-            mContext.mDsvPool.safe_release(access.dsv);
-            mContext.mRtvPool.safe_release(access.rtv);
+            if (used_as_srv(access.usage)) {
+                mContext.mSrvPool.safe_release((render::SrvIndex)access.descriptor);
+            }
+            else if (used_as_uav(access.usage)) {
+                mContext.mSrvPool.safe_release((render::SrvIndex)access.descriptor);
+            }
+            else if (used_as_dsv(access.usage)) {
+                mContext.mDsvPool.safe_release((render::DsvIndex)access.descriptor);
+            }
+            else if (used_as_rtv(access.usage)) {
+                mContext.mRtvPool.safe_release((render::RtvIndex)access.descriptor);
+            }
         });
     }
 
@@ -805,7 +823,7 @@ void FrameGraph::execute() {
             [&](events::RecordCommands record) {
                 ID3D12GraphicsCommandList1 *commands = get_commands(record.handle);
                 auto& pass = mRenderPasses[record.pass.index];
-                RenderContext ctx{mContext, *this, commands};
+                RenderContext ctx{mContext, *this, pass, commands};
 
                 PIXBeginEvent(commands, PIX_COLOR_INDEX(colour++), "%s", pass.name.c_str());
                 pass.execute(ctx);
