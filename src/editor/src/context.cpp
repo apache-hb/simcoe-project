@@ -10,10 +10,10 @@ using namespace sm::ed;
 void EditorContext::imgui(graph::FrameGraph& graph, graph::Handle target) {
     graph::PassBuilder pass = graph.graphics("ImGui");
     for (auto& [camera, target] : cameras) {
-        pass.read(target, camera->name(), graph::Access::ePixelShaderResource);
+        pass.read(target, camera->name(), graph::Usage::eTextureRead);
     }
 
-    pass.write(target, "Target", graph::Access::eRenderTarget);
+    pass.write(target, "Target", graph::Usage::eRenderTarget);
 
     pass.bind([target](graph::RenderContext& ctx) {
         auto& context = ctx.context;

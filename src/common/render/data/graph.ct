@@ -5,3 +5,26 @@ variant ResourceType {
     case Managed
     case Imported
 }
+
+variant Usage {
+    default Unknown
+
+    case Present
+
+    case TextureRead
+    case TextureWrite
+
+    case RenderTarget
+
+    case BufferRead
+    case BufferWrite
+
+    case CopySource
+    case CopyTarget
+
+    case DepthRead
+    case DepthWrite
+
+    case IndexBuffer
+    case VertexBuffer
+}

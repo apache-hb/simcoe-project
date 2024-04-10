@@ -12,6 +12,7 @@ src = [
 
     'src/gltf.cpp',
 
+    'src/graph/render_pass.cpp',
     'src/graph.cpp',
 
     reflect.process('data/render.ct'),

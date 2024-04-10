@@ -19,4 +19,19 @@ namespace sm::render {
 
         ID3D12Resource *get() const { return mResource.get(); }
     };
+
+    template<typename T>
+    struct ConstBuffer : Resource {
+        T data;
+        void *mapped;
+
+        void update() {
+            memcpy(mapped, &data, sizeof(T));
+        }
+
+        void init() {
+            D3D12_RANGE read{0, 0};
+            SM_ASSERT_HR(Resource::map(&read, &mapped));
+        }
+    };
 }

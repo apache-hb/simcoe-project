@@ -98,7 +98,7 @@ void forward_plus::depth_prepass(
     };
 
     graph::PassBuilder pass = graph.graphics(fmt::format("Forward+ Depth Prepass ({})", dd.camera.name()));
-    depth_target = pass.create(info, "Depth", graph::Access::eDepthTarget);
+    depth_target = pass.create(info, "Depth", graph::Usage::eDepthWrite);
 
     auto& data = graph.device_data([](render::Context& context) {
         struct {

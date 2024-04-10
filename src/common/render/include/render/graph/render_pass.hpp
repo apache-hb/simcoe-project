@@ -1,0 +1,131 @@
+#pragma once
+
+#include "core/variant.hpp"
+
+#include "render/graph/handle.hpp"
+
+#include <functional>
+
+#include "render.reflect.h"
+#include "graph.reflect.h"
+
+namespace sm::render {
+    struct Context;
+}
+
+namespace sm::graph {
+    class FrameGraph;
+
+    struct IDeviceData {
+        virtual ~IDeviceData() = default;
+
+        virtual void setup(render::Context& context) = 0;
+        virtual bool has_type(uint32 index) const = 0;
+    };
+
+    struct RenderContext {
+        render::Context& context;
+        FrameGraph& graph;
+        ID3D12GraphicsCommandList1* commands;
+    };
+
+    struct TextureRead {
+        std::optional<D3D12_SHADER_RESOURCE_VIEW_DESC> srv;
+    };
+
+    struct TextureWrite {
+        std::optional<D3D12_UNORDERED_ACCESS_VIEW_DESC> uav;
+    };
+
+    struct RenderTarget {
+        std::optional<D3D12_RENDER_TARGET_VIEW_DESC> rtv;
+    };
+
+    struct BufferRead {
+        D3D12_SHADER_RESOURCE_VIEW_DESC srv;
+    };
+
+    struct BufferWrite {
+        D3D12_UNORDERED_ACCESS_VIEW_DESC uav;
+    };
+
+    struct ResourceAccess {
+        sm::String name;
+        Handle index;
+        Usage usage;
+    };
+
+    enum : int {
+        eRead = (1 << 0),
+        eWrite = (1 << 1),
+        eCreate = (1 << 2)
+    };
+
+    struct RenderPass {
+        uint refcount = 0;
+        sm::String name;
+
+        render::CommandListType type;
+        bool has_side_effects = false;
+
+        sm::SmallVector<ResourceAccess, 4> creates;
+        sm::SmallVector<ResourceAccess, 4> reads;
+        sm::SmallVector<ResourceAccess, 4> writes;
+
+        std::function<void(RenderContext&)> execute;
+
+        void foreach(int flags, auto&& fn) {
+            if (flags & eRead) {
+                for (auto& access : reads) {
+                    fn(access);
+                }
+            }
+
+            if (flags & eWrite) {
+                for (auto& access : writes) {
+                    fn(access);
+                }
+            }
+
+            if (flags & eCreate) {
+                for (auto& access : creates) {
+                    fn(access);
+                }
+            }
+        }
+
+        bool find(int flags, auto&& fn) const {
+            if (flags & eRead) {
+                for (const auto& access : reads) {
+                    if (fn(access)) {
+                        return true;
+                    }
+                }
+            }
+
+            if (flags & eWrite) {
+                for (const auto& access : writes) {
+                    if (fn(access)) {
+                        return true;
+                    }
+                }
+            }
+
+            if (flags & eCreate) {
+                for (const auto& access : creates) {
+                    if (fn(access)) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        bool is_used() const { return has_side_effects || refcount > 0; }
+        bool uses_handle(Handle handle) const;
+        bool updates_handle(Handle handle) const;
+        Usage get_handle_usage(Handle handle);
+        bool depends_on(const RenderPass& other) const;
+    };
+}

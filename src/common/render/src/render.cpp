@@ -618,7 +618,7 @@ void Context::create_framegraph() {
         .sz = graph::ResourceSize::tex2d(mSwapChainConfig.size),
         .format = mSwapChainConfig.format,
     };
-    mSwapChainHandle = mFrameGraph.include("BackBuffer", info, graph::Access::ePresent, nullptr);
+    mSwapChainHandle = mFrameGraph.include("BackBuffer", info, graph::Usage::ePresent, nullptr);
 
     setup_framegraph(mFrameGraph);
 

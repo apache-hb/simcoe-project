@@ -4,7 +4,6 @@
 #include "core/vector.hpp"
 #include "core/typeindex.hpp"
 #include "core/map.hpp"
-#include "core/variant.hpp"
 
 #include "math/math.hpp"
 
@@ -12,6 +11,10 @@
 #include "render/resource.hpp"
 
 #include <functional>
+
+#include "render/graph/handle.hpp"
+#include "render/graph/events.hpp"
+#include "render/graph/render_pass.hpp"
 
 #include "render.reflect.h"
 #include "graph.reflect.h"
@@ -25,25 +28,9 @@ namespace sm::render {
 /// - multiple passes that write to the same resource
 ///   - requires versioning of resources, dont have time to implement
 namespace sm::graph {
-    using namespace sm::math;
-
     class FrameGraph;
 
-    using Access = render::ResourceState;
-
-    // handle to a resource
-    struct Handle {
-        uint index;
-
-        constexpr auto operator<=>(const Handle&) const = default;
-    };
-
-    // a render pass
-    struct PassHandle {
-        uint index;
-
-        constexpr auto operator<=>(const PassHandle&) const = default;
-    };
+    using namespace sm::math;
 
     struct Clear {
         enum { eColour, eDepth, eEmpty } type;
@@ -81,13 +68,16 @@ namespace sm::graph {
         ResourceSize sz;
         render::Format format;
         Clear clear;
+
+        // specify the usage of this resource, in cases
+        // where its created in a different state than its used
+        Usage usage;
+        D3D12_UNORDERED_ACCESS_VIEW_DESC uav;
     };
 
-    struct IDeviceData {
-        virtual ~IDeviceData() = default;
-
-        virtual void setup(render::Context& context) = 0;
-        virtual bool has_type(uint32 index) const = 0;
+    struct Read {
+        D3D12_SHADER_RESOURCE_VIEW_DESC srv;
+        D3D12_RESOURCE_STATES usage;
     };
 
     struct FrameCommandData {
@@ -96,97 +86,18 @@ namespace sm::graph {
         render::Object<ID3D12GraphicsCommandList1> commands;
     };
 
-    struct CommandListHandle {
-        uint index;
-    };
-
-    // TODO: this kind of structure cant model
-    // multiple events happening in parallel
-    namespace events {
-        struct DeviceSync {
-            render::CommandListType signal;
-            render::CommandListType wait;
-        };
-
-        struct ResourceBarrier {
-            struct Transition {
-                Handle handle;
-                D3D12_RESOURCE_STATES before;
-                D3D12_RESOURCE_STATES after;
-            };
-
-            CommandListHandle handle;
-            sm::Vector<Transition> barriers;
-            sm::Vector<D3D12_RESOURCE_BARRIER> raw;
-
-            ResourceBarrier(CommandListHandle cmd, sm::Vector<Transition> it)
-                : handle(cmd)
-                , barriers(std::move(it))
-                , raw(barriers.size())
-            { }
-
-            size_t size() const { return barriers.size(); }
-            D3D12_RESOURCE_BARRIER *data() { return raw.data(); }
-        };
-
-        struct OpenCommands {
-            CommandListHandle handle;
-        };
-
-        struct RecordCommands {
-            CommandListHandle handle;
-            PassHandle pass;
-        };
-
-        struct SubmitCommands {
-            CommandListHandle handle;
-        };
-
-        using Event = sm::Variant<
-            DeviceSync,
-            ResourceBarrier,
-            OpenCommands,
-            RecordCommands,
-            SubmitCommands
-        >;
-    }
-
-    struct RenderContext {
-        render::Context& context;
-        FrameGraph& graph;
-        ID3D12GraphicsCommandList1* commands;
-    };
-
     using FrameSchedule = sm::Vector<events::Event>;
 
     class FrameGraph {
-        struct IGraphNode {
+        struct RenderPassHandle {
+            uint index;
+
+            bool is_valid() const { return index != UINT_MAX; }
+        };
+
+        struct ResourceHandle final {
             uint refcount = 0;
-        };
 
-        struct ResourceAccess {
-            sm::String name;
-            Handle index;
-            Access access;
-        };
-
-        struct RenderPass final : IGraphNode {
-            render::CommandListType type;
-
-            sm::String name;
-            IDeviceData *data;
-            bool has_side_effects = false;
-
-            sm::SmallVector<ResourceAccess, 4> creates;
-            sm::SmallVector<ResourceAccess, 4> reads;
-            sm::SmallVector<ResourceAccess, 4> writes;
-
-            std::function<void(RenderContext&)> execute;
-
-            bool is_used() const { return has_side_effects || refcount > 0; }
-        };
-
-        struct ResourceHandle final : IGraphNode {
             // the name of the resource
             sm::String name;
 
@@ -197,7 +108,7 @@ namespace sm::graph {
             ResourceType type;
 
             // the initial state of the resource
-            Access access;
+            Usage access;
 
             // the producer of the resource, null if it's imported
             RenderPass *producer = nullptr;
@@ -249,10 +160,24 @@ namespace sm::graph {
         /// resource handles
         ///
 
-        uint add_handle(ResourceHandle handle, Access access);
-        Handle texture(ResourceInfo info, Access access, sm::StringView name);
+        uint add_handle(ResourceHandle handle, Usage access);
+        Handle add_transient(ResourceInfo info, Usage access, sm::StringView name);
 
         bool is_imported(Handle handle) const;
+
+        RenderPassHandle find_next_use(size_t start, Handle handle) const {
+            if (start >= mRenderPasses.size()) {
+                return RenderPassHandle{UINT_MAX};
+            }
+
+            for (uint i = start + 1; i < mRenderPasses.size(); i++) {
+                if (mRenderPasses[i].uses_handle(handle)) {
+                    return RenderPassHandle{i};
+                }
+            }
+
+            return RenderPassHandle{UINT_MAX};
+        }
 
         void build_raw_events(events::ResourceBarrier& barrier);
 
@@ -278,7 +203,7 @@ namespace sm::graph {
             FrameGraph& mFrameGraph;
             RenderPass& mRenderPass;
 
-            void add_write(Handle handle, sm::StringView name, Access access);
+            void add_write(Handle handle, sm::StringView name, Usage access);
 
         public:
             PassBuilder(FrameGraph& graph, RenderPass& pass)
@@ -286,9 +211,9 @@ namespace sm::graph {
                 , mRenderPass(pass)
             { }
 
-            void read(Handle handle, sm::StringView name, Access access);
-            void write(Handle handle, sm::StringView name, Access access);
-            Handle create(ResourceInfo info, sm::StringView name, Access access);
+            void read(Handle handle,         sm::StringView name, Usage access);
+            void write(Handle handle,        sm::StringView name, Usage access);
+            Handle create(ResourceInfo info, sm::StringView name, Usage access);
 
             void side_effects(bool effects);
 
@@ -348,7 +273,7 @@ namespace sm::graph {
         PassBuilder compute(sm::StringView name);
         PassBuilder copy(sm::StringView name);
 
-        Handle include(sm::StringView name, ResourceInfo info, Access access, ID3D12Resource *resource);
+        Handle include(sm::StringView name, ResourceInfo info, Usage access, ID3D12Resource *resource);
 
         render::Context& get_context() { return mContext; }
 

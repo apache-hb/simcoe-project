@@ -57,19 +57,26 @@ static auto& upload_light_data(
     graph::Handle &point_light_data,
     graph::Handle &spot_light_data)
 {
-    graph::ResourceInfo point_light_info = {
-        .sz = graph::ResourceSize::buffer(sizeof(LightVolumeData) * MAX_LIGHTS),
-        .format = DXGI_FORMAT_UNKNOWN,
+    D3D12_UNORDERED_ACCESS_VIEW_DESC uav = {
+        .Format = DXGI_FORMAT_UNKNOWN,
+        .ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
+        .Buffer = {
+            .FirstElement = 0,
+            .NumElements = MAX_LIGHTS,
+            .StructureByteStride = sizeof(LightVolumeData),
+        },
     };
 
-    graph::ResourceInfo spot_light_info = {
+    graph::ResourceInfo light_data_info = {
         .sz = graph::ResourceSize::buffer(sizeof(LightVolumeData) * MAX_LIGHTS),
         .format = DXGI_FORMAT_UNKNOWN,
+        .usage = graph::Usage::eBufferWrite,
+        .uav = uav,
     };
 
     graph::PassBuilder pass = graph.copy("Upload Light Data");
-    point_light_data = pass.create(point_light_info, "Point Light Data", graph::Access::eCopyTarget);
-    spot_light_data = pass.create(spot_light_info, "Spot Light Data", graph::Access::eCopyTarget);
+    point_light_data = pass.create(light_data_info, "Point Light Data", graph::Usage::eCopyTarget);
+    spot_light_data = pass.create(light_data_info, "Spot Light Data", graph::Usage::eCopyTarget);
 
     auto& data = graph.device_data([](render::Context& context) {
         struct {
@@ -102,8 +109,6 @@ static auto& upload_light_data(
     pass.bind([](graph::RenderContext& ctx) {
 
     });
-
-    pass.side_effects(true);
 
     return data;
 }
@@ -179,47 +184,70 @@ static void light_binning(
     const auto& camera = dd.camera.config();
     uint tile_count = draw::get_tile_count(camera.size, TILE_SIZE);
 
+    D3D12_UNORDERED_ACCESS_VIEW_DESC uav = {
+        .Format = DXGI_FORMAT_R32_UINT,
+        .ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
+        .Buffer = {
+            .FirstElement = 0,
+            .NumElements = LIGHT_INDEX_BUFFER_STRIDE * tile_count,
+        },
+    };
+
     graph::ResourceInfo info = {
-        .sz = graph::ResourceSize::buffer(LIGHT_INDEX_BUFFER_STRIDE * tile_count),
-        .format = DXGI_FORMAT_UNKNOWN,
+        .sz = graph::ResourceSize::buffer(sizeof(uint) * LIGHT_INDEX_BUFFER_STRIDE * tile_count),
+        .format = DXGI_FORMAT_R32_UINT,
+        .uav = uav,
     };
 
     graph::PassBuilder pass = graph.compute(fmt::format("Forward+ Light Culling ({})", dd.camera.name()));
-    pass.read(depth, "Depth", graph::Access::eDepthRead);
-    indices = pass.create(info, "Light Indices", graph::Access::eUnorderedAccess);
+
+    pass.read(depth, "Depth", graph::Usage::eTextureRead);
+    pass.read(point_light_data, "Point Light Data", graph::Usage::eBufferRead);
+    pass.read(spot_light_data, "Spot Light Data", graph::Usage::eBufferRead);
+
+    indices = pass.create(info, "Light Indices", graph::Usage::eBufferWrite);
 
     auto& data = graph.device_data([](render::Context& context) {
         struct {
             render::Pipeline pipeline;
+
+            render::ConstBuffer<draw::ViewportData> frame_buffer;
         } info;
 
         create_tiling_pipeline(info.pipeline, context);
 
+        info.frame_buffer = context.cbuffer<draw::ViewportData>();
+
         return info;
     });
 
-    pass.bind([depth, indices, &data](graph::RenderContext& ctx) {
+    pass.bind([depth, indices, pld = point_light_data, sld = spot_light_data, &data](graph::RenderContext& ctx) {
         auto& context = ctx.context;
         auto *cmd = ctx.commands;
         auto& graph = ctx.graph;
 
-        auto dsv = graph.dsv(depth);
+        auto dsv = graph.srv(depth);
         auto uav = graph.uav(indices);
 
-        auto dsv_gpu = context.mDsvPool.gpu_handle(dsv);
+        auto dsv_gpu = context.mSrvPool.gpu_handle(dsv);
         auto uav_gpu = context.mSrvPool.gpu_handle(uav);
 
         cmd->SetComputeRootSignature(data.pipeline.signature.get());
         cmd->SetPipelineState(data.pipeline.pso.get());
 
-        // TODO: everything else
+        cmd->SetComputeRootConstantBufferView(eFrameBuffer, data.frame_buffer.get_gpu_address());
+
+        cmd->SetComputeRootShaderResourceView(ePointLightData, graph.resource(pld)->GetGPUVirtualAddress());
+        cmd->SetComputeRootShaderResourceView(eSpotLightData, graph.resource(sld)->GetGPUVirtualAddress());
 
         cmd->SetComputeRootDescriptorTable(eDepthTexture, dsv_gpu);
 
-        cmd->SetComputeRootDescriptorTable(ePointLightData, uav_gpu);
+        cmd->SetComputeRootDescriptorTable(eLightIndexBuffer, uav_gpu);
 
         cmd->Dispatch(TILE_SIZE, TILE_SIZE, 1);
     });
+
+    pass.side_effects(true);
 }
 
 void forward_plus::light_culling(

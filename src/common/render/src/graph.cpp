@@ -47,15 +47,15 @@ D3D12_CLEAR_VALUE *Clear::get_value(D3D12_CLEAR_VALUE& storage, render::Format f
     return &storage;
 }
 
-void PassBuilder::add_write(Handle handle, sm::StringView name, Access access) {
+void PassBuilder::add_write(Handle handle, sm::StringView name, Usage access) {
     mRenderPass.writes.push_back({sm::String{name}, handle, access});
 }
 
-void PassBuilder::read(Handle handle, sm::StringView name, Access access) {
+void PassBuilder::read(Handle handle, sm::StringView name, Usage access) {
     mRenderPass.reads.push_back({sm::String{name}, handle, access});
 }
 
-void PassBuilder::write(Handle handle, sm::StringView name, Access access) {
+void PassBuilder::write(Handle handle, sm::StringView name, Usage access) {
     if (mFrameGraph.is_imported(handle)) {
         side_effects(true);
     }
@@ -63,9 +63,9 @@ void PassBuilder::write(Handle handle, sm::StringView name, Access access) {
     add_write(handle, name, access);
 }
 
-Handle PassBuilder::create(ResourceInfo info, sm::StringView name, Access access) {
+Handle PassBuilder::create(ResourceInfo info, sm::StringView name, Usage access) {
     auto id = fmt::format("{}/{}", mRenderPass.name, name);
-    Handle handle = mFrameGraph.texture(info, access, id);
+    Handle handle = mFrameGraph.add_transient(info, access, id);
     mRenderPass.creates.push_back({id, handle, access});
     add_write(handle, name, access);
     return handle;
@@ -79,13 +79,13 @@ bool FrameGraph::is_imported(Handle handle) const {
     return mHandles[handle.index].type == ResourceType::eImported;
 }
 
-uint FrameGraph::add_handle(ResourceHandle handle, Access access) {
+uint FrameGraph::add_handle(ResourceHandle handle, Usage access) {
     uint index = mHandles.size();
     mHandles.emplace_back(std::move(handle));
     return index;
 }
 
-Handle FrameGraph::texture(ResourceInfo info, Access access, sm::StringView name) {
+Handle FrameGraph::add_transient(ResourceInfo info, Usage access, sm::StringView name) {
     ResourceHandle handle = {
         .name = sm::String{name},
         .info = info,
@@ -94,11 +94,10 @@ Handle FrameGraph::texture(ResourceInfo info, Access access, sm::StringView name
         .resource = nullptr,
     };
 
-    uint index = add_handle(handle, access);
-    return {index};
+    return {add_handle(handle, access)};
 }
 
-Handle FrameGraph::include(sm::StringView name, ResourceInfo info, Access access, ID3D12Resource *resource) {
+Handle FrameGraph::include(sm::StringView name, ResourceInfo info, Usage access, ID3D12Resource *resource) {
     ResourceHandle handle = {
         .name = sm::String{name},
         .info = info,
@@ -152,7 +151,7 @@ render::SrvIndex FrameGraph::uav(Handle handle) {
 }
 
 PassBuilder FrameGraph::pass(sm::StringView name, render::CommandListType type) {
-    RenderPass pass = { .type = type, .name = sm::String{name} };
+    RenderPass pass = { .name = sm::String{name}, .type = type };
 
     auto& ref = mRenderPasses.emplace_back(std::move(pass));
     return { *this, ref };
@@ -235,24 +234,59 @@ void FrameGraph::optimize() {
     }
 }
 
-static constexpr D3D12_RESOURCE_FLAGS get_required_flags(Access access) {
-    D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE;
+static constexpr D3D12_RESOURCE_STATES get_usage_state(Usage usage) {
+    using enum Usage::Inner;
+    switch (usage) {
+    case ePresent: return D3D12_RESOURCE_STATE_PRESENT;
+    case eUnknown: return D3D12_RESOURCE_STATE_COMMON;
 
-    if (access == eRenderTarget) {
-        flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-    } else if (access == eDepthTarget || access == eDepthRead) {
-        flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
-    } else if (access == ePixelShaderResource) {
-        flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+    case eTextureRead: return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+    case eTextureWrite: return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+
+    case eRenderTarget: return D3D12_RESOURCE_STATE_RENDER_TARGET;
+
+    case eCopySource: return D3D12_RESOURCE_STATE_COPY_SOURCE;
+    case eCopyTarget: return D3D12_RESOURCE_STATE_COPY_DEST;
+
+    case eBufferRead:
+    case eBufferWrite: return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+
+    case eDepthRead: return D3D12_RESOURCE_STATE_DEPTH_READ;
+    case eDepthWrite: return D3D12_RESOURCE_STATE_DEPTH_WRITE;
+
+    case eIndexBuffer: return D3D12_RESOURCE_STATE_INDEX_BUFFER;
+    case eVertexBuffer: return D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+
+    }
+}
+
+static constexpr std::optional<D3D12_CLEAR_VALUE> get_clear_value(const Clear& info) {
+    D3D12_CLEAR_VALUE storage;
+
+    switch (info.type) {
+    case Clear::eColour:
+        storage.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        storage.Color[0] = info.colour.r;
+        storage.Color[1] = info.colour.g;
+        storage.Color[2] = info.colour.b;
+        storage.Color[3] = info.colour.a;
+        break;
+    case Clear::eDepth:
+        storage.Format = DXGI_FORMAT_D32_FLOAT;
+        storage.DepthStencil.Depth = info.depth;
+        storage.DepthStencil.Stencil = 0;
+        break;
+    case Clear::eEmpty:
+        return std::nullopt;
     }
 
-    return flags;
+    return storage;
 }
 
 struct UsageTracker {
-    sm::HashMap<ID3D12Resource*, D3D12_RESOURCE_STATES> states;
+    sm::HashMap<uint, D3D12_RESOURCE_STATES> states;
 
-    D3D12_RESOURCE_STATES at_or(ID3D12Resource *resource, D3D12_RESOURCE_STATES state) const {
+    D3D12_RESOURCE_STATES at_or(uint resource, D3D12_RESOURCE_STATES state) const {
         if (states.contains(resource)) {
             return states.at(resource);
         }
@@ -260,24 +294,46 @@ struct UsageTracker {
         return state;
     }
 
-    void access(ID3D12Resource *resource, D3D12_RESOURCE_STATES state) {
+    void access(uint resource, D3D12_RESOURCE_STATES state) {
         states[resource] |= state;
     }
 
-    bool needs_uav(ID3D12Resource *resource) const {
+    bool needs_uav(uint resource) const {
         return (at_or(resource, D3D12_RESOURCE_STATE_COMMON) & D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     }
 
-    bool needs_srv(ID3D12Resource *resource) const {
+    bool needs_srv(uint resource) const {
         return (at_or(resource, D3D12_RESOURCE_STATE_COMMON) & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     }
 
-    bool needs_rtv(ID3D12Resource *resource) const {
+    bool needs_rtv(uint resource) const {
         return (at_or(resource, D3D12_RESOURCE_STATE_COMMON) & D3D12_RESOURCE_STATE_RENDER_TARGET);
     }
 
-    bool needs_dsv(ID3D12Resource *resource) const {
+    bool needs_dsv(uint resource) const {
         return (at_or(resource, D3D12_RESOURCE_STATE_COMMON) & (D3D12_RESOURCE_STATE_DEPTH_WRITE | D3D12_RESOURCE_STATE_DEPTH_READ));
+    }
+
+    D3D12_RESOURCE_FLAGS get_resource_flags(uint resource) const {
+        D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE;
+
+        if (needs_uav(resource)) {
+            flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+        }
+
+        if (needs_rtv(resource)) {
+            flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+        }
+
+        if (needs_dsv(resource)) {
+            flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+        }
+
+        if (!needs_srv(resource) && !needs_uav(resource)) {
+            flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
+        }
+
+        return flags;
     }
 };
 
@@ -299,27 +355,41 @@ static D3D12_RESOURCE_DESC build_desc(const ResourceInfo& info, D3D12_RESOURCE_F
 
 void FrameGraph::create_resources() {
     mResources.clear();
+    UsageTracker tracker;
 
-    for (auto& handle : mHandles) {
-        // skip resources that are not used
-        if (!handle.is_used()) continue;
-        if (handle.is_imported()) continue;
+    for (uint i = 0; i < mHandles.size(); i++) {
+        auto& handle = mHandles[i];
+        if (!handle.is_used() || handle.is_imported()) continue;
+
+        tracker.access(i, get_usage_state(handle.access));
+    }
+
+    for (auto& pass : mRenderPasses) {
+        if (!pass.is_used()) continue;
+
+        pass.foreach(eRead | eWrite | eCreate, [&](const ResourceAccess& access) {
+            tracker.access(access.index.index, get_usage_state(access.usage));
+        });
+    }
+
+    for (uint i = 0; i < mHandles.size(); i++) {
+        // skip resources that we don't need to create
+        auto& handle = mHandles[i];
+        if (!handle.is_used() || handle.is_imported()) continue;
 
         const auto& info = handle.info;
 
-        const auto flags = get_required_flags(handle.access);
+        auto clear = get_clear_value(info.clear);
+        D3D12_CLEAR_VALUE *ptr = clear ? &*clear : nullptr;
 
-        D3D12_CLEAR_VALUE storage;
-        auto *clear = info.clear.get_value(storage, info.format);
-
+        const auto flags = tracker.get_resource_flags(i);
         auto desc = build_desc(info, flags);
 
-        const auto state = handle.access.as_facade();
-
+        D3D12_RESOURCE_STATES state = get_usage_state(info.usage);
         auto& resource = mResources.emplace_back();
-        SM_ASSERT_HR(mContext.create_resource(resource, D3D12_HEAP_TYPE_DEFAULT, desc, state, clear));
+        SM_ASSERT_HR(mContext.create_resource(resource, D3D12_HEAP_TYPE_DEFAULT, desc, state, ptr));
 
-        resource.mResource.rename(handle.name);
+        resource.rename(handle.name);
 
         handle.resource = resource.get();
     }
@@ -331,47 +401,39 @@ void FrameGraph::create_resource_descriptors() {
     for (auto& pass : mRenderPasses) {
         if (!pass.is_used()) continue;
 
-        for (auto& [_, index, access] : pass.reads) {
-            tracker.access(resource(index), access.as_facade());
-        }
-
-        for (auto& [_, index, access] : pass.writes) {
-            tracker.access(resource(index), access.as_facade());
-        }
-
-        for (auto& [_, index, access] : pass.creates) {
-            tracker.access(resource(index), access.as_facade());
-        }
+        pass.foreach(eRead | eWrite | eCreate, [&](const ResourceAccess& access) {
+            tracker.access(access.index.index, get_usage_state(access.usage));
+        });
     }
 
     auto& device = mContext.mDevice;
 
-    for (auto& handle : mHandles) {
-        if (!handle.is_used()) continue;
-        if (handle.is_imported()) continue;
+    for (uint i = 0; i < mHandles.size(); i++) {
+        auto& handle = mHandles[i];
+        if (!handle.is_used() || handle.is_imported()) continue;
 
-        if (tracker.needs_uav(handle.resource)) {
+        if (tracker.needs_uav(i)) {
             handle.uav = mContext.mSrvPool.allocate();
 
             const auto srv_handle = mContext.mSrvPool.cpu_handle(handle.uav);
-            device->CreateUnorderedAccessView(handle.resource, nullptr, nullptr, srv_handle);
+            device->CreateUnorderedAccessView(handle.resource, nullptr, &handle.info.uav, srv_handle);
         }
 
-        if (tracker.needs_srv(handle.resource)) {
+        if (tracker.needs_srv(i)) {
             handle.srv = mContext.mSrvPool.allocate();
 
             const auto srv_handle = mContext.mSrvPool.cpu_handle(handle.srv);
             device->CreateShaderResourceView(handle.resource, nullptr, srv_handle);
         }
 
-        if (tracker.needs_dsv(handle.resource)) {
+        if (tracker.needs_dsv(i)) {
             handle.dsv = mContext.mDsvPool.allocate();
 
             const auto dsv_handle = mContext.mDsvPool.cpu_handle(handle.dsv);
             device->CreateDepthStencilView(handle.resource, nullptr, dsv_handle);
         }
 
-        if (tracker.needs_rtv(handle.resource)) {
+        if (tracker.needs_rtv(i)) {
             handle.rtv = mContext.mRtvPool.allocate();
 
             const auto rtv_handle = mContext.mRtvPool.cpu_handle(handle.rtv);
@@ -468,102 +530,12 @@ struct BarrierRecord {
 };
 
 void FrameGraph::schedule_graph() {
-    struct GraphSorter {
-        sm::Vector<RenderPass>& passes;
-
-        sm::Vector<uint> indices;
-        sm::Vector<sm::Set<uint>> adjacency;
-
-        GraphSorter(sm::Vector<RenderPass>& passes)
-            : passes(passes)
-        {
-            for (uint i = 0; i < passes.size(); i++) {
-                if (passes[i].is_used())
-                    indices.push_back(i);
-            }
-
-            build_adjacency();
-        }
-
-        void build_adjacency() {
-            adjacency.resize(indices.size());
-
-            for (uint i = 0; i < indices.size(); i++) {
-                auto& pass = passes[indices[i]];
-
-                for (auto& [_, index, _] : pass.reads) {
-                    adjacency[i].emplace(index.index);
-                }
-
-                for (auto& [_, index, _] : pass.writes) {
-                    adjacency[i].emplace(index.index);
-                }
-
-                for (auto& [_, index, _] : pass.creates) {
-                    adjacency[i].emplace(index.index);
-                }
-            }
-        }
-
-        void dfs(uint current,
-                 sm::Vector<bool>& visited,
-                 sm::Vector<int>& departure,
-                 int& time) {
-
-            visited[current] = true;
-
-            time += 1;
-
-            for (auto& index : adjacency[current]) {
-                if (!visited[index]) {
-                    dfs(index, visited, departure, time);
-                }
-            }
-
-            departure[time] = current;
-            time += 1;
-        }
-
-        sm::Vector<uint> toposort() {
-#if 0
-            sm::Vector<int> departure(indices.size() * 2, -1);
-            sm::Vector<bool> visited(indices.size());
-            int time = 0;
-
-            for (uint i = 0; i < indices.size(); i++) {
-                if (!visited[i]) {
-                    dfs(i, visited, departure, time);
-                }
-            }
-
-            sm::Vector<RenderPass> sorted;
-            for (int i = indices.size() * 2 - 1; i >= 0; i--) {
-                int index = departure[i];
-                if (index == -1) continue;
-
-                sorted.push_back(passes[indices[index]]);
-            }
-#endif
-
-            // TODO: sorting is disabled for now
-            sm::Vector<uint> sorted;
-            for (uint i = 0; i < indices.size(); i++) {
-                sorted.push_back(indices[i]);
-            }
-
-            return sorted;
-        }
-    };
-
-    // collect all the used render passes
-    GraphSorter sorter{mRenderPasses};
-
     // track the expected state of each resource
     sm::HashMap<Handle, D3D12_RESOURCE_STATES> initial;
     BarrierRecord barriers;
 
-    auto update_state = [&](Handle index, Access access) {
-        D3D12_RESOURCE_STATES state = access.as_facade();
+    auto update_state = [&](Handle index, Usage access) {
+        D3D12_RESOURCE_STATES state = get_usage_state(access);
 
         if (initial.contains(index)) {
             barriers.transition(index, initial[index], state);
@@ -584,19 +556,13 @@ void FrameGraph::schedule_graph() {
         auto& handle = mHandles[i];
         if (!handle.is_imported() || !handle.is_used()) continue;
 
-        auto state = handle.access.as_facade();
+        auto state = get_usage_state(handle.access);
         restore.push_back({Handle{i}, state});
         initial[Handle{i}] = state;
     }
 
-    auto passes = sorter.toposort();
-    for (size_t i = 0; i < passes.size(); i++) {
-        logs::gRender.info("{}: {}", i, mRenderPasses[passes[i]].name);
-    }
-
     const render::CommandListType queue = [&] {
-        for (uint i : passes) {
-            auto& pass = mRenderPasses[i];
+        for (auto& pass : mRenderPasses) {
             if (!pass.is_used()) continue;
 
             return pass.type;
@@ -607,6 +573,8 @@ void FrameGraph::schedule_graph() {
 
     CommandListHandle cmd = add_commands(queue);
 
+    logs::gRender.info("begin command recording");
+
     // open the initial command list
     events::OpenCommands open = {
         .handle = cmd
@@ -614,8 +582,11 @@ void FrameGraph::schedule_graph() {
 
     mFrameSchedule.push_back(open);
 
-    for (uint i : passes) {
+    sm::Vector<RenderPass> stack;
+
+    for (uint i = 0; i < mRenderPasses.size(); i++) {
         auto& pass = mRenderPasses[i];
+        if (!pass.is_used()) continue;
 
         // if the queue type changes, add a sync event
         if (pass.type != get_command_type(cmd)) {
@@ -628,15 +599,27 @@ void FrameGraph::schedule_graph() {
 
             logs::gRender.info("Submit commands for {}", get_command_type(cmd));
 
-            // assume the next queue depends on the current one
-            events::DeviceSync sync = {
-                .signal = get_command_type(cmd),
-                .wait = pass.type
-            };
+            bool has_dependency = [&] {
+                for (auto& p : stack) {
+                    if (pass.depends_on(p)) return true;
+                }
 
-            mFrameSchedule.push_back(sync);
+                return false;
+            }();
 
-            logs::gRender.info("Sync {} -> {}", sync.signal, sync.wait);
+            stack.clear();
+
+            if (has_dependency) {
+                // assume the next queue depends on the current one
+                events::DeviceSync sync = {
+                    .signal = get_command_type(cmd),
+                    .wait = pass.type
+                };
+
+                mFrameSchedule.push_back(sync);
+
+                logs::gRender.info("Sync {} -> {}", sync.signal, sync.wait);
+            }
 
             cmd = add_commands(pass.type);
 
@@ -646,20 +629,20 @@ void FrameGraph::schedule_graph() {
             };
 
             mFrameSchedule.push_back(open);
+
+            stack.push_back(pass);
         }
+
+        stack.push_back(pass);
 
         for (auto& [_, index, access] : pass.creates) {
-            restore.push_back({index, access.as_facade()});
+            restore.push_back({index, get_usage_state(access)});
             update_state(index, access);
         }
 
-        for (auto& [_, index, access] : pass.reads) {
-            update_state(index, access);
-        }
-
-        for (auto& [_, index, access] : pass.writes) {
-            update_state(index, access);
-        }
+        pass.foreach(eRead | eWrite, [&](const ResourceAccess& access) {
+            update_state(access.index, access.usage);
+        });
 
         // if we have any barriers, submit them
         barriers.submit(mFrameSchedule, cmd);
@@ -673,6 +656,26 @@ void FrameGraph::schedule_graph() {
         mFrameSchedule.push_back(record);
 
         logs::gRender.info("Record commands for {}", pass.name);
+
+        // only add early barriers on direct command list
+        // not sure of all the special cases yet
+        if (get_command_type(cmd) != render::CommandListType::eDirect)
+            continue;
+
+        logs::gRender.info("Searching for early barriers {}", pass.name);
+
+        // if we can add barriers for the next pass, do so
+        pass.foreach(eRead | eWrite | eCreate, [&](const auto& access) {
+            auto n = find_next_use(i, access.index);
+            logs::gRender.info("Next use of {} is {}", access.index.index, n.index);
+            if (!n.is_valid()) return;
+
+            auto state = mRenderPasses[n.index].get_handle_usage(access.index);
+            update_state(access.index, state);
+        });
+
+        // if we have any barriers, submit them
+        barriers.submit(mFrameSchedule, cmd);
     }
 
     // transition imported and created resources back to their initial state
@@ -688,6 +691,8 @@ void FrameGraph::schedule_graph() {
     };
 
     mFrameSchedule.push_back(submit);
+
+    logs::gRender.info("finish command recording");
 }
 
 void FrameGraph::destroy_resources() {
@@ -805,75 +810,97 @@ void FrameGraph::execute() {
             }
         }, step);
     }
+}
 
 #if 0
-    sm::HashMap<ID3D12Resource*, D3D12_RESOURCE_STATES> states;
-    BarrierList barriers;
-    auto& commands = mContext.mCommandList;
+struct GraphSorter {
+        sm::Vector<RenderPass>& passes;
 
-    auto update_state = [&](Handle index, Access access) {
-        ID3D12Resource *resource = mHandles[index.index].resource;
-        D3D12_RESOURCE_STATES state = access.as_facade();
+        sm::Vector<uint> indices;
+        sm::Vector<sm::Set<uint>> adjacency;
 
-        if (states.contains(resource)) {
-            barriers.transition(resource, states[resource], state);
+        GraphSorter(sm::Vector<RenderPass>& passes)
+            : passes(passes)
+        {
+            for (uint i = 0; i < passes.size(); i++) {
+                if (passes[i].is_used())
+                    indices.push_back(i);
+            }
+
+            build_adjacency();
         }
 
-        states[resource] = state;
-    };
+        void build_adjacency() {
+            adjacency.resize(indices.size());
 
-    struct FinalState {
-        ID3D12Resource *resource;
-        D3D12_RESOURCE_STATES state;
-    };
-    sm::SmallVector<FinalState, 8> restoration;
+            for (uint i = 0; i < indices.size(); i++) {
+                auto& pass = passes[indices[i]];
 
-    // store the initial state of all imported resources
-    for (auto& handle : mHandles) {
-        if (!handle.is_imported() || !handle.is_used()) continue;
+                for (auto& [_, index, _] : pass.reads) {
+                    adjacency[i].emplace(index.index);
+                }
 
-        auto state = handle.access.as_facade();
+                for (auto& [_, index, _] : pass.writes) {
+                    adjacency[i].emplace(index.index);
+                }
 
-        restoration.push_back({handle.resource, state});
-        states[handle.resource] = state;
-    }
-
-    SM_UNUSED BYTE colour_index = PIX_COLOR_DEFAULT;
-    for (auto& pass : mRenderPasses) {
-        if (!pass.is_used()) continue;
-
-        for (auto& [_, index, access] : pass.creates) {
-            restoration.push_back({resource(index), access.as_facade()});
-
-            update_state(index, access);
+                for (auto& [_, index, _] : pass.creates) {
+                    adjacency[i].emplace(index.index);
+                }
+            }
         }
 
-        for (auto& [_, index, access] : pass.reads) {
-            update_state(index, access);
+        void dfs(uint current,
+                 sm::Vector<bool>& visited,
+                 sm::Vector<int>& departure,
+                 int& time) {
+
+            visited[current] = true;
+
+            time += 1;
+
+            for (auto& index : adjacency[current]) {
+                if (!visited[index]) {
+                    dfs(index, visited, departure, time);
+                }
+            }
+
+            departure[time] = current;
+            time += 1;
         }
 
-        for (auto& [_, index, access] : pass.writes) {
-            update_state(index, access);
-        }
+        sm::Vector<uint> toposort() {
+#if 0
+            sm::Vector<int> departure(indices.size() * 2, -1);
+            sm::Vector<bool> visited(indices.size());
+            int time = 0;
 
-        auto& cmd = commands.get();
+            for (uint i = 0; i < indices.size(); i++) {
+                if (!visited[i]) {
+                    dfs(i, visited, departure, time);
+                }
+            }
 
-        PIXBeginEvent(cmd, PIX_COLOR_INDEX(colour_index++), "%s", pass.name.c_str());
+            sm::Vector<RenderPass> sorted;
+            for (int i = indices.size() * 2 - 1; i >= 0; i--) {
+                int index = departure[i];
+                if (index == -1) continue;
 
-        barriers.submit(cmd);
-
-        RenderContext ctx{mContext, *this, cmd};
-
-        pass.execute(ctx);
-
-        PIXEndEvent(cmd);
-    }
-
-    // transition imported and created resources back to their initial state
-    for (auto& [resource, state] : restoration) {
-        barriers.transition(resource, states[resource], state);
-    }
-
-    barriers.submit(commands.get());
+                sorted.push_back(passes[indices[index]]);
+            }
 #endif
-}
+
+            // TODO: sorting is disabled for now
+            sm::Vector<uint> sorted;
+            for (uint i = 0; i < indices.size(); i++) {
+                sorted.push_back(indices[i]);
+            }
+
+            return sorted;
+        }
+    };
+
+    // collect all the used render passes
+    GraphSorter sorter{mRenderPasses};
+
+#endif
