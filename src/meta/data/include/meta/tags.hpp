@@ -80,6 +80,7 @@ namespace sm::meta {
 
     META_WRAPPER(name, detail::NameTag, (const char *name), name);
     META_WRAPPER(category, detail::CategoryTag, (const char *category), category);
+    META_WRAPPER(id, detail::TypeIdTag, (unsigned id), id);
 
     // NOLINTBEGIN
     constexpr const detail::Tag bitflags = detail::Tag(detail::kTagBitFlags);
@@ -101,20 +102,6 @@ namespace sm::meta {
         };
 
         return ThreadSafeTag{};
-    }();
-
-    constexpr auto id = [] {
-        struct ClassIdTag : detail::Tag {
-            consteval auto operator=(unsigned id) const {
-                return detail::TypeIdTag{id};
-            }
-
-            consteval ClassIdTag()
-                : Tag(detail::kTagTypeId)
-            { }
-        };
-
-        return ClassIdTag{};
     }();
 
     // NOLINTEND

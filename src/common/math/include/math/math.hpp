@@ -72,11 +72,19 @@ namespace sm::math {
             struct { T width; T height; };
         };
 
+        struct MembersAxis { T x; T y; };
+        struct MembersUV { T u; T v; };
+        struct MembersSize { T width; T height; };
+
         constexpr Vec2() = default;
 
         constexpr Vec2(T x, T y) : x(x), y(y) { }
         constexpr Vec2(T it) : Vec2(it, it) { }
         constexpr Vec2(const T *data) : Vec2(data[0], data[1]) { }
+
+        constexpr Vec2(MembersAxis members) : Vec2(members.x, members.y) { }
+        constexpr Vec2(MembersUV members) : Vec2(members.u, members.v) { }
+        constexpr Vec2(MembersSize members) : Vec2(members.width, members.height) { }
 
         constexpr static Vec2 zero() { return Vec2(T(0)); }
 
@@ -174,7 +182,13 @@ namespace sm::math {
             struct { T x; T y; T z; };
             struct { T r; T g; T b; };
             struct { T roll; T pitch; T yaw; };
+            struct { T u; T v; T w; };
         };
+
+        struct MembersAxis { T x; T y; T z; };
+        struct MembersColour { T r; T g; T b; };
+        struct MembersEuler { T roll; T pitch; T yaw; };
+        struct MembersUVW { T u; T v; T w; };
 
         constexpr Vec3() = default;
 
@@ -183,6 +197,11 @@ namespace sm::math {
         constexpr Vec3(const Vec2& xy, T z) : Vec3(xy.x, xy.y, z) { }
         constexpr Vec3(T x, const Vec2& yz) : Vec3(x, yz.x, yz.y) { }
         constexpr Vec3(const T *data) : Vec3(data[0], data[1], data[2]) { }
+
+        constexpr Vec3(MembersAxis members) : Vec3(members.x, members.y, members.z) { }
+        constexpr Vec3(MembersColour members) : Vec3(members.r, members.g, members.b) { }
+        constexpr Vec3(MembersEuler members) : Vec3(members.roll, members.pitch, members.yaw) { }
+        constexpr Vec3(MembersUVW members) : Vec3(members.u, members.v, members.w) { }
 
         static constexpr Vec3 zero() { return Vec3(T(0)); }
 
@@ -301,12 +320,18 @@ namespace sm::math {
             struct { T r; T g; T b; T a; };
         };
 
+        struct MembersAxis { T x; T y; T z; T w; };
+        struct MembersColour { T r; T g; T b; T a; };
+
         constexpr Vec4() = default;
 
         constexpr Vec4(T x, T y, T z, T w) : x(x), y(y), z(z), w(w) { }
         constexpr Vec4(T it) : Vec4(it, it, it, it) { }
         constexpr Vec4(const Vec3& xyz, T w) : Vec4(xyz.x, xyz.y, xyz.z, w) { }
         constexpr Vec4(const T *data) : Vec4(data[0], data[1], data[2], data[3]) { }
+
+        constexpr Vec4(MembersAxis members) : Vec4(members.x, members.y, members.z, members.w) { }
+        constexpr Vec4(MembersColour members) : Vec4(members.r, members.g, members.b, members.a) { }
 
         static constexpr Vec4 zero() { return Vec4(T(0)); }
 

@@ -70,19 +70,79 @@ void ViewportPanel::draw_rotate_mode() const {
     }
 }
 
+struct OverlayPos {
+    float2 position;
+    float2 pivot;
+};
+
+constexpr float kPad = 10.f;
+
+static OverlayPos get_overlay_position(OverlayPosition overlay, float2 size, float2 pos) {
+    float2 pivot = {{
+        .x = (overlay & eOverlayLeft) ? 0.f : 1.f,
+        .y = (overlay & eOverlayTop) ? 0.f : 1.f,
+    }};
+
+    float2 position = {{
+        .x = (overlay & eOverlayLeft) ? pos.x + kPad : pos.x + size.x - kPad,
+        .y = (overlay & eOverlayTop) ? pos.y + kPad : pos.y + size.y - kPad,
+    }};
+
+    return { position, pivot };
+}
+
 void ViewportPanel::draw_window() {
-    if (!mOpen) return;
+    const auto& camera = get_camera();
+
+    if (!camera.is_active()) {
+        // blender keybinds
+        if (ImGui::IsKeyPressed(ImGuiKey_G))
+            mOperation = mTranslateOperation;
+        if (ImGui::IsKeyPressed(ImGuiKey_R))
+            mOperation = mRotateOperation;
+        if (ImGui::IsKeyPressed(ImGuiKey_S))
+            mOperation = mScaleOperation;
+
+        if (ImGui::IsKeyPressed(ImGuiKey_X))
+            mOperation = set_x(mOperation);
+        if (ImGui::IsKeyPressed(ImGuiKey_Y))
+            mOperation = set_y(mOperation);
+        if (ImGui::IsKeyPressed(ImGuiKey_Z))
+            mOperation = set_z(mOperation);
+    }
 
     ImGui::SetNextWindowSizeConstraints(ImVec2(200.f, 200.f), ImVec2(8192.f, 8192.f));
 
-    if (ImGui::Begin(mName.c_str(), &mOpen, mFlags)) {
+    float2 cursor;
+    float2 avail;
+
+    if (ImGui::Begin(mName.c_str(), nullptr, mFlags)) {
+        cursor = ImGui::GetCursorScreenPos();
+        avail = ImGui::GetContentRegionAvail();
         draw_content();
+    }
+    ImGui::End();
+
+    ImGuiWindowFlags overlay_flags
+        = ImGuiWindowFlags_NoDecoration
+        | ImGuiWindowFlags_NoDocking
+        | ImGuiWindowFlags_AlwaysAutoResize
+        | ImGuiWindowFlags_NoSavedSettings
+        | ImGuiWindowFlags_NoFocusOnAppearing
+        | ImGuiWindowFlags_NoNav
+        | ImGuiWindowFlags_NoMove;
+
+    auto [position, pivot] = get_overlay_position(mOverlayPosition, avail, cursor);
+    ImGui::SetNextWindowPos(position, ImGuiCond_Always, pivot);
+    ImGui::SetNextWindowBgAlpha(0.35f);
+
+    if (ImGui::Begin("Gizmo Settings", nullptr, overlay_flags)) {
+        gizmo_settings_panel();
     }
     ImGui::End();
 }
 
 void ViewportPanel::draw_content() {
-    ImGui::Checkbox("Scale to viewport", &mScaleViewport);
     auto& camera = get_camera();
     auto& context = *mContext;
 
@@ -163,25 +223,6 @@ void ViewportPanel::gizmo_settings_panel() {
 		mOperation = mScaleOperation;
     ImGui::SameLine();
     draw_gizmo_mode(mScaleOperation, ImGuizmo::SCALE_X, ImGuizmo::SCALE_Y, ImGuizmo::SCALE_Z);
-
-    const auto& camera = get_camera();
-
-    if (!camera.is_active()) {
-        // blender keybinds
-        if (ImGui::IsKeyPressed(ImGuiKey_G))
-            mOperation = mTranslateOperation;
-        if (ImGui::IsKeyPressed(ImGuiKey_R))
-            mOperation = mRotateOperation;
-        if (ImGui::IsKeyPressed(ImGuiKey_S))
-            mOperation = mScaleOperation;
-
-        if (ImGui::IsKeyPressed(ImGuiKey_X))
-            mOperation = set_x(mOperation);
-        if (ImGui::IsKeyPressed(ImGuiKey_Y))
-            mOperation = set_y(mOperation);
-        if (ImGui::IsKeyPressed(ImGuiKey_Z))
-            mOperation = set_z(mOperation);
-    }
 
     ImGui::BeginDisabled(mOperation == ImGuizmo::SCALE);
     ImGui::Text("Transform Mode");

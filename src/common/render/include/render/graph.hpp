@@ -181,7 +181,6 @@ namespace sm::graph {
         void build_raw_events(events::ResourceBarrier& barrier);
 
         void create_resources();
-        void create_resource_descriptors();
 
         // figure out what passes should be run on which queues
         // and when to insert sync points and barriers

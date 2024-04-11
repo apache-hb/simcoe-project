@@ -11,11 +11,24 @@ namespace sm::render {
 }
 
 namespace sm::ed {
+    enum OverlayPosition {
+        eOverlayClosed = -1,
+
+        eOverlayTop = (1 << 0),
+        eOverlayLeft = (1 << 1),
+
+        eOverlayTopLeft = eOverlayTop | eOverlayLeft,
+        eOverlayTopRight = eOverlayTop,
+        eOverlayBottomLeft = eOverlayLeft,
+        eOverlayBottomRight = 0,
+    };
+
     class ViewportPanel final {
         static constexpr const ImGuizmo::OPERATION kRotateXYZ
             = ImGuizmo::ROTATE_X
             | ImGuizmo::ROTATE_Y
             | ImGuizmo::ROTATE_Z;
+
 
         void draw_gizmo_mode(ImGuizmo::OPERATION op, ImGuizmo::OPERATION x, ImGuizmo::OPERATION y, ImGuizmo::OPERATION z) const;
         void draw_rotate_mode() const;
@@ -36,7 +49,12 @@ namespace sm::ed {
 
         bool mScaleViewport = true;
         sm::String mName;
-        ImGuiWindowFlags mFlags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+        ImGuiWindowFlags mFlags
+            = ImGuiWindowFlags_NoScrollbar
+            | ImGuiWindowFlags_NoScrollWithMouse
+            | ImGuiWindowFlags_NoCollapse;
+
+        OverlayPosition mOverlayPosition = eOverlayTopLeft;
 
         // IEditorPanel
         void draw_content();

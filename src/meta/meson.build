@@ -2,6 +2,7 @@ llvm = dependency('llvm', components : ['core'], method : 'config-tool', static 
 llvm_libdir = llvm.get_variable(configtool: 'libdir')
 
 deps = [
+    fmtlib,
     cpp.find_library('clangBasic', dirs : llvm_libdir),
     cpp.find_library('clangDriver', dirs : llvm_libdir),
     cpp.find_library('clangLex', dirs : llvm_libdir),
@@ -37,9 +38,6 @@ meta_tooling = executable('meta', src,
 
 meta_include = include_directories('data/include')
 
-cereal = dependency('cereal')
-
 meta = declare_dependency(
-    include_directories : meta_include,
-    dependencies : cereal
+    include_directories : meta_include
 )

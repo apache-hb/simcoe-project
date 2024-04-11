@@ -1,4 +1,5 @@
 #include "stdafx.hpp"
+
 #include "meta/utils.hpp"
 #include "meta/tags.hpp"
 
@@ -119,6 +120,13 @@ struct ReflectInfo {
     }
 
     void setTypeId(Sema& S, const clang::Expr& Expr, unsigned id) {
+        if (id < 1024) {
+            unsigned ID = S.getDiagnostics().getCustomDiagID(
+                DiagnosticsEngine::Error, "typeid must be greater than meta::eUserTypeId (1024). This may happen due to poor luck with hashing, you can specify the typeid manually with typeid = <value>");
+            S.Diag(Expr.getExprLoc(), ID);
+            return;
+        }
+
         typeId = id;
     }
 
@@ -706,11 +714,38 @@ std::string gHeaderInputPath;
 std::string gHeaderOutPath;
 std::string gSourceOutPath;
 
+struct PrettyPrint {
+    int depth = 0;
+
+    std::ofstream *of;
+
+    void init(std::ofstream *stream) {
+        of = stream;
+    }
+
+    void write(const std::string& str) {
+        *of << str;
+    }
+
+    void println(std::string_view str, auto&&... args) {
+        for (int i = 0; i < depth; i++)
+            *of << "\t";
+
+        *of << fmt::vformat(str, fmt::make_format_args(args...)) << "\n";
+    }
+
+    void indent() { depth++; }
+    void dedent() { depth--; }
+};
+
 class CmdAfterConsumer : public ASTConsumer {
     clang::DiagnosticsEngine &mDiag;
 
-    std::ofstream mHeaderOut;
-    std::ofstream mSourceOut;
+    std::ofstream mHeaderOutStream;
+    std::ofstream mSourceOutStream;
+
+    PrettyPrint mHeaderOut;
+    PrettyPrint mSourceOut;
 
     void handleClass(const Decl &D, const AnnotateAttr &Attr) {
         if (!meta::verifyValidReflectClass(mDiag, D, Attr.getLocation()))
@@ -729,34 +764,32 @@ class CmdAfterConsumer : public ASTConsumer {
         const CXXRecordDecl &RD = cast<CXXRecordDecl>(D);
         const auto& qualifiedName = RD.getQualifiedNameAsString();
 
-        mHeaderOut << "#define " << RD.getNameAsString() << "_REFLECT \\\n"
-            << "public: \\\n"
-            << "\tstatic const sm::meta::Class& static_class();\\\n"
-            << "private: \n";
+        mHeaderOut.println("#define {}_REFLECT \\\n", RD.getNameAsString());
+        mHeaderOut.println("public: \\\n");
+        mHeaderOut.println("\tstatic const sm::meta::Class& getClass();\\\n");
+        mHeaderOut.println("private: \n");
 
-        mSourceOut << "template<>\n"
-            << "struct sm::meta::detail::GlobalClass<" << qualifiedName << "> {\n"
-            << "\tstatic constexpr std::string_view kName = \"" << RD.getNameAsString() << "\";\n"
-            << "\tstatic constexpr std::string_view kQualifiedName = \"" << qualifiedName << "\";\n"
-            << "\tstatic constexpr std::string_view kCategory = \"" << Info.category << "\";\n"
-            << "\tstatic constexpr std::array<const sm::meta::Class*, 0> kBaseClasses{};\n"
-            << "\tstatic constexpr std::array<sm::meta::Method, 0> kMethods{};\n"
-            << "\tstatic constexpr std::array<sm::meta::Property, 0> kProperties{};\n"
-            << "\tstatic constexpr const sm::meta::Class kClass = sm::meta::Class(kName, kQualifiedName, kCategory, kBaseClasses, kMethods, kProperties);\n"
-            << "};\n";
+        mSourceOut.println("template<>\n");
+        mSourceOut.println("struct sm::meta::detail::GlobalClass<{}> : public sm::meta::Class {{\n", qualifiedName);
+        mSourceOut.indent();
+        mSourceOut.println("constexpr GlobalClass() {{\\n");
+        mSourceOut.indent();
+        mSourceOut.println("setName(\"{}\");\\n", RD.getNameAsString());
+        mSourceOut.println("setQualifiedName(\"{}\");\\n", qualifiedName);
+        mSourceOut.println("setCategory(\"{}\");\\n", Info.category);
+        mSourceOut.println("setTypeId({});\\n", Info.typeId);
+        mSourceOut.dedent();
+        mSourceOut.println("}};\n");
+        mSourceOut.println("static GlobalClass kClass{{}};\n");
+        mSourceOut.dedent();
+        mSourceOut.println("}};\n");
 
-        mSourceOut << "const sm::meta::Class& " << qualifiedName << "::static_class() { \n"
-            << "\treturn sm::meta::detail::GlobalClass<" << qualifiedName << ">::kClass;\n"
-            << "}\n";
+        mSourceOut.println("const sm::meta::Class& {}::getClass() {{ \n", qualifiedName);
+        mSourceOut.indent();
+        mSourceOut.println("return sm::meta::detail::GlobalClass<{}>::kClass;\\n", qualifiedName);
+        mSourceOut.dedent();
+        mSourceOut.println("}}\n");
 
-#if 0
-        mSourceOut << "CEREAL_REGISTER_TYPE(" << qualifiedName << ")\n";
-        if (RD.getNumBases() > 0) {
-            auto& base = *RD.bases().begin();
-            auto id = base.getType()->getAsRecordDecl()->getQualifiedNameAsString();
-            mSourceOut << "CEREAL_REGISTER_POLYMORPHIC_RELATION(" << id << ", " << qualifiedName << ")\n";
-        }
-#endif
         for (const CXXBaseSpecifier &Base : RD.bases()) {
             auto type = Base.getType();
             const Decl *BaseRD = type->getAsCXXRecordDecl();
@@ -794,28 +827,8 @@ class CmdAfterConsumer : public ASTConsumer {
         if (!FE->tryGetRealPathName().contains(gHeaderInputPath))
             return;
 
-        const ReflectInfo& Info = gReflectInfo.at(&D);
+        // const ReflectInfo& Info = gReflectInfo.at(&D);
         const CXXRecordDecl &RD = cast<CXXRecordDecl>(D);
-
-        mHeaderOut << "#define " << RD.getNameAsString() << "_REFLECT \\\n"
-            << "public: \\\n"
-            << "\tstatic const sm::meta::Class& static_class();\\\n"
-            << "private: \n";
-
-        mSourceOut << "template<>\n"
-            << "struct sm::meta::detail::GlobalClass<" << RD.getQualifiedNameAsString() << "> {\n"
-            << "\tstatic constexpr std::string_view kName = \"" << RD.getNameAsString() << "\";\n"
-            << "\tstatic constexpr std::string_view kQualifiedName = \"" << RD.getQualifiedNameAsString() << "\";\n"
-            << "\tstatic constexpr std::string_view kCategory = \"" << Info.category << "\";\n"
-            << "\tstatic constexpr std::array<const sm::meta::Class*, 0> kBaseClasses{};\n"
-            << "\tstatic constexpr std::array<sm::meta::Method, 0> kMethods{};\n"
-            << "\tstatic constexpr std::array<sm::meta::Property, 0> kProperties{};\n"
-            << "\tstatic constexpr const sm::meta::Class kClass = sm::meta::Class(kName, kQualifiedName, kCategory, kBaseClasses, kMethods, kProperties);\n"
-            << "};\n";
-
-        mSourceOut << "const sm::meta::Class& " << RD.getQualifiedNameAsString() << "::static_class() { \n"
-            << "\treturn sm::meta::detail::GlobalClass<" << RD.getQualifiedNameAsString() << ">::kClass;\n"
-            << "}\n";
 
         for (const CXXBaseSpecifier &Base : RD.bases()) {
             auto type = Base.getType();
@@ -847,38 +860,47 @@ class CmdAfterConsumer : public ASTConsumer {
     }
 
     void Initialize(ASTContext&) override {
-        mHeaderOut.open(gHeaderOutPath);
-        mSourceOut.open(gSourceOutPath);
+        mHeaderOutStream.open(gHeaderOutPath);
+        mSourceOutStream.open(gSourceOutPath);
 
-        if (!mHeaderOut.is_open()) {
+        if (!mHeaderOutStream.is_open()) {
             mDiag.Report(clang::diag::err_cannot_open_file) << gHeaderOutPath;
             return;
         }
 
-        if (!mSourceOut.is_open()) {
+        if (!mSourceOutStream.is_open()) {
             mDiag.Report(clang::diag::err_cannot_open_file) << gSourceOutPath;
             return;
         }
 
-        mHeaderOut << "/* This file is generated by the meta reflection tool. */\n";
-        mHeaderOut << "#pragma once\n";
-        mHeaderOut << "#include \"meta/class.hpp\"\n";
+        mHeaderOut.init(&mHeaderOutStream);
+        mSourceOut.init(&mSourceOutStream);
 
-        mSourceOut << "/* This file is generated by the meta reflection tool. */\n";
-        mSourceOut << "#include \"" << fs::path{gHeaderOutPath}.filename().string() << "\"\n";
-        mSourceOut << "#include \"" << fs::path{gHeaderInputPath}.filename().string() << "\"\n";
-        mSourceOut << "#include <array>\n";
-#if 0
-        mSourceOut
-            << "#include <cereal/archives/binary.hpp>\n"
-            << "#include <cereal/archives/xml.hpp>\n"
-            << "#include <cereal/types/polymorphic.hpp>\n";
-#endif
+        mHeaderOut.println("/* This file is generated by the meta reflection tool. */");
+        mHeaderOut.println("#pragma once");
+        mHeaderOut.println("#include \"meta/class.hpp\"");
+
+        mSourceOut.println("/* This file is generated by the meta reflection tool. */");
+        mSourceOut.println("#include \"" + fs::path{gHeaderOutPath}.filename().string() + "\"");
+        mSourceOut.println("#include \"" + fs::path{gHeaderInputPath}.filename().string() + "\"");
+        mSourceOut.println("#include <array>");
+
+        mHeaderOut.println("namespace sm::meta {{");
+        mHeaderOut.indent();
     }
+
 public:
     CmdAfterConsumer(clang::DiagnosticsEngine &Diag)
         : mDiag(Diag)
     { }
+
+    ~CmdAfterConsumer() {
+        mHeaderOut.dedent();
+        mHeaderOut.println("}}");
+
+        mHeaderOutStream.close();
+        mSourceOutStream.close();
+    }
 
     void HandleTranslationUnit(ASTContext &) override {
 

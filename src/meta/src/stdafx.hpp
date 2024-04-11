@@ -23,4 +23,6 @@
 #include <fstream>
 #include <filesystem>
 
+#include "fmtlib/format.h"
+
 // IWYU pragma: end_exports

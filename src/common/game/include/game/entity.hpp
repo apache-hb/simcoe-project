@@ -1,19 +1,28 @@
 #pragma once
 
 #include "meta/meta.hpp"
+#include "meta/class.hpp"
 
 #include "math/math.hpp"
 
 #include "world/world.hpp"
 
 namespace sm::game {
+    class Object;
+
+    template<typename T>
+    concept IsObject = requires {
+        std::is_base_of_v<Object, T>;
+        { T::getClass() } -> std::same_as<const meta::Class&>;
+    };
+
     /// @brief base object class
     /// opts in for reflection, serialization, and archetypes
     REFLECT()
     class Object {
         REFLECT_BODY(Object)
 
-        uint32 mObjectId;
+        uint16 mClassId;
 
     public:
         virtual ~Object() = default;
@@ -23,6 +32,35 @@ namespace sm::game {
         virtual void update(float dt) { }
         virtual void create() { }
         virtual void destroy() { }
+
+        bool isInstanceOf(const meta::Class& cls) const;
+    };
+
+    template<IsObject T>
+    T *cast(Object& object) {
+        if (object.isInstanceOf(T::getClass())) {
+            return static_cast<T*>(&object);
+        } else {
+            return nullptr;
+        }
+    }
+
+    /// @brief an entity in the game world
+    REFLECT()
+    class Entity : public Object {
+        REFLECT_BODY(Entity)
+
+        PROPERTY()
+        math::float3 mPosition;
+
+        PROPERTY()
+        math::quatf mRotation;
+
+        PROPERTY()
+        math::float3 mScale;
+
+    public:
+        Entity();
     };
 
     REFLECT()
@@ -63,7 +101,7 @@ namespace sm::game {
     class PhysicsComponent : public Component {
         REFLECT_BODY(PhysicsComponent)
 
-        PROPERTY()
+        PROPERTY(name = "Activate On Create", category = "Physics")
         bool mActivateOnCreate;
 
         PROPERTY()
@@ -85,24 +123,6 @@ namespace sm::game {
 
     public:
         CameraComponent();
-    };
-
-    /// @brief an entity in the game world
-    REFLECT()
-    class Entity : public Object {
-        REFLECT_BODY(Entity)
-
-        PROPERTY()
-        math::float3 mPosition;
-
-        PROPERTY()
-        math::quatf mRotation;
-
-        PROPERTY()
-        math::float3 mScale;
-
-    public:
-        Entity();
     };
 
     REFLECT()

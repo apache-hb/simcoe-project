@@ -475,11 +475,6 @@ void FrameGraph::create_resources() {
     }
 }
 
-void FrameGraph::create_resource_descriptors() {
-    // UsageTracker tracker;
-
-}
-
 ///
 /// per frame command data
 ///
@@ -795,7 +790,6 @@ void FrameGraph::reset() {
 void FrameGraph::compile() {
     optimize();
     create_resources();
-    create_resource_descriptors();
     schedule_graph();
     init_frame_commands();
 }
