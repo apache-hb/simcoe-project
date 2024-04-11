@@ -21,12 +21,13 @@ namespace sm::meta {
         constexpr unsigned kTagTransient = 5;
         constexpr unsigned kTagThreadSafe = 6;
         constexpr unsigned kTagNotThreadSafe = 7;
+        constexpr unsigned kTagTypeId = 8;
 
         struct Tag {
-            unsigned id;
+            unsigned tag;
 
             consteval Tag(unsigned id)
-                : id(id)
+                : tag(id)
             { }
         };
 
@@ -57,6 +58,15 @@ namespace sm::meta {
             consteval CategoryTag(const char *category)
                 : Tag(kTagCategory)
                 , category(category)
+            { }
+        };
+
+        struct TypeIdTag : Tag {
+            unsigned id;
+
+            consteval TypeIdTag(unsigned id)
+                : Tag(kTagTypeId)
+                , id(id)
             { }
         };
 
@@ -91,6 +101,20 @@ namespace sm::meta {
         };
 
         return ThreadSafeTag{};
+    }();
+
+    constexpr auto id = [] {
+        struct ClassIdTag : detail::Tag {
+            consteval auto operator=(unsigned id) const {
+                return detail::TypeIdTag{id};
+            }
+
+            consteval ClassIdTag()
+                : Tag(detail::kTagTypeId)
+            { }
+        };
+
+        return ClassIdTag{};
     }();
 
     // NOLINTEND

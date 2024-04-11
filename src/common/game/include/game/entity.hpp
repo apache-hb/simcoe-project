@@ -21,8 +21,8 @@ namespace sm::game {
         Object();
 
         virtual void update(float dt) { }
-        virtual void birth() { }
-        virtual void death() { }
+        virtual void create() { }
+        virtual void destroy() { }
     };
 
     REFLECT()
@@ -64,7 +64,7 @@ namespace sm::game {
         REFLECT_BODY(PhysicsComponent)
 
         PROPERTY()
-        bool mActivateOnBirth;
+        bool mActivateOnCreate;
 
         PROPERTY()
         PhysicsLayer mLayer;

@@ -37,6 +37,9 @@ meta_tooling = executable('meta', src,
 
 meta_include = include_directories('data/include')
 
+cereal = dependency('cereal')
+
 meta = declare_dependency(
-    include_directories : meta_include
+    include_directories : meta_include,
+    dependencies : cereal
 )

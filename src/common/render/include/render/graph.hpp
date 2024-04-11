@@ -77,6 +77,8 @@ namespace sm::graph {
             render::CommandListType type;
             sm::UniqueArray<render::Object<ID3D12CommandAllocator>> allocators;
             render::Object<ID3D12GraphicsCommandList1> commands;
+
+            void resize(ID3D12Device1 *device, uint length);
         };
 
         using FrameSchedule = sm::Vector<events::Event>;
@@ -310,6 +312,8 @@ namespace sm::graph {
 
         // destroy the render passes and resources
         void reset();
+
+        void resize_frame_data(uint size);
 
         // also destroy the device data
         void reset_device_data();

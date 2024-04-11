@@ -40,6 +40,10 @@ void updateTriState(TriState& tri, Sema &S, const clang::Expr& Expr, const char 
     }
 }
 
+unsigned hashTypeName(const std::string& name) {
+    return llvm::hash_value(name);
+}
+
 struct ReflectInfo {
     const clang::Decl& decl;
 
@@ -54,6 +58,7 @@ struct ReflectInfo {
     TriState isBitFlags = eDefault;
     TriState isTransient = eDefault;
     TriState isThreadSafe = eDefault;
+    unsigned typeId = 0;
 
     ReflectInfo(const clang::Decl& decl)
         : decl(decl)
@@ -64,6 +69,8 @@ struct ReflectInfo {
         const clang::NamedDecl& ND = cast<clang::NamedDecl>(decl);
         qualified = ND.getQualifiedNameAsString();
         name = ND.getName();
+
+        typeId = hashTypeName(qualified);
     }
 
     void setBitFlags(Sema& S, const clang::Expr& Expr, bool value) {
@@ -109,6 +116,10 @@ struct ReflectInfo {
             DiagnosticsEngine::Error, "thread safe can only be applied to methods, fields, and classes");
 
         S.Diag(decl.getLocation(), ID);
+    }
+
+    void setTypeId(Sema& S, const clang::Expr& Expr, unsigned id) {
+        typeId = id;
     }
 
     void setRange(Sema& S, const clang::Expr& Expr, const APValue& min, const APValue& max) {
@@ -287,6 +298,42 @@ std::string getCategoryFromTag(Sema& S, const ConstantExpr &Expr, const APValue&
     return "";
 }
 
+unsigned getTypeIdFromTag(Sema& S, const ConstantExpr &Expr, const APValue& Value) {
+    assert(Value.isStruct() && "expected struct value");
+    unsigned fields = Value.getStructNumFields();
+    if (fields != 1) {
+        unsigned ID = S.getDiagnostics().getCustomDiagID(
+            DiagnosticsEngine::Error, "type id tag must have one field");
+        S.Diag(Expr.getExprLoc(), ID);
+        return 0;
+    }
+
+    const APValue& field = Value.getStructField(0);
+    if (!field.isInt()) {
+        unsigned ID = S.getDiagnostics().getCustomDiagID(
+            DiagnosticsEngine::Error, "type id tag field must be an integer");
+        S.Diag(Expr.getExprLoc(), ID);
+        return 0;
+    }
+
+    const APSInt& intVal = field.getInt();
+    if (intVal.isSigned() && intVal.isNegative()) {
+        unsigned ID = S.getDiagnostics().getCustomDiagID(
+            DiagnosticsEngine::Error, "type id tag field must be a positive integer");
+        S.Diag(Expr.getExprLoc(), ID);
+        return 0;
+    }
+
+    if (intVal.getBitWidth() > 32) {
+        unsigned ID = S.getDiagnostics().getCustomDiagID(
+            DiagnosticsEngine::Error, "type id tag field must be a 32-bit integer");
+        S.Diag(Expr.getExprLoc(), ID);
+        return 0;
+    }
+
+    return intVal.getZExtValue();
+}
+
 void setRangeFromTag(Sema& S, const ConstantExpr &Expr, const APValue& Value, ReflectInfo& Info) {
     assert(Value.isStruct() && "expected struct value");
     unsigned fields = Value.getStructNumFields();
@@ -353,6 +400,9 @@ bool updateInfoFromTag(ReflectInfo& Info, Sema &S, const ConstantExpr &Expr, uns
         return true;
     case m::kTagNotThreadSafe:
         Info.setThreadSafe(S, Expr, false);
+        return true;
+    case m::kTagTypeId:
+        Info.setTypeId(S, Expr, getTypeIdFromTag(S, Expr, Value));
         return true;
 
     default: {
@@ -677,6 +727,7 @@ class CmdAfterConsumer : public ASTConsumer {
 
         const ReflectInfo& Info = gReflectInfo.at(&D);
         const CXXRecordDecl &RD = cast<CXXRecordDecl>(D);
+        const auto& qualifiedName = RD.getQualifiedNameAsString();
 
         mHeaderOut << "#define " << RD.getNameAsString() << "_REFLECT \\\n"
             << "public: \\\n"
@@ -684,9 +735,9 @@ class CmdAfterConsumer : public ASTConsumer {
             << "private: \n";
 
         mSourceOut << "template<>\n"
-            << "struct sm::meta::detail::GlobalClass<" << RD.getQualifiedNameAsString() << "> {\n"
+            << "struct sm::meta::detail::GlobalClass<" << qualifiedName << "> {\n"
             << "\tstatic constexpr std::string_view kName = \"" << RD.getNameAsString() << "\";\n"
-            << "\tstatic constexpr std::string_view kQualifiedName = \"" << RD.getQualifiedNameAsString() << "\";\n"
+            << "\tstatic constexpr std::string_view kQualifiedName = \"" << qualifiedName << "\";\n"
             << "\tstatic constexpr std::string_view kCategory = \"" << Info.category << "\";\n"
             << "\tstatic constexpr std::array<const sm::meta::Class*, 0> kBaseClasses{};\n"
             << "\tstatic constexpr std::array<sm::meta::Method, 0> kMethods{};\n"
@@ -694,10 +745,18 @@ class CmdAfterConsumer : public ASTConsumer {
             << "\tstatic constexpr const sm::meta::Class kClass = sm::meta::Class(kName, kQualifiedName, kCategory, kBaseClasses, kMethods, kProperties);\n"
             << "};\n";
 
-        mSourceOut << "const sm::meta::Class& " << RD.getQualifiedNameAsString() << "::static_class() { \n"
-            << "\treturn sm::meta::detail::GlobalClass<" << RD.getQualifiedNameAsString() << ">::kClass;\n"
+        mSourceOut << "const sm::meta::Class& " << qualifiedName << "::static_class() { \n"
+            << "\treturn sm::meta::detail::GlobalClass<" << qualifiedName << ">::kClass;\n"
             << "}\n";
 
+#if 0
+        mSourceOut << "CEREAL_REGISTER_TYPE(" << qualifiedName << ")\n";
+        if (RD.getNumBases() > 0) {
+            auto& base = *RD.bases().begin();
+            auto id = base.getType()->getAsRecordDecl()->getQualifiedNameAsString();
+            mSourceOut << "CEREAL_REGISTER_POLYMORPHIC_RELATION(" << id << ", " << qualifiedName << ")\n";
+        }
+#endif
         for (const CXXBaseSpecifier &Base : RD.bases()) {
             auto type = Base.getType();
             const Decl *BaseRD = type->getAsCXXRecordDecl();
@@ -809,6 +868,12 @@ class CmdAfterConsumer : public ASTConsumer {
         mSourceOut << "#include \"" << fs::path{gHeaderOutPath}.filename().string() << "\"\n";
         mSourceOut << "#include \"" << fs::path{gHeaderInputPath}.filename().string() << "\"\n";
         mSourceOut << "#include <array>\n";
+#if 0
+        mSourceOut
+            << "#include <cereal/archives/binary.hpp>\n"
+            << "#include <cereal/archives/xml.hpp>\n"
+            << "#include <cereal/types/polymorphic.hpp>\n";
+#endif
     }
 public:
     CmdAfterConsumer(clang::DiagnosticsEngine &Diag)

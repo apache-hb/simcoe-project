@@ -143,7 +143,7 @@ static bool verifyClassBases(
         return false;
     }
 
-    if (RD.getNumBases() >= 2) {
+    if (RD.getNumBases() > 1) {
         unsigned ID = DE.getCustomDiagID(
             DiagnosticsEngine::Error, "reflected class must not have more than one base class");
         DE.Report(RD.getLocation(), ID);

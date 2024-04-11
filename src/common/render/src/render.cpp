@@ -820,6 +820,7 @@ void Context::update_swapchain_length(uint length) {
     create_frame_rtvs();
     create_render_targets();
     create_frame_allocators();
+    mFrameGraph.resize_frame_data(length);
 
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
 }

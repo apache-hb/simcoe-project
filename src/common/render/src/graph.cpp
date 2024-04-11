@@ -484,6 +484,23 @@ void FrameGraph::create_resource_descriptors() {
 /// per frame command data
 ///
 
+void FrameGraph::FrameCommandData::resize(ID3D12Device1 *device, uint length) {
+    for (uint i = 0; i < allocators.length(); i++) {
+        allocators[i].reset();
+    }
+
+    allocators.resize(length);
+
+    for (uint i = 0; i < length; i++) {
+        SM_ASSERT_HR(device->CreateCommandAllocator(type.as_facade(), IID_PPV_ARGS(&allocators[i])));
+    }
+
+    commands.reset();
+
+    SM_ASSERT_HR(device->CreateCommandList(0, type.as_facade(), *allocators[0], nullptr, IID_PPV_ARGS(&commands)));
+    SM_ASSERT_HR(commands->Close());
+}
+
 void FrameGraph::reset_frame_commands() {
     mFrameData.clear();
 }
@@ -492,15 +509,13 @@ void FrameGraph::init_frame_commands() {
     auto& device = mContext.mDevice;
     uint length = mContext.mSwapChainConfig.length;
     for (auto& [type, allocators, commands] : mFrameData) {
-        auto kind = type.as_facade();
-
         allocators.resize(length);
 
         for (uint i = 0; i < length; i++) {
-            SM_ASSERT_HR(device->CreateCommandAllocator(kind, IID_PPV_ARGS(&allocators[i])));
+            SM_ASSERT_HR(device->CreateCommandAllocator(type.as_facade(), IID_PPV_ARGS(&allocators[i])));
         }
 
-        SM_ASSERT_HR(device->CreateCommandList(0, kind, *allocators[0], nullptr, IID_PPV_ARGS(&commands)));
+        SM_ASSERT_HR(device->CreateCommandList(0, type.as_facade(), *allocators[0], nullptr, IID_PPV_ARGS(&commands)));
         SM_ASSERT_HR(commands->Close());
     }
 }
@@ -761,6 +776,12 @@ void FrameGraph::destroy_resources() {
 
 void FrameGraph::reset_device_data() {
     mDeviceData.clear();
+}
+
+void FrameGraph::resize_frame_data(uint size) {
+    for (auto& it : mFrameData) {
+        it.resize(mContext.mDevice.get(), size);
+    }
 }
 
 void FrameGraph::reset() {
