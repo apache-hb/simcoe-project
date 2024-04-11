@@ -328,9 +328,21 @@ namespace sm::render {
             auto desc = CD3DX12_RESOURCE_DESC::Buffer(size);
 
             ConstBuffer<T> buffer;
-            create_resource(buffer, D3D12_HEAP_TYPE_UPLOAD, desc, D3D12_RESOURCE_STATE_GENERIC_READ);
+            SM_ASSERT_HR(create_resource(buffer, D3D12_HEAP_TYPE_UPLOAD, desc, D3D12_RESOURCE_STATE_GENERIC_READ));
 
             buffer.init();
+
+            return buffer;
+        }
+
+        template<typename T>
+        VertexBuffer<T> vertex_upload_buffer(size_t count) {
+            auto desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(T) * count);
+
+            VertexBuffer<T> buffer;
+            SM_ASSERT_HR(create_resource(buffer, D3D12_HEAP_TYPE_UPLOAD, desc, D3D12_RESOURCE_STATE_GENERIC_READ));
+
+            buffer.init(count);
 
             return buffer;
         }

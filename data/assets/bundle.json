@@ -82,6 +82,14 @@
             ]
         },
         {
+            "name": "jolt_debug",
+            "path": "shaders/debug/jolt.hlsl",
+            "targets": [
+                { "entry": "vs_main", "target": "vs" },
+                { "entry": "ps_main", "target": "ps" }
+            ]
+        },
+        {
             "name": "forward_plus_tiling",
             "path": "shaders/forward_plus/tiling.hlsl",
             "targets": [

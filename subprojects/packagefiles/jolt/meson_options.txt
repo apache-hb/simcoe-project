@@ -1,4 +1,22 @@
 option('broadphase_stats', type : 'feature', value : 'auto')
 option('narrowphase_stats', type : 'feature', value : 'auto')
 option('debug_render', type : 'feature', value : 'auto')
-option('profiler', type : 'feature', value : 'auto')
+option('profile', type : 'feature', value : 'auto')
+
+option('viewer', type : 'boolean', value : false)
+
+option('double_precision', type : 'boolean', value : false)
+option('disable_custom_allocator', type : 'boolean', value : false)
+option('cross_platform_determinism', type : 'boolean', value : false)
+option('object_layer_bits', type : 'integer', value : 16)
+option('fpu_exceptions', type : 'boolean', value : false)
+
+option('sse4_1', type : 'boolean', value : true)
+option('sse4_2', type : 'boolean', value : true)
+option('avx', type : 'boolean', value : true)
+option('avx2', type : 'boolean', value : true)
+option('avx512', type : 'boolean', value : false)
+option('lzcnt', type : 'boolean', value : true)
+option('tzcnt', type : 'boolean', value : true)
+option('f16c', type : 'boolean', value : true)
+option('fmadd', type : 'boolean', value : true)

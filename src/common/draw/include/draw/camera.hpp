@@ -61,5 +61,8 @@ namespace sm::draw {
         float4x4 projection(float aspect) const;
 
         float4x4 mvp(float aspect, const float4x4& object) const;
+
+        float3 position() const { return mPosition; }
+        float3 direction() const { return mDirection; }
     };
 }

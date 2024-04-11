@@ -332,7 +332,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     context.create();
 
-    auto& game = game::init(context.mWorld);
+    auto& game = game::init(context.mWorld, context.get_active_camera());
 
     ed::Editor editor{context};
 

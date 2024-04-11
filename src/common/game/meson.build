@@ -6,8 +6,9 @@ src = [
 ]
 
 inc = include_directories('include')
+jolt = dependency('jolt')
 
-deps = [ input, render, logs, world, meta ]
+deps = [ input, draw, logs, world, meta, jolt ]
 
 libgame = library('game', src,
     include_directories : [ inc, 'include/game' ],

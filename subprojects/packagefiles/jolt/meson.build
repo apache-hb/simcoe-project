@@ -1,4 +1,8 @@
 project('jolt', 'cpp',
+	license : 'MIT',
+	license_files : 'LICENSE',
+	version : '5.0.0',
+	meson_version : '>=1.3.0',
     default_options : [
         'cpp_std=c++17'
     ]
@@ -466,12 +470,43 @@ if get_option('default_library') == 'shared'
 	args += [ '-DJPH_SHARED_LIBRARY' ]
 endif
 
-buildtype = get_option('buildtype')
+cpp = meson.get_compiler('cpp')
 
-broadphase_stats = get_option('broadphase_stats').disable_auto_if(not buildtype.contains('debug'))
-narrowphase_stats = get_option('narrowphase_stats').disable_auto_if(not buildtype.contains('debug'))
-debug_render = get_option('debug_render').disable_auto_if(not buildtype.contains('debug'))
-profiler = get_option('profiler').disable_auto_if(not buildtype.contains('debug'))
+buildtype = get_option('buildtype')
+build_debug = buildtype.contains('debug')
+sanitize = get_option('b_sanitize')
+
+broadphase_stats = get_option('broadphase_stats').disable_auto_if(not build_debug)
+narrowphase_stats = get_option('narrowphase_stats').disable_auto_if(not build_debug)
+debug_render = get_option('debug_render').disable_auto_if(not build_debug)
+profile = get_option('profile').disable_auto_if(not build_debug)
+
+disable_custom_allocator = get_option('disable_custom_allocator')
+cross_platform_determinism = get_option('cross_platform_determinism')
+viewer = get_option('viewer')
+
+if sanitize.contains('address')
+	disable_custom_allocator = true
+	args += [ '-DJPH_DISABLE_TEMP_ALLOCATOR' ]
+endif
+
+if get_option('fpu_exceptions')
+	args += [ '-DJPH_FLOATING_POINT_EXCEPTIONS_ENABLED' ]
+endif
+
+if disable_custom_allocator
+	args += [ '-DJPH_DISABLE_TEMP_ALLOCATOR' ]
+endif
+
+if get_option('double_precision')
+	args += [ '-DJPH_DOUBLE_PRECISION' ]
+endif
+
+if cross_platform_determinism
+	args += [ '-DJPH_CROSS_PLATFORM_DETERMINISM' ]
+endif
+
+args += [ '-DJPH_OBJECT_LAYER_BITS=@0@'.format(get_option('object_layer_bits')) ]
 
 if broadphase_stats.allowed()
 	args += [ '-DJPH_TRACK_BROADPHASE_STATS' ]
@@ -485,9 +520,81 @@ if debug_render.allowed()
 	args += [ '-DJPH_DEBUG_RENDERER' ]
 endif
 
-if profiler.allowed()
+if profile.allowed()
 	args += [ '-DJPH_PROFILE_ENABLED' ]
 endif
+
+if get_option('avx512')
+	args += [ '-DJPH_USE_AVX512' ]
+endif
+
+if get_option('avx2')
+	args += [ '-DJPH_USE_AVX2' ]
+endif
+
+if get_option('avx')
+	args += [ '-DJPH_USE_AVX' ]
+endif
+
+if get_option('sse4_2')
+	args += [ '-DJPH_USE_SSE4_2' ]
+endif
+
+if get_option('sse4_1')
+	args += [ '-DJPH_USE_SSE4_1' ]
+endif
+
+if get_option('lzcnt')
+	args += [ '-DJPH_USE_LZCNT' ]
+	args += cpp.get_supported_arguments([ '-mlzcnt' ])
+endif
+
+if get_option('tzcnt')
+	args += [ '-DJPH_USE_TZCNT' ]
+	args += cpp.get_supported_arguments([ '-mbmi' ])
+endif
+
+if get_option('f16c')
+	args += [ '-DJPH_USE_F16C' ]
+	args += cpp.get_supported_arguments([ '-mf16c' ])
+endif
+
+if get_option('fmadd') and not cross_platform_determinism
+	args += [ '-DJPH_USE_FMADD' ]
+	args += cpp.get_supported_arguments([ '-mfma' ])
+endif
+
+if get_option('avx512')
+	args += cpp.get_supported_arguments([
+		'/arch:AVX512',
+		'-mavx512f', '-mavx512vl',
+		'-mavx512dq', '-mavx2',
+		'-mbmi', '-mpopcnt',
+		'-mlzcnt', '-mf16c'
+	])
+elif get_option('avx2')
+	args += cpp.get_supported_arguments([
+		'/arch:AVX2',
+		'-mavx2',
+		'-mbmi', '-mpopcnt',
+		'-mlzcnt', '-mf16c'
+	])
+elif get_option('avx')
+	args += cpp.get_supported_arguments([
+		'/arch:AVX',
+		'-mavx', '-mpopcnt',
+	])
+elif get_option('sse4.2')
+	args += cpp.get_supported_arguments([
+		'-msse4.2', '-mpopcnt'
+	])
+elif get_option('sse4.1')
+	args += cpp.get_supported_arguments([
+		'-msse4.1'
+	])
+endif
+
+args += cpp.get_supported_arguments([ '-mfpmath=sse' ])
 
 jolt = library('jolt', sources,
     include_directories : '.',

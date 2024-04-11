@@ -4,6 +4,8 @@
 
 #include "render/render.hpp"
 
+#include "draw/camera.hpp"
+
 #include <Jolt/Jolt.h>
 
 #include <Jolt/RegisterTypes.h>
@@ -16,5 +18,9 @@
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 #include <Jolt/Physics/Body/BodyActivationListener.h>
+#include <Jolt/Renderer/DebugRendererSimple.h>
+
+#include <directx/d3dx12_core.h>
+#include <directx/d3dx12_root_signature.h>
 
 // IWYU pragma: end_exports
