@@ -4,6 +4,8 @@
 
 #include "draw/draw.hpp"
 
+#include "game/game.hpp"
+
 using namespace sm;
 using namespace sm::ed;
 
@@ -108,14 +110,15 @@ void EditorContext::setup_framegraph(graph::FrameGraph& graph) {
 
     draw::forward_plus::upload_light_data(graph, point_light_data, spot_light_data);
     for (auto& camera : mCameras) {
-        graph::Handle depth_target;
-        graph::Handle light_indices;
+        // graph::Handle depth_target;
+        // graph::Handle light_indices;
 
-        draw::forward_plus::DrawData dd{camera->camera, draw::forward_plus::DepthBoundsMode::eEnabled};
+        // draw::forward_plus::DrawData dd{camera->camera, draw::forward_plus::DepthBoundsMode::eEnabled};
 
-        draw::forward_plus::depth_prepass(graph, depth_target, dd);
-        draw::forward_plus::light_binning(graph, light_indices, depth_target, point_light_data, spot_light_data, dd);
-        draw::opaque(graph, camera->target, camera->camera);
+        // draw::forward_plus::depth_prepass(graph, depth_target, dd);
+        // draw::forward_plus::light_binning(graph, light_indices, depth_target, point_light_data, spot_light_data, dd);
+        draw::opaque(graph, camera->target, camera->depth, camera->camera);
+        game::physics_debug(graph, camera->camera, camera->target, camera->depth);
     }
 
     imgui(graph, mSwapChainHandle);

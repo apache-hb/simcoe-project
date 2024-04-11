@@ -8,6 +8,7 @@ namespace sm::ed {
     struct CameraData {
         draw::Camera camera;
         graph::Handle target;
+        graph::Handle depth;
     };
 
     struct EditorContext final : public render::Context {

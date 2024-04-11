@@ -1,10 +1,10 @@
 #pragma once
 
+#include "meta/meta.hpp"
+
 #include "math/math.hpp"
 
 #include "world/world.hpp"
-
-#include "meta/meta.hpp"
 
 namespace sm::game {
     /// @brief base object class

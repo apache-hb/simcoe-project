@@ -85,10 +85,12 @@ namespace sm::draw {
     ///
     /// @param graph the render graph
     /// @param[out] target the render target that will be rendered to
+    /// @param[out] depth the depth target that will be rendered to
     /// @param camera the camera to render from
     void opaque(
         graph::FrameGraph& graph,
         graph::Handle& target,
+        graph::Handle& depth,
         const Camera& camera);
 
 

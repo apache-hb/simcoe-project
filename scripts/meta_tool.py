@@ -28,18 +28,33 @@ def get_target_data(builddir, target):
 
 def get_target_args(builddir, target):
     def is_used_arg(arg):
-        return arg.startswith("-I") or arg.startswith("-D") or arg.startswith("/I") or arg.startswith("/D")
+        return (
+            arg.startswith("-I") or
+            arg.startswith("-D") or
+            arg.startswith("/I") or
+            arg.startswith("/D") or
+            arg.startswith("/clang:-isystem") or
+            arg.startswith("/clang:-I"))
+
+    def sanitize_arg(arg):
+        if arg.startswith("/clang:-isystem"):
+            return arg.replace("/clang:-isystem", "-isystem")
+
+        if arg.startswith("/clang:-I"):
+            return arg.replace("/clang:-I", "-I")
+
+        return arg
 
     data = get_target_data(builddir, target)
 
     # TODO: i hope this [0] is right
     params: list[str] = data['target_sources'][0]['parameters']
-    return [arg for arg in params if is_used_arg(arg)]
+    return [sanitize_arg(arg) for arg in params if is_used_arg(arg)]
 
 def main():
     flags = get_target_args(args.builddir, args.target)
     command = [args.metatool, args.reflect, args.header, args.source, '--', *flags]
-    sys.exit(subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE).returncode)
+    sys.exit(subprocess.run(command).returncode)
 
 if __name__ == "__main__":
     main()

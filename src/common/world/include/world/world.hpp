@@ -1,10 +1,9 @@
 #pragma once
 
 #include "core/variant.hpp"
+#include "core/string.hpp"
 
 #include "world/mesh.hpp"
-
-#include "archive/archive.hpp"
 
 #include <directx/dxgiformat.h>
 #include <directx/d3d12.h>
@@ -329,8 +328,8 @@ namespace sm::world {
 
     World default_world(sm::String name);
 
-    bool load_world(World& info, Archive& archive);
-    void save_world(Archive& archive, const World& world);
+    // bool load_world(World& info, Archive& archive);
+    // void save_world(Archive& archive, const World& world);
 }
 
 template<typename T>

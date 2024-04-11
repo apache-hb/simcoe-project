@@ -4,6 +4,7 @@
 #include "core/error.hpp"
 #include "core/win32.hpp" // IWYU pragma: export
 #include "os/os.h"
+#include "io/io.h"
 
 #include "io.reflect.h"
 

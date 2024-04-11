@@ -85,7 +85,7 @@ static void create_primitive_pipeline(render::Pipeline& pipeline, const draw::Vi
     }
 }
 
-void draw::opaque(graph::FrameGraph& graph, graph::Handle& target, const Camera& camera) {
+void draw::opaque(graph::FrameGraph& graph, graph::Handle& target, graph::Handle& depth, const Camera& camera) {
     auto config = camera.config();
     graph::ResourceInfo depth_info = {
         .sz = graph::ResourceSize::tex2d(config.size),
@@ -101,7 +101,7 @@ void draw::opaque(graph::FrameGraph& graph, graph::Handle& target, const Camera&
 
     graph::PassBuilder pass = graph.graphics(fmt::format("Opaque ({})", camera.name()));
     target = pass.create(target_info, "Target", graph::Usage::eRenderTarget);
-    auto depth = pass.create(depth_info, "Depth", graph::Usage::eDepthWrite);
+    depth = pass.create(depth_info, "Depth", graph::Usage::eDepthWrite);
 
     auto& data = graph.device_data([config](render::Context& context) {
         struct {
