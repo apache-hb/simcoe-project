@@ -339,19 +339,27 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     ed::Editor editor{context};
 
-    game::PhysicsBody floor = game.addPhysicsBody(0.f, quatf::identity());
-    game::PhysicsBody body = game.addPhysicsBody(world::kVectorUp * 5.f, quatf::identity(), true);
+    world::Cube floorShape = { .width = 10.f, .height = 1.f, .depth = 10.f };
+    world::Cube bodyShape = { .width = 1.f, .height = 1.f, .depth = 1.f };
+
+    game::PhysicsBody floor = game.addPhysicsBody(floorShape, 0.f, quatf::identity());
+    game::PhysicsBody body = game.addPhysicsBody(bodyShape, world::kVectorUp * 5.f, quatf::identity(), true);
 
     IndexOf<world::Node> floorNode;
     IndexOf<world::Node> bodyNode;
 
     context.upload([&] {
-        IndexOf cube = world.add(world::Model {
+        IndexOf floorModel = world.add(world::Model {
             .name = "Floor Model",
-            .mesh = world::Cube { 2.f, 2.f, 2.f },
+            .mesh = floorShape,
             .material = world.default_material
         });
-        context.create_model(cube);
+
+        IndexOf bodyModel = world.add(world::Model {
+            .name = "Body Model",
+            .mesh = bodyShape,
+            .material = world.default_material
+        });
 
         floorNode = world.addNode(world::Node {
             .parent = context.get_scene().root,
@@ -361,7 +369,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
                 .rotation = quatf::identity().to_euler(),
                 .scale = 1.f
             },
-            .models = { cube }
+            .models = { floorModel }
         });
 
         bodyNode = world.addNode(world::Node {
@@ -372,8 +380,11 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
                 .rotation = quatf::identity().to_euler(),
                 .scale = 1.f
             },
-            .models = { cube }
+            .models = { bodyModel }
         });
+
+        context.create_model(floorModel);
+        context.create_model(bodyModel);
 
         context.create_node(floorNode);
         context.create_node(bodyNode);
@@ -441,7 +452,11 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         floorNodeInfo.transform.position = floor.getCenterOfMass();
         bodyNodeInfo.transform.position = body.getCenterOfMass();
 
-        floorNodeInfo.transform.rotation = floor.getRotation().to_euler();
+        {
+            auto q = floor.getRotation();
+            floorNodeInfo.transform.rotation = q.rotated(math::quatf::from_axis_angle(world::kVectorRight, 90._deg)).to_euler();
+        }
+
         bodyNodeInfo.transform.rotation = body.getRotation().to_euler();
 
         editor.draw();

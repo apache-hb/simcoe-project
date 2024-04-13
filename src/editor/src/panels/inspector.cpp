@@ -4,6 +4,8 @@
 
 #include "render/render.hpp"
 
+#include "editor/mygui.hpp"
+
 using namespace sm;
 using namespace sm::ed;
 using namespace sm::math;
@@ -79,6 +81,12 @@ void InspectorPanel::inspect(world::IndexOf<world::Model> index) {
 void InspectorPanel::inspect(world::IndexOf<world::Node> index) {
     auto& node = mContext.mWorld.get(index);
     ImGui::InputText("Name", &node.name);
+
+    auto [t, r, s] = node.transform;
+
+    ImGui::DragFloat3("Position", t.data(), 0.1f);
+    MyGui::DragAngle3("Rotation", &r, 1._deg, 0._deg, 360._deg);
+    ImGui::DragFloat3("Scale", s.data(), 0.1f);
 
     ImGui::SeparatorText("Children");
     for (auto child : node.children) {

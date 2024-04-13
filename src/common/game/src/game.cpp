@@ -46,11 +46,13 @@ static math::float3 from_jph(const JPH::Vec3& v) {
 }
 
 static JPH::Quat to_jph(const math::quatf& q) {
-    return {q.v.x, q.v.z, q.v.y, q.angle};
+    math::quatf tmp = q.rotated(math::quatf::from_axis_angle(world::kVectorRight, 90._deg));
+    return {tmp.v.x, tmp.v.y, tmp.v.z, tmp.angle};
 }
 
 static math::quatf from_jph(const JPH::Quat& q) {
-    return {q.GetX(), q.GetY(), q.GetZ(), q.GetW()};
+    math::quatf tmp = {q.GetX(), q.GetY(), q.GetZ(), q.GetW()};
+    return tmp.rotated(math::quatf::from_axis_angle(world::kVectorRight, -90._deg));
 }
 
 struct CObjectLayerPairFilter final : public JPH::ObjectLayerPairFilter {
@@ -302,11 +304,30 @@ void game::Context::setCamera(const draw::Camera& camera) {
     mImpl->activeCamera = &camera;
 }
 
-PhysicsBody game::Context::addPhysicsBody(const math::float3& position, const math::quatf& rotation, bool dynamic) {
+PhysicsBody game::Context::addPhysicsBody(const world::Cube& shape, const math::float3& position, const math::quatf& rotation, bool dynamic) {
     JPH::BodyInterface& factory = mImpl->physicsSystem->GetBodyInterface();
 
-    JPH::BoxShapeSettings box{JPH::Vec3(2.f, 2.f, 2.f)};
+    JPH::BoxShapeSettings box{JPH::Vec3(shape.width, shape.height, shape.depth)};
     JPH::ShapeSettings::ShapeResult result = box.Create();
+
+    JPH::EMotionType motion = dynamic ? JPH::EMotionType::Dynamic : JPH::EMotionType::Static;
+    JPH::ObjectLayer layer = dynamic ? Layers::eDynamic : Layers::eStatic;
+    JPH::BodyCreationSettings settings{
+        result.Get(), to_jph(position), to_jph(rotation), motion, layer
+    };
+
+    JPH::Body *body = factory.CreateBody(settings);
+
+    factory.AddBody(body->GetID(), JPH::EActivation::DontActivate);
+
+    return new PhysicsBodyImpl(body, body->GetID(), mImpl);
+}
+
+PhysicsBody game::Context::addPhysicsBody(const world::Sphere& shape, const math::float3& position, const math::quatf& rotation, bool dynamic) {
+    JPH::BodyInterface& factory = mImpl->physicsSystem->GetBodyInterface();
+
+    JPH::SphereShapeSettings sphere{shape.radius};
+    JPH::ShapeSettings::ShapeResult result = sphere.Create();
 
     JPH::EMotionType motion = dynamic ? JPH::EMotionType::Dynamic : JPH::EMotionType::Static;
     JPH::ObjectLayer layer = dynamic ? Layers::eDynamic : Layers::eStatic;

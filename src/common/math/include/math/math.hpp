@@ -508,6 +508,11 @@ namespace sm::math {
             return Quat {x, y, z, w};
         }
 
+        constexpr static Quat from_axis_angle(const Vec3 &axis, Rad angle) {
+            auto [s, c] = math::sincos(angle.get_radians() / 2);
+            return Quat {axis.normalized() * s, c};
+        }
+
         constexpr Rad3 to_euler() const {
             T sinr_cosp = T(2) * (angle * v.x + v.y * v.z);
             T cosr_cosp = T(1) - T(2) * (v.x * v.x + v.y * v.y);
@@ -525,6 +530,26 @@ namespace sm::math {
             Vec3 euler = {roll, pitch, yaw};
 
             return Rad3{euler};
+        }
+
+        constexpr Quat rotated(const Quat& other) const {
+            T t0 = (v.z - v.y)   * (other.v.y - other.v.z);
+            T t1 = (angle + v.x) * (other.angle + other.v.x);
+            T t2 = (angle - v.x) * (other.v.y + other.v.z);
+            T t3 = (v.y + v.z)   * (other.angle - other.v.x);
+            T t4 = (v.z - v.x)   * (other.v.x - other.v.y);
+            T t5 = (v.z + v.x)   * (other.v.x + other.v.y);
+            T t6 = (angle + v.y) * (other.angle - other.v.z);
+            T t7 = (angle - v.y) * (other.angle + other.v.z);
+            T t8 = t5 + t6 + t7;
+            T t9 = T(0.5) * (t4 + t8);
+
+            T x = t1 + t9 - t8;
+            T y = t2 + t9 - t7;
+            T z = t3 + t9 - t6;
+            T angle = t0 + t9 - t5;
+
+            return Quat{x, y, z, angle};
         }
 
 #if 0

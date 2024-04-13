@@ -73,7 +73,17 @@ namespace sm::game {
 
         void setCamera(const draw::Camera& camera);
 
-        PhysicsBody addPhysicsBody(const math::float3& position, const math::quatf& rotation, bool dynamic = false);
+        PhysicsBody addPhysicsBody(
+            const world::Cube& cube,
+            const math::float3& position,
+            const math::quatf& rotation,
+            bool dynamic = false);
+
+        PhysicsBody addPhysicsBody(
+            const world::Sphere& sphere,
+            const math::float3& position,
+            const math::quatf& rotation,
+            bool dynamic = false);
     };
 
     Context getContext();
