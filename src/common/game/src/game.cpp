@@ -178,10 +178,15 @@ static bool jph_assert(const char *expr, const char *message, const char *file, 
 
 // constexpr static float kTimeStep = 1.0f / 60.0f;
 
-struct Context;
-
 struct game::PhysicsBodyImpl {
     JPH::Body *body;
+    JPH::BodyID id;
+    GameContextImpl *context;
+};
+
+struct game::CharacterBodyImpl {
+    // JPH::CharacterVirtual *vbody;
+    JPH::Character *body;
     JPH::BodyID id;
     GameContextImpl *context;
 };
@@ -221,50 +226,58 @@ struct game::GameContextImpl {
     sm::UniquePtr<CBodyActivationListener> bodyActivationListener;
 
     sm::UniquePtr<CDebugRenderer> debugRenderer;
+
+    void init() {
+        JPH::RegisterDefaultAllocator();
+
+        JPH::Trace = jph_trace;
+        JPH_IF_ENABLE_ASSERTS(JPH::AssertFailed = jph_assert;)
+        JPH::Factory::sInstance = new JPH::Factory();
+
+        debugRenderer = sm::make_unique<CDebugRenderer>();
+        JPH::DebugRenderer::sInstance = debugRenderer.get();
+
+        JPH::RegisterTypes();
+
+        physicsAllocator = sm::make_unique<JPH::TempAllocatorImpl>((16_mb).as_bytes());
+        physicsThreadPool = sm::make_unique<JPH::JobSystemThreadPool>(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, 4);
+
+        broadPhaseLayer = sm::make_unique<CBroadPhaseLayer>();
+        objectLayerPairFilter = sm::make_unique<CObjectLayerPairFilter>();
+        objectVsBroadPhaseLayerFilter = sm::make_unique<CObjectVsBroadPhaseFilter>();
+
+        physicsSystem = sm::make_unique<JPH::PhysicsSystem>();
+        physicsSystem->Init(kMaxBodies, kBodyMutexCount, kMaxBodyPairs, kMaxContactConstraints, broadPhaseLayer.ref(), objectVsBroadPhaseLayerFilter.ref(), objectLayerPairFilter.ref());
+
+        bodyActivationListener = sm::make_unique<CBodyActivationListener>();
+        physicsSystem->SetBodyActivationListener(*bodyActivationListener);
+
+        contactListener = sm::make_unique<CContactListener>();
+        physicsSystem->SetContactListener(*contactListener);
+
+        debugRenderer->DrawCoordinateSystem(JPH::RMat44::sIdentity());
+    }
 };
-
-static void initGameContext(GameContextImpl *impl) {
-    JPH::RegisterDefaultAllocator();
-
-    JPH::Trace = jph_trace;
-    JPH_IF_ENABLE_ASSERTS(JPH::AssertFailed = jph_assert;)
-    JPH::Factory::sInstance = new JPH::Factory();
-
-    impl->debugRenderer = sm::make_unique<CDebugRenderer>();
-    JPH::DebugRenderer::sInstance = impl->debugRenderer.get();
-
-    JPH::RegisterTypes();
-
-    impl->physicsAllocator = sm::make_unique<JPH::TempAllocatorImpl>((16_mb).as_bytes());
-    impl->physicsThreadPool = sm::make_unique<JPH::JobSystemThreadPool>(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, 4);
-
-    impl->broadPhaseLayer = sm::make_unique<CBroadPhaseLayer>();
-    impl->objectLayerPairFilter = sm::make_unique<CObjectLayerPairFilter>();
-    impl->objectVsBroadPhaseLayerFilter = sm::make_unique<CObjectVsBroadPhaseFilter>();
-
-    impl->physicsSystem = sm::make_unique<JPH::PhysicsSystem>();
-    impl->physicsSystem->Init(kMaxBodies, kBodyMutexCount, kMaxBodyPairs, kMaxContactConstraints, impl->broadPhaseLayer.ref(), impl->objectVsBroadPhaseLayerFilter.ref(), impl->objectLayerPairFilter.ref());
-
-    impl->bodyActivationListener = sm::make_unique<CBodyActivationListener>();
-    impl->physicsSystem->SetBodyActivationListener(*impl->bodyActivationListener);
-
-    impl->contactListener = sm::make_unique<CContactListener>();
-    impl->physicsSystem->SetContactListener(*impl->contactListener);
-
-    impl->debugRenderer->DrawCoordinateSystem(JPH::RMat44::sIdentity());
-}
 
 game::Context game::init(world::World& world, const draw::Camera& camera) {
     CTASSERTF(gContext == nullptr, "Context already initialized");
 
     gContext = new GameContextImpl{.world = world};
 
-    initGameContext(gContext);
-
     Context ctx = getContext();
     ctx.setCamera(camera);
 
+    gContext->init();
+
+
     return ctx;
+}
+
+void game::cbiDestroy(CharacterBodyImpl *body) {
+    JPH::BodyInterface& factory = body->context->physicsSystem->GetBodyInterface();
+    factory.RemoveBody(body->id);
+    factory.DestroyBody(body->id);
+    delete body;
 }
 
 void game::pbiDestroy(PhysicsBodyImpl *body) {
@@ -274,14 +287,106 @@ void game::pbiDestroy(PhysicsBodyImpl *body) {
     delete body;
 }
 
+void CharacterBody::update(float dt) {
+#if 0
+    GameContextImpl *ctx = mImpl->context;
+
+    JPH::Vec3 up = mImpl->vbody->GetUp();
+
+    JPH::CharacterVirtual::ExtendedUpdateSettings settings;
+    settings.mStickToFloorStepDown = -up * settings.mStickToFloorStepDown.Length();
+    settings.mWalkStairsStepUp = up * settings.mWalkStairsStepUp.Length();
+
+    mImpl->vbody->ExtendedUpdate(
+        /*inDeltaTime=*/ dt,
+        /*inGravity=*/ (-up * ctx->physicsSystem->GetGravity().Length()),
+        /*inSettings=*/ settings,
+        /*inBroadPhaseLayerFilter=*/ ctx->physicsSystem->GetDefaultBroadPhaseLayerFilter(Layers::eDynamic),
+        /*inObjectLayerFilter=*/ ctx->physicsSystem->GetDefaultLayerFilter(Layers::eDynamic),
+        /*inBodyFilter=*/ { },
+        /*inShapeFilter=*/ { },
+        /*inAllocator=*/ ctx->physicsAllocator.ref()
+    );
+#endif
+}
+
+math::float3 CharacterBody::getUpVector() const {
+    return from_jph(mImpl->body->GetUp());
+}
+
+void CharacterBody::setUpVector(const math::float3& up) {
+    mImpl->body->SetUp(to_jph(up));
+    // mImpl->body->SetUp(to_jph(up));
+}
+
+math::float3 CharacterBody::getPosition() const {
+    return from_jph(mImpl->body->GetPosition());
+}
+
+math::quatf CharacterBody::getRotation() const {
+    return from_jph(mImpl->body->GetRotation());
+}
+
+void CharacterBody::setRotation(const math::quatf& rotation) {
+    mImpl->body->SetRotation(to_jph(rotation));
+    // mImpl->body->SetRotation(to_jph(rotation));
+}
+
+math::float3 CharacterBody::getGroundNormal() const {
+    return from_jph(mImpl->body->GetGroundNormal());
+}
+
+math::float3 CharacterBody::getGroundVelocity() const {
+    return from_jph(mImpl->body->GetGroundVelocity());
+}
+
+void CharacterBody::updateGroundVelocity() {
+    // mImpl->body->UpdateGroundVelocity();
+}
+
+math::float3 CharacterBody::getLinearVelocity() const {
+    return from_jph(mImpl->body->GetLinearVelocity());
+}
+
+void CharacterBody::setLinearVelocity(const math::float3& velocity) {
+    // mImpl->body->SetLinearVelocity(to_jph(velocity), true);
+    mImpl->body->SetLinearVelocity(to_jph(velocity));
+}
+
+bool CharacterBody::isOnGround() const {
+    return mImpl->body->GetGroundState() == JPH::Character::EGroundState::OnGround;
+}
+
+bool CharacterBody::isOnSteepSlope() const {
+    return mImpl->body->GetGroundState() == JPH::Character::EGroundState::OnSteepGround;
+}
+
+bool CharacterBody::isInAir() const {
+    return mImpl->body->GetGroundState() == JPH::Character::EGroundState::InAir;
+}
+
+bool CharacterBody::isNotSupported() const {
+    return mImpl->body->GetGroundState() == JPH::Character::EGroundState::NotSupported;
+}
+
+bool CharacterBody::isSupported() const {
+    return mImpl->body->IsSupported();
+}
+
+void CharacterBody::postUpdate() {
+    mImpl->body->PostSimulation(0.05f);
+}
+
 void game::Context::addClass(const meta::Class& cls) {
 }
 
 void game::Context::addObject(game::Object *object) {
+    mImpl->objects.push_back(object);
+    object->create();
 }
 
-void game::Context::destroyObject(game::Object& object) {
-
+void game::Context::destroyObject(game::Object *object) {
+    object->destroy();
 }
 
 void game::Context::tick(float dt) {
@@ -293,6 +398,14 @@ void game::Context::tick(float dt) {
     if (JPH::EPhysicsUpdateError err = mImpl->physicsSystem->Update(dt, steps, *mImpl->physicsAllocator, *mImpl->physicsThreadPool); err != JPH::EPhysicsUpdateError::None) {
         gPhysicsLog.warn("Physics update error: {}", std::to_underlying(err));
     }
+
+    for (game::Object *object : mImpl->objects) {
+        object->update(dt);
+    }
+}
+
+math::float3 game::Context::getGravity() const {
+    return from_jph(mImpl->physicsSystem->GetGravity());
 }
 
 void game::Context::shutdown() {
@@ -340,6 +453,41 @@ PhysicsBody game::Context::addPhysicsBody(const world::Sphere& shape, const math
     factory.AddBody(body->GetID(), JPH::EActivation::DontActivate);
 
     return new PhysicsBodyImpl(body, body->GetID(), mImpl);
+}
+
+CharacterBody game::Context::addCharacterBody(
+    const world::Cylinder& shape,
+    const math::float3& position,
+    const math::quatf& rotation,
+    bool activiate)
+{
+    JPH::Ref physicsShape = new JPH::CylinderShape(shape.height / 2.f, shape.radius);
+
+#if 0
+    JPH::Ref vbodySettings = new JPH::CharacterVirtualSettings();
+    vbodySettings->mMaxSlopeAngle = (45._deg).get_radians();
+    vbodySettings->mUp = JPH::Vec3::sAxisZ();
+    vbodySettings->mShape = (new JPH::RotatedTranslatedShapeSettings(JPH::Vec3(0, 0.5f * shape.height, 0), JPH::Quat::sIdentity(), physicsShape))->Create().Get();
+    vbodySettings->mSupportingVolume = JPH::Plane(JPH::Vec3::sAxisY(), -shape.radius);
+
+    JPH::CharacterVirtual *vbody = new JPH::CharacterVirtual(vbodySettings, to_jph(position), to_jph(rotation), 0, *mImpl->physicsSystem);
+#endif
+
+    JPH::Ref bodySettings = new JPH::CharacterSettings();
+    bodySettings->mMaxSlopeAngle = (45._deg).get_radians();
+    bodySettings->mLayer = Layers::eDynamic;
+    bodySettings->mShape = (new JPH::RotatedTranslatedShapeSettings(JPH::Vec3(0, 0.5f * shape.height, 0), JPH::Quat::sIdentity(), physicsShape))->Create().Get();
+    bodySettings->mSupportingVolume = JPH::Plane(JPH::Vec3::sAxisY(), -shape.radius);
+
+    JPH::Character *body = new JPH::Character(bodySettings, to_jph(position), to_jph(rotation), 0, *mImpl->physicsSystem);
+
+    body->AddToPhysicsSystem(activiate ? JPH::EActivation::Activate : JPH::EActivation::DontActivate);
+
+    return new CharacterBodyImpl{body, body->GetBodyID(), mImpl};
+}
+
+world::World& game::Context::getWorld() {
+    return mImpl->world;
 }
 
 void PhysicsBody::setLinearVelocity(const math::float3& velocity) {

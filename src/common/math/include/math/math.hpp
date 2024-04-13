@@ -235,6 +235,7 @@ namespace sm::math {
         constexpr Vec3 negate() const { return Vec3(-x, -y, -z); }
         constexpr Vec3 abs() const { return Vec3(std::abs(x), std::abs(y), std::abs(z)); }
         constexpr T length() const { return std::sqrt(x * x + y * y + z * z); }
+        constexpr T length_squared() const { return x * x + y * y + z * z; }
 
         constexpr Vec3 normalized() const {
             auto len = length();
@@ -306,6 +307,11 @@ namespace sm::math {
             CTASSERTF(index < 3, "index out of bounds (%zu < 3)", index);
         }
     };
+
+    template<typename T>
+    constexpr Vec3<T> operator*(float scalar, const Vec3<T>& vec) {
+        return Vec3<T>(scalar * vec.x, scalar * vec.y, scalar * vec.z);
+    }
 
     template<typename T>
     struct alignas(sizeof(T) * 4) Vec4 {
@@ -555,6 +561,14 @@ namespace sm::math {
 
         constexpr Quat operator*(const Quat& other) const {
             return rotated(other);
+        }
+
+        constexpr Quat operator*(T scalar) const {
+            return {v * scalar, angle * scalar};
+        }
+
+        constexpr Vec3 operator*(const Vec3& vec) const {
+            return ((conjugate() * Quat(vec, T(0)) * *this).v);
         }
 
 #if 0

@@ -1,6 +1,7 @@
 #include "stdafx.hpp"
 
 #include "system/input.hpp"
+#include "input/debounce.hpp"
 #include "system/system.hpp"
 #include "core/timer.hpp"
 
@@ -342,11 +343,17 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     world::Cube floorShape = { .width = 10.f, .height = 1.f, .depth = 10.f };
     world::Sphere bodyShape = { .radius = 1.f, .slices = 8, .stacks = 8 };
 
+    world::Cylinder playerShape = { .radius = 0.7f, .height = 1.3f, .slices = 8 };
+
     game::PhysicsBody floor = game.addPhysicsBody(floorShape, 0.f, quatf::identity());
     game::PhysicsBody body = game.addPhysicsBody(bodyShape, world::kVectorUp * 5.f, quatf::identity(), true);
+    game::CharacterBody player = game.addCharacterBody(playerShape, float3(0.f, 3.f, 4.f), quatf::identity(), true);
+
+    player.setUpVector(world::kVectorUp);
 
     IndexOf<world::Node> floorNode;
     IndexOf<world::Node> bodyNode;
+    IndexOf<world::Node> playerNode;
 
     context.upload([&] {
         IndexOf floorModel = world.add(world::Model {
@@ -358,6 +365,12 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         IndexOf bodyModel = world.add(world::Model {
             .name = "Body Model",
             .mesh = bodyShape,
+            .material = world.default_material
+        });
+
+        IndexOf playerModel = world.add(world::Model {
+            .name = "Player Model",
+            .mesh = playerShape,
             .material = world.default_material
         });
 
@@ -383,14 +396,29 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
             .models = { bodyModel }
         });
 
+        playerNode = world.addNode(world::Node {
+            .parent = context.get_scene().root,
+            .name = "Player",
+            .transform = {
+                .position = float3(0.f, 0.f, 4.f),
+                .rotation = quatf::identity(),
+                .scale = 1.f
+            },
+            .models = { playerModel }
+        });
+
         context.create_model(floorModel);
         context.create_model(bodyModel);
+        context.create_model(playerModel);
 
         context.create_node(floorNode);
         context.create_node(bodyNode);
+        context.create_node(playerNode);
     });
 
     Ticker clock;
+
+    input::Debounce jump{input::Button::eSpace};
 
     bool done = false;
     while (!done) {
@@ -408,8 +436,12 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
         float dt = clock.tick();
 
+        player.update(dt);
+
         game.tick(dt);
         context.tick(dt);
+
+        player.postUpdate();
 
         editor.begin_frame();
 
@@ -448,16 +480,80 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
         world::Node& floorNodeInfo = world.get(floorNode);
         world::Node& bodyNodeInfo = world.get(bodyNode);
+        world::Node& playerNodeInfo = world.get(playerNode);
 
         floorNodeInfo.transform.position = floor.getCenterOfMass();
         bodyNodeInfo.transform.position = body.getCenterOfMass();
 
-        {
-            auto q = floor.getRotation();
-            floorNodeInfo.transform.rotation = q * math::quatf::from_axis_angle(world::kVectorForward, 90._deg);
+        math::quatf upQuat = math::quatf::from_axis_angle(world::kVectorForward, 90._deg);
+
+        floorNodeInfo.transform.rotation = floor.getRotation() * upQuat;
+        bodyNodeInfo.transform.rotation = body.getRotation() * upQuat;
+
+        auto& state = context.input.get_state();
+        static constexpr input::ButtonAxis kMoveForward = {input::Button::eW, input::Button::eS};
+        static constexpr input::ButtonAxis kMoveStrafe =  {input::Button::eD, input::Button::eA};
+
+        float2 move = state.button_axis2d(kMoveStrafe, kMoveForward);
+
+        float3 moveInput = { move.x, move.y, 0.f };
+
+        // rotate moveInput to face the direction the player is facing
+        float3 forward = context.get_active_camera().direction();
+
+        float3 right = float3::cross(forward, world::kVectorUp).normalized();
+
+        moveInput = forward * -moveInput.y + right * -moveInput.x;
+
+        // player.setUpVector(world::kVectorUp);
+        // player.setRotation(math::quatf::from_axis_angle(world::kVectorUp, 90._deg));
+
+        // player.updateGroundVelocity();
+
+        // float3 verticalVelocity = float3::dot(player.getLinearVelocity(), player.getUpVector()) * player.getUpVector();
+        // float3 groundVelocity = player.getGroundVelocity();
+        // float3 velocity;
+        // if (player.isOnGround()) {
+        //     velocity = groundVelocity;
+        // }
+        // else {
+        //     velocity = verticalVelocity;
+        // }
+
+        // velocity += upQuat * game.getGravity() * dt;
+
+        // velocity += (upQuat * moveInput * dt);
+
+        // // velocity *= 6.f;
+
+        if (player.isOnSteepSlope() || player.isNotSupported()) {
+            float3 normal = player.getGroundNormal();
+            normal.z = 0.f;
+            float dot = float3::dot(normal, moveInput);
+            if (dot < 0.f)
+                moveInput -= (dot * normal) / normal.length_squared();
         }
 
-        bodyNodeInfo.transform.rotation = body.getRotation();
+        if (player.isSupported()) {
+            float3 current = player.getLinearVelocity();
+            float3 desired = 6.f * moveInput;
+            desired.z = current.z;
+            float3 newVelocity = 0.75f * current + 0.25f * desired;
+
+            if (jump.is_pressed(state) && player.isOnGround())
+                newVelocity += 8.f * world::kVectorUp;
+
+            player.setLinearVelocity(newVelocity);
+        }
+
+        // player.setLinearVelocity(velocity);
+
+        playerNodeInfo.transform.position = player.getPosition();
+        playerNodeInfo.transform.rotation = player.getRotation() * upQuat;
+
+        context.get_active_camera().setPosition(player.getPosition() + float3(0.f, 0.f, 2.f));
+
+        // context.get_active_camera().set
 
         editor.draw();
 

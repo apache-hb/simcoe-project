@@ -38,15 +38,47 @@ namespace sm::game {
         math::quatf getRotation() const;
     };
 
+    struct CharacterBodyImpl;
+
+    void cbiDestroy(CharacterBodyImpl *body);
+
+    class CharacterBody {
+        sm::FnUniquePtr<CharacterBodyImpl, cbiDestroy> mImpl;
+
+    public:
+        CharacterBody(CharacterBodyImpl *impl)
+            : mImpl(impl)
+        { }
+
+        math::float3 getUpVector() const;
+        void setUpVector(const math::float3& up);
+
+        math::float3 getPosition() const;
+        math::quatf getRotation() const;
+        void setRotation(const math::quatf& rotation);
+
+        math::float3 getGroundNormal() const;
+
+        void setLinearVelocity(const math::float3& velocity);
+        math::float3 getLinearVelocity() const;
+
+        void updateGroundVelocity();
+        math::float3 getGroundVelocity() const;
+
+        void update(float dt);
+        void postUpdate();
+
+        bool isOnGround() const;
+        bool isOnSteepSlope() const;
+        bool isInAir() const;
+        bool isNotSupported() const;
+
+        bool isSupported() const;
+    };
+
     struct GameContextImpl;
 
     void gciDestroy(GameContextImpl *impl);
-
-    PhysicsBody gciAddPhysicsBody(
-        GameContextImpl *impl,
-        const math::float3& position,
-        const math::quatf& rotation,
-        bool dynamic);
 
     class Context {
         GameContextImpl *mImpl;
@@ -65,13 +97,15 @@ namespace sm::game {
 
         void addObject(game::Object *object);
 
-        void destroyObject(game::Object& object);
+        void destroyObject(game::Object *object);
 
         void tick(float dt);
 
         void shutdown();
 
         void setCamera(const draw::Camera& camera);
+
+        math::float3 getGravity() const;
 
         PhysicsBody addPhysicsBody(
             const world::Cube& cube,
@@ -84,6 +118,14 @@ namespace sm::game {
             const math::float3& position,
             const math::quatf& rotation,
             bool dynamic = false);
+
+        CharacterBody addCharacterBody(
+            const world::Cylinder& shape,
+            const math::float3& position,
+            const math::quatf& rotation,
+            bool activate = false);
+
+        world::World& getWorld();
     };
 
     Context getContext();

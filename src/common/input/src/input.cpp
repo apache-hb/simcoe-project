@@ -34,6 +34,10 @@ math::float2 InputState::axis2d(Axis horizontal, Axis vertical) const {
     return {h, v};
 }
 
+bool InputState::is_button_down(Button button) const {
+    return buttons[button] != 0;
+}
+
 void InputService::add_source(ISource* source) {
     mSources.push_back(source);
 }

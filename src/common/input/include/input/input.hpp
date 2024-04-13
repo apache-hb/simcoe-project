@@ -30,6 +30,8 @@ namespace sm::input {
 
         float axis(Axis id) const;
         math::float2 axis2d(Axis horizontal, Axis vertical) const;
+
+        bool is_button_down(Button button) const;
     };
 
     class ISource {
