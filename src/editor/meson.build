@@ -1,3 +1,4 @@
+subdir('project')
 
 src = files([
     'src/main.cpp',
@@ -26,6 +27,8 @@ src += [
 deps = [
     core, system, logs, threads, imgui, render,
     input, archive, config, draw, game,
+    project,
+
     cthulhu.get_variable('backtrace'),
     cthulhu.get_variable('format_core'),
     cthulhu.get_variable('io'),

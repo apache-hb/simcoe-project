@@ -1,8 +1,14 @@
+#include "stdafx.hpp"
+
 #include "game/entity.hpp"
 
 using namespace sm;
 using namespace sm::game;
 
-bool Object::isInstanceOf(const meta::Class& cls) const {
-    return false;
+Entity::Entity(ClassSetup& setup)
+    : Object(setup)
+{
+    mPosition = 0.f;
+    mRotation = math::quatf::identity();
+    mScale = 1.f;
 }

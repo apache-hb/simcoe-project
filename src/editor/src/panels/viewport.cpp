@@ -138,6 +138,19 @@ void ViewportPanel::draw_window() {
 
     if (ImGui::Begin("Gizmo Settings", nullptr, overlay_flags)) {
         gizmo_settings_panel();
+
+        if (ImGui::BeginPopupContextWindow()) {
+            if (ImGui::MenuItem("Top Left", nullptr, mOverlayPosition == eOverlayTopLeft))
+                mOverlayPosition = eOverlayTopLeft;
+            if (ImGui::MenuItem("Top Right", nullptr, mOverlayPosition == eOverlayTopRight))
+                mOverlayPosition = eOverlayTopRight;
+            if (ImGui::MenuItem("Bottom Left", nullptr, mOverlayPosition == eOverlayBottomLeft))
+                mOverlayPosition = eOverlayBottomLeft;
+            if (ImGui::MenuItem("Bottom Right", nullptr, mOverlayPosition == eOverlayBottomRight))
+                mOverlayPosition = eOverlayBottomRight;
+
+            ImGui::EndPopup();
+        }
     }
     ImGui::End();
 }

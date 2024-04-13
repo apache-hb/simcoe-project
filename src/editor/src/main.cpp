@@ -19,7 +19,8 @@
 #include "game/game.hpp"
 
 using namespace sm;
-using namespace math;
+using namespace sm::math;
+using sm::world::IndexOf;
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
                                                              LPARAM lParam);
@@ -332,9 +333,51 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     context.create();
 
-    auto& game = game::init(context.mWorld, context.get_active_camera());
+    auto& world = context.mWorld;
+
+    game::Context game = game::init(world, context.get_active_camera());
 
     ed::Editor editor{context};
+
+    game::PhysicsBody floor = game.addPhysicsBody(0.f, quatf::identity());
+    game::PhysicsBody body = game.addPhysicsBody(world::kVectorUp * 5.f, quatf::identity(), true);
+
+    IndexOf<world::Node> floorNode;
+    IndexOf<world::Node> bodyNode;
+
+    context.upload([&] {
+        IndexOf cube = world.add(world::Model {
+            .name = "Floor Model",
+            .mesh = world::Cube { 2.f, 2.f, 2.f },
+            .material = world.default_material
+        });
+        context.create_model(cube);
+
+        floorNode = world.addNode(world::Node {
+            .parent = context.get_scene().root,
+            .name = "Floor",
+            .transform = {
+                .position = 0.f,
+                .rotation = quatf::identity().to_euler(),
+                .scale = 1.f
+            },
+            .models = { cube }
+        });
+
+        bodyNode = world.addNode(world::Node {
+            .parent = context.get_scene().root,
+            .name = "Body",
+            .transform = {
+                .position = world::kVectorUp * 5.f,
+                .rotation = quatf::identity().to_euler(),
+                .scale = 1.f
+            },
+            .models = { cube }
+        });
+
+        context.create_node(floorNode);
+        context.create_node(bodyNode);
+    });
 
     Ticker clock;
 
@@ -354,10 +397,52 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
         float dt = clock.tick();
 
-        // game.tick(dt);
+        game.tick(dt);
         context.tick(dt);
 
         editor.begin_frame();
+
+        if (ImGui::Begin("Physics")) {
+            {
+                ImGui::SeparatorText("Floor");
+                auto v = floor.getLinearVelocity();
+                auto p = floor.getCenterOfMass();
+                auto r = floor.getRotation();
+                auto e = r.to_euler().get_degrees();
+                ImGui::Text("Linear Velocity: %f.%f.%f", v.x, v.y, v.z);
+                ImGui::Text("Center of Mass: %f.%f.%f", p.x, p.y, p.z);
+                ImGui::Text("Rotation: %f.%f.%f.%f", r.v.x, r.v.y, r.v.z, r.angle);
+                ImGui::Text("Euler: %f.%f.%f", e.x, e.y, e.z);
+            }
+
+            ImGui::SeparatorText("Body");
+            auto v = body.getLinearVelocity();
+            auto p = body.getCenterOfMass();
+            auto r = body.getRotation();
+            auto e = r.to_euler().get_degrees();
+            ImGui::Text("Linear Velocity: %f.%f.%f", v.x, v.y, v.z);
+            ImGui::Text("Center of Mass: %f.%f.%f", p.x, p.y, p.z);
+            ImGui::Text("Rotation: %f.%f.%f.%f", r.v.x, r.v.y, r.v.z, r.angle);
+            ImGui::Text("Euler: %f.%f.%f", e.x, e.y, e.z);
+
+            ImGui::Text("Active: %s", body.isActive() ? "true" : "false");
+
+            if (ImGui::Button("Activate")) {
+                body.setLinearVelocity({ 0.f, 0.f, 1.f });
+                body.setAngularVelocity({ 0.f, 0.f, 0.1f });
+                body.activate();
+            }
+        }
+        ImGui::End();
+
+        world::Node& floorNodeInfo = world.get(floorNode);
+        world::Node& bodyNodeInfo = world.get(bodyNode);
+
+        floorNodeInfo.transform.position = floor.getCenterOfMass();
+        bodyNodeInfo.transform.position = body.getCenterOfMass();
+
+        floorNodeInfo.transform.rotation = floor.getRotation().to_euler();
+        bodyNodeInfo.transform.rotation = body.getRotation().to_euler();
 
         editor.draw();
 
@@ -368,7 +453,8 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     context.destroy();
 
-    game.shutdown();
+    // TODO: this leaks but also actually freeing it causes a crash
+    // game.shutdown();
 }
 
 static int editor_main(sys::ShowWindow show) {

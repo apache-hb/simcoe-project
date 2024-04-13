@@ -12,6 +12,20 @@
         return Wrapper{};                     \
     }()
 
+#define META_BOOL_WRAPPER(name, tag, truthy, falsy, initial) \
+    constexpr auto name = [] {                                \
+        struct Wrapper : detail::Tag {                                      \
+            consteval auto operator=(bool value) const {     \
+                return detail::Tag{value ? truthy : falsy};                            \
+            }                                                 \
+                                                             \
+            consteval Wrapper() \
+                : detail::Tag(initial) \
+            { }                                                 \
+        };                                                   \
+        return Wrapper{};                                    \
+    }()
+
 namespace sm::meta {
     namespace detail {
         constexpr unsigned kTagName = 1;
@@ -22,6 +36,10 @@ namespace sm::meta {
         constexpr unsigned kTagThreadSafe = 6;
         constexpr unsigned kTagNotThreadSafe = 7;
         constexpr unsigned kTagTypeId = 8;
+        constexpr unsigned kTagMinimal = 9;
+        constexpr unsigned kTagNotTransient = 10;
+        constexpr unsigned kTagNotMinimal = 11;
+        constexpr unsigned kTagNotBitFlags = 12;
 
         struct Tag {
             unsigned tag;
@@ -78,31 +96,20 @@ namespace sm::meta {
         };
     }
 
-    META_WRAPPER(name, detail::NameTag, (const char *name), name);
-    META_WRAPPER(category, detail::CategoryTag, (const char *category), category);
-    META_WRAPPER(id, detail::TypeIdTag, (unsigned id), id);
+    namespace tags {
+        META_WRAPPER(name, detail::NameTag, (const char *name), name);
+        META_WRAPPER(category, detail::CategoryTag, (const char *category), category);
+        META_WRAPPER(id, detail::TypeIdTag, (unsigned id), id);
 
-    // NOLINTBEGIN
-    constexpr const detail::Tag bitflags = detail::Tag(detail::kTagBitFlags);
-    constexpr const detail::Tag transient = detail::Tag(detail::kTagTransient);
+        // NOLINTBEGIN
+        constexpr auto range = [] {
+            return detail::RangeWrapper{};
+        }();
 
-    constexpr auto range = [] {
-        return detail::RangeWrapper{};
-    }();
-
-    constexpr auto threadsafe = [] {
-        struct ThreadSafeTag : detail::Tag {
-            consteval auto operator=(bool value) const {
-                return detail::Tag{value ? detail::kTagThreadSafe : detail::kTagNotThreadSafe};
-            }
-
-            consteval ThreadSafeTag()
-                : Tag(detail::kTagThreadSafe)
-            { }
-        };
-
-        return ThreadSafeTag{};
-    }();
-
-    // NOLINTEND
+        META_BOOL_WRAPPER(threadsafe, detail::kTagThreadSafe, detail::kTagThreadSafe, detail::kTagNotThreadSafe, detail::kTagThreadSafe);
+        META_BOOL_WRAPPER(bitflags, detail::kTagBitFlags, detail::kTagBitFlags, detail::kTagNotBitFlags, detail::kTagBitFlags);
+        META_BOOL_WRAPPER(transient, detail::kTagTransient, detail::kTagTransient, detail::kTagNotTransient, detail::kTagTransient);
+        META_BOOL_WRAPPER(minimal, detail::kTagMinimal, detail::kTagMinimal, detail::kTagNotMinimal, detail::kTagMinimal);
+        // NOLINTEND
+    }
 }

@@ -5,66 +5,33 @@
 
 #include "math/math.hpp"
 
+#include "game/object.hpp"
+
 #include "world/world.hpp"
 
+#include "entity.reflect.h"
+
 namespace sm::game {
-    class Object;
-
-    template<typename T>
-    concept IsObject = requires {
-        std::is_base_of_v<Object, T>;
-        { T::getClass() } -> std::same_as<const meta::Class&>;
-    };
-
-    /// @brief base object class
-    /// opts in for reflection, serialization, and archetypes
-    REFLECT()
-    class Object {
-        REFLECT_BODY(Object)
-
-        uint16 mClassId;
-
-    public:
-        virtual ~Object() = default;
-
-        Object();
-
-        virtual void update(float dt) { }
-        virtual void create() { }
-        virtual void destroy() { }
-
-        bool isInstanceOf(const meta::Class& cls) const;
-    };
-
-    template<IsObject T>
-    T *cast(Object& object) {
-        if (object.isInstanceOf(T::getClass())) {
-            return static_cast<T*>(&object);
-        } else {
-            return nullptr;
-        }
-    }
-
     /// @brief an entity in the game world
     REFLECT()
     class Entity : public Object {
         REFLECT_BODY(Entity)
 
-        PROPERTY()
+    public:
+        PROPERTY(category = "Transform")
         math::float3 mPosition;
 
-        PROPERTY()
+        PROPERTY(category = "Transform")
         math::quatf mRotation;
 
-        PROPERTY()
+        PROPERTY(category = "Transform")
         math::float3 mScale;
 
-    public:
-        Entity();
+        Entity(ClassSetup& setup);
     };
 
     REFLECT()
-    class Component : public Object {
+    class Component : public Entity {
         REFLECT_BODY(Component)
 
     public:
@@ -72,16 +39,17 @@ namespace sm::game {
     };
 
     REFLECT()
-    class ModelComponent : public Component {
-        REFLECT_BODY(ModelComponent)
-
-        PROPERTY()
-        world::IndexOf<world::Model> mModel;
+    class MeshComponent : public Component {
+        REFLECT_BODY(MeshComponent)
 
     public:
-        ModelComponent();
+        PROPERTY(name = "Model", category = "Mesh")
+        world::IndexOf<world::Model> mModel;
+
+        MeshComponent();
     };
 
+    ENUM()
     enum class PhysicsLayer {
         eStatic,
         eDynamic,
@@ -89,6 +57,7 @@ namespace sm::game {
         eCount
     };
 
+    ENUM()
     enum class PhysicsType {
         eStatic,
         eKinematic,
@@ -101,16 +70,16 @@ namespace sm::game {
     class PhysicsComponent : public Component {
         REFLECT_BODY(PhysicsComponent)
 
+    public:
         PROPERTY(name = "Activate On Create", category = "Physics")
         bool mActivateOnCreate;
 
-        PROPERTY()
+        PROPERTY(name = "Layer", category = "Physics")
         PhysicsLayer mLayer;
 
-        PROPERTY()
+        PROPERTY(name = "Type", category = "Physics")
         PhysicsType mType;
 
-    public:
         PhysicsComponent();
     };
 
@@ -130,7 +99,7 @@ namespace sm::game {
         REFLECT_BODY(Character)
 
         PROPERTY()
-        ModelComponent *mModelComponent;
+        MeshComponent *mModelComponent;
 
         PROPERTY()
         PhysicsComponent *mPhysicsComponent;

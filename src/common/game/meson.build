@@ -1,7 +1,9 @@
 src = [
     'src/entity.cpp',
     'src/game.cpp',
+    'src/object.cpp',
 
+    meta_tool.process('include/game/object.hpp', extra_args : [ 'game' ]),
     meta_tool.process('include/game/entity.hpp', extra_args : [ 'game' ])
 ]
 
@@ -17,6 +19,6 @@ libgame = library('game', src,
 
 game = declare_dependency(
     link_with : [ libgame ],
-    include_directories : [ inc ],
+    include_directories : [ inc, libgame.private_dir_include() ],
     dependencies : deps
 )

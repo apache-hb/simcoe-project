@@ -519,7 +519,7 @@ namespace sm::math {
             T cosy_cosp = T(1) - T(2) * (v.y * v.y + v.z * v.z);
 
             T roll = std::atan2(sinr_cosp, cosr_cosp);
-            T pitch = std::atan2(sinp, cosp);
+            T pitch = T(2) * std::atan2(sinp, cosp) - math::kPi<T> / T(2);
             T yaw = std::atan2(siny_cosp, cosy_cosp);
 
             Vec3 euler = {roll, pitch, yaw};

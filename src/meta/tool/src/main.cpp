@@ -60,6 +60,7 @@ struct ReflectInfo {
     TriState isTransient = eDefault;
     TriState isThreadSafe = eDefault;
     unsigned typeId = 0;
+    bool isMinimal = false;
 
     ReflectInfo(const clang::Decl& decl)
         : decl(decl)
@@ -128,6 +129,17 @@ struct ReflectInfo {
         }
 
         typeId = id;
+    }
+
+    void setMinimal(Sema& S, const clang::Expr& Expr, bool value) {
+        if (!isa<clang::CXXRecordDecl>(decl)) {
+            unsigned ID = S.getDiagnostics().getCustomDiagID(
+                DiagnosticsEngine::Error, "minimal can only be applied to classes");
+            S.Diag(decl.getLocation(), ID);
+            return;
+        }
+
+        isMinimal = value;
     }
 
     void setRange(Sema& S, const clang::Expr& Expr, const APValue& min, const APValue& max) {
@@ -411,6 +423,18 @@ bool updateInfoFromTag(ReflectInfo& Info, Sema &S, const ConstantExpr &Expr, uns
         return true;
     case m::kTagTypeId:
         Info.setTypeId(S, Expr, getTypeIdFromTag(S, Expr, Value));
+        return true;
+    case m::kTagMinimal:
+        Info.setMinimal(S, Expr, true);
+        return true;
+    case m::kTagNotTransient:
+        Info.setTransient(S, Expr, false);
+        return true;
+    case m::kTagNotMinimal:
+        Info.setMinimal(S, Expr, false);
+        return true;
+    case m::kTagNotBitFlags:
+        Info.setBitFlags(S, Expr, false);
         return true;
 
     default: {
@@ -757,61 +781,47 @@ class CmdAfterConsumer : public ASTConsumer {
 
         const SourceManager &SM = D.getASTContext().getSourceManager();
         const FileEntry *FE = SM.getFileEntryForID(SM.getFileID(D.getLocation()));
-        if (!FE->tryGetRealPathName().contains(gHeaderInputPath))
+        if (!FE->tryGetRealPathName().contains(fs::path{gHeaderInputPath}.filename().string()))
             return;
 
         const ReflectInfo& Info = gReflectInfo.at(&D);
         const CXXRecordDecl &RD = cast<CXXRecordDecl>(D);
         const auto& qualifiedName = RD.getQualifiedNameAsString();
+        bool hasBaseClass = RD.getNumBases() > 0;
 
-        mHeaderOut.println("#define {}_REFLECT \\\n", RD.getNameAsString());
-        mHeaderOut.println("public: \\\n");
-        mHeaderOut.println("\tstatic const sm::meta::Class& getClass();\\\n");
-        mHeaderOut.println("private: \n");
+        mHeaderOut.println("#define {}__reflect_body \\", RD.getNameAsString());
+        mHeaderOut.println("public: \\");
+        mHeaderOut.println("\tstatic const sm::meta::Class& getClass();\\");
+        mHeaderOut.println("private: ");
 
-        mSourceOut.println("template<>\n");
-        mSourceOut.println("struct sm::meta::detail::GlobalClass<{}> : public sm::meta::Class {{\n", qualifiedName);
+        mSourceOut.println("template<>");
+        mSourceOut.println("struct sm::meta::detail::GlobalClass<{}> : public sm::meta::Class {{", qualifiedName);
         mSourceOut.indent();
-        mSourceOut.println("constexpr GlobalClass() {{\\n");
+        mSourceOut.println("constexpr GlobalClass() {{");
         mSourceOut.indent();
-        mSourceOut.println("setName(\"{}\");\\n", RD.getNameAsString());
-        mSourceOut.println("setQualifiedName(\"{}\");\\n", qualifiedName);
-        mSourceOut.println("setCategory(\"{}\");\\n", Info.category);
-        mSourceOut.println("setTypeId({});\\n", Info.typeId);
+        mSourceOut.println("setName(\"{}\");", RD.getNameAsString());
+        mSourceOut.println("setQualifiedName(\"{}\");", qualifiedName);
+        mSourceOut.println("setCategory(\"{}\");", Info.category);
+        mSourceOut.println("setTypeId({});", Info.typeId);
+        if (hasBaseClass) {
+            auto& base = *RD.bases().begin();
+            mSourceOut.println("setParentClass(&{}::getClass());", base.getType()->getAsCXXRecordDecl()->getQualifiedNameAsString());
+        }
         mSourceOut.dedent();
-        mSourceOut.println("}};\n");
-        mSourceOut.println("static GlobalClass kClass{{}};\n");
+        mSourceOut.println("}};");
+        mSourceOut.println("static sm::meta::Class gClass;");
         mSourceOut.dedent();
-        mSourceOut.println("}};\n");
+        mSourceOut.println("}};");
+        mSourceOut.println("");
 
-        mSourceOut.println("const sm::meta::Class& {}::getClass() {{ \n", qualifiedName);
+        mSourceOut.println("sm::meta::Class sm::meta::detail::GlobalClass<{}>::gClass = sm::meta::detail::GlobalClass<{}>();", qualifiedName, qualifiedName);
+
+        mSourceOut.println("");
+        mSourceOut.println("const sm::meta::Class& {}::getClass() {{ ", qualifiedName);
         mSourceOut.indent();
-        mSourceOut.println("return sm::meta::detail::GlobalClass<{}>::kClass;\\n", qualifiedName);
+        mSourceOut.println("return sm::meta::detail::GlobalClass<{}>::gClass;", qualifiedName);
         mSourceOut.dedent();
-        mSourceOut.println("}}\n");
-
-        for (const CXXBaseSpecifier &Base : RD.bases()) {
-            auto type = Base.getType();
-            const Decl *BaseRD = type->getAsCXXRecordDecl();
-            const ReflectInfo& BaseInfo = gReflectInfo.at(BaseRD);
-            llvm::outs() << " - base: " << BaseInfo.qualified << "\n";
-        }
-
-        for (const CXXMethodDecl *MD : RD.methods()) {
-            if (!meta::isReflectedMethod(*MD))
-                continue;
-
-            const ReflectInfo& MethodInfo = gReflectInfo.at(MD);
-            llvm::outs() << " - method: " << MethodInfo.qualified << "\n";
-        }
-
-        for (const FieldDecl *FD : RD.fields()) {
-            if (!meta::isReflectedProperty(*FD))
-                continue;
-
-            const ReflectInfo& PropertyInfo = gReflectInfo.at(FD);
-            llvm::outs() << " - property: " << PropertyInfo.qualified << "\n";
-        }
+        mSourceOut.println("}}");
     }
 
     void handleInterface(const Decl &D, const AnnotateAttr &Attr) {
@@ -828,30 +838,7 @@ class CmdAfterConsumer : public ASTConsumer {
             return;
 
         // const ReflectInfo& Info = gReflectInfo.at(&D);
-        const CXXRecordDecl &RD = cast<CXXRecordDecl>(D);
-
-        for (const CXXBaseSpecifier &Base : RD.bases()) {
-            auto type = Base.getType();
-            const Decl *BaseRD = type->getAsCXXRecordDecl();
-            const ReflectInfo& BaseInfo = gReflectInfo.at(BaseRD);
-            llvm::outs() << " - base: " << BaseInfo.qualified << "\n";
-        }
-
-        for (const CXXMethodDecl *MD : RD.methods()) {
-            if (!meta::isReflectedMethod(*MD))
-                continue;
-
-            const ReflectInfo& MethodInfo = gReflectInfo.at(MD);
-            llvm::outs() << " - method: " << MethodInfo.qualified << "\n";
-        }
-
-        for (const FieldDecl *FD : RD.fields()) {
-            if (!meta::isReflectedProperty(*FD))
-                continue;
-
-            const ReflectInfo& PropertyInfo = gReflectInfo.at(FD);
-            llvm::outs() << " - property: " << PropertyInfo.qualified << "\n";
-        }
+        // const CXXRecordDecl &RD = cast<CXXRecordDecl>(D);
     }
 
     void handleEnum(const Decl &D, const AnnotateAttr &Attr) {
@@ -902,26 +889,19 @@ public:
         mSourceOutStream.close();
     }
 
-    void HandleTranslationUnit(ASTContext &) override {
+    void HandleTagDeclDefinition(TagDecl *D) override {
+        if (!D->hasAttr<AnnotateAttr>())
+            return;
 
-    }
-
-    bool HandleTopLevelDecl(DeclGroupRef D) override {
-        for (Decl *decl : D) {
-            if (!decl->hasAttr<AnnotateAttr>())
-                continue;
-
-            AnnotateAttr *attr = decl->getAttr<AnnotateAttr>();
-            auto id = attr->getAnnotation();
-            if (id.contains(meta::kClassTag)) {
-                handleClass(*decl, *attr);
-            } else if (id.contains(meta::kInterfaceTag)) {
-                handleInterface(*decl, *attr);
-            } else if (id.contains(meta::kEnumTag)) {
-                handleEnum(*decl, *attr);
-            }
+        AnnotateAttr *attr = D->getAttr<AnnotateAttr>();
+        auto id = attr->getAnnotation();
+        if (id.contains(meta::kClassTag)) {
+            handleClass(*D, *attr);
+        } else if (id.contains(meta::kInterfaceTag)) {
+            handleInterface(*D, *attr);
+        } else if (id.contains(meta::kEnumTag)) {
+            handleEnum(*D, *attr);
         }
-        return true;
     }
 };
 

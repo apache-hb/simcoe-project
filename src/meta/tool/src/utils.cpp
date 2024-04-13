@@ -143,12 +143,7 @@ static bool verifyClassBases(
         return false;
     }
 
-    if (RD.getNumBases() > 1) {
-        unsigned ID = DE.getCustomDiagID(
-            DiagnosticsEngine::Error, "reflected class must not have more than one base class");
-        DE.Report(RD.getLocation(), ID);
-        return false;
-    }
+    const CXXRecordDecl *lastBaseClass = nullptr;
 
     for (const CXXBaseSpecifier &Base : RD.bases()) {
         auto type = Base.getType();
@@ -165,6 +160,17 @@ static bool verifyClassBases(
                 DiagnosticsEngine::Error, "base class must be a class");
             DE.Report(Base.getBaseTypeLoc(), ID);
             return false;
+        }
+
+        if (meta::isReflectedClass(*BaseRD)) {
+            if (lastBaseClass != nullptr) {
+                unsigned ID = DE.getCustomDiagID(
+                    DiagnosticsEngine::Error, "reflected class must have only one base class");
+                DE.Report(RD.getLocation(), ID);
+                return false;
+            }
+
+            lastBaseClass = BaseRD;
         }
 
         if (!isReflected(*BaseRD)) {
@@ -222,7 +228,7 @@ bool meta::verifyValidReflectClass(
     }
 
     return verifyClassBases(DE, *RD, kClassTag, [](const NamedDecl &D) {
-        return meta::isReflectedClass(D);
+        return meta::isReflectedClass(D) || meta::isReflectedInterface(D);
     });
 }
 

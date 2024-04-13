@@ -204,16 +204,11 @@ void Editor::draw_create_popup() {
             if (ImGui::MenuItem("Cube")) {
                 mContext.upload([this, &world] {
                     auto root = get_best_node();
-                    auto added = world.add(world::Model { .name = "Cube", .mesh = world::Cube { 1.f, 1.f, 1.f }, .material = world.default_material });
-                    world.get(root).models.push_back(added);
-                    mContext.create_model(added);
-                });
-            }
-
-            if (ImGui::MenuItem("Sphere")) {
-                mContext.upload([this, &world] {
-                    auto root = get_best_node();
-                    auto added = world.add(world::Model { .name = "Sphere", .mesh = world::Sphere { 1.f }, .material = world.default_material });
+                    auto added = world.add(world::Model {
+                        .name = "Cube",
+                        .mesh = world::Cube { 1.f, 1.f, 1.f },
+                        .material = world.default_material
+                    });
                     world.get(root).models.push_back(added);
                     mContext.create_model(added);
                 });
@@ -222,7 +217,63 @@ void Editor::draw_create_popup() {
             if (ImGui::MenuItem("Cylinder")) {
                 mContext.upload([this, &world] {
                     auto root = get_best_node();
-                    auto added = world.add(world::Model { .name = "Cylinder", .mesh = world::Cylinder { 1.f, 1.f }, .material = world.default_material });
+                    auto added = world.add(world::Model {
+                        .name = "Cylinder",
+                        .mesh = world::Cylinder { 1.f, 1.f },
+                        .material = world.default_material
+                    });
+                    world.get(root).models.push_back(added);
+                    mContext.create_model(added);
+                });
+            }
+
+            if (ImGui::MenuItem("Wedge")) {
+                mContext.upload([this, &world] {
+                    auto root = get_best_node();
+                    auto added = world.add(world::Model {
+                        .name = "Wedge",
+                        .mesh = world::Wedge { 1.f, 1.f, 1.f },
+                        .material = world.default_material
+                    });
+                    world.get(root).models.push_back(added);
+                    mContext.create_model(added);
+                });
+            }
+
+            if (ImGui::MenuItem("Capsule")) {
+                mContext.upload([this, &world] {
+                    auto root = get_best_node();
+                    auto added = world.add(world::Model {
+                        .name = "Capsule",
+                        .mesh = world::Capsule { 1.f, 1.f, 16, 16 },
+                        .material = world.default_material
+                    });
+                    world.get(root).models.push_back(added);
+                    mContext.create_model(added);
+                });
+            }
+
+            if (ImGui::MenuItem("Diamond")) {
+                mContext.upload([this, &world] {
+                    auto root = get_best_node();
+                    auto added = world.add(world::Model {
+                        .name = "Diamond",
+                        .mesh = world::Diamond { 1.f, 1.f, 1.f },
+                        .material = world.default_material
+                    });
+                    world.get(root).models.push_back(added);
+                    mContext.create_model(added);
+                });
+            }
+
+            if (ImGui::MenuItem("GeoSphere")) {
+                mContext.upload([this, &world] {
+                    auto root = get_best_node();
+                    auto added = world.add(world::Model {
+                        .name = "GeoSphere",
+                        .mesh = world::GeoSphere { 1.f, 3 },
+                        .material = world.default_material
+                    });
                     world.get(root).models.push_back(added);
                     mContext.create_model(added);
                 });

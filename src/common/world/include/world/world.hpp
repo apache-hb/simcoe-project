@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/units.hpp"
 #include "core/variant.hpp"
 #include "core/string.hpp"
 
@@ -255,9 +256,6 @@ namespace sm::world {
         IndexOf<Scene> default_scene;
         IndexOf<Material> default_material;
 
-        void move_node(IndexOf<Node> node, IndexOf<Node> parent);
-        void clone_node(IndexOf<Node> node, IndexOf<Node> parent);
-
         template<IsWorldObject T>
         IndexOf<T> clone(IndexOf<T> index) {
             T clone = get<T>(index);
@@ -267,9 +265,19 @@ namespace sm::world {
         template<IsWorldObject T>
         IndexOf<T> add(T&& value) {
             auto& vec = get_vector<T>();
-            uint16 index = int_cast<uint16>(vec.size());
+            uint16 index = sm::int_cast<uint16>(vec.size());
             vec.push_back(std::forward<T>(value));
             return IndexOf<T>(index);
+        }
+
+        void moveNode(IndexOf<Node> node, IndexOf<Node> parent);
+        void cloneNode(IndexOf<Node> node, IndexOf<Node> parent);
+
+        IndexOf<Node> addNode(Node&& value) {
+            IndexOf parent = value.parent;
+            IndexOf it = add(std::move(value));
+            get(parent).children.push_back(it);
+            return it;
         }
 
         template<IsWorldObject T>

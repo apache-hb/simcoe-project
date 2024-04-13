@@ -69,7 +69,7 @@ void WorldInfo::add_node_object(uint16 node, uint16 object) {
 }
 #endif
 
-void World::move_node(IndexOf<Node> node, IndexOf<Node> parent) {
+void World::moveNode(IndexOf<Node> node, IndexOf<Node> parent) {
     auto& node_ref = get(node);
     auto& parent_ref = get(parent);
 
@@ -85,7 +85,7 @@ void World::move_node(IndexOf<Node> node, IndexOf<Node> parent) {
     parent_ref.children.push_back(node);
 }
 
-void World::clone_node(IndexOf<Node> node, IndexOf<Node> parent) {
+void World::cloneNode(IndexOf<Node> node, IndexOf<Node> parent) {
     auto cloned = clone(node);
     auto& clone_ref = get(cloned);
 

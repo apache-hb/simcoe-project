@@ -1,5 +1,6 @@
-#include "math/colour.hpp"
 #include "stdafx.hpp" // IWYU pragma: export
+
+#include "math/colour.hpp"
 
 #include "game/game.hpp"
 #include "std/str.h"
@@ -8,18 +9,20 @@ using namespace sm;
 using namespace sm::game;
 using namespace sm::world;
 
+using namespace JPH::literals;
+
 static constexpr uint kMaxBodies = 1024;
 static constexpr uint kBodyMutexCount = 0;
 static constexpr uint kMaxBodyPairs = 1024;
 static constexpr uint kMaxContactConstraints = 1024;
 
-static game::IContext *gContext = nullptr;
+static game::GameContextImpl *gContext = nullptr;
 
-LOG_CATEGORY_IMPL(gPhysicsLogs, "physics")
+LOG_CATEGORY_IMPL(gPhysicsLog, "physics")
 LOG_CATEGORY_IMPL(gGameLog, "game")
 
-game::IContext& game::IContext::get() {
-    return *gContext;
+game::Context game::getContext() {
+    return gContext;
 }
 
 enum Layers : JPH::ObjectLayer {
@@ -32,6 +35,22 @@ namespace layers {
     static constexpr JPH::BroadPhaseLayer kStatic{ JPH::ObjectLayer(Layers::eStatic) };
     static constexpr JPH::BroadPhaseLayer kDynamic{ JPH::ObjectLayer(Layers::eDynamic) };
     static constexpr uint kCount = uint(Layers::eCount);
+}
+
+static JPH::Vec3 to_jph(const math::float3& v) {
+    return {v.x, v.z, v.y};
+}
+
+static math::float3 from_jph(const JPH::Vec3& v) {
+    return {v.GetX(), v.GetZ(), v.GetY()};
+}
+
+static JPH::Quat to_jph(const math::quatf& q) {
+    return {q.v.x, q.v.z, q.v.y, q.angle};
+}
+
+static math::quatf from_jph(const JPH::Quat& q) {
+    return {q.GetX(), q.GetY(), q.GetZ(), q.GetW()};
 }
 
 struct CObjectLayerPairFilter final : public JPH::ObjectLayerPairFilter {
@@ -97,11 +116,11 @@ struct CContactListener final : public JPH::ContactListener {
 
 struct CBodyActivationListener final : public JPH::BodyActivationListener {
     void OnBodyActivated(const JPH::BodyID& id, uint64 user) override {
-        gPhysicsLogs.info("Body activated: {}", id.GetIndex());
+        gPhysicsLog.info("Body activated: {}", id.GetIndex());
     }
 
     void OnBodyDeactivated(const JPH::BodyID& id, uint64 user) override {
-        gPhysicsLogs.info("Body deactivated: {}", id.GetIndex());
+        gPhysicsLog.info("Body deactivated: {}", id.GetIndex());
     }
 };
 
@@ -116,8 +135,8 @@ struct CDebugRenderer final : public JPH::DebugRendererSimple {
     sm::Vector<DebugVertex> mVertices;
 
     void DrawLine(JPH::RVec3Arg inFrom, JPH::RVec3Arg inTo, JPH::ColorArg inColor) override {
-        float3 from = { inFrom.GetX(), inFrom.GetY(), inFrom.GetZ() };
-        float3 to = { inTo.GetX(), inTo.GetY(), inTo.GetZ() };
+        float3 from = { inFrom.GetX(), inFrom.GetZ(), inFrom.GetY() };
+        float3 to = { inTo.GetX(), inTo.GetZ(), inTo.GetY() };
         float3 colour = math::unpack_colour(inColor.GetUInt32()).xyz();
 
         mVertices.push_back({ from, colour });
@@ -125,15 +144,13 @@ struct CDebugRenderer final : public JPH::DebugRendererSimple {
     }
 
     void DrawText3D(JPH::RVec3Arg inPosition, const std::string_view& inString, JPH::ColorArg inColor, float inHeight) override {
-
+        gPhysicsLog.info("DrawText3D: {}", inString);
     }
 
     void begin_frame(const draw::Camera& camera) {
         mVertices.clear();
 
-        float3 p = camera.position();
-
-        Super::SetCameraPos(JPH::RVec3(p.x, p.y, p.z));
+        Super::SetCameraPos(to_jph(camera.position()));
     }
 };
 
@@ -145,119 +162,198 @@ static void jph_trace(const char *fmt, ...) { // NOLINT
     str_sprintf(gTraceBuffer, sizeof(gTraceBuffer), fmt, args);
     va_end(args);
 
-    gPhysicsLogs.trace("{}", gTraceBuffer);
+    gPhysicsLog.trace("{}", gTraceBuffer);
 }
 
 static bool jph_assert(const char *expr, const char *message, const char *file, uint line) {
-    gPhysicsLogs.panic("Assertion failed: {} in {}:{}\n{}", expr, file, line, message);
+    if (message == nullptr)
+        gPhysicsLog.panic("Assertion failed: {} in {}:{}\n", expr, file, line);
+    else
+        gPhysicsLog.panic("Assertion failed: {} in {}:{}\n{}", expr, file, line, message);
+
     return true;
 }
 
-class Context final : public game::IContext {
-    [[maybe_unused]] world::World& mWorld;
+// constexpr static float kTimeStep = 1.0f / 60.0f;
 
-    constexpr static float kTimeStep = 1.0f / 60.0f;
+struct Context;
+
+struct game::PhysicsBodyImpl {
+    JPH::Body *body;
+    JPH::BodyID id;
+    GameContextImpl *context;
+};
+
+struct game::GameContextImpl {
+    ///
+    /// timestep
+    ///
     float mTimeAccumulator = 0.0f;
 
-    void tick(float dt) override {
-        mDebugRenderer->begin_frame(*mActiveCamera);
+    ///
+    /// misc
+    ///
 
-        mTimeAccumulator += dt;
+    world::World& world;
+    const draw::Camera *activeCamera = nullptr;
 
-        int steps = int(mTimeAccumulator / kTimeStep);
+    ///
+    /// gameplay
+    ///
 
-        if (JPH::EPhysicsUpdateError err = mPhysicsSystem->Update(dt, steps, *mPhysicsAllocator, *mPhysicsThreadPool); err != JPH::EPhysicsUpdateError::None) {
-            gPhysicsLogs.warn("Physics update error: {}", std::to_underlying(err));
-        }
+    sm::HashMap<uint32, game::Archetype> archetypes;
 
-        mTimeAccumulator -= steps * kTimeStep;
-    }
-
-    void shutdown() override {
-        shutdown_jph();
-    }
-
-    void set_camera(const draw::Camera& camera) override {
-        mActiveCamera = &camera;
-    }
-
-    const draw::Camera *mActiveCamera = nullptr;
+    sm::Vector<game::Object*> objects;
 
     ///
     /// jolt physics
     ///
+    sm::UniquePtr<JPH::TempAllocatorImpl> physicsAllocator;
+    sm::UniquePtr<JPH::JobSystemThreadPool> physicsThreadPool;
+    sm::UniquePtr<JPH::PhysicsSystem> physicsSystem;
 
-    sm::UniquePtr<JPH::TempAllocatorImpl> mPhysicsAllocator;
-    sm::UniquePtr<JPH::JobSystemThreadPool> mPhysicsThreadPool;
-    sm::UniquePtr<JPH::PhysicsSystem> mPhysicsSystem;
+    sm::UniquePtr<CBroadPhaseLayer> broadPhaseLayer;
+    sm::UniquePtr<CObjectLayerPairFilter> objectLayerPairFilter;
+    sm::UniquePtr<CObjectVsBroadPhaseFilter> objectVsBroadPhaseLayerFilter;
+    sm::UniquePtr<CContactListener> contactListener;
+    sm::UniquePtr<CBodyActivationListener> bodyActivationListener;
 
-    sm::UniquePtr<CBroadPhaseLayer> mBroadPhaseLayer;
-    sm::UniquePtr<CObjectLayerPairFilter> mObjectLayerPairFilter;
-    sm::UniquePtr<CObjectVsBroadPhaseFilter> mObjectVsBroadPhaseLayerFilter;
-    sm::UniquePtr<CContactListener> mContactListener;
-    sm::UniquePtr<CBodyActivationListener> mBodyActivationListener;
-
-    sm::UniquePtr<CDebugRenderer> mDebugRenderer;
-
-    void shutdown_jph() {
-        JPH::UnregisterTypes();
-
-        delete JPH::Factory::sInstance;
-    }
-
-    void init_jph() {
-        JPH::RegisterDefaultAllocator();
-
-        JPH::Trace = jph_trace;
-        JPH_IF_ENABLE_ASSERTS(JPH::AssertFailed = jph_assert;)
-        JPH::Factory::sInstance = new JPH::Factory();
-
-        mDebugRenderer = sm::make_unique<CDebugRenderer>();
-        JPH::DebugRenderer::sInstance = mDebugRenderer.get();
-
-        JPH::RegisterTypes();
-
-        mPhysicsAllocator = sm::make_unique<JPH::TempAllocatorImpl>((16_mb).as_bytes());
-        mPhysicsThreadPool = sm::make_unique<JPH::JobSystemThreadPool>(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, 4);
-
-        mBroadPhaseLayer = sm::make_unique<CBroadPhaseLayer>();
-        mObjectLayerPairFilter = sm::make_unique<CObjectLayerPairFilter>();
-        mObjectVsBroadPhaseLayerFilter = sm::make_unique<CObjectVsBroadPhaseFilter>();
-
-        mPhysicsSystem = sm::make_unique<JPH::PhysicsSystem>();
-        mPhysicsSystem->Init(kMaxBodies, kBodyMutexCount, kMaxBodyPairs, kMaxContactConstraints, mBroadPhaseLayer.ref(), mObjectVsBroadPhaseLayerFilter.ref(), mObjectLayerPairFilter.ref());
-
-        mBodyActivationListener = sm::make_unique<CBodyActivationListener>();
-        mPhysicsSystem->SetBodyActivationListener(*mBodyActivationListener);
-
-        mContactListener = sm::make_unique<CContactListener>();
-        mPhysicsSystem->SetContactListener(*mContactListener);
-
-        create_physics_bodies();
-
-        mPhysicsSystem->OptimizeBroadPhase();
-    }
-
-    void create_physics_bodies() {
-        // JPH::BodyInterface& body = mPhysicsSystem->GetBodyInterface();
-    }
-
-public:
-    Context(world::World& world)
-        : mWorld(world)
-    {
-        init_jph();
-    }
+    sm::UniquePtr<CDebugRenderer> debugRenderer;
 };
 
-game::IContext& game::init(world::World& world, const draw::Camera& camera) {
+static void initGameContext(GameContextImpl *impl) {
+    JPH::RegisterDefaultAllocator();
+
+    JPH::Trace = jph_trace;
+    JPH_IF_ENABLE_ASSERTS(JPH::AssertFailed = jph_assert;)
+    JPH::Factory::sInstance = new JPH::Factory();
+
+    impl->debugRenderer = sm::make_unique<CDebugRenderer>();
+    JPH::DebugRenderer::sInstance = impl->debugRenderer.get();
+
+    JPH::RegisterTypes();
+
+    impl->physicsAllocator = sm::make_unique<JPH::TempAllocatorImpl>((16_mb).as_bytes());
+    impl->physicsThreadPool = sm::make_unique<JPH::JobSystemThreadPool>(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, 4);
+
+    impl->broadPhaseLayer = sm::make_unique<CBroadPhaseLayer>();
+    impl->objectLayerPairFilter = sm::make_unique<CObjectLayerPairFilter>();
+    impl->objectVsBroadPhaseLayerFilter = sm::make_unique<CObjectVsBroadPhaseFilter>();
+
+    impl->physicsSystem = sm::make_unique<JPH::PhysicsSystem>();
+    impl->physicsSystem->Init(kMaxBodies, kBodyMutexCount, kMaxBodyPairs, kMaxContactConstraints, impl->broadPhaseLayer.ref(), impl->objectVsBroadPhaseLayerFilter.ref(), impl->objectLayerPairFilter.ref());
+
+    impl->bodyActivationListener = sm::make_unique<CBodyActivationListener>();
+    impl->physicsSystem->SetBodyActivationListener(*impl->bodyActivationListener);
+
+    impl->contactListener = sm::make_unique<CContactListener>();
+    impl->physicsSystem->SetContactListener(*impl->contactListener);
+
+    impl->debugRenderer->DrawCoordinateSystem(JPH::RMat44::sIdentity());
+}
+
+game::Context game::init(world::World& world, const draw::Camera& camera) {
     CTASSERTF(gContext == nullptr, "Context already initialized");
 
-    gContext = new Context(world);
+    gContext = new GameContextImpl{.world = world};
 
-    gContext->set_camera(camera);
+    initGameContext(gContext);
 
-    return IContext::get();
+    Context ctx = getContext();
+    ctx.setCamera(camera);
+
+    return ctx;
+}
+
+void game::pbiDestroy(PhysicsBodyImpl *body) {
+    JPH::BodyInterface& factory = body->context->physicsSystem->GetBodyInterface();
+    factory.RemoveBody(body->id);
+    factory.DestroyBody(body->id);
+    delete body;
+}
+
+void game::Context::addClass(const meta::Class& cls) {
+}
+
+void game::Context::addObject(game::Object *object) {
+}
+
+void game::Context::destroyObject(game::Object& object) {
+
+}
+
+void game::Context::tick(float dt) {
+    mImpl->debugRenderer->begin_frame(*mImpl->activeCamera);
+
+    // TODO: account for <60fps
+    int steps = 1; // std::max(1, int(ceilf(mTimeAccumulator / kTimeStep)));
+
+    if (JPH::EPhysicsUpdateError err = mImpl->physicsSystem->Update(dt, steps, *mImpl->physicsAllocator, *mImpl->physicsThreadPool); err != JPH::EPhysicsUpdateError::None) {
+        gPhysicsLog.warn("Physics update error: {}", std::to_underlying(err));
+    }
+}
+
+void game::Context::shutdown() {
+    JPH::UnregisterTypes();
+    delete JPH::Factory::sInstance;
+}
+
+void game::Context::setCamera(const draw::Camera& camera) {
+    mImpl->activeCamera = &camera;
+}
+
+PhysicsBody game::Context::addPhysicsBody(const math::float3& position, const math::quatf& rotation, bool dynamic) {
+    JPH::BodyInterface& factory = mImpl->physicsSystem->GetBodyInterface();
+
+    JPH::BoxShapeSettings box{JPH::Vec3(2.f, 2.f, 2.f)};
+    JPH::ShapeSettings::ShapeResult result = box.Create();
+
+    JPH::EMotionType motion = dynamic ? JPH::EMotionType::Dynamic : JPH::EMotionType::Static;
+    JPH::ObjectLayer layer = dynamic ? Layers::eDynamic : Layers::eStatic;
+    JPH::BodyCreationSettings settings{
+        result.Get(), to_jph(position), to_jph(rotation), motion, layer
+    };
+
+    JPH::Body *body = factory.CreateBody(settings);
+
+    factory.AddBody(body->GetID(), JPH::EActivation::DontActivate);
+
+    return new PhysicsBodyImpl(body, body->GetID(), mImpl);
+}
+
+void PhysicsBody::setLinearVelocity(const math::float3& velocity) {
+    JPH::BodyInterface& factory = mImpl->context->physicsSystem->GetBodyInterface();
+    factory.SetLinearVelocity(mImpl->id, to_jph(velocity));
+}
+
+void PhysicsBody::setAngularVelocity(const math::float3& velocity) {
+    JPH::BodyInterface& factory = mImpl->context->physicsSystem->GetBodyInterface();
+    factory.SetAngularVelocity(mImpl->id, to_jph(velocity));
+}
+
+void PhysicsBody::activate() {
+    JPH::BodyInterface& factory = mImpl->context->physicsSystem->GetBodyInterface();
+    factory.ActivateBody(mImpl->id);
+}
+
+bool PhysicsBody::isActive() const {
+    JPH::BodyInterface& factory = mImpl->context->physicsSystem->GetBodyInterface();
+    return factory.IsActive(mImpl->id);
+}
+
+math::float3 PhysicsBody::getLinearVelocity() const {
+    JPH::BodyInterface& factory = mImpl->context->physicsSystem->GetBodyInterface();
+    return from_jph(factory.GetLinearVelocity(mImpl->id));
+}
+
+math::float3 PhysicsBody::getCenterOfMass() const {
+    JPH::BodyInterface& factory = mImpl->context->physicsSystem->GetBodyInterface();
+    return from_jph(factory.GetCenterOfMassPosition(mImpl->id));
+}
+
+math::quatf PhysicsBody::getRotation() const {
+    JPH::BodyInterface& factory = mImpl->context->physicsSystem->GetBodyInterface();
+    return from_jph(factory.GetRotation(mImpl->id));
 }
 
 static const D3D12_ROOT_SIGNATURE_FLAGS kPrimitiveRootFlags
@@ -314,13 +410,20 @@ static void create_debug_pipeline(render::Pipeline& pipeline, const draw::Viewpo
 void game::physics_debug(
     graph::FrameGraph& graph,
     const draw::Camera& camera,
-    graph::Handle target,
-    graph::Handle depth)
+    graph::Handle target)
 {
+    auto config = camera.config();
+
     graph::PassBuilder pass = graph.graphics("Physics Debug");
     pass.write(target, "Target", graph::Usage::eRenderTarget);
 
-    auto config = camera.config();
+    graph::ResourceInfo info = {
+        .sz = graph::ResourceSize::tex2d(config.size),
+        .format = config.depth,
+        .clear = graph::clear_depth(1.0f)
+    };
+
+    graph::Handle depth = pass.create(info, "Depth", graph::Usage::eDepthWrite);
 
     auto& data = graph.device_data([config](render::Context& context) {
         struct {
