@@ -505,27 +505,6 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
         moveInput = forward * -moveInput.y + right * -moveInput.x;
 
-        // player.setUpVector(world::kVectorUp);
-        // player.setRotation(math::quatf::from_axis_angle(world::kVectorUp, 90._deg));
-
-        // player.updateGroundVelocity();
-
-        // float3 verticalVelocity = float3::dot(player.getLinearVelocity(), player.getUpVector()) * player.getUpVector();
-        // float3 groundVelocity = player.getGroundVelocity();
-        // float3 velocity;
-        // if (player.isOnGround()) {
-        //     velocity = groundVelocity;
-        // }
-        // else {
-        //     velocity = verticalVelocity;
-        // }
-
-        // velocity += upQuat * game.getGravity() * dt;
-
-        // velocity += (upQuat * moveInput * dt);
-
-        // // velocity *= 6.f;
-
         if (player.isOnSteepSlope() || player.isNotSupported()) {
             float3 normal = player.getGroundNormal();
             normal.z = 0.f;
