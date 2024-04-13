@@ -6,7 +6,7 @@
 #include "core/vector.hpp"
 #include "core/core.hpp"
 
-#include "object.reflect.h"
+#include "object.meta.h"
 
 namespace sm::game {
     class Object;

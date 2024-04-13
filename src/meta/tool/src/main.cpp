@@ -963,14 +963,14 @@ class HiddenReflectFileSystem final : public vfs::ProxyFileSystem {
     static const uint64_t kUniqueID = 0x12345678;
 
     static bool isReflectHeader(llvm::StringRef Path) {
-        return Path.ends_with(".reflect.h");
+        return Path.ends_with(".meta.h");
     }
 
 public:
     HiddenReflectFileSystem()
         : ProxyFileSystem(vfs::getRealFileSystem())
     {
-        mStat = vfs::Status("stub.reflect.h", sys::fs::UniqueID(0, kUniqueID), std::chrono::system_clock::now(), 0, 0, kReflectHeaderContent.size(), sys::fs::file_type::regular_file, sys::fs::all_read);
+        mStat = vfs::Status("stub.meta.h", sys::fs::UniqueID(0, kUniqueID), std::chrono::system_clock::now(), 0, 0, kReflectHeaderContent.size(), sys::fs::file_type::regular_file, sys::fs::all_read);
     }
 
 

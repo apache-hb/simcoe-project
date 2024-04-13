@@ -4,7 +4,7 @@
 
 #include "game/entity.hpp"
 
-#include "cube.reflect.h"
+#include "cube.meta.h"
 
 namespace sm::project {
     REFLECT()

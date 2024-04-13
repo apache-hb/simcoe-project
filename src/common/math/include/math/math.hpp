@@ -496,9 +496,10 @@ namespace sm::math {
         }
 
         constexpr static Quat from_euler(Rad3 euler) {
-            auto [sr, cr] = math::sincos(euler.roll / 2);
-            auto [sp, cp] = math::sincos(euler.pitch / 2);
-            auto [sy, cy] = math::sincos(euler.yaw / 2);
+            auto [ey, ep, er] = euler.get_radians();
+            auto [sr, cr] = math::sincos(er / 2);
+            auto [sp, cp] = math::sincos(ep / 2);
+            auto [sy, cy] = math::sincos(ey / 2);
 
             T x = cr * sp * cy + sr * cp * sy;
             T y = cr * cp * sy - sr * sp * cy;

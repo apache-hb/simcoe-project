@@ -454,7 +454,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
         {
             auto q = floor.getRotation();
-            floorNodeInfo.transform.rotation = q * math::quatf::from_axis_angle(world::kVectorRight, 90._deg);
+            floorNodeInfo.transform.rotation = q * math::quatf::from_axis_angle(world::kVectorForward, 90._deg);
         }
 
         bodyNodeInfo.transform.rotation = body.getRotation();

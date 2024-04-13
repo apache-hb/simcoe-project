@@ -45,6 +45,6 @@ void IEditorPanel::draw_section() {
 void ed::edit_transform(world::Transform& transform) {
 	auto& [position, rotation, scale] = transform;
 	ImGui::DragFloat3("Translation", position.data(), 0.1f);
-    MyGui::DragAngle3("Rotation", &rotation, 1._deg, -180._deg, 180._deg);
+    // MyGui::DragAngle3("Rotation", &rotation, 1._deg, -180._deg, 180._deg);
 	ImGui::DragFloat3("Scale", scale.data(), 0.1f);
 }

@@ -26,7 +26,7 @@ CameraComponent::CameraComponent(ClassSetup& setup)
 {
     mPosition = 0.f;
     mDirection = world::kVectorForward;
-    mFieldOfView = 90._deg;
+    mFieldOfView = math::degf(90.f).get_degrees();
 }
 
 void CameraComponent::update(float dt) {

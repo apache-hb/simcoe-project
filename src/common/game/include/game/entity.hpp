@@ -98,8 +98,8 @@ namespace sm::game {
         PROPERTY(category = "Camera")
         math::float3 mDirection;
 
-        PROPERTY(category = "Camera", range = { (15_deg).get(), (130_deg).get() })
-        math::degf mFieldOfView;
+        PROPERTY(category = "Camera", range = { 15.f, 140.f })
+        float mFieldOfView;
 
         void update(float dt) override;
 

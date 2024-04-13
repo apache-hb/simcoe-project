@@ -226,7 +226,7 @@ subdir('src/meta')
 
 # extra_args must contain the name of the target, idk how to get it otherwise
 meta_tool = generator(find_program('scripts/meta_tool.py'),
-    output : [ '@BASENAME@.reflect.h', '@BASENAME@.reflect.cpp' ],
+    output : [ '@BASENAME@.meta.h', '@BASENAME@.meta.cpp' ],
     depends : meta_tooling,
     arguments : [
         '--builddir', meson.global_build_root(),
