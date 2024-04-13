@@ -73,7 +73,7 @@ namespace sm::world {
 
     struct Transform {
         float3 position;
-        radf3 rotation; // TODO: use quaternion
+        quatf rotation;
         float3 scale;
 
         float4x4 matrix() const;

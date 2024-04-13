@@ -1,7 +1,6 @@
 #pragma once
 
 #include "meta/meta.hpp"
-#include "meta/class.hpp"
 
 #include "math/math.hpp"
 
@@ -35,7 +34,7 @@ namespace sm::game {
         REFLECT_BODY(Component)
 
     public:
-        Component();
+        Component(ClassSetup& setup);
     };
 
     REFLECT()
@@ -71,13 +70,13 @@ namespace sm::game {
         REFLECT_BODY(PhysicsComponent)
 
     public:
-        PROPERTY(name = "Activate On Create", category = "Physics")
+        PROPERTY(category = "Physics")
         bool mActivateOnCreate;
 
-        PROPERTY(name = "Layer", category = "Physics")
+        PROPERTY(category = "Physics")
         PhysicsLayer mLayer;
 
-        PROPERTY(name = "Type", category = "Physics")
+        PROPERTY(category = "Physics")
         PhysicsType mType;
 
         PhysicsComponent();
@@ -87,11 +86,26 @@ namespace sm::game {
     class CameraComponent : public Component {
         REFLECT_BODY(CameraComponent)
 
-        PROPERTY()
-        world::IndexOf<world::Camera> mCamera;
+        math::degf mLookPitch = math::degf(0);
+        math::degf mLookYaw = math::degf(0);
 
     public:
-        CameraComponent();
+        CameraComponent(ClassSetup& setup);
+
+        PROPERTY(category = "Camera")
+        math::float3 mPosition;
+
+        PROPERTY(category = "Camera")
+        math::float3 mDirection;
+
+        PROPERTY(category = "Camera", range = { (15_deg).get(), (130_deg).get() })
+        math::degf mFieldOfView;
+
+        void update(float dt) override;
+
+        math::float4x4 getModelMatrix() const;
+        math::float4x4 getViewMatrix() const;
+        math::float4x4 getProjectionMatrix(float aspect) const;
     };
 
     REFLECT()

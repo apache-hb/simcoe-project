@@ -85,7 +85,8 @@ void InspectorPanel::inspect(world::IndexOf<world::Node> index) {
     auto [t, r, s] = node.transform;
 
     ImGui::DragFloat3("Position", t.data(), 0.1f);
-    MyGui::DragAngle3("Rotation", &r, 1._deg, 0._deg, 360._deg);
+    ImGui::Text("Rotation: %f.%f.%f (%f)", r.v.x, r.v.y, r.v.z, r.angle);
+    // MyGui::DragAngle3("Rotation", &r, 1._deg, 0._deg, 360._deg);
     ImGui::DragFloat3("Scale", s.data(), 0.1f);
 
     ImGui::SeparatorText("Children");

@@ -3,6 +3,7 @@
 #include "core/string.hpp"
 
 #include "world/mesh.hpp"
+#include "world/world.hpp"
 
 #include "input/input.hpp"
 #include "input/toggle.hpp"
@@ -26,6 +27,7 @@ namespace sm::draw {
         sm::String mName;
         ViewportConfig mConfig;
         render::Viewport mViewport;
+        world::IndexOf<world::Camera> mCameraIndex;
 
         float3 mPosition = {-3.f, 0.f, 0.f};
         float3 mDirection = world::kVectorForward;
@@ -45,6 +47,7 @@ namespace sm::draw {
 
     public:
         Camera(sm::StringView name, const ViewportConfig& config);
+        Camera(world::IndexOf<world::Camera> index, DXGI_FORMAT colour, DXGI_FORMAT depth);
 
         void tick(float dt);
         sm::StringView name() const;

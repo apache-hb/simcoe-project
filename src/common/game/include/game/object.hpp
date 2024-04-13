@@ -3,9 +3,8 @@
 #include "meta/meta.hpp"
 #include "meta/class.hpp"
 
-#include "math/math.hpp"
-
-#include "world/world.hpp"
+#include "core/vector.hpp"
+#include "core/core.hpp"
 
 #include "object.reflect.h"
 

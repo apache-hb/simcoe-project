@@ -533,12 +533,12 @@ namespace sm::math {
         }
 
         constexpr Quat rotated(const Quat& other) const {
-            T t0 = (v.z - v.y)   * (other.v.y - other.v.z);
+            T t0 = (v.z   - v.y) * (other.v.y   - other.v.z);
             T t1 = (angle + v.x) * (other.angle + other.v.x);
-            T t2 = (angle - v.x) * (other.v.y + other.v.z);
-            T t3 = (v.y + v.z)   * (other.angle - other.v.x);
-            T t4 = (v.z - v.x)   * (other.v.x - other.v.y);
-            T t5 = (v.z + v.x)   * (other.v.x + other.v.y);
+            T t2 = (angle - v.x) * (other.v.y   + other.v.z);
+            T t3 = (v.y   + v.z) * (other.angle - other.v.x);
+            T t4 = (v.z   - v.x) * (other.v.x   - other.v.y);
+            T t5 = (v.z   + v.x) * (other.v.x   + other.v.y);
             T t6 = (angle + v.y) * (other.angle - other.v.z);
             T t7 = (angle - v.y) * (other.angle + other.v.z);
             T t8 = t5 + t6 + t7;
@@ -550,6 +550,10 @@ namespace sm::math {
             T angle = t0 + t9 - t5;
 
             return Quat{x, y, z, angle};
+        }
+
+        constexpr Quat operator*(const Quat& other) const {
+            return rotated(other);
         }
 
 #if 0
@@ -931,7 +935,7 @@ namespace sm::math {
         static constexpr Mat4x4 rotation(const Quat& q) {
             // https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/jay.htm
             auto [x, y, z] = q.v;
-            T w = q.angle.get_radians();
+            T w = q.angle;
 
             T xx = x * x;
             T yy = y * y;

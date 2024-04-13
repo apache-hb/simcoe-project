@@ -8,7 +8,7 @@ using namespace sm::world;
 Transform world::default_transform() {
     Transform result = {
         .position = 0.f,
-        .rotation = radf3(0.f),
+        .rotation = quatf::identity(),
         .scale = 1.f
     };
 
@@ -104,8 +104,7 @@ static void subdivide(Mesh& mesh) {
     vertices.clear();
 
     uint32 count = uint32(old_indices.size() / 3);
-    for (uint32 i = 0; i < count; i++)
-    {
+    for (uint32 i = 0; i < count; i++) {
         Vertex v0 = old_vertices[old_indices[i * 3 + 0]];
         Vertex v1 = old_vertices[old_indices[i * 3 + 1]];
         Vertex v2 = old_vertices[old_indices[i * 3 + 2]];
@@ -189,6 +188,44 @@ static Mesh cube(const world::Cube &cube) {
     return builder.build();
 }
 
+static Mesh sphere(const world::Sphere& sphere) {
+    auto [radius, slices, stacks] = sphere;
+    MeshBuilder builder;
+
+    for (int i = 0; i < slices; i++) {
+        float theta0 = float(i) * 2 * 3.14f / float(slices);
+        float theta1 = float(i + 1) * 2 * 3.14f / float(slices);
+        auto [s0, c0] = math::sincos(theta0);
+        auto [s1, c1] = math::sincos(theta1);
+
+        for (int j = 0; j < stacks; ++j) {
+            float phi0 = float(j) * 3.14f / float(stacks);
+            float phi1 = float(j + 1) * 3.14f / float(stacks);
+            auto [sp0, cp0] = math::sincos(phi0);
+            auto [sp1, cp1] = math::sincos(phi1);
+
+            float3 p0 = { radius * cp0 * c0, radius * sp0, radius * cp0 * s0 };
+            float3 p1 = { radius * cp1 * c0, radius * sp1, radius * cp1 * s0 };
+            float3 p2 = { radius * cp0 * c1, radius * sp0, radius * cp0 * s1 };
+            float3 p3 = { radius * cp1 * c1, radius * sp1, radius * cp1 * s1 };
+
+            float2 uv0 = { float(i) / float(slices), float(j) / float(stacks) };
+            float2 uv1 = { float(i + 1) / float(slices), float(j) / float(stacks) };
+            float2 uv2 = { float(i) / float(slices), float(j + 1) / float(stacks) };
+            float2 uv3 = { float(i + 1) / float(slices), float(j + 1) / float(stacks) };
+
+            Vertex v0 = { p0, p0.normalized(), uv0 };
+            Vertex v1 = { p1, p1.normalized(), uv1 };
+            Vertex v2 = { p2, p2.normalized(), uv2 };
+            Vertex v3 = { p3, p3.normalized(), uv3 };
+
+            builder.quad(v0, v1, v3, v2);
+        }
+    }
+
+    return builder.build();
+}
+
 static Mesh cylinder(const world::Cylinder& cylinder) {
     auto [radius, height, slices] = cylinder;
     MeshBuilder builder;
@@ -199,7 +236,7 @@ static Mesh cylinder(const world::Cylinder& cylinder) {
         auto [s0, c0] = math::sincos(theta0);
         auto [s1, c1] = math::sincos(theta1);
 
-        // make top half of the sphere
+        // make top half of the cylinder
         {
             Vertex v0 = {
                 .position = float3(radius * c0, height / 2, radius * s0),
@@ -217,7 +254,7 @@ static Mesh cylinder(const world::Cylinder& cylinder) {
             builder.triangle(v0, v1, v2);
         }
 
-        // make bottom half of the sphere
+        // make bottom half of the cylinder
         {
             Vertex v0 = {
                 .position = float3(radius * c0, -height / 2, radius * s0),
@@ -324,13 +361,13 @@ static Mesh capsule(const world::Capsule& capsule) {
     MeshBuilder builder;
     auto [radius, height, slices, rings] = capsule;
 
-    for (int i = 0; i < slices; ++i) {
+    for (int i = 0; i < slices; i++) {
         float theta0 = float(i) * 2 * 3.14f / float(slices);
         float theta1 = float(i + 1) * 2 * 3.14f / float(slices);
         auto [s0, c0] = math::sincos(theta0);
         auto [s1, c1] = math::sincos(theta1);
 
-        for (int j = 0; j < rings; ++j) {
+        for (int j = 0; j < rings; j++) {
             float phi0 = float(j) * 3.14f / float(rings);
             float phi1 = float(j + 1) * 3.14f / float(rings);
             auto [sp0, cp0] = math::sincos(phi0);
@@ -509,8 +546,7 @@ Mesh world::primitive(const Cube& cube) {
 }
 
 Mesh world::primitive(const Sphere& sphere) {
-    CT_NEVER("Not implemented");
-    //return ::geosphere(sphere);
+    return ::sphere(sphere);
 }
 
 Mesh world::primitive(const Cylinder& cylinder) {

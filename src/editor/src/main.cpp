@@ -340,7 +340,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     ed::Editor editor{context};
 
     world::Cube floorShape = { .width = 10.f, .height = 1.f, .depth = 10.f };
-    world::Cube bodyShape = { .width = 1.f, .height = 1.f, .depth = 1.f };
+    world::Sphere bodyShape = { .radius = 1.f, .slices = 8, .stacks = 8 };
 
     game::PhysicsBody floor = game.addPhysicsBody(floorShape, 0.f, quatf::identity());
     game::PhysicsBody body = game.addPhysicsBody(bodyShape, world::kVectorUp * 5.f, quatf::identity(), true);
@@ -366,7 +366,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
             .name = "Floor",
             .transform = {
                 .position = 0.f,
-                .rotation = quatf::identity().to_euler(),
+                .rotation = quatf::identity(),
                 .scale = 1.f
             },
             .models = { floorModel }
@@ -377,7 +377,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
             .name = "Body",
             .transform = {
                 .position = world::kVectorUp * 5.f,
-                .rotation = quatf::identity().to_euler(),
+                .rotation = quatf::identity(),
                 .scale = 1.f
             },
             .models = { bodyModel }
@@ -454,10 +454,10 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
         {
             auto q = floor.getRotation();
-            floorNodeInfo.transform.rotation = q.rotated(math::quatf::from_axis_angle(world::kVectorRight, 90._deg)).to_euler();
+            floorNodeInfo.transform.rotation = q * math::quatf::from_axis_angle(world::kVectorRight, 90._deg);
         }
 
-        bodyNodeInfo.transform.rotation = body.getRotation().to_euler();
+        bodyNodeInfo.transform.rotation = body.getRotation();
 
         editor.draw();
 
