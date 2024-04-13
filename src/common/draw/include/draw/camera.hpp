@@ -47,7 +47,6 @@ namespace sm::draw {
 
     public:
         Camera(sm::StringView name, const ViewportConfig& config);
-        Camera(world::IndexOf<world::Camera> index, DXGI_FORMAT colour, DXGI_FORMAT depth);
 
         void tick(float dt);
         sm::StringView name() const;
@@ -64,6 +63,9 @@ namespace sm::draw {
         float4x4 projection(float aspect) const;
 
         float4x4 mvp(float aspect, const float4x4& object) const;
+
+        void setPosition(const float3& position) { mPosition = position; }
+        void setDirection(const float3& direction) { mDirection = direction; }
 
         float3 position() const { return mPosition; }
         float3 direction() const { return mDirection; }

@@ -19,12 +19,6 @@ Camera::Camera(sm::StringView name, const ViewportConfig& config)
     , mViewport(config.size)
 { }
 
-Camera::Camera(world::IndexOf<world::Camera> index, DXGI_FORMAT colour, DXGI_FORMAT depth)
-    : mConfig({.size = {1280, 720}, .colour = colour, .depth = depth})
-    , mViewport({1280, 720})
-    , mCameraIndex(index)
-{ }
-
 void Camera::accept(const input::InputState& state, InputService& service) {
     constexpr auto key = input::Button::eTilde;
     if (mCameraActive.update(state.buttons[(size_t)key])) {

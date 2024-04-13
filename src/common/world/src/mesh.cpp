@@ -188,40 +188,57 @@ static Mesh cube(const world::Cube &cube) {
     return builder.build();
 }
 
+// yoink: https://github.com/microsoft/DirectXTK12/blob/main/Src/Geometry.cpp#L147
 static Mesh sphere(const world::Sphere& sphere) {
     auto [radius, slices, stacks] = sphere;
     MeshBuilder builder;
 
-    for (int i = 0; i < slices; i++) {
-        float theta0 = float(i) * 2 * 3.14f / float(slices);
-        float theta1 = float(i + 1) * 2 * 3.14f / float(slices);
-        auto [s0, c0] = math::sincos(theta0);
-        auto [s1, c1] = math::sincos(theta1);
+    int horizontalSegments = slices;
+    int verticalSegments = stacks;
 
-        for (int j = 0; j < stacks; ++j) {
-            float phi0 = float(j) * 3.14f / float(stacks);
-            float phi1 = float(j + 1) * 3.14f / float(stacks);
-            auto [sp0, cp0] = math::sincos(phi0);
-            auto [sp1, cp1] = math::sincos(phi1);
+    // Create rings of vertices at progressively higher latitudes.
+    for (int i = 0; i <= verticalSegments; i++) {
+        const float v = 1 - float(i) / float(verticalSegments);
 
-            float3 p0 = { radius * cp0 * c0, radius * sp0, radius * cp0 * s0 };
-            float3 p1 = { radius * cp1 * c0, radius * sp1, radius * cp1 * s0 };
-            float3 p2 = { radius * cp0 * c1, radius * sp0, radius * cp0 * s1 };
-            float3 p3 = { radius * cp1 * c1, radius * sp1, radius * cp1 * s1 };
+        const float latitude = (float(i) * math::pi() / float(verticalSegments)) - math::pidiv2();
+        auto [dy, dxz] = math::sincos(latitude);
 
-            float2 uv0 = { float(i) / float(slices), float(j) / float(stacks) };
-            float2 uv1 = { float(i + 1) / float(slices), float(j) / float(stacks) };
-            float2 uv2 = { float(i) / float(slices), float(j + 1) / float(stacks) };
-            float2 uv3 = { float(i + 1) / float(slices), float(j + 1) / float(stacks) };
+        // Create a single ring of vertices at this latitude.
+        for (int j = 0; j <= horizontalSegments; j++) {
+            const float u = float(j) / float(horizontalSegments);
 
-            Vertex v0 = { p0, p0.normalized(), uv0 };
-            Vertex v1 = { p1, p1.normalized(), uv1 };
-            Vertex v2 = { p2, p2.normalized(), uv2 };
-            Vertex v3 = { p3, p3.normalized(), uv3 };
+            const float longitude = float(j) * math::pi2() / float(horizontalSegments);
+            auto [dx, dz] = math::sincos(longitude);
 
-            builder.quad(v0, v1, v3, v2);
+            dx *= dxz;
+            dz *= dxz;
+
+            float3 normal = {dx, dy, dz};
+            float2 uv = {u, v};
+            float3 position = normal * radius;
+
+            builder.vertices.push_back({ position, normal, uv });
         }
     }
+
+    // Fill the index buffer with triangles joining each pair of latitude rings.
+    const uint16 stride = horizontalSegments + 1;
+
+    for (int i = 0; i < verticalSegments; i++) {
+        for (int j = 0; j <= horizontalSegments; j++) {
+            const uint16 nextI = i + 1;
+            const uint16 nextJ = (j + 1) % stride;
+
+            builder.indices.push_back(i * stride + j);
+            builder.indices.push_back(nextI * stride + j);
+            builder.indices.push_back(i * stride + nextJ);
+
+            builder.indices.push_back(i * stride + nextJ);
+            builder.indices.push_back(nextI * stride + j);
+            builder.indices.push_back(nextI * stride + nextJ);
+        }
+    }
+
 
     return builder.build();
 }
@@ -512,14 +529,14 @@ static Mesh geosphere(const world::GeoSphere& geosphere) {
 	vertices.push_back({ .position = float3(z, -x, 0) * radius });
 	vertices.push_back({ .position = float3(-z, -x, 0) * radius });
 
-	static constexpr uint16 k[60] = {
+	static constexpr uint16 kIndices[60] = {
 		1,4,0,  4,9,0,  4,5,9,  8,5,4,  1,8,4,
 		1,10,8, 10,3,8, 8,3,5,  3,2,5,  3,7,2,
 		3,10,7, 10,6,7, 6,11,7, 6,0,11, 6,1,0,
 		10,1,6, 11,0,9, 2,11,9, 5,2,9,  11,2,7
 	};
 
-	indices.assign(std::begin(k), std::end(k));
+	indices.assign(std::begin(kIndices), std::end(kIndices));
 
 	builder.indices = indices;
 	builder.vertices = vertices;

@@ -13,6 +13,15 @@ namespace sm::math {
     template<typename T>
     constexpr inline T kDegToRad = kPi<T> / T(180);
 
+    template<typename T = float>
+    consteval T pi() { return kPi<T>; }
+
+    template<typename T = float>
+    consteval T pi2() { return kPi<T> * T(2); }
+
+    template<typename T = float>
+    consteval T pidiv2() { return kPi<T> / T(2); }
+
     template<typename T> struct Radians;
     template<typename T> struct Degrees;
 
