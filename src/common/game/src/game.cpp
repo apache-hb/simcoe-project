@@ -250,7 +250,12 @@ struct game::GameContextImpl {
         objectLayerPairFilter = sm::make_unique<CObjectLayerPairFilter>();
         objectVsBroadPhaseLayerFilter = sm::make_unique<CObjectVsBroadPhaseFilter>();
 
+        JPH::PhysicsSettings settings = {
+            .mTimeBeforeSleep = 5.f,
+        };
+
         physicsSystem = sm::make_unique<JPH::PhysicsSystem>();
+        physicsSystem->SetPhysicsSettings(settings);
         physicsSystem->Init(kMaxBodies, kBodyMutexCount, kMaxBodyPairs, kMaxContactConstraints, broadPhaseLayer.ref(), objectVsBroadPhaseLayerFilter.ref(), objectLayerPairFilter.ref());
 
         bodyActivationListener = sm::make_unique<CBodyActivationListener>();
