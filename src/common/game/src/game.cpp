@@ -16,6 +16,7 @@ static constexpr uint kMaxBodies = 1024;
 static constexpr uint kBodyMutexCount = 0;
 static constexpr uint kMaxBodyPairs = 1024;
 static constexpr uint kMaxContactConstraints = 1024;
+static const uint kPhysicsThreads = std::thread::hardware_concurrency() - 1;
 
 static game::GameContextImpl *gContext = nullptr;
 static constexpr float kTimeStep = 1.0f / 60.0f;
@@ -240,7 +241,7 @@ struct game::GameContextImpl {
     /// jolt physics
     ///
     sm::UniquePtr<JPH::TempAllocatorImpl> physicsAllocator;
-    sm::UniquePtr<JPH::JobSystemThreadPool> physicsThreadPool;
+    sm::UniquePtr<JPH::JobSystemSingleThreaded> physicsThreadPool;
     sm::UniquePtr<JPH::PhysicsSystem> physicsSystem;
 
     sm::UniquePtr<CBroadPhaseLayer> broadPhaseLayer;
@@ -264,7 +265,7 @@ struct game::GameContextImpl {
         JPH::RegisterTypes();
 
         physicsAllocator = sm::make_unique<JPH::TempAllocatorImpl>((16_mb).as_bytes());
-        physicsThreadPool = sm::make_unique<JPH::JobSystemThreadPool>(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, 4);
+        physicsThreadPool = sm::make_unique<JPH::JobSystemSingleThreaded>(0x1000 * 4);
 
         broadPhaseLayer = sm::make_unique<CBroadPhaseLayer>();
         objectLayerPairFilter = sm::make_unique<CObjectLayerPairFilter>();
@@ -429,9 +430,13 @@ void game::Context::tick(float dt) {
     mImpl->debugRenderer->begin_frame(*mImpl->activeCamera);
 
     int steps = 1;
+    if (dt > 0.3f) {
+        dt = 0.3f;
+    }
     if (dt > kTimeStep) {
         steps = std::max(1, int(ceilf(dt / kTimeStep)));
     }
+
 
     if (JPH::EPhysicsUpdateError err = mImpl->physicsSystem->Update(dt, steps, *mImpl->physicsAllocator, *mImpl->physicsThreadPool); err != JPH::EPhysicsUpdateError::None) {
         gPhysicsLog.warn("Physics update error: {}", std::to_underlying(err));

@@ -343,82 +343,192 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     world::Cube floorShape = { .width = 10.f, .height = 1.f, .depth = 10.f };
     world::Sphere bodyShape = { .radius = 1.f, .slices = 8, .stacks = 8 };
 
+    world::Cube wallShape = { .width = 1.f, .height = 3.f, .depth = 1.f };
+
     world::Cylinder playerShape = { .radius = 0.7f, .height = 1.3f, .slices = 8 };
 
     game::PhysicsBody floor = game.addPhysicsBody(floorShape, 0.f, quatf::identity());
     game::PhysicsBody body = game.addPhysicsBody(bodyShape, world::kVectorUp * 5.f, quatf::identity(), true);
-    game::CharacterBody player = game.addCharacterBody(playerShape, float3(0.f, 3.f, 4.f), quatf::identity(), true);
+    game::CharacterBody player = game.addCharacterBody(playerShape, float3(0.f, 5.f, 10.f), quatf::identity(), true);
 
     player.setUpVector(world::kVectorUp);
 
-    IndexOf<world::Node> floorNode;
-    IndexOf<world::Node> bodyNode;
-    IndexOf<world::Node> playerNode;
+    IndexOf<world::Material> groundMaterial = world.add(world::Material {
+        .name = "Ground Material",
+        .albedo = float3(0.5f, 0.5f, 0.5f)
+    });
+
+    IndexOf<world::Material> wallMaterial = world.add(world::Material {
+        .name = "Wall Material",
+        .albedo = float3(0.5f, 0.5f, 0.5f)
+    });
+
+    IndexOf<world::Material> bodyMaterial = world.add(world::Material {
+        .name = "Body Material",
+        .albedo = float3(0.5f, 0.5f, 0.5f)
+    });
+
+    IndexOf<world::Model> floorModel;
+    IndexOf<world::Model> bodyModel;
+    IndexOf<world::Model> playerModel;
+    IndexOf<world::Model> wallModel;
 
     context.upload([&] {
-        IndexOf floorModel = world.add(world::Model {
+        floorModel = world.add(world::Model {
             .name = "Floor Model",
             .mesh = floorShape,
-            .material = world.default_material
+            .material = groundMaterial
         });
 
-        IndexOf bodyModel = world.add(world::Model {
+        bodyModel = world.add(world::Model {
             .name = "Body Model",
             .mesh = bodyShape,
-            .material = world.default_material
+            .material = bodyMaterial
         });
 
-        IndexOf playerModel = world.add(world::Model {
+        playerModel = world.add(world::Model {
             .name = "Player Model",
             .mesh = playerShape,
-            .material = world.default_material
+            .material = bodyMaterial
         });
 
-        floorNode = world.addNode(world::Node {
+        wallModel = world.add(world::Model {
+            .name = "Wall Model",
+            .mesh = wallShape,
+            .material = wallMaterial
+        });
+
+        context.upload_model(floorModel);
+        context.upload_model(bodyModel);
+        context.upload_model(playerModel);
+        context.upload_model(wallModel);
+    });
+
+    IndexOf<world::Node> floorNode = world.addNode(world::Node {
+        .parent = context.get_scene().root,
+        .name = "Floor",
+        .transform = {
+            .position = 0.f,
+            .rotation = quatf::identity(),
+            .scale = 1.f
+        },
+        .models = { floorModel }
+    });
+
+    IndexOf<world::Node> bodyNode = world.addNode(world::Node {
+        .parent = context.get_scene().root,
+        .name = "Body",
+        .transform = {
+            .position = world::kVectorUp * 5.f,
+            .rotation = quatf::identity(),
+            .scale = 1.f
+        },
+        .models = { bodyModel }
+    });
+
+    IndexOf<world::Node> playerNode = world.addNode(world::Node {
+        .parent = context.get_scene().root,
+        .name = "Player",
+        .transform = {
+            .position = float3(0.f, 0.f, 4.f),
+            .rotation = quatf::identity(),
+            .scale = 1.f
+        },
+        .models = { playerModel }
+    });
+
+    for (int i = 0; i < 10; i++) {
+        for (int j = 0; j < 10; j++) {
+            if (i == 0 || i == 9 || j == 0 || j == 9) {
+                float3 pos = float3((i - 5) * 2, (j - 5) * 2, 2.5f);
+                IndexOf wall = world.addNode(world::Node {
+                    .parent = context.get_scene().root,
+                    .name = "Wall",
+                    .transform = {
+                        .position = pos,
+                        .rotation = quatf::identity(),
+                        .scale = 1.f
+                    },
+                    .models = { wallModel }
+                });
+
+                game::PhysicsBody wallBody = game.addPhysicsBody(wallShape, pos, quatf::identity(), false);
+                editor.addPhysicsBody(wall, std::move(wallBody));
+            }
+        }
+    }
+
+    for (int i = 0; i < 10; i++) {
+        float3 pos = float3((i - 5) * 2, 5.f, (float(i * 6.f) / 10) - 2.f);
+        IndexOf wall = world.addNode(world::Node {
             .parent = context.get_scene().root,
-            .name = "Floor",
+            .name = "Wall",
             .transform = {
-                .position = 0.f,
+                .position = pos,
+                .rotation = quatf::identity(),
+                .scale = 1.f
+            },
+            .models = { wallModel }
+        });
+
+        game::PhysicsBody wallBody = game.addPhysicsBody(wallShape, pos, quatf::identity(), false);
+        editor.addPhysicsBody(wall, std::move(wallBody));
+    }
+
+    context.upload([&] {
+        for (int i = 0; i < 64; i++) {
+            float randx = (rand() % 16) - 8;
+            float randy = (rand() % 16) - 8;
+            float z = 6.f;
+
+            float radius = 0.5f + (rand() % 10) / 10.f;
+
+            float3 pos = float3(randx, randy, z);
+            world::Sphere shape = { radius, 5, 5 };
+            IndexOf sphere = world.add(world::Model {
+                .name = "Sphere",
+                .mesh = shape,
+                .material = world.default_material
+            });
+
+            IndexOf it = world.addNode(world::Node {
+                .parent = context.get_scene().root,
+                .name = "Sphere",
+                .transform = {
+                    .position = pos,
+                    .rotation = quatf::identity(),
+                    .scale = 1.f
+                },
+                .models = { sphere }
+            });
+
+            game::PhysicsBody body = game.addPhysicsBody(shape, pos, quatf::identity(), true);
+            editor.addPhysicsBody(it, std::move(body));
+
+            context.upload_model(sphere);
+        }
+    });
+
+    Ticker clock;
+
+    input::Debounce jump{input::Button::eSpace};
+
+    {
+        float3 p = float3(0.f, 20.f, 3.f);
+        IndexOf groundNode = world.addNode(world::Node {
+            .parent = context.get_scene().root,
+            .name = "Ground",
+            .transform = {
+                .position = p,
                 .rotation = quatf::identity(),
                 .scale = 1.f
             },
             .models = { floorModel }
         });
 
-        bodyNode = world.addNode(world::Node {
-            .parent = context.get_scene().root,
-            .name = "Body",
-            .transform = {
-                .position = world::kVectorUp * 5.f,
-                .rotation = quatf::identity(),
-                .scale = 1.f
-            },
-            .models = { bodyModel }
-        });
-
-        playerNode = world.addNode(world::Node {
-            .parent = context.get_scene().root,
-            .name = "Player",
-            .transform = {
-                .position = float3(0.f, 0.f, 4.f),
-                .rotation = quatf::identity(),
-                .scale = 1.f
-            },
-            .models = { playerModel }
-        });
-
-        context.upload_model(floorModel);
-        context.upload_model(bodyModel);
-        context.upload_model(playerModel);
-
-        context.create_node(floorNode);
-        context.create_node(bodyNode);
-        context.create_node(playerNode);
-    });
-
-    Ticker clock;
-
-    input::Debounce jump{input::Button::eSpace};
+        game::PhysicsBody ground = game.addPhysicsBody(floorShape, p, quatf::identity());
+        editor.addPhysicsBody(groundNode, std::move(ground));
+    }
 
     editor.addPhysicsBody(floorNode, std::move(floor));
     editor.addPhysicsBody(bodyNode, std::move(body));

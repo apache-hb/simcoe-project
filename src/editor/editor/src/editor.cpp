@@ -364,6 +364,21 @@ void Editor::importLevel(const fs::path& path) {
     importGltf(path);
     world::World& world = mContext.mWorld;
 
+    // flatten all nodes to be parented to the root
+    world::IndexOf<world::Node> root = mContext.get_scene().root;
+
+    for (world::IndexOf node : world.indices<world::Node>()) {
+        if (node == root)
+            continue;
+
+        world::Transform transform = world::computeNodeTransform(world, node);
+
+        world.moveNode(node, root);
+
+        auto& node_ref = world.get(node);
+        node_ref.transform = transform;
+    }
+
     for (world::IndexOf node : world.indices<world::Node>()) {
         const auto& info = world.get(node);
         bool sphere = info.name.contains("Sphere");

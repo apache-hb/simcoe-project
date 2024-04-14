@@ -23,7 +23,7 @@ float4x4 Transform::matrix() const {
 
 Transform Transform::operator*(const Transform& other) const {
     Transform result = {
-        .position = position + other.position, // TODO: wrong
+        .position = position + rotation * (scale * other.position),
         .rotation = rotation * other.rotation,
         .scale = scale * other.scale
     };

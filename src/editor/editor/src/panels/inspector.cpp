@@ -72,8 +72,17 @@ static void drawItemInspector(Inspector& self, world::IndexOf<world::Material> i
         auto& texture = self.ctx.mImages[material.albedo_texture.image];
         auto srv = self.ctx.mSrvPool.gpu_handle(texture.srv);
         ImGui::Image((ImTextureID)srv.ptr, ImVec2(64, 64));
-    } else {
-        ImGui::TextDisabled("No Albedo Texture");
+    }
+
+    // draw an image selector
+    if (ImGui::BeginCombo("Albedo Texture", "Select Texture")) {
+        for (auto& [index, image] : self.ctx.mImages) {
+            const auto& info = self.ctx.mWorld.get(index);
+            if (ImGui::Selectable(info.name.c_str())) {
+                material.albedo_texture.image = index;
+            }
+        }
+        ImGui::EndCombo();
     }
 
     if (ImGui::BeginDragDropTarget()) {
