@@ -28,10 +28,10 @@ namespace sm::ed {
         RenderConfig mConfig;
         sm::Vector<ViewportPanel> mViewports;
         ScenePanel mScene;
-        InspectorPanel mInspector;
+        Inspector mInspector;
         FeatureSupportPanel mFeatureSupport;
         DebugPanel mDebug;
-        AssetBrowserPanel mAssetBrowser;
+        AssetBrowser mAssetBrowser;
         GraphPanel mGraph;
         PixPanel mPix;
 

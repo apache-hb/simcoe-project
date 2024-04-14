@@ -10,7 +10,7 @@ using namespace sm::ed;
 
 using ReflectImageType = ctu::TypeInfo<ImageFormat>;
 
-static const char *get_index_name(world::IndexType type) {
+static const char *getIndexName(world::IndexType type) {
     switch (type) {
     case world::eNone: return "None";
     case world::eScene: return "Scene";
@@ -27,7 +27,7 @@ static const char *get_index_name(world::IndexType type) {
 }
 
 template<world::IsWorldObject T>
-static void dragdop_source(world::IndexOf<T> index, const char *name, ImGuiDragDropFlags flags = 0) {
+static void makeDragDropSource(world::IndexOf<T> index, const char *name, ImGuiDragDropFlags flags = 0) {
     if (ImGui::BeginDragDropSource(flags)) {
         // typed payload
         ImGui::SetDragDropPayload(name, &index, sizeof(index));
@@ -39,93 +39,139 @@ static void dragdop_source(world::IndexOf<T> index, const char *name, ImGuiDragD
     }
 }
 
-void AssetBrowserPanel::draw_lights() {
-    auto& lights = mContext.mWorld.mLights;
+static void drawAssetGrid(AssetBrowser& self, size_t count, auto&& fn) {
+    ImVec2 avail = ImGui::GetContentRegionAvail();
+    uint columns = (uint)(avail.x / (self.thumbnailSize + self.thumbnailPadding));
+    if (columns < 1) columns = 1;
 
-    draw_grid(lights.size(), [&](size_t i) {
+    for (size_t i = 0; i < count; i++) {
+        ImGui::PushID((int)i);
+        ImGui::BeginGroup();
+        fn(i);
+        ImGui::EndGroup();
+        ImGui::PopID();
+
+        if ((i + 1) % columns != 0) {
+            ImGui::SameLine();
+        }
+    }
+}
+
+template<world::IsWorldObject T>
+static void drawSimpleGrid(AssetBrowser& self, const char *kind, const char *tag, sm::Span<const T> elements) {
+    drawAssetGrid(self, elements.size(), [&](size_t i) {
+        const auto& element = elements[i];
+        const auto& name = element.name;
+        auto idx = world::IndexOf<T>(i);
+
+        if (ImGui::Button(name.c_str(), ImVec2(self.thumbnailSize, self.thumbnailSize))) {
+            self.ctx.selected = idx;
+        }
+
+        makeDragDropSource(idx, tag);
+
+        ImGui::PushTextWrapPos(ImGui::GetCursorPos().x + self.thumbnailSize);
+        ImGui::TextWrapped("%s %s", kind, name.c_str());
+        ImGui::PopTextWrapPos();
+    });
+}
+
+static void drawLightAssets(AssetBrowser& self) {
+    auto& lights = self.ctx.mWorld.mLights;
+
+    drawAssetGrid(self, lights.size(), [&](size_t i) {
         const auto& light = lights[i];
         const auto& name = light.name;
         auto idx = world::IndexOf<world::Light>(i);
 
-        if (ImGui::Button(name.c_str(), ImVec2(mThumbnailSize, mThumbnailSize))) {
-            mContext.selected = idx;
+        if (ImGui::Button(name.c_str(), ImVec2(self.thumbnailSize, self.thumbnailSize))) {
+            self.ctx.selected = idx;
         }
 
-        dragdop_source(idx, "LIGHT");
+        makeDragDropSource(idx, "LIGHT");
 
-        ImGui::PushTextWrapPos(ImGui::GetCursorPos().x + mThumbnailSize);
+        ImGui::PushTextWrapPos(ImGui::GetCursorPos().x + self.thumbnailSize);
         ImGui::TextWrapped("Light %s", name.c_str());
         ImGui::PopTextWrapPos();
     });
 }
 
-void AssetBrowserPanel::draw_models() {
-    auto& models = mContext.mWorld.all<world::Model>();
+static void drawModelAssets(AssetBrowser& self) {
+    auto& models = self.ctx.mWorld.all<world::Model>();
 
-    draw_grid(models.size(), [&](size_t i) {
-        const auto& model = models[i];
-        const auto& name = model.name;
-        auto idx = world::IndexOf<world::Model>(i);
-
-        if (ImGui::Button(name.c_str(), ImVec2(mThumbnailSize, mThumbnailSize))) {
-            mContext.selected = idx;
-        }
-
-        dragdop_source(idx, "MODEL");
-
-        ImGui::PushTextWrapPos(ImGui::GetCursorPos().x + mThumbnailSize);
-        ImGui::TextWrapped("Model %s", name.c_str());
-        ImGui::PopTextWrapPos();
-    });
+    drawSimpleGrid<world::Model>(self, "Model", "MODEL", models);
 }
 
-void AssetBrowserPanel::draw_images() {
-    auto& images = mContext.mWorld.all<world::Image>();
+static void drawImageAssets(AssetBrowser& self) {
+    auto& images = self.ctx.mWorld.all<world::Image>();
 
-    draw_grid(images.size(), [&](size_t i) {
+    drawAssetGrid(self, images.size(), [&](size_t i) {
         const auto& image = images[i];
         const auto& name = image.name;
         auto index = world::IndexOf<world::Image>(i);
-        const auto& handle = mContext.mImages[index];
-        auto gpu = mContext.mSrvPool.gpu_handle(handle.srv);
+        const auto& handle = self.ctx.mImages[index];
+        auto gpu = self.ctx.mSrvPool.gpu_handle(handle.srv);
 
-        if (ImGui::ImageButton(name.c_str(), (ImTextureID)gpu.ptr, ImVec2(mThumbnailSize, mThumbnailSize))) {
-            mContext.selected = index;
+        if (ImGui::ImageButton(name.c_str(), (ImTextureID)gpu.ptr, ImVec2(self.thumbnailSize, self.thumbnailSize))) {
+            self.ctx.selected = index;
         }
 
-        dragdop_source(index, "IMAGE", ImGuiDragDropFlags_SourceAllowNullID);
+        makeDragDropSource(index, "IMAGE", ImGuiDragDropFlags_SourceAllowNullID);
 
-        ImGui::PushTextWrapPos(ImGui::GetCursorPos().x + mThumbnailSize);
+        ImGui::PushTextWrapPos(ImGui::GetCursorPos().x + self.thumbnailSize);
         ImGui::TextWrapped("Image %s", name.c_str());
         ImGui::PopTextWrapPos();
     });
 }
 
-void AssetBrowserPanel::draw_materials() {
-    auto& materials = mContext.mWorld.mMaterials;
+static void drawMaterialAssets(AssetBrowser& self) {
+    auto& materials = self.ctx.mWorld.mMaterials;
+    drawSimpleGrid<world::Material>(self, "Material", "MATERIAL", materials);
+}
 
-    draw_grid(materials.size(), [&](size_t i) {
-        const auto& material = materials[i];
-        const auto& name = material.name;
-        auto idx = world::IndexOf<world::Material>(i);
+static void drawFileAssets(AssetBrowser& self) {
+    auto& files = self.ctx.mWorld.mFiles;
 
-        if (ImGui::Button(name.c_str(), ImVec2(mThumbnailSize, mThumbnailSize))) {
-            mContext.selected = idx;
+    drawAssetGrid(self, files.size(), [&](size_t i) {
+        const auto& file = files[i];
+        const auto& name = file.path;
+        auto idx = world::IndexOf<world::File>(i);
+
+        if (ImGui::Button(name.c_str(), ImVec2(self.thumbnailSize, self.thumbnailSize))) {
+            self.ctx.selected = idx;
         }
 
-        dragdop_source(idx, "MATERIAL");
+        makeDragDropSource(idx, "FILE");
 
-        ImGui::PushTextWrapPos(ImGui::GetCursorPos().x + mThumbnailSize);
-        ImGui::TextWrapped("Material %s", name.c_str());
+        ImGui::PushTextWrapPos(ImGui::GetCursorPos().x + self.thumbnailSize);
+        ImGui::TextWrapped("File %s", name.c_str());
         ImGui::PopTextWrapPos();
     });
 }
 
-void AssetBrowserPanel::draw_content() {
+static void drawBufferAssets(AssetBrowser& self) {
+    auto& buffers = self.ctx.mWorld.mBuffers;
+
+    drawSimpleGrid<world::Buffer>(self, "Buffer", "BUFFER", buffers);
+}
+
+static void drawNodeAssets(AssetBrowser& self) {
+    auto& nodes = self.ctx.mWorld.mNodes;
+
+    drawSimpleGrid<world::Node>(self, "Node", "NODE", nodes);
+}
+
+static void drawCameraAssets(AssetBrowser& self) {
+    auto& cameras = self.ctx.mWorld.mCameras;
+
+    drawSimpleGrid<world::Camera>(self, "Camera", "CAMERA", cameras);
+}
+
+static void drawAssetBrowser(AssetBrowser& self) {
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("Settings")) {
-            ImGui::SliderFloat("Thumbnail Size", &mThumbnailSize, 32.0f, 256.0f);
-            ImGui::SliderFloat("Thumbnail Padding", &mThumbnailPadding, 0.0f, 32.0f);
+            ImGui::SliderFloat("Thumbnail Size", &self.thumbnailSize, 32.0f, 256.0f);
+            ImGui::SliderFloat("Thumbnail Padding", &self.thumbnailPadding, 0.0f, 32.0f);
             ImGui::EndMenu();
         }
         ImGui::EndMenuBar();
@@ -135,8 +181,8 @@ void AssetBrowserPanel::draw_content() {
         ImGui::BeginChild("AssetList", ImVec2(150, 0), ImGuiChildFlags_Border | ImGuiChildFlags_ResizeX);
         for (int i = world::eNone + 1; i < world::eCount; i++)
         {
-            if (ImGui::Selectable(get_index_name((world::IndexType)i), mActiveTab == i))
-                mActiveTab = i;
+            if (ImGui::Selectable(getIndexName((world::IndexType)i), self.activeTab == i))
+                self.activeTab = i;
         }
         ImGui::EndChild();
     }
@@ -146,16 +192,16 @@ void AssetBrowserPanel::draw_content() {
         ImGui::BeginGroup();
         ImGui::BeginChild("AssetView", ImVec2(0, -ImGui::GetFrameHeightWithSpacing()));
 
-        switch (mActiveTab) {
+        switch (self.activeTab) {
         case world::eScene: break;
-        case world::eNode: break;
-        case world::eCamera: break;
-        case world::eModel: draw_models(); break;
-        case world::eFile: break;
-        case world::eLight: draw_lights(); break;
-        case world::eBuffer: break;
-        case world::eMaterial: draw_materials(); break;
-        case world::eImage: draw_images(); break;
+        case world::eNode: drawNodeAssets(self); break;
+        case world::eCamera: drawCameraAssets(self); break;
+        case world::eModel: drawModelAssets(self); break;
+        case world::eFile: drawFileAssets(self); break;
+        case world::eLight: drawLightAssets(self); break;
+        case world::eBuffer: drawBufferAssets(self); break;
+        case world::eMaterial: drawMaterialAssets(self); break;
+        case world::eImage: drawImageAssets(self); break;
         default: break;
         }
 
@@ -164,15 +210,15 @@ void AssetBrowserPanel::draw_content() {
     }
 }
 
-AssetBrowserPanel::AssetBrowserPanel(ed::EditorContext& context)
-    : mContext(context)
+AssetBrowser::AssetBrowser(ed::EditorContext& context)
+    : ctx(context)
 { }
 
-void AssetBrowserPanel::draw_window() {
-    if (!mOpen) return;
+void AssetBrowser::draw_window() {
+    if (!isOpen) return;
 
-    if (ImGui::Begin("Asset Browser", &mOpen, ImGuiWindowFlags_MenuBar)) {
-        draw_content();
+    if (ImGui::Begin("Asset Browser", &isOpen, ImGuiWindowFlags_MenuBar)) {
+        drawAssetBrowser(*this);
     }
     ImGui::End();
 }

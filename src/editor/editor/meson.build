@@ -32,7 +32,7 @@ deps = [
     tracy, stb,
 
     imgui, implot, imguizmo, filebrowser,
-    imnodes,
+    imnodes, imgui_memory_editor,
 
     dependency('directx-tex'),
     dependency('directx-mesh')

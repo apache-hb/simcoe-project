@@ -132,6 +132,9 @@ namespace sm::world {
         BufferView vertices;
         BufferView indices;
 
+        uint32 getVertexCount() const { return vtx_count; }
+        uint32 getIndexCount() const { return idx_count; }
+
         DXGI_FORMAT getIndexBufferFormat() const;
     };
 

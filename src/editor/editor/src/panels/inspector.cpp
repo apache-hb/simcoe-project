@@ -15,8 +15,13 @@ struct overloaded : T... {
     using T::operator()...;
 };
 
-void InspectorPanel::inspect(world::IndexOf<world::Light> index) {
-    auto& light = mContext.mWorld.get(index);
+template<world::IsWorldObject T>
+static void drawItemInspector(Inspector& self, world::IndexOf<T> index) {
+    ImGui::TextUnformatted("Unimplemented :(");
+}
+
+static void drawItemInspector(Inspector& self, world::IndexOf<world::Light> index) {
+    auto& light = self.ctx.mWorld.get(index);
     ImGui::InputText("Name", &light.name);
 
     ImGui::SeparatorText("Properties");
@@ -37,8 +42,8 @@ void InspectorPanel::inspect(world::IndexOf<world::Light> index) {
     }, light.light);
 }
 
-void InspectorPanel::inspect(world::IndexOf<world::Image> index) {
-    auto& image = mContext.mWorld.get(index);
+static void drawItemInspector(Inspector& self, world::IndexOf<world::Image> index) {
+    auto& image = self.ctx.mWorld.get(index);
     ImGui::InputText("Name", &image.name);
 
     ImGui::SeparatorText("Properties");
@@ -51,13 +56,13 @@ void InspectorPanel::inspect(world::IndexOf<world::Image> index) {
     float width = avail.x;
     float height = width / aspect;
 
-    auto& texture = mContext.mImages[index];
-    auto srv = mContext.mSrvPool.gpu_handle(texture.srv);
+    auto& texture = self.ctx.mImages[index];
+    auto srv = self.ctx.mSrvPool.gpu_handle(texture.srv);
     ImGui::Image((ImTextureID)srv.ptr, ImVec2(width, height));
 }
 
-void InspectorPanel::inspect(world::IndexOf<world::Material> index) {
-    auto& material = mContext.mWorld.get(index);
+static void drawItemInspector(Inspector& self, world::IndexOf<world::Material> index) {
+    auto& material = self.ctx.mWorld.get(index);
     ImGui::InputText("Name", &material.name);
 
     ImGui::SeparatorText("Properties");
@@ -73,13 +78,53 @@ void InspectorPanel::inspect(world::IndexOf<world::Material> index) {
     }
 }
 
-void InspectorPanel::inspect(world::IndexOf<world::Model> index) {
-    auto& model = mContext.mWorld.get(index);
-    ImGui::InputText("Name", &model.name);
+static const char *dxgiFormatString(DXGI_FORMAT it) {
+    switch (it) {
+    case DXGI_FORMAT_R16_UINT: return "R16_UINT";
+    case DXGI_FORMAT_R32_UINT: return "R32_UINT";
+
+    default: return "Unknown";
+    }
 }
 
-void InspectorPanel::inspect(world::IndexOf<world::Node> index) {
-    auto& node = mContext.mWorld.get(index);
+static void drawFeature(const char *name, bool enabled) {
+    if (enabled) {
+        ImGui::Text("%s: Enabled", name);
+    } else {
+        ImGui::TextDisabled("%s: Disabled", name);
+    }
+}
+
+static void drawItemInspector(Inspector& self, world::IndexOf<world::Model> index) {
+    auto& model = self.ctx.mWorld.get(index);
+    ImGui::InputText("Name", &model.name);
+
+    if (const world::Object *object = std::get_if<world::Object>(&model.mesh)) {
+        ImGui::Text("Vertex Count: %u", object->getVertexCount());
+        ImGui::Text("Index Count: %u", object->getIndexCount());
+    } else {
+        ImGui::Text("Primitive Mesh");
+    }
+
+    DXGI_FORMAT indexFormat = model.getIndexBufferFormat();
+    ImGui::Text("Index Format: %s", dxgiFormatString(indexFormat));
+
+    world::VertexFlags flags = model.getVertexBufferFlags();
+    if (ImGui::TreeNodeEx("Flags")) {
+        drawFeature("Positions", flags.test(world::VertexFlags::ePositions));
+        drawFeature("Vertex normals", flags.test(world::VertexFlags::eNormals));
+        drawFeature("Texture coordinates", flags.test(world::VertexFlags::eTexCoords));
+        drawFeature("Tangents", flags.test(world::VertexFlags::eTangents));
+
+        ImGui::TreePop();
+    }
+
+    ImGui::SeparatorText("Properties");
+    // TODO: combo to select material + dragdrop target
+}
+
+static void drawItemInspector(Inspector& self, world::IndexOf<world::Node> index) {
+    auto& node = self.ctx.mWorld.get(index);
     ImGui::InputText("Name", &node.name);
 
     auto [t, r, s] = node.transform;
@@ -100,23 +145,58 @@ void InspectorPanel::inspect(world::IndexOf<world::Node> index) {
     }
 }
 
-void InspectorPanel::draw_content() {
-    if (mContext.selected.has_value()) {
+static MemoryEditor& getMemoryEditor(Inspector& self, world::IndexOf<world::Buffer> index) {
+    auto it = self.memoryEditors.find(index);
+    if (it == self.memoryEditors.end()) {
+        auto [it, _] = self.memoryEditors.emplace(index, MemoryEditor());
+        MemoryEditor& editor = it->second;
+        editor.Open = false;
+        return editor;
+    }
+
+    return it->second;
+}
+
+static void drawItemInspector(Inspector& self, world::IndexOf<world::Buffer> index) {
+    auto& buffer = self.ctx.mWorld.get(index);
+    ImGui::InputText("Name", &buffer.name);
+    ImGui::Text("Size: %zu", buffer.data.size());
+
+    if (ImGui::Button("Open Memory Editor")) {
+        auto& editor = getMemoryEditor(self, index);
+        editor.Open = true;
+    }
+
+    ImGui::SeparatorText("Data");
+
+    MemoryEditor& editor = getMemoryEditor(self, index);
+    editor.DrawContents(buffer.data.data(), buffer.data.size());
+}
+
+static void drawInspectorContent(Inspector& self) {
+    if (self.ctx.selected.has_value()) {
         std::visit([&](auto index) {
-            inspect(index);
-        }, mContext.selected.value());
+            drawItemInspector(self, index);
+        }, self.ctx.selected.value());
     }
 }
 
-void InspectorPanel::draw_window() {
-    if (!mOpen) return;
+void Inspector::draw_window() {
+    for (auto& [index, editor] : memoryEditors) {
+        if (!editor.Open) continue;
 
-    if (ImGui::Begin("Inspector", &mOpen)) {
-        draw_content();
+        world::Buffer& info = ctx.mWorld.get(index);
+        editor.DrawWindow(info.name.c_str(), info.data.data(), info.data.size());
+    }
+
+    if (!isOpen) return;
+
+    if (ImGui::Begin("Inspector", &isOpen)) {
+        drawInspectorContent(*this);
     }
     ImGui::End();
 }
 
-InspectorPanel::InspectorPanel(ed::EditorContext &context)
-    : mContext(context)
+Inspector::Inspector(ed::EditorContext &context)
+    : ctx(context)
 { }

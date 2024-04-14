@@ -2,27 +2,17 @@
 
 #include "editor/draw.hpp"
 
+#include "imgui_memory_editor.h"
+
 namespace sm::ed {
-    class InspectorPanel final {
-        ed::EditorContext &mContext;
+    struct Inspector {
+        ed::EditorContext &ctx;
+        bool isOpen = true;
 
-        void draw_content();
+        sm::HashMap<world::IndexOf<world::Buffer>, MemoryEditor> memoryEditors;
 
-        void inspect(world::IndexOf<world::Model> index);
-        void inspect(world::IndexOf<world::Node> index);
-        void inspect(world::IndexOf<world::Material> index);
-        void inspect(world::IndexOf<world::Image> index);
-        void inspect(world::IndexOf<world::Light> index);
+        Inspector(ed::EditorContext &context);
 
-        template<world::IsWorldObject T>
-        void inspect(world::IndexOf<T> index) {
-            ImGui::TextUnformatted("Unimplemented :(");
-        }
-
-    public:
-        InspectorPanel(ed::EditorContext &context);
-
-        bool mOpen = true;
         void draw_window();
     };
 }

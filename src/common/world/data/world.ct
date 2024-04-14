@@ -8,7 +8,8 @@ variant IndexSize {
 [[bitflags]]
 variant VertexFlags {
     default None = 0
-    case Normals = (1 << 0)
-    case TexCoords = (1 << 1)
-    case Tangents = (1 << 2)
+    case Positions = (1 << 0)
+    case Normals = (1 << 1)
+    case TexCoords = (1 << 2)
+    case Tangents = (1 << 3)
 }

@@ -59,8 +59,8 @@ void Editor::draw_mainmenu() {
         if (ImGui::BeginMenu("View")) {
             ImGui::MenuItem("Logger", nullptr, &mLogger.mOpen);
             ImGui::MenuItem("Scene Tree", nullptr, &mScene.mOpen);
-            ImGui::MenuItem("Inspector", nullptr, &mInspector.mOpen);
-            ImGui::MenuItem("Asset Browser", nullptr, &mAssetBrowser.mOpen);
+            ImGui::MenuItem("Inspector", nullptr, &mInspector.isOpen);
+            ImGui::MenuItem("Asset Browser", nullptr, &mAssetBrowser.isOpen);
 
             ImGui::SeparatorText("Debugging");
             ImGui::MenuItem("Debug", nullptr, &mDebug.mOpen);

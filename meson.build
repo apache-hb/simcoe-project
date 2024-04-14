@@ -265,6 +265,7 @@ subdir('src/vendor/implot')
 subdir('src/vendor/imguizmo')
 subdir('src/vendor/imfilebrowser')
 subdir('src/vendor/imnodes')
+subdir('src/vendor/imgui_memory_editor')
 
 subdir('src/common/game')
 

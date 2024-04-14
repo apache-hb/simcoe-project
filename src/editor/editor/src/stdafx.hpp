@@ -31,6 +31,7 @@
 #include "implot.h"
 #include "ImGuizmo.h"
 #include "imfilebrowser.h"
+#include "imgui_memory_editor.h"
 
 #include "logs/logs.hpp"
 
