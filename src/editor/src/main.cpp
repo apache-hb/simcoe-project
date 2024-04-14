@@ -407,9 +407,9 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
             .models = { playerModel }
         });
 
-        context.create_model(floorModel);
-        context.create_model(bodyModel);
-        context.create_model(playerModel);
+        context.upload_model(floorModel);
+        context.upload_model(bodyModel);
+        context.upload_model(playerModel);
 
         context.create_node(floorNode);
         context.create_node(bodyNode);

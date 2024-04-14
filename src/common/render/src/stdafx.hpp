@@ -14,8 +14,6 @@
 
 #include "logs/logs.hpp"
 
-#include "fastgltf/core.hpp"
-
 #include "fmt/std.h"
 
 #include "directx/d3dx12.h"

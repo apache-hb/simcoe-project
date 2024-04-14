@@ -121,8 +121,6 @@ namespace sm::world {
         uint32 vtx_count;
         uint32 idx_count;
 
-        DXGI_FORMAT index_format;
-
         BufferView vertices;
         BufferView indices;
     };
@@ -273,12 +271,7 @@ namespace sm::world {
         void moveNode(IndexOf<Node> node, IndexOf<Node> parent);
         void cloneNode(IndexOf<Node> node, IndexOf<Node> parent);
 
-        IndexOf<Node> addNode(Node&& value) {
-            IndexOf parent = value.parent;
-            IndexOf it = add(std::move(value));
-            get(parent).children.push_back(it);
-            return it;
-        }
+        IndexOf<Node> addNode(Node&& value);
 
         template<IsWorldObject T>
         T *try_get(IndexOf<T> index) {

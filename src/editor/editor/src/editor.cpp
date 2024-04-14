@@ -210,7 +210,7 @@ void Editor::draw_create_popup() {
                         .material = world.default_material
                     });
                     world.get(root).models.push_back(added);
-                    mContext.create_model(added);
+                    mContext.upload_model(added);
                 });
             }
 
@@ -223,7 +223,7 @@ void Editor::draw_create_popup() {
                         .material = world.default_material
                     });
                     world.get(root).models.push_back(added);
-                    mContext.create_model(added);
+                    mContext.upload_model(added);
                 });
             }
 
@@ -236,7 +236,7 @@ void Editor::draw_create_popup() {
                         .material = world.default_material
                     });
                     world.get(root).models.push_back(added);
-                    mContext.create_model(added);
+                    mContext.upload_model(added);
                 });
             }
 
@@ -249,7 +249,7 @@ void Editor::draw_create_popup() {
                         .material = world.default_material
                     });
                     world.get(root).models.push_back(added);
-                    mContext.create_model(added);
+                    mContext.upload_model(added);
                 });
             }
 
@@ -262,7 +262,7 @@ void Editor::draw_create_popup() {
                         .material = world.default_material
                     });
                     world.get(root).models.push_back(added);
-                    mContext.create_model(added);
+                    mContext.upload_model(added);
                 });
             }
 
@@ -275,7 +275,7 @@ void Editor::draw_create_popup() {
                         .material = world.default_material
                     });
                     world.get(root).models.push_back(added);
-                    mContext.create_model(added);
+                    mContext.upload_model(added);
                 });
             }
 
@@ -330,93 +330,22 @@ void Editor::draw_create_popup() {
     }
 }
 
-void Editor::import_dds(const fs::path& path) {
-    DirectX::ScratchImage image;
-    render::Result hr = DirectX::LoadFromDDSFile(path.c_str(), DirectX::DDS_FLAGS_FORCE_RGB, nullptr, image);
-
-    if (hr.failed()) {
-        alert_error(fmt::format("Failed to load DDS image {}", path.string()));
-        return;
-    }
-
-    size_t len = image.GetPixelsSize();
-
-    world::Buffer buffer = {
-        .name = path.filename().string(),
-        .data = std::vector<uint8>(image.GetPixels(), image.GetPixels() + len),
-    };
-
-    auto idx = mContext.mWorld.add(std::move(buffer));
-
-    world::BufferView view = {
-        .source = idx,
-        .offset = 0,
-        .source_size = uint32(len),
-    };
-
-    auto metadata = image.GetMetadata();
-
-    world::Image info = {
-        .name = path.filename().string(),
-        .source = view,
-        .format = metadata.format,
-        .size = { uint(metadata.width), uint(metadata.height) },
-        .mips = uint(metadata.mipLevels),
-    };
-
-    auto img = mContext.mWorld.add(std::move(info));
-
-    mContext.upload([this, img] {
-        mContext.load_image(img);
-    });
-}
-
-void Editor::import_file(const fs::path& path) {
+void Editor::importFile(const fs::path& path) {
     auto ext = path.extension();
     if (ext == ".dds") {
-        import_dds(path);
+        importBlockCompressedImage(path);
         return;
     }
 
-    if (!(ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp")) {
-        alert_error(fmt::format("Unsupported file format {}", ext.string()));
+    if (ext == ".gltf" || ext == ".glb") {
+        importGltf(path);
         return;
     }
 
-    ImageData image = sm::open_image(path);
-    if (!image.is_valid()) {
-        alert_error(fmt::format("Failed to load image {}", path.string()));
+    if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp") {
+        importImage(path);
         return;
     }
-
-    size_t len = image.data.size();
-
-    world::Buffer buffer = {
-        .name = path.filename().string(),
-        .data = std::move(image.data),
-    };
-
-    auto idx = mContext.mWorld.add(std::move(buffer));
-
-    world::BufferView view = {
-        .source = idx,
-        .offset = 0,
-        .source_size = uint32(len),
-    };
-
-    world::Image info = {
-        .name = path.filename().string(),
-        .source = view,
-        .format = DXGI_FORMAT_R8G8B8A8_UNORM,
-        .size = image.size,
-        .mips = 1,
-    };
-
-    auto img = mContext.mWorld.add(std::move(info));
-
-    mContext.upload([this, img] {
-        mContext.load_image(img);
-    });
 }
 
 void Editor::alert_error(std::string message) {
@@ -471,7 +400,7 @@ void Editor::draw() {
 
     if (mImportDialog.HasSelected()) {
         for (const auto &file : mImportDialog.GetMultiSelected()) {
-            import_file(file);
+            importFile(file);
         }
         mImportDialog.ClearSelected();
     }

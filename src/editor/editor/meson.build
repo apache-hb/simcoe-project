@@ -5,6 +5,9 @@ src = [
     'src/mygui.cpp',
     'src/editor.cpp',
 
+    'src/gltf.cpp',
+    'src/image.cpp',
+
     'src/panels/assets.cpp',
     'src/panels/config.cpp',
     'src/panels/debug.cpp',
@@ -21,12 +24,12 @@ src = [
 deps = [
     core, system, logs, threads, imgui, render,
     input, archive, config, draw, game,
-    project,
+    project, fastgltf,
 
     cthulhu.get_variable('backtrace'),
     cthulhu.get_variable('format_core'),
     cthulhu.get_variable('io'),
-    tracy,
+    tracy, stb,
 
     imgui, implot, imguizmo, filebrowser,
     imnodes,

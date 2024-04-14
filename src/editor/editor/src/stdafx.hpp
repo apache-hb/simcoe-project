@@ -41,4 +41,8 @@
 
 #include "render/vendor/microsoft/pix.hpp"
 
+#include "fastgltf/core.hpp"
+
+#include "stb/stb_image.h"
+
 // IWYU pragma: end_exports

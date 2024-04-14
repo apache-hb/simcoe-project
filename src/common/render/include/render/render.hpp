@@ -222,17 +222,19 @@ namespace sm::render {
         sm::HashMap<world::IndexOf<world::Model>, MeshResource> mMeshes;
         sm::HashMap<world::IndexOf<world::Image>, TextureResource> mImages;
 
-        void load_image(world::IndexOf<world::Image> index);
+        void upload_image(world::IndexOf<world::Image> index);
 
-        void load_object(world::IndexOf<world::Model> index, const world::Object& object);
+        void upload_object(world::IndexOf<world::Model> index, const world::Object& object);
         void load_mesh_buffer(world::IndexOf<world::Model> index, const world::Mesh& mesh);
-        void load_buffer_view(world::IndexOf<world::Model> index, const world::BufferView& view);
+        Resource load_buffer_view(world::IndexOf<world::Model> index, const world::BufferView& view);
 
         void create_node(world::IndexOf<world::Node> node);
-        void create_model(world::IndexOf<world::Model> model);
+        void upload_model(world::IndexOf<world::Model> model);
 
         void begin_upload();
         void end_upload();
+
+        sm::Vector<D3D12_RESOURCE_BARRIER> mPendingBarriers;
 
         void upload(auto&& fn) {
             begin_upload();

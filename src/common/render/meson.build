@@ -10,7 +10,7 @@ src = [
 
     'src/blit.cpp',
 
-    'src/gltf.cpp',
+    # 'src/gltf.cpp',
 
     'src/graph/render_pass.cpp',
     'src/graph.cpp',
@@ -25,7 +25,7 @@ deps = [
     world, config,
 
     # other vendors
-    stb, fastgltf, tracy,
+    stb, tracy,
 
     # microsoft
     d3d12, d3dx12, d3d12ma, pix, dstorage,

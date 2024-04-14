@@ -9,6 +9,8 @@ namespace sm::render {
         Object<IDStorageQueue2> mQueue;
         Object<IDStorageStatusArray> mStatusArray;
 
+        bool mHasPendingRequests = false;
+
     public:
         Result init(IDStorageFactory *factory, const DSTORAGE_QUEUE_DESC& desc);
         void reset();
@@ -16,6 +18,8 @@ namespace sm::render {
         void enqueue(const DSTORAGE_REQUEST& request);
         void signal(ID3D12Fence *fence, uint64 value);
         void submit();
+
+        bool has_pending_requests() const { return mHasPendingRequests; }
     };
 
     class CopyStorage {
@@ -29,6 +33,9 @@ namespace sm::render {
 
         void create_queues(ID3D12Device1 *device);
         void destroy_queues();
+
+        StorageQueue& file_queue() { return mFileQueue; }
+        StorageQueue& memory_queue() { return mMemoryQueue; }
 
         Result open(const fs::path& path, IDStorageFile **file);
 

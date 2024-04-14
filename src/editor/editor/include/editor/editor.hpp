@@ -19,6 +19,8 @@ namespace sm::render {
 }
 
 namespace sm::ed {
+    world::IndexOf<world::Image> loadImageInfo(world::World& world, const fs::path& path);
+
     class Editor {
         EditorContext &mContext;
 
@@ -48,9 +50,13 @@ namespace sm::ed {
 
         world::IndexOf<world::Node> get_best_node();
 
-        void import_dds(const fs::path& path);
+        void importGltf(const fs::path& path);
 
-        void import_file(const fs::path& path);
+        void importBlockCompressedImage(const fs::path& path);
+
+        void importImage(const fs::path& path);
+
+        void importFile(const fs::path& path);
 
         void draw_mainmenu();
         void draw_dockspace();

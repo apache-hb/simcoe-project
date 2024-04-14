@@ -10,25 +10,25 @@ namespace sm::meta {
 
     enum class TypeId : uint32_t {
         eInvalid = 0,
-        eClass = 1,
-        eInterface = 2,
-        eEnum = 3,
+        eClass,
+        eInterface,
+        eEnum,
 
-        eInt8 = 4,
-        eInt16 = 5,
-        eInt32 = 6,
-        eInt64 = 7,
+        eInt8,
+        eInt16,
+        eInt32,
+        eInt64,
 
-        eUInt8 = 8,
-        eUInt16 = 9,
-        eUInt32 = 10,
-        eUInt64 = 11,
+        eUInt8,
+        eUInt16,
+        eUInt32,
+        eUInt64,
 
-        eFloat = 12,
-        eDouble = 13,
+        eFloat,
+        eDouble,
 
-        eBool = 14,
-        eString = 15,
+        eBool,
+        eString,
 
         eUserTypeId = 1024,
     };
@@ -64,21 +64,58 @@ namespace sm::meta {
         constexpr void setTypeId(uint32_t id) { mTypeId = id; }
 
     public:
-        constexpr std::string_view qualified() const { return mQualifiedName; }
-        constexpr uint32_t typeId() const { return mTypeId; }
+        constexpr std::string_view getQualifiedName() const { return mQualifiedName; }
+        constexpr uint32_t getTypeId() const { return mTypeId; }
     };
 
     class Method : public NamedDecl {
     public:
     };
 
+    struct PropertyType {
+        enum {
+            eUnknown,
+
+            eBool,
+            eString,
+            eFloat,
+            eDouble,
+
+            eVector2,
+            eVector3,
+            eVector4,
+
+            eQuaternion,
+
+            eClass, // must be an instance of a given class
+            eDerivedClass, // must be an instance of a class derived from a given class
+            eImplements, // must implement a given interface
+
+            eList, // list of a given type
+        } kind;
+
+        union {
+            // eVector2, eVector3, eVector4
+            const PropertyType *vec;
+
+            // eQuaternion
+            const PropertyType *quat;
+
+            // eClass, eDerivedClass, eImplements
+            const Class *cls;
+
+            // eList
+            const PropertyType *list;
+        };
+    };
+
     class Property : public NamedDecl {
-        const TypeInfo& mType;
+        PropertyType mPropertyType;
 
     public:
-        constexpr Property(const TypeInfo& type) : mType(type) { }
+        constexpr Property(PropertyType type) : mPropertyType(type) { }
 
-        constexpr const TypeInfo& getType() const { return mType; }
+        constexpr PropertyType getType() const { return mPropertyType; }
     };
 
     class Interface : public TypeInfo {
@@ -97,7 +134,7 @@ namespace sm::meta {
     };
 
     class Class : public TypeInfo {
-        const Class *mParentClass;
+        const Class *mParentClass = nullptr;
         std::span<const Interface* const> mInterfaces;
 
         std::span<const Method> mMethods;

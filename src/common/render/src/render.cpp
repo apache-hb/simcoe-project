@@ -381,15 +381,17 @@ void Context::upload_buffer_view(RequestBuilder& request, const world::BufferVie
     if (world::IndexOf file = world::get<world::File>(view.source); file != world::kInvalidIndex) {
         request.src(get_storage_file(file), view.offset, view.source_size);
         mStorage.submit_file_copy(request);
-    } else if (world::IndexOf buffer = world::get<world::Buffer>(view.source); buffer != world::kInvalidIndex) {
+    }
+    else if (world::IndexOf buffer = world::get<world::Buffer>(view.source); buffer != world::kInvalidIndex) {
         request.src(get_storage_buffer(buffer) + view.offset, view.source_size);
         mStorage.submit_memory_copy(request);
-    } else {
+    }
+    else {
         CT_NEVER("invalid image source");
     }
 }
 
-void Context::load_image(world::IndexOf<world::Image> index) {
+void Context::upload_image(world::IndexOf<world::Image> index) {
     const auto& image = mWorld.get(index);
 
     Resource data;
@@ -401,32 +403,7 @@ void Context::load_image(world::IndexOf<world::Image> index) {
 
     upload_buffer_view(request, image.source);
 
-    mStorage.signal_file_queue(*mCopyFence, 1);
-    mStorage.signal_memory_queue(*mCopyFence, 2);
-
-    mStorage.flush_queues();
-
-    reset_direct_commands();
-
-    const D3D12_RESOURCE_BARRIER kBarriers[] = {
-        CD3DX12_RESOURCE_BARRIER::Transition(data.get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
-    };
-
-    mCommandList->ResourceBarrier(_countof(kBarriers), kBarriers);
-
-    SM_ASSERT_HR(mCommandList->Close());
-
-    ID3D12CommandList *lists[] = { mCommandList.get() };
-    mDirectQueue->Wait(*mCopyFence, 2);
-    mDirectQueue->ExecuteCommandLists(1, lists);
-
-    mDirectQueue->Signal(*mCopyFence, 3);
-
-    uint64 completed = mCopyFence->GetCompletedValue();
-    if (completed < 3) {
-        mCopyFence->SetEventOnCompletion(3, mCopyFenceEvent);
-        WaitForSingleObject(mCopyFenceEvent, INFINITE);
-    }
+    mPendingBarriers.emplace_back(CD3DX12_RESOURCE_BARRIER::Transition(data.get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST));
 
     SrvIndex srv = mSrvPool.allocate();
     auto cpu = mSrvPool.cpu_handle(srv);
@@ -512,18 +489,96 @@ void Context::load_mesh_buffer(world::IndexOf<world::Model> index, const world::
     mMeshes.emplace(index, std::move(resource));
 }
 
-void Context::load_buffer_view(world::IndexOf<world::Model> index, const world::BufferView& view) {
+static Resource load_file_region(
+    render::Context& self,
+    world::IndexOf<world::File> file,
+    uint64 offset,
+    uint32 size)
+{
+    Resource resource;
+    auto desc = CD3DX12_RESOURCE_DESC::Buffer(size);
+    SM_ASSERT_HR(self.create_resource(resource, D3D12_HEAP_TYPE_DEFAULT, desc, D3D12_RESOURCE_STATE_COPY_DEST));
 
+    IDStorageFile *storage = self.get_storage_file(file);
+
+    DSTORAGE_REQUEST request = render::RequestBuilder()
+        .src(storage, offset, size)
+        .dst(resource.get(), 0, size)
+        .name("Load File Region");
+
+    self.mStorage.submit_file_copy(request);
+
+    return resource;
 }
 
-void Context::load_object(world::IndexOf<world::Model> index, const world::Object& object) {
+static Resource load_buffer_region(
+    render::Context& self,
+    world::IndexOf<world::Buffer> buffer,
+    uint64 offset,
+    uint32 size)
+{
+    Resource resource;
+    auto desc = CD3DX12_RESOURCE_DESC::Buffer(size);
+    SM_ASSERT_HR(self.create_resource(resource, D3D12_HEAP_TYPE_DEFAULT, desc, D3D12_RESOURCE_STATE_COPY_DEST));
 
+    const uint8 *data = self.get_storage_buffer(buffer) + offset;
+
+    DSTORAGE_REQUEST request = render::RequestBuilder()
+        .src(data, size)
+        .dst(resource.get(), 0, size)
+        .name("Load Buffer Region");
+
+    self.mStorage.submit_memory_copy(request);
+
+    return resource;
+}
+
+Resource Context::load_buffer_view(world::IndexOf<world::Model> index, const world::BufferView& view) {
+    if (world::IndexOf file = world::get<world::File>(view.source); file != world::kInvalidIndex) {
+        return load_file_region(*this, file, view.offset, view.source_size);
+    } else if (world::IndexOf buffer = world::get<world::Buffer>(view.source); buffer != world::kInvalidIndex) {
+        return load_buffer_region(*this, buffer, view.offset, view.source_size);
+    }
+
+    CT_NEVER("invalid buffer source");
+}
+
+void Context::upload_object(world::IndexOf<world::Model> index, const world::Object& object) {
+    Resource vbo = load_buffer_view(index, object.vertices);
+    Resource ibo = load_buffer_view(index, object.indices);
+
+    mPendingBarriers.emplace_back(CD3DX12_RESOURCE_BARRIER::Transition(vbo.get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+    mPendingBarriers.emplace_back(CD3DX12_RESOURCE_BARRIER::Transition(ibo.get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER));
+
+    D3D12_VERTEX_BUFFER_VIEW vbo_view = {
+        .BufferLocation = vbo.get_gpu_address(),
+        .SizeInBytes = static_cast<uint>(object.vtx_count * sizeof(world::Vertex)),
+        .StrideInBytes = sizeof(world::Vertex),
+    };
+
+    D3D12_INDEX_BUFFER_VIEW ibo_view = {
+        .BufferLocation = ibo.get_gpu_address(),
+        .SizeInBytes = static_cast<uint>(object.idx_count * sizeof(uint16)),
+        .Format = DXGI_FORMAT_R16_UINT,
+    };
+
+    MeshResource resource = {
+        .vbo = std::move(vbo),
+        .vbo_view = vbo_view,
+
+        .ibo = std::move(ibo),
+        .ibo_view = ibo_view,
+
+        .index_count = object.idx_count,
+    };
+
+    mMeshes.emplace(index, std::move(resource));
 }
 
 void Context::create_node(world::IndexOf<world::Node> node) {
     const auto& info = mWorld.get(node);
     for (auto model : info.models) {
-        create_model(model);
+        upload_model(model);
     }
 
     for (auto child : info.children) {
@@ -531,21 +586,27 @@ void Context::create_node(world::IndexOf<world::Node> node) {
     }
 }
 
-void Context::create_model(world::IndexOf<world::Model> model) {
+template<typename... T>
+struct overloaded : T... {
+    using T::operator()...;
+};
+
+void Context::upload_model(world::IndexOf<world::Model> model) {
     if (mMeshes.contains(model)) return;
 
     const auto& info = mWorld.get(model);
 
     if (const auto *object = std::get_if<world::Object>(&info.mesh)) {
         // this is a mesh loaded from a buffer or file
-        load_object(model, *object);
+        upload_object(model, *object);
     } else {
         // this is a primitive mesh
         auto mesh = std::visit([&](auto&& arg) -> world::Mesh {
-            if constexpr (!std::is_same_v<std::decay_t<decltype(arg)>, world::Object>)
+            if constexpr (!std::is_same_v<std::decay_t<decltype(arg)>, world::Object>) {
                 return world::primitive(arg);
-            else
+            } else {
                 CT_NEVER("invalid mesh type");
+            }
         }, info.mesh);
 
         load_mesh_buffer(model, mesh);
@@ -553,21 +614,65 @@ void Context::create_model(world::IndexOf<world::Model> model) {
 }
 
 void Context::begin_upload() {
+    logs::gRender.info("beginning upload");
     wait_for_gpu();
+    mPendingBarriers.clear();
+    logs::gRender.info("upload begun");
 }
 
 void Context::end_upload() {
-    // TODO: empty for now
+    logs::gRender.info("ending upload");
+    StorageQueue& files = mStorage.file_queue();
+    StorageQueue& memory = mStorage.memory_queue();
+
+    uint64 value = 1;
+
+    if (files.has_pending_requests()) {
+        files.signal(*mCopyFence, value);
+        files.submit();
+        value += 1;
+    }
+
+    if (memory.has_pending_requests()) {
+        memory.signal(*mCopyFence, value);
+        memory.submit();
+        value += 1;
+    }
+
+    reset_direct_commands();
+
+    mCommandList->ResourceBarrier(sm::int_cast<uint>(mPendingBarriers.size()), mPendingBarriers.data());
+
+    SM_ASSERT_HR(mCommandList->Close());
+
+    ID3D12CommandList *lists[] = { mCommandList.get() };
+    mDirectQueue->Wait(*mCopyFence, value++);
+    mDirectQueue->ExecuteCommandLists(1, lists);
+
+    mDirectQueue->Signal(*mCopyFence, value);
+
+    logs::gRender.info("upload ended");
+
+    uint64 completed = mCopyFence->GetCompletedValue();
+
+    logs::gRender.info("waiting for fence completion {}", completed);
+    if (completed < value) {
+        mCopyFence->SetEventOnCompletion(value, mCopyFenceEvent);
+        WaitForSingleObject(mCopyFenceEvent, INFINITE);
+    }
+    logs::gRender.info("fence completed");
 }
 
 void Context::create_scene() {
-    for (world::IndexOf i : mWorld.indices<world::Model>()) {
-        create_model(i);
-    }
+    upload([&] {
+        for (world::IndexOf i : mWorld.indices<world::Model>()) {
+            upload_model(i);
+        }
 
-    for (world::IndexOf i : mWorld.indices<world::Image>()) {
-        load_image(i);
-    }
+        for (world::IndexOf i : mWorld.indices<world::Image>()) {
+            upload_image(i);
+        }
+    });
 
     create_lights();
 }

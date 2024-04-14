@@ -94,6 +94,13 @@ void World::cloneNode(IndexOf<Node> node, IndexOf<Node> parent) {
     parent_ref.children.push_back(cloned);
 }
 
+IndexOf<Node> World::addNode(Node&& value) {
+    IndexOf parent = value.parent;
+    IndexOf it = add(std::move(value));
+    get(parent).children.push_back(it);
+    return it;
+}
+
 World world::default_world(sm::String name) {
     World world = {
         .name = std::move(name)

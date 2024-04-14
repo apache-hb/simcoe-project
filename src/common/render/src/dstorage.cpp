@@ -22,14 +22,17 @@ void StorageQueue::reset() {
 
 void StorageQueue::enqueue(const DSTORAGE_REQUEST& request) {
     mQueue->EnqueueRequest(&request);
+    mHasPendingRequests = true;
 }
 
 void StorageQueue::signal(ID3D12Fence *fence, uint64 value) {
+    CTASSERTF(mHasPendingRequests, "Cannot enqueue a signal with no pending requests");
     mQueue->EnqueueSignal(fence, value);
 }
 
 void StorageQueue::submit() {
     mQueue->Submit();
+    mHasPendingRequests = false;
 }
 
 static constexpr UINT32 get_dstorage_flags(DebugFlags flags) {
