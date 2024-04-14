@@ -94,9 +94,12 @@ void Editor::importGltf(const fs::path& path) {
         info.albedo = material.pbrData.baseColorFactor.data();
         if (material.pbrData.baseColorTexture.has_value()) {
             const fg::TextureInfo& texInfo = material.pbrData.baseColorTexture.value();
-            info.albedo_texture = world::Texture {
-                .image = imageMap.at(texInfo.textureIndex)
-            };
+            const fg::Texture& texture = asset.textures[texInfo.textureIndex];
+            if (texture.imageIndex.has_value()) {
+                info.albedo_texture = world::Texture {
+                    .image = imageMap.at(texture.imageIndex.value())
+                };
+            }
         }
 
         materialMap.emplace(index, mContext.mWorld.add(std::move(info)));
@@ -182,6 +185,11 @@ void Editor::importGltf(const fs::path& path) {
 
         uint32 vtxCount = static_cast<uint32>(vertices.size());
         uint32 idxCount = static_cast<uint32>(indices.size());
+
+        // rewind the indices
+        for (size_t i = 0; i < idxCount; i += 3) {
+            std::swap(indices[i], indices[i + 2]);
+        }
 
         world::IndexOf buffer = mContext.mWorld.add(world::Buffer {
             .name = fmt::format("{}.buffer", name),
