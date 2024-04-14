@@ -209,7 +209,7 @@ void ViewportPanel::draw_content() {
         ImGuizmo::DecomposeMatrixToComponents(matrix, t.data(), r.data(), s.data());
 
         // convert back to our euler order
-        auto rot = float3(r.y, r.z, r.x);
+        auto rot = float3(r.z, r.x, r.y);
         math::quatf q = math::quatf::from_euler(degf3(rot));
 
         item.transform = { t, q, s };
