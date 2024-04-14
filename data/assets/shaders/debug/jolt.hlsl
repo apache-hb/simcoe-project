@@ -17,5 +17,5 @@ Input vs_main(float3 position : POSITION, float3 colour : COLOUR) {
 }
 
 float4 ps_main(Input input) : SV_TARGET {
-    return float4(input.colour, 0.5f);
+    return float4(input.colour, 0.4f);
 }

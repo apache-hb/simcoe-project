@@ -140,17 +140,32 @@ struct DebugVertex {
 struct CDebugRenderer final : public JPH::DebugRendererSimple {
     using Super = JPH::DebugRendererSimple;
 
-    sm::Vector<DebugVertex> mVertices;
+    sm::Vector<DebugVertex> mLines;
+
+    sm::Vector<DebugVertex> mTriangles;
 
     void DrawLine(JPH::RVec3Arg inFrom, JPH::RVec3Arg inTo, JPH::ColorArg inColor) override {
         float3 from = from_jph(inFrom);
         float3 to = from_jph(inTo);
         float3 colour = math::unpack_colour(inColor.GetUInt32()).xyz();
 
-        mVertices.push_back({ from, colour });
-        mVertices.push_back({ to, colour });
+        mLines.push_back({ from, colour });
+        mLines.push_back({ to, colour });
 
         // gPhysicsLog.info("DrawLine: {} -> {}", from, to);
+    }
+
+    void DrawTriangle(JPH::RVec3Arg inV1, JPH::RVec3Arg inV2, JPH::RVec3Arg inV3, JPH::ColorArg inColor, ECastShadow inCastShadow) override {
+        float3 v1 = from_jph(inV1);
+        float3 v2 = from_jph(inV2);
+        float3 v3 = from_jph(inV3);
+        float3 colour = math::unpack_colour(inColor.GetUInt32()).xyz();
+
+        mTriangles.push_back({ v1, colour });
+        mTriangles.push_back({ v2, colour });
+        mTriangles.push_back({ v3, colour });
+
+        // gPhysicsLog.info("DrawTriangle: {} -> {} -> {}", v1, v2, v3);
     }
 
     void DrawText3D(JPH::RVec3Arg inPosition, const std::string_view& inString, JPH::ColorArg inColor, float inHeight) override {
@@ -158,7 +173,8 @@ struct CDebugRenderer final : public JPH::DebugRendererSimple {
     }
 
     void begin_frame(const draw::Camera& camera) {
-        mVertices.clear();
+        mLines.clear();
+        mTriangles.clear();
 
         Super::SetCameraPos(to_jph(camera.position()));
     }
@@ -394,7 +410,7 @@ void game::Context::debugDrawPhysicsBody(const PhysicsBody& body) {
     const JPH::Body *object = body.getImpl()->body;
     const JPH::Shape *shape = object->GetShape();
 
-    shape->Draw(*mImpl->debugRenderer, object->GetCenterOfMassTransform(), JPH::Vec3::sReplicate(1.0f), JPH::Color::sGreen, false, true);
+    shape->Draw(*mImpl->debugRenderer, object->GetCenterOfMassTransform(), JPH::Vec3::sReplicate(1.0f), JPH::Color::sGreen, false, false);
 }
 
 void game::Context::addClass(const meta::Class& cls) {
@@ -555,7 +571,7 @@ static const D3D12_ROOT_SIGNATURE_FLAGS kPrimitiveRootFlags
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
 
-static void create_debug_pipeline(render::Pipeline& pipeline, const draw::ViewportConfig& config, render::Context& context) {
+static void create_debug_line_pipeline(render::Pipeline& pipeline, const draw::ViewportConfig& config, render::Context& context) {
     {
         // mvp matrix
         CD3DX12_ROOT_PARAMETER1 params[1];
@@ -576,7 +592,7 @@ static void create_debug_pipeline(render::Pipeline& pipeline, const draw::Viewpo
             { "COLOUR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(DebugVertex, colour), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         };
 
-        const D3D12_GRAPHICS_PIPELINE_STATE_DESC kDesc = {
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {
             .pRootSignature = pipeline.signature.get(),
             .VS = CD3DX12_SHADER_BYTECODE(vs.data(), vs.size()),
             .PS = CD3DX12_SHADER_BYTECODE(ps.data(), ps.size()),
@@ -592,9 +608,56 @@ static void create_debug_pipeline(render::Pipeline& pipeline, const draw::Viewpo
             .SampleDesc = { 1, 0 },
         };
 
+        desc.DepthStencilState.DepthEnable = FALSE;
+
         auto& device = context.mDevice;
 
-        SM_ASSERT_HR(device->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&pipeline.pso)));
+        SM_ASSERT_HR(device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pipeline.pso)));
+    }
+}
+
+static void create_debug_triangle_pipeline(render::Pipeline& pipeline, const draw::ViewportConfig& config, render::Context& context) {
+    {
+        // mvp matrix
+        CD3DX12_ROOT_PARAMETER1 params[1];
+        params[0].InitAsConstants(16, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+
+        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
+        desc.Init_1_1(1, params, 0, nullptr, kPrimitiveRootFlags);
+
+        context.serialize_root_signature(pipeline.signature, desc);
+    }
+
+    {
+        auto ps = context.mConfig.bundle.get_shader_bytecode("jolt_debug.ps");
+        auto vs = context.mConfig.bundle.get_shader_bytecode("jolt_debug.vs");
+
+        constexpr D3D12_INPUT_ELEMENT_DESC kInputElements[] = {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(DebugVertex, position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "COLOUR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(DebugVertex, colour), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        };
+
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {
+            .pRootSignature = pipeline.signature.get(),
+            .VS = CD3DX12_SHADER_BYTECODE(vs.data(), vs.size()),
+            .PS = CD3DX12_SHADER_BYTECODE(ps.data(), ps.size()),
+            .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
+            .SampleMask = UINT_MAX,
+            .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
+            .DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT),
+            .InputLayout = { kInputElements, _countof(kInputElements) },
+            .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+            .NumRenderTargets = 1,
+            .RTVFormats = { config.colour },
+            .DSVFormat = config.depth,
+            .SampleDesc = { 1, 0 },
+        };
+
+        desc.DepthStencilState.DepthEnable = FALSE;
+
+        auto& device = context.mDevice;
+
+        SM_ASSERT_HR(device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pipeline.pso)));
     }
 }
 
@@ -618,14 +681,18 @@ void game::physics_debug(
 
     auto& data = graph.device_data([config](render::Context& context) {
         struct {
-            render::Pipeline pipeline;
+            render::Pipeline lines;
+            render::Pipeline triangles;
 
-            render::VertexBuffer<DebugVertex> vbo;
+            render::VertexBuffer<DebugVertex> lineBuffer;
+            render::VertexBuffer<DebugVertex> triangleBuffer;
         } info;
 
-        create_debug_pipeline(info.pipeline, config, context);
+        create_debug_line_pipeline(info.lines, config, context);
+        create_debug_triangle_pipeline(info.triangles, config, context);
 
-        info.vbo = context.vertex_upload_buffer<DebugVertex>(0x1000uz * 8);
+        info.lineBuffer = context.vertex_upload_buffer<DebugVertex>(0x1000uz * 8);
+        info.triangleBuffer = context.vertex_upload_buffer<DebugVertex>(0x1000uz * 8);
 
         return info;
     });
@@ -640,32 +707,53 @@ void game::physics_debug(
         auto rtv = ctx.graph.rtv(target);
         auto rtv_cpu = context.mRtvPool.cpu_handle(rtv);
 
-        auto& debug = static_cast<CDebugRenderer&>(*JPH::DebugRenderer::sInstance);
-        if (debug.mVertices.empty())
-            return;
-
-        cmd->SetGraphicsRootSignature(*data.pipeline.signature);
-        cmd->SetPipelineState(*data.pipeline.pso);
-
         auto vp = camera.viewport();
         const auto& config = camera.config();
         float4x4 mvp = camera.mvp(config.aspect_ratio(), float4x4::identity()).transpose();
 
-        cmd->RSSetViewports(1, &vp.mViewport);
-        cmd->RSSetScissorRects(1, &vp.mScissorRect);
+        auto& debug = static_cast<CDebugRenderer&>(*JPH::DebugRenderer::sInstance);
+        if (!debug.mLines.empty()) {
+            cmd->SetGraphicsRootSignature(*data.lines.signature);
+            cmd->SetPipelineState(*data.lines.pso);
 
-        cmd->OMSetRenderTargets(1, &rtv_cpu, false, &dsv_cpu);
+            cmd->RSSetViewports(1, &vp.mViewport);
+            cmd->RSSetScissorRects(1, &vp.mScissorRect);
 
-        cmd->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
+            cmd->OMSetRenderTargets(1, &rtv_cpu, false, &dsv_cpu);
 
-        cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+            cmd->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
 
-        data.vbo.update(debug.mVertices);
+            cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
 
-        D3D12_VERTEX_BUFFER_VIEW vbv = data.vbo.get_view();
+            data.lineBuffer.update(debug.mLines);
 
-        cmd->IASetVertexBuffers(0, 1, &vbv);
+            D3D12_VERTEX_BUFFER_VIEW vbv = data.lineBuffer.get_view();
 
-        cmd->DrawInstanced(debug.mVertices.size(), 1, 0, 0);
+            cmd->IASetVertexBuffers(0, 1, &vbv);
+
+            cmd->DrawInstanced(debug.mLines.size(), 1, 0, 0);
+        }
+
+        if (!debug.mTriangles.empty()) {
+            cmd->SetGraphicsRootSignature(*data.triangles.signature);
+            cmd->SetPipelineState(*data.triangles.pso);
+
+            cmd->RSSetViewports(1, &vp.mViewport);
+            cmd->RSSetScissorRects(1, &vp.mScissorRect);
+
+            cmd->OMSetRenderTargets(1, &rtv_cpu, false, &dsv_cpu);
+
+            cmd->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
+
+            cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+            data.triangleBuffer.update(debug.mTriangles);
+
+            D3D12_VERTEX_BUFFER_VIEW vbv = data.triangleBuffer.get_view();
+
+            cmd->IASetVertexBuffers(0, 1, &vbv);
+
+            cmd->DrawInstanced(debug.mTriangles.size(), 1, 0, 0);
+        }
     });
 }

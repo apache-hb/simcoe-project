@@ -145,14 +145,14 @@ void PhysicsDebug::createPhysicsBody(world::IndexOf<world::Node> index, bool sph
     if (sphere) {
         auto r = bounds.getExtents().length() / 2.0f;
         world::Sphere sphere = { r, 5, 5 };
-        game::PhysicsBody body = ctx.addPhysicsBody(sphere, transform.position + bounds.getCenter(), quatf::identity(), dynamic);
+        game::PhysicsBody body = ctx.addPhysicsBody(sphere, transform.position + bounds.getCenter(), transform.rotation, dynamic);
 
         addPhysicsBody(index, std::move(body));
     }
     else {
         auto [w, h, d] = bounds.getExtents();
         world::Cube cube = { w, h, d };
-        game::PhysicsBody body = ctx.addPhysicsBody(cube, transform.position + bounds.getCenter(), quatf::identity(), dynamic);
+        game::PhysicsBody body = ctx.addPhysicsBody(cube, transform.position + bounds.getCenter(), transform.rotation, dynamic);
 
         addPhysicsBody(index, std::move(body));
     }
