@@ -65,6 +65,9 @@ namespace sm::game {
         eCount
     };
 
+    const char *getPhysicsLayerName(PhysicsLayer layer);
+    const char *getPhysicsTypeName(PhysicsType type);
+
     REFLECT()
     class PhysicsComponent : public Component {
         REFLECT_BODY(PhysicsComponent)

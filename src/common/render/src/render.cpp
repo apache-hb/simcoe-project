@@ -513,6 +513,7 @@ void Context::upload_object(world::IndexOf<world::Model> index, const world::Obj
         .ibo_view = ibo_view,
 
         .index_count = object.idx_count,
+        .bounds = world::computeObjectBounds(mWorld, object),
     };
 
     mMeshes.emplace(index, std::move(resource));
@@ -553,6 +554,8 @@ void Context::upload_model(world::IndexOf<world::Model> model) {
         }, info.mesh);
 
         load_mesh_buffer(model, mesh);
+
+        mMeshes[model].bounds = mesh.bounds;
     }
 }
 

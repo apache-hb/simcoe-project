@@ -7,6 +7,30 @@ using namespace sm::game;
 
 using namespace sm::math;
 
+const char *game::getPhysicsLayerName(PhysicsLayer layer) {
+    switch (layer) {
+    case PhysicsLayer::eStatic:
+        return "Static";
+    case PhysicsLayer::eDynamic:
+        return "Dynamic";
+    default:
+        return "Unknown";
+    }
+}
+
+const char *game::getPhysicsTypeName(PhysicsType type) {
+    switch (type) {
+    case PhysicsType::eStatic:
+        return "Static";
+    case PhysicsType::eKinematic:
+        return "Kinematic";
+    case PhysicsType::eDynamic:
+        return "Dynamic";
+    default:
+        return "Unknown";
+    }
+}
+
 Entity::Entity(ClassSetup& setup)
     : Object(setup)
 {

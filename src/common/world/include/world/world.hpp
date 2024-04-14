@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/span.hpp"
 #include "core/units.hpp"
 #include "core/variant.hpp"
 #include "core/string.hpp"
@@ -77,6 +78,11 @@ namespace sm::world {
 
         sm::String name;
         sm::Vector<uint8> data;
+
+        template<typename T> requires (std::is_trivial_v<T>)
+        sm::Span<const T> view(uint64 offset, uint32 count) const {
+            return sm::Span<const T>(reinterpret_cast<const T*>(data.data() + offset), count);
+        }
     };
 
     struct BufferView {
@@ -342,6 +348,10 @@ namespace sm::world {
         sm::Vector<Image> mImages;
         // sm::Vector<Texture> mTextures;
     };
+
+    BoxBounds computeObjectBounds(world::World& world, const Object& object);
+
+    Transform computeNodeTransform(world::World& world, IndexOf<Node> node);
 
     World default_world(sm::String name);
 

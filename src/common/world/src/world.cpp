@@ -5,6 +5,28 @@
 using namespace sm;
 using namespace sm::world;
 
+BoxBounds world::computeObjectBounds(world::World& world, const Object& object) {
+    BoxBounds bounds = { .min = FLT_MAX, .max = -FLT_MAX };
+
+    auto buffer = world.get(world::get<Buffer>(object.vertices.source));
+
+    for (const Vertex& vertex : buffer.view<Vertex>(object.vertices.offset, object.vertices.source_size / sizeof(Vertex))) {
+        bounds.min = math::min(bounds.min, vertex.position);
+        bounds.max = math::max(bounds.max, vertex.position);
+    }
+
+    return bounds;
+}
+
+Transform world::computeNodeTransform(world::World& world, IndexOf<Node> node) {
+    const Node& info = world.get(node);
+    if (info.parent == kInvalidIndex) {
+        return info.transform;
+    }
+
+    return computeNodeTransform(world, info.parent) * info.transform;
+}
+
 DXGI_FORMAT Object::getIndexBufferFormat() const {
     return (indexBufferFormat == IndexSize::eShort)
         ? DXGI_FORMAT_R16_UINT

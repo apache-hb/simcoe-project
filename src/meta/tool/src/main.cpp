@@ -765,6 +765,8 @@ struct PrettyPrint {
 class CmdAfterConsumer : public ASTConsumer {
     clang::DiagnosticsEngine &mDiag;
 
+    // TODO: split these into sections and concatenate at the end
+
     std::ofstream mHeaderOutStream;
     std::ofstream mSourceOutStream;
 

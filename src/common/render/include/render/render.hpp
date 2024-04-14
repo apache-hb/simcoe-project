@@ -87,6 +87,9 @@ namespace sm::render {
         IndexBufferView ibo_view;
 
         uint32 index_count;
+
+        // TODO: this is not the right place to keep this
+        world::BoxBounds bounds;
     };
 
     struct TextureResource {

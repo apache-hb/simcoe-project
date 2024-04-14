@@ -9,6 +9,10 @@ namespace sm::ed {
         ed::EditorContext& context;
         bool isOpen = true;
 
+        world::IndexOf<world::Node> pickedNode = 0;
+        bool dynamicObject = false;
+        bool activateOnCreate = false;
+
         struct PhysicsObjectData {
             world::IndexOf<world::Node> node;
             game::PhysicsBody body;

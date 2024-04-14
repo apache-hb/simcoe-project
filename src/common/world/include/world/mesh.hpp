@@ -74,6 +74,9 @@ namespace sm::world {
     struct BoxBounds {
         float3 min;
         float3 max;
+
+        float3 getCenter() const;
+        float3 getExtents() const;
     };
 
     struct Transform {
@@ -82,6 +85,8 @@ namespace sm::world {
         float3 scale;
 
         float4x4 matrix() const;
+
+        Transform operator*(const Transform& other) const;
     };
 
     Transform default_transform();

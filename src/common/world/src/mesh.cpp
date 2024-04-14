@@ -21,12 +21,30 @@ float4x4 Transform::matrix() const {
     return float4x4::transform(position, rotation, scale);
 }
 
+Transform Transform::operator*(const Transform& other) const {
+    Transform result = {
+        .position = position + rotation * (other.position * scale),
+        .rotation = rotation * other.rotation,
+        .scale = scale * other.scale
+    };
+
+    return result;
+}
+
 VertexFlags world::primitiveVertexBufferFlags() {
     return kPrimitiveVertexFlags;
 }
 
 DXGI_FORMAT world::primitiveIndexBufferFormat() {
     return DXGI_FORMAT_R16_UINT;
+}
+
+float3 BoxBounds::getCenter() const {
+    return (min + max) / 2.f;
+}
+
+float3 BoxBounds::getExtents() const {
+    return (max - min) / 2.f;
 }
 
 template <>
