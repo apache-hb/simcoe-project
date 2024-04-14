@@ -1,24 +1,14 @@
 module sm::world;
 
-[[table, iterator]]
-variant ObjectType {
-    [[format("Unknown")]] default None
-    [[format("Cube")]] case Cube
-    [[format("Sphere")]] case Sphere
-    [[format("Cylinder")]] case Cylinder
-    [[format("Plane")]] case Plane
-    [[format("Wedge")]] case Wedge
-    [[format("Capsule")]] case Capsule
-    [[format("Diamond")]] case Diamond
-    [[format("Geo Sphere")]] case GeoSphere
-}
-
-variant WorldVersion : uint32 {
-    [[format("24/03/04")]] case Version0
+variant IndexSize {
+    case Short // 16-bit indices
+    case Int // 32-bit indices
 }
 
 [[bitflags]]
-variant NodeFlags : uint32 {
+variant VertexFlags {
     default None = 0
-    case Hidden = (1 << 0)
+    case Normals = (1 << 0)
+    case TexCoords = (1 << 1)
+    case Tangents = (1 << 2)
 }

@@ -5,6 +5,28 @@
 using namespace sm;
 using namespace sm::world;
 
+DXGI_FORMAT Object::getIndexBufferFormat() const {
+    return (indexBufferFormat == IndexSize::eShort)
+        ? DXGI_FORMAT_R16_UINT
+        : DXGI_FORMAT_R32_UINT;
+}
+
+VertexFlags Model::getVertexBufferFlags() const {
+    if (const Object *object = std::get_if<Object>(&mesh)) {
+        return object->vertexBufferFlags;
+    }
+
+    return primitiveVertexBufferFlags();
+}
+
+DXGI_FORMAT Model::getIndexBufferFormat() const {
+    if (const Object *object = std::get_if<Object>(&mesh)) {
+        return object->getIndexBufferFormat();
+    }
+
+    return primitiveIndexBufferFormat();
+}
+
 #if 0
 uint16 WorldInfo::add_node(const NodeInfo& info) {
     auto index = int_cast<uint16>(nodes.size());

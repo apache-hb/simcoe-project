@@ -2,7 +2,12 @@
 
 // IWYU pragma: begin_exports
 
-#include "core/win32.hpp"
+#define NOMINMAX
+
+#include <directx/d3d12.h>
+#include <directx/d3dx12.h>
+#include <dstorage.h>
+
 #include "core/error.hpp"
 #include "core/arena.hpp"
 #include "os/core.h"
@@ -15,10 +20,6 @@
 #include "logs/logs.hpp"
 
 #include "fmt/std.h"
-
-#include "directx/d3dx12.h"
-
-#include <dstorage.h>
 
 #include "math/math.hpp"
 #include "math/format.hpp"

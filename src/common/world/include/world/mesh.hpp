@@ -3,6 +3,11 @@
 #include "core/vector.hpp"
 #include "math/math.hpp"
 
+#include <directx/dxgiformat.h>
+#include <directx/d3d12.h>
+
+#include "world.reflect.h"
+
 namespace sm::world {
     using namespace math;
 
@@ -95,4 +100,7 @@ namespace sm::world {
     Mesh primitive(const Capsule& capsule);
     Mesh primitive(const Diamond& diamond);
     Mesh primitive(const GeoSphere& geosphere);
+
+    VertexFlags primitiveVertexBufferFlags();
+    DXGI_FORMAT primitiveIndexBufferFormat();
 }

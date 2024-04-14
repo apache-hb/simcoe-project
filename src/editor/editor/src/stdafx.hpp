@@ -42,6 +42,8 @@
 #include "render/vendor/microsoft/pix.hpp"
 
 #include "fastgltf/core.hpp"
+#include "fastgltf/util.hpp"
+#include "fastgltf/tools.hpp"
 
 #include "stb/stb_image.h"
 

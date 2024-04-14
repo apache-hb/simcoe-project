@@ -6,9 +6,6 @@
 
 #include "world/mesh.hpp"
 
-#include <directx/dxgiformat.h>
-#include <directx/d3d12.h>
-
 namespace sm::world {
     static constexpr uint16 kInvalidIndex = UINT16_MAX;
 
@@ -88,6 +85,14 @@ namespace sm::world {
         uint64 offset;
         uint32 source_size;
         // uint32 buffer_size;
+
+        static BufferView file(IndexOf<File> file, uint64 offset, uint32 size) {
+            return {IndexOf<File>(file), offset, size};
+        }
+
+        static BufferView buffer(IndexOf<Buffer> buffer, uint64 offset, uint32 size) {
+            return {IndexOf<Buffer>(buffer), offset, size};
+        }
     };
 
     struct Image {
@@ -121,8 +126,13 @@ namespace sm::world {
         uint32 vtx_count;
         uint32 idx_count;
 
+        IndexSize indexBufferFormat = IndexSize::eShort;
+        VertexFlags vertexBufferFlags = VertexFlags::eNone;
+
         BufferView vertices;
         BufferView indices;
+
+        DXGI_FORMAT getIndexBufferFormat() const;
     };
 
     struct PointLight {
@@ -177,6 +187,9 @@ namespace sm::world {
         > mesh;
 
         IndexOf<Material> material;
+
+        VertexFlags getVertexBufferFlags() const;
+        DXGI_FORMAT getIndexBufferFormat() const;
     };
 
     struct Node {

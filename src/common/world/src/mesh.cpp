@@ -5,6 +5,8 @@
 using namespace sm;
 using namespace sm::world;
 
+static constexpr VertexFlags kPrimitiveVertexFlags = VertexFlags::none();
+
 Transform world::default_transform() {
     Transform result = {
         .position = 0.f,
@@ -17,6 +19,14 @@ Transform world::default_transform() {
 
 float4x4 Transform::matrix() const {
     return float4x4::transform(position, rotation, scale);
+}
+
+VertexFlags world::primitiveVertexBufferFlags() {
+    return kPrimitiveVertexFlags;
+}
+
+DXGI_FORMAT world::primitiveIndexBufferFormat() {
+    return DXGI_FORMAT_R16_UINT;
 }
 
 template <>
@@ -97,17 +107,17 @@ static Vertex midpoint(const Vertex& v0, const Vertex& v1) {
 
 static void subdivide(Mesh& mesh) {
     auto& [bounds, vertices, indices] = mesh;
-    sm::Vector<uint16> old_indices = indices;
-    sm::Vector<Vertex> old_vertices = vertices;
+    sm::Vector<uint16> oldIndices = indices;
+    sm::Vector<Vertex> oldVertices = vertices;
 
     indices.clear();
     vertices.clear();
 
-    uint32 count = uint32(old_indices.size() / 3);
-    for (uint32 i = 0; i < count; i++) {
-        Vertex v0 = old_vertices[old_indices[i * 3 + 0]];
-        Vertex v1 = old_vertices[old_indices[i * 3 + 1]];
-        Vertex v2 = old_vertices[old_indices[i * 3 + 2]];
+    int count = int(oldIndices.size() / 3);
+    for (int i = 0; i < count; i++) {
+        Vertex v0 = oldVertices[oldIndices[i * 3 + 0]];
+        Vertex v1 = oldVertices[oldIndices[i * 3 + 1]];
+        Vertex v2 = oldVertices[oldIndices[i * 3 + 2]];
 
         Vertex m0 = midpoint(v0, v1);
         Vertex m1 = midpoint(v1, v2);
@@ -315,6 +325,38 @@ static Mesh cylinder(const world::Cylinder& cylinder) {
     return builder.build();
 }
 
+static Mesh plane(const world::Plane& plane) {
+    auto [width, depth] = plane;
+    MeshBuilder builder;
+
+    // positions
+    float3 p0 = { -width / 2, 0, -depth / 2 };
+    float3 p1 = { width / 2, 0, -depth / 2 };
+    float3 p2 = { width / 2, 0, depth / 2 };
+    float3 p3 = { -width / 2, 0, depth / 2 };
+
+    // normal
+    float3 n = { 0, 1, 0 };
+
+    // uv coordinates
+    float2 uv0 = { 0, 0 };
+    float2 uv1 = { 1, 0 };
+    float2 uv2 = { 1, 1 };
+    float2 uv3 = { 0, 1 };
+
+    // tangent
+    float3 t = { 1, 0, 0 };
+
+    Vertex v0 = { p0, n, uv0, t };
+    Vertex v1 = { p1, n, uv1, t };
+    Vertex v2 = { p2, n, uv2, t };
+    Vertex v3 = { p3, n, uv3, t };
+
+    builder.quad(v0, v1, v2, v3);
+
+    return builder.build();
+}
+
 static Mesh wedge(const world::Wedge& wedge) {
     auto [width, height, depth] = wedge;
     MeshBuilder builder;
@@ -514,20 +556,20 @@ static Mesh geosphere(const world::GeoSphere& geosphere) {
 	const float x = 0.525731f;
 	const float z = 0.850651f;
 
-	vertices.push_back({ .position = float3(-x, 0, z) * radius });
-	vertices.push_back({ .position = float3(x, 0, z) * radius });
-	vertices.push_back({ .position = float3(-x, 0, -z) * radius });
-	vertices.push_back({ .position = float3(x, 0, -z) * radius });
+	vertices.push_back({ float3(-x, 0, z)  * radius });
+	vertices.push_back({ float3(x, 0, z)   * radius });
+	vertices.push_back({ float3(-x, 0, -z) * radius });
+	vertices.push_back({ float3(x, 0, -z)  * radius });
 
-	vertices.push_back({ .position = float3(0, z, x) * radius });
-	vertices.push_back({ .position = float3(0, z, -x) * radius });
-	vertices.push_back({ .position = float3(0, -z, x) * radius });
-	vertices.push_back({ .position = float3(0, -z, -x) * radius });
+	vertices.push_back({ float3(0, z, x)   * radius });
+	vertices.push_back({ float3(0, z, -x)  * radius });
+	vertices.push_back({ float3(0, -z, x)  * radius });
+	vertices.push_back({ float3(0, -z, -x) * radius });
 
-	vertices.push_back({ .position = float3(z, x, 0) * radius });
-	vertices.push_back({ .position = float3(-z, x, 0) * radius });
-	vertices.push_back({ .position = float3(z, -x, 0) * radius });
-	vertices.push_back({ .position = float3(-z, -x, 0) * radius });
+	vertices.push_back({ float3(z, x, 0)   * radius });
+	vertices.push_back({ float3(-z, x, 0)  * radius });
+	vertices.push_back({ float3(z, -x, 0)  * radius });
+	vertices.push_back({ float3(-z, -x, 0) * radius });
 
 	static constexpr uint16 kIndices[60] = {
 		1,4,0,  4,9,0,  4,5,9,  8,5,4,  1,8,4,
@@ -547,8 +589,9 @@ static Mesh geosphere(const world::GeoSphere& geosphere) {
 		subdivide(mesh);
 
 	for (auto& v : mesh.vertices) {
-		//v.normal = v.position.normalized();
-		v.position = v.position.normalized() * radius;
+        float3 normal = v.position.normalized();
+		v.position = normal * radius;
+		// v.normal = normal;
 	}
 
 	// redo the vertex winding
@@ -571,8 +614,7 @@ Mesh world::primitive(const Cylinder& cylinder) {
 }
 
 Mesh world::primitive(const Plane& plane) {
-    CT_NEVER("Not implemented");
-    //return ::plane(plane);
+    return ::plane(plane);
 }
 
 Mesh world::primitive(const Wedge& wedge) {
