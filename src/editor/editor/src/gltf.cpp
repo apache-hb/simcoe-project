@@ -4,6 +4,7 @@
 
 using namespace sm;
 using namespace sm::ed;
+using namespace sm::math;
 
 namespace fg = fastgltf;
 
@@ -14,7 +15,6 @@ static constexpr fg::Options kOptions
     | fg::Options::DecomposeNodeMatrices
     | fg::Options::GenerateMeshIndices
     | fg::Options::LoadExternalBuffers
-    // | fg::Options::LoadExternalImages
     ;
 
 template<>
@@ -51,6 +51,8 @@ void Editor::importGltf(const fs::path& path) {
 
     // map of glTF model index to world model index
     sm::HashMap<uint, sm::Vector<world::IndexOf<world::Model>>> modelMap;
+
+    sm::HashMap<uint, world::IndexOf<world::Node>> nodeMap;
 
     auto gltfLoadImage = [&](uint index, const fg::Image& image) {
         std::visit(fg::visitor {
@@ -206,8 +208,50 @@ void Editor::importGltf(const fs::path& path) {
         modelMap.emplace(index, std::move(models));
     };
 
+    auto gltfLoadNode = [&](uint index, const fg::Node& node) {
+        sm::String name = [&] -> sm::String {
+            if (node.name.empty()) {
+                return fmt::format("node{}", index);
+            } else {
+                return sm::String{node.name};
+            }
+        }();
+
+        sm::Vector<world::IndexOf<world::Model>> models;
+
+        if (node.meshIndex.has_value()) {
+            models = modelMap[node.meshIndex.value()];
+        }
+
+        world::IndexOf i = mContext.mWorld.add(world::Node {
+            .name = std::move(name),
+            .transform = world::default_transform(),
+            .models = std::move(models),
+        });
+
+        nodeMap.emplace(index, i);
+    };
+
+    auto gltfUpdateNode = [&](uint index, const fg::Node& node) {
+        world::IndexOf self = nodeMap.at(index);
+        auto& info = mContext.mWorld.get<world::Node>(self);
+
+        // reparent children
+        for (size_t child : node.children) {
+            mContext.mWorld.moveNode(nodeMap.at(child), self);
+        }
+
+        auto [t, r, s] = std::get<fg::TRS>(node.transform);
+        math::float3 position = { t[0], t[2], t[1] };
+        math::quatf rotation = { r.data() };
+        rotation *= math::quatf::from_axis_angle(world::kVectorForward, 90._deg);
+        math::float3 scale = { s[0], s[2], s[1] };
+
+        info.transform = { position, rotation, scale };
+    };
+
     mContext.upload([&] {
-        // auto root = get_best_node();
+        auto root = get_best_node();
 
         // Builder builder { mContext, val };
 
@@ -217,6 +261,44 @@ void Editor::importGltf(const fs::path& path) {
 
         for (size_t i = 0; i < asset.images.size(); i++) {
             gltfLoadImage(i, asset.images[i]);
+        }
+
+        const fg::Scene& scene = [&] {
+            if (asset.defaultScene.has_value()) {
+                return asset.scenes[asset.defaultScene.value()];
+            } else {
+                return asset.scenes[0];
+            }
+        }();
+
+        for (size_t i : scene.nodeIndices) {
+            gltfLoadNode(i, asset.nodes[i]);
+        }
+
+        for (size_t i : scene.nodeIndices) {
+            gltfUpdateNode(i, asset.nodes[i]);
+        }
+
+        // all nodes without parents are roots
+        sm::Vector<world::IndexOf<world::Node>> roots;
+
+        for (size_t i : scene.nodeIndices) {
+            if (mContext.mWorld.get(nodeMap.at(i)).parent == world::kInvalidIndex) {
+                roots.push_back(nodeMap.at(i));
+            }
+        }
+
+        if (roots.size() == 1) {
+            mContext.mWorld.moveNode(roots[0], root);
+        } else {
+            world::IndexOf root = mContext.mWorld.add(world::Node {
+                .name = "root",
+                .transform = world::default_transform(),
+            });
+
+            for (world::IndexOf<world::Node> i : roots) {
+                mContext.mWorld.moveNode(i, root);
+            }
         }
     });
 

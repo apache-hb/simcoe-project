@@ -493,6 +493,10 @@ namespace sm::math {
             , angle(w)
         { }
 
+        constexpr Quat(const T *data)
+            : Quat(data[0], data[1], data[2], data[3])
+        { }
+
         static constexpr Quat identity() {
             return {Vec3::zero(), 1};
         }
@@ -569,6 +573,14 @@ namespace sm::math {
 
         constexpr Vec3 operator*(const Vec3& vec) const {
             return ((conjugate() * Quat(vec, T(0)) * *this).v);
+        }
+
+        constexpr Quat& operator*=(const Quat& other) {
+            return *this = *this * other;
+        }
+
+        constexpr Quat& operator*=(T scalar) {
+            return *this = *this * scalar;
         }
 
 #if 0
