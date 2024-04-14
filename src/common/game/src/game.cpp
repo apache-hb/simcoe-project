@@ -395,7 +395,7 @@ void game::Context::tick(float dt) {
 
     int steps = 1;
     if (dt > kTimeStep) {
-        steps = int(ceilf(dt / kTimeStep));
+        steps = std::max(1, int(ceilf(dt / kTimeStep)));
     }
 
     if (JPH::EPhysicsUpdateError err = mImpl->physicsSystem->Update(dt, steps, *mImpl->physicsAllocator, *mImpl->physicsThreadPool); err != JPH::EPhysicsUpdateError::None) {

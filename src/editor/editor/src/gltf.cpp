@@ -49,6 +49,8 @@ void Editor::importGltf(const fs::path& path) {
 
     sm::HashMap<uint, world::IndexOf<world::Image>> imageMap;
 
+    sm::HashMap<uint, world::IndexOf<world::Material>> materialMap;
+
     // map of glTF model index to world model index
     sm::HashMap<uint, sm::Vector<world::IndexOf<world::Model>>> modelMap;
 
@@ -77,6 +79,27 @@ void Editor::importGltf(const fs::path& path) {
                 logs::gAssets.info("Loading image from buffer view: {}", image.name);
             }
         }, image.data);
+    };
+
+    auto gltfLoadMaterial = [&](uint index, const fg::Material& material) {
+        sm::String name = [&] {
+            if (material.name.empty()) {
+                return fmt::format("material{}", index);
+            } else {
+                return sm::String{material.name};
+            }
+        }();
+
+        world::Material info = { .name = std::move(name) };
+        info.albedo = material.pbrData.baseColorFactor.data();
+        if (material.pbrData.baseColorTexture.has_value()) {
+            const fg::TextureInfo& texInfo = material.pbrData.baseColorTexture.value();
+            info.albedo_texture = world::Texture {
+                .image = imageMap.at(texInfo.textureIndex)
+            };
+        }
+
+        materialMap.emplace(index, mContext.mWorld.add(std::move(info)));
     };
 
     auto gltfLoadPrimitive = [&](const fg::Primitive& primitive, sm::String name)
@@ -176,10 +199,18 @@ void Editor::importGltf(const fs::path& path) {
             .indices = world::BufferView::buffer(buffer, 0, idxCount * sizeof(uint16)),
         };
 
+        world::IndexOf material = [&] {
+            if (primitive.materialIndex.has_value()) {
+                return materialMap.at(primitive.materialIndex.value());
+            } else {
+                return mContext.mWorld.default_material;
+            }
+        }();
+
         world::IndexOf model = mContext.mWorld.add(world::Model {
             .name = std::move(name),
             .mesh = obj,
-            .material = mContext.mWorld.default_material,
+            .material = material,
         });
 
         mContext.upload_model(model);
@@ -257,12 +288,16 @@ void Editor::importGltf(const fs::path& path) {
 
         // Builder builder { mContext, val };
 
-        for (size_t i = 0; i < asset.meshes.size(); i++) {
-            gltfLoadMesh(i, asset.meshes[i]);
-        }
-
         for (size_t i = 0; i < asset.images.size(); i++) {
             gltfLoadImage(i, asset.images[i]);
+        }
+
+        for (size_t i = 0; i < asset.materials.size(); i++) {
+            gltfLoadMaterial(i, asset.materials[i]);
+        }
+
+        for (size_t i = 0; i < asset.meshes.size(); i++) {
+            gltfLoadMesh(i, asset.meshes[i]);
         }
 
         for (size_t i = 0; i < asset.nodes.size(); i++) {

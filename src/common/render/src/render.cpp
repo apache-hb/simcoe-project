@@ -315,63 +315,6 @@ void Context::copy_buffer(ID3D12GraphicsCommandList1 *list, Resource& dst, Resou
     list->CopyBufferRegion(*dst.mResource, 0, *src.mResource, 0, size);
 }
 
-void Context::create_lights() {
-    auto desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(PointLight) * mConfig.max_lights);
-    SM_ASSERT_HR(create_resource(mPointLights.resource, D3D12_HEAP_TYPE_DEFAULT, desc, D3D12_RESOURCE_STATE_GENERIC_READ));
-    SM_ASSERT_HR(create_resource(mPointLights.upload, D3D12_HEAP_TYPE_UPLOAD, desc, D3D12_RESOURCE_STATE_GENERIC_READ));
-
-    D3D12_RANGE read{0, 0};
-    SM_ASSERT_HR(mPointLights.upload.map(&read, &mPointLights.mapped));
-
-    mPointLights.lights = { reinterpret_cast<PointLight *>(mPointLights.mapped), mConfig.max_lights };
-}
-
-void Context::destroy_lights() {
-    mPointLights.resource.reset();
-    mPointLights.upload.reset();
-    mPointLights.mapped = nullptr;
-}
-
-static render::PointLight make_point_light(const world::PointLight& it, float3 position) {
-    render::PointLight light = {
-        .position = position,
-        .colour = it.colour,
-        .intensity = it.intensity,
-    };
-
-    return light;
-}
-
-void Context::update_node_lights(world::IndexOf<world::Node> node, uint& index, const float4x4& parent) {
-    auto& info = mWorld.get(node);
-    auto local = parent * info.transform.matrix();
-    float3 position = local.get_translation();
-
-    for (auto light : info.lights) {
-        auto& data = mWorld.get(light);
-
-        if (std::holds_alternative<world::PointLight>(data.light)) {
-            auto& light = std::get<world::PointLight>(data.light);
-
-            mPointLights.lights[index++] = make_point_light(light, position);
-        }
-    }
-
-    for (auto child : info.children) {
-        update_node_lights(child, index, local);
-    }
-}
-
-void Context::update_lights(ID3D12GraphicsCommandList1 *list) {
-    auto root = mWorld.get(mCurrentScene).root;
-
-    uint index = 0;
-    update_node_lights(root, index, float4x4::identity());
-    mPointLights.count = index;
-
-    copy_buffer(list, mPointLights.resource, mPointLights.upload, sizeof(PointLight) * index);
-}
-
 void Context::init_scene() {
     mWorld = world::default_world("Default World");
     mCurrentScene = mWorld.default_scene;
@@ -403,7 +346,7 @@ void Context::upload_image(world::IndexOf<world::Image> index) {
 
     upload_buffer_view(request, image.source);
 
-    mPendingBarriers.emplace_back(CD3DX12_RESOURCE_BARRIER::Transition(data.get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST));
+    mPendingBarriers.emplace_back(CD3DX12_RESOURCE_BARRIER::Transition(data.get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 
     SrvIndex srv = mSrvPool.allocate();
     auto cpu = mSrvPool.cpu_handle(srv);
@@ -497,7 +440,7 @@ static Resource load_file_region(
 {
     Resource resource;
     auto desc = CD3DX12_RESOURCE_DESC::Buffer(size);
-    SM_ASSERT_HR(self.create_resource(resource, D3D12_HEAP_TYPE_DEFAULT, desc, D3D12_RESOURCE_STATE_COPY_DEST));
+    SM_ASSERT_HR(self.create_resource(resource, D3D12_HEAP_TYPE_DEFAULT, desc, D3D12_RESOURCE_STATE_COMMON));
 
     IDStorageFile *storage = self.get_storage_file(file);
 
@@ -519,7 +462,7 @@ static Resource load_buffer_region(
 {
     Resource resource;
     auto desc = CD3DX12_RESOURCE_DESC::Buffer(size);
-    SM_ASSERT_HR(self.create_resource(resource, D3D12_HEAP_TYPE_DEFAULT, desc, D3D12_RESOURCE_STATE_COPY_DEST));
+    SM_ASSERT_HR(self.create_resource(resource, D3D12_HEAP_TYPE_DEFAULT, desc, D3D12_RESOURCE_STATE_COMMON));
 
     const uint8 *data = self.get_storage_buffer(buffer) + offset;
 
@@ -547,8 +490,8 @@ void Context::upload_object(world::IndexOf<world::Model> index, const world::Obj
     Resource vbo = load_buffer_view(index, object.vertices);
     Resource ibo = load_buffer_view(index, object.indices);
 
-    mPendingBarriers.emplace_back(CD3DX12_RESOURCE_BARRIER::Transition(vbo.get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
-    mPendingBarriers.emplace_back(CD3DX12_RESOURCE_BARRIER::Transition(ibo.get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER));
+    mPendingBarriers.emplace_back(CD3DX12_RESOURCE_BARRIER::Transition(vbo.get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+    mPendingBarriers.emplace_back(CD3DX12_RESOURCE_BARRIER::Transition(ibo.get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_INDEX_BUFFER));
 
     D3D12_VERTEX_BUFFER_VIEW vbo_view = {
         .BufferLocation = vbo.get_gpu_address(),
@@ -622,22 +565,28 @@ void Context::end_upload() {
     StorageQueue& files = mStorage.file_queue();
     StorageQueue& memory = mStorage.memory_queue();
 
+    // do we need to wait for uploads to finish before transitioning resources?
     bool waitForStorageQueue = false;
 
     // only signal and submit when the queues have pending requests
     // dstorage doesnt signal a fence if there are no prior requests
     if (files.has_pending_requests()) {
         waitForStorageQueue = true;
-        files.signal(*mCopyFence, mStorageFenceValue++);
+        files.signal(*mStorageFence, mStorageFenceValue++);
         files.submit();
     }
 
     if (memory.has_pending_requests()) {
         waitForStorageQueue = true;
-        memory.signal(*mCopyFence, mStorageFenceValue++);
+        memory.signal(*mStorageFence, mStorageFenceValue++);
         memory.submit();
     }
 
+    if (waitForStorageQueue) {
+        mDirectQueue->Wait(*mStorageFence, mStorageFenceValue - 1);
+    }
+
+    // do we need to do a cpu side wait?
     bool waitForQueue = waitForStorageQueue;
 
     // only submit barriers if there are any
@@ -650,26 +599,20 @@ void Context::end_upload() {
 
         ID3D12CommandList *lists[] = { mCommandList.get() };
 
-        if (waitForStorageQueue) {
-            mDirectQueue->Wait(*mCopyFence, mStorageFenceValue - 1);
-        }
-
         mDirectQueue->ExecuteCommandLists(1, lists);
-
-        mDirectQueue->Signal(*mCopyFence, mStorageFenceValue);
+        mDirectQueue->Signal(*mStorageFence, mStorageFenceValue++);
 
         waitForQueue = true;
     }
 
     // only wait on the cpu side if commands were submitted
     if (waitForQueue) {
-        uint64 completed = mCopyFence->GetCompletedValue();
-        if (completed < mStorageFenceValue) {
-            mCopyFence->SetEventOnCompletion(mStorageFenceValue, mCopyFenceEvent);
-            WaitForSingleObject(mCopyFenceEvent, INFINITE);
+        uint64 expected = mStorageFenceValue - 1;
+        uint64 completed = mStorageFence->GetCompletedValue();
+        if (completed < expected) {
+            mStorageFence->SetEventOnCompletion(expected, mStorageFenceEvent);
+            WaitForSingleObject(mStorageFenceEvent, INFINITE);
         }
-
-        mStorageFenceValue += 1;
     }
 }
 
@@ -683,13 +626,9 @@ void Context::create_scene() {
             upload_image(i);
         }
     });
-
-    create_lights();
 }
 
 void Context::destroy_scene() {
-    destroy_lights();
-
     mMeshes.clear();
 
     for (auto& [_, data] : mImages)
@@ -705,6 +644,19 @@ void Context::set_scene(world::IndexOf<world::Scene> scene) {
     wait_for_gpu();
     destroy_scene();
     create_scene();
+}
+
+void Context::create_storage_sync() {
+    SM_ASSERT_HR(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mStorageFence)));
+    mStorageFenceValue = 1;
+
+    mStorageFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+    SM_ASSERT(mStorageFenceEvent != nullptr);
+}
+
+void Context::destroy_storage_sync() {
+    SM_ASSERT_WIN32(CloseHandle(mStorageFenceEvent));
+    mStorageFence.reset();
 }
 
 void Context::create_assets() {
@@ -773,6 +725,8 @@ void Context::destroy_device() {
     // release sync objects
     mFence.reset();
     mCopyFence.reset();
+
+    destroy_storage_sync();
 
     // assets
     destroy_scene();
@@ -847,6 +801,7 @@ void Context::create() {
     create_copy_queue();
     create_copy_fence();
     create_pipeline();
+    create_storage_sync();
     on_create();
 
     create_assets();
@@ -862,6 +817,8 @@ void Context::destroy() {
 
     destroy_framegraph();
     on_destroy();
+
+    destroy_storage_sync();
 
     destroy_dstorage();
 
@@ -901,6 +858,8 @@ void Context::recreate_device() {
     create_compute_queue();
     create_copy_queue();
     create_copy_fence();
+
+    create_storage_sync();
 
     create_pipeline();
     on_create();

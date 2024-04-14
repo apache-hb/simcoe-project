@@ -9,7 +9,7 @@ Result StorageQueue::init(IDStorageFactory *factory, const DSTORAGE_QUEUE_DESC& 
     if (Result hr = factory->CreateQueue(&desc, IID_PPV_ARGS(&mQueue)))
         return hr;
 
-    if(Result hr = factory->CreateStatusArray(4, desc.Name, IID_PPV_ARGS(&mStatusArray)))
+    if (Result hr = factory->CreateStatusArray(4, desc.Name, IID_PPV_ARGS(&mStatusArray)))
         return hr;
 
     return S_OK;

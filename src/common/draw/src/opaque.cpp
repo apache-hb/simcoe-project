@@ -12,6 +12,20 @@ using namespace sm;
 using namespace sm::math;
 using namespace sm::world;
 
+static uint tryGetAlbedoIndex(render::Context& self, IndexOf<world::Material> index) {
+    if (index == world::kInvalidIndex) {
+        return UINT_MAX;
+    }
+
+    const auto& material = self.mWorld.get(index);
+    if (material.albedo_texture.image == world::kInvalidIndex) {
+        return UINT_MAX;
+    }
+
+    const render::TextureResource& texture = self.mImages.at(material.albedo_texture.image);
+    return static_cast<uint>(texture.srv);
+}
+
 static void draw_node(render::Context& context, ID3D12GraphicsCommandList1 *commands, const draw::Camera& camera, IndexOf<world::Node> index, const float4x4& parent) {
     float ar = camera.config().aspect_ratio();
     const auto& node = context.mWorld.get(index);
@@ -25,6 +39,10 @@ static void draw_node(render::Context& context, ID3D12GraphicsCommandList1 *comm
         const auto& object = context.mMeshes[i];
         commands->IASetVertexBuffers(0, 1, &object.vbo_view);
         commands->IASetIndexBuffer(&object.ibo_view);
+
+        const auto& info = context.mWorld.get(i);
+        uint albedoIndex = tryGetAlbedoIndex(context, info.material);
+        commands->SetGraphicsRoot32BitConstant(0, albedoIndex, 16);
 
         commands->DrawIndexedInstanced(object.index_count, 1, 0, 0, 0);
     }
@@ -40,16 +58,38 @@ static const D3D12_ROOT_SIGNATURE_FLAGS kPrimitiveRootFlags
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS
-    | D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
+    | D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS
+    ;
+
+struct ObjectData {
+    float4x4 mvp;
+    uint albedoTextureIndex;
+};
+
+enum {
+    eCameraBuffer, // register(b0)
+
+    eTextureArray, // register(t0)
+
+    eBindingCount
+};
 
 static void create_primitive_pipeline(render::Pipeline& pipeline, const draw::ViewportConfig& config, render::Context& context) {
     {
-        // mvp matrix
-        CD3DX12_ROOT_PARAMETER1 params[1];
-        params[0].InitAsConstants(16, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+        // object data
+        CD3DX12_ROOT_PARAMETER1 params[eBindingCount];
+        params[eCameraBuffer].InitAsConstants(16 + 1, 0);
+
+        // all textures
+        CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
+        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE);
+        params[eTextureArray].InitAsDescriptorTable(_countof(ranges), ranges, D3D12_SHADER_VISIBILITY_PIXEL);
+
+        CD3DX12_STATIC_SAMPLER_DESC samplers[1];
+        samplers[0].Init(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP);
 
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
-        desc.Init_1_1(1, params, 0, nullptr, kPrimitiveRootFlags);
+        desc.Init_1_1(_countof(params), params, _countof(samplers), samplers, kPrimitiveRootFlags);
 
         context.serialize_root_signature(pipeline.signature, desc);
     }

@@ -66,7 +66,15 @@ static void drawItemInspector(Inspector& self, world::IndexOf<world::Material> i
     ImGui::InputText("Name", &material.name);
 
     ImGui::SeparatorText("Properties");
-    ImGui::ColorEdit4("Albedo", material.albedo.data());
+    ImGui::ColorEdit3("Albedo", material.albedo.data());
+
+    if (material.albedo_texture.image != world::kInvalidIndex) {
+        auto& texture = self.ctx.mImages[material.albedo_texture.image];
+        auto srv = self.ctx.mSrvPool.gpu_handle(texture.srv);
+        ImGui::Image((ImTextureID)srv.ptr, ImVec2(64, 64));
+    } else {
+        ImGui::TextDisabled("No Albedo Texture");
+    }
 
     if (ImGui::BeginDragDropTarget()) {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("IMAGE")) {
@@ -120,7 +128,28 @@ static void drawItemInspector(Inspector& self, world::IndexOf<world::Model> inde
     }
 
     ImGui::SeparatorText("Properties");
-    // TODO: combo to select material + dragdrop target
+    if (model.material != world::kInvalidIndex) {
+        auto& material = self.ctx.mWorld.get(model.material);
+        ImGui::Text("Material: %s", material.name.c_str());
+        if (material.albedo_texture.image != world::kInvalidIndex) {
+            auto& texture = self.ctx.mImages[material.albedo_texture.image];
+            auto srv = self.ctx.mSrvPool.gpu_handle(texture.srv);
+            ImGui::Image((ImTextureID)srv.ptr, ImVec2(64, 64));
+        } else {
+            ImGui::TextDisabled("No Albedo Texture");
+        }
+    } else {
+        ImGui::TextDisabled("No Material");
+    }
+
+    if (ImGui::BeginDragDropTarget()) {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("MATERIAL")) {
+            IM_ASSERT(payload->DataSize == sizeof(world::IndexOf<world::Material>));
+            auto material_index = *(world::IndexOf<world::Material>*)payload->Data;
+            model.material = material_index;
+        }
+        ImGui::EndDragDropTarget();
+    }
 }
 
 static void drawItemInspector(Inspector& self, world::IndexOf<world::Node> index) {

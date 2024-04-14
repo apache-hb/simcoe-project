@@ -199,23 +199,6 @@ namespace sm::render {
 
         ID3D12CommandQueue *get_queue(CommandListType type);
 
-        struct {
-            Resource upload;
-            void *mapped;
-            sm::Span<PointLight> lights;
-            uint count;
-
-            Resource resource;
-            SrvIndex srv;
-        } mPointLights;
-
-        void create_lights();
-        void destroy_lights();
-
-        void update_node_lights(world::IndexOf<world::Node> node, uint& index, const float4x4& parent);
-
-        void update_lights(ID3D12GraphicsCommandList1 *list);
-
         // world data
         world::World mWorld;
         world::IndexOf<world::Scene> mCurrentScene = world::kInvalidIndex;
@@ -271,6 +254,13 @@ namespace sm::render {
         uint64 mStorageFenceValue = 1;
         sm::HashMap<world::IndexOf<world::File>, Object<IDStorageFile>> mStorageFiles;
         sm::HashMap<size_t, world::Mesh> mStorageMeshes;
+
+        Object<ID3D12Fence> mStorageFence;
+        HANDLE mStorageFenceEvent;
+
+        void create_storage_sync();
+        void destroy_storage_sync();
+
         void create_dstorage();
         void destroy_dstorage();
 

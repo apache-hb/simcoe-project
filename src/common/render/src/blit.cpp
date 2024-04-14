@@ -21,25 +21,25 @@ Viewport Viewport::letterbox(math::uint2 display, math::uint2 render) {
         y = heightRatio / widthRatio;
     }
 
-    float viewport_x = displayWidth * (1.f - x) / 2.f;
-    float viewport_y = displayHeight * (1.f - y) / 2.f;
-    float viewport_width = x * displayWidth;
-    float viewport_height = y * displayHeight;
+    float vpx = displayWidth * (1.f - x) / 2.f;
+    float vpy = displayHeight * (1.f - y) / 2.f;
+    float width = x * displayWidth;
+    float height = y * displayHeight;
 
     D3D12_VIEWPORT viewport = {
-        .TopLeftX = viewport_x,
-        .TopLeftY = viewport_y,
-        .Width = viewport_width,
-        .Height = viewport_height,
+        .TopLeftX = vpx,
+        .TopLeftY = vpy,
+        .Width = width,
+        .Height = height,
         .MinDepth = 0.f,
         .MaxDepth = 1.f,
     };
 
     D3D12_RECT scissor = {
-        .left = LONG(viewport_x),
-        .top = LONG(viewport_y),
-        .right = LONG(viewport_x + viewport_width),
-        .bottom = LONG(viewport_y + viewport_height),
+        .left = LONG(vpx),
+        .top = LONG(vpy),
+        .right = LONG(vpx + width),
+        .bottom = LONG(vpy + height),
     };
 
     return { viewport, scissor };
