@@ -24,7 +24,7 @@ Transform world::computeNodeTransform(world::World& world, IndexOf<Node> node) {
         return info.transform;
     }
 
-    return computeNodeTransform(world, info.parent) * info.transform;
+    return info.transform * computeNodeTransform(world, info.parent);
 }
 
 DXGI_FORMAT Object::getIndexBufferFormat() const {

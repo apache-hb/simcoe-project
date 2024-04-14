@@ -19,9 +19,10 @@ Editor::Editor(ed::EditorContext& context)
     , mPhysicsDebug(context)
 {
     mOpenLevelDialog.SetTitle("Open Level");
-    mSaveLevelDialog.SetTitle("Save Level");
-    mSaveLevelDialog.SetTypeFilters({ ".bin" });
-    mSaveLevelDialog.SetInputName("level.bin");
+    mImportDialog.SetTitle("Import");
+    // mSaveLevelDialog.SetTitle("Save Level");
+    // mSaveLevelDialog.SetTypeFilters({ ".bin" });
+    // mSaveLevelDialog.SetInputName("level.bin");
 
     for (auto& camera : mContext.get_cameras()) {
         mViewports.emplace_back(&mContext, camera.get());
@@ -41,11 +42,11 @@ void Editor::draw_mainmenu() {
 
             // TODO: implement save and save as
             if (ImGui::MenuItem("Save")) {
-                mSaveLevelDialog.Open();
+                // mSaveLevelDialog.Open();
             }
 
             if (ImGui::MenuItem("Save As")) {
-                mSaveLevelDialog.Open();
+                // mSaveLevelDialog.Open();
             }
             ImGui::Separator();
 
@@ -353,6 +354,27 @@ void Editor::importFile(const fs::path& path) {
     }
 }
 
+void Editor::importLevel(const fs::path& path) {
+    auto ext = path.extension();
+    if (ext != ".gltf" && ext != ".glb") {
+        alert_error(fmt::format("Invalid level file: {}", path.string()));
+        return;
+    }
+
+    importGltf(path);
+    world::World& world = mContext.mWorld;
+
+    for (world::IndexOf node : world.indices<world::Node>()) {
+        const auto& info = world.get(node);
+        bool sphere = info.name.contains("Sphere");
+        if (info.name.contains("STATIC_PHYSICS")) {
+            mPhysicsDebug.createPhysicsBody(node, sphere, false);
+        } else if (info.name.contains("DYNAMIC_PHYSICS")) {
+            mPhysicsDebug.createPhysicsBody(node, sphere, true);
+        }
+    }
+}
+
 void Editor::alert_error(std::string message) {
     mErrorMessage = std::move(message);
     ImGui::OpenPopup("Error");
@@ -395,7 +417,6 @@ void Editor::draw() {
     draw_error_modal();
 
     mOpenLevelDialog.Display();
-    mSaveLevelDialog.Display();
     mImportDialog.Display();
 
     if (mShowImGuiDemo)
@@ -409,5 +430,10 @@ void Editor::draw() {
             importFile(file);
         }
         mImportDialog.ClearSelected();
+    }
+
+    if (mOpenLevelDialog.HasSelected()) {
+        importLevel(mOpenLevelDialog.GetSelected());
+        mOpenLevelDialog.ClearSelected();
     }
 }

@@ -39,6 +39,8 @@ namespace layers {
     static constexpr uint kCount = uint(Layers::eCount);
 }
 
+static const math::quatf kUpQuat = math::quatf::from_axis_angle(world::kVectorForward, 90._deg);
+
 static JPH::Vec3 to_jph(const math::float3& v) {
     return {v.x, v.z, v.y};
 }
@@ -54,7 +56,7 @@ static JPH::Quat to_jph(const math::quatf& q) {
 
 static math::quatf from_jph(const JPH::Quat& q) {
     math::quatf tmp = {q.GetX(), q.GetY(), q.GetZ(), q.GetW()};
-    return tmp.rotated(math::quatf::from_axis_angle(world::kVectorRight, -90._deg));
+    return tmp.rotated(math::quatf::from_axis_angle(world::kVectorRight, -90._deg)).rotated(kUpQuat);
 }
 
 struct CObjectLayerPairFilter final : public JPH::ObjectLayerPairFilter {
@@ -663,7 +665,5 @@ void game::physics_debug(
         cmd->IASetVertexBuffers(0, 1, &vbv);
 
         cmd->DrawInstanced(debug.mVertices.size(), 1, 0, 0);
-
-        gPhysicsLog.info("Draw: {}", debug.mVertices.size());
     });
 }

@@ -27,9 +27,9 @@ namespace sm::ed {
 
         void draw_window();
 
-        void addPhysicsBody(world::IndexOf<world::Node> node, game::PhysicsBody&& body) {
-            bodies.emplace_back(PhysicsObjectData { node, std::move(body) });
-        }
+        void addPhysicsBody(world::IndexOf<world::Node> node, game::PhysicsBody&& body);
+
+        void createPhysicsBody(world::IndexOf<world::Node> node, bool sphere, bool dynamic);
 
         void update();
     };

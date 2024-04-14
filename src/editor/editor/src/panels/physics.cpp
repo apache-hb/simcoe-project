@@ -7,8 +7,6 @@ using namespace sm;
 using namespace sm::ed;
 using namespace sm::math;
 
-static const math::quatf kUpQuat = math::quatf::from_axis_angle(world::kVectorForward, 90._deg);
-
 static constexpr ImGuiTableFlags kFlags
     = ImGuiTableFlags_Resizable
     | ImGuiTableFlags_Hideable
@@ -39,6 +37,7 @@ static void drawContent(PhysicsDebug& self) {
     float3 gravity = ctx.getGravity();
     ImGui::Text("Gravity: %f, %f, %f", gravity.x, gravity.y, gravity.z);
 
+    ImGui::BeginGroup();
     if (ImGui::BeginTable("Objects", 4, kFlags)) {
         ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("Linear Velocity", ImGuiTableColumnFlags_WidthStretch);
@@ -67,6 +66,13 @@ static void drawContent(PhysicsDebug& self) {
 
         ImGui::EndTable();
     }
+    ImGui::EndGroup();
+
+    if (ImGui::Button("Debug Draw All")) {
+        for (auto& body : self.bodies) {
+            body.debugDraw = true;
+        }
+    }
 
     if (ImGui::Button("Add Physics Body")) {
         ImGui::OpenPopup("Add Physics Body");
@@ -78,14 +84,7 @@ static void drawContent(PhysicsDebug& self) {
         ImGui::Checkbox("Activate On Create", &self.activateOnCreate);
 
         if (ImGui::Button("Accept")) {
-            const auto& node = world.get(self.pickedNode);
-            world::BoxBounds bounds = self.context.mMeshes.at(node.models.front()).bounds;
-            auto [w, h, d] = bounds.getExtents();
-            world::Cube cube = { w, h, d };
-            world::Transform transform = world::computeNodeTransform(world, self.pickedNode);
-            game::PhysicsBody body = ctx.addPhysicsBody(cube, transform.position + bounds.getCenter(), transform.rotation, self.dynamicObject);
-
-            self.addPhysicsBody(self.pickedNode, std::move(body));
+            self.createPhysicsBody(self.pickedNode, false, self.dynamicObject);
 
             ImGui::CloseCurrentPopup();
         }
@@ -117,6 +116,36 @@ void PhysicsDebug::update() {
     for (auto& body : bodies) {
         auto& node = world.get(body.node);
         node.transform.position = body.body.getCenterOfMass();
-        node.transform.rotation = body.body.getRotation() * kUpQuat;
+        node.transform.rotation = body.body.getRotation();
+    }
+}
+
+void PhysicsDebug::addPhysicsBody(world::IndexOf<world::Node> node, game::PhysicsBody&& body) {
+    bodies.emplace_back(PhysicsObjectData { node, std::move(body) });
+}
+
+void PhysicsDebug::createPhysicsBody(world::IndexOf<world::Node> index, bool sphere, bool dynamic) {
+    game::Context ctx = game::getContext();
+    world::World& world = ctx.getWorld();
+
+    const auto& node = world.get(index);
+
+    // get node bounds
+    const auto& bounds = context.mMeshes.at(node.models.front()).bounds;
+    world::Transform transform = world::computeNodeTransform(world, index);
+
+    if (sphere) {
+        auto r = bounds.getExtents().length() / 2.0f;
+        world::Sphere sphere = { r, 5, 5 };
+        game::PhysicsBody body = ctx.addPhysicsBody(sphere, transform.position + bounds.getCenter(), quatf::identity(), dynamic);
+
+        addPhysicsBody(index, std::move(body));
+    }
+    else {
+        auto [w, h, d] = bounds.getExtents();
+        world::Cube cube = { w, h, d };
+        game::PhysicsBody body = ctx.addPhysicsBody(cube, transform.position + bounds.getCenter(), quatf::identity(), dynamic);
+
+        addPhysicsBody(index, std::move(body));
     }
 }

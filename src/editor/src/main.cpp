@@ -451,8 +451,6 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
         world::Node& playerNodeInfo = world.get(playerNode);
 
-        math::quatf upQuat = math::quatf::from_axis_angle(world::kVectorForward, 90._deg);
-
         auto& state = context.input.get_state();
         static constexpr input::ButtonAxis kMoveForward = {input::Button::eW, input::Button::eS};
         static constexpr input::ButtonAxis kMoveStrafe =  {input::Button::eD, input::Button::eA};
@@ -491,7 +489,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         // player.setLinearVelocity(velocity);
 
         playerNodeInfo.transform.position = player.getPosition();
-        playerNodeInfo.transform.rotation = player.getRotation() * upQuat;
+        playerNodeInfo.transform.rotation = player.getRotation();
 
         context.get_active_camera().setPosition(player.getPosition() + float3(0.f, 0.f, 2.f));
 

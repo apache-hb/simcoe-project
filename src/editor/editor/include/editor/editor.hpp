@@ -46,9 +46,16 @@ namespace sm::ed {
             eClassic
         } mTheme = Theme::eDark;
 
-        ImGui::FileBrowser mSaveLevelDialog { ImGuiFileBrowserFlags_CreateNewDir | ImGuiFileBrowserFlags_EnterNewFilename | ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_ConfirmOnEnter };
-        ImGui::FileBrowser mOpenLevelDialog { ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_ConfirmOnEnter };
-        ImGui::FileBrowser mImportDialog { ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_ConfirmOnEnter | ImGuiFileBrowserFlags_MultipleSelection };
+        // ImGui::FileBrowser mSaveLevelDialog { ImGuiFileBrowserFlags_CreateNewDir | ImGuiFileBrowserFlags_EnterNewFilename | ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_ConfirmOnEnter };
+        ImGui::FileBrowser mOpenLevelDialog {
+            ImGuiFileBrowserFlags_CloseOnEsc |
+            ImGuiFileBrowserFlags_ConfirmOnEnter
+        };
+        ImGui::FileBrowser mImportDialog {
+            ImGuiFileBrowserFlags_CloseOnEsc |
+            ImGuiFileBrowserFlags_ConfirmOnEnter |
+            ImGuiFileBrowserFlags_MultipleSelection
+        };
 
         world::IndexOf<world::Node> get_best_node();
 
@@ -59,6 +66,8 @@ namespace sm::ed {
         void importImage(const fs::path& path);
 
         void importFile(const fs::path& path);
+
+        void importLevel(const fs::path& path);
 
         void draw_mainmenu();
         void draw_dockspace();

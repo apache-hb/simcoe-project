@@ -148,7 +148,7 @@ void Editor::importGltf(const fs::path& path) {
         });
 
         fg::iterateAccessorWithIndex<math::float3>(asset, posAccess, [&](const math::float3& value, size_t index) {
-            vertices[index].position = value;
+            vertices[index].position = { value.x, value.z, value.y };
         });
 
         world::VertexFlags flags = world::VertexFlags::ePositions;
@@ -168,7 +168,7 @@ void Editor::importGltf(const fs::path& path) {
             auto& normalAccess = asset.accessors[normalAttr->second];
             if (normalAccess.bufferViewIndex.has_value()) {
                 fg::iterateAccessorWithIndex<math::float3>(asset, normalAccess, [&](const math::float3& value, size_t index) {
-                    vertices[index].normal = value;
+                    vertices[index].normal = float3{ value.x, value.z, value.y };
                 });
             }
         }
@@ -187,9 +187,9 @@ void Editor::importGltf(const fs::path& path) {
         uint32 idxCount = static_cast<uint32>(indices.size());
 
         // rewind the indices
-        for (size_t i = 0; i < idxCount; i += 3) {
-            std::swap(indices[i], indices[i + 2]);
-        }
+        // for (size_t i = 0; i < idxCount; i += 3) {
+        //     std::swap(indices[i], indices[i + 2]);
+        // }
 
         world::IndexOf buffer = mContext.mWorld.add(world::Buffer {
             .name = fmt::format("{}.buffer", name),
@@ -256,6 +256,8 @@ void Editor::importGltf(const fs::path& path) {
             }
         }();
 
+        logs::gAssets.info("Loading node: {}", name);
+
         sm::Vector<world::IndexOf<world::Model>> models;
 
         if (node.meshIndex.has_value()) {
@@ -282,10 +284,8 @@ void Editor::importGltf(const fs::path& path) {
 
         auto [t, r, s] = std::get<fg::TRS>(node.transform);
         math::float3 position = { t[0], t[2], t[1] };
-        math::quatf rotation = { r.data() };
-        logs::gAssets.info("Rotation: {} {} {} {}", r[0], r[1], r[2], r[3]);
-        logs::gAssets.info("Rotation: {} {} {} {}", rotation.v.x, rotation.v.y, rotation.v.z, rotation.angle);
-        rotation *= math::quatf::from_axis_angle(world::kVectorForward, -90._deg);
+        math::quatf rotation = r.data();
+        // rotation *= math::quatf::from_axis_angle(world::kVectorForward, 90._deg);
         math::float3 scale = { s[0], s[2], s[1] };
 
         info.transform = { position, rotation, scale };
@@ -312,6 +312,10 @@ void Editor::importGltf(const fs::path& path) {
             gltfLoadNode(i, asset.nodes[i]);
         }
 
+        for (size_t i = 0; i < asset.nodes.size(); i++) {
+            gltfUpdateNode(i, asset.nodes[i]);
+        }
+
         const fg::Scene& scene = [&] {
             if (asset.defaultScene.has_value()) {
                 return asset.scenes[asset.defaultScene.value()];
@@ -319,10 +323,6 @@ void Editor::importGltf(const fs::path& path) {
                 return asset.scenes[0];
             }
         }();
-
-        for (size_t i : scene.nodeIndices) {
-            gltfUpdateNode(i, asset.nodes[i]);
-        }
 
         // all nodes without parents are roots
         sm::Vector<world::IndexOf<world::Node>> roots;
@@ -336,14 +336,16 @@ void Editor::importGltf(const fs::path& path) {
         if (roots.size() == 1) {
             mContext.mWorld.moveNode(roots[0], root);
         } else {
-            world::IndexOf root = mContext.mWorld.add(world::Node {
+            world::IndexOf gltfRoot = mContext.mWorld.add(world::Node {
                 .name = "root",
                 .transform = world::default_transform(),
             });
 
             for (world::IndexOf<world::Node> i : roots) {
-                mContext.mWorld.moveNode(i, root);
+                mContext.mWorld.moveNode(i, gltfRoot);
             }
+
+            mContext.mWorld.moveNode(gltfRoot, root);
         }
     });
 
