@@ -37,7 +37,40 @@ static void drawContent(PhysicsDebug& self) {
     float3 gravity = ctx.getGravity();
     ImGui::Text("Gravity: %f, %f, %f", gravity.x, gravity.y, gravity.z);
 
-    ImGui::BeginGroup();
+    if (ImGui::Button("Debug Draw All")) {
+        for (auto& body : self.bodies) {
+            body.debugDraw = true;
+        }
+    }
+
+    ImGui::SameLine();
+
+    if (ImGui::Button("Debug Draw None")) {
+        for (auto& body : self.bodies) {
+            body.debugDraw = false;
+        }
+    }
+
+    ImGui::SameLine();
+
+    if (ImGui::Button("Add Physics Body")) {
+        ImGui::OpenPopup("Add Physics Body");
+    }
+
+    if (ImGui::BeginPopup("Add Physics Body")) {
+        nodePickCombo(world, self.pickedNode);
+        ImGui::Checkbox("Dynamic Object", &self.dynamicObject);
+        ImGui::Checkbox("Activate On Create", &self.activateOnCreate);
+
+        if (ImGui::Button("Accept")) {
+            self.createPhysicsBody(self.pickedNode, false, self.dynamicObject);
+
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+
     if (ImGui::BeginTable("Objects", 4, kFlags)) {
         ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("Linear Velocity", ImGuiTableColumnFlags_WidthStretch);
@@ -65,31 +98,6 @@ static void drawContent(PhysicsDebug& self) {
         }
 
         ImGui::EndTable();
-    }
-    ImGui::EndGroup();
-
-    if (ImGui::Button("Debug Draw All")) {
-        for (auto& body : self.bodies) {
-            body.debugDraw = true;
-        }
-    }
-
-    if (ImGui::Button("Add Physics Body")) {
-        ImGui::OpenPopup("Add Physics Body");
-    }
-
-    if (ImGui::BeginPopup("Add Physics Body")) {
-        nodePickCombo(world, self.pickedNode);
-        ImGui::Checkbox("Dynamic Object", &self.dynamicObject);
-        ImGui::Checkbox("Activate On Create", &self.activateOnCreate);
-
-        if (ImGui::Button("Accept")) {
-            self.createPhysicsBody(self.pickedNode, false, self.dynamicObject);
-
-            ImGui::CloseCurrentPopup();
-        }
-
-        ImGui::EndPopup();
     }
 }
 

@@ -583,6 +583,10 @@ namespace sm::math {
             return *this = *this * scalar;
         }
 
+        constexpr Quat operator-() const {
+            return {-v, -angle};
+        }
+
 #if 0
         constexpr Vec3 as_euler() const {
             T sinr_cosp = T(2) * (angle * v.x + v.y * v.z);

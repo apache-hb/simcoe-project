@@ -39,7 +39,9 @@ namespace layers {
     static constexpr uint kCount = uint(Layers::eCount);
 }
 
-static const math::quatf kUpQuat = math::quatf::from_axis_angle(world::kVectorForward, 90._deg);
+static const math::quatf kUpQuat = math::quatf::from_axis_angle(world::kVectorRight, 90._deg);
+// static const math::quatf kDownQuat = math::quatf::from_axis_angle(world::kVectorRight, -90._deg);
+static const math::quatf kWorldUp = math::quatf::from_axis_angle(world::kVectorForward, -90._deg);
 
 static JPH::Vec3 to_jph(const math::float3& v) {
     return {v.x, v.z, v.y};
@@ -50,13 +52,13 @@ static math::float3 from_jph(const JPH::Vec3& v) {
 }
 
 static JPH::Quat to_jph(const math::quatf& q) {
-    math::quatf tmp = q.rotated(math::quatf::from_axis_angle(world::kVectorRight, 90._deg));
+    math::quatf tmp = q * kUpQuat;
     return {tmp.v.x, tmp.v.y, tmp.v.z, tmp.angle};
 }
 
 static math::quatf from_jph(const JPH::Quat& q) {
     math::quatf tmp = {q.GetX(), q.GetY(), q.GetZ(), q.GetW()};
-    return tmp.rotated(math::quatf::from_axis_angle(world::kVectorRight, -90._deg)).rotated(kUpQuat);
+    return tmp * kWorldUp;
 }
 
 struct CObjectLayerPairFilter final : public JPH::ObjectLayerPairFilter {
