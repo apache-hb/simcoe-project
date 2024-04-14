@@ -268,6 +268,7 @@ namespace sm::render {
         // dstorage
         size_t mStorageMeshCount = 0;
         CopyStorage mStorage;
+        uint64 mStorageFenceValue = 1;
         sm::HashMap<world::IndexOf<world::File>, Object<IDStorageFile>> mStorageFiles;
         sm::HashMap<size_t, world::Mesh> mStorageMeshes;
         void create_dstorage();

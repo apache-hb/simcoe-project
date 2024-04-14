@@ -244,7 +244,9 @@ void Editor::importGltf(const fs::path& path) {
         auto [t, r, s] = std::get<fg::TRS>(node.transform);
         math::float3 position = { t[0], t[2], t[1] };
         math::quatf rotation = { r.data() };
-        rotation *= math::quatf::from_axis_angle(world::kVectorForward, 90._deg);
+        logs::gAssets.info("Rotation: {} {} {} {}", r[0], r[1], r[2], r[3]);
+        logs::gAssets.info("Rotation: {} {} {} {}", rotation.v.x, rotation.v.y, rotation.v.z, rotation.angle);
+        rotation *= math::quatf::from_axis_angle(world::kVectorForward, -90._deg);
         math::float3 scale = { s[0], s[2], s[1] };
 
         info.transform = { position, rotation, scale };
@@ -263,6 +265,10 @@ void Editor::importGltf(const fs::path& path) {
             gltfLoadImage(i, asset.images[i]);
         }
 
+        for (size_t i = 0; i < asset.nodes.size(); i++) {
+            gltfLoadNode(i, asset.nodes[i]);
+        }
+
         const fg::Scene& scene = [&] {
             if (asset.defaultScene.has_value()) {
                 return asset.scenes[asset.defaultScene.value()];
@@ -270,10 +276,6 @@ void Editor::importGltf(const fs::path& path) {
                 return asset.scenes[0];
             }
         }();
-
-        for (size_t i : scene.nodeIndices) {
-            gltfLoadNode(i, asset.nodes[i]);
-        }
 
         for (size_t i : scene.nodeIndices) {
             gltfUpdateNode(i, asset.nodes[i]);

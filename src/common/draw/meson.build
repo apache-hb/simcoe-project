@@ -1,7 +1,7 @@
 draw_include = include_directories('.', 'include')
 
 src = [
-    'src/scene.cpp',
+    'src/opaque.cpp',
     'src/blit.cpp',
     'src/camera.cpp',
 

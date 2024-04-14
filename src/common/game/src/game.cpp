@@ -17,6 +17,7 @@ static constexpr uint kMaxBodyPairs = 1024;
 static constexpr uint kMaxContactConstraints = 1024;
 
 static game::GameContextImpl *gContext = nullptr;
+static constexpr float kTimeStep = 1.0f / 60.0f;
 
 LOG_CATEGORY_IMPL(gPhysicsLog, "physics")
 LOG_CATEGORY_IMPL(gGameLog, "game")
@@ -392,8 +393,10 @@ void game::Context::destroyObject(game::Object *object) {
 void game::Context::tick(float dt) {
     mImpl->debugRenderer->begin_frame(*mImpl->activeCamera);
 
-    // TODO: account for <60fps
-    int steps = 1; // std::max(1, int(ceilf(mTimeAccumulator / kTimeStep)));
+    int steps = 1;
+    if (dt > kTimeStep) {
+        steps = int(ceilf(dt / kTimeStep));
+    }
 
     if (JPH::EPhysicsUpdateError err = mImpl->physicsSystem->Update(dt, steps, *mImpl->physicsAllocator, *mImpl->physicsThreadPool); err != JPH::EPhysicsUpdateError::None) {
         gPhysicsLog.warn("Physics update error: {}", std::to_underlying(err));

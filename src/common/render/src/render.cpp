@@ -614,53 +614,63 @@ void Context::upload_model(world::IndexOf<world::Model> model) {
 }
 
 void Context::begin_upload() {
-    logs::gRender.info("beginning upload");
     wait_for_gpu();
     mPendingBarriers.clear();
-    logs::gRender.info("upload begun");
 }
 
 void Context::end_upload() {
-    logs::gRender.info("ending upload");
     StorageQueue& files = mStorage.file_queue();
     StorageQueue& memory = mStorage.memory_queue();
 
-    uint64 value = 1;
+    bool waitForStorageQueue = false;
 
+    // only signal and submit when the queues have pending requests
+    // dstorage doesnt signal a fence if there are no prior requests
     if (files.has_pending_requests()) {
-        files.signal(*mCopyFence, value);
+        waitForStorageQueue = true;
+        files.signal(*mCopyFence, mStorageFenceValue++);
         files.submit();
-        value += 1;
     }
 
     if (memory.has_pending_requests()) {
-        memory.signal(*mCopyFence, value);
+        waitForStorageQueue = true;
+        memory.signal(*mCopyFence, mStorageFenceValue++);
         memory.submit();
-        value += 1;
     }
 
-    reset_direct_commands();
+    bool waitForQueue = waitForStorageQueue;
 
-    mCommandList->ResourceBarrier(sm::int_cast<uint>(mPendingBarriers.size()), mPendingBarriers.data());
+    // only submit barriers if there are any
+    if (!mPendingBarriers.empty()) {
+        reset_direct_commands();
 
-    SM_ASSERT_HR(mCommandList->Close());
+        mCommandList->ResourceBarrier(sm::int_cast<uint>(mPendingBarriers.size()), mPendingBarriers.data());
 
-    ID3D12CommandList *lists[] = { mCommandList.get() };
-    mDirectQueue->Wait(*mCopyFence, value++);
-    mDirectQueue->ExecuteCommandLists(1, lists);
+        SM_ASSERT_HR(mCommandList->Close());
 
-    mDirectQueue->Signal(*mCopyFence, value);
+        ID3D12CommandList *lists[] = { mCommandList.get() };
 
-    logs::gRender.info("upload ended");
+        if (waitForStorageQueue) {
+            mDirectQueue->Wait(*mCopyFence, mStorageFenceValue - 1);
+        }
 
-    uint64 completed = mCopyFence->GetCompletedValue();
+        mDirectQueue->ExecuteCommandLists(1, lists);
 
-    logs::gRender.info("waiting for fence completion {}", completed);
-    if (completed < value) {
-        mCopyFence->SetEventOnCompletion(value, mCopyFenceEvent);
-        WaitForSingleObject(mCopyFenceEvent, INFINITE);
+        mDirectQueue->Signal(*mCopyFence, mStorageFenceValue);
+
+        waitForQueue = true;
     }
-    logs::gRender.info("fence completed");
+
+    // only wait on the cpu side if commands were submitted
+    if (waitForQueue) {
+        uint64 completed = mCopyFence->GetCompletedValue();
+        if (completed < mStorageFenceValue) {
+            mCopyFence->SetEventOnCompletion(mStorageFenceValue, mCopyFenceEvent);
+            WaitForSingleObject(mCopyFenceEvent, INFINITE);
+        }
+
+        mStorageFenceValue += 1;
+    }
 }
 
 void Context::create_scene() {
@@ -994,430 +1004,3 @@ void Context::flush_copy_queue() {
         WaitForSingleObject(mCopyFenceEvent, INFINITE);
     }
 }
-
-/**
-#if 0
-texindex Context::load_texture(const fs::path& path) {
-    Texture tex;
-    if (create_texture(tex, path, ImageFormat::eUnknown)) {
-        texindex index = int_cast<texindex>(mTextures.size());
-        mTextures.emplace_back(std::move(tex));
-        return index;
-    }
-
-    return UINT16_MAX;
-}
-
-texindex Context::load_texture(const ImageData& image) {
-    Resource texture;
-    Resource upload;
-
-    const auto kTextureDesc = CD3DX12_RESOURCE_DESC::Tex2D(
-        DXGI_FORMAT_R8G8B8A8_UNORM,
-        image.size.width,
-        image.size.height,
-        1, 1
-    );
-
-    SM_ASSERT_HR(create_resource(texture, D3D12_HEAP_TYPE_DEFAULT, kTextureDesc, D3D12_RESOURCE_STATE_COPY_DEST));
-
-    const uint kUploadBufferSize = GetRequiredIntermediateSize(*texture.mResource, 0, 1);
-    const auto kUploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kUploadBufferSize);
-
-    SM_ASSERT_HR(create_resource(upload, D3D12_HEAP_TYPE_UPLOAD, kUploadBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ));
-
-    texture.rename("temp texture");
-    upload.rename("temp texture (upload)");
-
-    D3D12_RANGE read{0, 0};
-    void *data;
-    SM_ASSERT_HR(upload.map(&read, &data));
-    std::memcpy(data, image.data.data(), image.data.size());
-    upload.unmap(&read);
-
-    wait_for_gpu();
-
-    reset_direct_commands();
-    reset_copy_commands();
-
-    const D3D12_SUBRESOURCE_DATA kTextureData = {
-        .pData = image.data.data(),
-        .RowPitch = int_cast<LONG_PTR>(image.size.width * 4),
-        .SlicePitch = int_cast<LONG_PTR>(image.size.width * image.size.height * 4),
-    };
-
-    UpdateSubresources<1>(mCopyCommands.get(), *texture.mResource, upload.mResource.get(), 0, 0, 1, &kTextureData);
-
-    const D3D12_RESOURCE_BARRIER kBarriers[] = {
-        CD3DX12_RESOURCE_BARRIER::Transition(
-            *texture.mResource,
-            D3D12_RESOURCE_STATE_COPY_DEST,
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
-        )
-    };
-
-    mCommandList.submit_barriers(kBarriers);
-
-    SM_ASSERT_HR(mCopyCommands->Close());
-    SM_ASSERT_HR(mCommandList->Close());
-
-    ID3D12CommandList *copy_lists[] = { mCopyCommands.get() };
-    mCopyQueue->ExecuteCommandLists(1, copy_lists);
-    SM_ASSERT_HR(mCopyQueue->Signal(*mCopyFence, mCopyFenceValue));
-
-    ID3D12CommandList *direct_lists[] = { mCommandList.get() };
-    SM_ASSERT_HR(mDirectQueue->Wait(*mCopyFence, mCopyFenceValue));
-    mDirectQueue->ExecuteCommandLists(1, direct_lists);
-
-    wait_for_gpu();
-    flush_copy_queue();
-
-    const D3D12_SHADER_RESOURCE_VIEW_DESC kSrvDesc = {
-        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
-        .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
-        .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
-        .Texture2D = {
-            .MostDetailedMip = 0,
-            .MipLevels = 1,
-            .ResourceMinLODClamp = 0.f,
-        },
-    };
-
-    SrvIndex index = mSrvPool.allocate();
-    auto cpu = mSrvPool.cpu_handle(index);
-    mDevice->CreateShaderResourceView(*texture.mResource, &kSrvDesc, cpu);
-
-    Texture tex = {
-        .path = "temp texture",
-        .name = "temp texture",
-        .format = ImageFormat::eUnknown,
-        .size = image.size,
-        .mips = 1,
-
-        .resource = std::move(texture),
-        .srv = index,
-    };
-
-    texindex idx = int_cast<texindex>(mTextures.size());
-    mTextures.emplace_back(std::move(tex));
-    return idx;
-}
-
-void Context::create_world_resources() {
-    // TODO:
-}
-
-bool Context::create_texture_stb(Texture& result, const fs::path& path) {
-    auto image = open_image(path);
-    if (image.size == 0u) return false;
-
-    Resource texture;
-    Resource upload;
-
-    const auto kTextureDesc = CD3DX12_RESOURCE_DESC::Tex2D(
-        DXGI_FORMAT_R8G8B8A8_UNORM,
-        image.size.width,
-        image.size.height,
-        1, 1
-    );
-
-    SM_ASSERT_HR(create_resource(texture, D3D12_HEAP_TYPE_DEFAULT, kTextureDesc, D3D12_RESOURCE_STATE_COPY_DEST));
-
-    const uint kUploadBufferSize = GetRequiredIntermediateSize(*texture.mResource, 0, 1);
-    const auto kUploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kUploadBufferSize);
-
-    SM_ASSERT_HR(create_resource(upload, D3D12_HEAP_TYPE_UPLOAD, kUploadBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ));
-
-    texture.rename(path.string());
-    upload.rename(fmt::format("{} (upload)", path));
-
-    D3D12_RANGE read{0, 0};
-    void *data;
-    SM_ASSERT_HR(upload.map(&read, &data));
-    std::memcpy(data, image.data.data(), image.data.size());
-    upload.unmap(&read);
-
-    wait_for_gpu();
-
-    reset_direct_commands();
-    reset_copy_commands();
-
-    const D3D12_SUBRESOURCE_DATA kTextureData = {
-        .pData = image.data.data(),
-        .RowPitch = int_cast<LONG_PTR>(image.size.width * 4),
-        .SlicePitch = int_cast<LONG_PTR>(image.size.width * image.size.height * 4),
-    };
-
-    UpdateSubresources<1>(mCopyCommands.get(), *texture.mResource, upload.mResource.get(), 0, 0, 1, &kTextureData);
-
-    const D3D12_RESOURCE_BARRIER kBarriers[] = {
-        CD3DX12_RESOURCE_BARRIER::Transition(
-            *texture.mResource,
-            D3D12_RESOURCE_STATE_COPY_DEST,
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
-        )
-    };
-
-    mCommandList.submit_barriers(kBarriers);
-
-    SM_ASSERT_HR(mCopyCommands->Close());
-    SM_ASSERT_HR(mCommandList->Close());
-
-    ID3D12CommandList *copy_lists[] = { mCopyCommands.get() };
-    mCopyQueue->ExecuteCommandLists(1, copy_lists);
-    SM_ASSERT_HR(mCopyQueue->Signal(*mCopyFence, mCopyFenceValue));
-
-    ID3D12CommandList *direct_lists[] = { mCommandList.get() };
-    SM_ASSERT_HR(mDirectQueue->Wait(*mCopyFence, mCopyFenceValue));
-    mDirectQueue->ExecuteCommandLists(1, direct_lists);
-
-    wait_for_gpu();
-    flush_copy_queue();
-
-    const D3D12_SHADER_RESOURCE_VIEW_DESC kSrvDesc = {
-        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
-        .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
-        .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
-        .Texture2D = {
-            .MostDetailedMip = 0,
-            .MipLevels = 1,
-            .ResourceMinLODClamp = 0.f,
-        },
-    };
-
-    SrvIndex index = mSrvPool.allocate();
-    auto cpu = mSrvPool.cpu_handle(index);
-    mDevice->CreateShaderResourceView(*texture.mResource, &kSrvDesc, cpu);
-
-    result = Texture {
-        .path = path,
-        .name = path.filename().string(),
-        .format = image.format,
-        .size = image.size,
-        .mips = 1,
-
-        .resource = std::move(texture),
-        .srv = index,
-    };
-
-    return true;
-}
-
-bool Context::create_texture_dds(Texture& result, const fs::path& path) {
-    Object<ID3D12Resource> texture;
-    sm::Vector<D3D12_SUBRESOURCE_DATA> mips;
-    std::unique_ptr<uint8_t[]> data;
-
-    auto wpath = path.wstring();
-
-    Result hr = DirectX::LoadDDSTextureFromFile(
-        mDevice.get(),
-        wpath.c_str(),
-        &texture,
-        data,
-        mips);
-
-    if (hr.failed()) {
-        logs::gRender.warn("failed to load dds {}: {}", path, hr);
-        return false;
-    }
-
-    const uint kUploadBufferSize = GetRequiredIntermediateSize(*texture, 0, int_cast<uint>(mips.size()));
-    const auto kUploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kUploadBufferSize);
-
-    Resource upload;
-
-    SM_ASSERT_HR(create_resource(upload, D3D12_HEAP_TYPE_UPLOAD, kUploadBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ));
-
-    texture.rename(path.string());
-    upload.rename(fmt::format("{} (upload)", path));
-
-    // TODO: really need an async copy queue on another thread
-    wait_for_gpu();
-    flush_copy_queue();
-
-    reset_copy_commands();
-    reset_direct_commands();
-
-    UpdateSubresources<16>(mCopyCommands.get(), texture.get(), upload.get(), 0, 0, int_cast<uint>(mips.size()), mips.data());
-
-    const D3D12_RESOURCE_BARRIER kBarriers[] = {
-        CD3DX12_RESOURCE_BARRIER::Transition(
-            *texture,
-            D3D12_RESOURCE_STATE_COPY_DEST,
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
-        )
-    };
-
-    mCommandList.submit_barriers(kBarriers);
-
-    SM_ASSERT_HR(mCopyCommands->Close());
-    SM_ASSERT_HR(mCommandList->Close());
-
-    ID3D12CommandList *copy_lists[] = { mCopyCommands.get() };
-    mCopyQueue->ExecuteCommandLists(1, copy_lists);
-    SM_ASSERT_HR(mCopyQueue->Signal(*mCopyFence, mCopyFenceValue));
-
-    ID3D12CommandList *direct_lists[] = { mCommandList.get() };
-    SM_ASSERT_HR(mDirectQueue->Wait(*mCopyFence, mCopyFenceValue));
-    mDirectQueue->ExecuteCommandLists(1, direct_lists);
-
-    wait_for_gpu();
-    flush_copy_queue();
-
-    auto desc = texture->GetDesc();
-
-    const D3D12_SHADER_RESOURCE_VIEW_DESC kSrvDesc = {
-        .Format = desc.Format,
-        .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
-        .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
-        .Texture2D = {
-            .MostDetailedMip = 0,
-            .MipLevels = int_cast<uint>(mips.size()),
-            .ResourceMinLODClamp = 0.f,
-        },
-    };
-
-    SrvIndex index = mSrvPool.allocate();
-    auto cpu = mSrvPool.cpu_handle(index);
-    mDevice->CreateShaderResourceView(*texture, &kSrvDesc, cpu);
-
-    result = Texture {
-        .path = path,
-        .name = path.filename().string(),
-        .format = ImageFormat::eBC7,
-        .size = { int_cast<uint>(desc.Width), int_cast<uint>(desc.Height) },
-        .mips = int_cast<uint>(mips.size()),
-
-        .resource = {
-            .mResource = std::move(texture),
-        },
-        .srv = index,
-    };
-
-    return true;
-}
-
-bool Context::create_texture(Texture& result, const fs::path& path, ImageFormat type) {
-    auto str = path.string();
-    using enum ImageFormat::Inner;
-    switch (type) {
-    case eUnknown:
-        if (create_texture_stb(result, path))
-            return true;
-        if (create_texture_dds(result, path))
-            return true;
-        logs::gRender.warn("unable to determine image type of {}", path);
-        break;
-    case ePNG:
-    case eJPG:
-    case eBMP:
-        return create_texture_stb(result, path);
-
-    case eBC7:
-        return create_texture_dds(result, path);
-
-    default:
-        logs::gRender.error("unsupported image type: {}", type);
-        return false;
-    }
-
-    return false;
-}
-
-Mesh Context::create_mesh(const world::MeshInfo& info, const float3& colour) {
-    auto mesh = world::primitive(info);
-
-    uint32_t col = math::pack_colour(float4(colour, 1.0f));
-
-    for (auto& v : mesh.vertices) {
-        v.colour = col;
-    }
-
-    Resource vbo_upload;
-    Resource ibo_upload;
-
-    const uint kVertexBufferSize = (uint)mesh.vertices.size() * sizeof(world::Vertex);
-    const uint kIndexBufferSize = (uint)mesh.indices.size() * sizeof(uint16);
-
-    const auto kVertexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kVertexBufferSize);
-    const auto kIndexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(kIndexBufferSize);
-
-    Mesh primitive = {
-        .mInfo = info,
-        .mIndexCount = int_cast<uint>(mesh.indices.size()),
-    };
-
-    SM_ASSERT_HR(create_resource(vbo_upload, D3D12_HEAP_TYPE_UPLOAD, kVertexBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ));
-    SM_ASSERT_HR(create_resource(ibo_upload, D3D12_HEAP_TYPE_UPLOAD, kIndexBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ));
-
-    D3D12_RANGE read{0, 0};
-
-    {
-        void *data;
-        SM_ASSERT_HR(vbo_upload.map(&read, &data));
-        std::memcpy(data, mesh.vertices.data(), kVertexBufferSize);
-        vbo_upload.unmap(&read);
-    }
-
-    {
-        void *data;
-        SM_ASSERT_HR(ibo_upload.map(&read, &data));
-        std::memcpy(data, mesh.indices.data(), kIndexBufferSize);
-        ibo_upload.unmap(&read);
-    }
-
-    SM_ASSERT_HR(create_resource(primitive.mVertexBuffer, D3D12_HEAP_TYPE_DEFAULT, kVertexBufferDesc, D3D12_RESOURCE_STATE_COMMON));
-    SM_ASSERT_HR(create_resource(primitive.mIndexBuffer, D3D12_HEAP_TYPE_DEFAULT, kIndexBufferDesc, D3D12_RESOURCE_STATE_COMMON));
-
-    reset_direct_commands();
-    reset_copy_commands();
-
-    copy_buffer(mCopyCommands, primitive.mVertexBuffer, vbo_upload, kVertexBufferSize);
-    copy_buffer(mCopyCommands, primitive.mIndexBuffer, ibo_upload, kIndexBufferSize);
-
-    const D3D12_RESOURCE_BARRIER kBarriers[2] = {
-        CD3DX12_RESOURCE_BARRIER::Transition(
-            *primitive.mVertexBuffer.mResource,
-            D3D12_RESOURCE_STATE_COPY_DEST,
-            D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
-        ),
-        CD3DX12_RESOURCE_BARRIER::Transition(
-            *primitive.mIndexBuffer.mResource,
-            D3D12_RESOURCE_STATE_COPY_DEST,
-            D3D12_RESOURCE_STATE_INDEX_BUFFER
-        )
-    };
-
-    mCommandList->ResourceBarrier(_countof(kBarriers), kBarriers);
-
-    SM_ASSERT_HR(mCopyCommands->Close());
-    SM_ASSERT_HR(mCommandList->Close());
-
-    ID3D12CommandList *copy_lists[] = { mCopyCommands.get() };
-    mCopyQueue->ExecuteCommandLists(1, copy_lists);
-    SM_ASSERT_HR(mCopyQueue->Signal(*mCopyFence, mCopyFenceValue));
-
-    ID3D12CommandList *direct_lists[] = { mCommandList.get() };
-    SM_ASSERT_HR(mDirectQueue->Wait(*mCopyFence, mCopyFenceValue));
-    mDirectQueue->ExecuteCommandLists(1, direct_lists);
-
-    primitive.mVertexBufferView = {
-        .BufferLocation = primitive.mVertexBuffer.get_gpu_address(),
-        .SizeInBytes = kVertexBufferSize,
-        .StrideInBytes = sizeof(world::Vertex),
-    };
-
-    primitive.mIndexBufferView = {
-        .BufferLocation = primitive.mIndexBuffer.get_gpu_address(),
-        .SizeInBytes = kIndexBufferSize,
-        .Format = DXGI_FORMAT_R16_UINT,
-    };
-
-    wait_for_gpu();
-    flush_copy_queue();
-
-    return primitive;
-}
-#endif
-*/
