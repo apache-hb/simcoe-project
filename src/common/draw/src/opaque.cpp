@@ -77,6 +77,7 @@ enum {
 static void create_primitive_pipeline(render::Pipeline& pipeline, const draw::ViewportConfig& config, render::Context& context) {
     {
         // object data
+        // mvp + albedo texture index
         CD3DX12_ROOT_PARAMETER1 params[eBindingCount];
         params[eCameraBuffer].InitAsConstants(16 + 1, 0);
 
@@ -175,6 +176,8 @@ void draw::opaque(graph::FrameGraph& graph, graph::Handle& target, graph::Handle
         cmd->ClearDepthStencilView(dsv_cpu, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+        cmd->SetGraphicsRootDescriptorTable(eTextureArray, context.mSrvPool.get()->GetGPUDescriptorHandleForHeapStart());
 
         const auto& scene = context.get_scene();
         draw_node(context, cmd, camera, scene.root, math::float4x4::identity());
