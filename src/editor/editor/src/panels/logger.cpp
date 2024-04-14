@@ -57,7 +57,7 @@ static ImVec4 get_severity_colour(logs::Severity severity) {
     }
 }
 
-constexpr static ImGuiTableFlags kFlags
+static constexpr ImGuiTableFlags kFlags
     = ImGuiTableFlags_Resizable
     | ImGuiTableFlags_Hideable
     | ImGuiTableFlags_RowBg

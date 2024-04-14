@@ -36,6 +36,8 @@ namespace sm::game {
         math::float3 getLinearVelocity() const;
         math::float3 getCenterOfMass() const;
         math::quatf getRotation() const;
+
+        PhysicsBodyImpl *getImpl() const { return mImpl.get(); }
     };
 
     struct CharacterBodyImpl;
@@ -74,6 +76,8 @@ namespace sm::game {
         bool isNotSupported() const;
 
         bool isSupported() const;
+
+        CharacterBodyImpl *getImpl() const { return mImpl.get(); }
     };
 
     struct GameContextImpl;
@@ -106,6 +110,8 @@ namespace sm::game {
         void setCamera(const draw::Camera& camera);
 
         math::float3 getGravity() const;
+
+        void debugDrawPhysicsBody(const PhysicsBody& body);
 
         PhysicsBody addPhysicsBody(
             const world::Cube& cube,

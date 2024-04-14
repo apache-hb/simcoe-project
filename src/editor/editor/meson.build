@@ -18,7 +18,8 @@ src = [
     'src/panels/panel.cpp',
     'src/panels/pix.cpp',
     'src/panels/scene.cpp',
-    'src/panels/viewport.cpp'
+    'src/panels/viewport.cpp',
+    'src/panels/physics.cpp'
 ]
 
 deps = [

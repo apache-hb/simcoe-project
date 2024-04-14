@@ -10,6 +10,7 @@
 #include "editor/panels/assets.hpp"
 #include "editor/panels/viewport.hpp"
 #include "editor/panels/pix.hpp"
+#include "editor/panels/physics.hpp"
 #include "editor/draw.hpp"
 
 #include "imfilebrowser.h"
@@ -34,6 +35,7 @@ namespace sm::ed {
         AssetBrowser mAssetBrowser;
         GraphPanel mGraph;
         PixPanel mPix;
+        PhysicsDebug mPhysicsDebug;
 
         bool mShowImGuiDemo = false;
         bool mShowImPlotDemo = false;
@@ -77,5 +79,13 @@ namespace sm::ed {
 
         render::Context& get_context() { return mContext; }
         draw::Camera& get_camera() { return mContext.get_active_camera(); }
+
+        void addPhysicsBody(world::IndexOf<world::Node> node, game::PhysicsBody&& body) {
+            mPhysicsDebug.addPhysicsBody(node, std::move(body));
+        }
+
+        void update() {
+            mPhysicsDebug.update();
+        }
     };
 }

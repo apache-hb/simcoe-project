@@ -16,6 +16,7 @@ Editor::Editor(ed::EditorContext& context)
     , mAssetBrowser(context)
     , mGraph(context)
     , mPix(context)
+    , mPhysicsDebug(context)
 {
     mOpenLevelDialog.SetTitle("Open Level");
     mSaveLevelDialog.SetTitle("Save Level");
@@ -190,7 +191,10 @@ void Editor::draw_create_popup() {
             if (ImGui::MenuItem("Empty")) {
                 auto root = get_best_node();
 
-                auto added = world.add(world::Node { .name = "New Empty", .transform = world::default_transform() });
+                auto added = world.add(world::Node {
+                    .name = "New Empty",
+                    .transform = world::default_transform()
+                });
                 world.get(root).children.push_back(added);
 
                 mContext.upload([this, added] {
@@ -326,6 +330,7 @@ void Editor::draw_create_popup() {
 
             ImGui::EndMenu();
         }
+
         ImGui::EndPopup();
     }
 }
@@ -381,6 +386,7 @@ void Editor::draw() {
     mGraph.draw_window();
     mPix.draw_window();
     mConfig.draw_window();
+    mPhysicsDebug.draw_window();
 
     for (ViewportPanel &viewport : mViewports) {
         viewport.draw_window();

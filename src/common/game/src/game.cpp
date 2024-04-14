@@ -4,6 +4,7 @@
 
 #include "game/game.hpp"
 #include "std/str.h"
+#include "math/format.hpp"
 
 using namespace sm;
 using namespace sm::game;
@@ -138,12 +139,14 @@ struct CDebugRenderer final : public JPH::DebugRendererSimple {
     sm::Vector<DebugVertex> mVertices;
 
     void DrawLine(JPH::RVec3Arg inFrom, JPH::RVec3Arg inTo, JPH::ColorArg inColor) override {
-        float3 from = { inFrom.GetX(), inFrom.GetZ(), inFrom.GetY() };
-        float3 to = { inTo.GetX(), inTo.GetZ(), inTo.GetY() };
+        float3 from = from_jph(inFrom);
+        float3 to = from_jph(inTo);
         float3 colour = math::unpack_colour(inColor.GetUInt32()).xyz();
 
         mVertices.push_back({ from, colour });
         mVertices.push_back({ to, colour });
+
+        // gPhysicsLog.info("DrawLine: {} -> {}", from, to);
     }
 
     void DrawText3D(JPH::RVec3Arg inPosition, const std::string_view& inString, JPH::ColorArg inColor, float inHeight) override {
@@ -378,6 +381,13 @@ void CharacterBody::postUpdate() {
     mImpl->body->PostSimulation(0.05f);
 }
 
+void game::Context::debugDrawPhysicsBody(const PhysicsBody& body) {
+    const JPH::Body *object = body.getImpl()->body;
+    const JPH::Shape *shape = object->GetShape();
+
+    shape->Draw(*mImpl->debugRenderer, object->GetCenterOfMassTransform(), JPH::Vec3::sReplicate(1.0f), JPH::Color::sGreen, false, true);
+}
+
 void game::Context::addClass(const meta::Class& cls) {
 }
 
@@ -606,7 +616,7 @@ void game::physics_debug(
 
         create_debug_pipeline(info.pipeline, config, context);
 
-        info.vbo = context.vertex_upload_buffer<DebugVertex>(2048);
+        info.vbo = context.vertex_upload_buffer<DebugVertex>(0x1000uz * 8);
 
         return info;
     });
@@ -621,22 +631,25 @@ void game::physics_debug(
         auto rtv = ctx.graph.rtv(target);
         auto rtv_cpu = context.mRtvPool.cpu_handle(rtv);
 
+        auto& debug = static_cast<CDebugRenderer&>(*JPH::DebugRenderer::sInstance);
+        if (debug.mVertices.empty())
+            return;
+
         cmd->SetGraphicsRootSignature(*data.pipeline.signature);
         cmd->SetPipelineState(*data.pipeline.pso);
 
         auto vp = camera.viewport();
+        const auto& config = camera.config();
+        float4x4 mvp = camera.mvp(config.aspect_ratio(), float4x4::identity()).transpose();
 
         cmd->RSSetViewports(1, &vp.mViewport);
         cmd->RSSetScissorRects(1, &vp.mScissorRect);
 
         cmd->OMSetRenderTargets(1, &rtv_cpu, false, &dsv_cpu);
 
+        cmd->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
+
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
-
-        auto& debug = static_cast<CDebugRenderer&>(*JPH::DebugRenderer::sInstance);
-
-        if (debug.mVertices.empty())
-            return;
 
         data.vbo.update(debug.mVertices);
 
@@ -645,5 +658,7 @@ void game::physics_debug(
         cmd->IASetVertexBuffers(0, 1, &vbv);
 
         cmd->DrawInstanced(debug.mVertices.size(), 1, 0, 0);
+
+        gPhysicsLog.info("Draw: {}", debug.mVertices.size());
     });
 }

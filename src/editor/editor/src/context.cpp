@@ -105,10 +105,10 @@ void EditorContext::on_destroy() {
 
 void EditorContext::setup_framegraph(graph::FrameGraph& graph) {
     render::Viewport vp { mSwapChainConfig.size };
-    graph::Handle point_light_data;
-    graph::Handle spot_light_data;
+    // graph::Handle point_light_data;
+    // graph::Handle spot_light_data;
 
-    draw::forward_plus::upload_light_data(graph, point_light_data, spot_light_data);
+    // draw::forward_plus::upload_light_data(graph, point_light_data, spot_light_data);
     for (auto& camera : mCameras) {
         // graph::Handle depth_target;
         // graph::Handle light_indices;

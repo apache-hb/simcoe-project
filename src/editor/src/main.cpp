@@ -420,6 +420,9 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     input::Debounce jump{input::Button::eSpace};
 
+    editor.addPhysicsBody(floorNode, std::move(floor));
+    editor.addPhysicsBody(bodyNode, std::move(body));
+
     bool done = false;
     while (!done) {
         MSG msg = {};
@@ -442,53 +445,13 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         context.tick(dt);
 
         player.postUpdate();
+        editor.update();
 
         editor.begin_frame();
 
-        if (ImGui::Begin("Physics")) {
-            {
-                ImGui::SeparatorText("Floor");
-                auto v = floor.getLinearVelocity();
-                auto p = floor.getCenterOfMass();
-                auto r = floor.getRotation();
-                auto e = r.to_euler().get_degrees();
-                ImGui::Text("Linear Velocity: %f.%f.%f", v.x, v.y, v.z);
-                ImGui::Text("Center of Mass: %f.%f.%f", p.x, p.y, p.z);
-                ImGui::Text("Rotation: %f.%f.%f.%f", r.v.x, r.v.y, r.v.z, r.angle);
-                ImGui::Text("Euler: %f.%f.%f", e.x, e.y, e.z);
-            }
-
-            ImGui::SeparatorText("Body");
-            auto v = body.getLinearVelocity();
-            auto p = body.getCenterOfMass();
-            auto r = body.getRotation();
-            auto e = r.to_euler().get_degrees();
-            ImGui::Text("Linear Velocity: %f.%f.%f", v.x, v.y, v.z);
-            ImGui::Text("Center of Mass: %f.%f.%f", p.x, p.y, p.z);
-            ImGui::Text("Rotation: %f.%f.%f.%f", r.v.x, r.v.y, r.v.z, r.angle);
-            ImGui::Text("Euler: %f.%f.%f", e.x, e.y, e.z);
-
-            ImGui::Text("Active: %s", body.isActive() ? "true" : "false");
-
-            if (ImGui::Button("Activate")) {
-                body.setLinearVelocity({ 0.f, 0.f, 1.f });
-                body.setAngularVelocity({ 0.f, 0.f, 0.1f });
-                body.activate();
-            }
-        }
-        ImGui::End();
-
-        world::Node& floorNodeInfo = world.get(floorNode);
-        world::Node& bodyNodeInfo = world.get(bodyNode);
         world::Node& playerNodeInfo = world.get(playerNode);
 
-        floorNodeInfo.transform.position = floor.getCenterOfMass();
-        bodyNodeInfo.transform.position = body.getCenterOfMass();
-
         math::quatf upQuat = math::quatf::from_axis_angle(world::kVectorForward, 90._deg);
-
-        floorNodeInfo.transform.rotation = floor.getRotation() * upQuat;
-        bodyNodeInfo.transform.rotation = body.getRotation() * upQuat;
 
         auto& state = context.input.get_state();
         static constexpr input::ButtonAxis kMoveForward = {input::Button::eW, input::Button::eS};
