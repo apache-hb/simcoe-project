@@ -340,10 +340,10 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     ed::Editor editor{context};
 
-    world::Cube floorShape = { .width = 10.f, .height = 1.f, .depth = 10.f };
+    world::Cube floorShape = { .width = 15.f, .height = 1.f, .depth = 15.f };
     world::Sphere bodyShape = { .radius = 1.f, .slices = 8, .stacks = 8 };
 
-    world::Cube wallShape = { .width = 1.f, .height = 3.f, .depth = 1.f };
+    world::Cube wallShape = { .width = 1.f, .height = 2.f, .depth = 1.f };
 
     world::Cylinder playerShape = { .radius = 0.7f, .height = 1.3f, .slices = 8 };
 
@@ -437,10 +437,21 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .models = { playerModel }
     });
 
-    for (int i = 0; i < 10; i++) {
+    std::string_view walls = ""
+        "1111111111"
+        "1010000001"
+        "1011110001"
+        "1000100001"
+        "1110100011"
+        "1000111001"
+        "1000000001"
+        "1111111111"
+    ;
+
+    for (int i = 0; i < 8; i++) {
         for (int j = 0; j < 10; j++) {
-            if (i == 0 || i == 9 || j == 0 || j == 9) {
-                float3 pos = float3((i - 5) * 2, (j - 5) * 2, 2.5f);
+            if (walls[i * 10 + j] == '1') {
+                float3 pos = float3((j - 5) * 2, (i - 4) * 2, 2.5f);
                 IndexOf wall = world.addNode(world::Node {
                     .parent = context.get_scene().root,
                     .name = "Wall",
@@ -457,6 +468,29 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
             }
         }
     }
+
+#if 0
+    for (int i = 0; i < 10; i++) {
+        for (int j = 0; j < 10; j++) {
+            if (i == 0 || i == 9 || j == 0 || j == 9) {
+                float3 pos = float3((i - 7) * 2, (j - 7) * 2, 2.5f);
+                IndexOf wall = world.addNode(world::Node {
+                    .parent = context.get_scene().root,
+                    .name = "Wall",
+                    .transform = {
+                        .position = pos,
+                        .rotation = quatf::identity(),
+                        .scale = 1.f
+                    },
+                    .models = { wallModel }
+                });
+
+                game::PhysicsBody wallBody = game.addPhysicsBody(wallShape, pos, quatf::identity(), false);
+                editor.addPhysicsBody(wall, std::move(wallBody));
+            }
+        }
+    }
+#endif
 
     for (int i = 0; i < 10; i++) {
         float3 pos = float3((i - 5) * 2, 5.f, (float(i * 6.f) / 10) - 2.f);
@@ -476,7 +510,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     }
 
     context.upload([&] {
-        for (int i = 0; i < 64; i++) {
+        for (int i = 0; i < 16; i++) {
             float randx = (rand() % 16) - 8;
             float randy = (rand() % 16) - 8;
             float z = 6.f;
@@ -503,6 +537,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
             });
 
             game::PhysicsBody body = game.addPhysicsBody(shape, pos, quatf::identity(), true);
+            body.activate();
             editor.addPhysicsBody(it, std::move(body));
 
             context.upload_model(sphere);
