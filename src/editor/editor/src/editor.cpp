@@ -383,9 +383,9 @@ void Editor::importLevel(const fs::path& path) {
         const auto& info = world.get(node);
         bool sphere = info.name.contains("Sphere");
         if (info.name.contains("STATIC_PHYSICS")) {
-            mPhysicsDebug.createPhysicsBody(node, sphere, false);
+            mPhysicsDebug.createPhysicsBody(node, sphere, false, true);
         } else if (info.name.contains("DYNAMIC_PHYSICS")) {
-            mPhysicsDebug.createPhysicsBody(node, sphere, true);
+            mPhysicsDebug.createPhysicsBody(node, sphere, true, true);
         }
     }
 }

@@ -2,6 +2,8 @@
 
 #include "game/game.hpp"
 
+#include <unordered_set>
+
 namespace sm::ed {
     struct EditorContext;
 
@@ -19,6 +21,8 @@ namespace sm::ed {
             bool debugDraw = false;
         };
 
+        std::unordered_set<world::IndexOf<world::Node>> bodged;
+
         sm::Vector<PhysicsObjectData> bodies;
 
         PhysicsDebug(ed::EditorContext& context)
@@ -29,7 +33,7 @@ namespace sm::ed {
 
         void addPhysicsBody(world::IndexOf<world::Node> node, game::PhysicsBody&& body);
 
-        void createPhysicsBody(world::IndexOf<world::Node> node, bool sphere, bool dynamic);
+        void createPhysicsBody(world::IndexOf<world::Node> node, bool sphere, bool dynamic, bool bodge = false);
 
         void update();
     };

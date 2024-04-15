@@ -1,6 +1,72 @@
 #include "imgui/imgui.h"
 #include "imfilebrowser.h"
 
+#ifdef _WIN32
+
+#ifndef _INC_WINDOWS
+
+#ifndef WIN32_LEAN_AND_MEAN
+
+#define IMGUI_FILEBROWSER_UNDEF_WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+
+#endif // #ifndef WIN32_LEAN_AND_MEAN
+
+#include <windows.h>
+
+#ifdef IMGUI_FILEBROWSER_UNDEF_WIN32_LEAN_AND_MEAN
+#undef IMGUI_FILEBROWSER_UNDEF_WIN32_LEAN_AND_MEAN
+#undef WIN32_LEAN_AND_MEAN
+#endif // #ifdef IMGUI_FILEBROWSER_UNDEF_WIN32_LEAN_AND_MEAN
+
+#endif // #ifdef _INC_WINDOWS
+
+static std::uint32_t GetDrivesBitMask()
+{
+    DWORD mask = GetLogicalDrives();
+    uint32_t ret = 0;
+    for(int i = 0; i < 26; ++i)
+    {
+        if(!(mask & (1 << i)))
+        {
+            continue;
+        }
+        char rootName[4] = { static_cast<char>('A' + i), ':', '\\', '\0' };
+        UINT type = GetDriveTypeA(rootName);
+        if(type == DRIVE_REMOVABLE || type == DRIVE_FIXED ||  type == DRIVE_REMOTE)
+        {
+            ret |= (1 << i);
+        }
+    }
+    return ret;
+}
+
+#endif
+
+namespace {
+template <class Functor>
+struct ScopeGuard
+{
+    ScopeGuard(Functor&& t) : func(std::move(t)) { }
+
+    ~ScopeGuard() { func(); }
+
+private:
+
+    Functor func;
+};
+
+std::string ToLower(const std::string &s)
+{
+    std::string ret = s;
+    for(char &c : ret)
+    {
+        c = static_cast<char>(std::tolower(c));
+    }
+    return ret;
+}
+}
+
 ImGui::FileBrowser::FileBrowser(ImGuiFileBrowserFlags flags)
     : width_(700), height_(450), posX_(0), posY_(0), flags_(flags),
       openFlag_(false), closeFlag_(false), isOpened_(false), ok_(false), posIsSet_(false),
@@ -697,16 +763,6 @@ void ImGui::FileBrowser::SetInputName(std::string_view input)
     }
 }
 
-std::string ImGui::FileBrowser::ToLower(const std::string &s)
-{
-    std::string ret = s;
-    for(char &c : ret)
-    {
-        c = static_cast<char>(std::tolower(c));
-    }
-    return ret;
-}
-
 std::error_code ImGui::FileBrowser::UpdateFileRecords()
 {
     fileRecords_ = { FileRecord{ true, "..", "[D] ..", "" } };
@@ -843,45 +899,3 @@ std::string ImGui::FileBrowser::u8StrToStr(std::string s)
 {
     return s;
 }
-
-#ifdef _WIN32
-
-#ifndef _INC_WINDOWS
-
-#ifndef WIN32_LEAN_AND_MEAN
-
-#define IMGUI_FILEBROWSER_UNDEF_WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-
-#endif // #ifndef WIN32_LEAN_AND_MEAN
-
-#include <windows.h>
-
-#ifdef IMGUI_FILEBROWSER_UNDEF_WIN32_LEAN_AND_MEAN
-#undef IMGUI_FILEBROWSER_UNDEF_WIN32_LEAN_AND_MEAN
-#undef WIN32_LEAN_AND_MEAN
-#endif // #ifdef IMGUI_FILEBROWSER_UNDEF_WIN32_LEAN_AND_MEAN
-
-#endif // #ifdef _INC_WINDOWS
-
-std::uint32_t ImGui::FileBrowser::GetDrivesBitMask()
-{
-    DWORD mask = GetLogicalDrives();
-    uint32_t ret = 0;
-    for(int i = 0; i < 26; ++i)
-    {
-        if(!(mask & (1 << i)))
-        {
-            continue;
-        }
-        char rootName[4] = { static_cast<char>('A' + i), ':', '\\', '\0' };
-        UINT type = GetDriveTypeA(rootName);
-        if(type == DRIVE_REMOVABLE || type == DRIVE_FIXED ||  type == DRIVE_REMOTE)
-        {
-            ret |= (1 << i);
-        }
-    }
-    return ret;
-}
-
-#endif

@@ -104,18 +104,6 @@ namespace ImGui
 
     private:
 
-        template <class Functor>
-        struct ScopeGuard
-        {
-            ScopeGuard(Functor&& t) : func(std::move(t)) { }
-
-            ~ScopeGuard() { func(); }
-
-        private:
-
-            Functor func;
-        };
-
         struct FileRecord
         {
             bool                  isDir = false;
@@ -124,8 +112,6 @@ namespace ImGui
             std::filesystem::path extension;
         };
 
-        static std::string ToLower(const std::string &s);
-
         std::error_code UpdateFileRecords();
 
         std::error_code SetPwdUncatched(const std::filesystem::path &pwd);
@@ -133,10 +119,6 @@ namespace ImGui
         bool IsExtensionMatched(const std::filesystem::path &extension) const;
 
         void ClearRangeSelectionState();
-
-#ifdef _WIN32
-        static std::uint32_t GetDrivesBitMask();
-#endif
 
         // for c++17 compatibility
 

@@ -124,7 +124,13 @@ void PhysicsDebug::update() {
     for (auto& body : bodies) {
         auto& node = world.get(body.node);
         node.transform.position = body.body.getCenterOfMass();
-        node.transform.rotation = body.body.getRotation();
+
+        auto r = body.body.getRotation();
+        if (bodged.contains(body.node)) {
+            r *= math::quatf::from_axis_angle(world::kVectorRight, 90._deg);
+        }
+
+        node.transform.rotation = r;
     }
 }
 
@@ -132,7 +138,7 @@ void PhysicsDebug::addPhysicsBody(world::IndexOf<world::Node> node, game::Physic
     bodies.emplace_back(PhysicsObjectData { node, std::move(body) });
 }
 
-void PhysicsDebug::createPhysicsBody(world::IndexOf<world::Node> index, bool sphere, bool dynamic) {
+void PhysicsDebug::createPhysicsBody(world::IndexOf<world::Node> index, bool sphere, bool dynamic, bool bodge) {
     game::Context ctx = game::getContext();
     world::World& world = ctx.getWorld();
 
@@ -141,6 +147,10 @@ void PhysicsDebug::createPhysicsBody(world::IndexOf<world::Node> index, bool sph
     // get node bounds
     const auto& bounds = context.mMeshes.at(node.models.front()).bounds;
     world::Transform transform = world::computeNodeTransform(world, index);
+
+    if (bodge) {
+        bodged.insert(index);
+    }
 
     if (sphere) {
         auto r = bounds.getExtents().length() / 2.0f;

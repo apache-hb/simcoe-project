@@ -490,7 +490,6 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
             }
         }
     }
-#endif
 
     for (int i = 0; i < 10; i++) {
         float3 pos = float3((i - 5) * 2, 5.f, (float(i * 6.f) / 10) - 2.f);
@@ -508,6 +507,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         game::PhysicsBody wallBody = game.addPhysicsBody(wallShape, pos, quatf::identity(), false);
         editor.addPhysicsBody(wall, std::move(wallBody));
     }
+#endif
 
     context.upload([&] {
         for (int i = 0; i < 16; i++) {
@@ -518,11 +518,11 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
             float radius = 0.5f + (rand() % 10) / 10.f;
 
             float3 pos = float3(randx, randy, z);
-            world::Sphere shape = { radius, 5, 5 };
+            world::Sphere shape = { radius, 8, 8 };
             IndexOf sphere = world.add(world::Model {
                 .name = "Sphere",
                 .mesh = shape,
-                .material = world.default_material
+                .material = bodyMaterial
             });
 
             IndexOf it = world.addNode(world::Node {
@@ -549,7 +549,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     input::Debounce jump{input::Button::eSpace};
 
     {
-        float3 p = float3(0.f, 20.f, 3.f);
+        float3 p = float3(0.f, 23.f, 3.f);
         IndexOf groundNode = world.addNode(world::Node {
             .parent = context.get_scene().root,
             .name = "Ground",
