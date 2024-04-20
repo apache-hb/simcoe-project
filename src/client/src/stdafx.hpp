@@ -9,7 +9,7 @@
 #include "io/console.h"
 #include "io/io.h"
 
-#include "core/arena.hpp"
+#include "core/memory.h"
 #include "core/error.hpp"
 #include "core/format.hpp"
 #include "core/macros.h"

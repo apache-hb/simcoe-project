@@ -2,10 +2,10 @@
 
 #include "core/span.hpp"
 #include "core/units.hpp"
-#include "core/variant.hpp"
 #include "core/string.hpp"
 
 #include "world/mesh.hpp"
+#include <variant>
 
 namespace sm::world {
     static constexpr uint16 kInvalidIndex = UINT16_MAX;
@@ -52,10 +52,10 @@ namespace sm::world {
     };
 
     template<IsWorldObject... T>
-    using ChoiceOf = sm::Variant<IndexOf<T>...>;
+    using ChoiceOf = std::variant<IndexOf<T>...>;
 
     template<IsWorldObject... T>
-    using OptionOf = sm::Variant<IndexOf<T>..., std::monostate>;
+    using OptionOf = std::variant<IndexOf<T>..., std::monostate>;
 
     template<IsWorldObject T, typename... A>
     IndexOf<T> get(ChoiceOf<A...> index) {
@@ -166,7 +166,7 @@ namespace sm::world {
         static constexpr sm::StringView kName = "Light";
 
         sm::String name;
-        sm::Variant<PointLight, SpotLight, DirectionalLight> light;
+        std::variant<PointLight, SpotLight, DirectionalLight> light;
     };
 
     // struct PointLight2 {
@@ -183,7 +183,7 @@ namespace sm::world {
         static constexpr sm::StringView kName = "Model";
 
         sm::String name;
-        sm::Variant<
+        std::variant<
             Object,
             Cube,
             Sphere,

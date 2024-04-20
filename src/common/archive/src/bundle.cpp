@@ -2,7 +2,7 @@
 
 #include "archive/io.hpp"
 
-#include "core/arena.hpp"
+#include "core/memory.h"
 #include "core/memory.hpp"
 #include "core/string.hpp"
 #include "core/format.hpp" // IWYU pragma: keep
@@ -23,7 +23,7 @@ Bundle::Bundle(fs_t *vfs)
 { }
 
 Bundle::Bundle(io_t *stream, archive::BundleFormat type)
-    : Bundle(fs_virtual("bundle", sm::global_arena()))
+    : Bundle(fs_virtual("bundle", get_default_arena()))
 {
     if (type != archive::BundleFormat::eTar) {
         logs::gAssets.warn("unsupported bundle format: {}", type);

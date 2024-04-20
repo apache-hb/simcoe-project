@@ -1,8 +1,8 @@
 #pragma once
 
-#include "core/variant.hpp"
-
 #include "render/graph/handle.hpp"
+
+#include <variant>
 
 #include "render.reflect.h"
 
@@ -46,7 +46,7 @@ namespace sm::graph::events {
         CommandListHandle handle;
     };
 
-    using Event = sm::Variant<
+    using Event = std::variant<
         DeviceSync,
         ResourceBarrier,
         OpenCommands,

@@ -121,7 +121,7 @@ public:
 
 static print_backtrace_t print_options_make(io_t *io) {
     print_backtrace_t print = {
-        .options = {.arena = sm::global_arena(), .io = io, .pallete = &kColourDefault},
+        .options = {.arena = get_default_arena(), .io = io, .pallete = &kColourDefault},
         .header = eHeadingGeneric,
         .zero_indexed_lines = false,
         .project_source_path = SMC_SOURCE_DIR,
@@ -134,7 +134,7 @@ class DefaultSystemError final : public ISystemError {
     bt_report_t *mReport = nullptr;
 
     void error_begin(OsError error) override {
-        mReport = bt_report_new(sm::global_arena());
+        mReport = bt_report_new(get_default_arena());
         io_t *io = io_stderr();
         io_printf(io, "System error detected: (%s)\n", error.to_string().c_str());
     }
@@ -209,7 +209,7 @@ static void common_init(void) {
 
     gPanicHandler = [](source_info_t info, const char *msg, va_list args) {
         io_t *io = io_stderr();
-        arena_t *arena = global_arena();
+        arena_t *arena = get_default_arena();
 
         const print_backtrace_t kPrintOptions = print_options_make(io);
 
@@ -272,7 +272,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     auto client = window.get_client_coords().size();
 
     fs::path bundle_path = sm::get_appdir() / "bundle.tar";
-    IoHandle tar = io_file(bundle_path.string().c_str(), eOsAccessRead, sm::global_arena());
+    IoHandle tar = io_file(bundle_path.string().c_str(), eOsAccessRead, get_default_arena());
     sm::Bundle bundle{*tar, archive::BundleFormat::eTar};
 
     render::DebugFlags flags = render::DebugFlags::none();

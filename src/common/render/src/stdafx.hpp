@@ -10,7 +10,7 @@
 #include <dxgi1_6.h>
 
 #include "core/error.hpp"
-#include "core/arena.hpp"
+#include "core/memory.h"
 #include "os/core.h"
 
 #include "core/vector.hpp"

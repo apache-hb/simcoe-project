@@ -1,10 +1,10 @@
 #include "archive/io.hpp"
-#include "core/arena.hpp"
+#include "core/memory.h"
 
 using namespace sm;
 
 Io Io::file(const char *path, archive::IoAccess access) {
-    return Io(io_file(path, access.as_facade(), sm::global_arena()));
+    return Io(io_file(path, access.as_facade(), get_default_arena()));
 }
 
 OsError Io::error() const {

@@ -1,7 +1,5 @@
 #pragma once
 
-#include "core/variant.hpp"
-
 #include "render/graph/handle.hpp"
 
 #include <functional>
