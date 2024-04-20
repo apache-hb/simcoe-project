@@ -510,7 +510,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 #endif
 
     context.upload([&] {
-        for (int i = 0; i < 16; i++) {
+        for (int i = 0; i < 32; i++) {
             float randx = (rand() % 16) - 8;
             float randy = (rand() % 16) - 8;
             float z = 6.f;

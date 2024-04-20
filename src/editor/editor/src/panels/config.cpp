@@ -27,7 +27,7 @@ static bool draw_adapter_info(render::Context& context, const render::Adapter& a
     auto luid = adapter.luid();
     std::string label = fmt::format("##{}{}", luid.high, luid.low);
 
-    if (ImGui::RadioButton(label.c_str(), *context.mCurrentAdapter == adapter)) {
+    if (ImGui::RadioButton(label.c_str(), context.get_current_adapter() == adapter)) {
         result = true;
     }
     ImGui::SameLine();
@@ -93,12 +93,11 @@ static void display_mem_budget(const D3D12MA::Budget &budget) {
 }
 
 void RenderConfig::draw_allocator_info() const {
-    auto& allocator = mContext.mAllocator;
+    D3D12MA::Allocator *allocator = mContext.get_allocator();
 
     {
         sm::Memory local = allocator->GetMemoryCapacity(DXGI_MEMORY_SEGMENT_GROUP_LOCAL);
-        sm::Memory nonlocal = allocator->GetMemoryCapacity(
-            DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL);
+        sm::Memory nonlocal = allocator->GetMemoryCapacity(DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL);
 
         ImGui::Text("Local: %s", local.to_string().c_str());
         ImGui::Text("Non-Local: %s", nonlocal.to_string().c_str());

@@ -6,14 +6,6 @@
 
 #include "render.reflect.h"
 
-namespace sm::graph {
-    struct CommandListHandle {
-        uint index;
-
-        bool is_valid() const { return index != UINT_MAX; }
-    };
-}
-
 namespace sm::graph::events {
     struct DeviceSync {
         render::CommandListType signal;

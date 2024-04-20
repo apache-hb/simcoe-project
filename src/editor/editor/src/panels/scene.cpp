@@ -371,12 +371,14 @@ bool ScenePanel::begin_tree_item(world::AnyIndex index, ImGuiTreeNodeFlags flags
 }
 
 void ScenePanel::node_context_popup(world::IndexOf<world::Node> index) {
+    // world::World& world = mContext.mWorld;
     if (ImGui::BeginPopupContextItem()) {
         auto& scene = mContext.get_scene();
         if (ImGui::Button("Add Child")) {
             // mNodeInfo.parent = index;
             // uint16 id = world.add_node(mNodeInfo);
             // world.reparent_node(id, index);
+
             ImGui::CloseCurrentPopup();
         }
 

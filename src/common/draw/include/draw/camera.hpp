@@ -20,7 +20,9 @@ namespace sm::draw {
         DXGI_FORMAT colour;
         DXGI_FORMAT depth;
 
-        float aspect_ratio() const { return float(size.width) / float(size.height); }
+        float getAspectRatio() const { return float(size.width) / float(size.height); }
+        DXGI_FORMAT getDepthFormat() const { return depth; }
+        DXGI_FORMAT getColourFormat() const { return colour; }
     };
 
     class Camera final : public input::IClient {

@@ -32,19 +32,36 @@ namespace sm::graph {
 
     using namespace sm::math;
 
-    struct Clear {
-        enum { eColour, eDepth, eEmpty } type;
-        union {
-            float4 colour;
-            float depth;
-        };
-
-        Clear() : type(eEmpty) { }
+    enum struct ClearType {
+        eColour,
+        eDepth,
+        eEmpty
     };
 
-    Clear clear_colour(float4 colour);
+    class Clear {
+        ClearType mClearType;
+        DXGI_FORMAT mFormat;
 
-    Clear clear_depth(float depth);
+        union {
+            float4 mClearColour;
+
+            struct {
+                float mClearDepth;
+                uint8 mClearStencil;
+            };
+        };
+
+    public:
+        ClearType getClearType() const;
+        DXGI_FORMAT getFormat() const;
+
+        float getClearDepth() const;
+        float4 getClearColour() const;
+
+        static Clear empty();
+        static Clear colour(float4 value, DXGI_FORMAT format);
+        static Clear depthStencil(float depth, uint8 stencil, DXGI_FORMAT format);
+    };
 
     struct ResourceSize {
         static ResourceSize tex2d(uint2 size) {

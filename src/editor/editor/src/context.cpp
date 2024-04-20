@@ -92,7 +92,7 @@ void EditorContext::on_create() {
 
     const auto cpu = mSrvPool.cpu_handle(index);
     const auto gpu = mSrvPool.gpu_handle(index);
-    ImGui_ImplDX12_Init(*mDevice, int_cast<int>(mSwapChainConfig.length), mSwapChainConfig.format,
+    ImGui_ImplDX12_Init(getDevice(), int_cast<int>(mSwapChainConfig.length), mSwapChainConfig.format,
                         mSrvPool.get(), cpu, gpu);
 }
 

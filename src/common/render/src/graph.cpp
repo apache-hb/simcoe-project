@@ -11,18 +11,56 @@ using enum render::ResourceState::Inner;
 
 using PassBuilder = FrameGraph::PassBuilder;
 
-Clear graph::clear_colour(float4 colour) {
+float4 Clear::getClearColour() const {
+    CTASSERTF(mClearType == ClearType::eColour, "Clear value is not a colour (%d)", std::to_underlying(mClearType));
+    return mClearColour;
+}
+
+float Clear::getClearDepth() const {
+    CTASSERTF(mClearType == ClearType::eDepth, "Clear value is not a depth (%d)", std::to_underlying(mClearType));
+    return mClearDepth;
+}
+
+ClearType Clear::getClearType() const {
+    return mClearType;
+}
+
+DXGI_FORMAT Clear::getFormat() const {
+    return mFormat;
+}
+
+Clear Clear::empty() {
     Clear clear;
-    clear.type = Clear::eColour;
-    clear.colour = colour;
+    clear.mClearType = ClearType::eEmpty;
     return clear;
 }
 
-Clear graph::clear_depth(float depth) {
+Clear Clear::colour(float4 value, DXGI_FORMAT format) {
     Clear clear;
-    clear.type = Clear::eDepth;
-    clear.depth = depth;
+    clear.mClearType = ClearType::eColour;
+    clear.mFormat = format;
+    clear.mClearColour = value;
     return clear;
+}
+
+Clear Clear::depthStencil(float depth, uint8 stencil, DXGI_FORMAT format) {
+    Clear clear;
+    clear.mClearType = ClearType::eDepth;
+    clear.mFormat = format;
+    clear.mClearDepth = depth;
+    clear.mClearStencil = stencil;
+    return clear;
+}
+
+static constexpr std::optional<D3D12_CLEAR_VALUE> get_clear_value(const Clear& clear) {
+    switch (clear.getClearType()) {
+    case ClearType::eDepth:
+        return CD3DX12_CLEAR_VALUE(clear.getFormat(), clear.getClearDepth(), 0);
+    case ClearType::eColour:
+        return CD3DX12_CLEAR_VALUE(clear.getFormat(), clear.getClearColour().data());
+    case ClearType::eEmpty:
+        return std::nullopt;
+    }
 }
 
 void PassBuilder::add_write(Handle handle, sm::StringView name, Usage access) {
@@ -269,29 +307,6 @@ AccessBuilder& AccessBuilder::override_desc(D3D12_DEPTH_STENCIL_VIEW_DESC desc) 
     return *this;
 }
 
-static constexpr std::optional<D3D12_CLEAR_VALUE> get_clear_value(const Clear& info) {
-    D3D12_CLEAR_VALUE storage;
-
-    switch (info.type) {
-    case Clear::eColour:
-        storage.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        storage.Color[0] = info.colour.r;
-        storage.Color[1] = info.colour.g;
-        storage.Color[2] = info.colour.b;
-        storage.Color[3] = info.colour.a;
-        break;
-    case Clear::eDepth:
-        storage.Format = DXGI_FORMAT_D32_FLOAT;
-        storage.DepthStencil.Depth = info.depth;
-        storage.DepthStencil.Stencil = 0;
-        break;
-    case Clear::eEmpty:
-        return std::nullopt;
-    }
-
-    return storage;
-}
-
 struct UsageTracker {
     struct UsageBits {
         bool uav : 1 = false;
@@ -420,7 +435,7 @@ void FrameGraph::create_resources() {
         const auto& info = handle.info;
 
         auto clear = get_clear_value(info.clear);
-        D3D12_CLEAR_VALUE *ptr = clear ? &*clear : nullptr;
+        D3D12_CLEAR_VALUE *ptr = clear.has_value() ? &clear.value() : nullptr;
 
         const auto flags = tracker.get_resource_flags(i);
         auto desc = build_desc(info, flags);
@@ -437,6 +452,8 @@ void FrameGraph::create_resources() {
         handle.resource = resource.get();
     }
 
+    auto device = mContext.getDevice();
+
     for (uint i = 0; i < mHandles.size(); i++) {
         auto& handle = mHandles[i];
         if (!handle.is_managed()) continue;
@@ -446,7 +463,7 @@ void FrameGraph::create_resources() {
 
             const auto srv_handle = mContext.mSrvPool.cpu_handle(handle.srv);
             D3D12_SHADER_RESOURCE_VIEW_DESC *desc = handle.srv_desc ? &*handle.srv_desc : nullptr;
-            mContext.mDevice->CreateShaderResourceView(handle.resource, desc, srv_handle);
+            device->CreateShaderResourceView(handle.resource, desc, srv_handle);
         }
 
         if (tracker.needs_uav(i)) {
@@ -454,7 +471,7 @@ void FrameGraph::create_resources() {
 
             const auto uav_handle = mContext.mSrvPool.cpu_handle(handle.uav);
             D3D12_UNORDERED_ACCESS_VIEW_DESC *desc = handle.uav_desc ? &*handle.uav_desc : nullptr;
-            mContext.mDevice->CreateUnorderedAccessView(handle.resource, nullptr, desc, uav_handle);
+            device->CreateUnorderedAccessView(handle.resource, nullptr, desc, uav_handle);
         }
 
         if (tracker.needs_dsv(i)) {
@@ -462,7 +479,7 @@ void FrameGraph::create_resources() {
 
             const auto dsv_handle = mContext.mDsvPool.cpu_handle(handle.dsv);
             D3D12_DEPTH_STENCIL_VIEW_DESC *desc = handle.dsv_desc ? &*handle.dsv_desc : nullptr;
-            mContext.mDevice->CreateDepthStencilView(handle.resource, desc, dsv_handle);
+            device->CreateDepthStencilView(handle.resource, desc, dsv_handle);
         }
 
         if (tracker.needs_rtv(i)) {
@@ -470,7 +487,7 @@ void FrameGraph::create_resources() {
 
             const auto rtv_handle = mContext.mRtvPool.cpu_handle(handle.rtv);
             D3D12_RENDER_TARGET_VIEW_DESC *desc = handle.rtv_desc ? &*handle.rtv_desc : nullptr;
-            mContext.mDevice->CreateRenderTargetView(handle.resource, desc, rtv_handle);
+            device->CreateRenderTargetView(handle.resource, desc, rtv_handle);
         }
     }
 }
@@ -501,7 +518,7 @@ void FrameGraph::reset_frame_commands() {
 }
 
 void FrameGraph::init_frame_commands() {
-    auto& device = mContext.mDevice;
+    auto device = mContext.getDevice();
     uint length = mContext.mSwapChainConfig.length;
     for (auto& [type, allocators, commands] : mFrameData) {
         allocators.resize(length);
@@ -775,7 +792,7 @@ void FrameGraph::reset_device_data() {
 
 void FrameGraph::resize_frame_data(uint size) {
     for (auto& it : mFrameData) {
-        it.resize(mContext.mDevice.get(), size);
+        it.resize(mContext.getDevice(), size);
     }
 }
 

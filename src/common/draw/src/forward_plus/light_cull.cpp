@@ -168,7 +168,7 @@ static void create_tiling_pipeline(render::Pipeline& pipeline, render::Context& 
             .Flags = D3D12_PIPELINE_STATE_FLAG_NONE,
         };
 
-        auto& device = context.mDevice;
+        auto device = context.getDevice();
 
         SM_ASSERT_HR(device->CreateComputePipelineState(&kDesc, IID_PPV_ARGS(&pipeline.pso)));
     }
@@ -215,7 +215,7 @@ void forward_plus::light_binning(
 
         create_tiling_pipeline(info.pipeline, context);
 
-        info.frame_buffer = context.cbuffer<draw::ViewportData>();
+        info.frame_buffer = context.newConstBuffer<draw::ViewportData>();
 
         return info;
     });

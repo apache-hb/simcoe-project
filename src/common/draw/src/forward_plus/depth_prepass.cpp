@@ -12,7 +12,7 @@ using namespace sm::world;
 
 // todo: dedup this with opaque
 static void draw_node(render::Context& context, ID3D12GraphicsCommandList1* commands, const draw::Camera& camera, IndexOf<Node> index, const float4x4& parent) {
-    float ar = camera.config().aspect_ratio();
+    float ar = camera.config().getAspectRatio();
     const auto& node = context.mWorld.get(index);
 
     auto model = (parent * node.transform.matrix());
@@ -78,7 +78,7 @@ static void create_pipeline(render::Pipeline& pipeline, render::Context& context
             .DSVFormat = kDepthFormat,
             .SampleDesc = { 1, 0 },
         };
-        auto& device = context.mDevice;
+        auto device = context.getDevice();
 
         SM_ASSERT_HR(device->CreateGraphicsPipelineState(&kPipeline, IID_PPV_ARGS(&pipeline.pso)));
     }
@@ -94,7 +94,7 @@ void forward_plus::depth_prepass(
     graph::ResourceInfo info = {
         .sz = graph::ResourceSize::tex2d(config.size),
         .format = kDepthFormat,
-        .clear = graph::clear_depth(1.f),
+        .clear = graph::Clear::depthStencil(1.f, 0, kDepthFormat),
     };
 
     graph::PassBuilder pass = graph.graphics(fmt::format("Forward+ Depth Prepass ({})", dd.camera.name()));

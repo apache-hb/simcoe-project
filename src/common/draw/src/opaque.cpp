@@ -27,7 +27,7 @@ static uint tryGetAlbedoIndex(render::Context& self, IndexOf<world::Material> in
 }
 
 static void draw_node(render::Context& context, ID3D12GraphicsCommandList1 *commands, const draw::Camera& camera, IndexOf<world::Node> index, const float4x4& parent) {
-    float ar = camera.config().aspect_ratio();
+    float ar = camera.config().getAspectRatio();
     const auto& node = context.mWorld.get(index);
 
     auto model = (parent * node.transform.matrix());
@@ -120,7 +120,7 @@ static void create_primitive_pipeline(render::Pipeline& pipeline, const draw::Vi
             .SampleDesc = { 1, 0 },
         };
 
-        auto& device = context.mDevice;
+        auto device = context.getDevice();
 
         SM_ASSERT_HR(device->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&pipeline.pso)));
     }
@@ -130,14 +130,14 @@ void draw::opaque(graph::FrameGraph& graph, graph::Handle& target, graph::Handle
     auto config = camera.config();
     graph::ResourceInfo depth_info = {
         .sz = graph::ResourceSize::tex2d(config.size),
-        .format = config.depth,
-        .clear = graph::clear_depth(1.f)
+        .format = config.getDepthFormat(),
+        .clear = graph::Clear::depthStencil(1.f, 0, config.getDepthFormat())
     };
 
     graph::ResourceInfo target_info = {
         .sz = graph::ResourceSize::tex2d(config.size),
-        .format = config.colour,
-        .clear = graph::clear_colour(render::kClearColour)
+        .format = config.getColourFormat(),
+        .clear = graph::Clear::colour(render::kClearColour, config.getColourFormat())
     };
 
     graph::PassBuilder pass = graph.graphics(fmt::format("Opaque ({})", camera.name()));

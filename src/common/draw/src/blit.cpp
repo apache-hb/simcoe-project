@@ -85,7 +85,7 @@ static void create_blit_pipeline(render::Pipeline& pipeline, render::Context& co
             .RTVFormats = { context.mSwapChainConfig.format },
             .SampleDesc = { 1, 0 },
         };
-        auto& device = context.mDevice;
+        auto device = context.getDevice();
 
         SM_ASSERT_HR(device->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&pipeline.pso)));
     }

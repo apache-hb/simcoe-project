@@ -109,6 +109,7 @@ namespace sm::render {
         DebugFlags mDebugFlags;
 
         Instance mInstance;
+    private:
         WindowState mWindowState;
 
         static void CALLBACK on_info(
@@ -121,14 +122,18 @@ namespace sm::render {
         /// device creation and physical adapters
         Adapter *mCurrentAdapter;
         DeviceHandle mDevice;
+    public:
         CD3DX12FeatureSupport mFeatureSupport;
         RootSignatureVersion mRootSignatureVersion;
+    private:
         Object<ID3D12Debug1> mDebug;
         Object<ID3D12InfoQueue1> mInfoQueue;
         DWORD mCookie = ULONG_MAX;
 
+    public:
         void set_current_adapter(Adapter& adapter) { mCurrentAdapter = std::addressof(adapter); }
 
+    private:
         void enable_debug_layer(bool gbv, bool rename);
         void disable_debug_layer();
         void enable_dred(bool enabled);
@@ -139,17 +144,22 @@ namespace sm::render {
         // resource allocator
         Object<D3D12MA::Allocator> mAllocator;
         void create_allocator();
+    public:
+        D3D12MA::Allocator *get_allocator() { return mAllocator.get(); }
 
         Result create_resource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state, const D3D12_CLEAR_VALUE *clear = nullptr);
 
         void serialize_root_signature(Object<ID3D12RootSignature>& signature, const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& desc);
 
+    private:
         /// presentation objects
         Object<IDXGISwapChain3> mSwapChain;
 
+    public:
         // render info
         SwapChainConfig mSwapChainConfig;
 
+    private:
         sm::UniqueArray<FrameData> mFrames;
         void create_frame_allocators();
         void create_frame_rtvs();
@@ -157,7 +167,7 @@ namespace sm::render {
         void create_render_targets();
 
         /// TODO: remove this command list, should be created elsewhere
-
+    public:
         /// graphics pipeline objects
         Object<ID3D12CommandQueue> mDirectQueue;
         Object<ID3D12GraphicsCommandList1> mCommandList;
@@ -228,6 +238,7 @@ namespace sm::render {
             end_upload();
         }
 
+    private:
         void init_scene();
 
         void load_scene();
@@ -245,6 +256,7 @@ namespace sm::render {
         void destroy_textures();
         void create_textures();
 
+    public:
         uint mFrameIndex;
         HANDLE mFenceEvent;
         Object<ID3D12Fence> mFence;
@@ -275,6 +287,7 @@ namespace sm::render {
         // render graph
         graph::Handle mSwapChainHandle;
         graph::FrameGraph mFrameGraph;
+
         /// synchronization
         void build_command_list();
         void move_to_next_frame();
@@ -318,9 +331,11 @@ namespace sm::render {
             sm::Span<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> footprints);
 
         template<typename T>
-        ConstBuffer<T> cbuffer() {
+        ConstBuffer<T> newConstBuffer(size_t count = 1) {
+            CTASSERT(count > 0);
+
             // round up the size to the next multiple of 256
-            size_t size = (sizeof(T) + 255) & ~255;
+            size_t size = ((sizeof(T) * count) + 255) & ~255;
             auto desc = CD3DX12_RESOURCE_DESC::Buffer(size);
 
             ConstBuffer<T> buffer;
@@ -332,7 +347,7 @@ namespace sm::render {
         }
 
         template<typename T>
-        VertexBuffer<T> vertex_upload_buffer(size_t count) {
+        VertexBuffer<T> newVertexUploadBuffer(size_t count) {
             auto desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(T) * count);
 
             VertexBuffer<T> buffer;
@@ -342,5 +357,27 @@ namespace sm::render {
 
             return buffer;
         }
+
+        template<typename T>
+        VertexBuffer<T> newVertexBuffer(size_t count) {
+            auto desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(T) * count);
+
+            VertexBuffer<T> buffer;
+            SM_ASSERT_HR(create_resource(buffer, D3D12_HEAP_TYPE_DEFAULT, desc, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+
+            buffer.init(count);
+
+            return buffer;
+        }
+
+        D3D12_CPU_DESCRIPTOR_HANDLE rtvHostHandle(RtvIndex index);
+        D3D12_CPU_DESCRIPTOR_HANDLE dsvHostHandle(DsvIndex index);
+        D3D12_CPU_DESCRIPTOR_HANDLE srvHostHandle(SrvIndex index);
+
+        D3D12_GPU_DESCRIPTOR_HANDLE rtvDeviceHandle(RtvIndex index);
+        D3D12_GPU_DESCRIPTOR_HANDLE dsvDeviceHandle(DsvIndex index);
+        D3D12_GPU_DESCRIPTOR_HANDLE srvDeviceHandle(SrvIndex index);
+
+        ID3D12Device1 *getDevice() { return mDevice.get(); }
     };
 }

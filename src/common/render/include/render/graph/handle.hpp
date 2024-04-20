@@ -16,4 +16,10 @@ namespace sm::graph {
 
         constexpr auto operator<=>(const PassHandle&) const = default;
     };
+
+    struct CommandListHandle {
+        uint index;
+
+        bool is_valid() const { return index != UINT_MAX; }
+    };
 }

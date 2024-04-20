@@ -576,7 +576,7 @@ static const D3D12_ROOT_SIGNATURE_FLAGS kPrimitiveRootFlags
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
 
-static void create_debug_line_pipeline(render::Pipeline& pipeline, const draw::ViewportConfig& config, render::Context& context) {
+static void createDebugLinePSO(render::Pipeline& pipeline, const draw::ViewportConfig& config, render::Context& context) {
     {
         // mvp matrix
         CD3DX12_ROOT_PARAMETER1 params[1];
@@ -615,13 +615,13 @@ static void create_debug_line_pipeline(render::Pipeline& pipeline, const draw::V
 
         desc.DepthStencilState.DepthEnable = FALSE;
 
-        auto& device = context.mDevice;
+        auto device = context.getDevice();
 
         SM_ASSERT_HR(device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pipeline.pso)));
     }
 }
 
-static void create_debug_triangle_pipeline(render::Pipeline& pipeline, const draw::ViewportConfig& config, render::Context& context) {
+static void createDebugTrianglePSO(render::Pipeline& pipeline, const draw::ViewportConfig& config, render::Context& context) {
     {
         // mvp matrix
         CD3DX12_ROOT_PARAMETER1 params[1];
@@ -660,7 +660,7 @@ static void create_debug_triangle_pipeline(render::Pipeline& pipeline, const dra
 
         desc.DepthStencilState.DepthEnable = FALSE;
 
-        auto& device = context.mDevice;
+        auto device = context.getDevice();
 
         SM_ASSERT_HR(device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pipeline.pso)));
     }
@@ -671,7 +671,7 @@ void game::physics_debug(
     const draw::Camera& camera,
     graph::Handle target)
 {
-    auto config = camera.config();
+    const auto& config = camera.config();
 
     graph::PassBuilder pass = graph.graphics("Physics Debug");
     pass.write(target, "Target", graph::Usage::eRenderTarget);
@@ -679,7 +679,7 @@ void game::physics_debug(
     graph::ResourceInfo info = {
         .sz = graph::ResourceSize::tex2d(config.size),
         .format = config.depth,
-        .clear = graph::clear_depth(1.0f)
+        .clear = graph::Clear::depthStencil(1.0f, 0, config.depth)
     };
 
     graph::Handle depth = pass.create(info, "Depth", graph::Usage::eDepthWrite);
@@ -693,11 +693,11 @@ void game::physics_debug(
             render::VertexBuffer<DebugVertex> triangleBuffer;
         } info;
 
-        create_debug_line_pipeline(info.lines, config, context);
-        create_debug_triangle_pipeline(info.triangles, config, context);
+        createDebugLinePSO(info.lines, config, context);
+        createDebugTrianglePSO(info.triangles, config, context);
 
-        info.lineBuffer = context.vertex_upload_buffer<DebugVertex>(0x1000uz * 8);
-        info.triangleBuffer = context.vertex_upload_buffer<DebugVertex>(0x1000uz * 8);
+        info.lineBuffer = context.newVertexUploadBuffer<DebugVertex>(0x1000uz * 8);
+        info.triangleBuffer = context.newVertexUploadBuffer<DebugVertex>(0x1000uz * 8);
 
         return info;
     });
@@ -714,7 +714,7 @@ void game::physics_debug(
 
         auto vp = camera.viewport();
         const auto& config = camera.config();
-        float4x4 mvp = camera.mvp(config.aspect_ratio(), float4x4::identity()).transpose();
+        float4x4 mvp = camera.mvp(config.getAspectRatio(), float4x4::identity()).transpose();
 
         auto& debug = static_cast<CDebugRenderer&>(*JPH::DebugRenderer::sInstance);
         if (!debug.mLines.empty()) {
