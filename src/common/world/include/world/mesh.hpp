@@ -12,8 +12,8 @@ namespace sm::world {
     using namespace math;
 
     constexpr float3 kVectorForward = {1.f, 0.f, 0.f};
-    constexpr float3 kVectorRight = {0.f, 1.f, 0.f};
-    constexpr float3 kVectorUp = {0.f, 0.f, 1.f};
+    constexpr float3 kVectorRight = {0.f, 0.f, 1.f};
+    constexpr float3 kVectorUp = {0.f, 1.f, 0.f};
 
     struct Vertex {
         float3 position;

@@ -159,7 +159,7 @@ void Editor::importGltf(const fs::path& path) {
         });
 
         fg::iterateAccessorWithIndex<math::float3>(asset, posAccess, [&](const math::float3& value, size_t index) {
-            vertices[index].position = { value.x, value.z, value.y };
+            vertices[index].position = value;
         });
 
         world::VertexFlags flags = world::VertexFlags::ePositions;
@@ -179,7 +179,7 @@ void Editor::importGltf(const fs::path& path) {
             auto& normalAccess = asset.accessors[normalAttr->second];
             if (normalAccess.bufferViewIndex.has_value()) {
                 fg::iterateAccessorWithIndex<math::float3>(asset, normalAccess, [&](const math::float3& value, size_t index) {
-                    vertices[index].normal = float3{ value.x, value.z, value.y };
+                    vertices[index].normal = value;
                 });
             }
         }
@@ -198,9 +198,9 @@ void Editor::importGltf(const fs::path& path) {
         uint32 idxCount = static_cast<uint32>(indices.size());
 
         // rewind the indices
-        // for (size_t i = 0; i < idxCount; i += 3) {
-        //     std::swap(indices[i], indices[i + 2]);
-        // }
+        for (size_t i = 0; i < idxCount; i += 3) {
+            std::swap(indices[i], indices[i + 2]);
+        }
 
         world::IndexOf buffer = mContext.mWorld.add(world::Buffer {
             .name = fmt::format("{}.buffer", name),
@@ -304,9 +304,8 @@ void Editor::importGltf(const fs::path& path) {
         }
 
         auto [t, r, s] = std::get<fg::TRS>(node.transform);
-        math::float3 position = { t[0], t[2], t[1] };
+        math::float3 position = { t[0], t[1], t[2] };
         math::quatf rotation = { r[0], r[1], r[2], r[3] };
-        rotation *= math::quatf::from_axis_angle(world::kVectorUp, -90._deg);
         math::float3 scale = { s[0], s[2], s[1] };
 
         info.transform = { position, rotation, scale };

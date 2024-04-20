@@ -430,7 +430,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .parent = context.get_scene().root,
         .name = "Player",
         .transform = {
-            .position = float3(0.f, 0.f, 4.f),
+            .position = float3(0.f, 4.f, 0.f),
             .rotation = quatf::identity(),
             .scale = 1.f
         },
@@ -451,7 +451,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     for (int i = 0; i < 8; i++) {
         for (int j = 0; j < 10; j++) {
             if (walls[i * 10 + j] == '1') {
-                float3 pos = float3((j - 5) * 2, (i - 4) * 2, 2.5f);
+                float3 pos = float3((j - 5) * 2, 2.5f, (i - 4) * 2);
                 IndexOf wall = world.addNode(world::Node {
                     .parent = context.get_scene().root,
                     .name = "Wall",
@@ -468,56 +468,16 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
             }
         }
     }
-
-#if 0
-    for (int i = 0; i < 10; i++) {
-        for (int j = 0; j < 10; j++) {
-            if (i == 0 || i == 9 || j == 0 || j == 9) {
-                float3 pos = float3((i - 7) * 2, (j - 7) * 2, 2.5f);
-                IndexOf wall = world.addNode(world::Node {
-                    .parent = context.get_scene().root,
-                    .name = "Wall",
-                    .transform = {
-                        .position = pos,
-                        .rotation = quatf::identity(),
-                        .scale = 1.f
-                    },
-                    .models = { wallModel }
-                });
-
-                game::PhysicsBody wallBody = game.addPhysicsBody(wallShape, pos, quatf::identity(), false);
-                editor.addPhysicsBody(wall, std::move(wallBody));
-            }
-        }
-    }
-
-    for (int i = 0; i < 10; i++) {
-        float3 pos = float3((i - 5) * 2, 5.f, (float(i * 6.f) / 10) - 2.f);
-        IndexOf wall = world.addNode(world::Node {
-            .parent = context.get_scene().root,
-            .name = "Wall",
-            .transform = {
-                .position = pos,
-                .rotation = quatf::identity(),
-                .scale = 1.f
-            },
-            .models = { wallModel }
-        });
-
-        game::PhysicsBody wallBody = game.addPhysicsBody(wallShape, pos, quatf::identity(), false);
-        editor.addPhysicsBody(wall, std::move(wallBody));
-    }
-#endif
 
     context.upload([&] {
         for (int i = 0; i < 32; i++) {
             float randx = (rand() % 16) - 8;
             float randy = (rand() % 16) - 8;
-            float z = 6.f;
+            float height = 6.f;
 
             float radius = 0.5f + (rand() % 10) / 10.f;
 
-            float3 pos = float3(randx, randy, z);
+            float3 pos = float3(randx, height, randy);
             world::Sphere shape = { radius, 8, 8 };
             IndexOf sphere = world.add(world::Model {
                 .name = "Sphere",
@@ -549,7 +509,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     input::Debounce jump{input::Button::eSpace};
 
     {
-        float3 p = float3(0.f, 23.f, 3.f);
+        float3 p = float3(0.f, 3.f, 23.f);
         IndexOf groundNode = world.addNode(world::Node {
             .parent = context.get_scene().root,
             .name = "Ground",
@@ -602,18 +562,16 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
         float2 move = state.button_axis2d(kMoveStrafe, kMoveForward);
 
-        float3 moveInput = { move.x, move.y, 0.f };
-
         // rotate moveInput to face the direction the player is facing
-        float3 forward = context.get_active_camera().direction();
+        float3 direction = context.get_active_camera().direction();
 
-        float3 right = float3::cross(forward, world::kVectorUp).normalized();
+        float3 right = float3::cross(direction, world::kVectorUp).normalized();
 
-        moveInput = forward * -moveInput.y + right * -moveInput.x;
+        float3 moveInput = direction * -move.y + right * -move.x;
 
         if (player.isOnSteepSlope() || player.isNotSupported()) {
             float3 normal = player.getGroundNormal();
-            normal.z = 0.f;
+            normal.y = 0.f;
             float dot = float3::dot(normal, moveInput);
             if (dot < 0.f)
                 moveInput -= (dot * normal) / normal.length_squared();
@@ -622,7 +580,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         if (player.isSupported()) {
             float3 current = player.getLinearVelocity();
             float3 desired = 6.f * moveInput;
-            desired.z = current.z;
+            desired.y = current.y;
             float3 newVelocity = 0.75f * current + 0.25f * desired;
 
             if (jump.is_pressed(state) && player.isOnGround())
@@ -636,7 +594,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         playerNodeInfo.transform.position = player.getPosition();
         playerNodeInfo.transform.rotation = player.getRotation();
 
-        context.get_active_camera().setPosition(player.getPosition() + float3(0.f, 0.f, 2.f));
+        context.get_active_camera().setPosition(player.getPosition() + world::kVectorUp * 2);
 
         // context.get_active_camera().set
 

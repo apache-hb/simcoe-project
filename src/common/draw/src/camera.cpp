@@ -34,7 +34,7 @@ void Camera::accept(const input::InputState& state, InputService& service) {
     float2 move = state.button_axis2d(kMoveStrafe, kMoveForward);
     float ascend = state.button_axis(kMoveUp);
 
-    mMoveInput = {move.x, move.y, ascend};
+    mMoveInput = (move.x * world::kVectorForward) + (move.y * world::kVectorRight) + (ascend * world::kVectorUp);
 
     // do mouse input here, we get a new input state every frame
     // when the mouse is moving.
@@ -42,15 +42,15 @@ void Camera::accept(const input::InputState& state, InputService& service) {
 
     mouse *= mMouseSensitivity;
 
-    mLookYaw += degf(mouse.x);
-    mLookPitch += -degf(mouse.y);
+    mLookYaw += -degf(mouse.x);
+    mLookPitch += degf(mouse.y);
 
     mLookPitch = math::clamp(mLookPitch, -89._deg, 89._deg);
 
     float3 front = mDirection;
     front.x = math::cos(mLookPitch) * math::cos(mLookYaw);
-    front.y = math::cos(mLookPitch) * math::sin(mLookYaw);
-    front.z = -math::sin(mLookPitch);
+    front.y = math::sin(mLookPitch);
+    front.z = math::cos(mLookPitch) * math::sin(mLookYaw);
     mDirection = front.normalized();
 }
 
