@@ -26,6 +26,16 @@ struct fg::ElementTraits<math::float3> : fg::ElementTraitsBase<math::float3, fg:
 template<>
 struct fg::ElementTraits<math::float4> : fg::ElementTraitsBase<math::float4, fg::AccessorType::Vec4, float> {};
 
+template<typename TKey, typename TValue>
+TValue getOrDefault(const sm::HashMap<TKey, TValue>& map, const TKey& key, const TValue& def) {
+    auto it = map.find(key);
+    if (it != map.end()) {
+        return it->second;
+    } else {
+        return def;
+    }
+}
+
 void Editor::importGltf(const fs::path& path) {
     if (!fs::exists(path)) {
         alert_error(fmt::format("File not found: {}", path.string()));
@@ -97,7 +107,7 @@ void Editor::importGltf(const fs::path& path) {
             const fg::Texture& texture = asset.textures[texInfo.textureIndex];
             if (texture.imageIndex.has_value()) {
                 info.albedo_texture = world::Texture {
-                    .image = imageMap.at(texture.imageIndex.value())
+                    .image = getOrDefault<uint>(imageMap, texture.imageIndex.value(), world::IndexOf<world::Image>()),
                 };
             }
         }
@@ -138,6 +148,7 @@ void Editor::importGltf(const fs::path& path) {
 
         // place all the primitive data in a single buffer
         // indices first, then vertices
+        // TODO: is there a way to get these buffers merged automatically?
         sm::Vector<uint8> data(indexAccess.count * sizeof(uint16) + posAccess.count * sizeof(world::Vertex));
 
         sm::Span<uint16> indices(reinterpret_cast<uint16*>(data.data()), indexAccess.count);
@@ -209,7 +220,7 @@ void Editor::importGltf(const fs::path& path) {
 
         world::IndexOf material = [&] {
             if (primitive.materialIndex.has_value()) {
-                return materialMap.at(primitive.materialIndex.value());
+                return getOrDefault<uint>(materialMap, primitive.materialIndex.value(), mContext.mWorld.default_material);
             } else {
                 return mContext.mWorld.default_material;
             }
@@ -274,11 +285,21 @@ void Editor::importGltf(const fs::path& path) {
     };
 
     auto gltfUpdateNode = [&](uint index, const fg::Node& node) {
+        if (!nodeMap.contains(index)) {
+            logs::gAssets.error("Node {} not found", index);
+            return;
+        }
+
         world::IndexOf self = nodeMap.at(index);
         auto& info = mContext.mWorld.get<world::Node>(self);
 
         // reparent children
         for (size_t child : node.children) {
+            if (!nodeMap.contains(child)) {
+                logs::gAssets.error("Child node {} not found", child);
+                continue;
+            }
+
             mContext.mWorld.moveNode(nodeMap.at(child), self);
         }
 
@@ -328,6 +349,11 @@ void Editor::importGltf(const fs::path& path) {
         sm::Vector<world::IndexOf<world::Node>> roots;
 
         for (size_t i : scene.nodeIndices) {
+            if (!nodeMap.contains(i)) {
+                logs::gAssets.error("Node {} not found in scene", i);
+                continue;
+            }
+
             if (mContext.mWorld.get(nodeMap.at(i)).parent == world::kInvalidIndex) {
                 roots.push_back(nodeMap.at(i));
             }
