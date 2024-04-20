@@ -30,6 +30,7 @@ ImageData sm::load_image(sm::Span<const uint8> data) {
     const ImageData image = {
         .pxformat = get_channel_format(4),
         .size = { int_cast<uint32_t>(width), int_cast<uint32_t>(height) },
+        // TODO: this is a full copy, maybe theres a way to use a single buffer
         .data = sm::Vector<uint8>(pixels, pixels + int_cast<ptrdiff_t>(width * height * 4)),
     };
 

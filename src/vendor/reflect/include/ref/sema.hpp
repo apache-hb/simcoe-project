@@ -16,8 +16,10 @@
 #include "ref/emit.h"
 
 // this is a "feature" of clang that we need to disable
-CT_CLANG_PRAGMA(clang diagnostic push)
-CT_CLANG_PRAGMA(clang diagnostic ignored "-Wformat-security")
+#if defined(__clang__)
+CT_PRAGMA(clang diagnostic push)
+CT_PRAGMA(clang diagnostic ignored "-Wformat-security")
+#endif
 
 typedef struct logger_t logger_t;
 typedef struct vector_t vector_t;
@@ -894,4 +896,6 @@ namespace refl {
     void emit_module(Module *module, io_t *header, io_t *source);
 }
 
-CT_CLANG_PRAGMA(clang diagnostic pop)
+#if defined(__clang__)
+CT_PRAGMA(clang diagnostic pop)
+#endif

@@ -28,28 +28,28 @@ static const cfg_info_t kConfigInfo = {
     .brief = "Simcoe C++ reflection metadata generator",
 };
 
-static const char *const kOutputHeaderArgs[] = { "header", NULL };
+static const cfg_arg_t kOutputHeaderArgs[] = { CT_ARG_LONG("header") };
 
 static const cfg_info_t kOutputHeaderInfo = {
     .name = "header",
     .brief = "Output header file",
-    .long_args = kOutputHeaderArgs,
+    .args = CT_ARGS(kOutputHeaderArgs),
 };
 
-static const char *const kOutputShaderFile[] = { "shader", NULL };
+static const cfg_arg_t kOutputShaderArgs[] = { CT_ARG_LONG("shader") };
 
 static const cfg_info_t kOutputShaderInfo = {
     .name = "shader",
     .brief = "Output shader file",
-    .long_args = kOutputShaderFile,
+    .args = CT_ARGS(kOutputShaderArgs),
 };
 
-static const char *const kOutputSourceArgs[] = { "source", NULL };
+static const cfg_arg_t kOutputSourceArgs[] = { CT_ARG_LONG("source") };
 
 static const cfg_info_t kOutputSourceInfo = {
     .name = "source",
     .brief = "Output source file",
-    .long_args = kOutputSourceArgs,
+    .args = CT_ARGS(kOutputSourceArgs),
 };
 
 static const version_info_t kToolVersion = {
@@ -94,27 +94,11 @@ struct tool_t
         m_output_source = config_string(m_config, &kOutputSourceInfo, "reflect.cpp");
         m_output_shader = config_string(m_config, &kOutputShaderInfo, "reflect.hlsl");
 
-        m_options = get_default_options(m_config);
+        m_options = setup_options(kToolVersion, m_config);
 
         m_trees = vector_new(4, m_arena);
 
         m_extra.reports = m_logger;
-    }
-
-    tool_config_t get_config(io_t *io, int argc, const char **argv) const
-    {
-        tool_config_t cfg = {
-            .arena = m_arena,
-            .io = io,
-
-            .group = m_config,
-            .version = kToolVersion,
-
-            .argc = argc,
-            .argv = argv,
-        };
-
-        return cfg;
     }
 
     io_t *open_file(const char *path, os_access_t access, const diagnostic_t *diag)
@@ -210,13 +194,13 @@ struct tool_t
     cfg_field_t *m_output_source = nullptr;
     cfg_field_t *m_output_shader = nullptr;
 
-    default_options_t m_options = {};
+    setup_options_t m_options = {};
     refl::Sema m_sema { m_logger, m_arena };
 };
 
 int main(int argc, const char **argv)
 {
-    setup_global();
+    setup_default(NULL);
 
     io_t *con = io_stdout();
     arena_t *arena = get_global_arena();
@@ -225,16 +209,12 @@ int main(int argc, const char **argv)
 
     tool_t tool{ logger, arena };
 
-    tool_config_t config = tool.get_config(con, argc, argv);
+    setup_init_t init = setup_parse(argc, argv, tool.m_options);
 
-    ap_t *ap = ap_new(tool.m_config, arena);
+    if (setup_should_exit(&init))
+        return setup_exit_code(&init);
 
-    if (int err = parse_argparse(ap, tool.m_options, config); err == CT_EXIT_SHOULD_EXIT)
-    {
-        return CT_EXIT_OK;
-    }
-
-    vector_t *paths = ap_get_posargs(ap);
+    vector_t *paths = init.posargs;
 
     text_config_t text_config = {
         .config = {

@@ -9,9 +9,13 @@
 #   define USE_PIX 1
 #endif
 
-CT_CLANG_PRAGMA(clang diagnostic push)
-CT_CLANG_PRAGMA(clang diagnostic ignored "-Wunused-but-set-variable")
+#if defined(__clang__)
+CT_PRAGMA(clang diagnostic push)
+CT_PRAGMA(clang diagnostic ignored "-Wunused-but-set-variable")
+#endif
 
 #include "WinPixEventRuntime/pix3.h"
 
-CT_CLANG_PRAGMA(clang diagnostic pop)
+#if defined(__clang__)
+CT_PRAGMA(clang diagnostic pop)
+#endif
