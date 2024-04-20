@@ -6,54 +6,52 @@
 using namespace sm;
 using namespace sm::utf8;
 
-namespace {
-    /// get the length of a utf8 string in bytes
-    constexpr size_t utf8_size_bytes(const char8_t *text) {
-        size_t length = 0;
-        while (*text++) {
-            length += 1;
-        }
-        return length;
+/// get the length of a utf8 string in bytes
+static constexpr size_t utf8_size_bytes(const char8_t *text) {
+    size_t length = 0;
+    while (*text++) {
+        length += 1;
     }
+    return length;
+}
 
-    /// get the length of a single codepoint in bytes
-    constexpr size_t utf8_codepoint_length(const char8_t *text) {
-        if ((text[0] & 0x80) == 0) {
-            return 1;
-        } else if ((text[0] & 0xE0) == 0xC0) {
-            return 2;
-        } else if ((text[0] & 0xF0) == 0xE0) {
-            return 3;
-        } else if ((text[0] & 0xF8) == 0xF0) {
-            return 4;
-        } else {
-            return 0;
-        }
+/// get the length of a single codepoint in bytes
+static constexpr size_t utf8_codepoint_length(const char8_t *text) {
+    if ((text[0] & 0x80) == 0) {
+        return 1;
+    } else if ((text[0] & 0xE0) == 0xC0) {
+        return 2;
+    } else if ((text[0] & 0xF0) == 0xE0) {
+        return 3;
+    } else if ((text[0] & 0xF8) == 0xF0) {
+        return 4;
+    } else {
+        return 0;
     }
+}
 
-    /// validate a utf8 string
-    /// @return the offset of the first invalid codepoint, or SIZE_MAX if valid
-    constexpr size_t utf8_validate(const char8_t *text, size_t length) {
-        size_t offset = 0;
-        while (offset < length) {
-            // check for invalid bytes
-            char8_t byte = text[offset];
-            switch (byte) {
-            case 0xFE:
-            case 0xFF:
-                return offset;
-            default:
-                break;
-            }
-
-            size_t size = utf8_codepoint_length(text + offset);
-            if (size == 0) {
-                return offset;
-            }
-            offset += size;
+/// validate a utf8 string
+/// @return the offset of the first invalid codepoint, or SIZE_MAX if valid
+static constexpr size_t utf8_validate(const char8_t *text, size_t length) {
+    size_t offset = 0;
+    while (offset < length) {
+        // check for invalid bytes
+        char8_t byte = text[offset];
+        switch (byte) {
+        case 0xFE:
+        case 0xFF:
+            return offset;
+        default:
+            break;
         }
-        return SIZE_MAX;
+
+        size_t size = utf8_codepoint_length(text + offset);
+        if (size == 0) {
+            return offset;
+        }
+        offset += size;
     }
+    return SIZE_MAX;
 }
 
 // text iterator

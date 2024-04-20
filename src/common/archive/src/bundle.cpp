@@ -7,6 +7,7 @@
 #include "core/string.hpp"
 #include "core/format.hpp" // IWYU pragma: keep
 
+#include "core/units.hpp"
 #include "logs/logs.hpp"
 
 #include "artery-font/artery-font.h" // IWYU pragma: keep
@@ -115,6 +116,7 @@ static ImageData convert_image(stbi_uc *pixels, int width, int height, int chann
         .size = { int_cast<uint32_t>(width), int_cast<uint32_t>(height) },
         .data = sm::Vector<uint8>(pixels, pixels + int_cast<ptrdiff_t>(width * height * 4)),
     };
+
     return image;
 }
 

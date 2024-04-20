@@ -162,23 +162,22 @@ namespace sm::meta {
     };
 
     struct EnumCase {
-        int64_t value;
+        uint64_t value;
         std::string_view name;
     };
 
-    class Enum : public TypeInfo {
-        std::span<const EnumCase> mCases;
-        EnumFlags mFlags = EnumFlags::eNone;
-
-    protected:
-        Enum() = default;
-
-        constexpr void setCases(std::span<const EnumCase> cases) { mCases = cases; }
-        constexpr void setBitFlags() { mFlags = (EnumFlags)((uint32_t)mFlags | (uint32_t)EnumFlags::eBitFlags); }
+    class EnumInfo {
+        std::string_view mName;
+        std::string_view mQualifiedName;
 
     public:
-        constexpr std::span<const EnumCase> cases() const { return mCases; }
-        constexpr bool isBitFlags() const { return (uint32_t)mFlags & (uint32_t)EnumFlags::eBitFlags; }
+        constexpr EnumInfo(std::string_view name, std::string_view qual)
+            : mName(name)
+            , mQualifiedName(qual)
+        { }
+
+        constexpr std::string_view getName() const { return mName; }
+        constexpr std::string_view getQualifiedName() const { return mQualifiedName; }
     };
 
     namespace detail {

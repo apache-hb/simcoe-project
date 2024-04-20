@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/error.hpp"
 #include "core/unique.hpp"
 #include "core/fs.hpp"
 

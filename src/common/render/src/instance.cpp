@@ -99,25 +99,24 @@ void Instance::query_tearing_support() {
 }
 
 void Instance::load_warp_redist() {
+#if SMC_WARP_ENABLE
     mWarpLibrary = sm::get_redist("d3d10warp.dll");
     if (OsError err = mWarpLibrary.get_error()) {
         logs::gGpuApi.warn("failed to load warp redist: {}", err);
     } else {
         logs::gGpuApi.info("loaded warp redist");
     }
+#endif
 }
 
 void Instance::load_pix_runtime() {
-    if constexpr (!SMC_USE_PIX_RUNTIME) {
-        logs::gGpuApi.warn("pix runtime is fused off");
-        return;
-    }
-
+#if SMC_PIX_ENABLE
     if (PIXLoadLatestWinPixGpuCapturerLibrary()) {
         logs::gGpuApi.info("loaded pix runtime");
     } else {
         logs::gGpuApi.warn("failed to load pix runtime: {}", sys::get_last_error());
     }
+#endif
 }
 
 Instance::Instance(InstanceConfig config)

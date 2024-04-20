@@ -9,6 +9,8 @@ namespace sm::render {
         Object<IDStorageQueue2> mQueue;
         Object<IDStorageStatusArray> mStatusArray;
 
+        // TODO: this is perhaps a bit hacky
+        // prevents us from submitting fence waits if there are no pending requests
         bool mHasPendingRequests = false;
 
     public:
@@ -19,7 +21,7 @@ namespace sm::render {
         void signal(ID3D12Fence *fence, uint64 value);
         void submit();
 
-        bool has_pending_requests() const { return mHasPendingRequests; }
+        bool hasPendingRequests() const { return mHasPendingRequests; }
     };
 
     class CopyStorage {
@@ -33,6 +35,8 @@ namespace sm::render {
 
         void create_queues(ID3D12Device1 *device);
         void destroy_queues();
+
+        StorageQueue newQueue(const DSTORAGE_QUEUE_DESC& desc);
 
         StorageQueue& file_queue() { return mFileQueue; }
         StorageQueue& memory_queue() { return mMemoryQueue; }
@@ -55,61 +59,16 @@ namespace sm::render {
             static_cast<DSTORAGE_REQUEST&>(*this) = {};
         }
 
-        RequestBuilder& compression(DSTORAGE_COMPRESSION_FORMAT format, uint32 size) {
-            Options.CompressionFormat = format;
-            UncompressedSize = size;
-            return *this;
-        }
+        RequestBuilder& compression(DSTORAGE_COMPRESSION_FORMAT format, uint32 size);
 
-        RequestBuilder& src(void const *data, uint size) {
-            DSTORAGE_SOURCE_MEMORY source = {
-                .Source = data,
-                .Size = size,
-            };
+        RequestBuilder& src(void const *data, uint size);
+        RequestBuilder& src(IDStorageFile *file, uint64 offset, uint size);
 
-            Options.SourceType = DSTORAGE_REQUEST_SOURCE_MEMORY;
-            Source.Memory = source;
-            return *this;
-        }
+        RequestBuilder& dst(ID3D12Resource *resource, uint64 offset, uint size);
+        RequestBuilder& dst(DSTORAGE_DESTINATION_MULTIPLE_SUBRESOURCES it);
 
-        RequestBuilder& src(IDStorageFile *file, uint64 offset, uint size) {
-            DSTORAGE_SOURCE_FILE source = {
-                .Source = file,
-                .Offset = offset,
-                .Size = size,
-            };
+        RequestBuilder& tag(uint64 tag);
 
-            Options.SourceType = DSTORAGE_REQUEST_SOURCE_FILE;
-            Source.File = source;
-            return *this;
-        }
-
-        RequestBuilder& dst(ID3D12Resource *resource, uint64 offset, uint size) {
-            DSTORAGE_DESTINATION_BUFFER destination = {
-                .Resource = resource,
-                .Offset = offset,
-                .Size = size,
-            };
-
-            Options.DestinationType = DSTORAGE_REQUEST_DESTINATION_BUFFER;
-            Destination.Buffer = destination;
-            return *this;
-        }
-
-        RequestBuilder& dst(DSTORAGE_DESTINATION_MULTIPLE_SUBRESOURCES it) {
-            Options.DestinationType = DSTORAGE_REQUEST_DESTINATION_MULTIPLE_SUBRESOURCES;
-            Destination.MultipleSubresources = it;
-            return *this;
-        }
-
-        RequestBuilder& tag(uint64 tag) {
-            CancellationTag = tag;
-            return *this;
-        }
-
-        RequestBuilder& name(char const *name) {
-            Name = name;
-            return *this;
-        }
+        RequestBuilder& name(char const *name);
     };
 }

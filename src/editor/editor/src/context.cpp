@@ -92,7 +92,7 @@ void EditorContext::on_create() {
 
     const auto cpu = mSrvPool.cpu_handle(index);
     const auto gpu = mSrvPool.gpu_handle(index);
-    ImGui_ImplDX12_Init(getDevice(), int_cast<int>(mSwapChainConfig.length), mSwapChainConfig.format,
+    ImGui_ImplDX12_Init(getDevice(), int_cast<int>(getSwapChainLength()), getSwapChainFormat(),
                         mSrvPool.get(), cpu, gpu);
 }
 
@@ -104,7 +104,7 @@ void EditorContext::on_destroy() {
 }
 
 void EditorContext::setup_framegraph(graph::FrameGraph& graph) {
-    render::Viewport vp { mSwapChainConfig.size };
+    render::Viewport vp { getSwapChainSize() };
     // graph::Handle point_light_data;
     // graph::Handle spot_light_data;
 

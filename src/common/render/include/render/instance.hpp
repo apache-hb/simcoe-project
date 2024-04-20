@@ -90,7 +90,10 @@ namespace sm::render {
         bool mTearingSupport = false;
 
         Adapter mWarpAdapter;
+
+#if SMC_WARP_ENABLE
         Library mWarpLibrary;
+#endif
 
         void enable_leak_tracking();
         void query_tearing_support();

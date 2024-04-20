@@ -233,9 +233,9 @@ struct game::GameContextImpl {
     /// gameplay
     ///
 
-    sm::HashMap<uint32, game::Archetype> archetypes;
+    // sm::HashMap<uint32, game::Archetype> archetypes;
 
-    sm::Vector<game::Object*> objects;
+    // sm::Vector<game::Object*> objects;
 
     ///
     /// jolt physics
@@ -414,17 +414,17 @@ void game::Context::debugDrawPhysicsBody(const PhysicsBody& body) {
     shape->Draw(*mImpl->debugRenderer, object->GetCenterOfMassTransform(), JPH::Vec3::sReplicate(1.0f), JPH::Color::sGreen, false, false);
 }
 
-void game::Context::addClass(const meta::Class& cls) {
-}
+// void game::Context::addClass(const meta::Class& cls) {
+// }
 
-void game::Context::addObject(game::Object *object) {
-    mImpl->objects.push_back(object);
-    object->create();
-}
+// void game::Context::addObject(game::Object *object) {
+//     mImpl->objects.push_back(object);
+//     object->create();
+// }
 
-void game::Context::destroyObject(game::Object *object) {
-    object->destroy();
-}
+// void game::Context::destroyObject(game::Object *object) {
+//     object->destroy();
+// }
 
 void game::Context::tick(float dt) {
     mImpl->debugRenderer->begin_frame(*mImpl->activeCamera);
@@ -442,9 +442,9 @@ void game::Context::tick(float dt) {
         gPhysicsLog.warn("Physics update error: {}", std::to_underlying(err));
     }
 
-    for (game::Object *object : mImpl->objects) {
-        object->update(dt);
-    }
+    // for (game::Object *object : mImpl->objects) {
+    //     object->update(dt);
+    // }
 }
 
 math::float3 game::Context::getGravity() const {
@@ -653,8 +653,8 @@ static void createDebugTrianglePSO(render::Pipeline& pipeline, const draw::Viewp
             .InputLayout = { kInputElements, _countof(kInputElements) },
             .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
             .NumRenderTargets = 1,
-            .RTVFormats = { config.colour },
-            .DSVFormat = config.depth,
+            .RTVFormats = { config.getColourFormat() },
+            .DSVFormat = config.getDepthFormat(),
             .SampleDesc = { 1, 0 },
         };
 
@@ -696,8 +696,8 @@ void game::physics_debug(
         createDebugLinePSO(info.lines, config, context);
         createDebugTrianglePSO(info.triangles, config, context);
 
-        info.lineBuffer = context.newVertexUploadBuffer<DebugVertex>(0x1000uz * 8);
-        info.triangleBuffer = context.newVertexUploadBuffer<DebugVertex>(0x1000uz * 8);
+        info.lineBuffer = render::newVertexUploadBuffer<DebugVertex>(context, 0x1000uz * 8);
+        info.triangleBuffer = render::newVertexUploadBuffer<DebugVertex>(context, 0x1000uz * 8);
 
         return info;
     });

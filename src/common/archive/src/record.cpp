@@ -1,7 +1,9 @@
 #include "archive/record.hpp"
 
+#include "core/error.hpp"
 #include "core/format.hpp" // IWYU pragma: keep
 
+#include "core/units.hpp"
 #include "logs/logs.hpp"
 
 using namespace sm;

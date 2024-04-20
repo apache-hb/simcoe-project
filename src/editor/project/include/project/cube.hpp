@@ -1,5 +1,6 @@
 #pragma once
 
+#if 0
 #include "meta/meta.hpp"
 
 #include "game/entity.hpp"
@@ -31,3 +32,4 @@ namespace sm::project {
         void update(float dt) override;
     };
 }
+#endif

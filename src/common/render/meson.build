@@ -10,10 +10,12 @@ src = [
 
     'src/blit.cpp',
 
-    # 'src/gltf.cpp',
-
+    # render graph
     'src/graph/render_pass.cpp',
     'src/graph.cpp',
+
+    # vendor
+    'src/vendor/nvidia/nvapi.cpp',
 
     reflect.process('data/render.ct'),
     reflect.process('data/graph.ct')
@@ -25,7 +27,7 @@ deps = [
     world, config,
 
     # other vendors
-    stb, tracy,
+    tracy,
 
     # microsoft
     d3d12, d3dx12, d3d12ma, pix, dstorage,

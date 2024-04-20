@@ -75,25 +75,20 @@ is_devel = package_type == 'devel'
 is_private = package_type == 'private'
 is_release = package_type == 'release'
 
-enable_pix = get_option('enable_pix').disable_auto_if(not is_devel)
-warp_redist = get_option('warp_redist').disable_auto_if(is_release)
+pix_enable = get_option('pix_enable').disable_auto_if(not is_devel)
+warp_enable = get_option('warp_enable').disable_auto_if(is_release)
+nvapi_enable = get_option('nvapi_enable')
 
 stb = subproject('stb').get_variable('stb')
-flecs = subproject('flecs').get_variable('flecs_dep')
 
 # the perfect library
 cthulhu = subproject('cthulhu')
-
-# font rendering
-# freetype2 = dependency('freetype2')
-# harfbuzz = dependency('harfbuzz')
 
 dxc = find_program('dxc', version : '>=1.7')
 msdf_atlas_gen = find_program('msdf-atlas-gen')
 compressonator = find_program('compressonatorcli')
 artery = dependency('artery-font')
 fastgltf = dependency('fastgltf')
-dynamic_bitset = subproject('dynamic_bitset').get_variable('dynamic_bitset')
 
 dxgi = cpp.find_library('dxgi')
 dxguid = cpp.find_library('dxguid')
@@ -114,6 +109,8 @@ args = cpp.get_supported_arguments(
     '-fno-keep-static-consts',
     '-fmerge-all-constants',
     '/Zc:threadSafeInit-',
+    '/Zc:__cplusplus',
+    '/Zc:dllexportInlines-',
 
     # nicer messages
     '-fansi-escape-codes',
@@ -159,11 +156,6 @@ xclang_cpp_args = [
     '-Wno-nan-infinity-disabled'
 ]
 
-xclang_lto_args = [
-    '-fwhole-program-vtables',
-    '-fvirtual-function-elimination'
-]
-
 foreach arg : xclang_args
     if cc.has_multi_arguments('-Xclang', arg)
         args += [ '-Xclang', arg ]
@@ -177,7 +169,7 @@ foreach arg : xclang_cpp_args
 endforeach
 
 if get_option('b_lto')
-    foreach arg : xclang_lto_args
+    foreach arg : [ '-fwhole-program-vtables', '-fvirtual-function-elimination' ]
         if cpp.has_multi_arguments('-Xclang', arg)
             cpp_args += [ '-Xclang', arg ]
         endif
@@ -208,8 +200,8 @@ simcoe_cdata.set10('SMC_RELEASE', build_type.contains('release'))
 simcoe_cdata.set10('SMC_BUILD_SHARED', library_type == 'shared')
 simcoe_cdata.set10('SMC_BUILD_STATIC', library_type == 'static')
 
-simcoe_cdata.set10('SMC_USE_PIX_RUNTIME', enable_pix.allowed())
-simcoe_cdata.set10('SMC_USE_WARP_REDIST', warp_redist.allowed())
+simcoe_cdata.set10('SMC_PIX_ENABLE', pix_enable.allowed())
+simcoe_cdata.set10('SMC_WARP_ENABLE', warp_enable.allowed())
 
 simcoe_config = configure_file(
     output : 'simcoe_config.h',
@@ -222,21 +214,21 @@ config_include = include_directories('.')
 subdir('src/vendor/fmtlib')
 
 # reflection tool
-subdir('src/meta')
+# subdir('src/meta')
 
 # extra_args must contain the name of the target, idk how to get it otherwise
-meta_tool = generator(find_program('scripts/meta_tool.py'),
-    output : [ '@BASENAME@.meta.h', '@BASENAME@.meta.cpp' ],
-    depends : meta_tooling,
-    arguments : [
-        '--builddir', meson.global_build_root(),
-        '--metatool', meta_tooling.full_path(),
-        '--reflect', '@INPUT@',
-        '--header', '@OUTPUT0@',
-        '--source', '@OUTPUT1@',
-        '--target', '@EXTRA_ARGS@'
-    ]
-)
+# meta_tool = generator(find_program('scripts/meta_tool.py'),
+#     output : [ '@BASENAME@.meta.h', '@BASENAME@.meta.cpp' ],
+#     depends : meta_tooling,
+#     arguments : [
+#         '--builddir', meson.global_build_root(),
+#         '--metatool', meta_tooling.full_path(),
+#         '--reflect', '@INPUT@',
+#         '--header', '@OUTPUT0@',
+#         '--source', '@OUTPUT1@',
+#         '--target', '@EXTRA_ARGS@'
+#     ]
+# )
 
 subdir('src/vendor/reflect')
 

@@ -311,10 +311,6 @@ Result Context::create_resource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_
     return mAllocator->CreateResource(&kAllocDesc, &desc, state, clear, &resource.mAllocation, IID_PPV_ARGS(&resource.mResource));
 }
 
-void Context::copy_buffer(ID3D12GraphicsCommandList1 *list, Resource& dst, Resource& src, size_t size) {
-    list->CopyBufferRegion(*dst.mResource, 0, *src.mResource, 0, size);
-}
-
 void Context::init_scene() {
     mWorld = world::default_world("Default World");
     mCurrentScene = mWorld.default_scene;
@@ -384,8 +380,8 @@ void Context::load_mesh_buffer(world::IndexOf<world::Model> index, const world::
     reset_copy_commands();
     reset_direct_commands();
 
-    copy_buffer(mCopyCommands.get(), vbo, vbo_upload, vbo_size);
-    copy_buffer(mCopyCommands.get(), ibo, ibo_upload, ibo_size);
+    copyBufferRegion(mCopyCommands.get(), vbo, vbo_upload, vbo_size);
+    copyBufferRegion(mCopyCommands.get(), ibo, ibo_upload, ibo_size);
 
     const D3D12_RESOURCE_BARRIER kBarriers[] = {
         CD3DX12_RESOURCE_BARRIER::Transition(vbo.get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER),
@@ -568,29 +564,28 @@ void Context::end_upload() {
     StorageQueue& files = mStorage.file_queue();
     StorageQueue& memory = mStorage.memory_queue();
 
-    // do we need to wait for uploads to finish before transitioning resources?
-    bool waitForStorageQueue = false;
+    bool hasWork = files.hasPendingRequests() || memory.hasPendingRequests() || !mPendingBarriers.empty();
+    if (!hasWork) return;
 
     // only signal and submit when the queues have pending requests
     // dstorage doesnt signal a fence if there are no prior requests
-    if (files.has_pending_requests()) {
-        waitForStorageQueue = true;
-        files.signal(*mStorageFence, mStorageFenceValue++);
+    if (files.hasPendingRequests()) {
+        files.signal(*mStorageFence, mStorageFenceValue);
         files.submit();
+
+        mDirectQueue->Wait(*mStorageFence, mStorageFenceValue);
+
+        mStorageFenceValue += 1;
     }
 
-    if (memory.has_pending_requests()) {
-        waitForStorageQueue = true;
-        memory.signal(*mStorageFence, mStorageFenceValue++);
+    if (memory.hasPendingRequests()) {
+        memory.signal(*mStorageFence, mStorageFenceValue);
         memory.submit();
-    }
 
-    if (waitForStorageQueue) {
-        mDirectQueue->Wait(*mStorageFence, mStorageFenceValue - 1);
-    }
+        mDirectQueue->Wait(*mStorageFence, mStorageFenceValue);
 
-    // do we need to do a cpu side wait?
-    bool waitForQueue = waitForStorageQueue;
+        mStorageFenceValue += 1;
+    }
 
     // only submit barriers if there are any
     if (!mPendingBarriers.empty()) {
@@ -604,18 +599,14 @@ void Context::end_upload() {
 
         mDirectQueue->ExecuteCommandLists(1, lists);
         mDirectQueue->Signal(*mStorageFence, mStorageFenceValue++);
-
-        waitForQueue = true;
     }
 
     // only wait on the cpu side if commands were submitted
-    if (waitForQueue) {
-        uint64 expected = mStorageFenceValue - 1;
-        uint64 completed = mStorageFence->GetCompletedValue();
-        if (completed < expected) {
-            mStorageFence->SetEventOnCompletion(expected, mStorageFenceEvent);
-            WaitForSingleObject(mStorageFenceEvent, INFINITE);
-        }
+    uint64 expected = mStorageFenceValue - 1;
+    uint64 completed = mStorageFence->GetCompletedValue();
+    if (completed < expected) {
+        mStorageFence->SetEventOnCompletion(expected, mStorageFenceEvent);
+        WaitForSingleObject(mStorageFenceEvent, INFINITE);
     }
 }
 
@@ -886,7 +877,8 @@ void Context::update_swapchain_length(uint length) {
     destroy_frame_rtvs();
 
     const uint flags = get_swapchain_flags(mInstance);
-    SM_ASSERT_HR(mSwapChain->ResizeBuffers(length, mSwapChainConfig.size.width, mSwapChainConfig.size.height, mSwapChainConfig.format, flags));
+    auto [w, h] = getSwapChainSize();
+    SM_ASSERT_HR(mSwapChain->ResizeBuffers(length, w, h, mSwapChainConfig.format, flags));
     mSwapChainConfig.length = length;
 
     mFrames.resize(length);
@@ -965,4 +957,8 @@ void Context::flush_copy_queue() {
         PIXNotifyWakeFromFenceSignal(mCopyFenceEvent);
         WaitForSingleObject(mCopyFenceEvent, INFINITE);
     }
+}
+
+void render::copyBufferRegion(ID3D12GraphicsCommandList1 *list, Resource& dst, Resource& src, size_t size) {
+    list->CopyBufferRegion(dst.get(), 0, src.get(), 0, size);
 }

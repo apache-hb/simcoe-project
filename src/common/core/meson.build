@@ -21,6 +21,7 @@ src = [
     'src/library.cpp',
     'src/timer.cpp',
     'src/typeindex.cpp',
+    'src/small_string.cpp',
     reflect.process('data/core.ct')
 ]
 

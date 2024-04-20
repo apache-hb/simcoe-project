@@ -1,7 +1,7 @@
 #pragma once
 
-#include "meta/class.hpp"
-#include "game/object.hpp"
+// #include "meta/class.hpp"
+// #include "game/object.hpp"
 
 #include "world/world.hpp"
 
@@ -92,16 +92,16 @@ namespace sm::game {
             : mImpl(impl)
         { }
 
-        void addClass(const meta::Class& cls);
+        // void addClass(const meta::Class& cls);
 
-        template<IsObject T>
-        T& spawn() {
-            return static_cast<T&>(gciCreateObject(mImpl, T::getClass()));
-        }
+        // template<IsObject T>
+        // T& spawn() {
+        //     return static_cast<T&>(gciCreateObject(mImpl, T::getClass()));
+        // }
 
-        void addObject(game::Object *object);
+        // void addObject(game::Object *object);
 
-        void destroyObject(game::Object *object);
+        // void destroyObject(game::Object *object);
 
         void tick(float dt);
 

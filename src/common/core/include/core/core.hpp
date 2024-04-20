@@ -2,8 +2,6 @@
 
 #include <simcoe_config.h>
 
-#include "core/error.hpp"
-
 #include <stdint.h>
 
 namespace sm {

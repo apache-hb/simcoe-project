@@ -1,5 +1,6 @@
 #pragma once
 
+#if 0
 #include "meta/meta.hpp"
 #include "meta/class.hpp"
 
@@ -67,3 +68,4 @@ namespace sm::game {
         }
     }
 }
+#endif

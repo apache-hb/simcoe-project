@@ -164,14 +164,14 @@ bool RenderConfig::draw_debug_flags() const {
 }
 
 void RenderConfig::draw_content() {
-    int backbuffers = int_cast<int>(mContext.mSwapChainConfig.length);
+    int backbuffers = int_cast<int>(mContext.getSwapChainLength());
 
     if (ImGui::SliderInt("SwapChain Length", &backbuffers, 2, kMaxLength)) {
         mContext.update_swapchain_length(int_cast<uint>(backbuffers));
     }
 
     {
-        auto [width, height] = mContext.mSwapChainConfig.size.as<int>();
+        auto [width, height] = mContext.getSwapChainSize().as<int>();
         ImGui::Text("Display Resolution: %u x %u", width, height);
     }
 

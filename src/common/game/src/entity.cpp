@@ -1,5 +1,6 @@
 #include "stdafx.hpp"
 
+#if 0
 #include "game/entity.hpp"
 
 using namespace sm;
@@ -56,3 +57,4 @@ CameraComponent::CameraComponent(ClassSetup& setup)
 void CameraComponent::update(float dt) {
 
 }
+#endif

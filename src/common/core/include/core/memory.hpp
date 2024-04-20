@@ -1,7 +1,6 @@
 #pragma once
 
-#include "core/string.hpp"
-#include "core/units.hpp"
+#include "core/small_string.hpp"
 
 #include "core/format.hpp" // IWYU pragma: export
 
@@ -35,8 +34,8 @@ namespace sm {
             "b", "kb", "mb", "gb", "tb"
         };
 
-        constexpr Memory(std::integral auto memory = 0, Unit unit = eBytes)
-            : mBytes(int_cast<size_t>(memory * kSizes[unit]))
+        constexpr Memory(size_t memory = 0, Unit unit = eBytes)
+            : mBytes(memory * kSizes[unit])
         { }
 
         constexpr size_t b() const { return mBytes; }
@@ -53,7 +52,7 @@ namespace sm {
 
         friend constexpr auto operator<=>(const Memory& lhs, const Memory& rhs) = default;
 
-        sm::String to_string() const;
+        SmallString<64> to_string() const;
 
     private:
         size_t mBytes;
@@ -79,6 +78,6 @@ struct fmt::formatter<sm::Memory> {
     }
 
     auto format(const sm::Memory& value, format_context& ctx) const {
-        return fmt::format_to(ctx.out(), "{}", value.to_string());
+        return fmt::format_to(ctx.out(), "{}", value.to_string().c_str());
     }
 };

@@ -3,14 +3,18 @@ src = [
     'src/game.cpp',
     'src/object.cpp',
 
-    meta_tool.process('include/game/object.hpp', extra_args : [ 'game' ]),
-    meta_tool.process('include/game/entity.hpp', extra_args : [ 'game' ])
+    # meta_tool.process('include/game/object.hpp', extra_args : [ 'game' ]),
+    # meta_tool.process('include/game/entity.hpp', extra_args : [ 'game' ])
 ]
 
 inc = include_directories('include')
 jolt = dependency('jolt')
 
-deps = [ input, draw, logs, world, meta, jolt ]
+deps = [
+    input, draw, logs, world,
+    # meta,
+    jolt
+]
 
 libgame = library('game', src,
     include_directories : [ inc, 'include/game' ],

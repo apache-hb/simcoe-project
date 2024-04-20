@@ -1,12 +1,10 @@
 #include "core/memory.hpp"
-#include "core/format.hpp"
-#include "core/string.hpp"
 
 #include <iterator>
 
 using namespace sm;
 
-sm::String Memory::to_string() const {
+SmallString<64> Memory::to_string() const {
     if (mBytes == 0) { return "0b"; }
 
     sm::FormatBuffer buffer;
@@ -27,5 +25,5 @@ sm::String Memory::to_string() const {
         }
     }
 
-    return sm::String(buffer.data(), buffer.size());
+    return SmallString<64>(buffer.data(), buffer.size());
 }

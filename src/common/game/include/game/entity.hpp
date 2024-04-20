@@ -1,5 +1,6 @@
 #pragma once
 
+#if 0
 #include "meta/meta.hpp"
 
 #include "math/math.hpp"
@@ -125,3 +126,4 @@ namespace sm::game {
         Character();
     };
 }
+#endif

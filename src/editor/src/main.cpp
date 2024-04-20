@@ -141,7 +141,7 @@ class DefaultSystemError final : public ISystemError {
     void error_begin(OsError error) override {
         mReport = bt_report_new(sm::global_arena());
         io_t *io = io_stderr();
-        io_printf(io, "System error detected: (%s)\n", error.to_string());
+        io_printf(io, "System error detected: (%s)\n", error.to_string().c_str());
     }
 
     void error_frame(bt_address_t it) override {

@@ -2,6 +2,8 @@
 
 #include "core/core.hpp"
 
+#include <type_traits>
+
 namespace sm {
     uint32 next_index();
 
@@ -17,7 +19,7 @@ namespace sm {
 
 template<typename T>
 struct std::hash<sm::TypeIndex<T>> {
-    std::size_t operator()(const sm::TypeIndex<T>& index) const {
+    size_t operator()(const sm::TypeIndex<T>& index) const {
         return index.index();
     }
 };

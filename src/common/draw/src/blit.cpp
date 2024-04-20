@@ -82,7 +82,7 @@ static void create_blit_pipeline(render::Pipeline& pipeline, render::Context& co
             .InputLayout = { kInputElements, _countof(kInputElements) },
             .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
             .NumRenderTargets = 1,
-            .RTVFormats = { context.mSwapChainConfig.format },
+            .RTVFormats = { context.getSwapChainFormat() },
             .SampleDesc = { 1, 0 },
         };
         auto device = context.getDevice();
@@ -109,7 +109,7 @@ static void create_screen_quad(render::Resource& quad, render::VertexBufferView&
     context.reset_direct_commands();
     context.reset_copy_commands();
 
-    context.copy_buffer(*context.mCopyCommands, quad, upload, sizeof(blit::kScreenQuad));
+    render::copyBufferRegion(context.mCopyCommands.get(), quad, upload, sizeof(blit::kScreenQuad));
 
     const D3D12_RESOURCE_BARRIER kBarriers[] = {
         // screen quad verts

@@ -5,6 +5,8 @@
 #include "core/core.hpp"
 #include "core/macros.hpp"
 
+#include <utility>
+
 namespace sm {
     /// @brief A handle to a resource that is automatically destroyed when it goes out of scope.
     /// @tparam T The type of the handle.

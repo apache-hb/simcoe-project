@@ -1,5 +1,7 @@
 #pragma once
 
+#include "base/panic.h"
+
 #include "core/core.hpp"
 
 #include "units.hpp"

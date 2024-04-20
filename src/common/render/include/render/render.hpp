@@ -28,7 +28,7 @@ namespace sm::render {
     constexpr math::float4 kColourBlack = { 0.0f, 0.0f, 0.0f, 1.0f };
 
     struct SwapChainConfig {
-        math::uint2 size;
+        uint2 size;
         uint length;
         DXGI_FORMAT format;
     };
@@ -97,12 +97,6 @@ namespace sm::render {
         SrvIndex srv;
     };
 
-    struct PointLight {
-        math::float3 position;
-        math::float3 colour;
-        float intensity;
-    };
-
     struct Context {
         const RenderConfig mConfig;
 
@@ -155,9 +149,13 @@ namespace sm::render {
         /// presentation objects
         Object<IDXGISwapChain3> mSwapChain;
 
-    public:
         // render info
         SwapChainConfig mSwapChainConfig;
+
+    public:
+        uint2 getSwapChainSize() const { return mSwapChainConfig.size; }
+        DXGI_FORMAT getSwapChainFormat() const { return mSwapChainConfig.format; }
+        uint getSwapChainLength() const { return mSwapChainConfig.length; }
 
     private:
         sm::UniqueArray<FrameData> mFrames;
@@ -261,8 +259,6 @@ namespace sm::render {
         HANDLE mFenceEvent;
         Object<ID3D12Fence> mFence;
 
-        void copy_buffer(ID3D12GraphicsCommandList1 *list, Resource& dst, Resource& src, size_t size);
-
         // dstorage
         size_t mStorageMeshCount = 0;
         CopyStorage mStorage;
@@ -330,54 +326,52 @@ namespace sm::render {
             world::IndexOf<world::Image> image,
             sm::Span<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> footprints);
 
-        template<typename T>
-        ConstBuffer<T> newConstBuffer(size_t count = 1) {
-            CTASSERT(count > 0);
-
-            // round up the size to the next multiple of 256
-            size_t size = ((sizeof(T) * count) + 255) & ~255;
-            auto desc = CD3DX12_RESOURCE_DESC::Buffer(size);
-
-            ConstBuffer<T> buffer;
-            SM_ASSERT_HR(create_resource(buffer, D3D12_HEAP_TYPE_UPLOAD, desc, D3D12_RESOURCE_STATE_GENERIC_READ));
-
-            buffer.init();
-
-            return buffer;
-        }
-
-        template<typename T>
-        VertexBuffer<T> newVertexUploadBuffer(size_t count) {
-            auto desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(T) * count);
-
-            VertexBuffer<T> buffer;
-            SM_ASSERT_HR(create_resource(buffer, D3D12_HEAP_TYPE_UPLOAD, desc, D3D12_RESOURCE_STATE_GENERIC_READ));
-
-            buffer.init(count);
-
-            return buffer;
-        }
-
-        template<typename T>
-        VertexBuffer<T> newVertexBuffer(size_t count) {
-            auto desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(T) * count);
-
-            VertexBuffer<T> buffer;
-            SM_ASSERT_HR(create_resource(buffer, D3D12_HEAP_TYPE_DEFAULT, desc, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
-
-            buffer.init(count);
-
-            return buffer;
-        }
-
-        D3D12_CPU_DESCRIPTOR_HANDLE rtvHostHandle(RtvIndex index);
-        D3D12_CPU_DESCRIPTOR_HANDLE dsvHostHandle(DsvIndex index);
-        D3D12_CPU_DESCRIPTOR_HANDLE srvHostHandle(SrvIndex index);
-
-        D3D12_GPU_DESCRIPTOR_HANDLE rtvDeviceHandle(RtvIndex index);
-        D3D12_GPU_DESCRIPTOR_HANDLE dsvDeviceHandle(DsvIndex index);
-        D3D12_GPU_DESCRIPTOR_HANDLE srvDeviceHandle(SrvIndex index);
-
         ID3D12Device1 *getDevice() { return mDevice.get(); }
     };
+
+    void copyBufferRegion(ID3D12GraphicsCommandList1 *list, Resource& dst, Resource& src, size_t size);
+
+    template<typename T>
+    ConstBuffer<T> newConstBuffer(Context& self, size_t count = 1) {
+        CTASSERT(count > 0);
+
+        // round up the size to the next multiple of 256
+        size_t size = ((sizeof(T) * count) + 255) & ~255;
+        auto desc = CD3DX12_RESOURCE_DESC::Buffer(size);
+
+        ConstBuffer<T> buffer;
+        SM_ASSERT_HR(self.create_resource(buffer, D3D12_HEAP_TYPE_UPLOAD, desc, D3D12_RESOURCE_STATE_GENERIC_READ));
+
+        buffer.init();
+
+        return buffer;
+    }
+
+    template<typename T>
+    VertexBuffer<T> newVertexUploadBuffer(Context& self, size_t count) {
+        CTASSERT(count > 0);
+
+        auto desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(T) * count);
+
+        VertexBuffer<T> buffer;
+        SM_ASSERT_HR(self.create_resource(buffer, D3D12_HEAP_TYPE_UPLOAD, desc, D3D12_RESOURCE_STATE_GENERIC_READ));
+
+        buffer.init(count);
+
+        return buffer;
+    }
+
+    template<typename T>
+    VertexBuffer<T> newVertexBuffer(Context& self, size_t count) {
+        CTASSERT(count > 0);
+
+        auto desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(T) * count);
+
+        VertexBuffer<T> buffer;
+        SM_ASSERT_HR(self.create_resource(buffer, D3D12_HEAP_TYPE_DEFAULT, desc, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+
+        buffer.init(count);
+
+        return buffer;
+    }
 }

@@ -3,6 +3,7 @@
 #include <simcoe_config.h>
 
 #include "backtrace/backtrace.h"
+#include "core/small_string.hpp"
 #include "core/source_info.h"
 
 #include "fmtlib/format.h" // IWYU pragma: keep
@@ -43,7 +44,14 @@ namespace sm {
             return mError == other.mError;
         }
 
-        char *to_string() const;
+        template<size_t N = 512>
+        SmallString<N> to_string() const {
+            char buffer[N];
+            if (os_error_get_string(mError, buffer, N) >= N) {
+                buffer[N - 1] = '\0';
+            }
+            return SmallString<N>(buffer);
+        }
     };
 
     class ISystemError : public bt_error_t {
@@ -69,7 +77,7 @@ struct fmt::formatter<sm::OsError> {
     }
 
     auto format(const sm::OsError &error, fmt::format_context &ctx) const {
-        return format_to(ctx.out(), "{}", error.to_string());
+        return format_to(ctx.out(), "{}", error.to_string<512>().c_str());
     }
 };
 

@@ -1,5 +1,6 @@
 #include "stdafx.hpp"
 
+#if 0
 #include "game/entity.hpp"
 
 using namespace sm;
@@ -22,3 +23,4 @@ Object::Object(ClassSetup& config) {
 bool Object::isInstanceOf(const meta::Class& cls) const {
     return false;
 }
+#endif

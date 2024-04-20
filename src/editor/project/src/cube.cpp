@@ -1,5 +1,6 @@
 #include "stdafx.hpp"
 
+#if 0
 #include "project/cube.hpp"
 
 #include "game/game.hpp"
@@ -28,3 +29,4 @@ void Cube::destroy() {
 void Cube::update(float dt) {
 
 }
+#endif

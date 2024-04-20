@@ -215,7 +215,7 @@ void forward_plus::light_binning(
 
         create_tiling_pipeline(info.pipeline, context);
 
-        info.frame_buffer = context.newConstBuffer<draw::ViewportData>();
+        info.frame_buffer = render::newConstBuffer<draw::ViewportData>(context);
 
         return info;
     });

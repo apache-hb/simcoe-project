@@ -66,7 +66,7 @@ namespace sm {
             }
 
             constexpr void release(Index index) {
-                SM_ASSERTF(test(index), "index {} is not set", (IndexType)index);
+                CTASSERTF(test(index), "index %zu is not set", std::to_underlying(index));
                 clear(index);
             }
 

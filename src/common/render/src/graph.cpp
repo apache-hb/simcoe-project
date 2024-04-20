@@ -519,7 +519,7 @@ void FrameGraph::reset_frame_commands() {
 
 void FrameGraph::init_frame_commands() {
     auto device = mContext.getDevice();
-    uint length = mContext.mSwapChainConfig.length;
+    uint length = mContext.getSwapChainLength();
     for (auto& [type, allocators, commands] : mFrameData) {
         allocators.resize(length);
 

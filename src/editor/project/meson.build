@@ -1,7 +1,7 @@
 src = [
     'src/cube.cpp',
 
-    meta_tool.process('include/project/cube.hpp', extra_args : [ 'project' ])
+    # meta_tool.process('include/project/cube.hpp', extra_args : [ 'project' ])
 ]
 
 inc = include_directories('include')
