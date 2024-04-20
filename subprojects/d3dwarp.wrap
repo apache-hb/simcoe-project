@@ -6,4 +6,4 @@ source_filename = d3d-warp-1.0.11.zip
 source_hash = ee0fba27cf203ce7dfe99ae91077d4c9cd3a7136fc18d3bfafd77d9f5a8ea08e
 lead_directory_missing = true
 
-patch_directory = d3d-warp
+patch_directory = d3dwarp

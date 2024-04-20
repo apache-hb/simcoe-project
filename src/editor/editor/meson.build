@@ -1,4 +1,3 @@
-
 src = [
     'src/context.cpp',
 
@@ -30,7 +29,9 @@ deps = [
     cthulhu.get_variable('backtrace'),
     cthulhu.get_variable('format_core'),
     cthulhu.get_variable('io'),
-    tracy, stb,
+    tracy,
+
+    dependency('stb_image'),
 
     imgui, implot, imguizmo, filebrowser,
     imnodes, imgui_memory_editor,

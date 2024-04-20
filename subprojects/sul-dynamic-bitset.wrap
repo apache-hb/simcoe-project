@@ -1,0 +1,11 @@
+[wrap-file]
+directory = sul-dynamic-bitset-1.3.0
+
+source_url = https://github.com/pinam45/dynamic_bitset/archive/refs/tags/v1.3.0.zip
+source_filename = dynamic_bitset-1.3.0.zip
+source_hash = 7f7f7fcf23b667b679c26e75709620d710a7f9809ec7f474fdcc26732b355bfd
+
+patch_directory = sul-dynamic-bitset
+
+[provide]
+dependency_names = dynamic_bitset

@@ -1,3 +1,5 @@
+#include "stdafx.hpp"
+
 #include "archive/archive.hpp"
 
 #include "core/units.hpp"

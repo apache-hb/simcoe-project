@@ -12,6 +12,7 @@ project('dxc', 'c',
 
 host_cpu = host_machine.cpu_family()
 cc = meson.get_compiler('c')
+root = meson.current_source_dir() / 'build/native'
 
 if host_cpu == 'x86_64'
     archdir = 'x64'
@@ -23,12 +24,13 @@ else
     error('No prebuilt dxc binaries for ' + host_cpu)
 endif
 
-bindir = meson.current_source_dir() / 'build/native/bin' / archdir
+bindir = root / 'bin' / archdir
+libdir = 'lib' / archdir
+
+# specify the full path rather than providing the libs kwarg
+# as the system may have a different version of dxc or dxcompiler installed
 dxc = find_program(bindir / 'dxc.exe')
-
-libdir = 'build/native/lib' / archdir
-
-dxcompiler = cc.find_library(meson.current_source_dir() / libdir / 'dxcompiler')
+dxcompiler = cc.find_library(root / libdir / 'dxcompiler')
 inc = include_directories('build/native/include')
 
 dxcompiler_dep = declare_dependency(

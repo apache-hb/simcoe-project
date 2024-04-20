@@ -1,3 +1,5 @@
+#include "stdafx.hpp"
+
 #include "archive/io.hpp"
 #include "core/memory.h"
 

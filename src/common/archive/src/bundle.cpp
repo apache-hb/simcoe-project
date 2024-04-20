@@ -1,3 +1,5 @@
+#include "stdafx.hpp"
+
 #include "archive/bundle.hpp"
 
 #include "archive/io.hpp"
@@ -9,9 +11,6 @@
 
 #include "core/units.hpp"
 #include "logs/logs.hpp"
-
-#include "artery-font/artery-font.h" // IWYU pragma: keep
-#include "stb/stb_image.h"
 
 #include "fs/fs.h"
 #include "tar/tar.h"
@@ -96,28 +95,6 @@ namespace artery {
     using Appendix = typename FontData::Appendix;
     using KerningPair = af::KernPair<real>;
     using Glyph = af::Glyph<real>;
-}
-
-static Format get_channel_format(int channels) {
-    switch (channels) {
-    case 1: return Format::eR8_BYTE;
-    case 2: return Format::eRG8_BYTE;
-    case 3: return Format::eRGB8_BYTE;
-    case 4: return Format::eRGBA8_BYTE;
-    default: return Format::eUnknown;
-    }
-}
-
-// TODO: deduplicate this with the one in image.cpp
-static ImageData convert_image(stbi_uc *pixels, int width, int height, int channels) {
-    const ImageData image = {
-        .format = ImageFormat::ePNG, // TODO: detect this properly
-        .pxformat = get_channel_format(channels),
-        .size = { int_cast<uint32_t>(width), int_cast<uint32_t>(height) },
-        .data = sm::Vector<uint8>(pixels, pixels + int_cast<ptrdiff_t>(width * height * 4)),
-    };
-
-    return image;
 }
 
 static constexpr font::KerningPair convert_kerning_pair(const artery::KerningPair& pair) {
@@ -217,15 +194,7 @@ font::FontInfo Bundle::get_font(const char *name) const {
         const auto& data = image.data;
         logs::gAssets.info("| image: {}x{}x{}", image.width, image.height, image.channels);
 
-        int width, height, channels;
-        stbi_uc *pixels = stbi_load_from_memory(data.data(), (int)data.size(), &width, &height, &channels, 4);
-        if (pixels == nullptr) {
-            logs::gAssets.error("failed to load font texture: {}", stbi_failure_reason());
-            return {};
-        }
-
-        logs::gAssets.info("| loaded image: {}x{}x{}", width, height, channels);
-        images.emplace_back(convert_image(pixels, width, height, channels));
+        images.emplace_back(load_image({ data.data(), data.size() }));
     }
 
     auto info = convert_info(font, name);

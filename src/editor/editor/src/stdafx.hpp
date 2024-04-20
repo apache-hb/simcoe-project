@@ -46,6 +46,6 @@
 #include "fastgltf/util.hpp"
 #include "fastgltf/tools.hpp"
 
-#include "stb/stb_image.h"
+#include "stb_image.h"
 
 // IWYU pragma: end_exports

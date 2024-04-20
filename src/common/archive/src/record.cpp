@@ -1,3 +1,5 @@
+#include "stdafx.hpp"
+
 #include "archive/record.hpp"
 
 #include "core/error.hpp"

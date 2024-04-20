@@ -13,13 +13,15 @@ src = [
 ]
 
 deps = [
-    core, logs, math, stb,
+    core, logs, math,
     cthulhu.get_variable('fs'),
-    cthulhu.get_variable('tar')
+    cthulhu.get_variable('tar'),
+    dependency('stb_image')
 ]
 
 libarchive = library('archive', src,
     cpp_args : [ '-DSM_BUNDLE_BUILD=1' ],
+    cpp_pch : 'src/stdafx.hpp',
     include_directories : [ archive_include, reflect_include ],
     dependencies : deps + [ artery ]
 )

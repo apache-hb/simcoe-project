@@ -1,5 +1,5 @@
 [wrap-git]
-directory = nvapi
+directory = nvapi-550
 
 url = https://github.com/NVIDIA/nvapi
 revision = head

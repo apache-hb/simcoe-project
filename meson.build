@@ -57,8 +57,6 @@ cc = meson.get_compiler('c')
 add_global_arguments(cc.get_supported_arguments('/GS-', '/wd4127', '/wd4324', '/wd4200', '/wd4505'), language : [ 'c', 'cpp' ])
 add_global_arguments('-D_HAS_EXCEPTIONS=0', language : 'cpp')
 
-version = meson.project_version()
-parts = version.split('.')
 build_type = get_option('buildtype')
 is_debug = build_type.contains('debug')
 library_type = get_option('default_library')
@@ -79,12 +77,10 @@ pix_enable = get_option('pix_enable').disable_auto_if(not is_devel)
 warp_enable = get_option('warp_enable').disable_auto_if(is_release)
 nvapi_enable = get_option('nvapi_enable')
 
-stb = subproject('stb').get_variable('stb')
-
 # the perfect library
 cthulhu = subproject('cthulhu')
 
-dxc = find_program('dxc', version : '>=1.7')
+dxc = find_program('dxc', version : '>=1.8')
 msdf_atlas_gen = find_program('msdf-atlas-gen')
 compressonator = find_program('compressonatorcli')
 artery = dependency('artery-font')
@@ -181,6 +177,9 @@ add_project_arguments(args, language : ['c', 'cpp'])
 
 res_include = include_directories('data/win32')
 
+version = meson.project_version()
+parts = version.split('.')
+
 # generate the project config header
 simcoe_cdata = configuration_data()
 simcoe_cdata.set('SMC_VERSION_PATCH', parts[2].to_int())
@@ -263,7 +262,7 @@ subdir('src/common/game')
 
 # windows specific dependencies
 agility = subproject('d3d12')
-warp = subproject('d3d-warp')
+warp = subproject('d3dwarp')
 dxcompiler = subproject('dxc')
 winpixruntime = subproject('winpixruntime')
 dstorage = subproject('dstorage')

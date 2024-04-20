@@ -8,8 +8,6 @@
 using namespace sm;
 using namespace sm::ed;
 
-using ReflectImageType = ctu::TypeInfo<ImageFormat>;
-
 static const char *getIndexName(world::IndexType type) {
     switch (type) {
     case world::eNone: return "None";

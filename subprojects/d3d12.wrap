@@ -6,7 +6,7 @@ source_filename = d3d12-1.613.0.zip
 source_hash = 3447e47146c6533c8390e97ab650b66104e12c84c6751e645f1557bbe1baf1e0
 lead_directory_missing = true
 
-patch_directory = d3d12
+patch_directory = d3d12-agility
 
 [provide]
 program_names = d3dconfig

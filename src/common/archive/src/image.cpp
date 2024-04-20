@@ -1,13 +1,11 @@
+#include "stdafx.hpp"
+
 #include "archive/image.hpp"
 
 #include "archive/io.hpp"
 #include "core/units.hpp"
 
 #include "logs/logs.hpp"
-
-#include "stb/stb_image.h"
-
-#include "fmt/std.h" // IWYU pragma: keep
 
 using namespace sm;
 
@@ -21,15 +19,6 @@ static constexpr Format get_channel_format(int channels) {
     }
 }
 
-static constexpr ImageFormat get_image_format(int type) {
-    switch (type) {
-    case STBI_png: return ImageFormat::ePNG;
-    case STBI_jpeg: return ImageFormat::eJPG;
-    case STBI_bmp: return ImageFormat::eBMP;
-    default: return ImageFormat::eUnknown;
-    }
-}
-
 ImageData sm::load_image(sm::Span<const uint8> data) {
     int width, height;
     stbi_uc *pixels = stbi_load_from_memory(data.data(), int_cast<int>(data.size()), &width, &height, nullptr, 4);
@@ -38,11 +27,7 @@ ImageData sm::load_image(sm::Span<const uint8> data) {
         return {};
     }
 
-    int type = stbi_test_from_memory(data.data(), int_cast<int>(data.size()));
-    ImageFormat imgtype = get_image_format(type);
-
     const ImageData image = {
-        .format = imgtype,
         .pxformat = get_channel_format(4),
         .size = { int_cast<uint32_t>(width), int_cast<uint32_t>(height) },
         .data = sm::Vector<uint8>(pixels, pixels + int_cast<ptrdiff_t>(width * height * 4)),

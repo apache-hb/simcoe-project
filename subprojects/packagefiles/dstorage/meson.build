@@ -11,26 +11,26 @@ project('dstorage', 'cpp',
 
 host_cpu = host_machine.cpu_family()
 cpp = meson.get_compiler('cpp')
+root = meson.current_source_dir() / 'native'
 
 if host_cpu == 'x86_64'
-    bindir = 'native/bin/x64'
-    libdir = 'native/lib/x64'
+    archdir = 'x64'
 elif host_cpu == 'x86'
-    bindir = 'native/bin/x86'
-    libdir = 'native/lib/x86'
+    archdir = 'x86'
 elif host_cpu == 'aarch64'
-    bindir = 'native/bin/ARM64'
-    libdir = 'native/lib/ARM64'
+    archdir = 'ARM64'
 else
     error('The dstorage sdk does not provide binaries for ' + host_cpu)
 endif
 
-bindir = meson.current_source_dir() / bindir
-libdir = meson.current_source_dir() / libdir
+bindir = root / 'bin' / archdir
+libdir = root / 'lib' / archdir
 
 icon = files('icon.png')
 
-lib = cpp.find_library('dstorage', dirs : libdir)
+# specify the full path rather than providing the libs kwarg
+# as the system may have a different version of the library
+lib = cpp.find_library(libdir / 'dstorage')
 inc = include_directories('native/include')
 
 dstorage_dep = declare_dependency(
