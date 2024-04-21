@@ -2,21 +2,20 @@
 
 using namespace sm;
 
-Timer::Timer()
+Timer::Timer() noexcept
     : mStart(std::chrono::steady_clock::now())
 { }
 
-float Timer::elapsed() const {
+float Timer::elapsed() const noexcept {
     auto now = std::chrono::steady_clock::now();
     return std::chrono::duration<float>(now - mStart).count();
 }
 
-Ticker::Ticker()
-    : Timer()
-    , mLastUpdate(elapsed())
+Ticker::Ticker() noexcept
+    : mLastUpdate(elapsed())
 { }
 
-float Ticker::tick() {
+float Ticker::tick() noexcept {
     float now = elapsed();
     float delta = now - mLastUpdate;
     mLastUpdate = now;

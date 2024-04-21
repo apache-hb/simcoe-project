@@ -22,52 +22,52 @@ namespace sm {
         SM_NO_UNIQUE_ADDRESS TDelete mDelete{};
 
     public:
-        constexpr UniqueHandle(T handle = TEmpty, TDelete del = TDelete{})
+        constexpr UniqueHandle(T handle = TEmpty, TDelete del = TDelete{}) noexcept
             : mHandle(handle)
             , mDelete(del)
         { }
 
-        constexpr UniqueHandle &operator=(T handle) {
+        constexpr UniqueHandle &operator=(T handle) noexcept {
             reset(handle);
             return *this;
         }
 
-        constexpr ~UniqueHandle() {
+        constexpr ~UniqueHandle() noexcept {
             reset();
         }
 
-        constexpr UniqueHandle(UniqueHandle &&other) {
+        constexpr UniqueHandle(UniqueHandle &&other) noexcept {
             reset(other.release());
         }
 
-        constexpr UniqueHandle &operator=(UniqueHandle &&other) {
+        constexpr UniqueHandle &operator=(UniqueHandle &&other) noexcept {
             reset(other.release());
             return *this;
         }
 
-        constexpr T get() { return ref(); }
-        constexpr const T get() const { return ref(); }
+        constexpr T get() noexcept { return ref(); }
+        constexpr const T get() const noexcept { return ref(); }
 
-        constexpr T& ref() { CTASSERT(is_valid()); return mHandle; }
-        constexpr const T& ref() const { CTASSERT(is_valid()); return mHandle; }
+        constexpr T& ref() noexcept { CTASSERT(is_valid()); return mHandle; }
+        constexpr const T& ref() const noexcept { CTASSERT(is_valid()); return mHandle; }
 
-        constexpr T& operator*() { return ref(); }
-        constexpr const T& operator*() const { return ref(); }
+        constexpr T& operator*() noexcept { return ref(); }
+        constexpr const T& operator*() const noexcept { return ref(); }
 
-        constexpr T *address() { return &mHandle; }
-        constexpr T *const address() const { return &mHandle; }
+        constexpr T *address() noexcept { return &mHandle; }
+        constexpr T *const address() const noexcept { return &mHandle; }
 
-        constexpr bool is_valid() const { return mHandle != TEmpty; }
-        constexpr explicit operator bool() const { return mHandle != TEmpty; }
+        constexpr bool is_valid() const noexcept { return mHandle != TEmpty; }
+        constexpr explicit operator bool() const noexcept { return mHandle != TEmpty; }
 
-        constexpr void reset(T handle = TEmpty) {
+        constexpr void reset(T handle = TEmpty) noexcept {
             if (mHandle != TEmpty) {
                 mDelete(mHandle);
             }
             mHandle = handle;
         }
 
-        constexpr T release() {
+        constexpr T release() noexcept {
             T handle = mHandle;
             mHandle = TEmpty;
             return handle;
@@ -79,12 +79,12 @@ namespace sm {
 
     template<typename T>
     struct DefaultDelete {
-        constexpr void operator()(T *data) const { delete data; }
+        constexpr void operator()(T *data) const noexcept { delete data; }
     };
 
     template<typename T>
     struct DefaultDelete<T[]> {
-        constexpr void operator()(T *data) const { delete[] data; }
+        constexpr void operator()(T *data) const noexcept { delete[] data; }
     };
 
     template<typename T, typename TDelete>
@@ -96,19 +96,19 @@ namespace sm {
     public:
         using Super::Super;
 
-        constexpr T *operator->() { return Super::get(); }
-        constexpr const T *operator->() const { return Super::get(); }
+        constexpr T *operator->() noexcept { return Super::get(); }
+        constexpr const T *operator->() const noexcept { return Super::get(); }
 
-        constexpr T** operator&() { return Super::address(); }
-        constexpr T* const* operator&() const { return Super::address(); }
+        constexpr T** operator&() noexcept { return Super::address(); }
+        constexpr T* const* operator&() const noexcept { return Super::address(); }
 
-        constexpr T& ref() { return *Super::get(); }
-        constexpr const T& ref() const { return *Super::get(); }
+        constexpr T& ref() noexcept { return *Super::get(); }
+        constexpr const T& ref() const noexcept { return *Super::get(); }
 
-        constexpr T *ptr() { return Super::get(); }
-        constexpr const T *ptr() const { return Super::get(); }
+        constexpr T *ptr() noexcept { return Super::get(); }
+        constexpr const T *ptr() const noexcept { return Super::get(); }
 
-        constexpr void reset(T *data = nullptr) {
+        constexpr void reset(T *data = nullptr) noexcept {
             Super::reset(data);
         }
     };
@@ -122,41 +122,41 @@ namespace sm {
     public:
         using Super::Super;
 
-        constexpr UniquePtr(T *data, size_t size, TDelete del = TDelete{})
+        constexpr UniquePtr(T *data, size_t size, TDelete del = TDelete{}) noexcept
             : Super(data, del)
             , mSize(size)
         { }
 
-        constexpr UniquePtr()
+        constexpr UniquePtr() noexcept
             : UniquePtr(nullptr, 0)
         { }
 
         // TODO: arena aware allocation
-        constexpr UniquePtr(size_t size)
+        constexpr UniquePtr(size_t size) noexcept
             : UniquePtr(new T[size], size)
         { }
 
-        constexpr void reset(size_t size) {
+        constexpr void reset(size_t size) noexcept {
             reset(new T[size], size);
         }
 
-        constexpr void reset(T *data, size_t size) {
+        constexpr void reset(T *data, size_t size) noexcept {
             Super::reset(data);
             mSize = size;
         }
 
-        constexpr T &operator[](size_t index) {
+        constexpr T &operator[](size_t index) noexcept {
             verify_index(index);
             return Super::get()[index];
         }
 
-        constexpr const T& operator[](size_t index) const {
+        constexpr const T& operator[](size_t index) const noexcept {
             verify_index(index);
             return Super::get()[index];
         }
 
     private:
-        constexpr void verify_index(SM_UNUSED size_t index) const {
+        constexpr void verify_index(SM_UNUSED size_t index) const noexcept {
             DBG_ASSERT(index < mSize, "index out of bounds (%zu < %zu)", index, mSize);
         }
 
@@ -164,17 +164,17 @@ namespace sm {
     };
 
     template<typename T, typename TDelete = DefaultDelete<T>>
-    UniquePtr<T, TDelete> make_unique(T *data, TDelete del = TDelete{}) {
+    UniquePtr<T, TDelete> make_unique(T *data, TDelete del = TDelete{}) noexcept {
         return UniquePtr<T, TDelete>(data);
     }
 
     template<typename T, typename TDelete = DefaultDelete<T>>
-    UniquePtr<T, TDelete> make_unique(auto&&... args) {
+    UniquePtr<T, TDelete> make_unique(auto&&... args) noexcept {
         return UniquePtr<T, TDelete>(new T(std::forward<decltype(args)>(args)...));
     }
 
     template<typename T, typename TDelete = DefaultDelete<T>>
-    UniquePtr<T, TDelete> make_unique(T *data, size_t size, TDelete del = TDelete{}) {
+    UniquePtr<T, TDelete> make_unique(T *data, size_t size, TDelete del = TDelete{}) noexcept {
         return UniquePtr<T, TDelete>(data, size);
     }
 
@@ -193,7 +193,7 @@ struct std::tuple_element<I, sm::UniquePtr<T>> : std::tuple_element<I, T> { };
 
 namespace std {
     template<size_t I, typename T>
-    constexpr decltype(auto) get(sm::UniquePtr<T>& ptr) {
+    constexpr decltype(auto) get(sm::UniquePtr<T>& ptr) noexcept {
         return std::get<I>(ptr.ref());
     }
 }

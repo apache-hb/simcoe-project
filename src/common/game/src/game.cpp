@@ -135,9 +135,9 @@ struct DebugVertex {
 struct CDebugRenderer final : public JPH::DebugRendererSimple {
     using Super = JPH::DebugRendererSimple;
 
-    sm::Vector<DebugVertex> mLines;
+    sm::VectorBase<DebugVertex> mLines;
 
-    sm::Vector<DebugVertex> mTriangles;
+    sm::VectorBase<DebugVertex> mTriangles;
 
     void DrawLine(JPH::RVec3Arg inFrom, JPH::RVec3Arg inTo, JPH::ColorArg inColor) override {
         float3 from = from_jph(inFrom);
@@ -175,24 +175,14 @@ struct CDebugRenderer final : public JPH::DebugRendererSimple {
     }
 };
 
-static char gTraceBuffer[2048];
-
 static void jph_trace(const char *fmt, ...) { // NOLINT
+    char buffer[2048];
     va_list args;
     va_start(args, fmt);
-    str_sprintf(gTraceBuffer, sizeof(gTraceBuffer), fmt, args);
+    str_sprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
 
-    gPhysicsLog.trace("{}", gTraceBuffer);
-}
-
-static bool jph_assert(const char *expr, const char *message, const char *file, uint line) {
-    if (message == nullptr)
-        gPhysicsLog.panic("Assertion failed: {} in {}:{}\n", expr, file, line);
-    else
-        gPhysicsLog.panic("Assertion failed: {} in {}:{}\n{}", expr, file, line, message);
-
-    return true;
+    gPhysicsLog.trace("{}", buffer);
 }
 
 // constexpr static float kTimeStep = 1.0f / 60.0f;
@@ -215,6 +205,12 @@ struct game::GameContextImpl {
     /// timestep
     ///
     float mTimeAccumulator = 0.0f;
+
+    // maximum number of steps per tick
+    // after this we split the ticks into smaller steps.
+    // this avoids resource exhaustion inside jolt and the
+    // subsequent assertion failures.
+    int mMaxStepsPerTick = 5;
 
     ///
     /// misc
@@ -250,7 +246,18 @@ struct game::GameContextImpl {
         JPH::RegisterDefaultAllocator();
 
         JPH::Trace = jph_trace;
-        JPH_IF_ENABLE_ASSERTS(JPH::AssertFailed = jph_assert;)
+
+        JPH_IF_ENABLE_ASSERTS({
+            JPH::AssertFailed = [](const char *expr, const char *message, const char *file, uint line) -> bool {
+                if (message == nullptr)
+                    gPhysicsLog.panic("Assertion failed: {} in {}:{}\n", expr, file, line);
+                else
+                    gPhysicsLog.panic("Assertion failed: {} in {}:{}\n{}", expr, file, line, message);
+
+                return true;
+            };
+        })
+
         JPH::Factory::sInstance = new JPH::Factory();
 
         debugRenderer = sm::make_unique<CDebugRenderer>();
@@ -424,16 +431,26 @@ void game::Context::tick(float dt) {
     mImpl->debugRenderer->begin_frame(*mImpl->activeCamera);
 
     int steps = 1;
-    if (dt > 0.3f) {
-        dt = 0.3f;
-    }
     if (dt > kTimeStep) {
         steps = std::max(1, int(ceilf(dt / kTimeStep)));
     }
 
+    if (steps > mImpl->mMaxStepsPerTick) {
+        gPhysicsLog.warn("Abnormal amount of physics steps: {} (delta: {})", steps, dt);
+    }
 
-    if (JPH::EPhysicsUpdateError err = mImpl->physicsSystem->Update(dt, steps, *mImpl->physicsAllocator, *mImpl->physicsThreadPool); err != JPH::EPhysicsUpdateError::None) {
-        gPhysicsLog.warn("Physics update error: {}", std::to_underlying(err));
+    while (steps > mImpl->mMaxStepsPerTick) {
+        if (JPH::EPhysicsUpdateError err = mImpl->physicsSystem->Update(dt, mImpl->mMaxStepsPerTick, *mImpl->physicsAllocator, *mImpl->physicsThreadPool); err != JPH::EPhysicsUpdateError::None) {
+            gPhysicsLog.warn("Physics update error: {}", std::to_underlying(err));
+        }
+
+        steps -= mImpl->mMaxStepsPerTick;
+    }
+
+    if (steps != 0) {
+        if (JPH::EPhysicsUpdateError err = mImpl->physicsSystem->Update(dt, steps, *mImpl->physicsAllocator, *mImpl->physicsThreadPool); err != JPH::EPhysicsUpdateError::None) {
+            gPhysicsLog.warn("Physics update error: {}", std::to_underlying(err));
+        }
     }
 
     // for (game::Object *object : mImpl->objects) {

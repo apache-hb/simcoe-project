@@ -1,5 +1,7 @@
 #pragma once
 
+#include "draw/common.hpp"
+
 #include "render/graph.hpp"
 #include "render/render.hpp"
 
@@ -9,6 +11,19 @@ namespace sm::draw {
     ///
     /// forward+ pipeline
     ///
+
+    struct WorldDrawData {
+
+        sm::Vector<MaterialData> materialData;
+
+        sm::Vector<ObjectData> objectData;
+
+        // staging buffers for light data to be processed into
+        // before being uploaded to the gpu
+        sm::Vector<LightVolumeData> lightVolumeData;
+        sm::Vector<PointLightData> pointLightData;
+        sm::Vector<SpotLightData> spotLightData;
+    };
 
     namespace forward_plus {
         enum class DepthBoundsMode {

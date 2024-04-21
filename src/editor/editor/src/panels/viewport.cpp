@@ -1,3 +1,4 @@
+#include "std/str.h"
 #include "stdafx.hpp"
 
 #include "editor/panels/viewport.hpp"
@@ -116,10 +117,14 @@ void ViewportPanel::draw_window() {
     float2 cursor;
     float2 avail;
 
+    bool focused = false;
+
     if (ImGui::Begin(mName.c_str(), nullptr, mFlags)) {
         cursor = ImGui::GetCursorScreenPos();
         avail = ImGui::GetContentRegionAvail();
         draw_content();
+
+        focused = ImGui::IsWindowFocused();
     }
     ImGui::End();
 
@@ -136,7 +141,14 @@ void ViewportPanel::draw_window() {
     ImGui::SetNextWindowPos(position, ImGuiCond_Always, pivot);
     ImGui::SetNextWindowBgAlpha(0.35f);
 
-    if (ImGui::Begin("Gizmo Settings", nullptr, overlay_flags)) {
+    // only focus the overlay if the main window is focused
+    if (focused)
+        ImGui::SetNextWindowFocus();
+
+    char label[128];
+    str_sprintf(label, sizeof(label), "Gizmo Settings##%s", mName.c_str());
+
+    if (ImGui::Begin(label, nullptr, overlay_flags)) {
         gizmo_settings_panel();
 
         if (ImGui::BeginPopupContextWindow()) {

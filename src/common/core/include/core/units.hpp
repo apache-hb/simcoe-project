@@ -25,7 +25,7 @@ namespace sm {
     };
 
     template<typename T, typename O>
-    CastResult<T, O> checked_cast(O value) {
+    CastResult<T, O> checked_cast(O value) noexcept {
         using C = CastResult<T, O>;
 
         if constexpr (C::dst_max() > C::src_max()) {
@@ -44,7 +44,7 @@ namespace sm {
     }
 
     template<typename T, typename O>
-    constexpr T int_cast(O value) {
+    constexpr T int_cast(O value) noexcept {
 #if SMC_DEBUG
         using C = CastResult<T, O>;
 
@@ -64,7 +64,7 @@ namespace sm {
     }
 
     template<typename T, typename O> requires IsEnum<T> || IsEnum<O>
-    T enum_cast(O value) {
+    T enum_cast(O value) noexcept {
         if constexpr (IsEnum<T>) {
             using U = __underlying_type(T);
             return T(int_cast<U>(value));
@@ -74,7 +74,7 @@ namespace sm {
     }
 
     template<typename T>
-    constexpr T roundup_pow2(T value) {
+    constexpr T roundup_pow2(T value) noexcept {
         T result = 1;
         while (result < value) {
             result <<= 1;

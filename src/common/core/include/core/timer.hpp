@@ -7,17 +7,17 @@ namespace sm {
         std::chrono::steady_clock::time_point mStart;
 
     public:
-        Timer();
+        Timer() noexcept;
 
-        float elapsed() const;
+        float elapsed() const noexcept;
     };
 
     class Ticker : Timer {
         float mLastUpdate;
 
     public:
-        Ticker();
+        Ticker() noexcept;
 
-        float tick();
+        float tick() noexcept;
     };
 }

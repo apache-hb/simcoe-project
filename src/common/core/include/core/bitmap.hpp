@@ -17,17 +17,17 @@ namespace sm {
 
             constexpr BitSetStorage() = default;
 
-            constexpr BitSetStorage(size_t bitcount)
+            constexpr BitSetStorage(size_t bitcount) noexcept
                 : mStorage(bitcount / kBitsPerWord + 1)
             { }
 
-            constexpr void resize(size_t bitcount) {
+            constexpr void resize(size_t bitcount) noexcept {
                 size_t words = bitcount / kBitsPerWord + 1;
                 mStorage.resize(words);
                 reset();
             }
 
-            constexpr size_t popcount() const {
+            constexpr size_t popcount() const noexcept {
                 size_t count = 0;
                 for (auto word : mStorage) {
                     count += std::popcount(word);
@@ -35,11 +35,11 @@ namespace sm {
                 return count;
             }
 
-            constexpr size_t freecount() const {
+            constexpr size_t freecount() const noexcept {
                 return get_capacity() - popcount();
             }
 
-            constexpr Index scan_set_first(size_t limit) {
+            constexpr Index scan_set_first(size_t limit) noexcept {
                 Super *self = static_cast<Super*>(this);
                 for (uint32_t i = 0; i < limit; i++) {
                     if (self->test_set(Index{i})) {
@@ -50,51 +50,51 @@ namespace sm {
                 return Index::eInvalid;
             }
 
-            constexpr Index scan_set_first() {
+            constexpr Index scan_set_first() noexcept {
                 return scan_set_first(get_capacity());
             }
 
-            constexpr Index allocate() {
+            constexpr Index allocate() noexcept {
                 return scan_set_first();
             }
 
-            constexpr size_t get_capacity() const { return mStorage.length() * kBitsPerWord; }
-            constexpr bool is_valid() const { return mStorage.is_valid(); }
+            constexpr size_t get_capacity() const noexcept { return mStorage.length() * kBitsPerWord; }
+            constexpr bool is_valid() const noexcept { return mStorage.is_valid(); }
 
-            constexpr void reset() {
+            constexpr void reset() noexcept {
                 if (mStorage.is_valid()) mStorage.fill(0);
             }
 
-            constexpr void release(Index index) {
+            constexpr void release(Index index) noexcept {
                 CTASSERTF(test(index), "index %zu is not set", std::to_underlying(index));
                 clear(index);
             }
 
             constexpr static size_t kBitsPerWord = sizeof(T) * CHAR_BIT;
 
-            constexpr bool test(Index index) const {
+            constexpr bool test(Index index) const noexcept {
                 verify_index(index);
 
                 return mStorage[get_word(index)] & get_mask(index);
             }
 
-            constexpr void set(Index index) {
+            constexpr void set(Index index) noexcept {
                 verify_index(index);
                 mStorage[get_word(index)] |= get_mask(index);
             }
 
-            constexpr void clear(Index index) {
+            constexpr void clear(Index index) noexcept {
                 verify_index(index);
                 mStorage[get_word(index)] &= ~get_mask(index);
             }
 
         protected:
-            constexpr T get_mask(Index bit) const { return T(1) << (bit % kBitsPerWord); }
-            constexpr size_t get_word(Index bit) const { return bit / kBitsPerWord; }
+            constexpr T get_mask(Index bit) const noexcept { return T(1) << (bit % kBitsPerWord); }
+            constexpr size_t get_word(Index bit) const noexcept { return bit / kBitsPerWord; }
 
             sm::UniqueArray<T> mStorage;
 
-            constexpr void verify_index(Index bit) const {
+            constexpr void verify_index(Index bit) const noexcept {
                 CTASSERTF(bit != Index::eInvalid, "invalid index");
                 CTASSERTF(bit <= get_capacity(), "bit %zu is out of bounds", bit);
             }
@@ -105,7 +105,7 @@ namespace sm {
         using Super = detail::BitSetStorage<std::uint64_t, BitMap>;
         using Super::BitSetStorage;
 
-        constexpr void set_range(Index front, Index back) {
+        constexpr void set_range(Index front, Index back) noexcept {
             verify_index(front);
             verify_index(back);
 
@@ -114,7 +114,7 @@ namespace sm {
             }
         }
 
-        constexpr bool test_range(Index front, Index back) {
+        constexpr bool test_range(Index front, Index back) noexcept {
             verify_index(front);
             verify_index(back);
 
@@ -127,7 +127,7 @@ namespace sm {
             return true;
         }
 
-        constexpr Index scan_set_range(Index size) {
+        constexpr Index scan_set_range(Index size) noexcept {
             for (uint32_t i = 0; i <= get_capacity(); i++) {
                 Index front{i};
                 Index back{i + size - 1};
@@ -140,7 +140,7 @@ namespace sm {
             return Index::eInvalid;
         }
 
-        constexpr bool test_set(Index index) {
+        constexpr bool test_set(Index index) noexcept {
             if (test(index)) {
                 return false;
             }
@@ -154,7 +154,7 @@ namespace sm {
         using Super = detail::BitSetStorage<std::atomic_uint64_t, AtomicBitMap>;
         using Super::BitSetStorage;
 
-        bool test_set(Index index);
+        bool test_set(Index index) noexcept;
 
         // TODO: should be possible to set some ranges atomically
         // as long as the range doesnt cross word boundaries

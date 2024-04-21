@@ -22,6 +22,8 @@ namespace sm {
     using char16 = char16_t; // NOLINT
     using char32 = char32_t; // NOLINT
 
+    using ssize_t = ptrdiff_t; // NOLINT
+
     template<typename T>
     concept StandardLayout = __is_standard_layout(T);
 

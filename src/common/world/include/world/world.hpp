@@ -234,6 +234,10 @@ namespace sm::world {
 
         sm::String name;
 
+        sm::Vector<IndexOf<Node>> nodes;
+        sm::Vector<IndexOf<Camera>> cameras;
+        sm::Vector<IndexOf<Light>> lights;
+
         IndexOf<Node> root;
         IndexOf<Camera> camera;
     };
@@ -327,15 +331,15 @@ namespace sm::world {
 
         template<IsWorldObject T> sm::Vector<T>& get_vector();
 
-        template<> sm::Vector<Node>& get_vector() { return mNodes; }
-        template<> sm::Vector<Camera>& get_vector() { return mCameras; }
-        template<> sm::Vector<Scene>& get_vector() { return mScenes; }
-        template<> sm::Vector<Light>& get_vector() { return mLights; }
-        template<> sm::Vector<Model>& get_vector() { return mModels; }
-        template<> sm::Vector<File>& get_vector() { return mFiles; }
-        template<> sm::Vector<Buffer>& get_vector() { return mBuffers; }
+        template<> sm::Vector<Node>    & get_vector() { return mNodes; }
+        template<> sm::Vector<Camera>  & get_vector() { return mCameras; }
+        template<> sm::Vector<Scene>   & get_vector() { return mScenes; }
+        template<> sm::Vector<Light>   & get_vector() { return mLights; }
+        template<> sm::Vector<Model>   & get_vector() { return mModels; }
+        template<> sm::Vector<File>    & get_vector() { return mFiles; }
+        template<> sm::Vector<Buffer>  & get_vector() { return mBuffers; }
         template<> sm::Vector<Material>& get_vector() { return mMaterials; }
-        template<> sm::Vector<Image>& get_vector() { return mImages; }
+        template<> sm::Vector<Image>   & get_vector() { return mImages; }
 
         sm::Vector<Scene> mScenes;
         sm::Vector<Node> mNodes;
