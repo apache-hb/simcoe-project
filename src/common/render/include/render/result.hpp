@@ -1,8 +1,8 @@
 #pragma once
 
-#include "fmtlib/format.h" // IWYU pragma: export
-
 #include "core/win32.hpp" // IWYU pragma: export
+
+#include "fmtlib/format.h" // IWYU pragma: export
 
 namespace sm::render {
     class Result {

@@ -3,8 +3,6 @@ module sm::sys;
 import "core/units.hpp";
 
 import "core/win32.hpp";
-import "<windef.h>";
-import "<winuser.h>";
 
 // internal types
 

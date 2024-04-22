@@ -12,13 +12,13 @@ LoggerPanel& LoggerPanel::get() {
 }
 
 LoggerPanel::LoggerPanel() {
-    auto& instance = logs::get_logger();
-    instance.add_channel(this);
+    auto& instance = logs::getGlobalLogger();
+    instance.addChannel(*this);
 }
 
 LoggerPanel::~LoggerPanel() {
-    auto& instance = logs::get_logger();
-    instance.remove_channel(this);
+    auto& instance = logs::getGlobalLogger();
+    instance.removeChannel(*this);
 }
 
 void LoggerPanel::accept(const logs::Message &message) {
@@ -33,7 +33,7 @@ void LoggerPanel::accept(const logs::Message &message) {
 }
 
 static ImVec4 get_severity_colour(logs::Severity severity) {
-    using enum logs::Severity::Inner;
+    using enum logs::Severity;
     switch (severity) {
         // blue
     case eTrace: return ImVec4{0.0f, 0.0f, 1.0f, 1.0f};
@@ -63,7 +63,6 @@ static constexpr ImGuiTableFlags kFlags
     | ImGuiTableFlags_RowBg
     | ImGuiTableFlags_ScrollY;
 
-using ReflectCategory = ctu::TypeInfo<logs::Category>;
 using ReflectSeverity = ctu::TypeInfo<logs::Severity>;
 
 void LoggerPanel::draw_category(const logs::LogCategory& category) const {
@@ -81,7 +80,7 @@ void LoggerPanel::draw_category(const logs::LogCategory& category) const {
 
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
-            ImGui::TextColored(colour, "%s", ReflectSeverity::to_string(message.severity).c_str());
+            ImGui::TextColored(colour, "%s", logs::to_string(message.severity).data());
             ImGui::TableNextColumn();
             ImGui::Text("%u", message.timestamp);
             ImGui::TableNextColumn();

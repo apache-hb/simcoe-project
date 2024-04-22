@@ -1,7 +1,7 @@
 #pragma once
 
+#include "core/win32.hpp" // IWYU pragma: export
 #include "core/fs.hpp"
-#include "core/win32.hpp"
 
 namespace sm {
     bool pix_enabled();

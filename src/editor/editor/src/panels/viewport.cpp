@@ -128,7 +128,7 @@ void ViewportPanel::draw_window() {
     }
     ImGui::End();
 
-    ImGuiWindowFlags overlay_flags
+    constexpr ImGuiWindowFlags kOverlayFlags
         = ImGuiWindowFlags_NoDecoration
         | ImGuiWindowFlags_NoDocking
         | ImGuiWindowFlags_AlwaysAutoResize
@@ -148,7 +148,7 @@ void ViewportPanel::draw_window() {
     char label[128];
     str_sprintf(label, sizeof(label), "Gizmo Settings##%s", mName.c_str());
 
-    if (ImGui::Begin(label, nullptr, overlay_flags)) {
+    if (ImGui::Begin(label, nullptr, kOverlayFlags)) {
         gizmo_settings_panel();
 
         if (ImGui::BeginPopupContextWindow()) {

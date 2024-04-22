@@ -1,14 +1,14 @@
 #pragma once
 
 #include <simcoe_config.h>
+#include <fmtlib/format.h> // IWYU pragma: export
 
 #include "core/core.hpp"
+#include "core/span.hpp"
 #include "core/string.hpp"
 #include "core/vector.hpp"
 
-#include "fmtlib/format.h" // IWYU pragma: export
-
-#include "logs.reflect.h"
+typedef struct colour_pallete_t colour_pallete_t;
 
 #define LOG_CATEGORY(id) \
     extern sm::logs::LogCategory id;
@@ -17,64 +17,79 @@
     sm::logs::LogCategory id(name);
 
 namespace sm::logs {
-    class LogCategory {
+    enum class Severity {
+#define LOG_SEVERITY(id, name, level) id = (level),
+#include "logs/logs.inl"
+
+        eCount
+    };
+
+    constexpr sm::StringView to_string(Severity severity) noexcept {
+        switch (severity) {
+#define LOG_SEVERITY(id, name, level) case Severity::id: return name;
+#include "logs/logs.inl"
+        default: return "Unknown";
+        }
+    }
+
+    class LogCategory final {
         sm::String mName;
 
-        void vlog(Severity severity, fmt::string_view format, fmt::format_args args) const;
+        void vlog(Severity severity, fmt::string_view format, fmt::format_args args) const noexcept;
 
     public:
-        constexpr LogCategory(sm::StringView name)
+        constexpr LogCategory(sm::StringView name) noexcept
             : mName(name)
         { }
 
-        constexpr sm::StringView name() const {
+        constexpr sm::StringView name() const noexcept {
             return mName;
         }
 
         template<typename... A>
-        void log(Severity severity, fmt::format_string<A...> msg, A&&... args) const {
+        void log(Severity severity, fmt::format_string<A...> msg, A&&... args) const noexcept {
             vlog(severity, msg, fmt::make_format_args(args...));
         }
 
         template<typename... A>
-        void operator()(Severity severity, fmt::format_string<A...> msg, A&&... args) const {
+        void operator()(Severity severity, fmt::format_string<A...> msg, A&&... args) const noexcept {
             vlog(severity, msg, fmt::make_format_args(args...));
         }
 
         template<typename... A>
-        void trace(fmt::format_string<A...> msg, A&&... args) const {
+        void trace(fmt::format_string<A...> msg, A&&... args) const noexcept {
             vlog(Severity::eTrace, msg, fmt::make_format_args(args...));
         }
 
         template<typename... A>
-        void info(fmt::format_string<A...> msg, A&&... args) const {
+        void info(fmt::format_string<A...> msg, A&&... args) const noexcept {
             vlog(Severity::eInfo, msg, fmt::make_format_args(args...));
         }
 
         template<typename... A>
-        void warn(fmt::format_string<A...> msg, A&&... args) const {
+        void warn(fmt::format_string<A...> msg, A&&... args) const noexcept {
             vlog(Severity::eWarning, msg, fmt::make_format_args(args...));
         }
 
         template<typename... A>
-        void error(fmt::format_string<A...> msg, A&&... args) const {
+        void error(fmt::format_string<A...> msg, A&&... args) const noexcept {
             vlog(Severity::eError, msg, fmt::make_format_args(args...));
         }
 
         template<typename... A>
-        void fatal(fmt::format_string<A...> msg, A&&... args) const {
+        void fatal(fmt::format_string<A...> msg, A&&... args) const noexcept {
             vlog(Severity::eFatal, msg, fmt::make_format_args(args...));
         }
 
         template<typename... A>
-        void panic(fmt::format_string<A...> msg, A&&... args) const {
+        void panic(fmt::format_string<A...> msg, A&&... args) const noexcept {
             vlog(Severity::ePanic, msg, fmt::make_format_args(args...));
         }
 
         constexpr auto operator<=>(const LogCategory&) const = default;
     };
 
-    struct Message {
+    struct Message final {
         sm::StringView message;
         const LogCategory& category;
         Severity severity;
@@ -86,32 +101,34 @@ namespace sm::logs {
     public:
         virtual ~ILogChannel() = default;
 
-        virtual void accept(const Message &message) = 0;
+        virtual void accept(const Message &message) noexcept = 0;
     };
 
-    class Logger {
+    class Logger final {
         Severity mSeverity;
         sm::Vector<ILogChannel*> mChannels;
 
-        void log(const Message &message);
+        void log(const Message &message) noexcept;
 
     public:
-        constexpr Logger(Severity severity)
+        constexpr Logger(Severity severity) noexcept
             : mSeverity(severity)
         { }
 
-        virtual ~Logger() = default;
+        void log(const LogCategory& category, Severity severity, sm::StringView msg) noexcept;
 
-        void log(Category category, Severity severity, sm::StringView msg);
-        void log(const LogCategory& category, Severity severity, sm::StringView msg);
+        void addChannel(ILogChannel& channel) noexcept;
+        void removeChannel(ILogChannel& channel) noexcept;
 
-        void add_channel(ILogChannel *channel);
-        void remove_channel(ILogChannel *channel);
+        constexpr void setSeverity(Severity severity) noexcept {
+            mSeverity = severity;
+        }
 
-        void set_severity(Severity severity);
-        Severity get_severity() const;
+        constexpr Severity getSeverity() const noexcept {
+            return mSeverity;
+        }
 
-        constexpr bool will_accept(Severity severity) const {
+        constexpr bool willAcceptMessage(Severity severity) const noexcept {
             return severity >= mSeverity;
         }
     };
@@ -122,5 +139,19 @@ namespace sm::logs {
     LOG_CATEGORY(gGpuApi);
     LOG_CATEGORY(gAssets);
 
-    Logger& get_logger() noexcept;
+    Logger& getGlobalLogger() noexcept;
+
+    bool isDebugConsoleAvailable() noexcept;
+    ILogChannel& getDebugConsole() noexcept;
+
+    bool isConsoleHandleAvailable() noexcept;
+    ILogChannel& getConsoleHandle() noexcept;
 } // namespace sm::logs
+
+template<>
+struct fmt::formatter<sm::logs::Severity> : fmt::formatter<fmt::string_view> {
+    template<typename FormatContext>
+    constexpr auto format(sm::logs::Severity severity, FormatContext& ctx) const noexcept {
+        return fmt::formatter<fmt::string_view>::format(sm::logs::to_string(severity), ctx);
+    }
+};

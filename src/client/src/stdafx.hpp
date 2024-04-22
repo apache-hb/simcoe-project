@@ -17,7 +17,8 @@
 #include "core/string.hpp"
 #include "core/units.hpp"
 
-#include "fmt/ranges.h"
+#include <fmtlib/format.h>
+#include <fmt/ranges.h>
 
 #include "imgui/imgui.h"
 

@@ -12,21 +12,3 @@ variant Severity {
     [[format("fatal")]] case Fatal = 4 // fatal error
     [[format("assert")]] case Panic = 5 // fatal error caused by an assertion
 }
-
-variant Category {
-    [[format("global")]] default Global = 0
-    [[format("render")]] case Render = 1 // render layer
-    [[format("system")]] case System = 2
-    [[format("scheduler")]] case Schedule = 3
-    [[format("input")]] case Input = 4
-    [[format("audio")]] case Audio = 5
-    [[format("network")]] case Network = 6
-    [[format("service")]] case Service = 7
-    [[format("physics")]] case Physics = 8
-    [[format("ui")]] case UI = 9
-    [[format("debug")]] case Debug = 10
-    [[format("rhi")]] case RHI = 11 // rhi layer under render
-    [[format("assets")]] case Assets = 12
-
-    case Count = 13 // always keep this up to date
-}

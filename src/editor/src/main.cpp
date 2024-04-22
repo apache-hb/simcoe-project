@@ -5,6 +5,8 @@
 #include "system/system.hpp"
 #include "core/timer.hpp"
 
+#include "logs/file.hpp"
+
 #include "threads/threads.hpp"
 
 #include "archive/record.hpp"
@@ -25,104 +27,6 @@ using sm::world::IndexOf;
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
                                                              LPARAM lParam);
-
-// TODO: clean up loggers
-
-static std::string format_log(const logs::Message &message, const char *colour, const char *reset) {
-    // we dont have fmt/chrono.h because we use it in header only mode
-    // so pull out the hours/minutes/seconds/milliseconds manually
-
-    auto hours = (message.timestamp / (60 * 60 * 1000)) % 24;
-    auto minutes = (message.timestamp / (60 * 1000)) % 60;
-    auto seconds = (message.timestamp / 1000) % 60;
-    auto milliseconds = message.timestamp % 1000;
-
-    auto header = fmt::format("{}[{}]{}[{:02}:{:02}:{:02}.{:03}] {}:", colour,
-                   message.severity, reset, hours, minutes, seconds, milliseconds,
-                   message.category.name());
-
-    return header;
-}
-
-class FileLog final : public logs::ILogChannel {
-    io_t *mFile;
-
-    void accept(const logs::Message &message) override {
-        auto header = format_log(message, "", "");
-
-        // ranges is impossible to use without going through a bunch of hoops
-        // just iterate over the message split by newlines
-
-        auto it = message.message.begin();
-        auto end = message.message.end();
-
-        while (it != end) {
-            auto next = std::find(it, end, '\n');
-            auto line = std::string_view{&*it, int_cast<size_t>(std::distance(it, next))};
-            it = next;
-
-            io_write(mFile, header.data(), header.size());
-            io_write(mFile, line.data(), line.size());
-            io_write(mFile, "\n", 1);
-
-            if (it != end) {
-                ++it;
-            }
-        }
-    }
-
-public:
-    constexpr FileLog(io_t *io)
-        : mFile(io)
-    { }
-};
-
-class ConsoleLog final : public logs::ILogChannel {
-    static constexpr colour_t get_colour(logs::Severity severity) {
-        using Reflect = ctu::TypeInfo<logs::Severity>;
-        CTASSERTF(severity.is_valid(), "invalid severity: %s", Reflect::to_string(severity).data());
-
-        using logs::Severity;
-        switch (severity) {
-        case Severity::eTrace: return eColourWhite;
-        case Severity::eInfo: return eColourGreen;
-        case Severity::eWarning: return eColourYellow;
-        case Severity::eError: return eColourRed;
-        case Severity::ePanic: return eColourMagenta;
-        default: return eColourDefault;
-        }
-    }
-
-    void accept(const logs::Message &message) override {
-        const auto pallete = &kColourDefault;
-
-        const char *colour = colour_get(pallete, get_colour(message.severity));
-        const char *reset = colour_reset(pallete);
-
-        auto header = format_log(message, colour, reset);
-
-        // ranges is impossible to use without going through a bunch of hoops
-        // just iterate over the message split by newlines
-
-        auto it = message.message.begin();
-        auto end = message.message.end();
-
-        while (it != end) {
-            auto next = std::find(it, end, '\n');
-            auto line = std::string_view{&*it, int_cast<size_t>(std::distance(it, next))};
-            it = next;
-
-            fmt::println("{} {}", header, line);
-
-            if (it != end) {
-                ++it;
-            }
-        }
-    }
-
-public:
-    ConsoleLog() = default;
-};
 
 static print_backtrace_t print_options_make(io_t *io) {
     print_backtrace_t print = {
@@ -204,12 +108,13 @@ public:
 };
 
 constinit static DefaultSystemError gDefaultError{};
-static constinit ConsoleLog gConsoleLog{};
+constinit static logs::FileChannel gFileChannel{};
 
 static void common_init(void) {
     bt_init();
     os_init();
 
+    // TODO: popup window for panics and system errors
     gSystemError = gDefaultError;
 
     gPanicHandler = [](source_info_t info, const char *msg, va_list args) {
@@ -220,7 +125,7 @@ static void common_init(void) {
 
         auto message = sm::vformat(msg, args);
 
-        logs::gGlobal.log(logs::Severity::ePanic, "{}", message);
+        logs::gGlobal.panic("{}", message);
 
         bt_report_t *report = bt_report_collect(arena);
         print_backtrace(kPrintOptions, report);
@@ -228,8 +133,18 @@ static void common_init(void) {
         std::exit(CT_EXIT_INTERNAL); // NOLINT
     };
 
-    auto& logger = logs::get_logger();
-    logger.add_channel(&gConsoleLog);
+    auto& logger = logs::getGlobalLogger();
+
+    if (logs::isConsoleHandleAvailable())
+        logger.addChannel(logs::getConsoleHandle());
+
+    if (logs::isDebugConsoleAvailable())
+        logger.addChannel(logs::getDebugConsole());
+
+    if (auto file = logs::FileChannel::open("editor.log"); file) {
+        gFileChannel = std::move(*file);
+        logger.addChannel(gFileChannel);
+    }
 }
 
 static void init_imgui() {

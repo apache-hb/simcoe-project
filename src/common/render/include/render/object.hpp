@@ -5,12 +5,12 @@
 
 #include "render/result.hpp"
 
+#include "core/win32.hpp" // IWYU pragma: export
+
 #include <directx/d3d12.h>
 #include <dxgi1_6.h>
 #include <dxgidebug.h>
 #include <dstorage.h>
-
-#include "core/win32.hpp" // IWYU pragma: export
 
 namespace sm::render {
     using Format = DXGI_FORMAT;

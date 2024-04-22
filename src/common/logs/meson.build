@@ -1,18 +1,24 @@
-logs_include = include_directories('.', 'include')
-
 src = [
     'src/logs.cpp',
-    reflect.process('data/logs.ct')
+    'src/file.cpp',
+    'src/debug.cpp',
+    'src/console.cpp'
+]
+
+deps = [
+    cthulhu.get_variable('format_core'),
+    core,
 ]
 
 liblogs = library('logs', src,
     cpp_args : [ '-DSM_LOGS_BUILD=1' ],
-    include_directories : [ logs_include ],
-    dependencies : [ core ]
+    cpp_pch : 'src/stdafx.hpp',
+    include_directories : [ '.', 'include', 'src' ],
+    dependencies : deps
 )
 
 logs = declare_dependency(
     link_with : liblogs,
-    include_directories : [ logs_include, liblogs.private_dir_include() ],
+    include_directories : [ '.', 'include', ],
     dependencies : [ core ]
 )
