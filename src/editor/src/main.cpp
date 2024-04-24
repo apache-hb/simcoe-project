@@ -253,20 +253,9 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     events.attach_render(&context);
 
     context.create();
+    context.init();
 
-    flecs::world ecs;
-
-    draw::init_ecs(context, ecs);
-
-    flecs::entity camera = ecs.entity("camera")
-        .set<world::ecs::Position>({ float3(0.f, 5.f, 10.f) })
-        .set<world::ecs::Direction>({ float3(0.f, 0.f, 1.f) })
-        .set<world::ecs::Camera>({
-            .colour = DXGI_FORMAT_R8G8B8A8_UNORM,
-            .depth = DXGI_FORMAT_D32_FLOAT,
-            .window = client.as<uint>(),
-            .fov = 90._deg
-        });
+    flecs::world& ecs = context.ecs();
 
     ecs.entity("player")
         .set<world::ecs::Position>({ float3(0.f, 3.f, 0.f) })

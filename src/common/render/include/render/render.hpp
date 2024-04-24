@@ -323,6 +323,7 @@ namespace sm::render {
     private:
         void destroy_device();
 
+        // called everytime the device is recreated
         virtual void on_create() { }
         virtual void on_destroy() { }
         virtual void setup_framegraph(graph::FrameGraph& graph) = 0;

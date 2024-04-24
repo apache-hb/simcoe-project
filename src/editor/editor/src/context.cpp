@@ -6,8 +6,12 @@
 
 #include "game/game.hpp"
 
+#include "world/ecs.hpp"
+
 using namespace sm;
 using namespace sm::ed;
+
+using namespace sm::math::literals;
 
 void EditorContext::imgui(graph::FrameGraph& graph, graph::Handle render_target) {
     graph::PassBuilder pass = graph.graphics("ImGui");
@@ -33,6 +37,20 @@ EditorContext::EditorContext(const render::RenderConfig& config)
     : Super(config)
 {
     push_camera({ 1920, 1080 });
+}
+
+void EditorContext::init() {
+    draw::init_ecs(*this, mSystem);
+
+    mCamera = mSystem.entity("camera")
+        .set<world::ecs::Position>({ math::float3(0.f, 5.f, 10.f) })
+        .set<world::ecs::Direction>({ math::float3(0.f, 0.f, 1.f) })
+        .set<world::ecs::Camera>({
+            .colour = DXGI_FORMAT_R8G8B8A8_UNORM,
+            .depth = DXGI_FORMAT_D32_FLOAT,
+            .window = mConfig.swapchain.size.as<uint>(),
+            .fov = 90._deg
+        });
 }
 
 void EditorContext::tick(float dt) {
@@ -104,6 +122,10 @@ void EditorContext::on_destroy() {
 }
 
 void EditorContext::setup_framegraph(graph::FrameGraph& graph) {
+    graph::Handle depth;
+    draw::opaque_ecs(graph, mSwapChainHandle, depth, mCamera, mSystem);
+
+#if 0
     render::Viewport vp { getSwapChainSize() };
     // graph::Handle point_light_data;
     // graph::Handle spot_light_data;
@@ -120,6 +142,6 @@ void EditorContext::setup_framegraph(graph::FrameGraph& graph) {
         draw::opaque(graph, camera->target, camera->depth, camera->camera);
         game::physics_debug(graph, camera->camera, camera->target);
     }
-
+#endif
     imgui(graph, mSwapChainHandle);
 }
