@@ -9,12 +9,13 @@ namespace sm::render {
     struct Resource {
         Object<ID3D12Resource> mResource;
         Object<D3D12MA::Allocation> mAllocation;
+        D3D12_GPU_VIRTUAL_ADDRESS mGpuAddress = 0;
 
         Result map(const D3D12_RANGE *range, void **data);
         void unmap(const D3D12_RANGE *range);
         Result write(const void *data, size_t size);
 
-        D3D12_GPU_VIRTUAL_ADDRESS getDeviceAddress() { return get_gpu_address(); }
+        D3D12_GPU_VIRTUAL_ADDRESS getDeviceAddress() const { return mGpuAddress; }
 
         D3D12_GPU_VIRTUAL_ADDRESS get_gpu_address();
         void reset();
@@ -30,6 +31,11 @@ namespace sm::render {
 
         void update() {
             memcpy(mapped, &data, sizeof(T));
+        }
+
+        void update(const T& value) {
+            data = value;
+            update();
         }
 
         void init() {

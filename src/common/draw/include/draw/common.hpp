@@ -30,12 +30,11 @@ using namespace sm::math;
 #define LIGHT_INDEX_BUFFER_STRIDE (LIGHT_INDEX_BUFFER_HEADER + MAX_POINT_LIGHTS_PER_TILE + MAX_SPOT_LIGHTS_PER_TILE)
 
 struct ObjectData {
-    float4x4 worldViewProjection;
-    float4x4 worldView;
-    float4x4 world;
+    float4x4 model;
 };
 
 struct ViewportData {
+    float4x4 viewProjection;
     float4x4 worldView;
 
     float4x4 projection;

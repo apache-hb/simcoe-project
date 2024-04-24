@@ -24,19 +24,23 @@ struct VertexInput {
     float3 tangent : TANGENT;
 };
 
-// vertex shader for depth prepass
-
-cbuffer ObjectBuffer : register(b0) {
-    float4x4 gWorldViewProjection;
+float4x4 getModelMatrix() {
+    return gObjectData[gObjectIndex].model;
 }
+
+float4x4 getModelProjectionMatrix() {
+    return mul(gCameraData.viewProjection, gObjectData[gObjectIndex].model);
+}
+
+// vertex shader for depth prepass
 
 struct DepthPassVertexOutput {
     float4 position : SV_POSITION;
 };
 
-DepthPassVertexOutput vs_depth_pass(float3 position : POSITION) {
+DepthPassVertexOutput vsDepthPass(float3 position : POSITION) {
     DepthPassVertexOutput output;
-    output.position = mul(float4(position, 1.0f), gWorldViewProjection);
+    output.position = mul(float4(position, 1.0f), getModelProjectionMatrix());
     return output;
 }
 
@@ -47,9 +51,9 @@ struct DepthPassAlphaTestVertexOutput {
     float2 uv : TEXCOORD0;
 };
 
-DepthPassAlphaTestVertexOutput vs_depth_pass_alpha_test(float3 position : POSITION, float2 uv : TEXCOORD) {
+DepthPassAlphaTestVertexOutput vsDepthPassAlphaTest(float3 position : POSITION, float2 uv : TEXCOORD) {
     DepthPassAlphaTestVertexOutput output;
-    output.position = mul(float4(position, 1.0f), gObjectData[gObjectIndex].worldViewProjection);
+    output.position = mul(float4(position, 1.0f), getModelProjectionMatrix());
     output.uv = uv;
     return output;
 }
@@ -64,12 +68,12 @@ struct VertexOutput {
     float3 worldPosition : TEXCOORD2;
 };
 
-VertexOutput vs_opaque(VertexInput input) {
+VertexOutput vsOpaque(VertexInput input) {
     VertexOutput output;
-    output.position = mul(float4(input.position, 1.0f), gObjectData[gObjectIndex].worldViewProjection);
+    output.position = mul(float4(input.position, 1.0f), getModelProjectionMatrix());
 
     // these are all in world space
-    float3x3 world = (float3x3)gObjectData[gObjectIndex].world;
+    float3x3 world = (float3x3)getModelMatrix();
     output.worldPosition = mul(input.position, world);
     output.normal = mul(input.normal, world);
     output.tangent = mul(input.tangent, world);
@@ -79,7 +83,7 @@ VertexOutput vs_opaque(VertexInput input) {
     return output;
 }
 
-float4 ps_opaque(VertexOutput vin) : SV_TARGET {
+float4 psOpaque(VertexOutput vin) : SV_TARGET {
     // TODO: implement all this
 
     return float4(vin.worldPosition.xyz, 1.0f);

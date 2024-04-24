@@ -13,7 +13,7 @@ namespace sm::world::ecs {
     struct SpotLight {};
 
     struct Colour { math::float3 colour; };
-    struct Direction { math::quatf direction; };
+    struct Direction { math::float3 direction; };
     struct Intensity { float intensity; };
 
     /// objects
@@ -41,9 +41,14 @@ namespace sm::world::ecs {
     };
 
     /// cameras
-    struct Camera {};
-    struct Perspective { math::radf fov; };
-    struct Orthographic { float width; float height; };
+    struct Camera {
+        DXGI_FORMAT colour;
+        DXGI_FORMAT depth;
+        math::uint2 window;
+        math::radf fov;
+
+        float getAspectRatio() const { return float(window.x) / float(window.y); }
+    };
 
     AABB bounds(world::Cube cube);
     AABB bounds(world::Sphere sphere);

@@ -5,9 +5,7 @@
 #include "render/graph.hpp"
 #include "render/render.hpp"
 
-namespace flecs {
-    struct world;
-}
+#include <flecs.h>
 
 namespace sm::draw {
     class Camera;
@@ -15,6 +13,22 @@ namespace sm::draw {
     namespace ecs {
         struct ObjectDeviceData {
             render::ConstBuffer<ObjectData> cbuffer;
+
+            void update(const ObjectData& data) {
+                cbuffer.update(data);
+            }
+
+            D3D12_GPU_VIRTUAL_ADDRESS getDeviceAddress() const { return cbuffer.getDeviceAddress(); }
+        };
+
+        struct ViewportDeviceData {
+            render::ConstBuffer<ViewportData> cbuffer;
+
+            void update(const ViewportData& data) {
+                cbuffer.update(data);
+            }
+
+            D3D12_GPU_VIRTUAL_ADDRESS getDeviceAddress() const { return cbuffer.getDeviceAddress(); }
         };
     }
 
@@ -125,6 +139,7 @@ namespace sm::draw {
         graph::FrameGraph& graph,
         graph::Handle& target,
         graph::Handle& depth,
+        flecs::entity camera,
         flecs::world& ecs);
 
     ///

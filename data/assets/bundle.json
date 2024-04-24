@@ -82,6 +82,14 @@
             ]
         },
         {
+            "name": "object",
+            "path": "shaders/object.hlsl",
+            "targets": [
+                { "entry": "vertexMain", "target": "vs" },
+                { "entry": "pixelMain", "target": "ps" }
+            ]
+        },
+        {
             "name": "jolt_debug",
             "path": "shaders/debug/jolt.hlsl",
             "targets": [
@@ -100,22 +108,22 @@
             "name": "forward_plus_depth_pass",
             "path": "shaders/forward_plus/opaque.hlsl",
             "targets": [
-                { "entry": "vs_depth_pass", "target": "vs" }
+                { "entry": "vsDepthPass", "target": "vs" }
             ]
         },
         {
             "name": "forward_plus_depth_alpha_test",
             "path": "shaders/forward_plus/opaque.hlsl",
             "targets": [
-                { "entry": "vs_depth_pass_alpha_test", "target": "vs" }
+                { "entry": "vsDepthPassAlphaTest", "target": "vs" }
             ]
         },
         {
             "name": "forward_plus_opaque",
             "path": "shaders/forward_plus/opaque.hlsl",
             "targets": [
-                { "entry": "vs_opaque", "target": "vs" },
-                { "entry": "ps_opaque", "target": "ps" }
+                { "entry": "vsOpaque", "target": "vs" },
+                { "entry": "psOpaque", "target": "ps" }
             ]
         }
     ],

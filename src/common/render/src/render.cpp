@@ -303,7 +303,13 @@ Result IDeviceContext::create_resource(Resource& resource, D3D12_HEAP_TYPE heap,
         .HeapType = heap,
     };
 
-    return mAllocator->CreateResource(&kAllocDesc, &desc, state, clear, &resource.mAllocation, IID_PPV_ARGS(&resource.mResource));
+    Result hr = mAllocator->CreateResource(&kAllocDesc, &desc, state, clear, &resource.mAllocation, IID_PPV_ARGS(&resource.mResource));
+    if (hr.failed())
+        return hr;
+
+    resource.mGpuAddress = resource.get_gpu_address();
+
+    return S_OK;
 }
 
 void IDeviceContext::init_scene() {
