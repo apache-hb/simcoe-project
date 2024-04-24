@@ -207,7 +207,7 @@ void FeatureSupportPanel::draw_content() {
     }
 }
 
-FeatureSupportPanel::FeatureSupportPanel(render::Context &context)
+FeatureSupportPanel::FeatureSupportPanel(render::IDeviceContext &context)
     : mContext(context)
 { }
 

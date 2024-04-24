@@ -14,6 +14,8 @@ namespace sm::render {
         void unmap(const D3D12_RANGE *range);
         Result write(const void *data, size_t size);
 
+        D3D12_GPU_VIRTUAL_ADDRESS getDeviceAddress() { return get_gpu_address(); }
+
         D3D12_GPU_VIRTUAL_ADDRESS get_gpu_address();
         void reset();
         void rename(sm::StringView name);

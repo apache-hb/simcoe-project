@@ -3,17 +3,17 @@
 #include "render/render.hpp"
 
 namespace sm::render {
-    struct Context;
+    struct IDeviceContext;
 }
 
 namespace sm::ed {
     class FeatureSupportPanel final {
-        render::Context &mContext;
+        render::IDeviceContext &mContext;
 
         void draw_content();
 
     public:
-        FeatureSupportPanel(render::Context &context);
+        FeatureSupportPanel(render::IDeviceContext &context);
 
         bool mOpen = true;
         void draw_window();

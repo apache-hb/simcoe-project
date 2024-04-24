@@ -2,7 +2,6 @@
 
 // IWYU pragma: begin_exports
 
-#define NOMINMAX
 #include <directx/d3d12.h>
 #include "DirectXTex/DirectXTex.h"
 
@@ -40,5 +39,7 @@
 #include "math/colour.hpp"
 
 #include "render/vendor/microsoft/pix.hpp"
+
+#include <flecs.h>
 
 // IWYU pragma: end_exports

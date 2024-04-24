@@ -16,7 +16,7 @@
 #include "imfilebrowser.h"
 
 namespace sm::render {
-    struct Context;
+    struct IDeviceContext;
 }
 
 namespace sm::ed {
@@ -86,7 +86,7 @@ namespace sm::ed {
 
         void draw();
 
-        render::Context& get_context() { return mContext; }
+        render::IDeviceContext& getContext() { return mContext; }
         draw::Camera& get_camera() { return mContext.get_active_camera(); }
 
         void addPhysicsBody(world::IndexOf<world::Node> node, game::PhysicsBody&& body) {

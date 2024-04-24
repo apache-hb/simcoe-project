@@ -8,7 +8,7 @@
 #include "graph.reflect.h"
 
 namespace sm::render {
-    struct Context;
+    struct IDeviceContext;
 }
 
 namespace sm::graph {
@@ -18,7 +18,7 @@ namespace sm::graph {
     struct IDeviceData {
         virtual ~IDeviceData() = default;
 
-        virtual void setup(render::Context& context) = 0;
+        virtual void setup(render::IDeviceContext& context) = 0;
         virtual bool has_type(uint32 index) const = 0;
     };
 
@@ -28,7 +28,7 @@ namespace sm::graph {
     };
 
     struct RenderContext {
-        render::Context& context;
+        render::IDeviceContext& context;
         FrameGraph& graph;
         RenderPass& pass;
         ID3D12GraphicsCommandList1* commands;

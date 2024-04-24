@@ -11,8 +11,8 @@ namespace sm::ed {
         graph::Handle depth;
     };
 
-    struct EditorContext final : public render::Context {
-        using Super = render::Context;
+    struct EditorContext final : public render::IDeviceContext {
+        using Super = render::IDeviceContext;
         using Super::Super;
 
         EditorContext(const render::RenderConfig& config);

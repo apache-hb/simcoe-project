@@ -81,7 +81,7 @@ void forward_plus::upload_light_data(
     spot_light_data = pass.create(light_data_info, "Spot Light Data", graph::Usage::eCopyTarget)
         .override_desc(uav);
 
-    graph.device_data([](render::Context& context) {
+    graph.device_data([](render::IDeviceContext& context) {
         struct {
             SceneLightBuffer lights;
 
@@ -136,7 +136,7 @@ enum Bindings {
     eBindingCount
 };
 
-static void create_tiling_pipeline(render::Pipeline& pipeline, render::Context& context) {
+static void create_tiling_pipeline(render::Pipeline& pipeline, render::IDeviceContext& context) {
     {
         CD3DX12_ROOT_PARAMETER1 params[eBindingCount];
         params[eFrameBuffer].InitAsConstantBufferView(0);
@@ -206,7 +206,7 @@ void forward_plus::light_binning(
             },
         });
 
-    auto& data = graph.device_data([](render::Context& context) {
+    auto& data = graph.device_data([](render::IDeviceContext& context) {
         struct {
             render::Pipeline pipeline;
 

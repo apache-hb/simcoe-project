@@ -124,7 +124,7 @@ namespace sm::world {
 
         sm::String name;
 
-        float3 albedo;
+        math::float3 albedo;
         Texture albedo_texture;
     };
 
@@ -145,19 +145,19 @@ namespace sm::world {
     };
 
     struct PointLight {
-        float3 colour;
+        math::float3 colour;
         float intensity;
     };
 
     struct SpotLight {
-        radf3 direction;
-        float3 colour;
+        math::radf3 direction;
+        math::float3 colour;
         float intensity;
     };
 
     struct DirectionalLight {
-        radf3 direction;
-        float3 colour;
+        math::radf3 direction;
+        math::float3 colour;
         float intensity;
     };
 
@@ -222,10 +222,10 @@ namespace sm::world {
 
         sm::String name;
 
-        float3 position;
-        float3 direction;
+        math::float3 position;
+        math::float3 direction;
 
-        radf fov;
+        math::radf fov;
     };
 
     struct Scene {

@@ -4,4 +4,6 @@
 
 #include "math/math.hpp"
 
+#include <flecs.h>
+
 // IWYU pragma: end_exports

@@ -2,7 +2,7 @@
 
 // IWYU pragma: begin_exports
 
-#define NOMINMAX
+#include "core/win32.hpp"
 
 #include "core/hash.hpp"
 #include "core/map.hpp"
@@ -11,5 +11,7 @@
 #include "math/hash.hpp"
 
 #include "logs/logs.hpp"
+
+#include <flecs.h>
 
 // IWYU pragma: end_exports

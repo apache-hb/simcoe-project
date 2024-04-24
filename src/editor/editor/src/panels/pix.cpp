@@ -46,7 +46,7 @@ bool PixPanel::draw_menu_item(const char *shortcut) {
     return false;
 }
 
-PixPanel::PixPanel(render::Context& context)
+PixPanel::PixPanel(render::IDeviceContext& context)
     : mContext(context)
 {
     mOpen = is_pix_enabled();

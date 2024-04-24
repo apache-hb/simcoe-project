@@ -5,6 +5,8 @@
 using namespace sm;
 using namespace sm::world;
 
+using namespace sm::math::literals;
+
 BoxBounds world::computeObjectBounds(world::World& world, const Object& object) {
     BoxBounds bounds = { .min = FLT_MAX, .max = -FLT_MAX };
 
@@ -152,7 +154,7 @@ World world::default_world(sm::String name) {
 
     IndexOf mat = world.add(Material{
         .name = "Default",
-        .albedo = float3(0.5f, 0.5f, 0.5f)
+        .albedo = math::float3(0.5f, 0.5f, 0.5f)
     });
 
     IndexOf cube = world.add(Model{

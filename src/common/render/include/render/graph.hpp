@@ -20,7 +20,7 @@
 #include "graph.reflect.h"
 
 namespace sm::render {
-    struct Context;
+    struct IDeviceContext;
 }
 
 /// list of stuff that we cant do yet
@@ -29,8 +29,6 @@ namespace sm::render {
 ///   - requires versioning of resources, dont have time to implement
 namespace sm::graph {
     class FrameGraph;
-
-    using namespace sm::math;
 
     enum struct ClearType {
         eColour,
@@ -43,7 +41,7 @@ namespace sm::graph {
         DXGI_FORMAT mFormat;
 
         union {
-            float4 mClearColour;
+            math::float4 mClearColour;
 
             struct {
                 float mClearDepth;
@@ -56,15 +54,15 @@ namespace sm::graph {
         DXGI_FORMAT getFormat() const;
 
         float getClearDepth() const;
-        float4 getClearColour() const;
+        math::float4 getClearColour() const;
 
         static Clear empty();
-        static Clear colour(float4 value, DXGI_FORMAT format);
+        static Clear colour(math::float4 value, DXGI_FORMAT format);
         static Clear depthStencil(float depth, uint8 stencil, DXGI_FORMAT format);
     };
 
     struct ResourceSize {
-        static ResourceSize tex2d(uint2 size) {
+        static ResourceSize tex2d(math::uint2 size) {
             return { .type = eTex2D, .tex2d_size = size };
         }
 
@@ -74,7 +72,7 @@ namespace sm::graph {
 
         enum { eTex2D, eBuffer } type;
         union {
-            uint2 tex2d_size;
+            math::uint2 tex2d_size;
             uint buffer_size;
         };
     };
@@ -146,7 +144,7 @@ namespace sm::graph {
             bool is_used() const { return is_managed() || refcount > 0; }
         };
 
-        render::Context& mContext;
+        render::IDeviceContext& mContext;
 
         sm::Vector<RenderPass> mRenderPasses;
         sm::Vector<ResourceHandle> mHandles;
@@ -210,7 +208,7 @@ namespace sm::graph {
         void destroy_resources();
     public:
 
-        FrameGraph(render::Context& context)
+        FrameGraph(render::IDeviceContext& context)
             : mContext(context)
         { }
 
@@ -272,14 +270,14 @@ namespace sm::graph {
             }
         };
 
-        template<typename F> requires std::invocable<F, render::Context&>
+        template<typename F> requires std::invocable<F, render::IDeviceContext&>
         auto& device_data(F&& setup) {
-            using ActualData = std::invoke_result_t<F, render::Context&>;
+            using ActualData = std::invoke_result_t<F, render::IDeviceContext&>;
             struct DeviceData final : IDeviceData {
                 F exec;
                 ActualData data;
 
-                void setup(render::Context& context) override {
+                void setup(render::IDeviceContext& context) override {
                     data = std::move(exec(context));
                 }
 
@@ -324,7 +322,7 @@ namespace sm::graph {
 
         Handle include(sm::StringView name, ResourceInfo info, Usage access, ID3D12Resource *resource);
 
-        render::Context& get_context() { return mContext; }
+        render::IDeviceContext& getContext() { return mContext; }
 
         // destroy the render passes and resources
         void reset();

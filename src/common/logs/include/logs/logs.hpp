@@ -134,9 +134,7 @@ namespace sm::logs {
     };
 
     LOG_CATEGORY(gGlobal);
-    LOG_CATEGORY(gRender);
     LOG_CATEGORY(gDebug);
-    LOG_CATEGORY(gGpuApi);
     LOG_CATEGORY(gAssets);
 
     Logger& getGlobalLogger() noexcept;

@@ -7,7 +7,11 @@ src = [
     reflect.process('data/world.ct')
 ]
 
-deps = [ core, logs, system, archive, d3d12, d3dx12 ]
+deps = [
+    core, logs, system, archive,
+    d3d12, d3dx12,
+    dependency('flecs')
+]
 
 libworld = library('world', src,
     cpp_args : [ '-DSM_WORLD_BUILD=1' ],

@@ -11,7 +11,9 @@ using enum render::ResourceState::Inner;
 
 using PassBuilder = FrameGraph::PassBuilder;
 
-float4 Clear::getClearColour() const {
+LOG_CATEGORY_IMPL(gRenderLog, "render");
+
+math::float4 Clear::getClearColour() const {
     CTASSERTF(mClearType == ClearType::eColour, "Clear value is not a colour (%d)", std::to_underlying(mClearType));
     return mClearColour;
 }
@@ -35,7 +37,7 @@ Clear Clear::empty() {
     return clear;
 }
 
-Clear Clear::colour(float4 value, DXGI_FORMAT format) {
+Clear Clear::colour(math::float4 value, DXGI_FORMAT format) {
     Clear clear;
     clear.mClearType = ClearType::eColour;
     clear.mFormat = format;
@@ -443,7 +445,7 @@ void FrameGraph::create_resources() {
         auto usage = (info.usage == Usage::eUnknown) ? handle.access : info.usage;
 
         D3D12_RESOURCE_STATES state = get_usage_state(usage);
-        logs::gRender.info("Create resource {} with state {}", handle.name, usage);
+        gRenderLog.info("Create resource {} with state {}", handle.name, usage);
         auto& resource = mResources.emplace_back();
         SM_ASSERT_HR(mContext.create_resource(resource, D3D12_HEAP_TYPE_DEFAULT, desc, state, ptr));
 
@@ -591,12 +593,12 @@ void FrameGraph::schedule_graph() {
         void submit(FrameSchedule& schedule, CommandListHandle handle) {
             if (transitions.empty()) return;
 
-            logs::gRender.info("Submit {} barriers", transitions.size());
+            gRenderLog.info("Submit {} barriers", transitions.size());
 
             for (uint i = 0; i < transitions.size(); i++) {
-                logs::gRender.info(" - {}", graph.mHandles[transitions[i].handle.index].name);
-                logs::gRender.info(" | before: {}", render::ResourceState(transitions[i].before));
-                logs::gRender.info(" | after: {}", render::ResourceState(transitions[i].after));
+                gRenderLog.info(" - {}", graph.mHandles[transitions[i].handle.index].name);
+                gRenderLog.info(" | before: {}", render::ResourceState(transitions[i].before));
+                gRenderLog.info(" | after: {}", render::ResourceState(transitions[i].after));
             }
 
             events::ResourceBarrier event{handle, transitions};
@@ -649,7 +651,7 @@ void FrameGraph::schedule_graph() {
 
     CommandListHandle cmd = add_commands(queue);
 
-    logs::gRender.info("begin command recording");
+    gRenderLog.info("begin command recording");
 
     // open the initial command list
     events::OpenCommands open = {
@@ -675,7 +677,7 @@ void FrameGraph::schedule_graph() {
 
             mFrameSchedule.push_back(submit);
 
-            logs::gRender.info("Submit work to queue {}", get_command_type(cmd));
+            gRenderLog.info("Submit work to queue {}", get_command_type(cmd));
 
             for (auto& p : stack) {
                 if (pass.depends_on(p) && pass.type != p.type) {
@@ -690,7 +692,7 @@ void FrameGraph::schedule_graph() {
 
                         synced[ty] = true;
 
-                        logs::gRender.info("Sync queues {} -> {}", sync.signal, sync.wait);
+                        gRenderLog.info("Sync queues {} -> {}", sync.signal, sync.wait);
                     }
                 }
             }
@@ -706,7 +708,7 @@ void FrameGraph::schedule_graph() {
 
             mFrameSchedule.push_back(open);
 
-            logs::gRender.info("Open command list for queue {}", pass.type);
+            gRenderLog.info("Open command list for queue {}", pass.type);
 
             stack.push_back(pass);
         }
@@ -733,21 +735,21 @@ void FrameGraph::schedule_graph() {
 
         mFrameSchedule.push_back(record);
 
-        logs::gRender.info("Record commands for pass {}", pass.name);
+        gRenderLog.info("Record commands for pass {}", pass.name);
 
         // only add early barriers on direct command list
         // not sure of all the special cases yet
         if (get_command_type(cmd) != render::CommandListType::eDirect)
             continue;
 
-        logs::gRender.info("Searching for early barriers {}", pass.name);
+        gRenderLog.info("Searching for early barriers {}", pass.name);
 
         // if we can add barriers for the next pass, do so
         pass.foreach(eRead | eWrite, [&](const auto& access) {
             auto n = find_next_use(i, access.index);
             if (!n.is_valid()) return;
 
-            logs::gRender.info("Next use of {} is {}", mHandles[access.index.index].name, mRenderPasses[n.index].name);
+            gRenderLog.info("Next use of {} is {}", mHandles[access.index.index].name, mRenderPasses[n.index].name);
             auto state = mRenderPasses[n.index].get_handle_usage(access.index);
             update_state(access.index, state);
         });
@@ -770,7 +772,7 @@ void FrameGraph::schedule_graph() {
 
     mFrameSchedule.push_back(submit);
 
-    logs::gRender.info("finish command recording");
+    gRenderLog.info("finish command recording");
 }
 
 void FrameGraph::destroy_resources() {
@@ -851,7 +853,7 @@ void FrameGraph::execute() {
             [&](events::RecordCommands record) {
                 ID3D12GraphicsCommandList1 *commands = get_commands(record.handle);
                 auto& pass = mRenderPasses[record.pass.index];
-                RenderContext ctx{mContext, *this, pass, commands};
+                RenderContext ctx{getContext(), *this, pass, commands};
 
                 PIXBeginEvent(commands, PIX_COLOR_INDEX(colour++), "%s", pass.name.c_str());
                 pass.execute(ctx);

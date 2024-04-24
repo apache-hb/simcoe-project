@@ -11,7 +11,7 @@ using namespace sm::draw;
 using namespace sm::world;
 
 // todo: dedup this with opaque
-static void draw_node(render::Context& context, ID3D12GraphicsCommandList1* commands, const draw::Camera& camera, IndexOf<Node> index, const float4x4& parent) {
+static void draw_node(render::IDeviceContext& context, ID3D12GraphicsCommandList1* commands, const draw::Camera& camera, IndexOf<Node> index, const float4x4& parent) {
     float ar = camera.config().getAspectRatio();
     const auto& node = context.mWorld.get(index);
 
@@ -44,7 +44,7 @@ static constexpr D3D12_ROOT_SIGNATURE_FLAGS kPrePassRootFlags
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
 
-static void create_pipeline(render::Pipeline& pipeline, render::Context& context) {
+static void create_pipeline(render::Pipeline& pipeline, render::IDeviceContext& context) {
     {
         CD3DX12_ROOT_PARAMETER1 params[1];
         params[0].InitAsConstants(16, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
@@ -110,7 +110,7 @@ void forward_plus::depth_prepass(
             },
         });
 
-    auto& data = graph.device_data([](render::Context& context) {
+    auto& data = graph.device_data([](render::IDeviceContext& context) {
         struct {
             render::Pipeline pipeline;
         } info;

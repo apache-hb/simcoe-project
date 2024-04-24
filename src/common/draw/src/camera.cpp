@@ -31,23 +31,23 @@ void Camera::accept(const input::InputState& state, InputService& service) {
         return;
     }
 
-    float2 move = state.button_axis2d(kMoveStrafe, kMoveForward);
+    math::float2 move = state.button_axis2d(kMoveStrafe, kMoveForward);
     float ascend = state.button_axis(kMoveUp);
 
     mMoveInput = (move.x * world::kVectorForward) + (move.y * world::kVectorRight) + (ascend * world::kVectorUp);
 
     // do mouse input here, we get a new input state every frame
     // when the mouse is moving.
-    float2 mouse = state.axis2d(Axis::eMouseX, Axis::eMouseY);
+    math::float2 mouse = state.axis2d(Axis::eMouseX, Axis::eMouseY);
 
     mouse *= mMouseSensitivity;
 
-    mLookYaw += -degf(mouse.x);
-    mLookPitch += degf(mouse.y);
+    mLookYaw += -math::degf(mouse.x);
+    mLookPitch += math::degf(mouse.y);
 
     mLookPitch = math::clamp(mLookPitch, -89._deg, 89._deg);
 
-    float3 front = mDirection;
+    math::float3 front = mDirection;
     front.x = math::cos(mLookPitch) * math::cos(mLookYaw);
     front.y = math::sin(mLookPitch);
     front.z = math::cos(mLookPitch) * math::sin(mLookYaw);
@@ -64,10 +64,10 @@ void Camera::tick(float dt) {
     // when a key is pressed or released.
 
     auto [x, y, z] = mMoveInput;
-    float3 forward = mDirection;
+    math::float3 forward = mDirection;
 
     mPosition += forward * -y * scaled;
-    mPosition += float3::cross(forward, world::kVectorUp).normalized() * -x * scaled;
+    mPosition += math::float3::cross(forward, world::kVectorUp).normalized() * -x * scaled;
 
     mPosition.z += -z * scaled;
 }
@@ -89,18 +89,18 @@ bool Camera::resize(const math::uint2& size) {
     return true;
 }
 
-float4x4 Camera::model() const {
-    return float4x4::identity();
+math::float4x4 Camera::model() const {
+    return math::float4x4::identity();
 }
 
-float4x4 Camera::view() const {
-    return float4x4::lookToRH(mPosition, mDirection, world::kVectorUp);
+math::float4x4 Camera::view() const {
+    return math::float4x4::lookToRH(mPosition, mDirection, world::kVectorUp);
 }
 
-float4x4 Camera::projection(float aspect) const {
-    return float4x4::perspectiveRH(mFieldOfView, aspect, 0.1f, 100.f);
+math::float4x4 Camera::projection(float aspect) const {
+    return math::float4x4::perspectiveRH(mFieldOfView, aspect, 0.1f, 100.f);
 }
 
-float4x4 Camera::mvp(float aspect, const float4x4& object) const {
+math::float4x4 Camera::mvp(float aspect, const math::float4x4& object) const {
     return object * view() * projection(aspect);
 }

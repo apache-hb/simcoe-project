@@ -3,6 +3,7 @@
 #include "archive/bundle.hpp"
 
 #include "core/array.hpp"
+#include "core/queue.hpp"
 
 #include "render/instance.hpp"
 #include "render/heap.hpp"
@@ -17,8 +18,6 @@
 #include <directx/d3dx12_check_feature_support.h>
 
 namespace sm::render {
-    using namespace math;
-
     using DeviceHandle = Object<ID3D12Device1>;
 
     using VertexBufferView = D3D12_VERTEX_BUFFER_VIEW;
@@ -28,7 +27,7 @@ namespace sm::render {
     constexpr math::float4 kColourBlack = { 0.0f, 0.0f, 0.0f, 1.0f };
 
     struct SwapChainConfig {
-        uint2 size;
+        math::uint2 size;
         uint length;
         DXGI_FORMAT format;
     };
@@ -97,7 +96,23 @@ namespace sm::render {
         SrvIndex srv;
     };
 
-    struct Context {
+    namespace ecs {
+        struct VertexBuffer {
+            render::Resource resource;
+            D3D12_VERTEX_BUFFER_VIEW view;
+            uint stride;
+            uint length;
+        };
+
+        struct IndexBuffer {
+            render::Resource resource;
+            D3D12_INDEX_BUFFER_VIEW view;
+            DXGI_FORMAT format;
+            uint length;
+        };
+    }
+
+    struct IDeviceContext {
         const RenderConfig mConfig;
 
         DebugFlags mDebugFlags;
@@ -105,13 +120,6 @@ namespace sm::render {
         Instance mInstance;
     private:
         WindowState mWindowState;
-
-        static void CALLBACK on_info(
-            D3D12_MESSAGE_CATEGORY category,
-            D3D12_MESSAGE_SEVERITY severity,
-            D3D12_MESSAGE_ID id,
-            LPCSTR desc,
-            void *user);
 
         /// device creation and physical adapters
         Adapter *mCurrentAdapter;
@@ -153,7 +161,7 @@ namespace sm::render {
         SwapChainConfig mSwapChainConfig;
 
     public:
-        uint2 getSwapChainSize() const { return mSwapChainConfig.size; }
+        math::uint2 getSwapChainSize() const { return mSwapChainConfig.size; }
         DXGI_FORMAT getSwapChainFormat() const { return mSwapChainConfig.format; }
         uint getSwapChainLength() const { return mSwapChainConfig.length; }
 
@@ -216,15 +224,32 @@ namespace sm::render {
         sm::HashMap<world::IndexOf<world::Model>, MeshResource> mMeshes;
         sm::HashMap<world::IndexOf<world::Image>, TextureResource> mImages;
 
+        // a region of memory currently being copied from host to device
+        struct HostCopySource {
+            uint64 fence; // the storage fence value that must be reached before this can be deleted
+            sm::UniquePtr<uint8> buffer;
+
+            constexpr auto operator<=>(const HostCopySource& other) const noexcept { return fence <=> other.fence; }
+
+            template<typename T> requires std::is_trivially_destructible_v<T>
+            HostCopySource(uint64 fence, sm::VectorBase<T>&& data)
+                : fence(fence)
+                , buffer(reinterpret_cast<uint8*>(data.release()))
+            { }
+        };
+
+        sm::PriorityQueue<HostCopySource> mCopyData;
+
         void upload_image(world::IndexOf<world::Image> index);
 
         void upload_object(world::IndexOf<world::Model> index, const world::Object& object);
         void load_mesh_buffer(world::IndexOf<world::Model> index, const world::Mesh& mesh);
-        Resource load_buffer_view(world::IndexOf<world::Model> index, const world::BufferView& view);
 
         void create_node(world::IndexOf<world::Node> node);
         void upload_model(world::IndexOf<world::Model> model);
 
+        // TODO: this should all be packaged into some kind of async request
+        // for uploading data in batches.
         void begin_upload();
         void end_upload();
 
@@ -303,8 +328,8 @@ namespace sm::render {
         virtual void setup_framegraph(graph::FrameGraph& graph) = 0;
 
     public:
-        virtual ~Context() = default;
-        Context(const RenderConfig& config);
+        virtual ~IDeviceContext() = default;
+        IDeviceContext(const RenderConfig& config);
 
         void create();
         void destroy();
@@ -327,12 +352,15 @@ namespace sm::render {
             sm::Span<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> footprints);
 
         ID3D12Device1 *getDevice() { return mDevice.get(); }
+
+        ecs::VertexBuffer uploadVertexBuffer(world::VertexBuffer&& buffer);
+        ecs::IndexBuffer uploadIndexBuffer(world::IndexBuffer&& buffer);
     };
 
     void copyBufferRegion(ID3D12GraphicsCommandList1 *list, Resource& dst, Resource& src, size_t size);
 
     template<typename T>
-    ConstBuffer<T> newConstBuffer(Context& self, size_t count = 1) {
+    ConstBuffer<T> newConstBuffer(IDeviceContext& self, size_t count = 1) {
         CTASSERT(count > 0);
 
         // round up the size to the next multiple of 256
@@ -348,27 +376,13 @@ namespace sm::render {
     }
 
     template<typename T>
-    VertexBuffer<T> newVertexUploadBuffer(Context& self, size_t count) {
+    VertexBuffer<T> newVertexUploadBuffer(IDeviceContext& self, size_t count) {
         CTASSERT(count > 0);
 
         auto desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(T) * count);
 
         VertexBuffer<T> buffer;
         SM_ASSERT_HR(self.create_resource(buffer, D3D12_HEAP_TYPE_UPLOAD, desc, D3D12_RESOURCE_STATE_GENERIC_READ));
-
-        buffer.init(count);
-
-        return buffer;
-    }
-
-    template<typename T>
-    VertexBuffer<T> newVertexBuffer(Context& self, size_t count) {
-        CTASSERT(count > 0);
-
-        auto desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(T) * count);
-
-        VertexBuffer<T> buffer;
-        SM_ASSERT_HR(self.create_resource(buffer, D3D12_HEAP_TYPE_DEFAULT, desc, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
 
         buffer.init(count);
 

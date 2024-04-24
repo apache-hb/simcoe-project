@@ -12,7 +12,7 @@ using namespace sm;
 using namespace sm::math;
 using namespace sm::world;
 
-static uint tryGetAlbedoIndex(render::Context& self, IndexOf<world::Material> index) {
+static uint tryGetAlbedoIndex(render::IDeviceContext& self, IndexOf<world::Material> index) {
     if (index == world::kInvalidIndex) {
         return UINT_MAX;
     }
@@ -26,7 +26,7 @@ static uint tryGetAlbedoIndex(render::Context& self, IndexOf<world::Material> in
     return static_cast<uint>(texture.srv);
 }
 
-static void draw_node(render::Context& context, ID3D12GraphicsCommandList1 *commands, const draw::Camera& camera, IndexOf<world::Node> index, const float4x4& parent) {
+static void draw_node(render::IDeviceContext& context, ID3D12GraphicsCommandList1 *commands, const draw::Camera& camera, IndexOf<world::Node> index, const float4x4& parent) {
     float ar = camera.config().getAspectRatio();
     const auto& node = context.mWorld.get(index);
 
@@ -74,7 +74,7 @@ enum {
     eBindingCount
 };
 
-static void create_primitive_pipeline(render::Pipeline& pipeline, const draw::ViewportConfig& config, render::Context& context) {
+static void create_primitive_pipeline(render::Pipeline& pipeline, const draw::ViewportConfig& config, render::IDeviceContext& context) {
     {
         // object data
         // mvp + albedo texture index
@@ -144,7 +144,7 @@ void draw::opaque(graph::FrameGraph& graph, graph::Handle& target, graph::Handle
     target = pass.create(target_info, "Target", graph::Usage::eRenderTarget);
     depth = pass.create(depth_info, "Depth", graph::Usage::eDepthWrite);
 
-    auto& data = graph.device_data([config](render::Context& context) {
+    auto& data = graph.device_data([config](render::IDeviceContext& context) {
         struct {
             render::Pipeline pipeline;
         } info;

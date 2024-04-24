@@ -13,7 +13,7 @@
 #include <directx/dxgiformat.h>
 
 namespace sm::draw {
-    using namespace sm::math;
+    using namespace sm::math::literals;
 
     struct ViewportConfig {
         math::uint2 size;
@@ -26,22 +26,23 @@ namespace sm::draw {
     };
 
     class Camera final : public input::IClient {
+
         sm::String mName;
         ViewportConfig mConfig;
         render::Viewport mViewport;
         world::IndexOf<world::Camera> mCameraIndex;
 
-        float3 mPosition = {-3.f, 0.f, 0.f};
-        float3 mDirection = world::kVectorForward;
+        math::float3 mPosition = {-3.f, 0.f, 0.f};
+        math::float3 mDirection = world::kVectorForward;
 
-        radf mFieldOfView = 75._deg;
+        math::radf mFieldOfView = 75._deg;
         float mCameraSpeed = 3.f;
         float mMouseSensitivity = 0.1f;
 
-        degf mLookPitch = 0._deg;
-        degf mLookYaw = 0._deg;
+        math::degf mLookPitch = 0._deg;
+        math::degf mLookYaw = 0._deg;
 
-        float3 mMoveInput = 0.f;
+        math::float3 mMoveInput = 0.f;
 
         void accept(const input::InputState& state, input::InputService& service) override;
 
@@ -60,16 +61,16 @@ namespace sm::draw {
         bool is_active() const;
         bool resize(const math::uint2& size);
 
-        float4x4 model() const;
-        float4x4 view() const;
-        float4x4 projection(float aspect) const;
+        math::float4x4 model() const;
+        math::float4x4 view() const;
+        math::float4x4 projection(float aspect) const;
 
-        float4x4 mvp(float aspect, const float4x4& object) const;
+        math::float4x4 mvp(float aspect, const math::float4x4& object) const;
 
-        void setPosition(const float3& position) { mPosition = position; }
-        void setDirection(const float3& direction) { mDirection = direction; }
+        void setPosition(const math::float3& position) { mPosition = position; }
+        void setDirection(const math::float3& direction) { mDirection = direction; }
 
-        float3 position() const { return mPosition; }
-        float3 direction() const { return mDirection; }
+        math::float3 position() const { return mPosition; }
+        math::float3 direction() const { return mDirection; }
     };
 }

@@ -10,6 +10,7 @@ using namespace sm;
 using namespace sm::game;
 using namespace sm::world;
 
+using namespace sm::math::literals;
 using namespace JPH::literals;
 
 static constexpr uint kMaxBodies = 1024;
@@ -140,9 +141,9 @@ struct CDebugRenderer final : public JPH::DebugRendererSimple {
     sm::VectorBase<DebugVertex> mTriangles;
 
     void DrawLine(JPH::RVec3Arg inFrom, JPH::RVec3Arg inTo, JPH::ColorArg inColor) override {
-        float3 from = from_jph(inFrom);
-        float3 to = from_jph(inTo);
-        float3 colour = math::unpack_colour(inColor.GetUInt32()).xyz();
+        math::float3 from = from_jph(inFrom);
+        math::float3 to = from_jph(inTo);
+        math::float3 colour = math::unpack_colour(inColor.GetUInt32()).xyz();
 
         mLines.push_back({ from, colour });
         mLines.push_back({ to, colour });
@@ -151,10 +152,10 @@ struct CDebugRenderer final : public JPH::DebugRendererSimple {
     }
 
     void DrawTriangle(JPH::RVec3Arg inV1, JPH::RVec3Arg inV2, JPH::RVec3Arg inV3, JPH::ColorArg inColor, ECastShadow inCastShadow) override {
-        float3 v1 = from_jph(inV1);
-        float3 v2 = from_jph(inV2);
-        float3 v3 = from_jph(inV3);
-        float3 colour = math::unpack_colour(inColor.GetUInt32()).xyz();
+        math::float3 v1 = from_jph(inV1);
+        math::float3 v2 = from_jph(inV2);
+        math::float3 v3 = from_jph(inV3);
+        math::float3 colour = math::unpack_colour(inColor.GetUInt32()).xyz();
 
         mTriangles.push_back({ v1, colour });
         mTriangles.push_back({ v2, colour });
@@ -587,7 +588,7 @@ static const D3D12_ROOT_SIGNATURE_FLAGS kPrimitiveRootFlags
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
 
-static void createDebugLinePSO(render::Pipeline& pipeline, const draw::ViewportConfig& config, render::Context& context) {
+static void createDebugLinePSO(render::Pipeline& pipeline, const draw::ViewportConfig& config, render::IDeviceContext& context) {
     {
         // mvp matrix
         CD3DX12_ROOT_PARAMETER1 params[1];
@@ -632,7 +633,7 @@ static void createDebugLinePSO(render::Pipeline& pipeline, const draw::ViewportC
     }
 }
 
-static void createDebugTrianglePSO(render::Pipeline& pipeline, const draw::ViewportConfig& config, render::Context& context) {
+static void createDebugTrianglePSO(render::Pipeline& pipeline, const draw::ViewportConfig& config, render::IDeviceContext& context) {
     {
         // mvp matrix
         CD3DX12_ROOT_PARAMETER1 params[1];
@@ -695,7 +696,7 @@ void game::physics_debug(
 
     graph::Handle depth = pass.create(info, "Depth", graph::Usage::eDepthWrite);
 
-    auto& data = graph.device_data([config](render::Context& context) {
+    auto& data = graph.device_data([config](render::IDeviceContext& context) {
         struct {
             render::Pipeline lines;
             render::Pipeline triangles;
@@ -725,7 +726,7 @@ void game::physics_debug(
 
         auto vp = camera.viewport();
         const auto& config = camera.config();
-        float4x4 mvp = camera.mvp(config.getAspectRatio(), float4x4::identity()).transpose();
+        math::float4x4 mvp = camera.mvp(config.getAspectRatio(), math::float4x4::identity()).transpose();
 
         auto& debug = static_cast<CDebugRenderer&>(*JPH::DebugRenderer::sInstance);
         if (!debug.mLines.empty()) {

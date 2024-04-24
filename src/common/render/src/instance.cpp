@@ -5,11 +5,21 @@
 using namespace sm;
 using namespace sm::render;
 
-void log_adapter(const Adapter &adapter) {
-    logs::gGpuApi.info("|| video memory: {}", adapter.vidmem());
-    logs::gGpuApi.info("|| system memory: {}", adapter.sysmem());
-    logs::gGpuApi.info("|| shared memory: {}", adapter.sharedmem());
-    logs::gGpuApi.info("|| flags: {}", adapter.flags());
+LOG_CATEGORY_IMPL(sm::gGpuLog, "gpu");
+
+static void logAdapterInfo(const Adapter &adapter) {
+    gGpuLog.info("|| video memory: {}", adapter.vidmem());
+    gGpuLog.info("|| system memory: {}", adapter.sysmem());
+    gGpuLog.info("|| shared memory: {}", adapter.sharedmem());
+
+    auto [high, low] = adapter.luid();
+    gGpuLog.info("|| luid: high: {}, low: {}", high, low);
+
+    auto [vendor, device, subsystem, revision] = adapter.info();
+    gGpuLog.info("|| device info: vendor: {}, device: {}, subsystem: {}, revision: {}",
+                 vendor, device, subsystem, revision);
+
+    gGpuLog.info("|| flags: {}", adapter.flags());
 }
 
 Adapter::Adapter(IDXGIAdapter1 *adapter)
@@ -35,11 +45,11 @@ Adapter::Adapter(IDXGIAdapter1 *adapter)
 bool Instance::enum_by_preference() {
     Object<IDXGIFactory6> factory6;
     if (Result hr = mFactory.query(&factory6); !hr) {
-        logs::gGpuApi.warn("failed to query factory6: {}", hr);
+        gGpuLog.warn("failed to query factory6: {}", hr);
         return false;
     }
 
-    logs::gGpuApi.info("querying for {} adapter", mAdapterSearch);
+    gGpuLog.info("querying for {} adapter", mAdapterSearch);
 
     IDXGIAdapter1 *adapter;
     for (UINT i = 0;
@@ -47,8 +57,8 @@ bool Instance::enum_by_preference() {
                                               IID_PPV_ARGS(&adapter)) != DXGI_ERROR_NOT_FOUND;
          ++i) {
         auto &it = mAdapters.emplace_back(adapter);
-        logs::gGpuApi.info("| adapter {}: {}", i, it.name());
-        log_adapter(it);
+        gGpuLog.info("| adapter {}: {}", i, it.name());
+        logAdapterInfo(it);
     }
     return true;
 }
@@ -57,41 +67,41 @@ void Instance::enum_adapters() {
     IDXGIAdapter1 *adapter;
     for (UINT i = 0; mFactory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; ++i) {
         auto &it = mAdapters.emplace_back(adapter);
-        logs::gGpuApi.info("| adapter {}: {}", i, it.name());
-        log_adapter(it);
+        gGpuLog.info("| adapter {}: {}", i, it.name());
+        logAdapterInfo(it);
     }
 }
 
 void Instance::enum_warp_adapter() {
     IDXGIAdapter1 *adapter;
     if (Result hr = mFactory->EnumWarpAdapter(IID_PPV_ARGS(&adapter)); !hr) {
-        logs::gGpuApi.warn("failed to enum warp adapter: {}", hr);
+        gGpuLog.warn("failed to enum warp adapter: {}", hr);
         return;
     }
 
     mWarpAdapter = Adapter(adapter);
-    logs::gGpuApi.info("warp adapter: {}", mWarpAdapter.name());
-    log_adapter(mWarpAdapter);
+    gGpuLog.info("warp adapter: {}", mWarpAdapter.name());
+    logAdapterInfo(mWarpAdapter);
 }
 
 void Instance::enable_leak_tracking() {
     if (Result hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&mDebug))) {
         mDebug->EnableLeakTrackingForThread();
     } else {
-        logs::gGpuApi.error("failed to enable dxgi debug interface: {}", hr);
+        gGpuLog.error("failed to enable dxgi debug interface: {}", hr);
     }
 }
 
 void Instance::query_tearing_support() {
     Object<IDXGIFactory5> factory;
     if (Result hr = mFactory.query(&factory); !hr) {
-        logs::gGpuApi.warn("failed to query factory5: {}", hr);
+        gGpuLog.warn("failed to query factory5: {}", hr);
         return;
     }
 
     BOOL tearing = FALSE;
     if (Result hr = factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &tearing, sizeof(tearing)); !hr) {
-        logs::gGpuApi.warn("failed to query tearing support: {}", hr);
+        gGpuLog.warn("failed to query tearing support: {}", hr);
         return;
     }
 
@@ -102,9 +112,9 @@ void Instance::load_warp_redist() {
 #if SMC_WARP_ENABLE
     mWarpLibrary = sm::get_redist("d3d10warp.dll");
     if (OsError err = mWarpLibrary.get_error()) {
-        logs::gGpuApi.warn("failed to load warp redist: {}", err);
+        gGpuLog.warn("failed to load warp redist: {}", err);
     } else {
-        logs::gGpuApi.info("loaded warp redist");
+        gGpuLog.info("loaded warp redist");
     }
 #endif
 }
@@ -112,9 +122,9 @@ void Instance::load_warp_redist() {
 void Instance::load_pix_runtime() {
 #if SMC_PIX_ENABLE
     if (PIXLoadLatestWinPixGpuCapturerLibrary()) {
-        logs::gGpuApi.info("loaded pix runtime");
+        gGpuLog.info("loaded pix runtime");
     } else {
-        logs::gGpuApi.warn("failed to load pix runtime: {}", sys::get_last_error());
+        gGpuLog.warn("failed to load pix runtime: {}", sys::get_last_error());
     }
 #endif
 }
@@ -128,13 +138,13 @@ Instance::Instance(InstanceConfig config)
     SM_ASSERT_HR(CreateDXGIFactory2(flags, IID_PPV_ARGS(&mFactory)));
 
     query_tearing_support();
-    logs::gGpuApi.info("tearing support: {}", mTearingSupport);
+    gGpuLog.info("tearing support: {}", mTearingSupport);
 
     if (debug)
         enable_leak_tracking();
 
-    logs::gGpuApi.info("instance config");
-    logs::gGpuApi.info("| flags: {}", mFlags);
+    gGpuLog.info("instance config");
+    gGpuLog.info("| flags: {}", mFlags);
 
     load_warp_redist();
 
@@ -150,7 +160,7 @@ Instance::Instance(InstanceConfig config)
 
 Instance::~Instance() {
     if (mDebug) {
-        logs::gGpuApi.info("reporting live dxgi/d3d objects");
+        gGpuLog.info("reporting live dxgi/d3d objects");
         mDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
     }
 }

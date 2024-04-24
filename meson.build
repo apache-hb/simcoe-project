@@ -38,6 +38,8 @@ project('simcoe', [ 'c', 'cpp' ],
         # configure fastgltf
         'fastgltf:custom_small_vector=true',
 
+        'flecs:default_library=static',
+
         # configure freetype before harfbuzz to pick up configuration
         # 'freetype2:auto_features=disabled',
         # 'freetype2:zlib=disabled',
@@ -54,6 +56,7 @@ project('simcoe', [ 'c', 'cpp' ],
 cpp = meson.get_compiler('cpp')
 cc = meson.get_compiler('c')
 
+add_project_arguments('-DNOMINMAX', language : [ 'c', 'cpp' ])
 add_global_arguments(cc.get_supported_arguments('/GS-', '/wd4127', '/wd4324', '/wd4200', '/wd4505'), language : [ 'c', 'cpp' ])
 add_global_arguments('-D_HAS_EXCEPTIONS=0', language : 'cpp')
 

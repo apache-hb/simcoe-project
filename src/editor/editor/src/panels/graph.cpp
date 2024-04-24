@@ -32,7 +32,7 @@ void GraphPanel::draw_content() {
     }
 }
 
-GraphPanel::GraphPanel(render::Context& context)
+GraphPanel::GraphPanel(render::IDeviceContext& context)
     : IEditorPanel("Render Graph")
     , mContext(context)
 {

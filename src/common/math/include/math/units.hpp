@@ -198,19 +198,21 @@ namespace sm::math {
     static_assert(sizeof(degf) == sizeof(float));
     static_assert(sizeof(degd) == sizeof(double));
 
-    constexpr radd operator""_radx(long double value) {
-        return radd(static_cast<double>(value));
-    }
+    namespace literals {
+        constexpr radd operator""_radx(long double value) {
+            return radd(static_cast<double>(value));
+        }
 
-    constexpr radf operator""_rad(long double value) {
-        return radf(static_cast<float>(value));
-    }
+        constexpr radf operator""_rad(long double value) {
+            return radf(static_cast<float>(value));
+        }
 
-    constexpr degd operator""_degx(long double value) {
-        return degd(static_cast<double>(value));
-    }
+        constexpr degd operator""_degx(long double value) {
+            return degd(static_cast<double>(value));
+        }
 
-    constexpr degf operator""_deg(long double value) {
-        return degf(static_cast<float>(value));
+        constexpr degf operator""_deg(long double value) {
+            return degf(static_cast<float>(value));
+        }
     }
 }

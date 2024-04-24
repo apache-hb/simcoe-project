@@ -2,7 +2,6 @@
 
 // IWYU pragma: begin_exports
 
-#define NOMINMAX
 #include <directx/d3d12.h>
 #include "DirectXTex/DirectXTex.h"
 

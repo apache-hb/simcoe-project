@@ -8,6 +8,10 @@
 
 #include "render.reflect.h"
 
+namespace sm {
+    LOG_CATEGORY(gGpuLog);
+}
+
 namespace sm::render {
     struct InstanceConfig {
         DebugFlags flags;

@@ -22,7 +22,7 @@ static bool CheckboxFlags(const char *label, T &flags, T flag) {
 }
 } // namespace MyGui
 
-static bool draw_adapter_info(render::Context& context, const render::Adapter& adapter) {
+static bool draw_adapter_info(render::IDeviceContext& context, const render::Adapter& adapter) {
     bool result = false;
     auto luid = adapter.luid();
     std::string label = fmt::format("##{}{}", luid.high, luid.low);

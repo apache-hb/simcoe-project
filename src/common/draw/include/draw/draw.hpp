@@ -5,15 +5,24 @@
 #include "render/graph.hpp"
 #include "render/render.hpp"
 
+namespace flecs {
+    struct world;
+}
+
 namespace sm::draw {
     class Camera;
+
+    namespace ecs {
+        struct ObjectDeviceData {
+            render::ConstBuffer<ObjectData> cbuffer;
+        };
+    }
 
     ///
     /// forward+ pipeline
     ///
 
     struct WorldDrawData {
-
         sm::Vector<MaterialData> materialData;
 
         sm::Vector<ObjectData> objectData;
@@ -108,6 +117,15 @@ namespace sm::draw {
         graph::Handle& depth,
         const Camera& camera);
 
+    void init_ecs(
+        render::IDeviceContext &context,
+        flecs::world& ecs);
+
+    void opaque_ecs(
+        graph::FrameGraph& graph,
+        graph::Handle& target,
+        graph::Handle& depth,
+        flecs::world& ecs);
 
     ///
     /// other passes

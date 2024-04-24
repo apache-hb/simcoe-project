@@ -59,7 +59,7 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     sys::WindowPlacement *mWindowPlacement = nullptr;
     archive::RecordLookup mPlacementLookup;
 
-    render::Context *mContext = nullptr;
+    render::IDeviceContext *mContext = nullptr;
     sys::DesktopInput *mInput = nullptr;
 
     LRESULT event(sys::Window &window, UINT message, WPARAM wparam, LPARAM lparam) override {
@@ -92,7 +92,7 @@ public:
         : mStore(store)
     { }
 
-    void attach_render(render::Context *context) {
+    void attach_render(render::IDeviceContext *context) {
         mContext = context;
     }
 
@@ -139,8 +139,8 @@ static void common_init(void) {
     }
 }
 
-struct ClientContext final : public render::Context {
-    using Super = render::Context;
+struct ClientContext final : public render::IDeviceContext {
+    using Super = render::IDeviceContext;
     using Super::Super;
 
     draw::ViewportConfig viewport = {

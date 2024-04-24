@@ -16,6 +16,9 @@ namespace sm {
 
     template<typename T>
     class VectorBase final {
+        using SizeType = ssize_t;
+        using Self = VectorBase;
+
         static_assert(std::is_object_v<T>, "T must be an object type because of [container.requirements].");
 
         T *mFront = nullptr;
@@ -29,18 +32,18 @@ namespace sm {
         }
 
         // set new data pointers
-        constexpr void update_data(T *front, ssize_t used, ssize_t capacity) noexcept {
+        constexpr void update_data(T *front, SizeType used, SizeType capacity) noexcept {
             mFront = front;
             mBack = front + used;
             mCapacity = front + capacity;
         }
 
-        constexpr void replace_data(T *front, ssize_t used, ssize_t capacity) noexcept {
+        constexpr void replace_data(T *front, SizeType used, SizeType capacity) noexcept {
             release_data();
             update_data(front, used, capacity);
         }
 
-        constexpr void init(ssize_t capacity, ssize_t used = 0) noexcept {
+        constexpr void init(SizeType capacity, SizeType used = 0) noexcept {
             CTASSERTF(capacity >= 0, "Capacity must be non-negative: %zd", capacity);
             CTASSERTF(used >= 0, "Used must be non-negative: %zd", used);
             CTASSERTF(used <= capacity, "Used must be less than or equal to capacity: %zd <= %zd", used, capacity);
@@ -50,16 +53,16 @@ namespace sm {
             update_data(data, used, capacity);
         }
 
-        constexpr void verify_index(ssize_t index) const noexcept {
+        constexpr void verify_index(SizeType index) const noexcept {
             CTASSERTF(index >= 0, "Index must be non-negative: %zd", index);
             CTASSERTF(index < ssize(), "Index must be less than size: %zd < %zu", index, ssize());
         }
 
         // only ever grows the backing data
-        constexpr void ensure_growth(ssize_t size) noexcept {
+        constexpr void ensure_growth(SizeType size) noexcept {
             if (size > capacity()) {
-                ssize_t new_capacity = (std::max)(capacity() * 2, size);
-                ssize_t old_size = ssize();
+                SizeType new_capacity = (std::max)(capacity() * 2, size);
+                SizeType old_size = ssize();
 
                 // copy over the old data
                 T *new_data = new T[new_capacity];
@@ -71,12 +74,12 @@ namespace sm {
         }
 
         // ensure extra space is available
-        constexpr void ensure_extra(ssize_t extra) noexcept {
+        constexpr void ensure_extra(SizeType extra) noexcept {
             ensure_growth(ssize() + extra);
         }
 
         // shrink the backing data, dont release memory
-        constexpr void shrink_size(ssize_t size) noexcept {
+        constexpr void shrink_size(SizeType size) noexcept {
             CTASSERTF(size >= 0, "Size must be non-negative: %zd", size);
 
             if (size < ssize()) {
@@ -86,13 +89,13 @@ namespace sm {
         }
 
         // shrink the backing data and release extra memory
-        constexpr void shrink_capacity(ssize_t size) noexcept {
+        constexpr void shrink_capacity(SizeType size) noexcept {
             CTASSERTF(size >= 0, "Size must be non-negative: %zd", size);
 
             if (size < capacity()) {
-                ssize_t old_size = ssize();
+                SizeType old_size = ssize();
 
-                ssize_t count = (std::min)(old_size, size);
+                SizeType count = (std::min)(old_size, size);
 
                 // copy over the old data
                 T *new_data = new T[size];
@@ -103,14 +106,14 @@ namespace sm {
             }
         }
 
-        constexpr void set_capacity(ssize_t cap) noexcept {
+        constexpr void set_capacity(SizeType cap) noexcept {
             CTASSERTF(cap >= 0, "Capacity must be non-negative: %zd", cap);
 
             if (cap != capacity()) {
-                ssize_t old_size = ssize();
+                SizeType old_size = ssize();
 
                 // number of elements to copy
-                ssize_t count = (std::min)(old_size, cap);
+                SizeType count = (std::min)(old_size, cap);
 
                 // copy over the old data
                 T *new_data = new T[cap];
@@ -126,7 +129,7 @@ namespace sm {
             delete[] mFront;
         }
 
-        constexpr VectorBase(ssize_t initial = 8) noexcept {
+        constexpr VectorBase(SizeType initial = 8) noexcept {
             init(initial);
         }
 
@@ -149,40 +152,61 @@ namespace sm {
         }
 
         constexpr VectorBase clone() const noexcept {
-            return VectorImpl(*this);
+            return Self(*this);
+        }
+
+        constexpr VectorBase(const T *first, const T *last) noexcept {
+            init(last - first);
+            std::copy(first, last, begin());
+        }
+
+        template<size_t N>
+        constexpr VectorBase(const T (&array)[N]) noexcept {
+            init(N);
+            std::copy(array, array + N, begin());
         }
 
         // size query
 
         constexpr size_t size() const noexcept { return mBack - mFront; }
+        constexpr size_t size_bytes() const noexcept { return ssize() * sizeof(T); }
+
         constexpr ssize_t ssize() const noexcept { return mBack - mFront; }
+        constexpr ssize_t ssize_bytes() const noexcept { return ssize() * sizeof(T); }
+
         constexpr ssize_t capacity() const noexcept { return mCapacity - mFront; }
         constexpr bool empty() const noexcept { return mFront == mBack; }
 
         // element access
 
-        constexpr T& operator[](size_t index) noexcept {
+        constexpr T& operator[](SizeType index) noexcept {
             verify_index(index);
             return mFront[index];
         }
 
-        constexpr const T& operator[](size_t index) const noexcept {
+        constexpr const T& operator[](SizeType index) const noexcept {
             verify_index(index);
             return mFront[index];
         }
 
-        constexpr T& at(ssize_t index) noexcept {
+        constexpr T& at(SizeType index) noexcept {
             verify_index(index);
             return mFront[index];
         }
 
-        constexpr const T& at(ssize_t index) const noexcept {
+        constexpr const T& at(SizeType index) const noexcept {
             verify_index(index);
             return mFront[index];
         }
 
-        constexpr T* data() noexcept { return mFront; }
-        constexpr const T* data() const noexcept { return mFront; }
+        constexpr T *data() noexcept { return mFront; }
+        constexpr const T *data() const noexcept { return mFront; }
+
+        constexpr T *release() noexcept {
+            T *data = mFront;
+            update_data(nullptr, 0, 0);
+            return data;
+        }
 
         // iteration
 
@@ -200,19 +224,19 @@ namespace sm {
         }
 
         // reserve space for at least size elements
-        constexpr void reserve(ssize_t count) noexcept {
+        constexpr void reserve(SizeType count) noexcept {
             CTASSERTF(count >= 0, "Size must be non-negative: %zd", count);
             ensure_size(count);
         }
 
         // reserve space for exactly size elements
-        constexpr void reserve_exact(ssize_t count) noexcept {
+        constexpr void reserve_exact(SizeType count) noexcept {
             CTASSERTF(count >= 0, "Size must be non-negative: %zd", count);
             ensure_capacity(count);
         }
 
         // only change the size, dont change the capacity
-        constexpr void resize(ssize_t count) noexcept {
+        constexpr void resize(SizeType count) noexcept {
             CTASSERTF(count >= 0, "Size must be non-negative: %zd", count);
 
             if (count > ssize()) {
@@ -226,7 +250,7 @@ namespace sm {
         }
 
         // change the size and capacity
-        constexpr void resize_exact(ssize_t count) noexcept {
+        constexpr void resize_exact(SizeType count) noexcept {
             CTASSERTF(count >= 0, "Size must be non-negative: %zd", count);
 
             if (count > ssize()) {
@@ -259,6 +283,13 @@ namespace sm {
         constexpr void push_back(T &&value) noexcept {
             ensure_extra(1);
             *mBack++ = std::move(value);
+        }
+
+        constexpr void assign(const T *first, const T *last) noexcept {
+            SizeType count = last - first;
+            ensure_extra(count);
+            std::copy(first, last, mBack);
+            mBack += count;
         }
 
         // swap

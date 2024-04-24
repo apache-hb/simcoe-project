@@ -1,3 +1,4 @@
+#include "draw/draw.hpp"
 #include "stdafx.hpp"
 
 #include "system/input.hpp"
@@ -20,6 +21,8 @@
 #include "render/render.hpp"
 
 #include "game/game.hpp"
+
+#include "world/ecs.hpp"
 
 using namespace sm;
 using namespace sm::math;
@@ -65,7 +68,7 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     sys::WindowPlacement *mWindowPlacement = nullptr;
     archive::RecordLookup mPlacementLookup;
 
-    render::Context *mContext = nullptr;
+    render::IDeviceContext *mContext = nullptr;
     sys::DesktopInput *mInput = nullptr;
 
     LRESULT event(sys::Window &window, UINT message, WPARAM wparam, LPARAM lparam) override {
@@ -98,7 +101,7 @@ public:
         : mStore(store)
     { }
 
-    void attach_render(render::Context *context) {
+    void attach_render(render::IDeviceContext *context) {
         mContext = context;
     }
 
@@ -249,6 +252,24 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     context.create();
 
+    flecs::world ecs;
+
+    draw::init_ecs(context, ecs);
+
+    ecs.entity("player")
+        .set<world::ecs::Position>({ float3(0.f, 3.f, 0.f) })
+        .set<world::ecs::Rotation>({ quatf::identity() })
+        .set<world::ecs::Scale>({ 1.f })
+        .add<world::ecs::Object>()
+        .set<world::ecs::Shape>({ world::Cylinder{ 0.7f, 1.3f, 8 } });
+
+    ecs.entity("floor")
+        .set<world::ecs::Position>({ float3(0.f, 0.f, 0.f) })
+        .set<world::ecs::Rotation>({ quatf::identity() })
+        .set<world::ecs::Scale>({ 1.f })
+        .add<world::ecs::Object>()
+        .set<world::ecs::Shape>({ world::Cube{ 15.f, 1.f, 15.f } });
+
     auto& world = context.mWorld;
 
     game::Context game = game::init(world, context.get_active_camera());
@@ -352,6 +373,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .models = { playerModel }
     });
 
+#if 0
     std::string_view walls = ""
         "1111111111"
         "1010000001"
@@ -418,6 +440,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
             context.upload_model(sphere);
         }
     });
+#endif
 
     Ticker clock;
 
@@ -463,6 +486,8 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
         game.tick(dt);
         context.tick(dt);
+
+        ecs.progress(dt);
 
         player.postUpdate();
         editor.update();

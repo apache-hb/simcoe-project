@@ -9,17 +9,15 @@
 #include "world.reflect.h"
 
 namespace sm::world {
-    using namespace math;
-
-    constexpr float3 kVectorForward = {1.f, 0.f, 0.f};
-    constexpr float3 kVectorRight = {0.f, 0.f, 1.f};
-    constexpr float3 kVectorUp = {0.f, 1.f, 0.f};
+    constexpr math::float3 kVectorForward = {1.f, 0.f, 0.f};
+    constexpr math::float3 kVectorRight = {0.f, 0.f, 1.f};
+    constexpr math::float3 kVectorUp = {0.f, 1.f, 0.f};
 
     struct Vertex {
-        float3 position;
-        float3 normal;
-        float2 uv;
-        float3 tangent;
+        math::float3 position;
+        math::float3 normal;
+        math::float2 uv;
+        math::float3 tangent;
 
         constexpr bool operator==(const Vertex&) const = default;
     };
@@ -72,29 +70,31 @@ namespace sm::world {
     };
 
     struct BoxBounds {
-        float3 min;
-        float3 max;
+        math::float3 min;
+        math::float3 max;
 
-        float3 getCenter() const;
-        float3 getExtents() const;
+        math::float3 getCenter() const;
+        math::float3 getExtents() const;
     };
 
     struct Transform {
-        float3 position;
-        quatf rotation;
-        float3 scale;
+        math::float3 position;
+        math::quatf rotation;
+        math::float3 scale;
 
-        float4x4 matrix() const;
+        math::float4x4 matrix() const;
 
         Transform operator*(const Transform& other) const;
     };
 
     Transform default_transform();
 
+    using VertexBuffer = sm::VectorBase<Vertex>;
+    using IndexBuffer = sm::VectorBase<uint16>;
+
     struct Mesh {
-        BoxBounds bounds;
-        sm::Vector<Vertex> vertices;
-        sm::Vector<uint16> indices;
+        VertexBuffer vertices;
+        IndexBuffer indices;
     };
 
     Mesh primitive(const Cube& cube);

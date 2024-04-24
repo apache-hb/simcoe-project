@@ -5,8 +5,6 @@
 #include "draw/common.hpp"
 
 namespace sm::draw {
-    using namespace sm::math;
-
     /// @brief get the number of tiles required to cover the screen
     constexpr uint get_tile_count(uint2 size, uint tile) {
         return ((size.x + tile - 1) / tile) * ((size.y + tile - 1) / tile);
@@ -21,7 +19,7 @@ namespace sm::draw {
     ///
 
     struct Material {
-        float3 albedo;
+        math::float3 albedo;
         uint albedo_texture;
 
         float metallic;

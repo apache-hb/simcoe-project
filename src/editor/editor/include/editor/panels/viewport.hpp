@@ -7,7 +7,7 @@
 #include "ImGuizmo.h"
 
 namespace sm::render {
-    struct Context;
+    struct IDeviceContext;
 }
 
 namespace sm::ed {

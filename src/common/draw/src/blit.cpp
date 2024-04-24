@@ -33,7 +33,7 @@ static constexpr D3D12_ROOT_SIGNATURE_FLAGS kPostRootFlags
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
 
-static void create_blit_pipeline(render::Pipeline& pipeline, render::Context& context) {
+static void create_blit_pipeline(render::Pipeline& pipeline, render::IDeviceContext& context) {
     {
         CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
         CD3DX12_ROOT_PARAMETER1 params[1];
@@ -91,7 +91,7 @@ static void create_blit_pipeline(render::Pipeline& pipeline, render::Context& co
     }
 }
 
-static void create_screen_quad(render::Resource& quad, render::VertexBufferView& vbo, render::Context& context) {
+static void create_screen_quad(render::Resource& quad, render::VertexBufferView& vbo, render::IDeviceContext& context) {
     const auto kBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(blit::kScreenQuad));
 
     render::Resource upload;
@@ -149,7 +149,7 @@ void draw::blit(graph::FrameGraph& graph, graph::Handle target, graph::Handle so
     pass.write(target, "Target", graph::Usage::eRenderTarget);
     pass.read(source, "Image", graph::Usage::ePixelShaderResource);
 
-    auto& data = graph.device_data([](render::Context& context) {
+    auto& data = graph.device_data([](render::IDeviceContext& context) {
         struct {
             render::Pipeline pipeline;
             render::Resource quad;

@@ -45,9 +45,9 @@ void EditorContext::tick(float dt) {
 void EditorContext::render() {
     if (recreate_device) {
         recreate_device = false;
-        Context::recreate_device();
+        IDeviceContext::recreate_device();
     } else {
-        Context::render();
+        IDeviceContext::render();
     }
 }
 

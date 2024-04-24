@@ -8,12 +8,12 @@
 #include "ImNodesEz.h"
 
 namespace sm::render {
-    struct Context;
+    struct IDeviceContext;
 }
 
 namespace sm::ed {
     class GraphPanel final : public IEditorPanel {
-        render::Context& mContext;
+        render::IDeviceContext& mContext;
 
         void draw_graph();
         void draw_lifetimes();
@@ -22,6 +22,6 @@ namespace sm::ed {
         void draw_content() override;
 
     public:
-        GraphPanel(render::Context& context);
+        GraphPanel(render::IDeviceContext& context);
     };
 }

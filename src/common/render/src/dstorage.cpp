@@ -187,17 +187,17 @@ RequestBuilder& RequestBuilder::name(char const *name) {
 /// TODO: move this out of here
 ///
 
-void Context::create_dstorage() {
+void IDeviceContext::create_dstorage() {
     mStorage.create(mDebugFlags);
     mStorage.create_queues(mDevice.get());
 }
 
-void Context::destroy_dstorage() {
+void IDeviceContext::destroy_dstorage() {
     mStorage.destroy_queues();
     mStorage.destroy();
 }
 
-IDStorageFile *Context::get_storage_file(world::IndexOf<world::File> index) {
+IDStorageFile *IDeviceContext::get_storage_file(world::IndexOf<world::File> index) {
     if (auto it = mStorageFiles.find(index); it != mStorageFiles.end()) {
         return it->second.get();
     }
@@ -213,7 +213,7 @@ IDStorageFile *Context::get_storage_file(world::IndexOf<world::File> index) {
     return fd.get();
 }
 
-const uint8 *Context::get_storage_buffer(world::IndexOf<world::Buffer> index) {
+const uint8 *IDeviceContext::get_storage_buffer(world::IndexOf<world::Buffer> index) {
     auto& buffer = mWorld.get(index);
 
     return buffer.data.data();
