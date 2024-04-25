@@ -1,3 +1,4 @@
+#include "editor/panels/viewport.hpp"
 #include "stdafx.hpp"
 
 #include "editor/draw.hpp"
@@ -11,27 +12,21 @@ using namespace sm::ed;
 
 using namespace sm::math::literals;
 
-void EditorContext::imgui(graph::FrameGraph& graph, graph::Handle render_target) {
-    static flecs::query q = mSystem.query<ecs::CameraData>();
+void EditorContext::imgui(graph::FrameGraph& graph, graph::Handle target) {
     graph::PassBuilder pass = graph.graphics("ImGui");
-    // for (auto& camera : mCameras) {
-    //     pass.read(camera->target, camera->camera.name(), graph::Usage::ePixelShaderResource);
-    // }
 
-    q.iter([&](flecs::iter& it, const ecs::CameraData *camera) {
-        for (auto i : it) {
-            flecs::entity ent = it.entity(i);
-            pass.read(camera[i].target, ent.name().c_str(), graph::Usage::ePixelShaderResource);
-        }
+    static flecs::query q = mSystem.query<ecs::CameraData>();
+    q.each([&](ecs::CameraData& camera) {
+        pass.read(camera.target, "Target", graph::Usage::ePixelShaderResource);
     });
 
-    pass.write(render_target, "Target", graph::Usage::eRenderTarget);
+    pass.write(target, "Target", graph::Usage::eRenderTarget);
 
-    pass.bind([render_target](graph::RenderContext& ctx) {
+    pass.bind([target](graph::RenderContext& ctx) {
         auto& context = ctx.context;
         auto *cmd = ctx.commands;
 
-        auto rtv = ctx.graph.rtv(render_target);
+        auto rtv = ctx.graph.rtv(target);
         auto rtv_cpu = context.mRtvPool.cpu_handle(rtv);
 
         cmd->OMSetRenderTargets(1, &rtv_cpu, false, nullptr);
@@ -42,74 +37,44 @@ void EditorContext::imgui(graph::FrameGraph& graph, graph::Handle render_target)
 EditorContext::EditorContext(const render::RenderConfig& config)
     : Super(config)
 {
-    // push_camera({ 1920, 1080 });
-
     draw::init_ecs(*this, mSystem);
+    ecs::initWindowComponents(mSystem);
 }
 
 void EditorContext::init() {
-    mCamera = mSystem.entity("camera")
-        .set<world::ecs::Position>({ math::float3(0.f, 5.f, 10.f) })
-        .set<world::ecs::Direction>({ math::float3(0.f, 0.f, 1.f) })
-        .set<world::ecs::Camera>({
-            .colour = DXGI_FORMAT_R8G8B8A8_UNORM,
-            .depth = DXGI_FORMAT_D32_FLOAT,
-            .window = mConfig.swapchain.size.as<uint>(),
-            .fov = 90._deg
-        });
+    mCamera = ecs::addCamera(mSystem, "Default Camera", { 0.f, 5.f, 10.f }, { 0.f, 0.f, 1.f });
 
     // whenever a camera is added or removed, the framegraph needs to be rebuilt
-    mCameraObserver = mSystem.observer<world::ecs::Camera>()
-        .event(flecs::Monitor)
-        .each([this](flecs::iter& it, size_t i, world::ecs::Camera& data) {
-            update_framegraph();
+    // do this after adding the first camera to avoid rebuilding the framegraph twice
+    mCameraObserver = mSystem.observer()
+        .with<world::ecs::Camera>()
+        .event(flecs::OnSet)
+        .event(flecs::UnSet)
+        .iter([this](flecs::iter& it) {
+            logs::gGlobal.info("Camera event: {} ({})", it.event().name().c_str(), it.count());
+            mFrameGraphDirty = true;
         });
 }
 
 void EditorContext::render() {
-    if (recreate_device) {
-        recreate_device = false;
+    bool draw = true;
+
+    if (mDeviceDirty) {
+        mDeviceDirty = false;
+        draw = false;
         IDeviceContext::recreate_device();
-    } else {
+    }
+
+    if (mFrameGraphDirty) {
+        mFrameGraphDirty = false;
+        update_framegraph();
+    }
+
+    // only draw if we didnt recreate the device
+    if (draw) {
         IDeviceContext::render();
     }
 }
-
-#if 0
-CameraData& EditorContext::add_camera() {
-    auto& camera = push_camera({ 800, 600 });
-
-    update_framegraph();
-
-    return camera;
-}
-
-CameraData& EditorContext::push_camera(math::uint2 size) {
-    draw::ViewportConfig vp { size, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT };
-    CameraData data { draw::Camera(fmt::format("Camera {}", mCameras.size()), vp) };
-
-    auto& it = mCameras.emplace_back(sm::make_unique<CameraData>(data));
-    input.add_client(&it->camera);
-    mActiveCamera = it.get();
-
-    return *mActiveCamera;
-}
-
-void EditorContext::erase_camera(size_t index) {
-    if (mCameras.size() == 1) return;
-
-    auto& camera = mCameras[index];
-    input.erase_client(&camera->camera);
-
-    if (mActiveCamera == camera.get()) {
-        mActiveCamera = mCameras[0].get();
-    }
-
-    mCameras.erase(mCameras.begin() + index);
-
-    update_framegraph();
-}
-#endif
 
 void EditorContext::on_create() {
     index = mSrvPool.allocate();
@@ -138,16 +103,13 @@ void EditorContext::setup_framegraph(graph::FrameGraph& graph) {
     static flecs::query q = mSystem.query<world::ecs::Camera>();
 
     mSystem.defer([&] {
-        q.iter([&](flecs::iter& it, const world::ecs::Camera *camera) {
-            for (auto i : it) {
-                flecs::entity ent = it.entity(i);
+        q.each([&](flecs::entity entity, world::ecs::Camera& camera) {
+            logs::gGlobal.info("Adding camera pass: {}", entity.name().c_str());
+            graph::Handle target;
+            graph::Handle depth;
+            draw::opaque_ecs(graph, target, depth, entity, entity.world());
 
-                graph::Handle target;
-                graph::Handle depth;
-                draw::opaque_ecs(graph, target, depth, ent, it.world());
-
-                ent.set<ecs::CameraData>({ target, depth });
-            }
+            entity.set<ecs::CameraData>({ target, depth });
         });
     });
 

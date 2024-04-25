@@ -8,7 +8,6 @@
 #include "editor/panels/scene.hpp"
 #include "editor/panels/debug.hpp"
 #include "editor/panels/assets.hpp"
-#include "editor/panels/viewport.hpp"
 #include "editor/panels/pix.hpp"
 #include "editor/panels/physics.hpp"
 #include "editor/draw.hpp"
@@ -27,7 +26,6 @@ namespace sm::ed {
 
         LoggerPanel& mLogger;
         RenderConfig mConfig;
-        sm::Vector<ViewportPanel> mViewports;
         ScenePanel mScene;
         Inspector mInspector;
         FeatureSupportPanel mFeatureSupport;

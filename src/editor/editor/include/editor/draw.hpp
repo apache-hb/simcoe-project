@@ -43,16 +43,17 @@ namespace sm::ed {
         render::SrvIndex index;
         input::InputService input;
 
-        // should the device be recreated?
-        bool recreate_device = false;
+        void markDeviceDirty() { mDeviceDirty = true; }
 
-        flecs::world& ecs() { return mSystem; }
-
+        flecs::world& getWorld() { return mSystem; }
         flecs::entity getCamera() { return mCamera; }
 
     private:
-        // sm::Vector<sm::UniquePtr<CameraData>> mCameras;
-        // CameraData *mActiveCamera = nullptr;
+        // should the device be recreated?
+        bool mDeviceDirty = false;
+
+        // do we need to rebuild the framegraph?
+        bool mFrameGraphDirty = false;
 
         flecs::world mSystem;
         flecs::entity mCamera;

@@ -60,7 +60,7 @@ void RenderConfig::draw_adapters() const {
     auto& warp = instance.get_warp_adapter();
 
     if (draw_adapter_info(mContext, warp)) {
-        mContext.recreate_device = true;
+        mContext.markDeviceDirty();
         mContext.set_current_adapter(warp);
     }
 
@@ -68,7 +68,7 @@ void RenderConfig::draw_adapters() const {
         if (adapter == instance.get_warp_adapter()) continue;
 
         if (draw_adapter_info(mContext, adapter)) {
-            mContext.recreate_device = true;
+            mContext.markDeviceDirty();
             mContext.set_current_adapter(adapter);
         }
     }
@@ -206,7 +206,7 @@ void RenderConfig::draw_content() {
 
     ImGui::SeparatorText("Debug Flags");
     if (draw_debug_flags()) {
-        mContext.recreate_device = true;
+        mContext.markDeviceDirty();
     }
 }
 

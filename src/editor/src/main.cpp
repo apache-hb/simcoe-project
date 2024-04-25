@@ -1,4 +1,5 @@
 #include "draw/draw.hpp"
+#include "editor/panels/viewport.hpp"
 #include "stdafx.hpp"
 
 #include "system/input.hpp"
@@ -252,18 +253,18 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     events.attach_render(&context);
 
+    flecs::world& world = context.getWorld();
+
     context.create();
 
-    flecs::world& ecs = context.ecs();
-
-    ecs.entity("player")
+    world.entity("player")
         .set<world::ecs::Position>({ float3(0.f, 3.f, 0.f) })
         .set<world::ecs::Rotation>({ quatf::identity() })
         .set<world::ecs::Scale>({ 1.f })
         .add<world::ecs::Object>()
         .set<world::ecs::Shape>({ world::Cylinder{ 0.7f, 1.3f, 8 } });
 
-    ecs.entity("floor")
+    world.entity("floor")
         .set<world::ecs::Position>({ float3(0.f, 0.f, 0.f) })
         .set<world::ecs::Rotation>({ quatf::identity() })
         .set<world::ecs::Scale>({ 1.f })
@@ -484,21 +485,24 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
         float dt = clock.tick();
 
-        ecs.progress(dt);
+        world.progress(dt);
+
         auto& state = context.input.get_state();
         static constexpr input::ButtonAxis kMoveForward = {input::Button::eW, input::Button::eS};
         static constexpr input::ButtonAxis kMoveStrafe =  {input::Button::eD, input::Button::eA};
 
         float2 move = state.button_axis2d(kMoveStrafe, kMoveForward);
-        flecs::entity camera = context.getCamera();
-        const world::ecs::Direction *dir = camera.get<world::ecs::Direction>();
-        const world::ecs::Position *pos = camera.get<world::ecs::Position>();
-        float3 right = float3::cross(dir->direction, world::kVectorUp).normalized();
-        float3 moveInput = dir->direction * -move.y + right * -move.x;
+        flecs::entity camera = ed::ecs::getPrimaryCamera(world);
 
-        camera.set<world::ecs::Position>({ pos->position + moveInput * dt });
+        if (camera.is_valid()) {
+            const world::ecs::Direction *dir = camera.get<world::ecs::Direction>();
+            const world::ecs::Position *pos = camera.get<world::ecs::Position>();
+            float3 right = float3::cross(dir->direction, world::kVectorUp).normalized();
+            float3 moveInput = dir->direction * -move.y + right * -move.x;
 
-        editor.begin_frame();
+            camera.set<world::ecs::Position>({ pos->position + moveInput * dt });
+        }
+
 #if 0
         player.postUpdate();
         editor.update();
@@ -541,6 +545,8 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
         // context.get_active_camera().set
 #endif
+
+        editor.begin_frame();
 
         editor.draw();
 

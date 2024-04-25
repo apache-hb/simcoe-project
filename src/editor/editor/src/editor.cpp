@@ -1,7 +1,10 @@
 #include "stdafx.hpp"
 
+#include "world/ecs.hpp"
 #include "editor/editor.hpp"
 #include "editor/mygui.hpp"
+
+#include "editor/panels/viewport.hpp"
 
 using namespace sm;
 using namespace sm::ed;
@@ -24,7 +27,7 @@ Editor::Editor(ed::EditorContext& context)
     // mSaveLevelDialog.SetTypeFilters({ ".bin" });
     // mSaveLevelDialog.SetInputName("level.bin");
 
-    mViewports.emplace_back(&mContext, mContext.getCamera());
+    // mViewports.emplace_back(&mContext, mContext.getCamera());
 
     // for (auto& camera : mContext.get_cameras()) {
     //     mViewports.emplace_back(&mContext, camera.get());
@@ -32,6 +35,8 @@ Editor::Editor(ed::EditorContext& context)
 }
 
 void Editor::draw_mainmenu() {
+    flecs::world& world = mContext.getWorld();
+
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
             ImGui::MenuItem("New Level");
@@ -93,24 +98,8 @@ void Editor::draw_mainmenu() {
                 ImGui::EndMenu();
             }
 
-            ImGui::SeparatorText("Viewports");
-            size_t erase = SIZE_MAX;
-            for (size_t i = 0; i < mViewports.size(); i++) {
-                ViewportPanel& viewport = mViewports[i];
-                ImGui::MenuItem(viewport.get_title(), nullptr, &viewport.mOpen);
+            ecs::drawViewportMenus(world);
 
-                if (!viewport.mOpen) {
-                    erase = i;
-                }
-            }
-
-            if (erase != SIZE_MAX) {
-                mViewports.erase(mViewports.begin() + erase);
-            }
-
-            // if (ImGui::SmallButton("Add Viewport")) {
-            //     mViewports.emplace_back(&mContext, &mContext.add_camera());
-            // }
             ImGui::EndMenu();
         }
 
@@ -412,6 +401,8 @@ void Editor::draw_error_modal() {
 }
 
 void Editor::draw() {
+    flecs::world& world = mContext.getWorld();
+
     draw_mainmenu();
     draw_dockspace();
     draw_create_popup();
@@ -427,9 +418,9 @@ void Editor::draw() {
     mConfig.draw_window();
     // mPhysicsDebug.draw_window();
 
-    for (ViewportPanel &viewport : mViewports) {
-        viewport.draw_window();
-    }
+    world.defer([&] {
+        ecs::drawViewportWindows(getContext(), world);
+    });
 
     draw_error_modal();
 

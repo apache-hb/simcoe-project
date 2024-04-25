@@ -19,15 +19,14 @@ namespace sm::ed {
         eOverlayBottomRight = 0,
     };
 
-    class ViewportPanel final {
-        static constexpr const ImGuizmo::OPERATION kRotateXYZ
-            = ImGuizmo::ROTATE_X
-            | ImGuizmo::ROTATE_Y
-            | ImGuizmo::ROTATE_Z;
+    static constexpr const ImGuizmo::OPERATION kRotateXYZ
+        = ImGuizmo::ROTATE_X
+        | ImGuizmo::ROTATE_Y
+        | ImGuizmo::ROTATE_Z;
 
+    class ViewportPanel final {
 
         void draw_gizmo_mode(ImGuizmo::OPERATION op, ImGuizmo::OPERATION x, ImGuizmo::OPERATION y, ImGuizmo::OPERATION z) const;
-        void draw_rotate_mode() const;
 
         ed::EditorContext *mContext;
         flecs::entity mCamera;
@@ -45,8 +44,7 @@ namespace sm::ed {
 
         ImGuizmo::MODE mMode = ImGuizmo::WORLD;
 
-        // bool mScaleViewport = true;
-        sm::String mName;
+        bool mScaleViewport = true;
         ImGuiWindowFlags mFlags
             = ImGuiWindowFlags_NoScrollbar
             | ImGuiWindowFlags_NoScrollWithMouse
@@ -63,9 +61,26 @@ namespace sm::ed {
         bool mOpen = true;
         void draw_window();
 
+        const char *getWindowTitle() const { return mCamera.name().c_str(); }
+
         void gizmo_settings_panel();
-        const char *get_title() const { return mName.c_str(); }
 
         static void begin_frame(draw::Camera& camera);
     };
+
+    namespace ecs {
+        // init
+        void initWindowComponents(flecs::world& world);
+
+        // update camera related systems/components
+        flecs::entity addCamera(flecs::world& world, const char *name, math::float3 position, math::float3 direction);
+
+        // query cameras and related components
+        flecs::entity getPrimaryCamera(flecs::world& world);
+        size_t getCameraCount(flecs::world& world);
+
+        // editor draw functions
+        void drawViewportWindows(render::IDeviceContext& ctx, flecs::world& world);
+        void drawViewportMenus(flecs::world& world);
+    }
 }
