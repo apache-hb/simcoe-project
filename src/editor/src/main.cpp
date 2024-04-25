@@ -484,11 +484,6 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
         float dt = clock.tick();
 
-        // player.update(dt);
-
-        // game.tick(dt);
-        context.tick(dt);
-
         ecs.progress(dt);
         auto& state = context.input.get_state();
         static constexpr input::ButtonAxis kMoveForward = {input::Button::eW, input::Button::eS};

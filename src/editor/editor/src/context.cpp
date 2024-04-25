@@ -12,13 +12,18 @@ using namespace sm::ed;
 using namespace sm::math::literals;
 
 void EditorContext::imgui(graph::FrameGraph& graph, graph::Handle render_target) {
+    static flecs::query q = mSystem.query<ecs::CameraData>();
     graph::PassBuilder pass = graph.graphics("ImGui");
     // for (auto& camera : mCameras) {
     //     pass.read(camera->target, camera->camera.name(), graph::Usage::ePixelShaderResource);
     // }
 
-    const ecs::CameraData *it = mCamera.get<ecs::CameraData>();
-    pass.read(it->target, "Target", graph::Usage::ePixelShaderResource);
+    q.iter([&](flecs::iter& it, const ecs::CameraData *camera) {
+        for (auto i : it) {
+            flecs::entity ent = it.entity(i);
+            pass.read(camera[i].target, ent.name().c_str(), graph::Usage::ePixelShaderResource);
+        }
+    });
 
     pass.write(render_target, "Target", graph::Usage::eRenderTarget);
 
@@ -52,13 +57,13 @@ void EditorContext::init() {
             .window = mConfig.swapchain.size.as<uint>(),
             .fov = 90._deg
         });
-}
 
-void EditorContext::tick(float dt) {
-    // for (auto& viewport : mCameras) {
-    //     auto& camera = viewport->camera;
-    //     camera.tick(dt);
-    // }
+    // whenever a camera is added or removed, the framegraph needs to be rebuilt
+    mCameraObserver = mSystem.observer<world::ecs::Camera>()
+        .event(flecs::Monitor)
+        .each([this](flecs::iter& it, size_t i, world::ecs::Camera& data) {
+            update_framegraph();
+        });
 }
 
 void EditorContext::render() {
@@ -118,6 +123,7 @@ void EditorContext::on_create() {
 }
 
 void EditorContext::on_destroy() {
+    mCameraObserver.destruct();
     mSrvPool.release(index);
 
     ImGui_ImplDX12_Shutdown();
@@ -129,11 +135,21 @@ void EditorContext::on_setup() {
 }
 
 void EditorContext::setup_framegraph(graph::FrameGraph& graph) {
-    graph::Handle depth;
-    graph::Handle target;
-    draw::opaque_ecs(graph, target, depth, mCamera, mSystem);
+    static flecs::query q = mSystem.query<world::ecs::Camera>();
 
-    mCamera.set<ecs::CameraData>({ target, depth });
+    mSystem.defer([&] {
+        q.iter([&](flecs::iter& it, const world::ecs::Camera *camera) {
+            for (auto i : it) {
+                flecs::entity ent = it.entity(i);
+
+                graph::Handle target;
+                graph::Handle depth;
+                draw::opaque_ecs(graph, target, depth, ent, it.world());
+
+                ent.set<ecs::CameraData>({ target, depth });
+            }
+        });
+    });
 
 #if 0
     render::Viewport vp { getSwapChainSize() };

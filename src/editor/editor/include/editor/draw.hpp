@@ -29,8 +29,6 @@ namespace sm::ed {
 
         void setup_framegraph(graph::FrameGraph& graph) override;
 
-        void tick(float dt);
-
         void render();
 
         // CameraData& add_camera();
@@ -58,6 +56,7 @@ namespace sm::ed {
 
         flecs::world mSystem;
         flecs::entity mCamera;
+        flecs::entity mCameraObserver;
 
         void on_setup() override;
 

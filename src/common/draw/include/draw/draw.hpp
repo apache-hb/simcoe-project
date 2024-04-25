@@ -140,7 +140,7 @@ namespace sm::draw {
         graph::Handle& target,
         graph::Handle& depth,
         flecs::entity camera,
-        flecs::world& ecs);
+        flecs::world ecs);
 
     ///
     /// other passes

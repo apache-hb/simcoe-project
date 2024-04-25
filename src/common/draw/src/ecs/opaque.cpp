@@ -23,7 +23,7 @@ void draw::init_ecs(render::IDeviceContext &context, flecs::world& world) {
             it.entity(i).set<ecs::ObjectDeviceData>({ std::move(cbuffer) });
         });
 
-    // when a shape is added to the world, upload its mesh data to the gpu
+    // when a shape is setup, upload its mesh data to the gpu
     world.observer<const world::ecs::Shape>()
         .event(flecs::OnSet)
         .each([&context](flecs::iter& it, size_t i, const world::ecs::Shape& shape) {
@@ -124,16 +124,16 @@ void draw::opaque_ecs(
     graph::Handle &target,
     graph::Handle &depth,
     flecs::entity camera,
-    flecs::world &ecs)
+    flecs::world ecs)
 {
-    auto updateObjectData = ecs.query<
+    static flecs::query updateObjectData = ecs.query<
         ecs::ObjectDeviceData,
         const world::ecs::Position,
         const world::ecs::Rotation,
         const world::ecs::Scale
     >();
 
-    auto drawObjectData = ecs.query<
+    static flecs::query drawObjectData = ecs.query<
         const ecs::ObjectDeviceData,
         const render::ecs::IndexBuffer,
         const render::ecs::VertexBuffer
@@ -168,7 +168,7 @@ void draw::opaque_ecs(
         return info;
     });
 
-    pass.bind([target, depth, camera, updateObjectData, drawObjectData, &data](graph::RenderContext& ctx) {
+    pass.bind([target, depth, camera, &data](graph::RenderContext& ctx) {
         auto& [device, graph, _, commands] = ctx;
 
         const world::ecs::Camera *it = camera.get<world::ecs::Camera>();
