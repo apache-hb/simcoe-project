@@ -1,9 +1,9 @@
-[wrap-git]
+[wrap-file]
 directory = tracy-0.10
 
-url = https://github.com/apache-hb/tracy.git
-revision = head
-depth = 1
+source_url = https://github.com/wolfpld/tracy/archive/refs/tags/v0.10.zip
+source_filename = tracy-0.10.zip
+source_hash = de182a4ddd9850f0f4fa584cb0b6306be4995c1b42a4bcdee780041afcfa7834
 
 [provide]
-tracy = tracy_dep
+dependency_names = tracy

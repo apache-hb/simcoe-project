@@ -1,9 +1,9 @@
-[wrap-git]
+[wrap-file]
 directory = directx-tex
 
-url = https://github.com/microsoft/DirectXTex
-revision = head
-depth = 1
+source_url = https://github.com/microsoft/DirectXTex/archive/refs/tags/mar2024.zip
+source_filename = directx-tex-mar2024.zip
+source_hash = 35cc98c1c4e6697f247c07186b9442a13fe25a107717750268d272a8d2249a36
 
 patch_directory = directx-tex
 

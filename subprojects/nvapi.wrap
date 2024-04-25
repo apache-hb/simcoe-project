@@ -1,9 +1,9 @@
-[wrap-git]
+[wrap-file]
 directory = nvapi-550
 
-url = https://github.com/NVIDIA/nvapi
-revision = head
-depth = 1
+source_url = https://github.com/NVIDIA/nvapi/archive/3a83ef27ed8bd1a273cb667d3425b68c3c5f2933.zip
+source_filename = nvapi-550.zip
+source_hash = 5bc7b61e879cd3dbfe3b3f9fd44a9fac507a6ae9c965964c653a6ee8f042b55f
 
 patch_directory = nvapi
 

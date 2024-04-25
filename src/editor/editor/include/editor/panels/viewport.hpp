@@ -6,10 +6,6 @@
 
 #include "ImGuizmo.h"
 
-namespace sm::render {
-    struct IDeviceContext;
-}
-
 namespace sm::ed {
     enum OverlayPosition {
         eOverlayClosed = -1,
@@ -34,10 +30,12 @@ namespace sm::ed {
         void draw_rotate_mode() const;
 
         ed::EditorContext *mContext;
-        ed::CameraData *mCamera;
+        flecs::entity mCamera;
 
-        draw::Camera& get_camera() { return mCamera->camera; }
-        graph::Handle& get_target() { return mCamera->target; }
+        graph::Handle get_target() const {
+            const ecs::CameraData *data = mCamera.get<ecs::CameraData>();
+            return data->target;
+        }
 
         ImGuizmo::OPERATION mOperation = ImGuizmo::TRANSLATE;
 
@@ -47,7 +45,7 @@ namespace sm::ed {
 
         ImGuizmo::MODE mMode = ImGuizmo::WORLD;
 
-        bool mScaleViewport = true;
+        // bool mScaleViewport = true;
         sm::String mName;
         ImGuiWindowFlags mFlags
             = ImGuiWindowFlags_NoScrollbar
@@ -60,7 +58,7 @@ namespace sm::ed {
         void draw_content();
 
     public:
-        ViewportPanel(ed::EditorContext *context, ed::CameraData *camera);
+        ViewportPanel(ed::EditorContext *context, flecs::entity camera);
 
         bool mOpen = true;
         void draw_window();

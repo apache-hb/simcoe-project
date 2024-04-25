@@ -323,6 +323,9 @@ namespace sm::render {
     private:
         void destroy_device();
 
+        // called once when context is created
+        virtual void on_setup() { }
+
         // called everytime the device is recreated
         virtual void on_create() { }
         virtual void on_destroy() { }

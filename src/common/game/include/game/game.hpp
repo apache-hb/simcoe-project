@@ -7,9 +7,7 @@
 
 #include "render/graph.hpp"
 
-namespace sm::draw {
-    class Camera;
-}
+#include <flecs.h>
 
 namespace sm::game {
     class Entity;
@@ -107,7 +105,7 @@ namespace sm::game {
 
         void shutdown();
 
-        void setCamera(const draw::Camera& camera);
+        void setCamera(flecs::entity camera);
 
         math::float3 getGravity() const;
 
@@ -136,10 +134,10 @@ namespace sm::game {
 
     Context getContext();
 
-    Context init(world::World& world, const draw::Camera& camera);
+    Context init(world::World& world, flecs::entity camera);
 
     void physics_debug(
         graph::FrameGraph& graph,
-        const draw::Camera& camera,
+        flecs::entity camera,
         graph::Handle target);
 }

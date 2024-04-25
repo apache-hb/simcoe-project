@@ -253,7 +253,6 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     events.attach_render(&context);
 
     context.create();
-    context.init();
 
     flecs::world& ecs = context.ecs();
 
@@ -271,12 +270,13 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .add<world::ecs::Object>()
         .set<world::ecs::Shape>({ world::Cube{ 15.f, 1.f, 15.f } });
 
-    auto& world = context.mWorld;
+    // auto& world = context.mWorld;
 
-    game::Context game = game::init(world, context.get_active_camera());
+    // game::Context game = game::init(world, context.getCamera());
 
     ed::Editor editor{context};
 
+#if 0
     world::Cube floorShape = { .width = 15.f, .height = 1.f, .depth = 15.f };
     world::Sphere bodyShape = { .radius = 1.f, .slices = 8, .stacks = 8 };
 
@@ -374,7 +374,6 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .models = { playerModel }
     });
 
-#if 0
     std::string_view walls = ""
         "1111111111"
         "1010000001"
@@ -445,6 +444,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     Ticker clock;
 
+#if 0
     input::Debounce jump{input::Button::eSpace};
 
     {
@@ -466,6 +466,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     editor.addPhysicsBody(floorNode, std::move(floor));
     editor.addPhysicsBody(bodyNode, std::move(body));
+#endif
 
     bool done = false;
     while (!done) {
@@ -483,32 +484,38 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
         float dt = clock.tick();
 
-        player.update(dt);
+        // player.update(dt);
 
-        game.tick(dt);
+        // game.tick(dt);
         context.tick(dt);
 
         ecs.progress(dt);
-
-        player.postUpdate();
-        editor.update();
-
-        editor.begin_frame();
-
-        world::Node& playerNodeInfo = world.get(playerNode);
-
         auto& state = context.input.get_state();
         static constexpr input::ButtonAxis kMoveForward = {input::Button::eW, input::Button::eS};
         static constexpr input::ButtonAxis kMoveStrafe =  {input::Button::eD, input::Button::eA};
 
         float2 move = state.button_axis2d(kMoveStrafe, kMoveForward);
+        flecs::entity camera = context.getCamera();
+        const world::ecs::Direction *dir = camera.get<world::ecs::Direction>();
+        const world::ecs::Position *pos = camera.get<world::ecs::Position>();
+        float3 right = float3::cross(dir->direction, world::kVectorUp).normalized();
+        float3 moveInput = dir->direction * -move.y + right * -move.x;
+
+        camera.set<world::ecs::Position>({ pos->position + moveInput * dt });
+
+        editor.begin_frame();
+#if 0
+        player.postUpdate();
+        editor.update();
+
+
+        world::Node& playerNodeInfo = world.get(playerNode);
+
+
 
         // rotate moveInput to face the direction the player is facing
-        float3 direction = context.get_active_camera().direction();
 
-        float3 right = float3::cross(direction, world::kVectorUp).normalized();
 
-        float3 moveInput = direction * -move.y + right * -move.x;
 
         if (player.isOnSteepSlope() || player.isNotSupported()) {
             float3 normal = player.getGroundNormal();
@@ -535,9 +542,10 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         playerNodeInfo.transform.position = player.getPosition();
         playerNodeInfo.transform.rotation = player.getRotation();
 
-        context.get_active_camera().setPosition(player.getPosition() + world::kVectorUp * 2);
+        // camera.set<world::ecs::Position>({ player.getPosition() + world::kVectorUp * 2 });
 
         // context.get_active_camera().set
+#endif
 
         editor.draw();
 
@@ -572,6 +580,13 @@ static int editor_main(sys::ShowWindow show) {
     if (!store.is_valid()) {
         store.reset();
     }
+
+    ecs_os_set_api_defaults();
+    ecs_os_api_t api = ecs_os_get_api();
+    api.abort_ = [] {
+        CT_NEVER("flecs.abort");
+    };
+    ecs_os_set_api(&api);
 
     init_imgui();
     message_loop(show, store);

@@ -48,7 +48,10 @@ namespace sm::world::ecs {
         math::radf fov;
 
         float getAspectRatio() const { return float(window.x) / float(window.y); }
+        math::float4x4 getProjectionMatrix() const;
     };
+
+    math::float4x4 getViewMatrix(Position position, Direction direction);
 
     AABB bounds(world::Cube cube);
     AABB bounds(world::Sphere sphere);

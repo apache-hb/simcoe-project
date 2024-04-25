@@ -87,7 +87,7 @@ namespace sm::ed {
         void draw();
 
         render::IDeviceContext& getContext() { return mContext; }
-        draw::Camera& get_camera() { return mContext.get_active_camera(); }
+        // draw::Camera& get_camera() { return mContext.get_active_camera(); }
 
         void addPhysicsBody(world::IndexOf<world::Node> node, game::PhysicsBody&& body) {
             mPhysicsDebug.addPhysicsBody(node, std::move(body));

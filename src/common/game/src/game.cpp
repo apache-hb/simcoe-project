@@ -3,6 +3,7 @@
 #include "math/colour.hpp"
 
 #include "game/game.hpp"
+#include "world/ecs.hpp"
 #include "std/str.h"
 #include "math/format.hpp"
 
@@ -168,11 +169,13 @@ struct CDebugRenderer final : public JPH::DebugRendererSimple {
         gPhysicsLog.info("DrawText3D: {}", inString);
     }
 
-    void begin_frame(const draw::Camera& camera) {
+    void begin_frame(flecs::entity camera) {
         mLines.clear();
         mTriangles.clear();
 
-        Super::SetCameraPos(to_jph(camera.position()));
+        const world::ecs::Position *position = camera.get<world::ecs::Position>();
+
+        Super::SetCameraPos(to_jph(position->position));
     }
 };
 
@@ -218,7 +221,7 @@ struct game::GameContextImpl {
     ///
 
     world::World& world;
-    const draw::Camera *activeCamera = nullptr;
+    flecs::entity activeCamera;
 
     ///
     /// gameplay
@@ -291,16 +294,16 @@ struct game::GameContextImpl {
     }
 };
 
-game::Context game::init(world::World& world, const draw::Camera& camera) {
+game::Context game::init(world::World& world, flecs::entity camera) {
     CTASSERTF(gContext == nullptr, "Context already initialized");
 
     gContext = new GameContextImpl{.world = world};
 
     Context ctx = getContext();
+
     ctx.setCamera(camera);
 
     gContext->init();
-
 
     return ctx;
 }
@@ -429,7 +432,7 @@ void game::Context::debugDrawPhysicsBody(const PhysicsBody& body) {
 // }
 
 void game::Context::tick(float dt) {
-    mImpl->debugRenderer->begin_frame(*mImpl->activeCamera);
+    mImpl->debugRenderer->begin_frame(mImpl->activeCamera);
 
     int steps = 1;
     if (dt > kTimeStep) {
@@ -468,8 +471,8 @@ void game::Context::shutdown() {
     delete JPH::Factory::sInstance;
 }
 
-void game::Context::setCamera(const draw::Camera& camera) {
-    mImpl->activeCamera = &camera;
+void game::Context::setCamera(flecs::entity camera) {
+    mImpl->activeCamera = camera;
 }
 
 PhysicsBody game::Context::addPhysicsBody(const world::Cube& shape, const math::float3& position, const math::quatf& rotation, bool dynamic) {
@@ -588,7 +591,7 @@ static const D3D12_ROOT_SIGNATURE_FLAGS kPrimitiveRootFlags
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
 
-static void createDebugLinePSO(render::Pipeline& pipeline, const draw::ViewportConfig& config, render::IDeviceContext& context) {
+static void createDebugLinePSO(render::IDeviceContext& context, render::Pipeline& pipeline, DXGI_FORMAT colour, DXGI_FORMAT depth) {
     {
         // mvp matrix
         CD3DX12_ROOT_PARAMETER1 params[1];
@@ -620,8 +623,8 @@ static void createDebugLinePSO(render::Pipeline& pipeline, const draw::ViewportC
             .InputLayout = { kInputElements, _countof(kInputElements) },
             .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE,
             .NumRenderTargets = 1,
-            .RTVFormats = { config.colour },
-            .DSVFormat = config.depth,
+            .RTVFormats = { colour },
+            .DSVFormat = depth,
             .SampleDesc = { 1, 0 },
         };
 
@@ -633,7 +636,12 @@ static void createDebugLinePSO(render::Pipeline& pipeline, const draw::ViewportC
     }
 }
 
-static void createDebugTrianglePSO(render::Pipeline& pipeline, const draw::ViewportConfig& config, render::IDeviceContext& context) {
+static void createDebugTrianglePSO(
+    render::IDeviceContext& context,
+    render::Pipeline& pipeline,
+    DXGI_FORMAT colour,
+    DXGI_FORMAT depth)
+{
     {
         // mvp matrix
         CD3DX12_ROOT_PARAMETER1 params[1];
@@ -665,8 +673,8 @@ static void createDebugTrianglePSO(render::Pipeline& pipeline, const draw::Viewp
             .InputLayout = { kInputElements, _countof(kInputElements) },
             .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
             .NumRenderTargets = 1,
-            .RTVFormats = { config.getColourFormat() },
-            .DSVFormat = config.getDepthFormat(),
+            .RTVFormats = { colour },
+            .DSVFormat = depth,
             .SampleDesc = { 1, 0 },
         };
 
@@ -680,18 +688,18 @@ static void createDebugTrianglePSO(render::Pipeline& pipeline, const draw::Viewp
 
 void game::physics_debug(
     graph::FrameGraph& graph,
-    const draw::Camera& camera,
+    flecs::entity camera,
     graph::Handle target)
 {
-    const auto& config = camera.config();
+    const world::ecs::Camera *config = camera.get<world::ecs::Camera>();
 
     graph::PassBuilder pass = graph.graphics("Physics Debug");
     pass.write(target, "Target", graph::Usage::eRenderTarget);
 
     graph::ResourceInfo info = {
-        .sz = graph::ResourceSize::tex2d(config.size),
-        .format = config.depth,
-        .clear = graph::Clear::depthStencil(1.0f, 0, config.depth)
+        .sz = graph::ResourceSize::tex2d(config->window),
+        .format = config->depth,
+        .clear = graph::Clear::depthStencil(1.0f, 0, config->depth)
     };
 
     graph::Handle depth = pass.create(info, "Depth", graph::Usage::eDepthWrite);
@@ -705,8 +713,8 @@ void game::physics_debug(
             render::VertexBuffer<DebugVertex> triangleBuffer;
         } info;
 
-        createDebugLinePSO(info.lines, config, context);
-        createDebugTrianglePSO(info.triangles, config, context);
+        createDebugLinePSO(context, info.lines, config->colour, config->depth);
+        createDebugTrianglePSO(context, info.triangles, config->colour, config->depth);
 
         info.lineBuffer = render::newVertexUploadBuffer<DebugVertex>(context, 0x1000uz * 8);
         info.triangleBuffer = render::newVertexUploadBuffer<DebugVertex>(context, 0x1000uz * 8);
@@ -714,7 +722,7 @@ void game::physics_debug(
         return info;
     });
 
-    pass.bind([target, depth, &data, &camera](graph::RenderContext& ctx) {
+    pass.bind([target, depth, &data, camera](graph::RenderContext& ctx) {
         auto& context = ctx.context;
         auto *cmd = ctx.commands;
 
@@ -724,9 +732,13 @@ void game::physics_debug(
         auto rtv = ctx.graph.rtv(target);
         auto rtv_cpu = context.mRtvPool.cpu_handle(rtv);
 
-        auto vp = camera.viewport();
-        const auto& config = camera.config();
-        math::float4x4 mvp = camera.mvp(config.getAspectRatio(), math::float4x4::identity()).transpose();
+        const world::ecs::Camera *config = camera.get<world::ecs::Camera>();
+
+        render::Viewport vp{config->window};
+        math::float4x4 m = math::float4x4::identity();
+        math::float4x4 v = world::ecs::getViewMatrix(*camera.get<world::ecs::Position>(), *camera.get<world::ecs::Direction>());
+        math::float4x4 p = config->getProjectionMatrix();
+        math::float4x4 mvp = m * v * p;
 
         auto& debug = static_cast<CDebugRenderer&>(*JPH::DebugRenderer::sInstance);
         if (!debug.mLines.empty()) {

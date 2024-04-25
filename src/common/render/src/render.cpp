@@ -557,6 +557,7 @@ void IDeviceContext::upload_model(world::IndexOf<world::Model> model) {
 }
 
 render::ecs::VertexBuffer IDeviceContext::uploadVertexBuffer(world::VertexBuffer&& buffer) {
+    uint length = uint(buffer.size());
     size_t size = buffer.size_bytes();
 
     Resource resource;
@@ -579,10 +580,11 @@ render::ecs::VertexBuffer IDeviceContext::uploadVertexBuffer(world::VertexBuffer
         .StrideInBytes = sizeof(world::Vertex)
     };
 
-    return { std::move(resource), view };
+    return { std::move(resource), view, sizeof(world::Vertex), length };
 }
 
 render::ecs::IndexBuffer IDeviceContext::uploadIndexBuffer(world::IndexBuffer&& buffer) {
+    uint length = uint(buffer.size());
     size_t size = buffer.size_bytes();
 
     Resource resource;
@@ -605,7 +607,7 @@ render::ecs::IndexBuffer IDeviceContext::uploadIndexBuffer(world::IndexBuffer&& 
         .Format = DXGI_FORMAT_R16_UINT
     };
 
-    return { std::move(resource), view };
+    return { std::move(resource), view, DXGI_FORMAT_R16_UINT, length };
 }
 
 void IDeviceContext::begin_upload() {
@@ -849,6 +851,7 @@ void IDeviceContext::create() {
     create_copy_fence();
     create_pipeline();
     create_storage_sync();
+    on_setup();
     on_create();
 
     create_assets();

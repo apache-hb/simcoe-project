@@ -1,0 +1,11 @@
+[wrap-file]
+directory = wuffs-0.3.4
+
+source_url = https://github.com/google/wuffs/archive/refs/tags/v0.3.4.zip
+source_filename = wuffs-0.3.4.zip
+source_hash = 9367e35e85bb8d33c58845bf432926e06ede49a3be2f9acb716c648819697bc5
+
+patch_directory = wuffs
+
+[provide]
+dependency_names = wuffs

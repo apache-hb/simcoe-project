@@ -24,9 +24,11 @@ Editor::Editor(ed::EditorContext& context)
     // mSaveLevelDialog.SetTypeFilters({ ".bin" });
     // mSaveLevelDialog.SetInputName("level.bin");
 
-    for (auto& camera : mContext.get_cameras()) {
-        mViewports.emplace_back(&mContext, camera.get());
-    }
+    mViewports.emplace_back(&mContext, mContext.getCamera());
+
+    // for (auto& camera : mContext.get_cameras()) {
+    //     mViewports.emplace_back(&mContext, camera.get());
+    // }
 }
 
 void Editor::draw_mainmenu() {
@@ -106,9 +108,9 @@ void Editor::draw_mainmenu() {
                 mViewports.erase(mViewports.begin() + erase);
             }
 
-            if (ImGui::SmallButton("Add Viewport")) {
-                mViewports.emplace_back(&mContext, &mContext.add_camera());
-            }
+            // if (ImGui::SmallButton("Add Viewport")) {
+            //     mViewports.emplace_back(&mContext, &mContext.add_camera());
+            // }
             ImGui::EndMenu();
         }
 
@@ -423,7 +425,7 @@ void Editor::draw() {
     mGraph.draw_window();
     mPix.draw_window();
     mConfig.draw_window();
-    mPhysicsDebug.draw_window();
+    // mPhysicsDebug.draw_window();
 
     for (ViewportPanel &viewport : mViewports) {
         viewport.draw_window();

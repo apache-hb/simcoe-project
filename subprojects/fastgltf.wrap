@@ -1,9 +1,9 @@
-[wrap-git]
+[wrap-file]
 directory = fastgltf-0.7.1
 
-url = https://github.com/spnda/fastgltf
-revision = head
-depth = 1
+source_url = https://github.com/spnda/fastgltf/archive/73526296313eb3ca650a73ed52037c0765b46659.zip
+source_filename = fastgltf-0.7.1.zip
+source_hash = 23e254b9c4c94024453ed4c475fedb309b85ef5ee2877b1aa94859cc9a11e566
 
 patch_directory = fastgltf
 

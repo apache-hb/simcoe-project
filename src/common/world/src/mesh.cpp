@@ -164,6 +164,8 @@ static void subdivide(Mesh& mesh) {
 static Mesh cube(const world::Cube &cube) {
     auto [w, h, d] = cube;
 
+    logs::gAssets.info("Creating cube mesh with dimensions: {}x{}x{}", w, h, d);
+
     MeshBuilder builder;
 
     builder.quad(

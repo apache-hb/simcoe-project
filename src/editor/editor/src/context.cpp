@@ -4,8 +4,6 @@
 
 #include "draw/draw.hpp"
 
-#include "game/game.hpp"
-
 #include "world/ecs.hpp"
 
 using namespace sm;
@@ -15,9 +13,12 @@ using namespace sm::math::literals;
 
 void EditorContext::imgui(graph::FrameGraph& graph, graph::Handle render_target) {
     graph::PassBuilder pass = graph.graphics("ImGui");
-    for (auto& camera : mCameras) {
-        pass.read(camera->target, camera->camera.name(), graph::Usage::ePixelShaderResource);
-    }
+    // for (auto& camera : mCameras) {
+    //     pass.read(camera->target, camera->camera.name(), graph::Usage::ePixelShaderResource);
+    // }
+
+    const ecs::CameraData *it = mCamera.get<ecs::CameraData>();
+    pass.read(it->target, "Target", graph::Usage::ePixelShaderResource);
 
     pass.write(render_target, "Target", graph::Usage::eRenderTarget);
 
@@ -36,12 +37,12 @@ void EditorContext::imgui(graph::FrameGraph& graph, graph::Handle render_target)
 EditorContext::EditorContext(const render::RenderConfig& config)
     : Super(config)
 {
-    push_camera({ 1920, 1080 });
+    // push_camera({ 1920, 1080 });
+
+    draw::init_ecs(*this, mSystem);
 }
 
 void EditorContext::init() {
-    draw::init_ecs(*this, mSystem);
-
     mCamera = mSystem.entity("camera")
         .set<world::ecs::Position>({ math::float3(0.f, 5.f, 10.f) })
         .set<world::ecs::Direction>({ math::float3(0.f, 0.f, 1.f) })
@@ -54,10 +55,10 @@ void EditorContext::init() {
 }
 
 void EditorContext::tick(float dt) {
-    for (auto& viewport : mCameras) {
-        auto& camera = viewport->camera;
-        camera.tick(dt);
-    }
+    // for (auto& viewport : mCameras) {
+    //     auto& camera = viewport->camera;
+    //     camera.tick(dt);
+    // }
 }
 
 void EditorContext::render() {
@@ -69,6 +70,7 @@ void EditorContext::render() {
     }
 }
 
+#if 0
 CameraData& EditorContext::add_camera() {
     auto& camera = push_camera({ 800, 600 });
 
@@ -102,6 +104,7 @@ void EditorContext::erase_camera(size_t index) {
 
     update_framegraph();
 }
+#endif
 
 void EditorContext::on_create() {
     index = mSrvPool.allocate();
@@ -121,9 +124,16 @@ void EditorContext::on_destroy() {
     ImGui_ImplWin32_Shutdown();
 }
 
+void EditorContext::on_setup() {
+    init();
+}
+
 void EditorContext::setup_framegraph(graph::FrameGraph& graph) {
     graph::Handle depth;
-    draw::opaque_ecs(graph, mSwapChainHandle, depth, mCamera, mSystem);
+    graph::Handle target;
+    draw::opaque_ecs(graph, target, depth, mCamera, mSystem);
+
+    mCamera.set<ecs::CameraData>({ target, depth });
 
 #if 0
     render::Viewport vp { getSwapChainSize() };

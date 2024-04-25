@@ -1,9 +1,9 @@
-[wrap-git]
+[wrap-file]
 directory = artery-font-format
 
-url = https://github.com/Chlumsky/artery-font-format
-revision = head
-depth = 1
+source_url = https://github.com/Chlumsky/artery-font-format/archive/34134bde3cea35a93c2ae5703fa8d3d463793400.zip
+source_filename = aff-mar5-2023.zip
+source_hash = 8daac3040a84d7c3b40ba73969fa9215e3d4e67448d461b63d2f982131af8003
 
 patch_directory = artery-font-format
 

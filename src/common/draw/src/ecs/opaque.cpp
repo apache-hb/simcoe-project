@@ -25,16 +25,19 @@ void draw::init_ecs(render::IDeviceContext &context, flecs::world& world) {
 
     // when a shape is added to the world, upload its mesh data to the gpu
     world.observer<const world::ecs::Shape>()
-        .event(flecs::OnAdd)
+        .event(flecs::OnSet)
         .each([&context](flecs::iter& it, size_t i, const world::ecs::Shape& shape) {
             flecs::entity entity = it.entity(i);
 
             world::Mesh mesh = std::visit([](auto it) { return world::primitive(it); }, shape.info);
             world::ecs::AABB aabb = std::visit([](auto it) { return world::ecs::bounds(it); }, shape.info);
 
-            entity.set(context.uploadIndexBuffer(std::move(mesh.indices)));
-            entity.set(context.uploadVertexBuffer(std::move(mesh.vertices)));
-            entity.set(aabb);
+            // TODO: find a way to batch these
+            context.upload([&] {
+                entity.set(context.uploadIndexBuffer(std::move(mesh.indices)));
+                entity.set(context.uploadVertexBuffer(std::move(mesh.vertices)));
+                entity.set(aabb);
+            });
         });
 
     // when a camera is added to the world, create the required device data
@@ -116,14 +119,6 @@ static void create_primitive_pipeline(
     }
 }
 
-static math::float4x4 getCameraView(math::float3 position, math::float3 direction) {
-    return math::float4x4::lookAtRH(position, direction, world::kVectorUp);
-}
-
-static math::float4x4 getCameraViewProjection(const world::ecs::Camera& camera) {
-    return math::float4x4::perspectiveRH(camera.fov, camera.getAspectRatio(), 0.1f, 100.f);
-}
-
 void draw::opaque_ecs(
     graph::FrameGraph &graph,
     graph::Handle &target,
@@ -131,8 +126,18 @@ void draw::opaque_ecs(
     flecs::entity camera,
     flecs::world &ecs)
 {
-    flecs::query updateObjectData = ecs.query<ecs::ObjectDeviceData, const world::ecs::Position, const world::ecs::Rotation, const world::ecs::Scale>();
-    flecs::query drawObjectData = ecs.query<const ecs::ObjectDeviceData, const render::ecs::IndexBuffer, const render::ecs::VertexBuffer>();
+    auto updateObjectData = ecs.query<
+        ecs::ObjectDeviceData,
+        const world::ecs::Position,
+        const world::ecs::Rotation,
+        const world::ecs::Scale
+    >();
+
+    auto drawObjectData = ecs.query<
+        const ecs::ObjectDeviceData,
+        const render::ecs::IndexBuffer,
+        const render::ecs::VertexBuffer
+    >();
 
     const world::ecs::Camera *it = camera.get<world::ecs::Camera>();
 
@@ -163,7 +168,7 @@ void draw::opaque_ecs(
         return info;
     });
 
-    pass.bind([&, target, depth, camera](graph::RenderContext& ctx) {
+    pass.bind([target, depth, camera, updateObjectData, drawObjectData, &data](graph::RenderContext& ctx) {
         auto& [device, graph, _, commands] = ctx;
 
         const world::ecs::Camera *it = camera.get<world::ecs::Camera>();
@@ -174,8 +179,8 @@ void draw::opaque_ecs(
 
         render::Viewport vp{it->window};
 
-        float4x4 v = getCameraView(position->position, direction->direction);
-        float4x4 p = getCameraViewProjection(*it);
+        float4x4 v = world::ecs::getViewMatrix(*position, *direction);
+        float4x4 p = it->getProjectionMatrix();
 
         dd->update(draw::ViewportData {
             .viewProjection = v * p,
@@ -202,16 +207,20 @@ void draw::opaque_ecs(
         commands->SetGraphicsRootConstantBufferView(eViewportBuffer, dd->getDeviceAddress());
 
         updateObjectData.iter([](flecs::iter& it, ecs::ObjectDeviceData *dd, const world::ecs::Position *position, const world::ecs::Rotation *rotation, const world::ecs::Scale *scale) {
-            float4x4 transform = math::float4x4::transform(position->position, rotation->rotation, scale->scale);
-            dd->update({ transform });
+            for (auto i : it) {
+                float4x4 transform = math::float4x4::transform(position[i].position, rotation[i].rotation, scale[i].scale);
+                dd[i].update({ transform });
+            }
         });
 
         drawObjectData.iter([&](flecs::iter& it, const ecs::ObjectDeviceData *dd, const render::ecs::IndexBuffer *ibo, const render::ecs::VertexBuffer *vbo) {
-            commands->SetGraphicsRootConstantBufferView(eObjectBuffer, dd->getDeviceAddress());
-            commands->IASetVertexBuffers(0, 1, &vbo->view);
-            commands->IASetIndexBuffer(&ibo->view);
+            for (auto i : it) {
+                commands->SetGraphicsRootConstantBufferView(eObjectBuffer, dd[i].getDeviceAddress());
+                commands->IASetVertexBuffers(0, 1, &vbo[i].view);
+                commands->IASetIndexBuffer(&ibo[i].view);
 
-            commands->DrawIndexedInstanced(ibo->length, 1, 0, 0, 0);
+                commands->DrawIndexedInstanced(ibo[i].length, 1, 0, 0, 0);
+            }
         });
     });
 }

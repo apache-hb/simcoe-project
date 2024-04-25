@@ -3,6 +3,7 @@ world_include = include_directories('.', 'include')
 src = [
     'src/mesh.cpp',
     'src/world.cpp',
+    'src/ecs.cpp',
 
     reflect.process('data/world.ct')
 ]

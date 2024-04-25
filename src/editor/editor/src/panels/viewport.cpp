@@ -1,7 +1,10 @@
-#include "std/str.h"
 #include "stdafx.hpp"
 
+#include "std/str.h"
+
 #include "editor/panels/viewport.hpp"
+
+#include "world/ecs.hpp"
 
 using namespace sm;
 using namespace sm::math;
@@ -31,14 +34,17 @@ static ImGuizmo::OPERATION set_transform_bit(ImGuizmo::OPERATION op, ImGuizmo::O
     return op;
 }
 
+[[maybe_unused]]
 static ImGuizmo::OPERATION set_x(ImGuizmo::OPERATION op) {
     return set_transform_bit(op, ImGuizmo::TRANSLATE_X, ImGuizmo::ROTATE_X, ImGuizmo::SCALE_X);
 }
 
+[[maybe_unused]]
 static ImGuizmo::OPERATION set_y(ImGuizmo::OPERATION op) {
     return set_transform_bit(op, ImGuizmo::TRANSLATE_Y, ImGuizmo::ROTATE_Y, ImGuizmo::SCALE_Y);
 }
 
+[[maybe_unused]]
 static ImGuizmo::OPERATION set_z(ImGuizmo::OPERATION op) {
     return set_transform_bit(op, ImGuizmo::TRANSLATE_Z, ImGuizmo::ROTATE_Z, ImGuizmo::SCALE_Z);
 }
@@ -93,9 +99,9 @@ static OverlayPos get_overlay_position(OverlayPosition overlay, float2 size, flo
 }
 
 void ViewportPanel::draw_window() {
-    const auto& camera = get_camera();
+    // const auto& camera = get_camera();
 
-    if (!camera.is_active()) {
+    if constexpr (false) {
         // blender keybinds
         if (ImGui::IsKeyPressed(ImGuiKey_G))
             mOperation = mTranslateOperation;
@@ -168,16 +174,19 @@ void ViewportPanel::draw_window() {
 }
 
 void ViewportPanel::draw_content() {
-    auto& camera = get_camera();
+    // auto& camera = get_camera();
     auto& context = *mContext;
 
     float2 avail = ImGui::GetContentRegionAvail();
+
+#if 0
     if (mScaleViewport) {
         uint2 sz = avail.as<uint>();
         if (camera.resize(sz)) {
             context.update_framegraph();
         }
     }
+#endif
 
     auto srv = context.mFrameGraph.srv(get_target());
     auto idx = context.mSrvPool.gpu_handle(srv);
@@ -213,8 +222,10 @@ void ViewportPanel::draw_content() {
     float matrix[16];
     ImGuizmo::RecomposeMatrixFromComponents(t.data(), euler.data(), s.data(), matrix);
 
-    float4x4 view = camera.view();
-    float4x4 proj = camera.projection(size.width / size.height);
+    const world::ecs::Camera *info = mCamera.get<world::ecs::Camera>();
+
+    float4x4 view = world::ecs::getViewMatrix(*mCamera.get<world::ecs::Position>(), *mCamera.get<world::ecs::Direction>());
+    float4x4 proj = info->getProjectionMatrix();
 
     if (ImGuizmo::Manipulate(view.data(), proj.data(), mOperation, mMode, matrix)) {
         float3 t, r, s;
@@ -266,9 +277,9 @@ void ViewportPanel::gizmo_settings_panel() {
     }
 }
 
-ViewportPanel::ViewportPanel(ed::EditorContext *context, ed::CameraData *camera)
+ViewportPanel::ViewportPanel(ed::EditorContext *context, flecs::entity camera)
     : mContext(context)
     , mCamera(camera)
 {
-    mName = get_camera().name();
+    mName = camera.name();
 }

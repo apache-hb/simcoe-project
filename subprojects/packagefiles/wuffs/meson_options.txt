@@ -1,0 +1,34 @@
+option('magic', type : 'boolean', value : true)
+
+# conversion functions
+option('intconv', type : 'boolean', value : true)
+option('floatconv', type : 'boolean', value : true)
+option('pixconv', type : 'boolean', value : true)
+
+# hash functions
+option('adler32', type : 'boolean', value : true)
+option('crc32', type : 'boolean', value : true)
+
+# image formats
+option('bmp', type : 'boolean', value : true)
+option('gif', type : 'boolean', value : true)
+option('nie', type : 'boolean', value : true)
+option('png', type : 'boolean', value : true)
+option('tga', type : 'boolean', value : true)
+option('wbmp', type : 'boolean', value : true)
+
+# compression formats
+option('bzip2', type : 'boolean', value : true)
+option('gzip', type : 'boolean', value : true)
+option('zlib', type : 'boolean', value : true)
+option('deflate', type : 'boolean', value : true)
+option('lzw', type : 'boolean', value : true)
+
+# serialization formats
+option('json', type : 'boolean', value : true)
+option('cbor', type : 'boolean', value : true)
+
+option('aux-base', type : 'boolean', value : true)
+option('aux-cbor', type : 'boolean', value : true)
+option('aux-image', type : 'boolean', value : true)
+option('aux-json', type : 'boolean', value : true)
