@@ -6,7 +6,7 @@ using namespace sm;
 using namespace sm::world;
 
 math::float4x4 ecs::getViewMatrix(ecs::Position position, ecs::Direction direction) {
-    return math::float4x4::lookAtRH(position.position, direction.direction, world::kVectorUp);
+    return math::float4x4::lookToRH(position.position, direction.direction, world::kVectorUp);
 }
 
 math::float4x4 ecs::Camera::getProjectionMatrix() const {

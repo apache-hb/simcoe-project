@@ -4,6 +4,8 @@
 
 #include "draw/draw.hpp"
 
+#include "math/format.hpp"
+
 #include <directx/d3dx12_core.h>
 #include <directx/d3dx12_root_signature.h>
 
@@ -11,7 +13,7 @@ using namespace sm;
 
 using namespace sm::math::literals;
 
-void draw::init_ecs(render::IDeviceContext &context, flecs::world& world) {
+void draw::ecs::initObjectObservers(flecs::world& world, render::IDeviceContext &context) {
 
     // when an object is added to the world, create the required device data
     // to draw it
@@ -119,21 +121,15 @@ static void create_primitive_pipeline(
     }
 }
 
-void draw::opaque_ecs(
-    graph::FrameGraph &graph,
-    graph::Handle &target,
-    graph::Handle &depth,
-    flecs::entity camera,
-    flecs::world ecs)
-{
-    static flecs::query updateObjectData = ecs.query<
+void draw::ecs::opaque(flecs::world& world, graph::FrameGraph& graph, graph::Handle& target, graph::Handle& depth, flecs::entity camera) {
+    static flecs::query updateObjectData = world.query<
         ecs::ObjectDeviceData,
         const world::ecs::Position,
         const world::ecs::Rotation,
         const world::ecs::Scale
     >();
 
-    static flecs::query drawObjectData = ecs.query<
+    static flecs::query drawObjectData = world.query<
         const ecs::ObjectDeviceData,
         const render::ecs::IndexBuffer,
         const render::ecs::VertexBuffer
@@ -174,16 +170,14 @@ void draw::opaque_ecs(
         const world::ecs::Camera *it = camera.get<world::ecs::Camera>();
         ecs::ViewportDeviceData *dd = camera.get_mut<ecs::ViewportDeviceData>();
 
-        const world::ecs::Position *position = camera.get<world::ecs::Position>();
-        const world::ecs::Direction *direction = camera.get<world::ecs::Direction>();
+        camera.get([&](const world::ecs::Position& pos, const world::ecs::Direction& dir) {
+            float4x4 v = world::ecs::getViewMatrix(pos, dir);
+            float4x4 p = it->getProjectionMatrix();
+            // logs::gGlobal.info("Draw Camera {}: {:.3f}, front: {:.3f}", camera.name().c_str(), pos.position, dir.direction);
 
-        render::Viewport vp{it->window};
-
-        float4x4 v = world::ecs::getViewMatrix(*position, *direction);
-        float4x4 p = it->getProjectionMatrix();
-
-        dd->update(draw::ViewportData {
-            .viewProjection = v * p,
+            dd->update(draw::ViewportData {
+                .viewProjection = (v * p).transpose(),
+            });
         });
 
         auto rtv = graph.rtv(target);
@@ -192,11 +186,13 @@ void draw::opaque_ecs(
         auto rtvHostHandle = device.mRtvPool.cpu_handle(rtv);
         auto dsvHostHandle = device.mDsvPool.cpu_handle(dsv);
 
+        render::Viewport viewport{it->window};
+
         commands->SetGraphicsRootSignature(*data.pipeline.signature);
         commands->SetPipelineState(*data.pipeline.pso);
 
-        commands->RSSetViewports(1, &vp.mViewport);
-        commands->RSSetScissorRects(1, &vp.mScissorRect);
+        commands->RSSetViewports(1, &viewport.mViewport);
+        commands->RSSetScissorRects(1, &viewport.mScissorRect);
 
         commands->OMSetRenderTargets(1, &rtvHostHandle, false, &dsvHostHandle);
         commands->ClearRenderTargetView(rtvHostHandle, render::kClearColour.data(), 0, nullptr);
@@ -209,7 +205,7 @@ void draw::opaque_ecs(
         updateObjectData.iter([](flecs::iter& it, ecs::ObjectDeviceData *dd, const world::ecs::Position *position, const world::ecs::Rotation *rotation, const world::ecs::Scale *scale) {
             for (auto i : it) {
                 float4x4 transform = math::float4x4::transform(position[i].position, rotation[i].rotation, scale[i].scale);
-                dd[i].update({ transform });
+                dd[i].update({ transform.transpose() });
             }
         });
 

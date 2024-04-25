@@ -131,16 +131,10 @@ namespace sm::draw {
         graph::Handle& depth,
         const Camera& camera);
 
-    void init_ecs(
-        render::IDeviceContext &context,
-        flecs::world& ecs);
-
-    void opaque_ecs(
-        graph::FrameGraph& graph,
-        graph::Handle& target,
-        graph::Handle& depth,
-        flecs::entity camera,
-        flecs::world ecs);
+    namespace ecs {
+        void initObjectObservers(flecs::world& world, render::IDeviceContext &context);
+        void opaque(flecs::world& world, graph::FrameGraph& graph, graph::Handle& target, graph::Handle& depth, flecs::entity camera);
+    }
 
     ///
     /// other passes

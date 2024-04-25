@@ -24,6 +24,13 @@ math::float2 InputState::button_axis2d(ButtonAxis horizontal, ButtonAxis vertica
     return {h, v};
 }
 
+math::float3 InputState::button_axis3d(ButtonAxis horizontal, ButtonAxis vertical, ButtonAxis depth) const {
+    float h = button_axis(horizontal);
+    float v = button_axis(vertical);
+    float d = button_axis(depth);
+    return {h, v, d};
+}
+
 float InputState::axis(Axis id) const {
     return axes[id.as_integral()];
 }

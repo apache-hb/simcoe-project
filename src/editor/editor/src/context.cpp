@@ -15,7 +15,7 @@ using namespace sm::math::literals;
 void EditorContext::imgui(graph::FrameGraph& graph, graph::Handle target) {
     graph::PassBuilder pass = graph.graphics("ImGui");
 
-    static flecs::query q = mSystem.query<ecs::CameraData>();
+    static flecs::query q = mSystem.query_builder<ecs::CameraData>().in().build();
     q.each([&](ecs::CameraData& camera) {
         pass.read(camera.target, "Target", graph::Usage::ePixelShaderResource);
     });
@@ -37,12 +37,12 @@ void EditorContext::imgui(graph::FrameGraph& graph, graph::Handle target) {
 EditorContext::EditorContext(const render::RenderConfig& config)
     : Super(config)
 {
-    draw::init_ecs(*this, mSystem);
-    ecs::initWindowComponents(mSystem);
+    draw::ecs::initObjectObservers(getWorld(), *this);
+    ecs::initWindowComponents(getWorld());
 }
 
 void EditorContext::init() {
-    mCamera = ecs::addCamera(mSystem, "Default Camera", { 0.f, 5.f, 10.f }, { 0.f, 0.f, 1.f });
+    mCamera = ecs::addCamera(getWorld(), "Default Camera", { 0.f, 5.f, 10.f }, { 0.f, 0.f, 1.f });
 
     // whenever a camera is added or removed, the framegraph needs to be rebuilt
     // do this after adding the first camera to avoid rebuilding the framegraph twice
@@ -107,7 +107,7 @@ void EditorContext::setup_framegraph(graph::FrameGraph& graph) {
             logs::gGlobal.info("Adding camera pass: {}", entity.name().c_str());
             graph::Handle target;
             graph::Handle depth;
-            draw::opaque_ecs(graph, target, depth, entity, entity.world());
+            draw::ecs::opaque(getWorld(), graph, target, depth, entity);
 
             entity.set<ecs::CameraData>({ target, depth });
         });

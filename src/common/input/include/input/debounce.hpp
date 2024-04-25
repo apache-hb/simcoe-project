@@ -12,18 +12,6 @@ namespace sm::input {
             : mButton(button)
         { }
 
-        bool is_pressed(const InputState& state) {
-            if (state.buttons[mButton] == 0) {
-                mAcceptedValue = 0;
-                return false;
-            }
-
-            if (state.buttons[mButton] != mAcceptedValue) {
-                mAcceptedValue = state.buttons[mButton];
-                return true;
-            }
-
-            return false;
-        }
+        bool isPressed(const InputState& state);
     };
 }

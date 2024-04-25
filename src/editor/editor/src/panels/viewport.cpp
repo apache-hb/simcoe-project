@@ -19,8 +19,6 @@ REFLECT_ENUM_BITFLAGS(ImGuizmo::OPERATION, int);
 
 struct PrimaryViewport { flecs::entity entity; }; // is this the primary (currently focused) viewport?
 
-struct ScaleWindowContent { bool scale; };
-
 static bool isModeTranslate(ImGuizmo::OPERATION op) {
     return op & ImGuizmo::TRANSLATE;
 }
@@ -77,7 +75,10 @@ static void drawRotateMode(ImGuizmo::OPERATION operation) {
     }
 }
 
-struct GizmoOperation {
+struct ViewportSettings {
+    // scaling settings
+    bool scaleToViewport = true;
+
     // overlay panel settings
     OverlayPosition position = eOverlayTopLeft;
 
@@ -402,11 +403,9 @@ void ecs::initWindowComponents(flecs::world &world) {
         .each([](flecs::iter& it, size_t i) {
             flecs::entity entity = it.entity(i);
             if (it.event() == flecs::OnAdd) {
-                entity.set<ScaleWindowContent>({ true });
-                entity.set<GizmoOperation>({});
+                entity.set<ViewportSettings>({});
             } else if (it.event() == flecs::OnRemove) {
-                entity.remove<ScaleWindowContent>();
-                entity.remove<GizmoOperation>();
+                entity.remove<ViewportSettings>();
             }
         });
 }
@@ -429,12 +428,12 @@ flecs::entity ecs::getPrimaryCamera(flecs::world& world) {
 }
 
 size_t ecs::getCameraCount(flecs::world& world) {
-    static flecs::query q = world.query_builder().with<world::ecs::Camera>().build();
+    static flecs::query q = world.query_builder().with<world::ecs::Camera>().in().build();
     return q.count();
 }
 
 void ecs::drawViewportWindows(render::IDeviceContext& ctx, flecs::world& world) {
-    static flecs::query q = world.query<ecs::CameraData, GizmoOperation>();
+    static flecs::query q = world.query<ecs::CameraData, ViewportSettings>();
 
     static constexpr ImGuiWindowFlags kWindowFlags
         = ImGuiWindowFlags_NoScrollbar
@@ -455,7 +454,7 @@ void ecs::drawViewportWindows(render::IDeviceContext& ctx, flecs::world& world) 
         | ImGuiWindowFlags_NoNav
         | ImGuiWindowFlags_NoMove;
 
-    q.each([&](flecs::entity entity, ecs::CameraData& data, GizmoOperation& gizmo) {
+    q.each([&](flecs::entity entity, ecs::CameraData& data, ViewportSettings& gizmo) {
         flecs::string_view name = entity.name();
         render::SrvIndex target = ctx.mFrameGraph.srv(data.target);
         D3D12_GPU_DESCRIPTOR_HANDLE handle = ctx.mSrvPool.gpu_handle(target);
@@ -476,15 +475,31 @@ void ecs::drawViewportWindows(render::IDeviceContext& ctx, flecs::world& world) 
 
             drawViewportContent(entity, handle, true);
 
-            auto [position, pivot] = getOverlayPosition(gizmo.position, avail, cursor);
-            ImGui::SetNextWindowPos(position, ImGuiCond_Always, pivot);
-            ImGui::SetNextWindowBgAlpha(0.35f);
+            {
+                auto [position, pivot] = getOverlayPosition(gizmo.position, avail, cursor);
+                ImGui::SetNextWindowPos(position, ImGuiCond_Always, pivot);
+                ImGui::SetNextWindowBgAlpha(0.35f);
 
-            if (ImGui::BeginChild("Gizmo Settings", ImVec2(0, 0), kOverlayChildFlags)) {
-                gizmo.drawSettings();
-                gizmo.drawLocationPopup();
+                if (ImGui::BeginChild("Gizmo Settings", ImVec2(0, 0), kOverlayChildFlags)) {
+                    gizmo.drawSettings();
+                    gizmo.drawLocationPopup();
+                }
+                ImGui::EndChild();
             }
-            ImGui::EndChild();
+
+            {
+                auto [position, pivot] = getOverlayPosition(eOverlayBottomRight, avail, cursor);
+                ImGui::SetNextWindowPos(position, ImGuiCond_Always, pivot);
+                ImGui::SetNextWindowBgAlpha(0.35f);
+
+                if (ImGui::BeginChild("Camera Info", ImVec2(0, 0), kOverlayChildFlags)) {
+                    entity.get([&](const world::ecs::Position& pos, const world::ecs::Direction& dir) {
+                        ImGui::Text("Position: %.3f, %.3f, %.3f", pos.position.x, pos.position.y, pos.position.z);
+                        ImGui::Text("Direction: %.3f, %.3f, %.3f", dir.direction.x, dir.direction.y, dir.direction.z);
+                    });
+                }
+                ImGui::EndChild();
+            }
         }
         ImGui::End();
     });

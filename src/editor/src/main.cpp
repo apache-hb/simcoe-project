@@ -1,9 +1,8 @@
-#include "draw/draw.hpp"
 #include "editor/panels/viewport.hpp"
+#include "input/delta.hpp"
 #include "stdafx.hpp"
 
 #include "system/input.hpp"
-#include "input/debounce.hpp"
 #include "system/system.hpp"
 #include "core/timer.hpp"
 
@@ -21,9 +20,8 @@
 #include "editor/draw.hpp"
 #include "render/render.hpp"
 
-#include "game/game.hpp"
-
 #include "world/ecs.hpp"
+#include "game/ecs.hpp"
 
 using namespace sm;
 using namespace sm::math;
@@ -254,220 +252,47 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     events.attach_render(&context);
 
     flecs::world& world = context.getWorld();
+    world.import<flecs::monitor>();
+    world.set<flecs::Rest>({});
+
+    world.component<math::degf>()
+        .member<float>("degrees");
+
+    world.component<math::radf>()
+        .member<float>("radians");
+
+    world.component<math::float3>()
+        .member<float>("x")
+        .member<float>("y")
+        .member<float>("z");
+
+    world.component<math::quatf>()
+        .member<math::float3>("v")
+        .member<float>("angle");
+
+    game::ecs::initCameraSystems(world);
 
     context.create();
 
-    world.entity("player")
+    world.entity("Player")
         .set<world::ecs::Position>({ float3(0.f, 3.f, 0.f) })
         .set<world::ecs::Rotation>({ quatf::identity() })
         .set<world::ecs::Scale>({ 1.f })
         .add<world::ecs::Object>()
         .set<world::ecs::Shape>({ world::Cylinder{ 0.7f, 1.3f, 8 } });
 
-    world.entity("floor")
+    world.entity("Floor")
         .set<world::ecs::Position>({ float3(0.f, 0.f, 0.f) })
         .set<world::ecs::Rotation>({ quatf::identity() })
         .set<world::ecs::Scale>({ 1.f })
         .add<world::ecs::Object>()
         .set<world::ecs::Shape>({ world::Cube{ 15.f, 1.f, 15.f } });
 
-    // auto& world = context.mWorld;
-
-    // game::Context game = game::init(world, context.getCamera());
-
     ed::Editor editor{context};
-
-#if 0
-    world::Cube floorShape = { .width = 15.f, .height = 1.f, .depth = 15.f };
-    world::Sphere bodyShape = { .radius = 1.f, .slices = 8, .stacks = 8 };
-
-    world::Cube wallShape = { .width = 1.f, .height = 2.f, .depth = 1.f };
-
-    world::Cylinder playerShape = { .radius = 0.7f, .height = 1.3f, .slices = 8 };
-
-    game::PhysicsBody floor = game.addPhysicsBody(floorShape, 0.f, quatf::identity());
-    game::PhysicsBody body = game.addPhysicsBody(bodyShape, world::kVectorUp * 5.f, quatf::identity(), true);
-    game::CharacterBody player = game.addCharacterBody(playerShape, float3(0.f, 5.f, 10.f), quatf::identity(), true);
-
-    player.setUpVector(world::kVectorUp);
-
-    IndexOf<world::Material> groundMaterial = world.add(world::Material {
-        .name = "Ground Material",
-        .albedo = float3(0.5f, 0.5f, 0.5f)
-    });
-
-    IndexOf<world::Material> wallMaterial = world.add(world::Material {
-        .name = "Wall Material",
-        .albedo = float3(0.5f, 0.5f, 0.5f)
-    });
-
-    IndexOf<world::Material> bodyMaterial = world.add(world::Material {
-        .name = "Body Material",
-        .albedo = float3(0.5f, 0.5f, 0.5f)
-    });
-
-    IndexOf<world::Model> floorModel;
-    IndexOf<world::Model> bodyModel;
-    IndexOf<world::Model> playerModel;
-    IndexOf<world::Model> wallModel;
-
-    context.upload([&] {
-        floorModel = world.add(world::Model {
-            .name = "Floor Model",
-            .mesh = floorShape,
-            .material = groundMaterial
-        });
-
-        bodyModel = world.add(world::Model {
-            .name = "Body Model",
-            .mesh = bodyShape,
-            .material = bodyMaterial
-        });
-
-        playerModel = world.add(world::Model {
-            .name = "Player Model",
-            .mesh = playerShape,
-            .material = bodyMaterial
-        });
-
-        wallModel = world.add(world::Model {
-            .name = "Wall Model",
-            .mesh = wallShape,
-            .material = wallMaterial
-        });
-
-        context.upload_model(floorModel);
-        context.upload_model(bodyModel);
-        context.upload_model(playerModel);
-        context.upload_model(wallModel);
-    });
-
-    IndexOf<world::Node> floorNode = world.addNode(world::Node {
-        .parent = context.get_scene().root,
-        .name = "Floor",
-        .transform = {
-            .position = 0.f,
-            .rotation = quatf::identity(),
-            .scale = 1.f
-        },
-        .models = { floorModel }
-    });
-
-    IndexOf<world::Node> bodyNode = world.addNode(world::Node {
-        .parent = context.get_scene().root,
-        .name = "Body",
-        .transform = {
-            .position = world::kVectorUp * 5.f,
-            .rotation = quatf::identity(),
-            .scale = 1.f
-        },
-        .models = { bodyModel }
-    });
-
-    IndexOf<world::Node> playerNode = world.addNode(world::Node {
-        .parent = context.get_scene().root,
-        .name = "Player",
-        .transform = {
-            .position = float3(0.f, 4.f, 0.f),
-            .rotation = quatf::identity(),
-            .scale = 1.f
-        },
-        .models = { playerModel }
-    });
-
-    std::string_view walls = ""
-        "1111111111"
-        "1010000001"
-        "1011110001"
-        "1000100001"
-        "1110100011"
-        "1000111001"
-        "1000000001"
-        "1111111111"
-    ;
-
-    for (int i = 0; i < 8; i++) {
-        for (int j = 0; j < 10; j++) {
-            if (walls[i * 10 + j] == '1') {
-                float3 pos = float3((j - 5) * 2, 2.5f, (i - 4) * 2);
-                IndexOf wall = world.addNode(world::Node {
-                    .parent = context.get_scene().root,
-                    .name = "Wall",
-                    .transform = {
-                        .position = pos,
-                        .rotation = quatf::identity(),
-                        .scale = 1.f
-                    },
-                    .models = { wallModel }
-                });
-
-                game::PhysicsBody wallBody = game.addPhysicsBody(wallShape, pos, quatf::identity(), false);
-                editor.addPhysicsBody(wall, std::move(wallBody));
-            }
-        }
-    }
-
-    context.upload([&] {
-        for (int i = 0; i < 32; i++) {
-            float randx = (rand() % 16) - 8;
-            float randy = (rand() % 16) - 8;
-            float height = 6.f;
-
-            float radius = 0.5f + (rand() % 10) / 10.f;
-
-            float3 pos = float3(randx, height, randy);
-            world::Sphere shape = { radius, 8, 8 };
-            IndexOf sphere = world.add(world::Model {
-                .name = "Sphere",
-                .mesh = shape,
-                .material = bodyMaterial
-            });
-
-            IndexOf it = world.addNode(world::Node {
-                .parent = context.get_scene().root,
-                .name = "Sphere",
-                .transform = {
-                    .position = pos,
-                    .rotation = quatf::identity(),
-                    .scale = 1.f
-                },
-                .models = { sphere }
-            });
-
-            game::PhysicsBody body = game.addPhysicsBody(shape, pos, quatf::identity(), true);
-            body.activate();
-            editor.addPhysicsBody(it, std::move(body));
-
-            context.upload_model(sphere);
-        }
-    });
-#endif
 
     Ticker clock;
 
-#if 0
-    input::Debounce jump{input::Button::eSpace};
-
-    {
-        float3 p = float3(0.f, 3.f, 23.f);
-        IndexOf groundNode = world.addNode(world::Node {
-            .parent = context.get_scene().root,
-            .name = "Ground",
-            .transform = {
-                .position = p,
-                .rotation = quatf::identity(),
-                .scale = 1.f
-            },
-            .models = { floorModel }
-        });
-
-        game::PhysicsBody ground = game.addPhysicsBody(floorShape, p, quatf::identity());
-        editor.addPhysicsBody(groundNode, std::move(ground));
-    }
-
-    editor.addPhysicsBody(floorNode, std::move(floor));
-    editor.addPhysicsBody(bodyNode, std::move(body));
-#endif
+    input::Toggle cameraActive = false;
 
     bool done = false;
     while (!done) {
@@ -485,66 +310,19 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
         float dt = clock.tick();
 
+        const auto& state = context.input.getState();
+        if (cameraActive.update(state.buttons[(size_t)input::Button::eTilde])) {
+            context.input.capture_cursor(cameraActive.is_active());
+            sys::mouse::set_visible(!cameraActive.is_active());
+        }
+
+        if (cameraActive.is_active()) {
+            if (flecs::entity camera = ed::ecs::getPrimaryCamera(world)) {
+                game::ecs::updateCamera(camera, dt, state);
+            }
+        }
+
         world.progress(dt);
-
-        auto& state = context.input.get_state();
-        static constexpr input::ButtonAxis kMoveForward = {input::Button::eW, input::Button::eS};
-        static constexpr input::ButtonAxis kMoveStrafe =  {input::Button::eD, input::Button::eA};
-
-        float2 move = state.button_axis2d(kMoveStrafe, kMoveForward);
-        flecs::entity camera = ed::ecs::getPrimaryCamera(world);
-
-        if (camera.is_valid()) {
-            const world::ecs::Direction *dir = camera.get<world::ecs::Direction>();
-            const world::ecs::Position *pos = camera.get<world::ecs::Position>();
-            float3 right = float3::cross(dir->direction, world::kVectorUp).normalized();
-            float3 moveInput = dir->direction * -move.y + right * -move.x;
-
-            camera.set<world::ecs::Position>({ pos->position + moveInput * dt });
-        }
-
-#if 0
-        player.postUpdate();
-        editor.update();
-
-
-        world::Node& playerNodeInfo = world.get(playerNode);
-
-
-
-        // rotate moveInput to face the direction the player is facing
-
-
-
-        if (player.isOnSteepSlope() || player.isNotSupported()) {
-            float3 normal = player.getGroundNormal();
-            normal.y = 0.f;
-            float dot = float3::dot(normal, moveInput);
-            if (dot < 0.f)
-                moveInput -= (dot * normal) / normal.length_squared();
-        }
-
-        if (player.isSupported()) {
-            float3 current = player.getLinearVelocity();
-            float3 desired = 6.f * moveInput;
-            desired.y = current.y;
-            float3 newVelocity = 0.75f * current + 0.25f * desired;
-
-            if (jump.is_pressed(state) && player.isOnGround())
-                newVelocity += 8.f * world::kVectorUp;
-
-            player.setLinearVelocity(newVelocity);
-        }
-
-        // player.setLinearVelocity(velocity);
-
-        playerNodeInfo.transform.position = player.getPosition();
-        playerNodeInfo.transform.rotation = player.getRotation();
-
-        // camera.set<world::ecs::Position>({ player.getPosition() + world::kVectorUp * 2 });
-
-        // context.get_active_camera().set
-#endif
 
         editor.begin_frame();
 

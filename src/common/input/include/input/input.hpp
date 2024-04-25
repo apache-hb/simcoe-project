@@ -27,6 +27,7 @@ namespace sm::input {
 
         float button_axis(ButtonAxis pair) const;
         math::float2 button_axis2d(ButtonAxis horizontal, ButtonAxis vertical) const;
+        math::float3 button_axis3d(ButtonAxis horizontal, ButtonAxis vertical, ButtonAxis depth) const;
 
         float axis(Axis id) const;
         math::float2 axis2d(Axis horizontal, Axis vertical) const;
@@ -72,6 +73,6 @@ namespace sm::input {
 
         void poll();
 
-        const InputState& get_state() const { return mState; }
+        const InputState& getState() const { return mState; }
     };
 }
