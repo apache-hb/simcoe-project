@@ -273,23 +273,25 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .member<math::float3>("v")
         .member<float>("angle");
 
+    world::ecs::initSystems(world);
     game::ecs::initCameraSystems(world);
 
     context.create();
 
-    world.entity("Player")
-        .set<world::ecs::Position>({ float3(0.f, 3.f, 0.f) })
-        .set<world::ecs::Rotation>({ quatf::identity() })
-        .set<world::ecs::Scale>({ 1.f })
-        .add<world::ecs::Object>()
-        .set<world::ecs::Shape>({ world::Cylinder{ 0.7f, 1.3f, 8 } });
-
-    world.entity("Floor")
-        .set<world::ecs::Position>({ float3(0.f, 0.f, 0.f) })
+    flecs::entity floor = world.entity("Floor")
+        .set<world::ecs::Position, world::ecs::Local>({ float3(0.f, 0.f, 0.f) })
         .set<world::ecs::Rotation>({ quatf::identity() })
         .set<world::ecs::Scale>({ 1.f })
         .add<world::ecs::Object>()
         .set<world::ecs::Shape>({ world::Cube{ 15.f, 1.f, 15.f } });
+
+    world.entity("Player")
+        .child_of(floor)
+        .set<world::ecs::Position, world::ecs::Local>({ float3(0.f, 1.f, 0.f) })
+        .set<world::ecs::Rotation>({ quatf::identity() })
+        .set<world::ecs::Scale>({ 1.f })
+        .add<world::ecs::Object>()
+        .set<world::ecs::Shape>({ world::Cylinder{ 0.7f, 1.3f, 8 } });
 
     ed::Editor editor{context};
 

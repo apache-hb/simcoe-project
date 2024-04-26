@@ -151,7 +151,9 @@ static constexpr auto kMouseY = (size_t)input::Axis::eMouseY;
 
 bool DesktopInput::poll_mouse(input::InputState& state) {
     auto pos = get_mouse_position(mWindow.get_handle());
-    if (pos == mMousePosition) return false;
+
+    // TODO: maybe add this back in if the ecs system doesnt work out
+    // if (pos == mMousePosition) return false;
 
     auto delta = pos - mMousePosition;
 

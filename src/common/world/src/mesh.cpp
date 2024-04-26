@@ -169,45 +169,45 @@ static Mesh cube(const world::Cube &cube) {
     MeshBuilder builder;
 
     builder.quad(
-        {.position = {-w, h, -d}, .uv = {0, 1}},
-        {.position = {-w, h, d}, .uv = {0, 0}},
+        {.position = {-w, -h, -d}, .uv = {1, 1}},
         {.position = {-w, -h, d}, .uv = {1, 0}},
-        {.position = {-w, -h, -d}, .uv = {1, 1}}
+        {.position = {-w, h, d}, .uv = {0, 0}},
+        {.position = {-w, h, -d}, .uv = {0, 1}}
     ); // back
 
     builder.quad(
-        {.position = {w, -h, -d}, .uv = {0, 1}},
-        {.position = {w, -h, d}, .uv = {0, 0}},
+        {.position = {w, h, -d}, .uv = {1, 1}},
         {.position = {w, h, d}, .uv = {1, 0}},
-        {.position = {w, h, -d}, .uv = {1, 1}}
+        {.position = {w, -h, d}, .uv = {0, 0}},
+        {.position = {w, -h, -d}, .uv = {0, 1}}
     ); // front
 
     builder.quad(
-        {.position = {-w, -h, -d}, .uv = {0, 1}},
-        {.position = {-w, -h, d}, .uv = {0, 0}},
+        {.position = {w, -h, -d}, .uv = {1, 1}},
         {.position = {w, -h, d}, .uv = {1, 0}},
-        {.position = {w, -h, -d}, .uv = {1, 1}}
+        {.position = {-w, -h, d}, .uv = {0, 0}},
+        {.position = {-w, -h, -d}, .uv = {0, 1}}
     ); // left
 
     builder.quad(
-        {.position = {w, h, -d}, .uv = {0, 1}},
-        {.position = {w, h, d}, .uv = {0, 0}},
+        {.position = {-w, h, -d}, .uv = {1, 1}},
         {.position = {-w, h, d}, .uv = {1, 0}},
-        {.position = {-w, h, -d}, .uv = {1, 1}}
+        {.position = {w, h, d}, .uv = {0, 0}},
+        {.position = {w, h, -d}, .uv = {0, 1}}
     ); // right
 
     builder.quad(
-        {.position = {w, -h, -d}, .uv = {0, 1}},
-        {.position = {w, h, -d}, .uv = {0, 0}},
+        {.position = {-w, -h, -d}, .uv = {1, 1}},
         {.position = {-w, h, -d}, .uv = {1, 0}},
-        {.position = {-w, -h, -d}, .uv = {1, 1}}
+        {.position = {w, h, -d}, .uv = {0, 0}},
+        {.position = {w, -h, -d}, .uv = {0, 1}}
     ); // bottom
 
     builder.quad(
-        {.position = {-w, -h, d}, .uv = {0, 1}},
-        {.position = {-w, h, d}, .uv = {0, 0}},
+        {.position = {w, -h, d}, .uv = {1, 1}},
         {.position = {w, h, d}, .uv = {1, 0}},
-        {.position = {w, -h, d}, .uv = {1, 1}}
+        {.position = {-w, h, d}, .uv = {0, 0}},
+        {.position = {-w, -h, d}, .uv = {0, 1}}
     ); // top
 
     return builder.build();
@@ -293,7 +293,7 @@ static Mesh cylinder(const world::Cylinder& cylinder) {
                 .uv = math::float2(0.5f, 0)
             };
 
-            builder.triangle(v0, v1, v2);
+            builder.triangle(v0, v2, v1);
         }
 
         // make bottom half of the cylinder
@@ -311,7 +311,7 @@ static Mesh cylinder(const world::Cylinder& cylinder) {
                 .uv = math::float2(0.5f, 1)
             };
 
-            builder.triangle(v0, v2, v1);
+            builder.triangle(v0, v1, v2);
         }
 
         // make body
@@ -333,7 +333,7 @@ static Mesh cylinder(const world::Cylinder& cylinder) {
                 .uv = math::float2(float(i + 1) / float(slices), 1)
             };
 
-            builder.quad(v0, v1, v3, v2);
+            builder.quad(v2, v3, v1, v0);
         }
     }
 

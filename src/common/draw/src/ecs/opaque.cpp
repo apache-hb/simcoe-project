@@ -99,7 +99,7 @@ static void create_primitive_pipeline(
             { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(world::Vertex, uv), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         };
 
-        const D3D12_GRAPHICS_PIPELINE_STATE_DESC kDesc = {
+        const D3D12_GRAPHICS_PIPELINE_STATE_DESC kPipelineDesc = {
             .pRootSignature = pipeline.signature.get(),
             .VS = CD3DX12_SHADER_BYTECODE(vs.data(), vs.size()),
             .PS = CD3DX12_SHADER_BYTECODE(ps.data(), ps.size()),
@@ -117,17 +117,21 @@ static void create_primitive_pipeline(
 
         auto device = context.getDevice();
 
-        SM_ASSERT_HR(device->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&pipeline.pso)));
+        SM_ASSERT_HR(device->CreateGraphicsPipelineState(&kPipelineDesc, IID_PPV_ARGS(&pipeline.pso)));
     }
 }
 
 void draw::ecs::opaque(flecs::world& world, graph::FrameGraph& graph, graph::Handle& target, graph::Handle& depth, flecs::entity camera) {
-    static flecs::query updateObjectData = world.query<
-        ecs::ObjectDeviceData,
-        const world::ecs::Position,
-        const world::ecs::Rotation,
-        const world::ecs::Scale
-    >();
+    static flecs::query updateObjectData
+        = world.query_builder<
+            ecs::ObjectDeviceData,
+            const world::ecs::Position,
+            const world::ecs::Rotation,
+            const world::ecs::Scale
+        >()
+        // select the world position
+        .term_at(2).second<world::ecs::World>()
+        .build();
 
     static flecs::query drawObjectData = world.query<
         const ecs::ObjectDeviceData,
@@ -170,14 +174,19 @@ void draw::ecs::opaque(flecs::world& world, graph::FrameGraph& graph, graph::Han
         const world::ecs::Camera *it = camera.get<world::ecs::Camera>();
         ecs::ViewportDeviceData *dd = camera.get_mut<ecs::ViewportDeviceData>();
 
-        camera.get([&](const world::ecs::Position& pos, const world::ecs::Direction& dir) {
-            float4x4 v = world::ecs::getViewMatrix(pos, dir);
-            float4x4 p = it->getProjectionMatrix();
-            // logs::gGlobal.info("Draw Camera {}: {:.3f}, front: {:.3f}", camera.name().c_str(), pos.position, dir.direction);
+        const world::ecs::Position *pos = camera.get<world::ecs::Position, world::ecs::World>();
+        const world::ecs::Direction *dir = camera.get<world::ecs::Direction>();
 
-            dd->update(draw::ViewportData {
-                .viewProjection = (v * p).transpose(),
-            });
+        float4x4 v = world::ecs::getViewMatrix(*pos, *dir);
+        float4x4 p = it->getProjectionMatrix();
+
+        // p[3][2] *= -1;
+
+        dd->update(draw::ViewportData {
+            .viewProjection = float4x4::identity(),
+            // .viewProjection = (v * p).transpose(),
+            .worldView = v,
+            .projection = p,
         });
 
         auto rtv = graph.rtv(target);
@@ -202,10 +211,11 @@ void draw::ecs::opaque(flecs::world& world, graph::FrameGraph& graph, graph::Han
 
         commands->SetGraphicsRootConstantBufferView(eViewportBuffer, dd->getDeviceAddress());
 
-        updateObjectData.iter([](flecs::iter& it, ecs::ObjectDeviceData *dd, const world::ecs::Position *position, const world::ecs::Rotation *rotation, const world::ecs::Scale *scale) {
+        updateObjectData.iter([&](flecs::iter& it, ecs::ObjectDeviceData *dd, const world::ecs::Position *position, const world::ecs::Rotation *rotation, const world::ecs::Scale *scale) {
             for (auto i : it) {
-                float4x4 transform = math::float4x4::transform(position[i].position, rotation[i].rotation, scale[i].scale);
-                dd[i].update({ transform.transpose() });
+                // TODO: multiplying scale by -1 is wrong, figure it out when im less tired
+                float4x4 model = math::float4x4::transform(position[i].position, rotation[i].rotation, -scale[i].scale);
+                dd[i].update({ (model.transpose() * v * p).transpose() });
             }
         });
 

@@ -11,25 +11,8 @@ namespace sm::draw {
     class Camera;
 
     namespace ecs {
-        struct ObjectDeviceData {
-            render::ConstBuffer<ObjectData> cbuffer;
-
-            void update(const ObjectData& data) {
-                cbuffer.update(data);
-            }
-
-            D3D12_GPU_VIRTUAL_ADDRESS getDeviceAddress() const { return cbuffer.getDeviceAddress(); }
-        };
-
-        struct ViewportDeviceData {
-            render::ConstBuffer<ViewportData> cbuffer;
-
-            void update(const ViewportData& data) {
-                cbuffer.update(data);
-            }
-
-            D3D12_GPU_VIRTUAL_ADDRESS getDeviceAddress() const { return cbuffer.getDeviceAddress(); }
-        };
+        using ObjectDeviceData = render::ConstBuffer<ObjectData>;
+        using ViewportDeviceData = render::ConstBuffer<ViewportData>;
     }
 
     ///

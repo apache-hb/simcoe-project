@@ -102,6 +102,7 @@ public:
 };
 
 constinit static DefaultSystemError gDefaultError{};
+static logs::FileChannel gFileChannel{};
 
 static void common_init(void) {
     bt_init();
@@ -134,7 +135,8 @@ static void common_init(void) {
         logger.addChannel(logs::getDebugConsole());
 
     if (auto file = logs::FileChannel::open("client.log"); file) {
-        logger.addChannel(file.value());
+        gFileChannel = std::move(file.value());
+        logger.addChannel(gFileChannel);
     } else {
         logs::gGlobal.error("failed to open log file: {}", file.error());
     }

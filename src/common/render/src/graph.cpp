@@ -753,8 +753,6 @@ void FrameGraph::schedule_graph() {
     };
 
     mFrameSchedule.push_back(submit);
-
-    gRenderLog.info("finish command recording");
 }
 
 void FrameGraph::destroyManagedResources() {

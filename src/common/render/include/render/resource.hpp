@@ -44,7 +44,7 @@ namespace sm::render {
     };
 
     template<typename T>
-    struct VertexBuffer : Resource {
+    struct VertexUploadBuffer : Resource {
         D3D12_VERTEX_BUFFER_VIEW view;
         void *mapped;
 

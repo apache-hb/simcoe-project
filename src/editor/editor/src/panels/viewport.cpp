@@ -331,7 +331,7 @@ void ViewportPanel::draw_content() {
 
     const world::ecs::Camera *info = mCamera.get<world::ecs::Camera>();
 
-    float4x4 view = world::ecs::getViewMatrix(*mCamera.get<world::ecs::Position>(), *mCamera.get<world::ecs::Direction>());
+    float4x4 view = world::ecs::getViewMatrix(*mCamera.get<world::ecs::Position, world::ecs::World>(), *mCamera.get<world::ecs::Direction>());
     float4x4 proj = info->getProjectionMatrix();
 
     if (ImGuizmo::Manipulate(view.data(), proj.data(), mOperation, mMode, matrix)) {
@@ -397,10 +397,9 @@ void ecs::initWindowComponents(flecs::world &world) {
     // handle to the primary viewport
     world.set<PrimaryViewport>({ });
 
-    world.observer()
-        .with<world::ecs::Camera>()
+    world.observer<const world::ecs::Camera>()
         .event(flecs::Monitor)
-        .each([](flecs::iter& it, size_t i) {
+        .each([](flecs::iter& it, size_t i, const world::ecs::Camera&) {
             flecs::entity entity = it.entity(i);
             if (it.event() == flecs::OnAdd) {
                 entity.set<ViewportSettings>({});
@@ -412,7 +411,7 @@ void ecs::initWindowComponents(flecs::world &world) {
 
 flecs::entity ecs::addCamera(flecs::world& world, const char *name, math::float3 position, math::float3 direction) {
     return world.entity(name)
-        .set<world::ecs::Position>({ position })
+        .set<world::ecs::Position, world::ecs::Local>({ position })
         .set<world::ecs::Direction>({ direction })
         .set<world::ecs::Camera>({
             .colour = DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -493,10 +492,11 @@ void ecs::drawViewportWindows(render::IDeviceContext& ctx, flecs::world& world) 
                 ImGui::SetNextWindowBgAlpha(0.35f);
 
                 if (ImGui::BeginChild("Camera Info", ImVec2(0, 0), kOverlayChildFlags)) {
-                    entity.get([&](const world::ecs::Position& pos, const world::ecs::Direction& dir) {
-                        ImGui::Text("Position: %.3f, %.3f, %.3f", pos.position.x, pos.position.y, pos.position.z);
-                        ImGui::Text("Direction: %.3f, %.3f, %.3f", dir.direction.x, dir.direction.y, dir.direction.z);
-                    });
+                    auto [x, y, z] = entity.get<world::ecs::Position, world::ecs::World>()->position;
+                    auto [yaw, pitch, roll] = entity.get<world::ecs::Direction>()->direction;
+
+                    ImGui::Text("Position: %.3f, %.3f, %.3f", x, y, z);
+                    ImGui::Text("Direction: %.3f, %.3f, %.3f", yaw, pitch, roll);
                 }
                 ImGui::EndChild();
             }

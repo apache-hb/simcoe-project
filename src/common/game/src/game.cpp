@@ -173,7 +173,7 @@ struct CDebugRenderer final : public JPH::DebugRendererSimple {
         mLines.clear();
         mTriangles.clear();
 
-        const world::ecs::Position *position = camera.get<world::ecs::Position>();
+        const world::ecs::Position *position = camera.get<world::ecs::Position, world::ecs::World>();
 
         Super::SetCameraPos(to_jph(position->position));
     }
@@ -709,8 +709,8 @@ void game::physics_debug(
             render::Pipeline lines;
             render::Pipeline triangles;
 
-            render::VertexBuffer<DebugVertex> lineBuffer;
-            render::VertexBuffer<DebugVertex> triangleBuffer;
+            render::VertexUploadBuffer<DebugVertex> lineBuffer;
+            render::VertexUploadBuffer<DebugVertex> triangleBuffer;
         } info;
 
         createDebugLinePSO(context, info.lines, config->colour, config->depth);
@@ -736,7 +736,7 @@ void game::physics_debug(
 
         render::Viewport vp{config->window};
         math::float4x4 m = math::float4x4::identity();
-        math::float4x4 v = world::ecs::getViewMatrix(*camera.get<world::ecs::Position>(), *camera.get<world::ecs::Direction>());
+        math::float4x4 v = world::ecs::getViewMatrix(*camera.get<world::ecs::Position, world::ecs::World>(), *camera.get<world::ecs::Direction>());
         math::float4x4 p = config->getProjectionMatrix();
         math::float4x4 mvp = m * v * p;
 

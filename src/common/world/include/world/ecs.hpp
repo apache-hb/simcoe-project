@@ -6,6 +6,8 @@
 
 #include <variant>
 
+#include <flecs.h>
+
 namespace sm::world::ecs {
     /// lights
     struct Light {};
@@ -29,6 +31,9 @@ namespace sm::world::ecs {
         > info;
     };
 
+    struct World {};
+    struct Local {};
+
     struct Position { math::float3 position; };
     struct Rotation { math::quatf rotation; };
     struct Scale { math::float3 scale; };
@@ -50,6 +55,8 @@ namespace sm::world::ecs {
         float getAspectRatio() const { return float(window.x) / float(window.y); }
         math::float4x4 getProjectionMatrix() const;
     };
+
+    void initSystems(flecs::world& world);
 
     math::float4x4 getViewMatrix(Position position, Direction direction);
 

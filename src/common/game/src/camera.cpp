@@ -17,7 +17,7 @@ static constexpr input::ButtonAxis kMoveUp      = {input::Button::eE, input::But
 
 struct CameraController {
     float speed = 3.f;
-    float mouseSensitivity = 1.f;
+    float mouseSensitivity = 0.1f;
 
     math::degf lookPitch = math::degf(0);
     math::degf lookYaw = math::degf(0);
@@ -39,6 +39,7 @@ void ecs::initCameraSystems(flecs::world& world) {
     world.component<world::ecs::Position>().member<math::float3>("position");
     world.component<world::ecs::Rotation>().member<math::quatf>("rotation");
     world.component<world::ecs::Direction>().member<math::float3>("direction");
+    world.component<world::ecs::Scale>().member<math::float3>("scale");
 
     world.component<world::ecs::AABB>()
         .member<math::float3>("min")
@@ -82,7 +83,7 @@ void ecs::initCameraSystems(flecs::world& world) {
 
 void ecs::updateCamera(flecs::entity camera, float dt, const input::InputState& state) {
     // get components
-    const world::ecs::Position *pos = camera.get<world::ecs::Position>();
+    const world::ecs::Position *pos = camera.get<world::ecs::Position, world::ecs::Local>();
     CameraController controller = *camera.get<CameraController>();
 
     // read input
@@ -110,10 +111,12 @@ void ecs::updateCamera(flecs::entity camera, float dt, const input::InputState& 
         return tmp;
     }();
 
+    // update local position
+    camera.set<world::ecs::Position, world::ecs::Local>({position});
+
     // write back
-    camera.set([=](world::ecs::Direction& dir, world::ecs::Position& pos, CameraController& info) {
+    camera.set([=](world::ecs::Direction& dir, CameraController& info) {
         dir.direction = front;
-        pos.position = position;
         info = controller;
     });
 }

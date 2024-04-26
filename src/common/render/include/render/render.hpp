@@ -16,6 +16,7 @@
 
 #include <directx/d3dx12_core.h>
 #include <directx/d3dx12_check_feature_support.h>
+#include <directx/d3dx12_barriers.h>
 
 namespace sm::render {
     using DeviceHandle = Object<ID3D12Device1>;
@@ -358,6 +359,23 @@ namespace sm::render {
 
         ecs::VertexBuffer uploadVertexBuffer(world::VertexBuffer&& buffer);
         ecs::IndexBuffer uploadIndexBuffer(world::IndexBuffer&& buffer);
+
+        template<typename T, size_t N> requires (std::is_standard_layout_v<T> && std::is_trivially_copyable_v<T>)
+        Resource uploadBufferData(sm::Span<const T, N> data, D3D12_RESOURCE_STATES state) {
+            Resource buffer;
+            SM_ASSERT_HR(createBufferResource(buffer, D3D12_HEAP_TYPE_DEFAULT, data.size_bytes(), D3D12_RESOURCE_STATE_COMMON));
+
+            mPendingBarriers.emplace_back(CD3DX12_RESOURCE_BARRIER::Transition(buffer.get(), D3D12_RESOURCE_STATE_COMMON, state));
+
+            render::RequestBuilder request = render::RequestBuilder()
+                .src(data.data(), data.size_bytes())
+                .name("VertexBuffer")
+                .dst(buffer.get(), 0, data.size_bytes());
+
+            mMemoryQueue.enqueue(request);
+
+            return buffer;
+        }
     };
 
     void copyBufferRegion(ID3D12GraphicsCommandList1 *list, Resource& dst, Resource& src, size_t size);
@@ -378,19 +396,14 @@ namespace sm::render {
     }
 
     template<typename T> requires (std::is_standard_layout_v<T> && std::is_trivially_copyable_v<T>)
-    VertexBuffer<T> newVertexBuffer(IDeviceContext& self, size_t count, D3D12_HEAP_TYPE heap, D3D12_RESOURCE_STATES states) {
+    VertexUploadBuffer<T> newVertexUploadBuffer(IDeviceContext& self, size_t count) {
         CTASSERT(count > 0);
 
-        VertexBuffer<T> buffer;
-        SM_ASSERT_HR(self.createBufferResource(buffer, heap, sizeof(T) * count, states));
+        VertexUploadBuffer<T> buffer;
+        SM_ASSERT_HR(self.createBufferResource(buffer, D3D12_HEAP_TYPE_UPLOAD, sizeof(T) * count, D3D12_RESOURCE_STATE_GENERIC_READ));
 
         buffer.init(count);
 
         return buffer;
-    }
-
-    template<typename T> requires (std::is_standard_layout_v<T> && std::is_trivially_copyable_v<T>)
-    VertexBuffer<T> newVertexUploadBuffer(IDeviceContext& self, size_t count) {
-        return newVertexBuffer<T>(self, count, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
     }
 }

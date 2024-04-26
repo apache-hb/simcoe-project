@@ -20,10 +20,15 @@ cbuffer ObjectBuffer : register(b1) {
 
 float4 project(float3 position) {
     float4x4 m = gObjectData.model;
-    float4x4 vp = gViewportData.viewProjection;
-    float4x4 mvp = mul(vp, m);
 
-    return mul(float4(position, 1.f), mvp);
+    return mul(float4(position, 1.f), m);
+    // float4x4 v = gViewportData.worldView;
+    // float4x4 p = gViewportData.projection;
+
+    // float4x4 mvp = mul(m, v);
+    // mvp = mul(mvp, p);
+
+    // return mul(float4(position, 1.f), mvp);
 }
 
 Input vertexMain(Vertex vtx) {

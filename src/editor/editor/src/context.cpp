@@ -46,11 +46,10 @@ void EditorContext::init() {
 
     // whenever a camera is added or removed, the framegraph needs to be rebuilt
     // do this after adding the first camera to avoid rebuilding the framegraph twice
-    mCameraObserver = mSystem.observer()
-        .with<world::ecs::Camera>()
+    mCameraObserver = mSystem.observer<const world::ecs::Camera>()
         .event(flecs::OnSet)
         .event(flecs::UnSet)
-        .iter([this](flecs::iter& it) {
+        .iter([this](flecs::iter& it, const world::ecs::Camera*) {
             logs::gGlobal.info("Camera event: {} ({})", it.event().name().c_str(), it.count());
             mFrameGraphDirty = true;
         });

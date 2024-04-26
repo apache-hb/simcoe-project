@@ -860,6 +860,10 @@ namespace sm::math {
             };
         }
 
+        constexpr Mat4x4 operator*(T other) const {
+            return { at(0) * other, at(1) * other, at(2) * other, at(3) * other };
+        }
+
         constexpr Mat4x4 operator*(const Mat4x4& other) const {
             return mul(other);
         }
@@ -970,6 +974,21 @@ namespace sm::math {
             auto [x, y, z] = q.v;
             T w = q.angle;
 
+            Vec4 r0 = { w, z, -y, x };
+            Vec4 r1 = { -z, w, x, y };
+            Vec4 r2 = { y, -x, w, z };
+            Vec4 r3 = { -x, -y, -z, w };
+
+            Vec4 m0 = { w, z, -y, -x };
+            Vec4 m1 = { -z, w, x, -y };
+            Vec4 m2 = { y, -x, w, -z };
+            Vec4 m3 = { x, y, z, w };
+
+            Mat4x4 r = { r0, r1, r2, r3 };
+            Mat4x4 m = { m0, m1, m2, m3 };
+
+            return r * m;
+#if 0
             T xx = x * x;
             T yy = y * y;
             T zz = z * z;
@@ -998,6 +1017,7 @@ namespace sm::math {
             Vec4 r3 = { 0, 0, 0, 1 };
 
             return { r0, r1, r2, r3 };
+#endif
         }
 
         // full transform

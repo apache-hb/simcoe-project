@@ -8,6 +8,8 @@
 #include <directx/d3dx12_root_signature.h>
 #include <directx/d3dx12_barriers.h>
 
+#include <array>
+
 using namespace sm;
 using namespace sm::math;
 
@@ -17,14 +19,12 @@ namespace blit {
         float2 uv;
     };
 
-    static constexpr Vertex kScreenQuad[] = {
+    static constexpr auto kScreenQuad = std::to_array<Vertex>({
         { { -1.f, -1.f }, { 0.f, 1.f } },
         { { -1.f,  1.f }, { 0.f, 0.f } },
         { {  1.f, -1.f }, { 1.f, 1.f } },
         { {  1.f,  1.f }, { 1.f, 0.f } },
-    };
-
-    using VertexBuffer = render::VertexBuffer<Vertex>;
+    });
 }
 
 static constexpr D3D12_ROOT_SIGNATURE_FLAGS kPostRootFlags
@@ -93,45 +93,10 @@ static void create_blit_pipeline(render::Pipeline& pipeline, render::IDeviceCont
     }
 }
 
-static void create_screen_quad(blit::VertexBuffer& quad, render::IDeviceContext& context) {
-    render::Resource upload;
-
-    SM_ASSERT_HR(context.createBufferResource(upload, D3D12_HEAP_TYPE_UPLOAD, sizeof(blit::kScreenQuad), D3D12_RESOURCE_STATE_COPY_SOURCE));
-
-    SM_ASSERT_HR(context.createBufferResource(quad, D3D12_HEAP_TYPE_DEFAULT, sizeof(blit::kScreenQuad), D3D12_RESOURCE_STATE_COMMON));
-
-    upload.write(blit::kScreenQuad, sizeof(blit::kScreenQuad));
-
-    context.reset_direct_commands();
-    context.reset_copy_commands();
-
-    render::copyBufferRegion(context.mCopyCommands.get(), quad, upload, sizeof(blit::kScreenQuad));
-
-    const D3D12_RESOURCE_BARRIER kBarriers[] = {
-        // screen quad verts
-        CD3DX12_RESOURCE_BARRIER::Transition(
-            *quad.mResource,
-            D3D12_RESOURCE_STATE_COPY_DEST,
-            D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
-        ),
-    };
-
-    context.mCommandList->ResourceBarrier(_countof(kBarriers), kBarriers);
-
-    SM_ASSERT_HR(context.mCopyCommands->Close());
-    SM_ASSERT_HR(context.mCommandList->Close());
-
-    ID3D12CommandList *copy_lists[] = { context.mCopyCommands.get() };
-    context.mCopyQueue->ExecuteCommandLists(1, copy_lists);
-
-    SM_ASSERT_HR(context.mCopyQueue->Signal(*context.mCopyFence, context.mCopyFenceValue));
-
-    ID3D12CommandList *direct_lists[] = { context.mCommandList.get() };
-    SM_ASSERT_HR(context.mDirectQueue->Wait(*context.mCopyFence, context.mCopyFenceValue));
-    context.mDirectQueue->ExecuteCommandLists(1, direct_lists);
-
-    context.wait_for_gpu();
-    context.flush_copy_queue();
+static void create_screen_quad(render::Resource& quad, render::IDeviceContext& context) {
+    context.upload([&] {
+        quad = context.uploadBufferData(sm::Span(blit::kScreenQuad), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+    });
 }
 
 void draw::blit(graph::FrameGraph& graph, graph::Handle target, graph::Handle source, const render::Viewport& viewport) {
@@ -142,7 +107,17 @@ void draw::blit(graph::FrameGraph& graph, graph::Handle target, graph::Handle so
     auto& data = graph.device_data([](render::IDeviceContext& context) {
         struct {
             render::Pipeline pipeline;
-            blit::VertexBuffer quad;
+            render::Resource quad;
+
+            D3D12_VERTEX_BUFFER_VIEW getQuadView() const {
+                D3D12_VERTEX_BUFFER_VIEW view = {
+                    .BufferLocation = quad.getDeviceAddress(),
+                    .SizeInBytes = sizeof(blit::Vertex) * blit::kScreenQuad.size(),
+                    .StrideInBytes = sizeof(blit::Vertex),
+                };
+
+                return view;
+            }
         } info;
 
         create_blit_pipeline(info.pipeline, context);
@@ -161,7 +136,7 @@ void draw::blit(graph::FrameGraph& graph, graph::Handle target, graph::Handle so
         auto rtv_cpu = context.mRtvPool.cpu_handle(rtv);
         auto srv_gpu = context.mSrvPool.gpu_handle(srv);
 
-        D3D12_VERTEX_BUFFER_VIEW view = data.quad.getView();
+        D3D12_VERTEX_BUFFER_VIEW view = data.getQuadView();
 
         cmd->SetGraphicsRootSignature(*data.pipeline.signature);
         cmd->SetPipelineState(*data.pipeline.pso);
