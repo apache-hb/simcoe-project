@@ -376,6 +376,54 @@ void IDeviceContext::init_scene() {
     mCurrentScene = mWorld.default_scene;
 }
 
+static void buildFileUploadRequest(
+    render::IDeviceContext& self,
+    render::RequestBuilder& request,
+    world::IndexOf<world::File> file,
+    uint64 offset,
+    uint32 size)
+{
+    IDStorageFile *storage = self.get_storage_file(file);
+
+    self.mFileQueue.enqueue(request.src(storage, offset, size).name("Load File Region"));
+}
+
+static void buildBufferUploadRequest(
+    render::IDeviceContext& self,
+    render::RequestBuilder& request,
+    world::IndexOf<world::Buffer> buffer,
+    uint64 offset,
+    uint32 size)
+{
+    const uint8 *data = self.get_storage_buffer(buffer) + offset;
+
+    self.mMemoryQueue.enqueue(request.src(data, size).name("Load Buffer Region"));
+}
+
+static void buildUploadRequest(IDeviceContext& self, render::RequestBuilder& request, const world::BufferView& view) {
+    if (world::IndexOf file = world::get<world::File>(view.source); file != world::kInvalidIndex) {
+        buildFileUploadRequest(self, request, file, view.offset, view.source_size);
+    }
+    else if (world::IndexOf buffer = world::get<world::Buffer>(view.source); buffer != world::kInvalidIndex) {
+        buildBufferUploadRequest(self, request, buffer, view.offset, view.source_size);
+    }
+    else {
+        CT_NEVER("invalid buffer source");
+    }
+}
+
+static Resource addBufferViewUpload(IDeviceContext& self, const world::BufferView& view) {
+    Resource resource;
+    SM_ASSERT_HR(self.createBufferResource(resource, D3D12_HEAP_TYPE_DEFAULT, view.source_size, D3D12_RESOURCE_STATE_COMMON));
+
+    render::RequestBuilder request{};
+    request.dst(resource.get(), 0, view.source_size);
+
+    buildUploadRequest(self, request, view);
+
+    return resource;
+}
+
 void IDeviceContext::upload_buffer_view(RequestBuilder& request, const world::BufferView& view) {
     if (world::IndexOf file = world::get<world::File>(view.source); file != world::kInvalidIndex) {
         request.src(get_storage_file(file), view.offset, view.source_size);
@@ -400,7 +448,7 @@ void IDeviceContext::upload_image(world::IndexOf<world::Image> index) {
     RequestBuilder request;
     request.dst(DSTORAGE_DESTINATION_MULTIPLE_SUBRESOURCES{ data.get(), 0 });
 
-    upload_buffer_view(request, image.source);
+    buildUploadRequest(*this, request, image.source);
 
     mPendingBarriers.emplace_back(CD3DX12_RESOURCE_BARRIER::Transition(data.get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 
@@ -417,155 +465,55 @@ void IDeviceContext::upload_image(world::IndexOf<world::Image> index) {
     mImages.emplace(index, std::move(resource));
 }
 
-void IDeviceContext::load_mesh_buffer(world::IndexOf<world::Model> index, const world::Mesh& mesh) {
-    Resource vboUploadResource;
-    Resource iboUploadResource;
-
-    size_t vboBufferSize = mesh.vertices.size() * sizeof(world::Vertex);
-    size_t iboBufferSize = mesh.indices.size() * sizeof(uint16);
-
-    SM_ASSERT_HR(createBufferResource(vboUploadResource, D3D12_HEAP_TYPE_UPLOAD, vboBufferSize, D3D12_RESOURCE_STATE_COMMON));
-    SM_ASSERT_HR(createBufferResource(iboUploadResource, D3D12_HEAP_TYPE_UPLOAD, iboBufferSize, D3D12_RESOURCE_STATE_COMMON));
-
-    Resource vboResource;
-    Resource iboResource;
-    SM_ASSERT_HR(createBufferResource(vboResource, D3D12_HEAP_TYPE_DEFAULT, vboBufferSize, D3D12_RESOURCE_STATE_COMMON));
-    SM_ASSERT_HR(createBufferResource(iboResource, D3D12_HEAP_TYPE_DEFAULT, iboBufferSize, D3D12_RESOURCE_STATE_COMMON));
-
-    SM_ASSERT_HR(vboUploadResource.write(mesh.vertices.data(), vboBufferSize));
-    SM_ASSERT_HR(iboUploadResource.write(mesh.indices.data(), iboBufferSize));
-
-    reset_copy_commands();
-    reset_direct_commands();
-
-    copyBufferRegion(mCopyCommands.get(), vboResource, vboUploadResource, vboBufferSize);
-    copyBufferRegion(mCopyCommands.get(), iboResource, iboUploadResource, iboBufferSize);
-
-    const D3D12_RESOURCE_BARRIER kBarriers[] = {
-        CD3DX12_RESOURCE_BARRIER::Transition(vboResource.get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER),
-        CD3DX12_RESOURCE_BARRIER::Transition(iboResource.get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_INDEX_BUFFER),
-    };
-
-    mCommandList->ResourceBarrier(_countof(kBarriers), kBarriers);
-
-    SM_ASSERT_HR(mCopyCommands->Close());
-    SM_ASSERT_HR(mCommandList->Close());
-
-    ID3D12CommandList *copy_lists[] = { mCopyCommands.get() };
-    mCopyQueue->ExecuteCommandLists(1, copy_lists);
-    SM_ASSERT_HR(mCopyQueue->Signal(*mCopyFence, mCopyFenceValue));
-
-    ID3D12CommandList *direct_lists[] = { mCommandList.get() };
-    SM_ASSERT_HR(mDirectQueue->Wait(*mCopyFence, mCopyFenceValue));
-    mDirectQueue->ExecuteCommandLists(1, direct_lists);
-
-    wait_for_gpu();
-
-    D3D12_VERTEX_BUFFER_VIEW vbo_view = {
-        .BufferLocation = vboResource.getDeviceAddress(),
-        .SizeInBytes = static_cast<uint>(vboBufferSize),
-        .StrideInBytes = sizeof(world::Vertex),
-    };
-
-    D3D12_INDEX_BUFFER_VIEW ibo_view = {
-        .BufferLocation = iboResource.getDeviceAddress(),
-        .SizeInBytes = static_cast<uint>(iboBufferSize),
-        .Format = DXGI_FORMAT_R16_UINT,
-    };
+void IDeviceContext::load_mesh_buffer(world::IndexOf<world::Model> index, world::Mesh&& mesh) {
+    render::ecs::VertexBuffer vbo = uploadVertexBuffer(std::move(mesh.vertices));
+    render::ecs::IndexBuffer ibo = uploadIndexBuffer(std::move(mesh.indices));
 
     MeshResource resource = {
-        .vbo = std::move(vboResource),
-        .vbo_view = vbo_view,
-
-        .ibo = std::move(iboResource),
-        .ibo_view = ibo_view,
-
-        .index_count = int_cast<uint>(mesh.indices.size()),
+        .vbo = std::move(vbo),
+        .ibo = std::move(ibo),
     };
 
     mMeshes.emplace(index, std::move(resource));
 }
 
-static Resource buildFileUploadRequest(
-    render::IDeviceContext& self,
-    world::IndexOf<world::File> file,
-    uint64 offset,
-    uint32 size)
-{
-    Resource resource;
-    SM_ASSERT_HR(self.createBufferResource(resource, D3D12_HEAP_TYPE_DEFAULT, size, D3D12_RESOURCE_STATE_COMMON));
-
-    IDStorageFile *storage = self.get_storage_file(file);
-
-    DSTORAGE_REQUEST request = render::RequestBuilder()
-        .src(storage, offset, size)
-        .dst(resource.get(), 0, size)
-        .name("Load File Region");
-
-    self.mFileQueue.enqueue(request);
-
-    return resource;
-}
-
-static Resource buildBufferUploadRequest(
-    render::IDeviceContext& self,
-    world::IndexOf<world::Buffer> buffer,
-    uint64 offset,
-    uint32 size)
-{
-    Resource resource;
-    SM_ASSERT_HR(self.createBufferResource(resource, D3D12_HEAP_TYPE_DEFAULT, size, D3D12_RESOURCE_STATE_COMMON));
-
-    const uint8 *data = self.get_storage_buffer(buffer) + offset;
-
-    DSTORAGE_REQUEST request = render::RequestBuilder()
-        .src(data, size)
-        .dst(resource.get(), 0, size)
-        .name("Load Buffer Region");
-
-    self.mMemoryQueue.enqueue(request);
-
-    return resource;
-}
-
-static Resource buildUploadRequest(IDeviceContext& self, world::IndexOf<world::Model> index, const world::BufferView& view) {
-    if (world::IndexOf file = world::get<world::File>(view.source); file != world::kInvalidIndex) {
-        return buildFileUploadRequest(self, file, view.offset, view.source_size);
-    }
-    else if (world::IndexOf buffer = world::get<world::Buffer>(view.source); buffer != world::kInvalidIndex) {
-        return buildBufferUploadRequest(self, buffer, view.offset, view.source_size);
-    }
-
-    CT_NEVER("invalid buffer source");
-}
-
 void IDeviceContext::upload_object(world::IndexOf<world::Model> index, const world::Object& object) {
-    Resource vbo = buildUploadRequest(*this, index, object.vertices);
-    Resource ibo = buildUploadRequest(*this, index, object.indices);
+    Resource vbo = addBufferViewUpload(*this, object.vertices);
+    Resource ibo = addBufferViewUpload(*this, object.indices);
 
     mPendingBarriers.emplace_back(CD3DX12_RESOURCE_BARRIER::Transition(vbo.get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
     mPendingBarriers.emplace_back(CD3DX12_RESOURCE_BARRIER::Transition(ibo.get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_INDEX_BUFFER));
 
     D3D12_VERTEX_BUFFER_VIEW vbo_view = {
         .BufferLocation = vbo.getDeviceAddress(),
-        .SizeInBytes = static_cast<uint>(object.vtx_count * sizeof(world::Vertex)),
-        .StrideInBytes = sizeof(world::Vertex),
+        .SizeInBytes = object.vertices.getBufferSize(),
+        .StrideInBytes = object.getVertexStride(),
     };
 
     D3D12_INDEX_BUFFER_VIEW ibo_view = {
         .BufferLocation = ibo.getDeviceAddress(),
-        .SizeInBytes = static_cast<uint>(object.idx_count * sizeof(uint16)),
-        .Format = DXGI_FORMAT_R16_UINT,
+        .SizeInBytes = object.indices.getBufferSize(),
+        .Format = object.getIndexBufferFormat(),
+    };
+
+    ecs::VertexBuffer vertices = {
+        .resource = std::move(vbo),
+        .view = vbo_view,
+        .stride = object.getVertexStride(),
+        .length = object.getVertexCount(),
+    };
+
+    ecs::IndexBuffer indices = {
+        .resource = std::move(ibo),
+        .view = ibo_view,
+        .format = object.getIndexBufferFormat(),
+        .length = object.getIndexCount(),
     };
 
     MeshResource resource = {
-        .vbo = std::move(vbo),
-        .vbo_view = vbo_view,
+        .vbo = std::move(vertices),
+        .ibo = std::move(indices),
 
-        .ibo = std::move(ibo),
-        .ibo_view = ibo_view,
-
-        .index_count = object.idx_count,
         .bounds = world::computeObjectBounds(mWorld, object),
     };
 
@@ -607,7 +555,7 @@ void IDeviceContext::upload_model(world::IndexOf<world::Model> model) {
             }
         }, info.mesh);
 
-        load_mesh_buffer(model, mesh);
+        load_mesh_buffer(model, std::move(mesh));
     }
 }
 
@@ -712,6 +660,11 @@ void IDeviceContext::end_upload() {
     if (completed < expected) {
         mStorageFence->SetEventOnCompletion(expected, mStorageFenceEvent);
         WaitForSingleObject(mStorageFenceEvent, INFINITE);
+    }
+
+    // remove everything from the copy data queue thats been processed
+    while (!mCopyData.is_empty() && mCopyData.top().fence <= completed) {
+        mCopyData.pop();
     }
 }
 

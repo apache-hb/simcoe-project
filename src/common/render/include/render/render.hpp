@@ -78,24 +78,6 @@ namespace sm::render {
         void reset();
     };
 
-    struct MeshResource {
-        Resource vbo;
-        VertexBufferView vbo_view;
-
-        Resource ibo;
-        IndexBufferView ibo_view;
-
-        uint32 index_count;
-
-        // TODO: this is not the right place to keep this
-        world::BoxBounds bounds;
-    };
-
-    struct TextureResource {
-        Resource resource;
-        SrvIndex srv;
-    };
-
     namespace ecs {
         struct VertexBuffer {
             render::Resource resource;
@@ -111,6 +93,19 @@ namespace sm::render {
             uint length;
         };
     }
+
+    struct MeshResource {
+        ecs::VertexBuffer vbo;
+        ecs::IndexBuffer ibo;
+
+        // TODO: this is not the right place to keep this
+        world::BoxBounds bounds;
+    };
+
+    struct TextureResource {
+        Resource resource;
+        SrvIndex srv;
+    };
 
     struct IDeviceContext {
         const RenderConfig mConfig;
@@ -245,7 +240,7 @@ namespace sm::render {
         void upload_image(world::IndexOf<world::Image> index);
 
         void upload_object(world::IndexOf<world::Model> index, const world::Object& object);
-        void load_mesh_buffer(world::IndexOf<world::Model> index, const world::Mesh& mesh);
+        void load_mesh_buffer(world::IndexOf<world::Model> index, world::Mesh&& mesh);
 
         void create_node(world::IndexOf<world::Node> node);
         void upload_model(world::IndexOf<world::Model> model);

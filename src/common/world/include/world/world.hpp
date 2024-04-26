@@ -99,6 +99,8 @@ namespace sm::world {
         static BufferView buffer(IndexOf<Buffer> buffer, uint64 offset, uint32 size) {
             return {IndexOf<Buffer>(buffer), offset, size};
         }
+
+        uint32 getBufferSize() const { return source_size; }
     };
 
     struct Image {
@@ -129,8 +131,8 @@ namespace sm::world {
     };
 
     struct Object {
-        uint32 vtx_count;
-        uint32 idx_count;
+        uint32 vertexCount;
+        uint32 indexCount;
 
         IndexSize indexBufferFormat = IndexSize::eShort;
         VertexFlags vertexBufferFlags = VertexFlags::eNone;
@@ -138,10 +140,11 @@ namespace sm::world {
         BufferView vertices;
         BufferView indices;
 
-        uint32 getVertexCount() const { return vtx_count; }
-        uint32 getIndexCount() const { return idx_count; }
+        uint32 getVertexCount() const { return vertexCount; }
+        uint32 getIndexCount() const { return indexCount; }
 
         DXGI_FORMAT getIndexBufferFormat() const;
+        uint getVertexStride() const;
     };
 
     struct PointLight {

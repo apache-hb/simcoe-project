@@ -35,6 +35,10 @@ DXGI_FORMAT Object::getIndexBufferFormat() const {
         : DXGI_FORMAT_R32_UINT;
 }
 
+uint Object::getVertexStride() const {
+    return sizeof(Vertex);
+}
+
 VertexFlags Model::getVertexBufferFlags() const {
     if (const Object *object = std::get_if<Object>(&mesh)) {
         return object->vertexBufferFlags;

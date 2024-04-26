@@ -208,8 +208,8 @@ void Editor::importGltf(const fs::path& path) {
         });
 
         world::Object obj = {
-            .vtx_count = vtxCount,
-            .idx_count = idxCount,
+            .vertexCount = vtxCount,
+            .indexCount = idxCount,
 
             .indexBufferFormat = world::IndexSize::eShort,
             .vertexBufferFlags = flags,

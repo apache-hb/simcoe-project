@@ -85,6 +85,8 @@ namespace sm::world {
         math::float4x4 matrix() const;
 
         Transform operator*(const Transform& other) const;
+
+        static Transform getDefault() noexcept;
     };
 
     Transform default_transform();

@@ -22,10 +22,10 @@ static void draw_node(render::IDeviceContext& context, ID3D12GraphicsCommandList
 
     for (IndexOf i : node.models) {
         const auto& object = context.mMeshes[i];
-        commands->IASetVertexBuffers(0, 1, &object.vbo_view);
-        commands->IASetIndexBuffer(&object.ibo_view);
+        commands->IASetVertexBuffers(0, 1, &object.vbo.view);
+        commands->IASetIndexBuffer(&object.ibo.view);
 
-        commands->DrawIndexedInstanced(object.index_count, 1, 0, 0, 0);
+        commands->DrawIndexedInstanced(object.ibo.length, 1, 0, 0, 0);
     }
 
     for (IndexOf i : node.children) {
