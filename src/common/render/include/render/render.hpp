@@ -287,8 +287,10 @@ namespace sm::render {
         Object<ID3D12Fence> mFence;
 
         // dstorage
-        size_t mStorageMeshCount = 0;
         CopyStorage mStorage;
+        StorageQueue mFileQueue;
+        StorageQueue mMemoryQueue;
+
         uint64 mStorageFenceValue = 1;
         sm::HashMap<world::IndexOf<world::File>, Object<IDStorageFile>> mStorageFiles;
         sm::HashMap<size_t, world::Mesh> mStorageMeshes;
@@ -296,11 +298,11 @@ namespace sm::render {
         Object<ID3D12Fence> mStorageFence;
         HANDLE mStorageFenceEvent;
 
-        void create_storage_sync();
-        void destroy_storage_sync();
+        void createStorageContext();
+        void destroyStorageContext();
 
-        void create_dstorage();
-        void destroy_dstorage();
+        void createStorageDeviceData();
+        void destroyStorageDeviceData();
 
         IDStorageFile *get_storage_file(world::IndexOf<world::File> index);
         const uint8 *get_storage_buffer(world::IndexOf<world::Buffer> index);

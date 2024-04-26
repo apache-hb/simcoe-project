@@ -191,7 +191,7 @@ namespace sm::graph {
 
         void build_raw_events(events::ResourceBarrier& barrier);
 
-        void create_resources();
+        void createManagedResources();
 
         // figure out what passes should be run on which queues
         // and when to insert sync points and barriers
@@ -201,7 +201,7 @@ namespace sm::graph {
         // cull passes from the graph that are not used
         void optimize();
 
-        void destroy_resources();
+        void destroyManagedResources();
     public:
 
         FrameGraph(render::IDeviceContext& context)

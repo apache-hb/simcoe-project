@@ -7,7 +7,6 @@
 namespace sm::render {
     class StorageQueue {
         Object<IDStorageQueue2> mQueue;
-        Object<IDStorageStatusArray> mStatusArray;
 
         // TODO: this is perhaps a bit hacky
         // prevents us from submitting fence waits if there are no pending requests
@@ -22,36 +21,22 @@ namespace sm::render {
         void submit();
 
         bool hasPendingRequests() const { return mHasPendingRequests; }
+
+        // TODO: check errors
     };
 
     class CopyStorage {
         Object<IDStorageFactory> mFactory;
-        StorageQueue mFileQueue;
-        StorageQueue mMemoryQueue;
 
     public:
         void create(DebugFlags flags);
         void destroy();
 
-        void create_queues(ID3D12Device1 *device);
-        void destroy_queues();
-
         StorageQueue newQueue(const DSTORAGE_QUEUE_DESC& desc);
-
-        StorageQueue& file_queue() { return mFileQueue; }
-        StorageQueue& memory_queue() { return mMemoryQueue; }
 
         Result open(const fs::path& path, IDStorageFile **file);
 
-        void submit_file_copy(const DSTORAGE_REQUEST& request);
-        void submit_memory_copy(const DSTORAGE_REQUEST& request);
-
-        void signal_file_queue(ID3D12Fence *fence, uint64 value);
-        void signal_memory_queue(ID3D12Fence *fence, uint64 value);
-
         void flush_queues();
-
-        // TODO: check errors
     };
 
     struct RequestBuilder : DSTORAGE_REQUEST {

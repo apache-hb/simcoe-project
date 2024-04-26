@@ -319,7 +319,7 @@ struct UsageTracker {
 
     sm::HashMap<uint, UsageBits> states;
 
-    UsageBits try_get(uint resource) const {
+    UsageBits tryGetUsage(uint resource) const {
         if (states.contains(resource)) {
             return states.at(resource);
         }
@@ -327,7 +327,7 @@ struct UsageTracker {
         return {};
     }
 
-    void access(uint resource, Usage usage) {
+    void recordResourceAccess(uint resource, Usage usage) {
         using enum Usage::Inner;
         switch (usage) {
         case ePixelShaderResource:
@@ -355,34 +355,34 @@ struct UsageTracker {
         }
     }
 
-    bool needs_uav(uint resource) const {
-        return try_get(resource).uav;
+    bool needsUav(uint resource) const {
+        return tryGetUsage(resource).uav;
     }
 
-    bool needs_srv(uint resource) const {
-        return try_get(resource).srv;
+    bool needsSrv(uint resource) const {
+        return tryGetUsage(resource).srv;
     }
 
-    bool needs_rtv(uint resource) const {
-        return try_get(resource).rtv;
+    bool needsRtv(uint resource) const {
+        return tryGetUsage(resource).rtv;
     }
 
-    bool needs_dsv(uint resource) const {
-        return try_get(resource).dsv;
+    bool needsDsv(uint resource) const {
+        return tryGetUsage(resource).dsv;
     }
 
     D3D12_RESOURCE_FLAGS getResourceFlags(uint resource) const {
         D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE;
 
-        if (needs_uav(resource)) {
+        if (needsUav(resource)) {
             flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
         }
 
-        if (needs_rtv(resource)) {
+        if (needsRtv(resource)) {
             flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
         }
 
-        if (needs_dsv(resource)) {
+        if (needsDsv(resource)) {
             flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
         }
 
@@ -394,7 +394,7 @@ struct UsageTracker {
     }
 };
 
-void FrameGraph::create_resources() {
+void FrameGraph::createManagedResources() {
     mResources.clear();
     UsageTracker tracker;
 
@@ -429,14 +429,14 @@ void FrameGraph::create_resources() {
         auto& handle = mHandles[i];
         if (!handle.is_used() || handle.is_imported()) continue;
 
-        tracker.access(i, handle.access);
+        tracker.recordResourceAccess(i, handle.access);
     }
 
     for (auto& pass : mRenderPasses) {
         if (!pass.is_used()) continue;
 
         pass.foreach(eRead | eWrite | eCreate, [&](const ResourceAccess& access) {
-            tracker.access(access.index.index, access.usage);
+            tracker.recordResourceAccess(access.index.index, access.usage);
         });
     }
 
@@ -463,7 +463,7 @@ void FrameGraph::create_resources() {
         auto& handle = mHandles[i];
         if (!handle.is_managed()) continue;
 
-        if (tracker.needs_srv(i)) {
+        if (tracker.needsSrv(i)) {
             handle.srv = mContext.mSrvPool.allocate();
 
             const auto srv_handle = mContext.mSrvPool.cpu_handle(handle.srv);
@@ -471,7 +471,7 @@ void FrameGraph::create_resources() {
             device->CreateShaderResourceView(handle.resource, desc, srv_handle);
         }
 
-        if (tracker.needs_uav(i)) {
+        if (tracker.needsUav(i)) {
             handle.uav = mContext.mSrvPool.allocate();
 
             const auto uav_handle = mContext.mSrvPool.cpu_handle(handle.uav);
@@ -479,7 +479,7 @@ void FrameGraph::create_resources() {
             device->CreateUnorderedAccessView(handle.resource, nullptr, desc, uav_handle);
         }
 
-        if (tracker.needs_dsv(i)) {
+        if (tracker.needsDsv(i)) {
             handle.dsv = mContext.mDsvPool.allocate();
 
             const auto dsv_handle = mContext.mDsvPool.cpu_handle(handle.dsv);
@@ -487,7 +487,7 @@ void FrameGraph::create_resources() {
             device->CreateDepthStencilView(handle.resource, desc, dsv_handle);
         }
 
-        if (tracker.needs_rtv(i)) {
+        if (tracker.needsRtv(i)) {
             handle.rtv = mContext.mRtvPool.allocate();
 
             const auto rtv_handle = mContext.mRtvPool.cpu_handle(handle.rtv);
@@ -596,14 +596,6 @@ void FrameGraph::schedule_graph() {
         void submit(FrameSchedule& schedule, CommandListHandle handle) {
             if (transitions.empty()) return;
 
-            gRenderLog.info("Submit {} barriers", transitions.size());
-
-            for (uint i = 0; i < transitions.size(); i++) {
-                gRenderLog.info(" - {}", graph.mHandles[transitions[i].handle.index].name);
-                gRenderLog.info(" | before: {}", render::ResourceState(transitions[i].before));
-                gRenderLog.info(" | after: {}", render::ResourceState(transitions[i].after));
-            }
-
             events::ResourceBarrier event{handle, transitions};
             schedule.push_back(event);
 
@@ -654,8 +646,6 @@ void FrameGraph::schedule_graph() {
 
     CommandListHandle cmd = add_commands(queue);
 
-    gRenderLog.info("begin command recording");
-
     // open the initial command list
     events::OpenCommands open = {
         .handle = cmd
@@ -680,8 +670,6 @@ void FrameGraph::schedule_graph() {
 
             mFrameSchedule.push_back(submit);
 
-            gRenderLog.info("Submit work to queue {}", get_command_type(cmd));
-
             for (auto& p : stack) {
                 if (pass.depends_on(p) && pass.type != p.type) {
                     D3D12_COMMAND_LIST_TYPE ty = p.type.as_facade();
@@ -694,8 +682,6 @@ void FrameGraph::schedule_graph() {
                         mFrameSchedule.push_back(sync);
 
                         synced[ty] = true;
-
-                        gRenderLog.info("Sync queues {} -> {}", sync.signal, sync.wait);
                     }
                 }
             }
@@ -710,8 +696,6 @@ void FrameGraph::schedule_graph() {
             };
 
             mFrameSchedule.push_back(open);
-
-            gRenderLog.info("Open command list for queue {}", pass.type);
 
             stack.push_back(pass);
         }
@@ -738,21 +722,16 @@ void FrameGraph::schedule_graph() {
 
         mFrameSchedule.push_back(record);
 
-        gRenderLog.info("Record commands for pass {}", pass.name);
-
         // only add early barriers on direct command list
         // not sure of all the special cases yet
         if (get_command_type(cmd) != render::CommandListType::eDirect)
             continue;
-
-        gRenderLog.info("Searching for early barriers {}", pass.name);
 
         // if we can add barriers for the next pass, do so
         pass.foreach(eRead | eWrite, [&](const auto& access) {
             auto n = find_next_use(i, access.index);
             if (!n.is_valid()) return;
 
-            gRenderLog.info("Next use of {} is {}", mHandles[access.index.index].name, mRenderPasses[n.index].name);
             auto state = mRenderPasses[n.index].get_handle_usage(access.index);
             update_state(access.index, state);
         });
@@ -778,7 +757,7 @@ void FrameGraph::schedule_graph() {
     gRenderLog.info("finish command recording");
 }
 
-void FrameGraph::destroy_resources() {
+void FrameGraph::destroyManagedResources() {
     for (auto& handle : mHandles) {
         if (handle.is_imported()) continue;
 
@@ -804,14 +783,14 @@ void FrameGraph::resize_frame_data(uint size) {
 void FrameGraph::reset() {
     mFrameSchedule.clear();
     reset_frame_commands();
-    destroy_resources();
+    destroyManagedResources();
     mRenderPasses.clear();
     mHandles.clear();
 }
 
 void FrameGraph::compile() {
     optimize();
-    create_resources();
+    createManagedResources();
     schedule_graph();
     init_frame_commands();
 }

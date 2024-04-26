@@ -5,6 +5,55 @@
 using namespace sm;
 using namespace sm::render;
 
+#pragma region Storage queue creation and lifetime
+
+void IDeviceContext::createStorageContext() {
+    mStorage.create(mDebugFlags);
+}
+
+void IDeviceContext::destroyStorageContext() {
+    mStorage.destroy();
+}
+
+void IDeviceContext::createStorageDeviceData() {
+    // create a fence and event for this storage context
+    SM_ASSERT_HR(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mStorageFence)));
+    mStorageFenceValue = 1;
+
+    mStorageFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+    SM_ASSERT(mStorageFenceEvent != nullptr);
+
+    // now create storage queues
+    mMemoryQueue = mStorage.newQueue({
+        .SourceType = DSTORAGE_REQUEST_SOURCE_MEMORY,
+        .Capacity = DSTORAGE_MAX_QUEUE_CAPACITY,
+        .Priority = DSTORAGE_PRIORITY_NORMAL,
+        .Name = "host -> device",
+        .Device = mDevice.get(),
+    });
+
+    mFileQueue = mStorage.newQueue({
+        .SourceType = DSTORAGE_REQUEST_SOURCE_FILE,
+        .Capacity = DSTORAGE_MAX_QUEUE_CAPACITY,
+        .Priority = DSTORAGE_PRIORITY_NORMAL,
+        .Name = "disk -> device",
+        .Device = mDevice.get(),
+    });
+}
+
+void IDeviceContext::destroyStorageDeviceData() {
+    // destroy our queues first
+    // TODO: should we ensure they're empty?
+    mMemoryQueue.reset();
+    mFileQueue.reset();
+
+    // destroy the fence and handle
+    SM_ASSERT_WIN32(CloseHandle(mStorageFenceEvent));
+    mStorageFence.reset();
+}
+
+#pragma region Device creation and lifetime
+
 static uint getSwapChainFlags(const Instance& instance) {
     return instance.tearing_support() ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 }
@@ -23,8 +72,7 @@ static logs::Severity getSeverityLevel(MessageSeverity sev) {
     }
 }
 
-static void onQueueMessage(D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID id, LPCSTR desc, void *user)
-{
+static void onQueueMessage(D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID id, LPCSTR desc, void *user) {
     MessageCategory c{category};
     MessageSeverity s{severity};
     MessageID message{id};
@@ -130,8 +178,6 @@ void IDeviceContext::create_device(Adapter& adapter) {
 
     gGpuLog.info("| feature level: {}", fl);
     gGpuLog.info("| flags: {}", mDebugFlags);
-
-    mStorage.create_queues(mDevice.get());
 }
 
 static constexpr D3D12MA::ALLOCATOR_FLAGS kAllocatorFlags = D3D12MA::ALLOCATOR_FLAG_DEFAULT_POOLS_NOT_ZEROED | D3D12MA::ALLOCATOR_FLAG_SINGLETHREADED;
@@ -240,8 +286,7 @@ void IDeviceContext::create_pipeline() {
     Object<IDXGISwapChain1> swapchain1;
     SM_ASSERT_HR(factory->CreateSwapChainForHwnd(*mDirectQueue, hwnd, &kSwapChainDesc, nullptr, nullptr, &swapchain1));
 
-    if (tearing)
-    {
+    if (tearing) {
         SM_ASSERT_HR(factory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER));
     }
 
@@ -334,11 +379,11 @@ void IDeviceContext::init_scene() {
 void IDeviceContext::upload_buffer_view(RequestBuilder& request, const world::BufferView& view) {
     if (world::IndexOf file = world::get<world::File>(view.source); file != world::kInvalidIndex) {
         request.src(get_storage_file(file), view.offset, view.source_size);
-        mStorage.submit_file_copy(request);
+        mFileQueue.enqueue(request);
     }
     else if (world::IndexOf buffer = world::get<world::Buffer>(view.source); buffer != world::kInvalidIndex) {
         request.src(get_storage_buffer(buffer) + view.offset, view.source_size);
-        mStorage.submit_memory_copy(request);
+        mMemoryQueue.enqueue(request);
     }
     else {
         CT_NEVER("invalid image source");
@@ -457,7 +502,7 @@ static Resource buildFileUploadRequest(
         .dst(resource.get(), 0, size)
         .name("Load File Region");
 
-    self.mStorage.submit_file_copy(request);
+    self.mFileQueue.enqueue(request);
 
     return resource;
 }
@@ -478,7 +523,7 @@ static Resource buildBufferUploadRequest(
         .dst(resource.get(), 0, size)
         .name("Load Buffer Region");
 
-    self.mStorage.submit_memory_copy(request);
+    self.mMemoryQueue.enqueue(request);
 
     return resource;
 }
@@ -580,7 +625,7 @@ render::ecs::VertexBuffer IDeviceContext::uploadVertexBuffer(world::VertexBuffer
         .name("VertexBuffer")
         .dst(resource.get(), 0, size);
 
-    mStorage.submit_memory_copy(request);
+    mMemoryQueue.enqueue(request);
     mCopyData.emplace(HostCopySource{ mStorageFenceValue, std::move(buffer) });
 
     D3D12_VERTEX_BUFFER_VIEW view = {
@@ -606,7 +651,7 @@ render::ecs::IndexBuffer IDeviceContext::uploadIndexBuffer(world::IndexBuffer&& 
         .name("IndexBuffer")
         .dst(resource.get(), 0, size);
 
-    mStorage.submit_memory_copy(request);
+    mMemoryQueue.enqueue(request);
     mCopyData.emplace(HostCopySource{ mStorageFenceValue, std::move(buffer) });
 
     D3D12_INDEX_BUFFER_VIEW view = {
@@ -624,26 +669,23 @@ void IDeviceContext::begin_upload() {
 }
 
 void IDeviceContext::end_upload() {
-    StorageQueue& files = mStorage.file_queue();
-    StorageQueue& memory = mStorage.memory_queue();
-
-    bool hasWork = files.hasPendingRequests() || memory.hasPendingRequests() || !mPendingBarriers.empty();
+    bool hasWork = mFileQueue.hasPendingRequests() || mMemoryQueue.hasPendingRequests() || !mPendingBarriers.empty();
     if (!hasWork) return;
 
     // only signal and submit when the queues have pending requests
     // dstorage doesnt signal a fence if there are no prior requests
-    if (files.hasPendingRequests()) {
-        files.signal(*mStorageFence, mStorageFenceValue);
-        files.submit();
+    if (mFileQueue.hasPendingRequests()) {
+        mFileQueue.signal(*mStorageFence, mStorageFenceValue);
+        mFileQueue.submit();
 
         mDirectQueue->Wait(*mStorageFence, mStorageFenceValue);
 
         mStorageFenceValue += 1;
     }
 
-    if (memory.hasPendingRequests()) {
-        memory.signal(*mStorageFence, mStorageFenceValue);
-        memory.submit();
+    if (mMemoryQueue.hasPendingRequests()) {
+        mMemoryQueue.signal(*mStorageFence, mStorageFenceValue);
+        mMemoryQueue.submit();
 
         mDirectQueue->Wait(*mStorageFence, mStorageFenceValue);
 
@@ -701,19 +743,6 @@ void IDeviceContext::set_scene(world::IndexOf<world::Scene> scene) {
     wait_for_gpu();
     destroy_scene();
     create_scene();
-}
-
-void IDeviceContext::create_storage_sync() {
-    SM_ASSERT_HR(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mStorageFence)));
-    mStorageFenceValue = 1;
-
-    mStorageFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-    SM_ASSERT(mStorageFenceEvent != nullptr);
-}
-
-void IDeviceContext::destroy_storage_sync() {
-    SM_ASSERT_WIN32(CloseHandle(mStorageFenceEvent));
-    mStorageFence.reset();
 }
 
 void IDeviceContext::create_assets() {
@@ -783,7 +812,8 @@ void IDeviceContext::destroy_device() {
     mFence.reset();
     mCopyFence.reset();
 
-    destroy_storage_sync();
+    // storage
+    destroyStorageDeviceData();
 
     // assets
     destroy_scene();
@@ -801,7 +831,6 @@ void IDeviceContext::destroy_device() {
 
     // allocator
     mAllocator.reset();
-    mStorage.destroy_queues();
 
     // descriptor heaps
     mRtvPool.reset();
@@ -849,16 +878,19 @@ void IDeviceContext::create() {
 
     PIXSetTargetWindow(mConfig.window.get_handle());
 
-    mStorage.create(mDebugFlags);
+    createStorageContext();
 
     create_device(adapter);
+    createStorageDeviceData();
+
     create_device_fence();
     create_allocator();
     create_compute_queue();
     create_copy_queue();
     create_copy_fence();
     create_pipeline();
-    create_storage_sync();
+
+
     on_setup();
     on_create();
 
@@ -876,9 +908,8 @@ void IDeviceContext::destroy() {
     destroy_framegraph();
     on_destroy();
 
-    destroy_storage_sync();
-
-    destroy_dstorage();
+    destroyStorageDeviceData();
+    destroyStorageContext();
 
     SM_ASSERT_WIN32(CloseHandle(mCopyFenceEvent));
     SM_ASSERT_WIN32(CloseHandle(mFenceEvent));
@@ -917,7 +948,7 @@ void IDeviceContext::recreate_device() {
     create_copy_queue();
     create_copy_fence();
 
-    create_storage_sync();
+    createStorageDeviceData();
 
     create_pipeline();
     on_create();

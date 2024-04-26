@@ -13,15 +13,11 @@ Result StorageQueue::init(IDStorageFactory *factory, const DSTORAGE_QUEUE_DESC& 
     if (Result hr = factory->CreateQueue(&desc, IID_PPV_ARGS(&mQueue)))
         return hr;
 
-    if (Result hr = factory->CreateStatusArray(4, desc.Name, IID_PPV_ARGS(&mStatusArray)))
-        return hr;
-
     return S_OK;
 }
 
 void StorageQueue::reset() {
     mQueue.reset();
-    mStatusArray.reset();
 }
 
 void StorageQueue::enqueue(const DSTORAGE_REQUEST& request) {
@@ -73,52 +69,8 @@ StorageQueue CopyStorage::newQueue(const DSTORAGE_QUEUE_DESC& desc) {
     return queue;
 }
 
-void CopyStorage::create_queues(ID3D12Device1 *device) {
-    mMemoryQueue = newQueue({
-        .SourceType = DSTORAGE_REQUEST_SOURCE_MEMORY,
-        .Capacity = DSTORAGE_MAX_QUEUE_CAPACITY,
-        .Priority = DSTORAGE_PRIORITY_NORMAL,
-        .Name = "host -> device",
-        .Device = device,
-    });
-
-    mFileQueue = newQueue({
-        .SourceType = DSTORAGE_REQUEST_SOURCE_FILE,
-        .Capacity = DSTORAGE_MAX_QUEUE_CAPACITY,
-        .Priority = DSTORAGE_PRIORITY_NORMAL,
-        .Name = "disk -> device",
-        .Device = device,
-    });
-}
-
-void CopyStorage::destroy_queues() {
-    mMemoryQueue.reset();
-    mFileQueue.reset();
-}
-
 Result CopyStorage::open(const fs::path& path, IDStorageFile **file) {
     return mFactory->OpenFile(path.c_str(), IID_PPV_ARGS(file));
-}
-
-void CopyStorage::submit_file_copy(const DSTORAGE_REQUEST& request) {
-    mFileQueue.enqueue(request);
-}
-
-void CopyStorage::submit_memory_copy(const DSTORAGE_REQUEST& request) {
-    mMemoryQueue.enqueue(request);
-}
-
-void CopyStorage::signal_file_queue(ID3D12Fence *fence, uint64 value) {
-    mFileQueue.signal(fence, value);
-}
-
-void CopyStorage::signal_memory_queue(ID3D12Fence *fence, uint64 value) {
-    mMemoryQueue.signal(fence, value);
-}
-
-void CopyStorage::flush_queues() {
-    mFileQueue.submit();
-    mMemoryQueue.submit();
 }
 
 ///
@@ -186,16 +138,6 @@ RequestBuilder& RequestBuilder::name(char const *name) {
 /// storage context stuff
 /// TODO: move this out of here
 ///
-
-void IDeviceContext::create_dstorage() {
-    mStorage.create(mDebugFlags);
-    mStorage.create_queues(mDevice.get());
-}
-
-void IDeviceContext::destroy_dstorage() {
-    mStorage.destroy_queues();
-    mStorage.destroy();
-}
 
 IDStorageFile *IDeviceContext::get_storage_file(world::IndexOf<world::File> index) {
     if (auto it = mStorageFiles.find(index); it != mStorageFiles.end()) {
