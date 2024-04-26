@@ -2,9 +2,7 @@ project('d3d12-agility', 'cpp',
     version : '1.611.2',
     # the binary data is licensed under a microsoft private license
     # the code is licensed under the MIT license
-    # !!! unlicensed DOES NOT mean public domain, redistribute this stuff
-    # !!! and microsoft lawyers will have your head
-    license : 'UNLICENSED AND MIT',
+    license : 'LicenseRef-Proprietary AND MIT',
     license_files : [ 'LICENSE.txt', 'LICENSE-CODE.txt' ],
     meson_version : '>=1.1.0'
 )

@@ -23,6 +23,8 @@ namespace blit {
         { {  1.f, -1.f }, { 1.f, 1.f } },
         { {  1.f,  1.f }, { 1.f, 0.f } },
     };
+
+    using VertexBuffer = render::VertexBuffer<Vertex>;
 }
 
 static constexpr D3D12_ROOT_SIGNATURE_FLAGS kPostRootFlags
@@ -91,20 +93,14 @@ static void create_blit_pipeline(render::Pipeline& pipeline, render::IDeviceCont
     }
 }
 
-static void create_screen_quad(render::Resource& quad, render::VertexBufferView& vbo, render::IDeviceContext& context) {
-    const auto kBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(blit::kScreenQuad));
-
+static void create_screen_quad(blit::VertexBuffer& quad, render::IDeviceContext& context) {
     render::Resource upload;
 
-    SM_ASSERT_HR(context.create_resource(upload, D3D12_HEAP_TYPE_UPLOAD, kBufferDesc, D3D12_RESOURCE_STATE_COPY_SOURCE));
+    SM_ASSERT_HR(context.createBufferResource(upload, D3D12_HEAP_TYPE_UPLOAD, sizeof(blit::kScreenQuad), D3D12_RESOURCE_STATE_COPY_SOURCE));
 
-    SM_ASSERT_HR(context.create_resource(quad, D3D12_HEAP_TYPE_DEFAULT, kBufferDesc, D3D12_RESOURCE_STATE_COMMON));
+    SM_ASSERT_HR(context.createBufferResource(quad, D3D12_HEAP_TYPE_DEFAULT, sizeof(blit::kScreenQuad), D3D12_RESOURCE_STATE_COMMON));
 
-    void *data;
-    D3D12_RANGE read{0, 0};
-    SM_ASSERT_HR(upload.map(&read, &data));
-    std::memcpy(data, blit::kScreenQuad, sizeof(blit::kScreenQuad));
-    upload.unmap(&read);
+    upload.write(blit::kScreenQuad, sizeof(blit::kScreenQuad));
 
     context.reset_direct_commands();
     context.reset_copy_commands();
@@ -136,12 +132,6 @@ static void create_screen_quad(render::Resource& quad, render::VertexBufferView&
 
     context.wait_for_gpu();
     context.flush_copy_queue();
-
-    vbo = {
-        .BufferLocation = quad.get_gpu_address(),
-        .SizeInBytes = sizeof(blit::kScreenQuad),
-        .StrideInBytes = sizeof(blit::Vertex),
-    };
 }
 
 void draw::blit(graph::FrameGraph& graph, graph::Handle target, graph::Handle source, const render::Viewport& viewport) {
@@ -152,12 +142,11 @@ void draw::blit(graph::FrameGraph& graph, graph::Handle target, graph::Handle so
     auto& data = graph.device_data([](render::IDeviceContext& context) {
         struct {
             render::Pipeline pipeline;
-            render::Resource quad;
-            render::VertexBufferView vbo;
+            blit::VertexBuffer quad;
         } info;
 
         create_blit_pipeline(info.pipeline, context);
-        create_screen_quad(info.quad, info.vbo, context);
+        create_screen_quad(info.quad, context);
 
         return info;
     });
@@ -172,6 +161,8 @@ void draw::blit(graph::FrameGraph& graph, graph::Handle target, graph::Handle so
         auto rtv_cpu = context.mRtvPool.cpu_handle(rtv);
         auto srv_gpu = context.mSrvPool.gpu_handle(srv);
 
+        D3D12_VERTEX_BUFFER_VIEW view = data.quad.getView();
+
         cmd->SetGraphicsRootSignature(*data.pipeline.signature);
         cmd->SetPipelineState(*data.pipeline.pso);
 
@@ -182,7 +173,7 @@ void draw::blit(graph::FrameGraph& graph, graph::Handle target, graph::Handle so
 
         cmd->ClearRenderTargetView(rtv_cpu, render::kColourBlack.data(), 0, nullptr);
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-        cmd->IASetVertexBuffers(0, 1, &data.vbo);
+        cmd->IASetVertexBuffers(0, 1, &view);
 
         cmd->SetGraphicsRootDescriptorTable(0, srv_gpu);
         cmd->DrawInstanced(4, 1, 0, 0);

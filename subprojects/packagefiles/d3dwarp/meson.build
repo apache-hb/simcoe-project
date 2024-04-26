@@ -1,8 +1,6 @@
 project('d3d-warp',
-    version : '1.0.9',
-    # !!! unlicensed DOES NOT mean public domain, redistribute this stuff
-    # !!! and microsoft lawyers will have your head
-    license : 'UNLICENSED',
+    version : '1.0.11',
+    license : 'LicenseRef-Proprietary',
     license_files : [ 'LICENSE.txt' ],
     meson_version : '>=1.1.0'
 )

@@ -1,4 +1,7 @@
-project('directx-mesh', 'cpp')
+project('directx-mesh', 'cpp',
+    license : 'MIT',
+    license_files : [ 'LICENSE' ]
+)
 
 src = [
     'DirectXMesh/DirectXMeshAdjacency.cpp',

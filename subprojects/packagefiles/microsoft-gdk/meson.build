@@ -2,10 +2,7 @@ project('microsoft-gdk',
     # the gdk doesnt use semantic versioning
     # this is just what nuget says in the version field
     version : '10.25398.1897',
-
-    # !!! unlicensed DOES NOT mean public domain, redistribute this stuff
-    # !!! and microsoft lawyers will have your head
-    license : 'UNLICENSED',
+    license : 'LicenseRef-Proprietary',
     license_files : [ 'LICENSE.md' ],
     meson_version : '>=1.1.0'
 )

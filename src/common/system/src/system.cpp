@@ -32,7 +32,7 @@ void sys::create(HINSTANCE hInstance) {
         /* name = */ MAKEINTRESOURCEA(IDI_DEFAULT_ICON));
 
     if (hIcon == nullptr) {
-        gSystemLog.warn("failed to load icon {}", get_last_error());
+        gSystemLog.warn("failed to load icon {}", getLastError());
     }
 
     HCURSOR hCursor = LoadCursorA(
@@ -40,7 +40,7 @@ void sys::create(HINSTANCE hInstance) {
         /* name = */ IDC_ARROW);
 
     if (hCursor == nullptr) {
-        gSystemLog.warn("failed to load cursor {}", get_last_error());
+        gSystemLog.warn("failed to load cursor {}", getLastError());
     }
 
     const WNDCLASSEXA kClass = {

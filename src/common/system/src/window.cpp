@@ -15,7 +15,7 @@ using namespace sm::sys;
     [&](source_info_t where) -> bool {                                                             \
         if (auto result = (expr); !result) {                                                       \
             gSystemLog.error("[{}:{}] {}: " #expr " = {}. {}", where.file, where.line, where.function, \
-                         result, sm::sys::get_last_error());                                       \
+                         result, sm::sys::getLastError());                                       \
             return false;                                                                          \
         }                                                                                          \
         return true;                                                                               \

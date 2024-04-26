@@ -14,15 +14,14 @@ namespace sm::logs {
         sm::Storage<io_t, IO_FILE_SIZE> mStream{};
         char mBuffer[2048];
 
-        void accept(const Message& message) noexcept override;
+        void acceptMessage(const Message& message) noexcept override;
+        void closeChannel() noexcept override;
     public:
         FileChannel() noexcept = default;
-        ~FileChannel() noexcept;
+        FileChannel(FileChannel&&) noexcept = default;
+        FileChannel& operator=(FileChannel&&) noexcept = default;
 
         SM_NOCOPY(FileChannel)
-
-        FileChannel(FileChannel&& other) noexcept;
-        FileChannel& operator=(FileChannel&& other) noexcept;
 
         static std::expected<FileChannel, io_error_t> open(const char *path) noexcept;
 

@@ -140,13 +140,13 @@ void draw::ecs::opaque(flecs::world& world, graph::FrameGraph& graph, graph::Han
     graph::PassBuilder pass = graph.graphics(fmt::format("Opaque {}", camera.name().c_str()));
 
     graph::ResourceInfo depthInfo = {
-        .sz = graph::ResourceSize::tex2d(it->window),
+        .size = graph::ResourceSize::tex2d(it->window),
         .format = it->depth,
         .clear = graph::Clear::depthStencil(1.f, 0, it->depth),
     };
 
     graph::ResourceInfo targetInfo = {
-        .sz = graph::ResourceSize::tex2d(it->window),
+        .size = graph::ResourceSize::tex2d(it->window),
         .format = it->colour,
         .clear = graph::Clear::colour(render::kClearColour, it->colour),
     };

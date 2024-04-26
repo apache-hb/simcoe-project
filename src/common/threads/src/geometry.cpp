@@ -5,29 +5,164 @@
 
 #include "system/system.hpp"
 
-#include <errhandlingapi.h>
-#include <processthreadsapi.h>
-#include <sysinfoapi.h>
-#include <unordered_set>
-#include <winerror.h>
-
 using namespace sm;
 using namespace sm::threads;
 
-static LOG_CATEGORY_IMPL(gScheduler, "scheduler");
+namespace {
+LOG_CATEGORY_IMPL(gThreadLog, "threads");
+
+threads::CpuGeometry gCpuGeometry;
+
+using FnGetSystemCpuSetInformation = decltype(&GetSystemCpuSetInformation);
+using FnGetLogicalProcessorInformationEx = decltype(&GetLogicalProcessorInformationEx);
+
+constexpr CacheType getCacheType(PROCESSOR_CACHE_TYPE type) noexcept {
+    switch (type) {
+    case CacheUnified: return CacheType::eUnified;
+    case CacheInstruction: return CacheType::eInstruction;
+    case CacheData: return CacheType::eData;
+    case CacheTrace: return CacheType::eTrace;
+    default: return CacheType::eUnknown;
+    }
+}
+
+struct PartialPackageInfo {
+    sm::VectorBase<GROUP_AFFINITY> masks;
+};
+
+class GeometryBuilder {
+    HMODULE mKernel32Handle;
+    FnGetSystemCpuSetInformation mGetSystemCpuSetInformation = nullptr;
+    FnGetLogicalProcessorInformationEx mGetLogicalProcessorInformationEx = nullptr;
+
+    static FARPROC loadModuleEntry(HMODULE mod, const char *name, const char *pfn) noexcept {
+        FARPROC proc = ::GetProcAddress(mod, name);
+        if (proc == nullptr) {
+            gThreadLog.warn("{} did not contain {}", pfn, name);
+        }
+
+        return proc;
+    }
+
+    template<typename T, typename I>
+    static IndexRange<I> getMaskedRange(sm::Span<const T> span, GROUP_AFFINITY mask) noexcept {
+        static_assert(std::is_base_of_v<ScheduleMask, T>, "T must be derived from ScheduleMask");
+
+        const I first = [&] {
+            // scan from the start to find the first item with a matching mask
+            for (size_t i = 0; i < span.size(); ++i) {
+                if (span[i].isContainedIn(mask)) {
+                    return enum_cast<I>(i);
+                }
+            }
+
+            SM_NEVER("no items found with a mask matching {}:{}", mask.Group, mask.Mask);
+        }();
+
+        const I last = [&] {
+            // scan from the end to find the last item with a matching mask
+            for (size_t i = span.size(); i > 0; --i) {
+                if (span[i - 1].isContainedIn(mask)) {
+                    return enum_cast<I>(i);
+                }
+            }
+
+            SM_NEVER("no items found with a mask matching {}:{}", mask.Group, mask.Mask);
+        }();
+
+        return {first, last};
+    }
+
+public:
+    GeometryBuilder() noexcept {
+        mKernel32Handle = ::GetModuleHandleA("kernel32");
+        if (mKernel32Handle == nullptr) {
+            gThreadLog.warn("failed to load kernel32.dll {}", sys::getLastError());
+            return;
+        }
+
+        mGetSystemCpuSetInformation = (FnGetSystemCpuSetInformation)(void*)loadModuleEntry(mKernel32Handle, "GetSystemCpuSetInformation", "kernel32.dll");
+        mGetLogicalProcessorInformationEx = (FnGetLogicalProcessorInformationEx)(void*)loadModuleEntry(mKernel32Handle, "GetLogicalProcessorInformationEx", "kernel32.dll");
+    }
+
+    FnGetSystemCpuSetInformation getSystemCpuSetInformation() const noexcept {
+        return mGetSystemCpuSetInformation;
+    }
+
+    FnGetLogicalProcessorInformationEx getLogicalProcessorInformationEx() const noexcept {
+        return mGetLogicalProcessorInformationEx;
+    }
+
+    // TODO: figure out the max number of subcores for the cpu and do this all with arrays
+
+    sm::VectorBase<HyperThread> threads;
+    sm::VectorBase<Core> cores;
+    sm::VectorBase<Group> groups;
+    sm::VectorBase<Cache> caches;
+
+    sm::VectorBase<PartialPackageInfo> pendingPackages;
+
+    IndexRange<ThreadIndex> getMaskedThreadRange(GROUP_AFFINITY mask) const noexcept {
+        return getMaskedRange<HyperThread, ThreadIndex>(threads, mask);
+    }
+
+    IndexRange<CoreIndex> getMaskedCoreRange(GROUP_AFFINITY mask) const noexcept {
+        return getMaskedRange<Core, CoreIndex>(cores, mask);
+    }
+
+    // IndexRange<ChipletIndex> getMaskedChipletRange(GROUP_AFFINITY mask) const noexcept {
+    //     return getMaskedRange<Chiplet, ChipletIndex>(chiplets, mask);
+    // }
+
+    threads::CpuGeometry build() noexcept {
+        auto predicate = [](const ScheduleMask& lhs, const ScheduleMask& rhs) -> bool {
+            // sort first by group and then by mask
+            return (lhs.mask.Group > rhs.mask.Group) || ((lhs.mask.Group == rhs.mask.Group) && (lhs.mask.Mask > rhs.mask.Mask));
+        };
+
+        // first sort all acquired data by its affinity so we can find index ranges
+        std::sort(threads.begin(), threads.end(), predicate);
+        std::sort(cores.begin(), cores.end(), predicate);
+        std::sort(groups.begin(), groups.end(), predicate);
+
+        sm::VectorBase<Package> packages = [&] {
+            sm::VectorBase<Package> result;
+
+            return result;
+        }();
+
+        for (size_t i = 0; i < packages.size(); i++) {
+            gThreadLog.info("package {}: {} threads, {} cores, {} group(s), {} caches",
+                i, packages[i].threads.size(), packages[i].cores.size(),
+                packages[i].groups.size(), packages[i].caches.size());
+        }
+
+        gThreadLog.info("cpu geometry: {} total package(s), {} total group(s), {} total cores, {} total threads",
+            packages.size(), groups.size(), cores.size(),
+            threads.size());
+
+        return CpuGeometry {
+            .threads = std::move(threads),
+            .cores = std::move(cores),
+            .caches = {},
+            .groups = std::move(groups),
+            .packages = std::move(packages),
+        };
+    }
+};
 
 template <typename T>
-static T *advance(T *ptr, size_t bytes) {
+T *advance(T *ptr, size_t bytes) noexcept {
     return reinterpret_cast<T *>(reinterpret_cast<std::byte *>(ptr) + bytes);
 }
 
 struct ProcessorInfoIterator {
-    ProcessorInfoIterator(SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *buffer, DWORD remaining)
+    ProcessorInfoIterator(SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *buffer, DWORD remaining) noexcept
         : mBuffer(buffer)
         , mRemaining(remaining)
     { }
 
-    SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *operator++() {
+    SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *operator++() noexcept {
         CTASSERT(mRemaining > 0);
 
         mRemaining -= mBuffer->Size;
@@ -38,43 +173,57 @@ struct ProcessorInfoIterator {
         return mBuffer;
     }
 
-    SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *operator*() const {
+    SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *operator*() const noexcept {
         return mBuffer;
     }
 
-    bool operator==(const ProcessorInfoIterator &other) const {
+    bool operator==(const ProcessorInfoIterator &other) const noexcept {
         return mRemaining == other.mRemaining;
     }
 
-  private:
+private:
     SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *mBuffer;
     DWORD mRemaining;
 };
 
 // GetLogicalProcessorInformationEx provides information about inter-core communication
 struct ProcessorInfo {
-    ProcessorInfo(LOGICAL_PROCESSOR_RELATIONSHIP relation) {
-        SM_ASSERT_WIN32(!GetLogicalProcessorInformationEx(relation, nullptr, &mSize));
-        SM_ASSERT_WIN32(GetLastError() == ERROR_INSUFFICIENT_BUFFER);
+    ProcessorInfo(LOGICAL_PROCESSOR_RELATIONSHIP relation, const GeometryBuilder& builder) noexcept {
+        initInfo(relation, builder.getLogicalProcessorInformationEx());
+    }
+
+    ProcessorInfoIterator begin() const noexcept {
+        return ProcessorInfoIterator(mBuffer, mRemaining);
+    }
+
+    ProcessorInfoIterator end() const noexcept {
+        return ProcessorInfoIterator(mBuffer, 0);
+    }
+
+private:
+    void initInfo(LOGICAL_PROCESSOR_RELATIONSHIP relation, FnGetLogicalProcessorInformationEx pfnGetLogicalProcessorInformationEx) noexcept {
+        if (pfnGetLogicalProcessorInformationEx(relation, nullptr, &mSize)) {
+            gThreadLog.warn("GetLogicalProcessorInformationEx{{1}} failed with error {}", sys::getLastError());
+            return;
+        }
+
+        if (OsError err = sys::getLastError(); err != OsError(ERROR_INSUFFICIENT_BUFFER)) {
+            gThreadLog.warn("GetLogicalProcessorInformationEx{{2}} failed with error {}", err);
+            return;
+        }
 
         mMemory = sm::UniquePtr<std::byte[]>(mSize);
         mBuffer = reinterpret_cast<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *>(mMemory.get());
-        SM_ASSERT_WIN32(GetLogicalProcessorInformationEx(relation, mBuffer, &mSize));
+        if (!pfnGetLogicalProcessorInformationEx(relation, mBuffer, &mSize)) {
+            gThreadLog.warn("GetLogicalProcessorInformationEx{{3}} failed with error {}", sys::getLastError());
+            return;
+        }
 
         mRemaining = mSize;
     }
 
-    ProcessorInfoIterator begin() const {
-        return ProcessorInfoIterator(mBuffer, mRemaining);
-    }
-
-    ProcessorInfoIterator end() const {
-        return ProcessorInfoIterator(mBuffer, 0);
-    }
-
-  private:
     sm::UniquePtr<std::byte[]> mMemory;
-    SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *mBuffer;
+    SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *mBuffer = nullptr;
     DWORD mSize = 0;
 
     DWORD mRemaining = 0;
@@ -82,12 +231,12 @@ struct ProcessorInfo {
 
 // GetSystemCpuSetInformation provides information about cpu speeds
 struct CpuSetIterator {
-    CpuSetIterator(SYSTEM_CPU_SET_INFORMATION *pBuffer, ULONG remaining)
+    CpuSetIterator(SYSTEM_CPU_SET_INFORMATION *pBuffer, ULONG remaining) noexcept
         : mBuffer(pBuffer)
         , mRemaining(remaining)
     { }
 
-    SYSTEM_CPU_SET_INFORMATION *operator++() {
+    SYSTEM_CPU_SET_INFORMATION *operator++() noexcept {
         CTASSERT(mRemaining > 0);
 
         mRemaining -= mBuffer->Size;
@@ -98,11 +247,11 @@ struct CpuSetIterator {
         return mBuffer;
     }
 
-    SYSTEM_CPU_SET_INFORMATION *operator*() const {
+    SYSTEM_CPU_SET_INFORMATION *operator*() const noexcept {
         return mBuffer;
     }
 
-    bool operator==(const CpuSetIterator &other) const {
+    bool operator==(const CpuSetIterator &other) const noexcept {
         return mRemaining == other.mRemaining;
     }
 
@@ -112,83 +261,61 @@ struct CpuSetIterator {
 };
 
 struct CpuSetInfo {
-    CpuSetInfo() {
-        HANDLE process = GetCurrentProcess();
-        SM_ASSERT_WIN32(!GetSystemCpuSetInformation(nullptr, 0, &mSize, process, 0));
+    CpuSetInfo(GeometryBuilder& builder) noexcept {
+        initInfo(builder.getSystemCpuSetInformation());
+    }
 
-        SM_ASSERT_WIN32(GetLastError() == ERROR_INSUFFICIENT_BUFFER);
+    CpuSetIterator begin() const noexcept {
+        return CpuSetIterator(mInfo, mRemaining);
+    }
+
+    CpuSetIterator end() const noexcept {
+        return CpuSetIterator(mInfo, 0);
+    }
+
+private:
+    void initInfo(FnGetSystemCpuSetInformation pfnGetSystemCpuSetInformation) noexcept {
+        HANDLE process = GetCurrentProcess();
+        if (pfnGetSystemCpuSetInformation(nullptr, 0, &mSize, process, 0)) {
+            gThreadLog.warn("GetSystemCpuSetInformation{{1}} failed with error {}", sys::getLastError());
+            return;
+        }
+
+        if (OsError err = sys::getLastError(); err != OsError(ERROR_INSUFFICIENT_BUFFER)) {
+            gThreadLog.warn("GetSystemCpuSetInformation{{2}} failed with error {}", err);
+            return;
+        }
 
         mMemory = sm::UniquePtr<std::byte[]>(mSize);
         mInfo = reinterpret_cast<SYSTEM_CPU_SET_INFORMATION *>(mMemory.get());
-        SM_ASSERT_WIN32(GetSystemCpuSetInformation(mInfo, mSize, &mSize, process, 0));
+        if (!pfnGetSystemCpuSetInformation(mInfo, mSize, &mSize, process, 0)) {
+            gThreadLog.warn("GetSystemCpuSetInformation{{3}} failed with error {}", sys::getLastError());
+            return;
+        }
 
         mRemaining = mSize;
     }
 
-    CpuSetIterator begin() const {
-        return CpuSetIterator(mInfo, mRemaining);
-    }
-
-    CpuSetIterator end() const {
-        return CpuSetIterator(mInfo, 0);
-    }
-
-  private:
     sm::UniquePtr<std::byte[]> mMemory;
-    SYSTEM_CPU_SET_INFORMATION *mInfo;
+    SYSTEM_CPU_SET_INFORMATION *mInfo = nullptr;
     ULONG mSize = 0;
 
     ULONG mRemaining = 0;
 };
 
-struct GeometryBuilder : CpuGeometry {
-    std::unordered_set<uint16_t> unique;
+class ProcessorInfoLayout {
+    GeometryBuilder &mBuilder;
 
-    bool should_add_item(GROUP_AFFINITY item, GROUP_AFFINITY affinity) {
-        if (item.Group != affinity.Group || !(item.Mask & affinity.Mask)) return false;
+    uint mCacheId = 0;
 
-        auto [it, exists] = unique.emplace(item.Mask);
-        return !exists;
-    }
-
-    // TODO: de-template this to save binary space
-    template <typename Index, typename Item>
-    void get_item_with_mask(sm::Vector<Index> &ids, Span<const Item> items,
-                            GROUP_AFFINITY affinity) {
-        for (size_t i = 0; i < items.size(); ++i)
-            if (should_add_item(items[i].mask, affinity))
-                ids.push_back(enum_cast<Index>(i));
-
-        unique.clear();
-    }
-
-    // TODO: figure out the max number of subcores for the cpu and do this all with arrays
-
-    void get_masked_subcores(SubcoreIndices &ids, GROUP_AFFINITY affinity) {
-        get_item_with_mask<SubcoreIndex, Subcore>(ids, subcores, affinity);
-    }
-
-    void get_masked_cores(CoreIndices &ids, GROUP_AFFINITY affinity) {
-        get_item_with_mask<CoreIndex, Core>(ids, cores, affinity);
-    }
-
-    void get_masked_chiplets(ChipletIndices &ids, GROUP_AFFINITY affinity) {
-        get_item_with_mask<ChipletIndex, Chiplet>(ids, chiplets, affinity);
-    }
-};
-
-struct ProcessorInfoLayout {
-    ProcessorInfoLayout(GeometryBuilder& build)
-        : builder(build)
+public:
+    ProcessorInfoLayout(GeometryBuilder& build) noexcept
+        : mBuilder(build)
     { }
-
-    GeometryBuilder &builder;
 
     static constexpr KAFFINITY kAffinityBits = std::numeric_limits<KAFFINITY>::digits;
 
-    void add_core(const PROCESSOR_RELATIONSHIP &info) {
-        SubcoreIndices subcore_ids;
-
+    void addCoreInfo(const PROCESSOR_RELATIONSHIP &info) noexcept {
         for (DWORD i = 0; i < info.GroupCount; ++i) {
             GROUP_AFFINITY group = info.GroupMask[i];
 
@@ -201,113 +328,108 @@ struct ProcessorInfoLayout {
                     .Group = group.Group,
                 };
 
-                builder.subcores.push_back({ .mask = groupAffinity });
+                threads::HyperThread info = {
+                    { .mask = groupAffinity },
+                };
 
-                subcore_ids.push_back(enum_cast<SubcoreIndex>(builder.subcores.size() - 1));
+                mBuilder.threads.push_back(info);
             }
         }
 
-        builder.cores.push_back({
-            .mask = info.GroupMask[0],
-            .subcores = subcore_ids,
-            .efficiency = info.EfficiencyClass,
-        });
+        threads::Core core = {
+            /*ScheduleMask=*/ { info.GroupMask[0] },
+            /*threads=*/ { ThreadIndex::eInvalid, ThreadIndex::eInvalid },
+            /*schedule =*/ 0,
+            /*efficiency=*/ info.EfficiencyClass,
+        };
+
+        mBuilder.cores.push_back(core);
     }
 
-    void add_package(const PROCESSOR_RELATIONSHIP &info) {
-        SubcoreIndices subcore_ids;
-        CoreIndices core_ids;
-        ChipletIndices chiplet_ids;
+    void addPackageInfo(const PROCESSOR_RELATIONSHIP &info) noexcept {
+        PartialPackageInfo package = {
+            .masks = sm::VectorBase(info.GroupMask, info.GroupMask + info.GroupCount)
+        };
 
-        for (DWORD i = 0; i < info.GroupCount; ++i) {
-            GROUP_AFFINITY group = info.GroupMask[i];
-            builder.get_masked_cores(core_ids, group);
-            builder.get_masked_subcores(subcore_ids, group);
-            builder.get_masked_chiplets(chiplet_ids, group);
-        }
-
-        builder.packages.push_back({
-            .mask = info.GroupMask[0],
-            .cores = core_ids,
-            .subcores = subcore_ids,
-            .chiplets = chiplet_ids,
-        });
+        mBuilder.pendingPackages.emplace_back(package);
     }
 
-    void add_cache(const CACHE_RELATIONSHIP &info) {
-        if (info.Level != 3) return;
+    void addCacheInfo(const CACHE_RELATIONSHIP &info) noexcept {
+        uint id = mCacheId++;
 
-        // assume everything that shares l3 cache is in the same cluster
-        // TODO: on intel E-cores and P-cores share the same l3
-        //       but we dont want to put them in the same cluster.
-        //       for now that isnt a big problem though.
-        CoreIndices core_ids;
+        for (WORD i = 0; i < info.GroupCount; i++) {
+            Cache cache = {
+                .id = id,
+                .mask = { info.GroupMasks[i] },
+                .level = info.Level,
+                .associativity = info.Associativity,
+                .lineSize = info.LineSize,
+                .size = info.CacheSize,
+                .type = getCacheType(info.Type)
+            };
 
-        for (DWORD i = 0; i < info.GroupCount; ++i) {
-            GROUP_AFFINITY group = info.GroupMasks[i];
-            builder.get_masked_cores(core_ids, group);
+            mBuilder.caches.push_back(cache);
         }
-
-        builder.chiplets.push_back({
-            .mask = info.GroupMasks[0],
-            .cores = core_ids,
-        });
     }
 };
 
 struct CpuSetLayout {
-    CpuSetLayout(GeometryBuilder& build)
+    CpuSetLayout(GeometryBuilder& build) noexcept
         : builder(build)
     { }
 
     GeometryBuilder& builder;
 
-    void add_cpuset(const SYSTEM_CPU_SET_INFORMATION &info) {
+    void addCpuSetInfo(const SYSTEM_CPU_SET_INFORMATION &info) noexcept {
         auto cpuset = info.CpuSet;
         GROUP_AFFINITY affinity = {
             .Mask = 1ull << KAFFINITY(cpuset.LogicalProcessorIndex),
             .Group = cpuset.Group,
         };
 
-        CoreIndices cores;
-        builder.get_masked_cores(cores, affinity);
-        for (CoreIndex coreId : cores) {
-            builder.cores[size_t(coreId)].schedule = cpuset.SchedulingClass;
+        // update schedules for all cores that are in this cpuset
+        for (Core& core : builder.cores) {
+            if (core.isContainedIn(affinity)) {
+                core.schedule = cpuset.SchedulingClass;
+            }
         }
     }
 };
+}
 
-CpuGeometry threads::global_cpu_geometry() {
+const CpuGeometry& threads::getCpuGeometry() noexcept {
+    return gCpuGeometry;
+}
+
+void threads::init() noexcept {
     GeometryBuilder builder;
-    ProcessorInfoLayout processor_layout{builder};
-    CpuSetLayout cpuset_layout{builder};
+    ProcessorInfoLayout processorInfoLayout{builder};
+    CpuSetLayout cpusetInfoLayout{builder};
 
-    ProcessorInfo processor_info{RelationAll};
-    CpuSetInfo cpuset_info{};
+    ProcessorInfo processorInfo{RelationAll, builder};
+    CpuSetInfo cpusetInfo{builder};
 
-    for (const auto *relation : processor_info) {
+    for (auto relation : processorInfo) {
         if (relation->Relationship == RelationProcessorCore)
-            processor_layout.add_core(relation->Processor);
+            processorInfoLayout.addCoreInfo(relation->Processor);
     }
 
-    for (const auto *relation : processor_info) {
-        if (relation->Relationship == RelationCache) processor_layout.add_cache(relation->Cache);
+    for (auto relation : processorInfo) {
+        if (relation->Relationship == RelationCache)
+            processorInfoLayout.addCacheInfo(relation->Cache);
     }
 
-    for (const auto *relation : processor_info) {
+    for (auto relation : processorInfo) {
         if (relation->Relationship == RelationProcessorPackage)
-            processor_layout.add_package(relation->Processor);
+            processorInfoLayout.addPackageInfo(relation->Processor);
     }
 
-    for (const auto *cpuset : cpuset_info) {
-        if (cpuset->Type == CpuSetInformation) cpuset_layout.add_cpuset(*cpuset);
+    for (auto cpuset : cpusetInfo) {
+        if (cpuset->Type == CpuSetInformation)
+            cpusetInfoLayout.addCpuSetInfo(*cpuset);
     }
 
     // print cpu geometry
 
-    gScheduler.info("cpu geometry: {} package(s), {} chiplet(s), {} cores, {} subcores",
-             builder.packages.size(), builder.chiplets.size(), builder.cores.size(),
-             builder.subcores.size());
-
-    return builder;
+    gCpuGeometry = builder.build();
 }

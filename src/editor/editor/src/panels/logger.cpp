@@ -21,7 +21,7 @@ LoggerPanel::~LoggerPanel() {
     instance.removeChannel(*this);
 }
 
-void LoggerPanel::accept(const logs::Message &message) {
+void LoggerPanel::acceptMessage(const logs::Message &message) noexcept {
     Message msg = {
         .severity = message.severity,
         .timestamp = message.timestamp,
@@ -32,7 +32,11 @@ void LoggerPanel::accept(const logs::Message &message) {
     mMessages[&message.category].push_back(msg);
 }
 
-static ImVec4 get_severity_colour(logs::Severity severity) {
+void LoggerPanel::closeChannel() noexcept {
+    // nothing to do
+}
+
+static ImVec4 getSeverityColour(logs::Severity severity) {
     using enum logs::Severity;
     switch (severity) {
         // blue
@@ -65,7 +69,7 @@ static constexpr ImGuiTableFlags kFlags
 
 using ReflectSeverity = ctu::TypeInfo<logs::Severity>;
 
-void LoggerPanel::draw_category(const logs::LogCategory& category) const {
+void LoggerPanel::drawLogCategory(const logs::LogCategory& category) const {
     const LogMessages &messages = mMessages.at(&category);
 
     if (ImGui::BeginTable("Messages", 3, kFlags)) {
@@ -76,7 +80,7 @@ void LoggerPanel::draw_category(const logs::LogCategory& category) const {
         ImGui::TableHeadersRow();
 
         for (const Message &message : messages) {
-            ImVec4 colour = get_severity_colour(message.severity);
+            ImVec4 colour = getSeverityColour(message.severity);
 
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
@@ -100,7 +104,7 @@ void LoggerPanel::draw_window() {
                 if (messages.empty()) continue;
 
                 if (ImGui::BeginTabItem(category->name().data())) {
-                    draw_category(*category);
+                    drawLogCategory(*category);
                     ImGui::EndTabItem();
                 }
             }

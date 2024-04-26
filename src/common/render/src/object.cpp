@@ -38,10 +38,6 @@ Result Resource::write(const void *data, size_t size) {
     return HRESULT_FROM_WIN32(ERROR_SUCCESS);
 }
 
-D3D12_GPU_VIRTUAL_ADDRESS Resource::get_gpu_address() {
-    return mResource->GetGPUVirtualAddress();
-}
-
 void Resource::reset() {
     mResource.reset();
     mAllocation.reset();

@@ -17,7 +17,6 @@ namespace sm::render {
 
         D3D12_GPU_VIRTUAL_ADDRESS getDeviceAddress() const { return mGpuAddress; }
 
-        D3D12_GPU_VIRTUAL_ADDRESS get_gpu_address();
         void reset();
         void rename(sm::StringView name);
 
@@ -57,12 +56,12 @@ namespace sm::render {
             D3D12_RANGE read{0, 0};
             SM_ASSERT_HR(Resource::map(&read, &mapped));
 
-            view.BufferLocation = get_gpu_address();
+            view.BufferLocation = getDeviceAddress();
             view.SizeInBytes = sizeof(T) * count;
             view.StrideInBytes = sizeof(T);
         }
 
-        D3D12_VERTEX_BUFFER_VIEW get_view() const {
+        D3D12_VERTEX_BUFFER_VIEW getView() const {
             return view;
         }
     };

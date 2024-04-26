@@ -1,83 +1,121 @@
 #pragma once
 
+#include "core/span.hpp"
+#include "core/win32.hpp" // IWYU pragma: keep
+
 #include "core/macros.hpp"
 #include "core/vector.hpp"
 #include "core/core.hpp"
-
-#include "threads.reflect.h"
+#include <bitset>
 
 namespace sm::threads {
-    enum struct SubcoreIndex : uint16 {
+    enum class ThreadClass {
+#define THREAD_CLASS(id, name) id,
+#include "threads/threads.inc"
+    };
+
+    enum class PriorityClass {
+#define PRIORITY_CLASS(id, name, value) id = (value),
+#include "threads/threads.inc"
+    };
+
+    enum class CacheType {
+#define CACHE_TYPE(id, name) id,
+#include "threads/threads.inc"
+    };
+
+    // each subcore belongs to only a single core.
+    enum struct ThreadIndex : uint16 {
         eInvalid = UINT16_MAX
     };
 
+    // a core will have 1 or more threads, and belongs to a single chiplet.
     enum struct CoreIndex : uint16 {
         eInvalid = UINT16_MAX
     };
 
-    enum struct ChipletIndex : uint16 {
+    // a group will have 1 or more cores, and belongs to a single package.
+    enum struct GroupIndex : uint16 {
         eInvalid = UINT16_MAX
     };
 
+    // a package will have 1 or more chiplets
     enum struct PackageIndex : uint16 {
         eInvalid = UINT16_MAX
     };
 
-    using SubcoreIndices = sm::Vector<SubcoreIndex>;
-    using CoreIndices = sm::Vector<CoreIndex>;
-    using ChipletIndices = sm::Vector<ChipletIndex>;
-    using PackageIndices = sm::Vector<PackageIndex>;
-
-    struct Subcore {
-        GROUP_AFFINITY mask;
+    // a cache will have 1 or more segments, and belongs to a single package.
+    // it may span multiple groups, and will be identified by the same id.
+    enum struct CacheIndex : uint16 {
+        eInvalid = UINT16_MAX
     };
 
-    struct Core {
-        GROUP_AFFINITY mask;
-        SubcoreIndices subcores;
+    template<typename T> requires __is_enum(T)
+    struct IndexRange {
+        T front;
+        T back;
 
-        uint16_t schedule;  // schedule speed (lower is faster)
-        uint8_t efficiency; // efficiency (higher is more efficient)
+        constexpr size_t size() const noexcept {
+            return static_cast<size_t>(back) - static_cast<size_t>(front) + 1;
+        }
     };
 
-    struct Chiplet {
+    // scheduling mask for a single group
+    struct ScheduleMask {
         GROUP_AFFINITY mask;
-        CoreIndices cores;
+
+        constexpr bool isContainedIn(GROUP_AFFINITY other) const noexcept {
+            // check if the group is the same and that our mask is a subset of the other mask
+            return (mask.Group == other.Group) && ((mask.Mask & other.Mask) == mask.Mask);
+        }
+    };
+
+    // scheduling mask that can span multiple groups
+    struct GroupScheduleMask {
+        std::bitset<512> mask;
+    };
+
+    struct HyperThread : ScheduleMask { };
+
+    struct Cache {
+        uint id; // multiple caches may share the same id if they span multiple groups
+        ScheduleMask mask; // the mask for this segment of the cache
+
+        uint8 level;
+        uint8 associativity;
+        uint16 lineSize;
+        uint32 size;
+        CacheType type;
+    };
+
+    struct Core : ScheduleMask {
+        IndexRange<ThreadIndex> threads;
+
+        uint16 schedule;  // schedule speed (lower is faster)
+        uint8 efficiency; // efficiency (higher is more efficient)
+    };
+
+    struct Group : ScheduleMask {
+        IndexRange<CoreIndex> cores;
     };
 
     struct Package {
-        GROUP_AFFINITY mask;
-
-        CoreIndices cores;
-        SubcoreIndices subcores;
-        ChipletIndices chiplets;
+        IndexRange<ThreadIndex> threads;
+        IndexRange<CoreIndex> cores;
+        IndexRange<GroupIndex> groups;
+        IndexRange<CacheIndex> caches;
     };
 
     struct CpuGeometry {
-        // we call hardware threads "subcores" to avoid confusion with OS threads
-        sm::Vector<Subcore> subcores;
-        sm::Vector<Core> cores;
-        sm::Vector<Chiplet> chiplets;
-        sm::Vector<Package> packages;
-
-        const Subcore &get_subcore(SubcoreIndex idx) const {
-            return subcores[size_t(idx)];
-        }
-
-        const Core &get_core(CoreIndex idx) const {
-            return cores[size_t(idx)];
-        }
-
-        const Chiplet &get_chiplet(ChipletIndex idx) const {
-            return chiplets[size_t(idx)];
-        }
-
-        const Package &get_package(PackageIndex idx) const {
-            return packages[size_t(idx)];
-        }
+        sm::VectorBase<HyperThread> threads;
+        sm::VectorBase<Core> cores;
+        sm::VectorBase<Cache> caches;
+        sm::VectorBase<Group> groups;
+        sm::VectorBase<Package> packages;
     };
 
-    CpuGeometry global_cpu_geometry();
+    void init() noexcept;
+    const CpuGeometry& getCpuGeometry() noexcept;
 
     class ThreadHandle {
         HANDLE mHandle = nullptr;
@@ -87,9 +125,14 @@ namespace sm::threads {
             : mHandle(handle)
         { }
 
-        HANDLE get_handle() const {
+        HANDLE getHandle() const {
             return mHandle;
         }
+    };
+
+    struct SchedulerConfig {
+        uint workers;
+        PriorityClass priority;
     };
 
     class Scheduler {

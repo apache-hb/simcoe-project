@@ -6,6 +6,7 @@
 
 #include <vector>
 #include <memory>
+#include <algorithm>
 
 namespace sm {
     template<typename T>
@@ -66,7 +67,7 @@ namespace sm {
 
                 // copy over the old data
                 T *new_data = new T[new_capacity];
-                std::copy(begin(), end(), new_data);
+                std::move(begin(), end(), new_data);
 
                 // release old data and update the pointers
                 replace_data(new_data, old_size, new_capacity);
@@ -99,7 +100,7 @@ namespace sm {
 
                 // copy over the old data
                 T *new_data = new T[size];
-                std::copy(begin(), begin() + count, new_data);
+                std::move(begin(), begin() + count, new_data);
 
                 // release old data and update the pointers
                 replace_data(new_data, count, size);
@@ -117,7 +118,7 @@ namespace sm {
 
                 // copy over the old data
                 T *new_data = new T[cap];
-                std::copy(begin(), begin() + count, new_data);
+                std::move(begin(), begin() + count, new_data);
 
                 // release old data and update the pointers
                 replace_data(new_data, count, cap);
@@ -135,7 +136,7 @@ namespace sm {
 
         explicit constexpr VectorBase(const VectorBase &other) noexcept {
             init(other.ssize(), other.ssize());
-            std::copy(other.begin(), other.end(), begin());
+            std::move(other.begin(), other.end(), begin());
         }
 
         constexpr VectorBase(VectorBase &&other) noexcept {
@@ -157,13 +158,13 @@ namespace sm {
 
         constexpr VectorBase(const T *first, const T *last) noexcept {
             init(last - first);
-            std::copy(first, last, begin());
+            std::move(first, last, begin());
         }
 
         template<size_t N>
         constexpr VectorBase(const T (&array)[N]) noexcept {
             init(N);
-            std::copy(array, array + N, begin());
+            std::move(array, array + N, begin());
         }
 
         // size query
@@ -288,7 +289,7 @@ namespace sm {
         constexpr void assign(const T *first, const T *last) noexcept {
             SizeType count = last - first;
             ensure_extra(count);
-            std::copy(first, last, mBack);
+            std::move(first, last, mBack);
             mBack += count;
         }
 
@@ -299,5 +300,10 @@ namespace sm {
             std::swap(lhs.mBack, rhs.mBack);
             std::swap(lhs.mCapacity, rhs.mCapacity);
         }
+    };
+
+    template<typename T, size_t N>
+    class SmallVectorBase {
+        T mStorage[N];
     };
 }

@@ -92,7 +92,7 @@ void forward_plus::depth_prepass(
     const auto& config = dd.camera.config();
 
     graph::ResourceInfo info = {
-        .sz = graph::ResourceSize::tex2d(config.size),
+        .size = graph::ResourceSize::tex2d(config.size),
         .format = kDepthFormat,
         .clear = graph::Clear::depthStencil(1.f, 0, kDepthFormat),
     };

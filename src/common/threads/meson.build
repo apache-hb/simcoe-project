@@ -4,8 +4,6 @@ src = [
     'src/threads.cpp',
     'src/geometry.cpp',
     'src/schedule.cpp',
-
-    reflect.process('data/threads.ct')
 ]
 
 deps = [ core, logs, system ]
@@ -18,6 +16,6 @@ libthreads = library('threads', src,
 
 threads = declare_dependency(
     link_with : libthreads,
-    include_directories : [ threads_include, libthreads.private_dir_include() ],
+    include_directories : [ threads_include ],
     dependencies : deps
 )

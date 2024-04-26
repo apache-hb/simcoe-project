@@ -14,7 +14,7 @@
 namespace sm::sys {
     CT_NORETURN assert_last_error(source_info_t panic, const char *expr);
 
-    OsError get_last_error();
+    OsError getLastError();
 
     fs::path get_app_path();
     fs::path get_appdir();

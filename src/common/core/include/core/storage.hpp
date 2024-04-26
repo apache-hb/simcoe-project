@@ -16,22 +16,22 @@ namespace sm {
         }
 
         constexpr Storage(const Storage& other) noexcept {
-            new (mStorage) T(*other.data());
+            memcpy(mStorage, other.mStorage, sizeof(mStorage));
         }
 
         constexpr Storage(Storage&& other) noexcept {
-            new (mStorage) T(std::move(*other.data()));
+            memcpy(mStorage, other.mStorage, sizeof(mStorage));
         }
 
         constexpr Storage& operator=(const Storage& other) noexcept {
-            if (this != &other) {
-                *data() = *other.data();
-            }
+            if (this == &other) return *this;
+
+            memcpy(mStorage, other.mStorage, sizeof(mStorage));
             return *this;
         }
 
         constexpr Storage& operator=(Storage&& other) noexcept {
-            *data() = std::move(*other.data());
+            memcpy(mStorage, other.mStorage, sizeof(mStorage));
             return *this;
         }
 

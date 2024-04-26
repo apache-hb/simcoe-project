@@ -149,7 +149,9 @@ namespace sm::render {
     public:
         D3D12MA::Allocator *get_allocator() { return mAllocator.get(); }
 
-        Result create_resource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state, const D3D12_CLEAR_VALUE *clear = nullptr);
+        Result createTextureResource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state, const D3D12_CLEAR_VALUE *clear = nullptr);
+
+        Result createBufferResource(Resource& resource, D3D12_HEAP_TYPE heap, uint64 width, D3D12_RESOURCE_STATES state);
 
         void serialize_root_signature(Object<ID3D12RootSignature>& signature, const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& desc);
 
@@ -363,33 +365,35 @@ namespace sm::render {
 
     void copyBufferRegion(ID3D12GraphicsCommandList1 *list, Resource& dst, Resource& src, size_t size);
 
-    template<typename T>
+    template<typename T> requires (std::is_standard_layout_v<T> && std::is_trivially_copyable_v<T>)
     ConstBuffer<T> newConstBuffer(IDeviceContext& self, size_t count = 1) {
         CTASSERT(count > 0);
 
         // round up the size to the next multiple of 256
         size_t size = ((sizeof(T) * count) + 255) & ~255;
-        auto desc = CD3DX12_RESOURCE_DESC::Buffer(size);
 
         ConstBuffer<T> buffer;
-        SM_ASSERT_HR(self.create_resource(buffer, D3D12_HEAP_TYPE_UPLOAD, desc, D3D12_RESOURCE_STATE_GENERIC_READ));
+        SM_ASSERT_HR(self.createBufferResource(buffer, D3D12_HEAP_TYPE_UPLOAD, size, D3D12_RESOURCE_STATE_GENERIC_READ));
 
         buffer.init();
 
         return buffer;
     }
 
-    template<typename T>
-    VertexBuffer<T> newVertexUploadBuffer(IDeviceContext& self, size_t count) {
+    template<typename T> requires (std::is_standard_layout_v<T> && std::is_trivially_copyable_v<T>)
+    VertexBuffer<T> newVertexBuffer(IDeviceContext& self, size_t count, D3D12_HEAP_TYPE heap, D3D12_RESOURCE_STATES states) {
         CTASSERT(count > 0);
 
-        auto desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(T) * count);
-
         VertexBuffer<T> buffer;
-        SM_ASSERT_HR(self.create_resource(buffer, D3D12_HEAP_TYPE_UPLOAD, desc, D3D12_RESOURCE_STATE_GENERIC_READ));
+        SM_ASSERT_HR(self.createBufferResource(buffer, heap, sizeof(T) * count, states));
 
         buffer.init(count);
 
         return buffer;
+    }
+
+    template<typename T> requires (std::is_standard_layout_v<T> && std::is_trivially_copyable_v<T>)
+    VertexBuffer<T> newVertexUploadBuffer(IDeviceContext& self, size_t count) {
+        return newVertexBuffer<T>(self, count, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
     }
 }

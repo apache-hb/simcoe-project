@@ -68,9 +68,8 @@ void forward_plus::upload_light_data(
     };
 
     graph::ResourceInfo light_data_info = {
-        .sz = graph::ResourceSize::buffer(sizeof(LightVolumeData) * MAX_LIGHTS),
+        .size = graph::ResourceSize::buffer(sizeof(LightVolumeData) * MAX_LIGHTS),
         .format = DXGI_FORMAT_UNKNOWN,
-        .usage = graph::Usage::eBufferWrite,
     };
 
     graph::PassBuilder pass = graph.copy("Upload Light Data");
@@ -92,18 +91,18 @@ void forward_plus::upload_light_data(
         } info;
 
         {
-            auto desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(LightVolumeData) * MAX_LIGHTS);
-            SM_ASSERT_HR(context.create_resource(info.light_volume_upload, D3D12_HEAP_TYPE_UPLOAD, desc, D3D12_RESOURCE_STATE_GENERIC_READ));
+            size_t size = sizeof(LightVolumeData) * MAX_LIGHTS;
+            SM_ASSERT_HR(context.createBufferResource(info.light_volume_upload, D3D12_HEAP_TYPE_UPLOAD, size, D3D12_RESOURCE_STATE_GENERIC_READ));
         }
 
         {
-            auto desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(PointLightData) * MAX_POINT_LIGHTS);
-            SM_ASSERT_HR(context.create_resource(info.point_light_upload, D3D12_HEAP_TYPE_UPLOAD, desc, D3D12_RESOURCE_STATE_GENERIC_READ));
+            size_t size = sizeof(PointLightData) * MAX_POINT_LIGHTS;
+            SM_ASSERT_HR(context.createBufferResource(info.point_light_upload, D3D12_HEAP_TYPE_UPLOAD, size, D3D12_RESOURCE_STATE_GENERIC_READ));
         }
 
         {
-            auto desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(SpotLightData) * MAX_SPOT_LIGHTS);
-            SM_ASSERT_HR(context.create_resource(info.spot_light_upload, D3D12_HEAP_TYPE_UPLOAD, desc, D3D12_RESOURCE_STATE_GENERIC_READ));
+            size_t size = sizeof(SpotLightData) * MAX_SPOT_LIGHTS;
+            SM_ASSERT_HR(context.createBufferResource(info.spot_light_upload, D3D12_HEAP_TYPE_UPLOAD, size, D3D12_RESOURCE_STATE_GENERIC_READ));
         }
 
         return info;
@@ -186,7 +185,7 @@ void forward_plus::light_binning(
     uint tile_count = draw::get_tile_count(camera.size, TILE_SIZE);
 
     graph::ResourceInfo info = {
-        .sz = graph::ResourceSize::buffer(sizeof(uint) * LIGHT_INDEX_BUFFER_STRIDE * tile_count),
+        .size = graph::ResourceSize::buffer(sizeof(uint) * LIGHT_INDEX_BUFFER_STRIDE * tile_count),
         .format = DXGI_FORMAT_R32_UINT,
     };
 
@@ -234,7 +233,7 @@ void forward_plus::light_binning(
         cmd->SetComputeRootSignature(data.pipeline.signature.get());
         cmd->SetPipelineState(data.pipeline.pso.get());
 
-        cmd->SetComputeRootConstantBufferView(eFrameBuffer, data.frame_buffer.get_gpu_address());
+        cmd->SetComputeRootConstantBufferView(eFrameBuffer, data.frame_buffer.getDeviceAddress());
 
         cmd->SetComputeRootShaderResourceView(ePointLightData, graph.resource(pld)->GetGPUVirtualAddress());
         cmd->SetComputeRootShaderResourceView(eSpotLightData, graph.resource(sld)->GetGPUVirtualAddress());

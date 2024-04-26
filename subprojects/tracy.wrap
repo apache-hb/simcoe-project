@@ -1,9 +1,9 @@
 [wrap-file]
-directory = tracy-0.10
+directory = tracy-d1300c491ca50962b5ba4d5b7d5a56b34b9e99ad
 
-source_url = https://github.com/wolfpld/tracy/archive/refs/tags/v0.10.zip
-source_filename = tracy-0.10.zip
-source_hash = de182a4ddd9850f0f4fa584cb0b6306be4995c1b42a4bcdee780041afcfa7834
+source_url = https://github.com/wolfpld/tracy/archive/d1300c491ca50962b5ba4d5b7d5a56b34b9e99ad.zip
+source_filename = tracy-d1300c491ca50962b5ba4d5b7d5a56b34b9e99ad.zip
+source_hash = f5de6e1164cd50cf2423e3f741cea570c1f29add57a76559bc76022535f27e36
 
 [provide]
 dependency_names = tracy

@@ -298,7 +298,7 @@ void IDeviceContext::create_frame_allocators() {
     }
 }
 
-Result IDeviceContext::create_resource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state, const D3D12_CLEAR_VALUE *clear) {
+Result IDeviceContext::createTextureResource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state, const D3D12_CLEAR_VALUE *clear) {
     const D3D12MA::ALLOCATION_DESC kAllocDesc = {
         .HeapType = heap,
     };
@@ -307,7 +307,21 @@ Result IDeviceContext::create_resource(Resource& resource, D3D12_HEAP_TYPE heap,
     if (hr.failed())
         return hr;
 
-    resource.mGpuAddress = resource.get_gpu_address();
+    return S_OK;
+}
+
+Result IDeviceContext::createBufferResource(Resource& resource, D3D12_HEAP_TYPE heap, uint64 width, D3D12_RESOURCE_STATES state) {
+    const D3D12MA::ALLOCATION_DESC kAllocDesc = {
+        .HeapType = heap,
+    };
+
+    D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Buffer(width);
+
+    Result hr = mAllocator->CreateResource(&kAllocDesc, &desc, state, nullptr, &resource.mAllocation, IID_PPV_ARGS(&resource.mResource));
+    if (hr.failed())
+        return hr;
+
+    resource.mGpuAddress = resource.mResource->GetGPUVirtualAddress();
 
     return S_OK;
 }
@@ -336,7 +350,7 @@ void IDeviceContext::upload_image(world::IndexOf<world::Image> index) {
 
     Resource data;
     auto desc = CD3DX12_RESOURCE_DESC::Tex2D(image.format, image.size.width, image.size.height, 1, image.mips);
-    SM_ASSERT_HR(create_resource(data, D3D12_HEAP_TYPE_DEFAULT, desc, D3D12_RESOURCE_STATE_COPY_DEST));
+    SM_ASSERT_HR(createTextureResource(data, D3D12_HEAP_TYPE_DEFAULT, desc, D3D12_RESOURCE_STATE_COPY_DEST));
 
     RequestBuilder request;
     request.dst(DSTORAGE_DESTINATION_MULTIPLE_SUBRESOURCES{ data.get(), 0 });
@@ -359,34 +373,32 @@ void IDeviceContext::upload_image(world::IndexOf<world::Image> index) {
 }
 
 void IDeviceContext::load_mesh_buffer(world::IndexOf<world::Model> index, const world::Mesh& mesh) {
-    Resource vbo_upload;
-    Resource ibo_upload;
+    Resource vboUploadResource;
+    Resource iboUploadResource;
 
-    size_t vbo_size = mesh.vertices.size() * sizeof(world::Vertex);
-    size_t ibo_size = mesh.indices.size() * sizeof(uint16);
+    size_t vboBufferSize = mesh.vertices.size() * sizeof(world::Vertex);
+    size_t iboBufferSize = mesh.indices.size() * sizeof(uint16);
 
-    auto vbo_desc = CD3DX12_RESOURCE_DESC::Buffer(vbo_size);
-    auto ibo_desc = CD3DX12_RESOURCE_DESC::Buffer(ibo_size);
-    SM_ASSERT_HR(create_resource(vbo_upload, D3D12_HEAP_TYPE_UPLOAD, vbo_desc, D3D12_RESOURCE_STATE_COMMON));
-    SM_ASSERT_HR(create_resource(ibo_upload, D3D12_HEAP_TYPE_UPLOAD, ibo_desc, D3D12_RESOURCE_STATE_COMMON));
+    SM_ASSERT_HR(createBufferResource(vboUploadResource, D3D12_HEAP_TYPE_UPLOAD, vboBufferSize, D3D12_RESOURCE_STATE_COMMON));
+    SM_ASSERT_HR(createBufferResource(iboUploadResource, D3D12_HEAP_TYPE_UPLOAD, iboBufferSize, D3D12_RESOURCE_STATE_COMMON));
 
-    Resource vbo;
-    Resource ibo;
-    SM_ASSERT_HR(create_resource(vbo, D3D12_HEAP_TYPE_DEFAULT, vbo_desc, D3D12_RESOURCE_STATE_COMMON));
-    SM_ASSERT_HR(create_resource(ibo, D3D12_HEAP_TYPE_DEFAULT, ibo_desc, D3D12_RESOURCE_STATE_COMMON));
+    Resource vboResource;
+    Resource iboResource;
+    SM_ASSERT_HR(createBufferResource(vboResource, D3D12_HEAP_TYPE_DEFAULT, vboBufferSize, D3D12_RESOURCE_STATE_COMMON));
+    SM_ASSERT_HR(createBufferResource(iboResource, D3D12_HEAP_TYPE_DEFAULT, iboBufferSize, D3D12_RESOURCE_STATE_COMMON));
 
-    SM_ASSERT_HR(vbo_upload.write(mesh.vertices.data(), vbo_size));
-    SM_ASSERT_HR(ibo_upload.write(mesh.indices.data(), ibo_size));
+    SM_ASSERT_HR(vboUploadResource.write(mesh.vertices.data(), vboBufferSize));
+    SM_ASSERT_HR(iboUploadResource.write(mesh.indices.data(), iboBufferSize));
 
     reset_copy_commands();
     reset_direct_commands();
 
-    copyBufferRegion(mCopyCommands.get(), vbo, vbo_upload, vbo_size);
-    copyBufferRegion(mCopyCommands.get(), ibo, ibo_upload, ibo_size);
+    copyBufferRegion(mCopyCommands.get(), vboResource, vboUploadResource, vboBufferSize);
+    copyBufferRegion(mCopyCommands.get(), iboResource, iboUploadResource, iboBufferSize);
 
     const D3D12_RESOURCE_BARRIER kBarriers[] = {
-        CD3DX12_RESOURCE_BARRIER::Transition(vbo.get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER),
-        CD3DX12_RESOURCE_BARRIER::Transition(ibo.get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_INDEX_BUFFER),
+        CD3DX12_RESOURCE_BARRIER::Transition(vboResource.get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER),
+        CD3DX12_RESOURCE_BARRIER::Transition(iboResource.get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_INDEX_BUFFER),
     };
 
     mCommandList->ResourceBarrier(_countof(kBarriers), kBarriers);
@@ -405,22 +417,22 @@ void IDeviceContext::load_mesh_buffer(world::IndexOf<world::Model> index, const 
     wait_for_gpu();
 
     D3D12_VERTEX_BUFFER_VIEW vbo_view = {
-        .BufferLocation = vbo.get_gpu_address(),
-        .SizeInBytes = static_cast<uint>(vbo_size),
+        .BufferLocation = vboResource.getDeviceAddress(),
+        .SizeInBytes = static_cast<uint>(vboBufferSize),
         .StrideInBytes = sizeof(world::Vertex),
     };
 
     D3D12_INDEX_BUFFER_VIEW ibo_view = {
-        .BufferLocation = ibo.get_gpu_address(),
-        .SizeInBytes = static_cast<uint>(ibo_size),
+        .BufferLocation = iboResource.getDeviceAddress(),
+        .SizeInBytes = static_cast<uint>(iboBufferSize),
         .Format = DXGI_FORMAT_R16_UINT,
     };
 
     MeshResource resource = {
-        .vbo = std::move(vbo),
+        .vbo = std::move(vboResource),
         .vbo_view = vbo_view,
 
-        .ibo = std::move(ibo),
+        .ibo = std::move(iboResource),
         .ibo_view = ibo_view,
 
         .index_count = int_cast<uint>(mesh.indices.size()),
@@ -436,8 +448,7 @@ static Resource buildFileUploadRequest(
     uint32 size)
 {
     Resource resource;
-    auto desc = CD3DX12_RESOURCE_DESC::Buffer(size);
-    SM_ASSERT_HR(self.create_resource(resource, D3D12_HEAP_TYPE_DEFAULT, desc, D3D12_RESOURCE_STATE_COMMON));
+    SM_ASSERT_HR(self.createBufferResource(resource, D3D12_HEAP_TYPE_DEFAULT, size, D3D12_RESOURCE_STATE_COMMON));
 
     IDStorageFile *storage = self.get_storage_file(file);
 
@@ -458,8 +469,7 @@ static Resource buildBufferUploadRequest(
     uint32 size)
 {
     Resource resource;
-    auto desc = CD3DX12_RESOURCE_DESC::Buffer(size);
-    SM_ASSERT_HR(self.create_resource(resource, D3D12_HEAP_TYPE_DEFAULT, desc, D3D12_RESOURCE_STATE_COMMON));
+    SM_ASSERT_HR(self.createBufferResource(resource, D3D12_HEAP_TYPE_DEFAULT, size, D3D12_RESOURCE_STATE_COMMON));
 
     const uint8 *data = self.get_storage_buffer(buffer) + offset;
 
@@ -492,13 +502,13 @@ void IDeviceContext::upload_object(world::IndexOf<world::Model> index, const wor
     mPendingBarriers.emplace_back(CD3DX12_RESOURCE_BARRIER::Transition(ibo.get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_INDEX_BUFFER));
 
     D3D12_VERTEX_BUFFER_VIEW vbo_view = {
-        .BufferLocation = vbo.get_gpu_address(),
+        .BufferLocation = vbo.getDeviceAddress(),
         .SizeInBytes = static_cast<uint>(object.vtx_count * sizeof(world::Vertex)),
         .StrideInBytes = sizeof(world::Vertex),
     };
 
     D3D12_INDEX_BUFFER_VIEW ibo_view = {
-        .BufferLocation = ibo.get_gpu_address(),
+        .BufferLocation = ibo.getDeviceAddress(),
         .SizeInBytes = static_cast<uint>(object.idx_count * sizeof(uint16)),
         .Format = DXGI_FORMAT_R16_UINT,
     };
@@ -561,8 +571,7 @@ render::ecs::VertexBuffer IDeviceContext::uploadVertexBuffer(world::VertexBuffer
     size_t size = buffer.size_bytes();
 
     Resource resource;
-    auto desc = CD3DX12_RESOURCE_DESC::Buffer(size);
-    SM_ASSERT_HR(create_resource(resource, D3D12_HEAP_TYPE_DEFAULT, desc, D3D12_RESOURCE_STATE_COMMON));
+    SM_ASSERT_HR(createBufferResource(resource, D3D12_HEAP_TYPE_DEFAULT, size, D3D12_RESOURCE_STATE_COMMON));
 
     mPendingBarriers.emplace_back(CD3DX12_RESOURCE_BARRIER::Transition(resource.get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
 
@@ -588,8 +597,7 @@ render::ecs::IndexBuffer IDeviceContext::uploadIndexBuffer(world::IndexBuffer&& 
     size_t size = buffer.size_bytes();
 
     Resource resource;
-    auto desc = CD3DX12_RESOURCE_DESC::Buffer(size);
-    SM_ASSERT_HR(create_resource(resource, D3D12_HEAP_TYPE_DEFAULT, desc, D3D12_RESOURCE_STATE_COMMON));
+    SM_ASSERT_HR(createBufferResource(resource, D3D12_HEAP_TYPE_DEFAULT, size, D3D12_RESOURCE_STATE_COMMON));
 
     mPendingBarriers.emplace_back(CD3DX12_RESOURCE_BARRIER::Transition(resource.get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_INDEX_BUFFER));
 
@@ -731,7 +739,7 @@ void IDeviceContext::build_command_list() {
 
 void IDeviceContext::create_framegraph() {
     graph::ResourceInfo info = {
-        .sz = graph::ResourceSize::tex2d(mSwapChainConfig.size),
+        .size = graph::ResourceSize::tex2d(mSwapChainConfig.size),
         .format = mSwapChainConfig.format,
     };
     mSwapChainHandle = mFrameGraph.include("BackBuffer", info, graph::Usage::ePresent, nullptr);

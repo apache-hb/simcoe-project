@@ -1,11 +1,11 @@
 [wrap-file]
-directory = compressonatorcli-4.5.52-win64
+directory = compressonator-7a8d93a9600d4e2de3ccd58c9b67af76f40e59cb
 
-source_url = https://github.com/GPUOpen-Tools/compressonator/releases/download/V4.5.52/compressonatorcli-4.5.52-win64.zip
-source_filename = compressonatorcli-4.5.52-win64.zip
-source_hash = 49ca7c85e299fc104878aef82470d731a7c853cfb5facd879e9bc633fb48a444
+source_url = https://github.com/GPUOpen-Tools/compressonator/archive/7a8d93a9600d4e2de3ccd58c9b67af76f40e59cb.zip
+source_filename = compressonator-7a8d93a9600d4e2de3ccd58c9b67af76f40e59cb.zip
+source_hash = 4e12b29541fbe3fd00342ec2bfd14adbd7088b8e2d464f51b7930747d0edb599
 
 patch_directory = compressonator
 
 [provide]
-program_names = compressonatorcli
+dependency_names = cmp_core, cmp_framework

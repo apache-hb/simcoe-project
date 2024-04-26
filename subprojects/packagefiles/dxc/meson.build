@@ -3,9 +3,7 @@ project('dxc', 'c',
     # dxil.dll is licensed under the MS license
     # d3d12shader.h is licensed under the MIT license
     # all other files are licensed under the LLVM license
-    # !!! unlicensed DOES NOT mean public domain, redistribute this stuff
-    # !!! and microsoft lawyers will have your head
-    license : 'UNLICENSED AND MIT AND LLVM',
+    license : 'LicenseRef-Proprietary AND MIT AND LLVM',
     license_files : [ 'LICENSE-MS.txt', 'LICENCE-MIT.txt', 'LICENSE-LLVM.txt' ],
     meson_version : '>=1.1.0'
 )

@@ -1,5 +1,4 @@
 #include "editor/panels/viewport.hpp"
-#include "input/delta.hpp"
 #include "stdafx.hpp"
 
 #include "system/input.hpp"
@@ -111,8 +110,8 @@ public:
     }
 };
 
-constinit static DefaultSystemError gDefaultError{};
-constinit static logs::FileChannel gFileChannel{};
+static DefaultSystemError gDefaultError{};
+static logs::FileChannel gFileChannel{};
 
 static void common_init(void) {
     bt_init();
@@ -146,9 +145,13 @@ static void common_init(void) {
         logger.addChannel(logs::getDebugConsole());
 
     if (auto file = logs::FileChannel::open("editor.log"); file) {
-        gFileChannel = std::move(*file);
+        gFileChannel = std::move(file.value());
         logger.addChannel(gFileChannel);
+    } else {
+        logs::gGlobal.error("failed to open log file: {}", file.error());
     }
+
+    threads::init();
 }
 
 static void init_imgui() {
@@ -348,11 +351,11 @@ static int editor_main(sys::ShowWindow show) {
 
     archive::RecordStore store{store_config};
 
-    threads::CpuGeometry geometry = threads::global_cpu_geometry();
+    const threads::CpuGeometry& geometry = threads::getCpuGeometry();
 
     threads::SchedulerConfig thread_config = {
-        .worker_count = 8,
-        .process_priority = threads::PriorityClass::eNormal,
+        .workers = 8,
+        .priority = threads::PriorityClass::eNormal,
     };
     threads::Scheduler scheduler{thread_config, geometry};
 
@@ -380,8 +383,6 @@ static int common_main(sys::ShowWindow show) {
 
     int result = editor_main(show);
 
-    logs::gGlobal.info("editor exiting with {}", result);
-
     return result;
 }
 
@@ -397,27 +398,43 @@ struct System {
 int main(int argc, const char **argv) {
     common_init();
 
-    sm::Span<const char*> args{argv, size_t(argc)};
-    logs::gGlobal.info("args = [{}]", fmt::join(args, ", "));
+    int result = [&] {
+        sm::Span<const char*> args{argv, size_t(argc)};
+        logs::gGlobal.info("args = [{}]", fmt::join(args, ", "));
 
-    System sys{GetModuleHandleA(nullptr)};
+        System sys{GetModuleHandleA(nullptr)};
 
-    if (!sm::parse_command_line(argc, argv, sys::get_appdir())) {
-        return 0;
-    }
+        if (!sm::parse_command_line(argc, argv, sys::get_appdir())) {
+            return 0;
+        }
 
-    return common_main(sys::ShowWindow::eShow);
+        return common_main(sys::ShowWindow::eShow);
+    }();
+
+    logs::gGlobal.info("editor exiting with {}", result);
+
+    logs::shutdown();
+
+    return result;
 }
 
 int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
     common_init();
 
-    logs::gGlobal.info("lpCmdLine = {}", lpCmdLine);
-    logs::gGlobal.info("nShowCmd = {}", nShowCmd);
+    int result = [&] {
+        logs::gGlobal.info("lpCmdLine = {}", lpCmdLine);
+        logs::gGlobal.info("nShowCmd = {}", nShowCmd);
 
-    // TODO: parse lpCmdLine
+        // TODO: parse lpCmdLine
 
-    System sys{hInstance};
+        System sys{hInstance};
 
-    return common_main(sys::ShowWindow{nShowCmd});
+        return common_main(sys::ShowWindow{nShowCmd});
+    }();
+
+    logs::gGlobal.info("editor exiting with {}", result);
+
+    logs::shutdown();
+
+    return result;
 }

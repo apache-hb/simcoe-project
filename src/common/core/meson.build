@@ -21,8 +21,7 @@ src = [
     'src/library.cpp',
     'src/timer.cpp',
     'src/typeindex.cpp',
-    'src/small_string.cpp',
-    reflect.process('data/core.ct')
+    'src/small_string.cpp'
 ]
 
 libcore = library('core', src,
@@ -33,9 +32,6 @@ libcore = library('core', src,
 
 core = declare_dependency(
     link_with : libcore,
-    include_directories : [
-        core_include, config_include,
-        reflect_include, libcore.private_dir_include()
-    ],
+    include_directories : [ core_include, config_include ],
     dependencies : core_dependencies
 )

@@ -6,11 +6,16 @@
 
 #include "core/core.hpp"
 
-#include "core.reflect.h"
-
 namespace sm {
+    enum class CastError {
+        eNone,
+        eUnderflow,
+        eOverflow
+    };
+
     template<typename T, typename O>
     struct CastResult {
+
         using From = O;
         using To = T;
 

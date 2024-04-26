@@ -1,4 +1,7 @@
-project('directx-tex', 'cpp')
+project('directx-tex', 'cpp',
+    license : 'MIT',
+    license_files : [ 'LICENSE' ]
+)
 
 src = [
     'DirectXTex/BC.cpp',

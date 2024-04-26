@@ -1,0 +1,10 @@
+option('compressonator-sdk', type : 'boolean', value : true)
+option('framework-sdk', type : 'boolean', value : true)
+option('imageio', type : 'boolean', value : true)
+option('analysis', type : 'boolean', value : true)
+option('common', type : 'boolean', value : true)
+option('core', type : 'boolean', value : true)
+
+option('brotlig', type : 'boolean', value : true)
+
+option('sdk', type : 'boolean', value : true)

@@ -1,0 +1,11 @@
+[wrap-file]
+directory = brotli_g_sdk-1.1
+
+source_url = https://github.com/GPUOpen-LibrariesAndSDKs/brotli_g_sdk/archive/refs/tags/V1.1.zip
+source_filename = brotli_g_sdk-1.1.zip
+source_hash = 19c5edfda0eaa505e3fdfd88f40e02abeea1b21823fcfb8b984f68e9964879cb
+
+patch_directory = brotli-g-sdk
+
+[provide]
+dependency_names = brotlig

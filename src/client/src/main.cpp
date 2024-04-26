@@ -102,7 +102,6 @@ public:
 };
 
 constinit static DefaultSystemError gDefaultError{};
-constinit static logs::FileChannel gFileChannel{};
 
 static void common_init(void) {
     bt_init();
@@ -135,8 +134,12 @@ static void common_init(void) {
         logger.addChannel(logs::getDebugConsole());
 
     if (auto file = logs::FileChannel::open("client.log"); file) {
-        logger.addChannel(*file);
+        logger.addChannel(file.value());
+    } else {
+        logs::gGlobal.error("failed to open log file: {}", file.error());
     }
+
+    threads::init();
 }
 
 struct ClientContext final : public render::IDeviceContext {
@@ -275,11 +278,11 @@ static int client_main(sys::ShowWindow show) {
 
     archive::RecordStore store{store_config};
 
-    threads::CpuGeometry geometry = threads::global_cpu_geometry();
+    const threads::CpuGeometry& geometry = threads::getCpuGeometry();
 
     threads::SchedulerConfig thread_config = {
-        .worker_count = 8,
-        .process_priority = threads::PriorityClass::eNormal,
+        .workers = 8,
+        .priority = threads::PriorityClass::eNormal,
     };
     threads::Scheduler scheduler{thread_config, geometry};
 

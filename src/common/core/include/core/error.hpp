@@ -44,6 +44,10 @@ namespace sm {
             return mError == other.mError;
         }
 
+        constexpr bool operator!=(const OsError &other) const {
+            return mError != other.mError;
+        }
+
         template<size_t N = 512>
         SmallString<N> to_string() const {
             char buffer[N];

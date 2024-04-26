@@ -697,7 +697,7 @@ void game::physics_debug(
     pass.write(target, "Target", graph::Usage::eRenderTarget);
 
     graph::ResourceInfo info = {
-        .sz = graph::ResourceSize::tex2d(config->window),
+        .size = graph::ResourceSize::tex2d(config->window),
         .format = config->depth,
         .clear = graph::Clear::depthStencil(1.0f, 0, config->depth)
     };
@@ -756,7 +756,7 @@ void game::physics_debug(
 
             data.lineBuffer.update(debug.mLines);
 
-            D3D12_VERTEX_BUFFER_VIEW vbv = data.lineBuffer.get_view();
+            D3D12_VERTEX_BUFFER_VIEW vbv = data.lineBuffer.getView();
 
             cmd->IASetVertexBuffers(0, 1, &vbv);
 
@@ -778,7 +778,7 @@ void game::physics_debug(
 
             data.triangleBuffer.update(debug.mTriangles);
 
-            D3D12_VERTEX_BUFFER_VIEW vbv = data.triangleBuffer.get_view();
+            D3D12_VERTEX_BUFFER_VIEW vbv = data.triangleBuffer.getView();
 
             cmd->IASetVertexBuffers(0, 1, &vbv);
 

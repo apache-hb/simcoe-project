@@ -4,7 +4,6 @@
 #include <fmtlib/format.h> // IWYU pragma: export
 
 #include "core/core.hpp"
-#include "core/span.hpp"
 #include "core/string.hpp"
 #include "core/vector.hpp"
 
@@ -19,7 +18,7 @@ typedef struct colour_pallete_t colour_pallete_t;
 namespace sm::logs {
     enum class Severity {
 #define LOG_SEVERITY(id, name, level) id = (level),
-#include "logs/logs.inl"
+#include "logs/logs.inc"
 
         eCount
     };
@@ -27,7 +26,7 @@ namespace sm::logs {
     constexpr sm::StringView to_string(Severity severity) noexcept {
         switch (severity) {
 #define LOG_SEVERITY(id, name, level) case Severity::id: return name;
-#include "logs/logs.inl"
+#include "logs/logs.inc"
         default: return "Unknown";
         }
     }
@@ -101,7 +100,8 @@ namespace sm::logs {
     public:
         virtual ~ILogChannel() = default;
 
-        virtual void accept(const Message &message) noexcept = 0;
+        virtual void acceptMessage(const Message &message) noexcept = 0;
+        virtual void closeChannel() noexcept = 0;
     };
 
     class Logger final {
@@ -119,6 +119,8 @@ namespace sm::logs {
 
         void addChannel(ILogChannel& channel) noexcept;
         void removeChannel(ILogChannel& channel) noexcept;
+
+        void shutdown() noexcept;
 
         constexpr void setSeverity(Severity severity) noexcept {
             mSeverity = severity;
@@ -138,6 +140,7 @@ namespace sm::logs {
     LOG_CATEGORY(gAssets);
 
     Logger& getGlobalLogger() noexcept;
+    void shutdown() noexcept;
 
     bool isDebugConsoleAvailable() noexcept;
     ILogChannel& getDebugConsole() noexcept;

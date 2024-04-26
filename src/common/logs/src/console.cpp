@@ -11,7 +11,7 @@ class ConsoleChannel final : public logs::ILogChannel {
     char mBuffer[2048];
     HANDLE mConsoleHandle;
 
-    void accept(const logs::Message &message) noexcept override {
+    void acceptMessage(const logs::Message &message) noexcept override {
         size_t length = logs::buildMessageHeaderWithColour(mBuffer, message, kColourDefault);
         char *start = mBuffer + length;
         size_t remaining = sizeof(mBuffer) - length;
@@ -21,6 +21,10 @@ class ConsoleChannel final : public logs::ILogChannel {
             DWORD written;
             WriteConsoleA(mConsoleHandle, mBuffer, static_cast<DWORD>(length + extra), &written, nullptr);
         }
+    }
+
+    void closeChannel() noexcept override {
+        // nothing to do
     }
 
 public:

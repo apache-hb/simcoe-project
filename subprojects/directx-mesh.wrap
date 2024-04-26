@@ -2,7 +2,7 @@
 directory = DirectXMesh-feb2024
 
 source_url = https://github.com/microsoft/DirectXMesh/archive/refs/tags/feb2024.zip
-source_filename = directx-mesh-feb2024.zip
+source_filename = DirectXMesh-feb2024.zip
 source_hash = c821270c7227199ad9bd015bbca9bf9c4b5057ed2a96667f4fb5d3c7cb2350ac
 
 patch_directory = directx-mesh

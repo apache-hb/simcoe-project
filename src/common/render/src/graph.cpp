@@ -54,14 +54,14 @@ Clear Clear::depthStencil(float depth, uint8 stencil, DXGI_FORMAT format) {
     return clear;
 }
 
-static constexpr std::optional<D3D12_CLEAR_VALUE> get_clear_value(const Clear& clear) {
+static constexpr D3D12_CLEAR_VALUE getClearValue(const Clear& clear) {
     switch (clear.getClearType()) {
     case ClearType::eDepth:
         return CD3DX12_CLEAR_VALUE(clear.getFormat(), clear.getClearDepth(), 0);
     case ClearType::eColour:
         return CD3DX12_CLEAR_VALUE(clear.getFormat(), clear.getClearColour().data());
     case ClearType::eEmpty:
-        return std::nullopt;
+        return CD3DX12_CLEAR_VALUE();
     }
 }
 
@@ -256,7 +256,7 @@ void FrameGraph::optimize() {
     }
 }
 
-static constexpr D3D12_RESOURCE_STATES get_usage_state(Usage usage) {
+static constexpr D3D12_RESOURCE_STATES getInitialUsageState(Usage usage) {
     using enum Usage::Inner;
     switch (usage) {
     case ePresent: return D3D12_RESOURCE_STATE_PRESENT;
@@ -371,7 +371,7 @@ struct UsageTracker {
         return try_get(resource).dsv;
     }
 
-    D3D12_RESOURCE_FLAGS get_resource_flags(uint resource) const {
+    D3D12_RESOURCE_FLAGS getResourceFlags(uint resource) const {
         D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE;
 
         if (needs_uav(resource)) {
@@ -394,25 +394,36 @@ struct UsageTracker {
     }
 };
 
-static D3D12_RESOURCE_DESC build_desc(const ResourceInfo& info, D3D12_RESOURCE_FLAGS flags) {
-    if (info.sz.type == ResourceSize::eBuffer)
-        return CD3DX12_RESOURCE_DESC::Buffer(info.sz.buffer_size, flags);
-
-    return CD3DX12_RESOURCE_DESC::Tex2D(
-        /*format=*/ info.format,
-        /*width=*/ info.sz.tex2d_size.width,
-        /*height=*/ info.sz.tex2d_size.height,
-        /*arraySize=*/ 1,
-        /*mipLevels=*/ 1,
-        /*sampleCount=*/ 1,
-        /*sampleQuality=*/ 0,
-        /*flags=*/ flags
-    );
-}
-
 void FrameGraph::create_resources() {
     mResources.clear();
     UsageTracker tracker;
+
+    auto createNewResource = [&](const ResourceInfo& info, D3D12_RESOURCE_FLAGS flags, D3D12_RESOURCE_STATES state) {
+        render::Resource resource;
+
+        auto clear = getClearValue(info.clear);
+        D3D12_CLEAR_VALUE *ptr = clear.Format == DXGI_FORMAT_UNKNOWN ? nullptr : &clear;
+
+        ResourceSize size = info.size;
+
+        if (size.type == ResourceSize::eBuffer) {
+            SM_ASSERT_HR(mContext.createBufferResource(resource, D3D12_HEAP_TYPE_DEFAULT, size.buffer_size, state));
+        } else {
+            auto desc = CD3DX12_RESOURCE_DESC::Tex2D(
+                /*format=*/ info.format,
+                /*width=*/ size.tex2d_size.width,
+                /*height=*/ size.tex2d_size.height,
+                /*arraySize=*/ 1,
+                /*mipLevels=*/ 1,
+                /*sampleCount=*/ 1,
+                /*sampleQuality=*/ 0,
+                /*flags=*/ flags
+            );
+            SM_ASSERT_HR(mContext.createTextureResource(resource, D3D12_HEAP_TYPE_DEFAULT, desc, state, ptr));
+        }
+
+        return resource;
+    };
 
     for (uint i = 0; i < mHandles.size(); i++) {
         auto& handle = mHandles[i];
@@ -434,24 +445,16 @@ void FrameGraph::create_resources() {
         auto& handle = mHandles[i];
         if (!handle.is_used() || handle.is_imported()) continue;
 
-        const auto& info = handle.info;
+        D3D12_RESOURCE_FLAGS flags = tracker.getResourceFlags(i);
+        D3D12_RESOURCE_STATES state = getInitialUsageState(handle.access);
 
-        auto clear = get_clear_value(info.clear);
-        D3D12_CLEAR_VALUE *ptr = clear.has_value() ? &clear.value() : nullptr;
-
-        const auto flags = tracker.get_resource_flags(i);
-        auto desc = build_desc(info, flags);
-
-        auto usage = (info.usage == Usage::eUnknown) ? handle.access : info.usage;
-
-        D3D12_RESOURCE_STATES state = get_usage_state(usage);
-        gRenderLog.info("Create resource {} with state {}", handle.name, usage);
-        auto& resource = mResources.emplace_back();
-        SM_ASSERT_HR(mContext.create_resource(resource, D3D12_HEAP_TYPE_DEFAULT, desc, state, ptr));
-
+        gRenderLog.info("Create resource {} with state {}", handle.name, handle.access);
+        auto resource = createNewResource(handle.info, flags, state);
         resource.rename(handle.name);
 
         handle.resource = resource.get();
+
+        mResources.emplace_back(std::move(resource));
     }
 
     auto device = mContext.getDevice();
@@ -613,7 +616,7 @@ void FrameGraph::schedule_graph() {
     BarrierRecord barriers{*this};
 
     auto update_state = [&](Handle index, Usage access) {
-        D3D12_RESOURCE_STATES state = get_usage_state(access);
+        D3D12_RESOURCE_STATES state = getInitialUsageState(access);
 
         if (initial.contains(index)) {
             barriers.transition(index, initial[index], state);
@@ -634,7 +637,7 @@ void FrameGraph::schedule_graph() {
         auto& handle = mHandles[i];
         if (!handle.is_imported() || !handle.is_used()) continue;
 
-        auto state = get_usage_state(handle.access);
+        auto state = getInitialUsageState(handle.access);
         restore.push_back({Handle{i}, state});
         initial[Handle{i}] = state;
     }
@@ -716,7 +719,7 @@ void FrameGraph::schedule_graph() {
         stack.push_back(pass);
 
         for (auto& access : pass.creates) {
-            restore.push_back({access.index, get_usage_state(access.usage)});
+            restore.push_back({access.index, getInitialUsageState(access.usage)});
             update_state(access.index, access.usage);
         }
 

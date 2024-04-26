@@ -75,7 +75,7 @@ void Logger::log(const Message &message) noexcept {
     if (!willAcceptMessage(message.severity)) return;
 
     for (ILogChannel* channel : mChannels) {
-        channel->accept(message);
+        channel->acceptMessage(message);
     }
 }
 
@@ -95,6 +95,12 @@ void Logger::removeChannel(ILogChannel& channel) noexcept {
     mChannels.erase(std::remove(mChannels.begin(), mChannels.end(), &channel), mChannels.end());
 }
 
+void Logger::shutdown() noexcept {
+    for (ILogChannel* channel : mChannels) {
+        channel->closeChannel();
+    }
+}
+
 void LogCategory::vlog(Severity severity, fmt::string_view format, fmt::format_args args) const noexcept {
     Logger& logger = getGlobalLogger();
     if (!logger.willAcceptMessage(severity)) return;
@@ -106,4 +112,9 @@ void LogCategory::vlog(Severity severity, fmt::string_view format, fmt::format_a
 Logger& logs::getGlobalLogger() noexcept {
     static Logger logger{Severity::eInfo};
     return logger;
+}
+
+void logs::shutdown() noexcept {
+    Logger& logger = logs::getGlobalLogger();
+    logger.shutdown();
 }

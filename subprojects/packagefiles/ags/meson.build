@@ -4,9 +4,7 @@
 project('ags', 'cpp',
     version : '6.2.0',
     # all headers and binaries are licensed as all rights reserved by AMD
-    # unlicensed does not mean public domain, it means no license is granted
-    # redistribute this and AMD will have your head
-    license : 'UNLICENSED',
+    license : 'LicenseRef-Proprietary',
     license_files : [ 'LICENSE.txt' ],
     meson_version : '>=1.1.0'
 )

@@ -1,8 +1,8 @@
 [wrap-file]
-directory = directx-tex
+directory = DirectXTex-mar2024
 
 source_url = https://github.com/microsoft/DirectXTex/archive/refs/tags/mar2024.zip
-source_filename = directx-tex-mar2024.zip
+source_filename = DirectXTex-mar2024.zip
 source_hash = 35cc98c1c4e6697f247c07186b9442a13fe25a107717750268d272a8d2249a36
 
 patch_directory = directx-tex

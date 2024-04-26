@@ -17,7 +17,7 @@ static constexpr input::ButtonAxis kMoveUp      = {input::Button::eE, input::But
 
 struct CameraController {
     float speed = 3.f;
-    float mouseSensitivity = 25.f;
+    float mouseSensitivity = 1.f;
 
     math::degf lookPitch = math::degf(0);
     math::degf lookYaw = math::degf(0);
@@ -87,7 +87,7 @@ void ecs::updateCamera(flecs::entity camera, float dt, const input::InputState& 
 
     // read input
     math::float2 mouseInput = state.axis2d(input::Axis::eMouseX, input::Axis::eMouseY);
-    math::float2 mouse = controller.mouseDelta.getNewDelta(mouseInput * 10) * controller.mouseSensitivity * dt;
+    math::float2 mouse = mouseInput * controller.mouseSensitivity;
     math::float3 move = state.button_axis3d(kMoveStrafe, kMoveUp, kMoveForward) * controller.speed * dt;
 
     // orientation

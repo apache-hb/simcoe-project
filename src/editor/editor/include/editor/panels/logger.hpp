@@ -17,10 +17,11 @@ namespace sm::ed {
 
         sm::Map<const logs::LogCategory*, LogMessages> mMessages;
 
-        void draw_category(const logs::LogCategory& category) const;
+        void drawLogCategory(const logs::LogCategory& category) const;
 
         // logs::ILogChannel
-        void accept(const logs::Message &message) override;
+        void acceptMessage(const logs::Message &message) noexcept override;
+        void closeChannel() noexcept override;
 
         LoggerPanel();
         ~LoggerPanel();

@@ -129,13 +129,13 @@ static void create_primitive_pipeline(render::Pipeline& pipeline, const draw::Vi
 void draw::opaque(graph::FrameGraph& graph, graph::Handle& target, graph::Handle& depth, const Camera& camera) {
     auto config = camera.config();
     graph::ResourceInfo depth_info = {
-        .sz = graph::ResourceSize::tex2d(config.size),
+        .size = graph::ResourceSize::tex2d(config.size),
         .format = config.getDepthFormat(),
         .clear = graph::Clear::depthStencil(1.f, 0, config.getDepthFormat())
     };
 
     graph::ResourceInfo target_info = {
-        .sz = graph::ResourceSize::tex2d(config.size),
+        .size = graph::ResourceSize::tex2d(config.size),
         .format = config.getColourFormat(),
         .clear = graph::Clear::colour(render::kClearColour, config.getColourFormat())
     };

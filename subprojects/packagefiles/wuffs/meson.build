@@ -1,4 +1,7 @@
-project('wuffs', 'c')
+project('wuffs', 'c',
+    license : 'MIT AND Apache-2.0',
+    license_files : [ 'LICENSE', 'LICENSE-MIT', 'LICENSE-APACHE' ]
+)
 
 config = {
     'WUFFS_IMPLEMENTATION': true,

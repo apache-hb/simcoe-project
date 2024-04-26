@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/span.hpp"
 #include "logs/logs.hpp"
 
 #include <experimental/generator>

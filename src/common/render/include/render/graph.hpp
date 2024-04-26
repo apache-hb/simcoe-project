@@ -78,13 +78,9 @@ namespace sm::graph {
     };
 
     struct ResourceInfo {
-        ResourceSize sz;
+        ResourceSize size;
         render::Format format;
         Clear clear;
-
-        // specify the usage of this resource, in cases
-        // where its created in a different state than its used
-        Usage usage;
     };
 
     class FrameGraph {

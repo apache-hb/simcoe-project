@@ -41,9 +41,18 @@
 
 #include "render/vendor/microsoft/pix.hpp"
 
+#if defined(__clang__)
+#   pragma clang diagnostic push
+#   pragma clang diagnostic ignored "-Wsign-compare"
+#endif
+
 #include "fastgltf/core.hpp"
 #include "fastgltf/util.hpp"
 #include "fastgltf/tools.hpp"
+
+#if defined(__clang__)
+#   pragma clang diagnostic pop
+#endif
 
 #include "stb_image.h"
 

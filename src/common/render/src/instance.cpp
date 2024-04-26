@@ -124,7 +124,7 @@ void Instance::load_pix_runtime() {
     if (PIXLoadLatestWinPixGpuCapturerLibrary()) {
         gGpuLog.info("loaded pix runtime");
     } else {
-        gGpuLog.warn("failed to load pix runtime: {}", sys::get_last_error());
+        gGpuLog.warn("failed to load pix runtime: {}", sys::getLastError());
     }
 #endif
 }
