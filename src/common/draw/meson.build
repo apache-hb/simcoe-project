@@ -5,7 +5,9 @@ src = [
     'src/blit.cpp',
     'src/camera.cpp',
 
+    'src/ecs/systems.cpp',
     'src/ecs/opaque.cpp',
+    'src/ecs/forward_plus/depth_prepass.cpp',
 
     'src/forward_plus/depth_prepass.cpp',
     'src/forward_plus/light_cull.cpp',

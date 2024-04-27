@@ -2,6 +2,8 @@
 
 #ifndef __HLSL_VERSION
 #   include "math/math.hpp"
+#   define row_major
+#   define column_major
 namespace sm::draw {
 using namespace sm::math;
 #endif

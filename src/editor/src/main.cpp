@@ -399,11 +399,10 @@ struct System {
 
 int main(int argc, const char **argv) {
     common_init();
+    sm::Span<const char*> args{argv, size_t(argc)};
+    logs::gGlobal.info("args = [{}]", fmt::join(args, ", "));
 
     int result = [&] {
-        sm::Span<const char*> args{argv, size_t(argc)};
-        logs::gGlobal.info("args = [{}]", fmt::join(args, ", "));
-
         System sys{GetModuleHandleA(nullptr)};
 
         if (!sm::parse_command_line(argc, argv, sys::get_appdir())) {
@@ -423,12 +422,11 @@ int main(int argc, const char **argv) {
 int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
     common_init();
 
+    logs::gGlobal.info("lpCmdLine = {}", lpCmdLine);
+    logs::gGlobal.info("nShowCmd = {}", nShowCmd);
+    // TODO: parse lpCmdLine
+
     int result = [&] {
-        logs::gGlobal.info("lpCmdLine = {}", lpCmdLine);
-        logs::gGlobal.info("nShowCmd = {}", nShowCmd);
-
-        // TODO: parse lpCmdLine
-
         System sys{hInstance};
 
         return common_main(sys::ShowWindow{nShowCmd});

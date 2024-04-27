@@ -1,11 +1,9 @@
 #include "common.hlsli"
 
-cbuffer ObjectBuffer : register(b1) {
-    uint gObjectIndex;
-};
-
 // per object data
-StructuredBuffer<ObjectData> gObjectData : register(t0);
+cbuffer ObjectBuffer : register(b1) {
+    ObjectData gObjectData;
+};
 
 Texture2D gTextures[] : register(t0, space1);
 SamplerState gSampler : register(s0);
@@ -25,11 +23,17 @@ struct VertexInput {
 };
 
 float4x4 getModelMatrix() {
-    return gObjectData[gObjectIndex].model;
+    return gObjectData.model;
 }
 
-float4x4 getModelProjectionMatrix() {
-    return mul(gCameraData.viewProjection, gObjectData[gObjectIndex].model);
+float4 project(float3 position) {
+    float4x4 m = getModelMatrix();
+    float4x4 v = gCameraData.worldView;
+    float4x4 p = gCameraData.projection;
+
+    float4x4 mvp = mul(mul(m, v), p);
+
+    return mul(float4(position, 1.f), mvp);
 }
 
 // vertex shader for depth prepass
@@ -40,7 +44,7 @@ struct DepthPassVertexOutput {
 
 DepthPassVertexOutput vsDepthPass(float3 position : POSITION) {
     DepthPassVertexOutput output;
-    output.position = mul(float4(position, 1.0f), getModelProjectionMatrix());
+    output.position = project(position);
     return output;
 }
 
@@ -53,7 +57,7 @@ struct DepthPassAlphaTestVertexOutput {
 
 DepthPassAlphaTestVertexOutput vsDepthPassAlphaTest(float3 position : POSITION, float2 uv : TEXCOORD) {
     DepthPassAlphaTestVertexOutput output;
-    output.position = mul(float4(position, 1.0f), getModelProjectionMatrix());
+    output.position = project(position);
     output.uv = uv;
     return output;
 }
@@ -70,7 +74,7 @@ struct VertexOutput {
 
 VertexOutput vsOpaque(VertexInput input) {
     VertexOutput output;
-    output.position = mul(float4(input.position, 1.0f), getModelProjectionMatrix());
+    output.position = project(input.position);
 
     // these are all in world space
     float3x3 world = (float3x3)getModelMatrix();

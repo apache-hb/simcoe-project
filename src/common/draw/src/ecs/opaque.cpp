@@ -13,46 +13,6 @@ using namespace sm;
 
 using namespace sm::math::literals;
 
-void draw::ecs::initObjectObservers(flecs::world& world, render::IDeviceContext &context) {
-
-    // when an object is added to the world, create the required device data
-    // to draw it
-    world.observer<const world::ecs::Object>()
-        .event(flecs::OnAdd)
-        .each([&context](flecs::iter& it, size_t i, const world::ecs::Object& obj) {
-            render::ConstBuffer<ObjectData> cbuffer = render::newConstBuffer<ObjectData>(context);
-
-            it.entity(i).set<ecs::ObjectDeviceData>({ std::move(cbuffer) });
-        });
-
-    // when a shape is setup, upload its mesh data to the gpu
-    world.observer<const world::ecs::Shape>()
-        .event(flecs::OnSet)
-        .each([&context](flecs::iter& it, size_t i, const world::ecs::Shape& shape) {
-            flecs::entity entity = it.entity(i);
-
-            world::Mesh mesh = std::visit([](auto it) { return world::primitive(it); }, shape.info);
-            world::ecs::AABB aabb = std::visit([](auto it) { return world::ecs::bounds(it); }, shape.info);
-
-            // TODO: find a way to batch these
-            context.upload([&] {
-                entity.set(context.uploadIndexBuffer(std::move(mesh.indices)));
-                entity.set(context.uploadVertexBuffer(std::move(mesh.vertices)));
-                entity.set(aabb);
-            });
-        });
-
-    // when a camera is added to the world, create the required device data
-    // for its viewport
-    world.observer<const world::ecs::Camera>()
-        .event(flecs::OnAdd)
-        .each([&context](flecs::iter& it, size_t i, const world::ecs::Camera& perspective) {
-            render::ConstBuffer<ViewportData> cbuffer = render::newConstBuffer<ViewportData>(context);
-
-            it.entity(i).set<ecs::ViewportDeviceData>({ std::move(cbuffer) });
-        });
-}
-
 static const D3D12_ROOT_SIGNATURE_FLAGS kPrimitiveRootFlags
     = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS
@@ -122,6 +82,7 @@ static void create_primitive_pipeline(
 }
 
 void draw::ecs::opaque(flecs::world& world, graph::FrameGraph& graph, graph::Handle& target, graph::Handle& depth, flecs::entity camera) {
+#if 0
     static flecs::query updateObjectData
         = world.query_builder<
             ecs::ObjectDeviceData,
@@ -132,6 +93,7 @@ void draw::ecs::opaque(flecs::world& world, graph::FrameGraph& graph, graph::Han
         // select the world position
         .term_at(2).second<world::ecs::World>()
         .build();
+#endif
 
     static flecs::query drawObjectData = world.query<
         const ecs::ObjectDeviceData,
@@ -172,22 +134,7 @@ void draw::ecs::opaque(flecs::world& world, graph::FrameGraph& graph, graph::Han
         auto& [device, graph, _, commands] = ctx;
 
         const world::ecs::Camera *it = camera.get<world::ecs::Camera>();
-        ecs::ViewportDeviceData *dd = camera.get_mut<ecs::ViewportDeviceData>();
-
-        const world::ecs::Position *pos = camera.get<world::ecs::Position, world::ecs::World>();
-        const world::ecs::Direction *dir = camera.get<world::ecs::Direction>();
-
-        float4x4 v = world::ecs::getViewMatrix(*pos, *dir);
-        float4x4 p = it->getProjectionMatrix();
-
-        // p[3][2] *= -1;
-
-        dd->update(draw::ViewportData {
-            .viewProjection = float4x4::identity(),
-            // .viewProjection = (v * p).transpose(),
-            .worldView = v,
-            .projection = p,
-        });
+        const ecs::ViewportDeviceData *dd = camera.get<ecs::ViewportDeviceData>();
 
         auto rtv = graph.rtv(target);
         auto dsv = graph.dsv(depth);
@@ -211,6 +158,7 @@ void draw::ecs::opaque(flecs::world& world, graph::FrameGraph& graph, graph::Han
 
         commands->SetGraphicsRootConstantBufferView(eViewportBuffer, dd->getDeviceAddress());
 
+#if 0
         updateObjectData.iter([&](flecs::iter& it, ecs::ObjectDeviceData *dd, const world::ecs::Position *position, const world::ecs::Rotation *rotation, const world::ecs::Scale *scale) {
             for (auto i : it) {
                 // TODO: multiplying scale by -1 is wrong, figure it out when im less tired
@@ -218,6 +166,7 @@ void draw::ecs::opaque(flecs::world& world, graph::FrameGraph& graph, graph::Han
                 dd[i].update({ (model.transpose() * v * p).transpose() });
             }
         });
+#endif
 
         drawObjectData.iter([&](flecs::iter& it, const ecs::ObjectDeviceData *dd, const render::ecs::IndexBuffer *ibo, const render::ecs::VertexBuffer *vbo) {
             for (auto i : it) {

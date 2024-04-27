@@ -381,7 +381,10 @@ namespace sm::render {
     void copyBufferRegion(ID3D12GraphicsCommandList1 *list, Resource& dst, Resource& src, size_t size);
 
     template<typename T> requires (std::is_standard_layout_v<T> && std::is_trivially_copyable_v<T>)
-    ConstBuffer<T> newConstBuffer(IDeviceContext& self, size_t count = 1) {
+    ConstBuffer<T> newConstBuffer(
+        IDeviceContext& self,
+        size_t count = 1)
+    {
         CTASSERT(count > 0);
 
         // round up the size to the next multiple of 256

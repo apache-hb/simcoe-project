@@ -115,8 +115,29 @@ namespace sm::draw {
         const Camera& camera);
 
     namespace ecs {
+        struct DrawData {
+            forward_plus::DepthBoundsMode depthBoundsMode;
+        };
+
         void initObjectObservers(flecs::world& world, render::IDeviceContext &context);
         void opaque(flecs::world& world, graph::FrameGraph& graph, graph::Handle& target, graph::Handle& depth, flecs::entity camera);
+
+        void copyLightData(
+            flecs::world& world,
+            graph::FrameGraph& graph,
+            graph::Handle& spotLightVolumeData,
+            graph::Handle& pointLightVolumeData,
+            graph::Handle& spotLightData,
+            graph::Handle& pointLightData
+        );
+
+        void depthPrePass(
+            flecs::world& world,
+            graph::FrameGraph& graph,
+            graph::Handle& depthTarget,
+            flecs::entity camera);
+
+        void lightBinning(flecs::world& world, graph::FrameGraph& graph, graph::Handle& indices, graph::Handle depth, graph::Handle pointLightData, graph::Handle spotLightData, flecs::entity camera);
     }
 
     ///
