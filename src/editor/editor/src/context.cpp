@@ -109,6 +109,11 @@ void EditorContext::setup_framegraph(graph::FrameGraph& graph) {
             draw::ecs::opaque(getWorld(), graph, target, depth, entity);
 
             entity.set<ecs::CameraData>({ target, depth });
+
+            graph::Handle spotLightVolumes, pointLightVolumes, spotLightData, pointLightData;
+            graph::Handle depthPrePassTarget;
+            draw::ecs::copyLightData(getWorld(), graph, spotLightVolumes, pointLightVolumes, spotLightData, pointLightData);
+            draw::ecs::depthPrePass(getWorld(), graph, depthPrePassTarget, entity);
         });
     });
 

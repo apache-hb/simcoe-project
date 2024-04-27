@@ -293,6 +293,12 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .add<world::ecs::Object>()
         .set<world::ecs::Shape>({ world::Cylinder{ 0.7f, 1.3f, 8 } });
 
+    world.entity("Point Light")
+        .set<world::ecs::Position, world::ecs::Local>({ float3(0.f, 5.f, 0.f) })
+        .set<world::ecs::Colour>({ float3(1.f, 1.f, 1.f) })
+        .set<world::ecs::Intensity>({ 1.f })
+        .add<world::ecs::Light, world::ecs::PointLight>();
+
     ed::Editor editor{context};
 
     Ticker clock;

@@ -48,7 +48,8 @@ void draw::ecs::initObjectObservers(flecs::world& world, render::IDeviceContext 
         ecs::ObjectDeviceData,
         const world::ecs::Position,
         const world::ecs::Rotation,
-        const world::ecs::Scale>("Update object draw data with new transform")
+        const world::ecs::Scale
+    >("Update object draw data with new transform")
         .kind(flecs::OnStore)
         .term_at(2).second<world::ecs::World>()
         .iter(
@@ -71,7 +72,8 @@ void draw::ecs::initObjectObservers(flecs::world& world, render::IDeviceContext 
         ecs::ViewportDeviceData,
         const world::ecs::Camera,
         const world::ecs::Position,
-        const world::ecs::Direction>("Update viewport data with new camera info")
+        const world::ecs::Direction
+    >("Update viewport data with new camera info")
         .kind(flecs::OnStore)
         .term_at(3).second<world::ecs::World>()
         .iter(

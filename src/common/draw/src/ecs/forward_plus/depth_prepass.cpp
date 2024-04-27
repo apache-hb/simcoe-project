@@ -11,30 +11,6 @@ using namespace sm;
 using namespace sm::draw;
 using namespace sm::world;
 
-#if 0
-// todo: dedup this with opaque
-static void draw_node(render::IDeviceContext& context, ID3D12GraphicsCommandList1* commands, const draw::Camera& camera, IndexOf<Node> index, const float4x4& parent) {
-    float ar = camera.config().getAspectRatio();
-    const auto& node = context.mWorld.get(index);
-
-    auto model = (parent * node.transform.matrix());
-    float4x4 mvp = camera.mvp(ar, model.transpose()).transpose();
-
-    commands->SetGraphicsRoot32BitConstants(0, 16, mvp.data(), 0);
-
-    for (IndexOf i : node.models) {
-        const auto& object = context.mMeshes[i];
-        commands->IASetVertexBuffers(0, 1, &object.vbo.view);
-        commands->IASetIndexBuffer(&object.ibo.view);
-
-        commands->DrawIndexedInstanced(object.ibo.length, 1, 0, 0, 0);
-    }
-
-    for (IndexOf i : node.children) {
-        draw_node(context, commands, camera, i, model);
-    }
-}
-#endif
 
 // TODO: should this be configurable
 static constexpr D3D12_ROOT_SIGNATURE_FLAGS kPrePassRootFlags
@@ -140,6 +116,8 @@ void draw::ecs::depthPrePass(
 
         return info;
     });
+
+    pass.side_effects(true);
 
     pass.bind([depthTarget, camera, &data](graph::RenderContext& ctx) {
         auto& context = ctx.context;
