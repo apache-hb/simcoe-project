@@ -192,9 +192,9 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     auto client = window.get_client_coords().size();
 
-    fs::path bundle_path = sm::get_appdir() / "bundle.tar";
-    IoHandle tar = io_file(bundle_path.string().c_str(), eOsAccessRead, get_default_arena());
-    sm::Bundle bundle{*tar, archive::BundleFormat::eTar};
+    // fs::path bundle_path = sm::get_appdir() / "bundle.tar";
+    // IoHandle tar = io_file(bundle_path.string().c_str(), eOsAccessRead, get_default_arena());
+    sm::Bundle bundle{sm::mountFileSystem(sm::get_appdir() / "bundle")};
 
     render::DebugFlags flags = render::DebugFlags::none();
 

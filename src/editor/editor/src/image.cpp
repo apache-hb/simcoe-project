@@ -1,5 +1,6 @@
 #include "stdafx.hpp"
 
+#include "archive/image.hpp"
 #include "editor/editor.hpp"
 
 using namespace sm;

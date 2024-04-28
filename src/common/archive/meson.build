@@ -6,6 +6,7 @@ src = [
     'src/record.cpp',
     'src/bundle.cpp',
     'src/image.cpp',
+    'src/fs.cpp',
 
     reflect.process('data/format.ct'),
     reflect.process('data/io.ct'),
@@ -14,8 +15,7 @@ src = [
 
 deps = [
     core, logs, math,
-    cthulhu.get_variable('fs'),
-    cthulhu.get_variable('tar'),
+    cthulhu.get_variable('io'),
     dependency('stb_image'),
     dependency('liblz4'),
     dependency('libarchive')

@@ -130,8 +130,12 @@ namespace sm {
             delete[] mFront;
         }
 
-        constexpr VectorBase(SizeType initial = 8) noexcept {
-            init(initial);
+        constexpr VectorBase() noexcept {
+            init(4);
+        }
+
+        constexpr VectorBase(SizeType initial) noexcept {
+            init(initial, initial);
         }
 
         explicit constexpr VectorBase(const VectorBase &other) noexcept {

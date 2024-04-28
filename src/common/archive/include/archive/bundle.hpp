@@ -4,32 +4,28 @@
 
 #include "core/span.hpp"
 #include "core/string.hpp"
+#include "core/unique.hpp"
 
-#include "archive/font.hpp"
-
-#include "fs.hpp"
-
-#include "io.reflect.h"
+#include "archive/fs.hpp"
 
 typedef struct fs_t fs_t;
 typedef struct io_t io_t;
 
 namespace sm {
-    using ShaderIr = sm::Span<const byte>;
-    using TextureData = sm::Span<const byte>;
+    using ShaderIr = sm::View<byte>;
+    using TextureData = sm::View<byte>;
 
     class Bundle {
-        FsHandle mFileSystem;
+        sm::UniquePtr<IFileSystem> mFileSystem;
 
-        io_t *get_file(sm::StringView dir, sm::StringView name) const;
-        sm::Span<const byte> get_file_data(sm::StringView dir, sm::StringView name) const;
+        sm::View<byte> getFileData(sm::StringView dir, sm::StringView name);
 
     public:
-        Bundle(fs_t *vfs);
-        Bundle(io_t *stream, archive::BundleFormat type);
+        Bundle(IFileSystem *fs);
 
-        ShaderIr get_shader_bytecode(const char *name) const;
-        TextureData get_texture(const char *name) const;
-        font::FontInfo get_font(const char *name) const;
+        ShaderIr get_shader_bytecode(const char *name);
+        TextureData get_texture(const char *name);
+
+        // font::FontInfo get_font(const char *name);
     };
 }

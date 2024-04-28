@@ -2,71 +2,36 @@
 
 #include "archive/bundle.hpp"
 
-#include "archive/io.hpp"
-
-#include "core/memory.h"
-#include "core/memory.hpp"
 #include "core/string.hpp"
 #include "core/format.hpp" // IWYU pragma: keep
 
-#include "core/units.hpp"
 #include "logs/logs.hpp"
-
-#include "fs/fs.h"
-#include "tar/tar.h"
 
 using namespace sm;
 
-Bundle::Bundle(fs_t *vfs)
-    : mFileSystem(vfs)
+Bundle::Bundle(IFileSystem *fs)
+    : mFileSystem(fs)
 { }
 
-Bundle::Bundle(io_t *stream, archive::BundleFormat type)
-    : Bundle(fs_virtual("bundle", get_default_arena()))
-{
-    if (type != archive::BundleFormat::eTar) {
-        logs::gAssets.warn("unsupported bundle format: {}", type);
-        return;
+sm::Span<const uint8> Bundle::getFileData(sm::StringView dir, sm::StringView name) {
+    sm::View data = mFileSystem->readFileData(fmt::format("bundle/{}/{}", dir, name));
+    if (data.empty()) {
+        logs::gAssets.error("failed to read file: {}/{}", dir, name);
+        return {};
     }
 
-    if (tar_result_t err = tar_extract(*mFileSystem, stream); err.error != eTarOk) {
-        logs::gAssets.error("failed to extract bundle: {}", tar_error_string(err.error));
-    }
+    return data;
 }
 
-io_t *Bundle::get_file(sm::StringView dir, sm::StringView name) const {
-    sm::String path = fmt::format("bundle/{}/{}", dir, name);
-    io_t *file = fs_open(*mFileSystem, path.c_str(), eOsAccessRead);
-    if (OsError err = io_error(file); err.failed()) {
-        logs::gAssets.error("failed to open file bundle/{}/{}: {}", dir, name, err);
-        return nullptr;
-    }
-
-    return file;
+ShaderIr Bundle::get_shader_bytecode(const char *name) {
+    return getFileData("shaders", fmt::format("{}.cso", name));
 }
 
-sm::Span<const uint8> Bundle::get_file_data(sm::StringView dir, sm::StringView name) const {
-    IoHandle file = get_file(dir, name);
-    if (!file.is_valid()) return {};
-
-    // TODO: if we use anything other than tarfs then this becomes a use
-    // after free
-    size_t size = io_size(*file);
-    const uint8 *data = (uint8*)io_map(*file, eOsProtectRead);
-
-    logs::gAssets.info("loaded file {} ({} bytes)", name, sm::Memory{size});
-
-    return { data, size };
+TextureData Bundle::get_texture(const char *name) {
+    return getFileData("textures", fmt::format("{}.dds", name));
 }
 
-ShaderIr Bundle::get_shader_bytecode(const char *name) const {
-    return get_file_data("shaders", fmt::format("{}.cso", name));
-}
-
-TextureData Bundle::get_texture(const char *name) const {
-    return get_file_data("textures", fmt::format("{}.dds", name));
-}
-
+#if 0
 static int wrap_io_read(void *dst, int length, void *user) {
     if (dst == nullptr || length < 0) return 0;
 
@@ -162,9 +127,9 @@ static constexpr font::FontInfo convert_info(const artery::FontData& font, const
     return result;
 }
 
-font::FontInfo Bundle::get_font(const char *name) const {
-    IoHandle file = get_file("fonts", fmt::format("{}.arfont", name));
-    if (!file.is_valid()) return {};
+font::FontInfo Bundle::get_font(const char *name) {
+    sm::View data = getFileData("fonts", fmt::format("{}.arfont", name));
+    if (data.empty()) return {};
 
     artery::FontData font;
     bool result = af::decode<wrap_io_read>(font, (void*)file.get());
@@ -202,3 +167,4 @@ font::FontInfo Bundle::get_font(const char *name) const {
 
     return info;
 }
+#endif
