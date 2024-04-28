@@ -23,10 +23,10 @@ void FileChannel::closeChannel() noexcept {
     io_close(mStream.data());
 }
 
-std::expected<FileChannel, io_error_t> FileChannel::open(const char *path) noexcept {
+std::expected<FileChannel, os_error_t> FileChannel::open(const char *path) noexcept {
     FileChannel channel;
     io_t *io = io_file_init(channel.mStream.ptr(), path, eOsAccessWrite | eOsAccessTruncate);
-    io_error_t err = io_error(io);
+    os_error_t err = io_error(io);
     if (err != eOsSuccess) {
         return std::unexpected(err);
     }

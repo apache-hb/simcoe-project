@@ -214,7 +214,7 @@ namespace sm::render {
         uint64 mCopyFenceValue;
         void create_copy_fence();
 
-        ID3D12CommandQueue *get_queue(CommandListType type);
+        ID3D12CommandQueue *getQueue(CommandListType type);
 
         // world data
         world::World mWorld;

@@ -22,11 +22,15 @@ using namespace math;
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
                                                              LPARAM lParam);
 
-static print_backtrace_t print_options_make(io_t *io) {
-    print_backtrace_t print = {
-        .options = {.arena = get_default_arena(), .io = io, .pallete = &kColourDefault},
+static fmt_backtrace_t print_options_make(io_t *io) {
+    fmt_backtrace_t print = {
+        .options = {
+            .arena = get_default_arena(),
+            .io = io,
+            .pallete = &kColourDefault,
+        },
         .header = eHeadingGeneric,
-        .zero_indexed_lines = false,
+        .config = eBtZeroIndexedLines,
         .project_source_path = SMC_SOURCE_DIR,
     };
 
@@ -47,8 +51,8 @@ class DefaultSystemError final : public ISystemError {
     }
 
     void error_end() override {
-        const print_backtrace_t kPrintOptions = print_options_make(io_stderr());
-        print_backtrace(kPrintOptions, mReport);
+        const fmt_backtrace_t kPrintOptions = print_options_make(io_stderr());
+        fmt_backtrace(kPrintOptions, mReport);
         std::exit(CT_EXIT_INTERNAL); // NOLINT
     }
 };
@@ -114,14 +118,14 @@ static void common_init(void) {
         io_t *io = io_stderr();
         arena_t *arena = get_default_arena();
 
-        const print_backtrace_t kPrintOptions = print_options_make(io);
+        const fmt_backtrace_t kPrintOptions = print_options_make(io);
 
         auto message = sm::vformat(msg, args);
 
         logs::gGlobal.log(logs::Severity::ePanic, "{}", message);
 
         bt_report_t *report = bt_report_collect(arena);
-        print_backtrace(kPrintOptions, report);
+        fmt_backtrace(kPrintOptions, report);
 
         std::exit(CT_EXIT_INTERNAL); // NOLINT
     };

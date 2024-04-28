@@ -23,7 +23,7 @@ namespace sm::logs {
 
         SM_NOCOPY(FileChannel)
 
-        static std::expected<FileChannel, io_error_t> open(const char *path) noexcept;
+        static std::expected<FileChannel, os_error_t> open(const char *path) noexcept;
 
         friend void swap(FileChannel& lhs, FileChannel& rhs) noexcept {
             std::swap(lhs.mStream, rhs.mStream);

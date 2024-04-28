@@ -813,8 +813,8 @@ void FrameGraph::execute() {
     for (auto& step : mFrameSchedule) {
         std::visit(overloaded {
             [&](events::DeviceSync sync) {
-                ID3D12CommandQueue *signal = mContext.get_queue(sync.signal);
-                ID3D12CommandQueue *wait = mContext.get_queue(sync.wait);
+                ID3D12CommandQueue *signal = mContext.getQueue(sync.signal);
+                ID3D12CommandQueue *wait = mContext.getQueue(sync.wait);
 
                 ID3D12Fence *fence = mContext.mDeviceFence.get();
                 uint64 value = mContext.mDeviceFenceValue++;
@@ -842,7 +842,7 @@ void FrameGraph::execute() {
             [&](events::SubmitCommands submit) {
                 close_commands(submit.handle);
                 ID3D12GraphicsCommandList1 *commands = get_commands(submit.handle);
-                ID3D12CommandQueue *queue = mContext.get_queue(get_command_type(submit.handle));
+                ID3D12CommandQueue *queue = mContext.getQueue(get_command_type(submit.handle));
 
                 ID3D12CommandList *lists[] = { commands };
                 queue->ExecuteCommandLists(1, lists);

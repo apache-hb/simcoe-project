@@ -116,7 +116,7 @@ namespace sm::render {
         sm::Vector<Adapter> &get_adapters();
         Object<IDXGIFactory4> &factory();
         const DebugFlags &flags() const;
-        bool tearing_support() const;
+        bool isTearingSupported() const;
         bool debug_support() const;
         bool has_viable_adapter() const;
 

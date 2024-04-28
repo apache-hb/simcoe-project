@@ -197,7 +197,7 @@ const DebugFlags &Instance::flags() const {
     return mFlags;
 }
 
-bool Instance::tearing_support() const {
+bool Instance::isTearingSupported() const {
     return mTearingSupport;
 }
 

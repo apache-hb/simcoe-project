@@ -30,7 +30,7 @@ enum {
     eBindingCount
 };
 
-static void create_primitive_pipeline(
+static void initPrimitivePipeline(
     render::IDeviceContext& context,
     render::Pipeline& pipeline,
     DXGI_FORMAT colour,
@@ -82,19 +82,6 @@ static void create_primitive_pipeline(
 }
 
 void draw::ecs::opaque(flecs::world& world, graph::FrameGraph& graph, graph::Handle& target, graph::Handle& depth, flecs::entity camera) {
-#if 0
-    static flecs::query updateObjectData
-        = world.query_builder<
-            ecs::ObjectDeviceData,
-            const world::ecs::Position,
-            const world::ecs::Rotation,
-            const world::ecs::Scale
-        >()
-        // select the world position
-        .term_at(2).second<world::ecs::World>()
-        .build();
-#endif
-
     static flecs::query drawObjectData = world.query<
         const ecs::ObjectDeviceData,
         const render::ecs::IndexBuffer,
@@ -125,7 +112,7 @@ void draw::ecs::opaque(flecs::world& world, graph::FrameGraph& graph, graph::Han
             render::Pipeline pipeline;
         } info;
 
-        create_primitive_pipeline(context, info.pipeline, it->colour, it->depth);
+        initPrimitivePipeline(context, info.pipeline, it->colour, it->depth);
 
         return info;
     });

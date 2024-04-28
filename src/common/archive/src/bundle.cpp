@@ -38,7 +38,7 @@ io_t *Bundle::get_file(sm::StringView dir, sm::StringView name) const {
     sm::String path = fmt::format("bundle/{}/{}", dir, name);
     io_t *file = fs_open(*mFileSystem, path.c_str(), eOsAccessRead);
     if (OsError err = io_error(file); err.failed()) {
-        logs::gAssets.error("failed to open file: {}", err);
+        logs::gAssets.error("failed to open file bundle/{}/{}: {}", dir, name, err);
         return nullptr;
     }
 

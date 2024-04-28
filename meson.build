@@ -31,6 +31,8 @@ project('simcoe', [ 'c', 'cpp' ],
         'simdjson:warning_level=0',
         'fastgltf:warning_level=0',
         'tracy:warning_level=0',
+        'lz4:warning_level=0',
+        'libarchive:warning_level=0',
 
         # disable everything in cthulhu by default
         'cthulhu:auto_features=disabled',
@@ -39,6 +41,8 @@ project('simcoe', [ 'c', 'cpp' ],
         'fastgltf:custom_small_vector=true',
 
         'flecs:default_library=static',
+
+        'libarchive:progs=[]',
 
         # configure freetype before harfbuzz to pick up configuration
         # 'freetype2:auto_features=disabled',

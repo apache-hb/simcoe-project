@@ -55,7 +55,7 @@ void IDeviceContext::destroyStorageDeviceData() {
 #pragma region Device creation and lifetime
 
 static uint getSwapChainFlags(const Instance& instance) {
-    return instance.tearing_support() ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
+    return instance.isTearingSupported() ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 }
 
 static logs::Severity getSeverityLevel(MessageSeverity sev) {
@@ -251,7 +251,7 @@ void IDeviceContext::create_copy_fence() {
     SM_ASSERT_WIN32(mCopyFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr));
 }
 
-ID3D12CommandQueue *IDeviceContext::get_queue(CommandListType type) {
+ID3D12CommandQueue *IDeviceContext::getQueue(CommandListType type) {
     switch (type) {
     case CommandListType::eDirect: return mDirectQueue.get();
     case CommandListType::eCompute: return mComputeQueue.get();
@@ -268,7 +268,7 @@ void IDeviceContext::create_pipeline() {
 
     SM_ASSERT_HR(mDevice->CreateCommandQueue(&kQueueDesc, IID_PPV_ARGS(&mDirectQueue)));
 
-    bool tearing = mInstance.tearing_support();
+    bool tearing = mInstance.isTearingSupported();
     const DXGI_SWAP_CHAIN_DESC1 kSwapChainDesc = {
         .Width = mSwapChainConfig.size.width,
         .Height = mSwapChainConfig.size.height,
@@ -872,7 +872,7 @@ void IDeviceContext::render() {
     ZoneScopedN("Render");
     build_command_list();
 
-    bool tearing = mInstance.tearing_support();
+    bool tearing = mInstance.isTearingSupported();
     uint flags = tearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
 
     SM_ASSERT_HR(mSwapChain->Present(0, flags));

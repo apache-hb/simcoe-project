@@ -104,7 +104,7 @@ struct tool_t
     io_t *open_file(const char *path, os_access_t access, const diagnostic_t *diag)
     {
         io_t *io = io_file(path, access, m_arena);
-        if (io_error_t err = io_error(io); err != 0)
+        if (os_error_t err = io_error(io); err != 0)
         {
             msg_notify(m_logger, diag, get_builtin_node(), "failed to open '%s': %s", path,
                        os_error_string(err, m_arena));

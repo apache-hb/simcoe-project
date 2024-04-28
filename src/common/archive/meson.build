@@ -16,7 +16,9 @@ deps = [
     core, logs, math,
     cthulhu.get_variable('fs'),
     cthulhu.get_variable('tar'),
-    dependency('stb_image')
+    dependency('stb_image'),
+    dependency('liblz4'),
+    dependency('libarchive')
 ]
 
 libarchive = library('archive', src,
