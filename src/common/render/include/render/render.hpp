@@ -147,7 +147,12 @@ namespace sm::render {
 
         Result createTextureResource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state, const D3D12_CLEAR_VALUE *clear = nullptr);
 
-        Result createBufferResource(Resource& resource, D3D12_HEAP_TYPE heap, uint64 width, D3D12_RESOURCE_STATES state);
+        Result createBufferResource(
+            Resource& resource,
+            D3D12_HEAP_TYPE heap,
+            uint64 width,
+            D3D12_RESOURCE_STATES state,
+            D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE);
 
         void serialize_root_signature(Object<ID3D12RootSignature>& signature, const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& desc);
 
@@ -174,6 +179,9 @@ namespace sm::render {
     public:
         /// graphics pipeline objects
         Object<ID3D12CommandQueue> mDirectQueue;
+
+        // this command list is only used to transition resources during upload
+        // this is a little silly, maybe theres a better way to do this
         Object<ID3D12GraphicsCommandList1> mCommandList;
 
         void reset_direct_commands(ID3D12PipelineState *pso = nullptr);
@@ -186,34 +194,18 @@ namespace sm::render {
         DsvPool mDsvPool;
         SrvPool mSrvPool;
 
+    private:
         /// compute queue and commands
         Object<ID3D12CommandQueue> mComputeQueue;
-        Object<ID3D12GraphicsCommandList1> mComputeCommands;
-
-        void create_compute_queue();
-        void destroy_compute_queue();
-
-        /// device sync fence
-        Object<ID3D12Fence> mDeviceFence;
-        uint mDeviceFenceValue;
-
-        void create_device_fence();
-        void destroy_device_fence();
+        void createComputeQueue();
+        void destroyComputeQueue();
 
         /// copy queue and commands
         Object<ID3D12CommandQueue> mCopyQueue;
-        Object<ID3D12CommandAllocator> mCopyAllocator;
-        Object<ID3D12GraphicsCommandList1> mCopyCommands;
-        void create_copy_queue();
-        void destroy_copy_queue();
+        void createCopyQueue();
+        void destroyCopyQueue();
 
-        void reset_copy_commands();
-
-        Object<ID3D12Fence> mCopyFence;
-        HANDLE mCopyFenceEvent;
-        uint64 mCopyFenceValue;
-        void create_copy_fence();
-
+    public:
         ID3D12CommandQueue *getQueue(CommandListType type);
 
         // world data

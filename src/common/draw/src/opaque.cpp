@@ -144,7 +144,7 @@ void draw::opaque(graph::FrameGraph& graph, graph::Handle& target, graph::Handle
     target = pass.create(target_info, "Target", graph::Usage::eRenderTarget);
     depth = pass.create(depth_info, "Depth", graph::Usage::eDepthWrite);
 
-    auto& data = graph.device_data([config](render::IDeviceContext& context) {
+    auto& data = graph.newDeviceData([config](render::IDeviceContext& context) {
         struct {
             render::Pipeline pipeline;
         } info;

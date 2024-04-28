@@ -704,7 +704,7 @@ void game::physics_debug(
 
     graph::Handle depth = pass.create(info, "Depth", graph::Usage::eDepthWrite);
 
-    auto& data = graph.device_data([config](render::IDeviceContext& context) {
+    auto& data = graph.newDeviceData([config](render::IDeviceContext& context) {
         struct {
             render::Pipeline lines;
             render::Pipeline triangles;

@@ -207,6 +207,7 @@ void cs_cull_lights(
         frustum.plane3 = create_plane_equation(frustum3, frustum0);
     }
 
+#if 0
     GroupMemoryBarrierWithGroupSync();
 
 #if DEPTH_BOUNDS_MODE == DEPTH_BOUNDS_ENABLED
@@ -247,4 +248,5 @@ void cs_cull_lights(
             gLightIndexBuffer[startOffset + LIGHT_INDEX_BUFFER_HEADER + MAX_POINT_LIGHTS_PER_TILE + j] = gLightIndex[j + pointLightsInTile];
         }
     }
+#endif
 }

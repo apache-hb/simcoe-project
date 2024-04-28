@@ -374,21 +374,18 @@ struct UsageTracker {
     D3D12_RESOURCE_FLAGS getResourceFlags(uint resource) const {
         D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE;
 
-        if (needsUav(resource)) {
+        UsageBits usage = tryGetUsage(resource);
+        if (usage.uav)
             flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-        }
 
-        if (needsRtv(resource)) {
-            flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-        }
-
-        if (needsDsv(resource)) {
+        if (usage.dsv)
             flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-        }
 
-        // if (!needs_srv(resource) && !needs_uav(resource)) {
-        //     flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
-        // }
+        if (usage.rtv)
+            flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+        if (!usage.srv && !usage.uav)
+            flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 
         return flags;
     }
@@ -407,7 +404,7 @@ void FrameGraph::createManagedResources() {
         ResourceSize size = info.size;
 
         if (size.type == ResourceSize::eBuffer) {
-            SM_ASSERT_HR(mContext.createBufferResource(resource, D3D12_HEAP_TYPE_DEFAULT, size.buffer_size, state));
+            SM_ASSERT_HR(mContext.createBufferResource(resource, D3D12_HEAP_TYPE_DEFAULT, size.buffer_size, D3D12_RESOURCE_STATE_COMMON, flags));
         } else {
             auto desc = CD3DX12_RESOURCE_DESC::Tex2D(
                 /*format=*/ info.format,
@@ -510,12 +507,15 @@ void FrameGraph::FrameCommandData::resize(ID3D12Device1 *device, uint length) {
 
     for (uint i = 0; i < length; i++) {
         SM_ASSERT_HR(device->CreateCommandAllocator(type.as_facade(), IID_PPV_ARGS(&allocators[i])));
+        allocators[i].rename(fmt::format("FrameCommandData<{}>::allocator[{}]", type, i));
     }
 
     commands.reset();
 
     SM_ASSERT_HR(device->CreateCommandList(0, type.as_facade(), *allocators[0], nullptr, IID_PPV_ARGS(&commands)));
     SM_ASSERT_HR(commands->Close());
+
+    commands.rename(fmt::format("FrameCommandData<{}>::commands", type));
 }
 
 void FrameGraph::reset_frame_commands() {
@@ -530,10 +530,13 @@ void FrameGraph::init_frame_commands() {
 
         for (uint i = 0; i < length; i++) {
             SM_ASSERT_HR(device->CreateCommandAllocator(type.as_facade(), IID_PPV_ARGS(&allocators[i])));
+            allocators[i].rename(fmt::format("FrameCommandData<{}>::allocator[{}]", type, i));
         }
 
         SM_ASSERT_HR(device->CreateCommandList(0, type.as_facade(), *allocators[0], nullptr, IID_PPV_ARGS(&commands)));
         SM_ASSERT_HR(commands->Close());
+
+        commands.rename(fmt::format("FrameCommandList<{}>::commands", type));
     }
 }
 
@@ -548,7 +551,7 @@ render::CommandListType FrameGraph::get_command_type(CommandListHandle handle) {
     return mFrameData[handle.index].type;
 }
 
-void FrameGraph::open_commands(CommandListHandle handle) {
+void FrameGraph::resetCommandBuffer(CommandListHandle handle) {
     auto& [type, allocators, commands] = mFrameData[handle.index];
 
     uint index = mContext.mFrameIndex;
@@ -564,14 +567,38 @@ void FrameGraph::open_commands(CommandListHandle handle) {
     }
 }
 
-void FrameGraph::close_commands(CommandListHandle handle) {
+void FrameGraph::closeCommandBuffer(CommandListHandle handle) {
     auto& [_, _, commands] = mFrameData[handle.index];
 
     SM_ASSERT_HR(commands->Close());
 }
 
-ID3D12GraphicsCommandList1 *FrameGraph::get_commands(CommandListHandle handle) {
+ID3D12GraphicsCommandList1 *FrameGraph::getCommandBuffer(CommandListHandle handle) {
     return mFrameData[handle.index].commands.get();
+}
+
+///
+/// fences
+///
+
+FenceHandle FrameGraph::addFence(sm::StringView name) {
+    auto device = mContext.getDevice();
+    FenceData data;
+    SM_ASSERT_HR(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&data.fence)));
+    data.fence.rename(name);
+
+    uint index = mFences.size();
+    mFences.emplace_back(std::move(data));
+
+    return {index};
+}
+
+FrameGraph::FenceData& FrameGraph::getFence(FenceHandle handle) {
+    return mFences[handle.index];
+}
+
+void FrameGraph::clearFences() {
+    mFences.clear();
 }
 
 ///
@@ -602,6 +629,40 @@ void FrameGraph::schedule_graph() {
             transitions.clear();
         }
     };
+
+    struct ScheduleBuilder {
+        FrameGraph& self;
+        FrameSchedule& schedule;
+
+        CommandListHandle openCommandBuffer(render::CommandListType type) {
+            CommandListHandle handle = self.add_commands(type);
+
+            events::OpenCommands open = {
+                .handle = handle
+            };
+
+            schedule.push_back(open);
+
+            return handle;
+        }
+
+        void submitCommandBuffer(CommandListHandle handle) {
+            events::SubmitCommands submit = {
+                .handle = handle
+            };
+
+            schedule.push_back(submit);
+        }
+
+        void recordCommands(CommandListHandle handle, PassHandle pass) {
+            events::RecordCommands record = {
+                .handle = handle,
+                .pass = pass
+            };
+
+            schedule.push_back(record);
+        }
+    } builder = { *this, mFrameSchedule };
 
     // track the expected state of each resource
     sm::HashMap<Handle, D3D12_RESOURCE_STATES> initial;
@@ -644,14 +705,7 @@ void FrameGraph::schedule_graph() {
         CT_NEVER("All render passes are culled, no queue type found");
     }();
 
-    CommandListHandle cmd = add_commands(queue);
-
-    // open the initial command list
-    events::OpenCommands open = {
-        .handle = cmd
-    };
-
-    mFrameSchedule.push_back(open);
+    CommandListHandle cmd = builder.openCommandBuffer(queue);
 
     sm::Vector<RenderPass> stack;
 
@@ -664,11 +718,7 @@ void FrameGraph::schedule_graph() {
         // if the queue type changes, add a sync event
         if (pass.type != get_command_type(cmd)) {
             // submit the current queues work
-            events::SubmitCommands submit = {
-                .handle = cmd
-            };
-
-            mFrameSchedule.push_back(submit);
+            builder.submitCommandBuffer(cmd);
 
             for (auto& p : stack) {
                 if (pass.depends_on(p) && pass.type != p.type) {
@@ -676,7 +726,8 @@ void FrameGraph::schedule_graph() {
                     if (!synced[ty]) {
                         events::DeviceSync sync = {
                             .signal = p.type,
-                            .wait = pass.type
+                            .wait = pass.type,
+                            .fence = addFence(fmt::format("sync {} -> {}", p.name, pass.name))
                         };
 
                         mFrameSchedule.push_back(sync);
@@ -688,14 +739,8 @@ void FrameGraph::schedule_graph() {
 
             synced.fill(false);
 
-            cmd = add_commands(pass.type);
-
-            // open the next command list
-            events::OpenCommands open = {
-                .handle = cmd
-            };
-
-            mFrameSchedule.push_back(open);
+            // open a new command buffer
+            cmd = builder.openCommandBuffer(pass.type);
 
             stack.push_back(pass);
         }
@@ -711,16 +756,13 @@ void FrameGraph::schedule_graph() {
             update_state(access.index, access.usage);
         });
 
+        // TODO: do we need to handle UAV barriers or is our stuff
+        // so pessemistic with waits that we don't need to worry about it?
+
         // if we have any barriers, submit them
         barriers.submit(mFrameSchedule, cmd);
 
-        // then record the commands for this pass
-        events::RecordCommands record = {
-            .handle = cmd,
-            .pass = PassHandle{i}
-        };
-
-        mFrameSchedule.push_back(record);
+        builder.recordCommands(cmd, PassHandle{i});
 
         // only add early barriers on direct command list
         // not sure of all the special cases yet
@@ -748,11 +790,9 @@ void FrameGraph::schedule_graph() {
     barriers.submit(mFrameSchedule, cmd);
 
     // submit the last command list
-    events::SubmitCommands submit = {
-        .handle = cmd,
-    };
+    builder.submitCommandBuffer(cmd);
 
-    mFrameSchedule.push_back(submit);
+    // TODO: need to sync all unsynced work here
 }
 
 void FrameGraph::destroyManagedResources() {
@@ -781,6 +821,7 @@ void FrameGraph::resize_frame_data(uint size) {
 void FrameGraph::reset() {
     mFrameSchedule.clear();
     reset_frame_commands();
+    clearFences();
     destroyManagedResources();
     mRenderPasses.clear();
     mHandles.clear();
@@ -813,25 +854,29 @@ void FrameGraph::execute() {
     for (auto& step : mFrameSchedule) {
         std::visit(overloaded {
             [&](events::DeviceSync sync) {
+                gRenderLog.info("Sync {} -> {}", sync.signal, sync.wait);
                 ID3D12CommandQueue *signal = mContext.getQueue(sync.signal);
                 ID3D12CommandQueue *wait = mContext.getQueue(sync.wait);
+                auto& [fence, value] = getFence(sync.fence);
 
-                ID3D12Fence *fence = mContext.mDeviceFence.get();
-                uint64 value = mContext.mDeviceFenceValue++;
+                uint64 it = value++;
 
-                SM_ASSERT_HR(signal->Signal(fence, value));
-                SM_ASSERT_HR(wait->Wait(fence, value));
+                SM_ASSERT_HR(signal->Signal(fence.get(), it));
+                SM_ASSERT_HR(wait->Wait(fence.get(), it));
             },
             [&](events::ResourceBarrier& barrier) {
+                gRenderLog.info("ResourceBarrier {} barriers {}.{}", barrier.size(), mFrameData[barrier.handle.index].type, barrier.handle.index);
                 build_raw_events(barrier);
-                ID3D12GraphicsCommandList1 *commands = get_commands(barrier.handle);
+                ID3D12GraphicsCommandList1 *commands = getCommandBuffer(barrier.handle);
                 commands->ResourceBarrier(barrier.size(), barrier.data());
             },
             [&](events::OpenCommands open) {
-                open_commands(open.handle);
+                gRenderLog.info("OpenCommands {}.{}", mFrameData[open.handle.index].type, open.handle.index);
+                resetCommandBuffer(open.handle);
             },
             [&](events::RecordCommands record) {
-                ID3D12GraphicsCommandList1 *commands = get_commands(record.handle);
+                gRenderLog.info("RecordCommands {}.{}", mRenderPasses[record.pass.index].name, record.pass.index);
+                ID3D12GraphicsCommandList1 *commands = getCommandBuffer(record.handle);
                 auto& pass = mRenderPasses[record.pass.index];
                 RenderContext ctx{getContext(), *this, pass, commands};
 
@@ -840,14 +885,25 @@ void FrameGraph::execute() {
                 PIXEndEvent(commands);
             },
             [&](events::SubmitCommands submit) {
-                close_commands(submit.handle);
-                ID3D12GraphicsCommandList1 *commands = get_commands(submit.handle);
+                gRenderLog.info("SubmitCommands {}.{}", mFrameData[submit.handle.index].type, submit.handle.index);
+                closeCommandBuffer(submit.handle);
+                ID3D12GraphicsCommandList1 *commands = getCommandBuffer(submit.handle);
                 ID3D12CommandQueue *queue = mContext.getQueue(get_command_type(submit.handle));
 
                 ID3D12CommandList *lists[] = { commands };
                 queue->ExecuteCommandLists(1, lists);
             }
         }, step);
+    }
+
+    // make all fences signal mDirectQueue
+    for (auto& [fence, value] : mFences) {
+        ID3D12CommandQueue *queue = mContext.getQueue(render::CommandListType::eDirect);
+
+        uint64 it = value++;
+
+        SM_ASSERT_HR(queue->Signal(fence.get(), it));
+        SM_ASSERT_HR(queue->Wait(fence.get(), it));
     }
 }
 

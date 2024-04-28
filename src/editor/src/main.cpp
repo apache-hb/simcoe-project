@@ -50,6 +50,8 @@ class DefaultSystemError final : public ISystemError {
     bt_report_t *mReport = nullptr;
 
     void error_begin(OsError error) override {
+        bt_update();
+
         mReport = bt_report_new(get_default_arena());
         io_t *io = io_stderr();
         io_printf(io, "System error detected: (%s)\n", error.to_string().c_str());
@@ -125,6 +127,7 @@ static void common_init(void) {
     gSystemError = gDefaultError;
 
     gPanicHandler = [](source_info_t info, const char *msg, va_list args) {
+        bt_update();
         io_t *io = io_stderr();
         arena_t *arena = get_default_arena();
 
@@ -306,8 +309,6 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     Ticker clock;
 
     input::Toggle cameraActive = false;
-
-    bt_update();
 
     bool done = false;
     while (!done) {

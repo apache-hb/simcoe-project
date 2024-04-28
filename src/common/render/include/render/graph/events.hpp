@@ -10,6 +10,7 @@ namespace sm::graph::events {
     struct DeviceSync {
         render::CommandListType signal;
         render::CommandListType wait;
+        FenceHandle fence;
     };
 
     struct ResourceBarrier {

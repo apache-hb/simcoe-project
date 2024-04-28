@@ -12,7 +12,6 @@ using namespace sm::draw;
 using namespace sm::world;
 
 
-// TODO: should this be configurable
 static constexpr D3D12_ROOT_SIGNATURE_FLAGS kPrePassRootFlags
     = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS
@@ -107,7 +106,7 @@ void draw::ecs::depthPrePass(
             },
         });
 
-    auto& data = graph.device_data([depth = info->depth](render::IDeviceContext& context) {
+    auto& data = graph.newDeviceData([depth = info->depth](render::IDeviceContext& context) {
         struct {
             render::Pipeline pipeline;
         } info;
@@ -117,12 +116,8 @@ void draw::ecs::depthPrePass(
         return info;
     });
 
-    pass.side_effects(true);
-
     pass.bind([depthTarget, camera, &data](graph::RenderContext& ctx) {
-        auto& context = ctx.context;
-        auto *commands = ctx.commands;
-        auto& graph = ctx.graph;
+        auto& [context, graph, _, commands] = ctx;
 
         auto dsv = graph.dsv(depthTarget);
         auto dsvHostHandle = context.mDsvPool.cpu_handle(dsv);

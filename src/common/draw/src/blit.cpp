@@ -104,7 +104,7 @@ void draw::blit(graph::FrameGraph& graph, graph::Handle target, graph::Handle so
     pass.write(target, "Target", graph::Usage::eRenderTarget);
     pass.read(source, "Image", graph::Usage::ePixelShaderResource);
 
-    auto& data = graph.device_data([](render::IDeviceContext& context) {
+    auto& data = graph.newDeviceData([](render::IDeviceContext& context) {
         struct {
             render::Pipeline pipeline;
             render::Resource quad;

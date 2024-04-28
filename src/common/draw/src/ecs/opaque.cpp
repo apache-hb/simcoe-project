@@ -107,7 +107,7 @@ void draw::ecs::opaque(flecs::world& world, graph::FrameGraph& graph, graph::Han
     target = pass.create(targetInfo, "Target", graph::Usage::eRenderTarget);
     depth = pass.create(depthInfo, "Depth", graph::Usage::eDepthWrite);
 
-    auto& data = graph.device_data([it](render::IDeviceContext& context) {
+    auto& data = graph.newDeviceData([it](render::IDeviceContext& context) {
         struct {
             render::Pipeline pipeline;
         } info;

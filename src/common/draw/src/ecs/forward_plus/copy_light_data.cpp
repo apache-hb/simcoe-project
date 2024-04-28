@@ -50,8 +50,6 @@ void draw::ecs::copyLightData(
 
     graph::PassBuilder pass = graph.copy("Upload Light Data");
 
-    pass.side_effects(true);
-
     spotLightVolumeData = pass.create(lightDataInfo, "Spot Light Volume Data", graph::Usage::eCopyTarget)
         .override_uav({
             .Format = DXGI_FORMAT_UNKNOWN,
@@ -96,7 +94,7 @@ void draw::ecs::copyLightData(
             },
         });
 
-    auto& data = graph.device_data([](render::IDeviceContext& context) {
+    auto& data = graph.newDeviceData([](render::IDeviceContext& context) {
         struct {
             render::Resource pointLightVolumeData;
             render::Resource spotLightVolumeData;

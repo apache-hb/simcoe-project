@@ -92,6 +92,11 @@ namespace sm::graph {
             void resize(ID3D12Device1 *device, uint length);
         };
 
+        struct FenceData {
+            render::Object<ID3D12Fence> fence;
+            uint64 value = 1;
+        };
+
         using FrameSchedule = sm::Vector<events::Event>;
 
         struct RenderPassHandle {
@@ -161,10 +166,16 @@ namespace sm::graph {
         CommandListHandle add_commands(render::CommandListType type);
         render::CommandListType get_command_type(CommandListHandle handle);
 
-        void open_commands(CommandListHandle handle);
-        void close_commands(CommandListHandle handle);
-        ID3D12GraphicsCommandList1 *get_commands(CommandListHandle handle);
+        void resetCommandBuffer(CommandListHandle handle);
+        void closeCommandBuffer(CommandListHandle handle);
+        ID3D12GraphicsCommandList1 *getCommandBuffer(CommandListHandle handle);
 
+        sm::Vector<FenceData> mFences;
+
+        FenceHandle addFence(sm::StringView name);
+        FenceData& getFence(FenceHandle handle);
+
+        void clearFences();
 
         ///
         /// resource handles
@@ -267,7 +278,7 @@ namespace sm::graph {
         };
 
         template<typename F> requires std::invocable<F, render::IDeviceContext&>
-        auto& device_data(F&& setup) {
+        auto& newDeviceData(F&& setup) {
             using ActualData = std::invoke_result_t<F, render::IDeviceContext&>;
             struct DeviceData final : IDeviceData {
                 F exec;

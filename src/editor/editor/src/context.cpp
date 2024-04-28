@@ -112,8 +112,10 @@ void EditorContext::setup_framegraph(graph::FrameGraph& graph) {
 
             graph::Handle spotLightVolumes, pointLightVolumes, spotLightData, pointLightData;
             graph::Handle depthPrePassTarget;
+            graph::Handle lightIndices;
             draw::ecs::copyLightData(getWorld(), graph, spotLightVolumes, pointLightVolumes, spotLightData, pointLightData);
             draw::ecs::depthPrePass(getWorld(), graph, depthPrePassTarget, entity);
+            draw::ecs::lightBinning(getWorld(), graph, lightIndices, depthPrePassTarget, pointLightData, spotLightData, entity);
         });
     });
 

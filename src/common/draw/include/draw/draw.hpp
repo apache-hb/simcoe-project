@@ -137,7 +137,14 @@ namespace sm::draw {
             graph::Handle& depthTarget,
             flecs::entity camera);
 
-        void lightBinning(flecs::world& world, graph::FrameGraph& graph, graph::Handle& indices, graph::Handle depth, graph::Handle pointLightData, graph::Handle spotLightData, flecs::entity camera);
+        void lightBinning(
+            flecs::world& world,
+            graph::FrameGraph& graph,
+            graph::Handle& indices,
+            graph::Handle depth,
+            graph::Handle pointLightData,
+            graph::Handle spotLightData,
+            flecs::entity camera);
     }
 
     ///

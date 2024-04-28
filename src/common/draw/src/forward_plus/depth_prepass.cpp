@@ -110,7 +110,7 @@ void forward_plus::depth_prepass(
             },
         });
 
-    auto& data = graph.device_data([](render::IDeviceContext& context) {
+    auto& data = graph.newDeviceData([](render::IDeviceContext& context) {
         struct {
             render::Pipeline pipeline;
         } info;

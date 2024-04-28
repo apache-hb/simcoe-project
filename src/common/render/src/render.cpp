@@ -198,7 +198,7 @@ void IDeviceContext::reset_direct_commands(ID3D12PipelineState *pso) {
     SM_ASSERT_HR(mCommandList->Reset(*allocator, pso));
 }
 
-void IDeviceContext::create_compute_queue() {
+void IDeviceContext::createComputeQueue() {
     constexpr D3D12_COMMAND_QUEUE_DESC kQueueDesc = {
         .Type = D3D12_COMMAND_LIST_TYPE_COMPUTE,
     };
@@ -206,49 +206,20 @@ void IDeviceContext::create_compute_queue() {
     SM_ASSERT_HR(mDevice->CreateCommandQueue(&kQueueDesc, IID_PPV_ARGS(&mComputeQueue)));
 }
 
-void IDeviceContext::destroy_compute_queue() {
+void IDeviceContext::destroyComputeQueue() {
     mComputeQueue.reset();
 }
 
-void IDeviceContext::create_device_fence() {
-    SM_ASSERT_HR(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mDeviceFence)));
-    mDeviceFenceValue = 1;
-
-    mDeviceFence.rename("Device Fence");
-}
-
-void IDeviceContext::destroy_device_fence() {
-    mDeviceFence.reset();
-}
-
-void IDeviceContext::create_copy_queue() {
+void IDeviceContext::createCopyQueue() {
     constexpr D3D12_COMMAND_QUEUE_DESC kQueueDesc = {
         .Type = D3D12_COMMAND_LIST_TYPE_COPY,
     };
 
     SM_ASSERT_HR(mDevice->CreateCommandQueue(&kQueueDesc, IID_PPV_ARGS(&mCopyQueue)));
-
-    SM_ASSERT_HR(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS(&mCopyAllocator)));
-    SM_ASSERT_HR(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, mCopyAllocator.get(), nullptr, IID_PPV_ARGS(&mCopyCommands)));
-    SM_ASSERT_HR(mCopyCommands->Close());
 }
 
-void IDeviceContext::destroy_copy_queue() {
-    mCopyCommands.reset();
-    mCopyAllocator.reset();
+void IDeviceContext::destroyCopyQueue() {
     mCopyQueue.reset();
-}
-
-void IDeviceContext::reset_copy_commands() {
-    SM_ASSERT_HR(mCopyAllocator->Reset());
-    SM_ASSERT_HR(mCopyCommands->Reset(*mCopyAllocator, nullptr));
-}
-
-void IDeviceContext::create_copy_fence() {
-    SM_ASSERT_HR(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mCopyFence)));
-    mCopyFenceValue = 1;
-
-    SM_ASSERT_WIN32(mCopyFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr));
 }
 
 ID3D12CommandQueue *IDeviceContext::getQueue(CommandListType type) {
@@ -355,12 +326,19 @@ Result IDeviceContext::createTextureResource(Resource& resource, D3D12_HEAP_TYPE
     return S_OK;
 }
 
-Result IDeviceContext::createBufferResource(Resource& resource, D3D12_HEAP_TYPE heap, uint64 width, D3D12_RESOURCE_STATES state) {
+Result IDeviceContext::createBufferResource(
+    Resource& resource,
+    D3D12_HEAP_TYPE heap,
+    uint64 width,
+    D3D12_RESOURCE_STATES state,
+    D3D12_RESOURCE_FLAGS flags
+)
+{
     const D3D12MA::ALLOCATION_DESC kAllocDesc = {
         .HeapType = heap,
     };
 
-    D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Buffer(width);
+    D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Buffer(width, flags);
 
     Result hr = mAllocator->CreateResource(&kAllocDesc, &desc, state, nullptr, &resource.mAllocation, IID_PPV_ARGS(&resource.mResource));
     if (hr.failed())
@@ -763,7 +741,6 @@ void IDeviceContext::destroy_device() {
 
     // release sync objects
     mFence.reset();
-    mCopyFence.reset();
 
     // storage
     destroyStorageDeviceData();
@@ -771,16 +748,14 @@ void IDeviceContext::destroy_device() {
     // assets
     destroy_scene();
 
-    destroy_compute_queue();
+    destroyComputeQueue();
 
     // copy commands
-    destroy_copy_queue();
+    destroyCopyQueue();
 
     // direct commands
     mDirectQueue.reset();
     mCommandList.reset();
-
-    destroy_device_fence();
 
     // allocator
     mAllocator.reset();
@@ -836,13 +811,10 @@ void IDeviceContext::create() {
     create_device(adapter);
     createStorageDeviceData();
 
-    create_device_fence();
     create_allocator();
-    create_compute_queue();
-    create_copy_queue();
-    create_copy_fence();
+    createComputeQueue();
+    createCopyQueue();
     create_pipeline();
-
 
     on_setup();
     on_create();
@@ -855,7 +827,6 @@ void IDeviceContext::create() {
 }
 
 void IDeviceContext::destroy() {
-    flush_copy_queue();
     wait_for_gpu();
 
     destroy_framegraph();
@@ -864,7 +835,6 @@ void IDeviceContext::destroy() {
     destroyStorageDeviceData();
     destroyStorageContext();
 
-    SM_ASSERT_WIN32(CloseHandle(mCopyFenceEvent));
     SM_ASSERT_WIN32(CloseHandle(mFenceEvent));
 }
 
@@ -896,10 +866,8 @@ void IDeviceContext::recreate_device() {
 
     create_device(*mCurrentAdapter);
     create_allocator();
-    create_device_fence();
-    create_compute_queue();
-    create_copy_queue();
-    create_copy_fence();
+    createComputeQueue();
+    createCopyQueue();
 
     createStorageDeviceData();
 
@@ -992,19 +960,6 @@ void IDeviceContext::wait_for_gpu() {
     SM_ASSERT_HR(mFence->SetEventOnCompletion(current, mFenceEvent));
     PIXNotifyWakeFromFenceSignal(mFenceEvent);
     WaitForSingleObject(mFenceEvent, INFINITE);
-}
-
-void IDeviceContext::flush_copy_queue() {
-    const uint64 current = mCopyFenceValue++;
-    SM_ASSERT_HR(mCopyQueue->Signal(*mCopyFence, current));
-
-    const uint64 completed = mCopyFence->GetCompletedValue();
-
-    if (completed < current) {
-        SM_ASSERT_HR(mCopyFence->SetEventOnCompletion(current, mCopyFenceEvent));
-        PIXNotifyWakeFromFenceSignal(mCopyFenceEvent);
-        WaitForSingleObject(mCopyFenceEvent, INFINITE);
-    }
 }
 
 void render::copyBufferRegion(ID3D12GraphicsCommandList1 *list, Resource& dst, Resource& src, size_t size) {

@@ -22,4 +22,10 @@ namespace sm::graph {
 
         bool is_valid() const { return index != UINT_MAX; }
     };
+
+    struct FenceHandle {
+        uint index;
+
+        bool is_valid() const { return index != UINT_MAX; }
+    };
 }

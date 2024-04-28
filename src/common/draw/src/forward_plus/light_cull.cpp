@@ -80,7 +80,7 @@ void forward_plus::upload_light_data(
     spot_light_data = pass.create(light_data_info, "Spot Light Data", graph::Usage::eCopyTarget)
         .override_desc(uav);
 
-    graph.device_data([](render::IDeviceContext& context) {
+    graph.newDeviceData([](render::IDeviceContext& context) {
         struct {
             SceneLightBuffer lights;
 
@@ -205,7 +205,7 @@ void forward_plus::light_binning(
             },
         });
 
-    auto& data = graph.device_data([](render::IDeviceContext& context) {
+    auto& data = graph.newDeviceData([](render::IDeviceContext& context) {
         struct {
             render::Pipeline pipeline;
 
