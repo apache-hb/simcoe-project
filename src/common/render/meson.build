@@ -1,14 +1,33 @@
 
 render_include = include_directories('.', 'include')
 
-src = [
-    'src/result.cpp',
-    'src/instance.cpp',
-    'src/render.cpp',
-    'src/dstorage.cpp',
-    'src/object.cpp',
+nvapi = dependency('nvapi', required : get_option('nvapi_enable'))
+ags = dependency('amd_ags', required : get_option('amd_ags_enable'))
 
-    'src/blit.cpp',
+render_cdata = configuration_data()
+render_cdata.set10('SMC_RENDER_ENABLE_NVAPI', nvapi.found())
+render_cdata.set10('SMC_RENDER_ENABLE_AMD_AGS', ags.found())
+
+render_config = configure_file(
+    output : 'simcoe_render_config.h',
+    configuration : render_cdata
+)
+
+src = [
+    render_config,
+
+    # base render classes
+    'src/instance.cpp',
+    'src/dstorage.cpp',
+
+    # core render context
+    'src/render.cpp',
+
+    # utils
+    'src/result.cpp',
+    'src/object.cpp',
+    'src/viewport.cpp',
+    'src/format.cpp',
 
     # render graph
     'src/graph/render_pass.cpp',
@@ -16,6 +35,7 @@ src = [
 
     # vendor
     'src/vendor/nvidia/nvapi.cpp',
+    'src/vendor/amd/ags.cpp',
 
     reflect.process('data/render.ct'),
     reflect.process('data/graph.ct')
@@ -33,7 +53,7 @@ deps = [
     d3d12, d3dx12, d3d12ma, pix, dstorage,
 
     # hardware vendors
-    nvapi
+    nvapi, ags
 ]
 
 librender = library('render', src,

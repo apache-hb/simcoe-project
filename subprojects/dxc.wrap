@@ -1,9 +1,9 @@
 [wrap-file]
-directory = dxc-1.8.2403.21
+directory = dxc-1.8.2403.24
 
-source_url = https://www.nuget.org/api/v2/package/Microsoft.Direct3D.DXC/1.8.2403.21
-source_filename = dxc-1.8.2403.21.zip
-source_hash = 1021a4c62b7e41f74271e59e084fd8188bbdbc882b2406bbd40339dbdb8fa4cc
+source_url = https://www.nuget.org/api/v2/package/Microsoft.Direct3D.DXC/1.8.2403.24
+source_filename = dxc-1.8.2403.24.zip
+source_hash = e025c78436440e803ee5c93dbb57c1314027e2a8d33753a0138f709a26febe12
 lead_directory_missing = true
 
 patch_directory = dxc

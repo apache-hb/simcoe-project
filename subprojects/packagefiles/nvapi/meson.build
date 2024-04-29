@@ -48,3 +48,8 @@ nvapi_driver_settings_dep = declare_dependency(
 
 meson.override_dependency('nvapi', nvapi_dep)
 meson.override_dependency('nvapi_driver_settings', nvapi_driver_settings_dep)
+
+install_data(meson.project_license_files(),
+    install_dir : get_option('datadir') / 'licenses',
+    rename : meson.project_name() + '.LICENSE.txt'
+)

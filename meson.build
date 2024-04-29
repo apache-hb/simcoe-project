@@ -33,6 +33,8 @@ project('simcoe', [ 'c', 'cpp' ],
         'tracy:warning_level=0',
         'lz4:warning_level=0',
         'libarchive:warning_level=0',
+        'google-brotli:warning_level=0',
+        'brotli_g_sdk:warning_level=0',
 
         # disable everything in cthulhu by default
         'cthulhu:auto_features=disabled',
@@ -82,7 +84,6 @@ is_release = package_type == 'release'
 
 pix_enable = get_option('pix_enable').disable_auto_if(not is_devel)
 warp_enable = get_option('warp_enable').disable_auto_if(is_release)
-nvapi_enable = get_option('nvapi_enable')
 
 # the perfect library
 cthulhu = subproject('cthulhu')
@@ -101,7 +102,6 @@ dstorage = dependency('dstorage')
 pix = dependency('winpixruntime')
 d3dx12 = dependency('directx-headers')
 tracy = dependency('tracy')
-nvapi = dependency('nvapi')
 
 magick = find_program('magick')
 convert_utf16 = find_program('scripts/convert_utf16.py')

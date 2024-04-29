@@ -18,7 +18,8 @@ deps = [
     cthulhu.get_variable('io'),
     dependency('stb_image'),
     dependency('liblz4'),
-    dependency('libarchive')
+    dependency('libarchive'),
+    dependency('brotli_g_sdk')
 ]
 
 libarchive = library('archive', src,

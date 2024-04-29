@@ -40,6 +40,11 @@ option('nvapi_enable', type : 'boolean',
     value : 'true'
 )
 
+option('amd_ags_enable', type : 'boolean',
+    description : 'Enable AMD AGS support',
+    value : 'true'
+)
+
 option('tracy_enable', type : 'boolean',
     value : 'false'
 )

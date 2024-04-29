@@ -3,6 +3,8 @@ project(
   'c',
   version: '3.7.3',
   meson_version: '>=0.57.0',
+  license: 'BSD',
+  license_files: [ 'COPYING' ],
 )
 
 cdata = configuration_data()
@@ -591,3 +593,8 @@ if get_option('progs').length() > 0
 endif
 
 summary({'regex support': rx_support}, bool_yn: true)
+
+install_data(meson.project_license_files(),
+    install_dir : get_option('datadir') / 'licenses',
+    rename : meson.project_name() + '.LICENSE.txt'
+)

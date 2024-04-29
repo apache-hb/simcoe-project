@@ -1,7 +1,6 @@
 project('winpixruntime', 'c',
     version : '1.0.231030001',
-
-    license : 'UNLICENSED',
+    license : 'LicenseRef-Proprietary',
     license_files : [ 'license.txt' ]
 )
 

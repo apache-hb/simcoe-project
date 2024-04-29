@@ -15,7 +15,7 @@ core_args = [
     '-D_CMP_CPP17_=1'
 ]
 
-brotlig = dependency('brotlig', required : get_option('brotlig'))
+brotlig = dependency('brotli_g_sdk', required : get_option('brotlig'))
 
 if get_option('buildtype').contains('debug')
     core_args += [ '-D_DEBUG' ]

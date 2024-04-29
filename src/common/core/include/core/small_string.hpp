@@ -1,6 +1,9 @@
 #pragma once
 
 #include "core/core.hpp"
+#include "core/string.hpp"
+
+#include "base/panic.h"
 
 namespace sm {
     class SmallStringBase {
@@ -43,6 +46,15 @@ namespace sm {
             static_assert(N >= M);
 
             SmallStringBase::init(mBuffer, str, M - 1);
+        }
+
+        SmallString(sm::StringView str) {
+            SmallStringBase::init(mBuffer, str.data(), str.size());
+        }
+
+        SmallString(const sm::String &str) {
+            CTASSERTF(str.size() <= N, "String too long (%zu > %zu)", str.size(), N);
+            SmallStringBase::init(mBuffer, str.data(), str.size());
         }
 
         const char *data() const { return mBuffer; }

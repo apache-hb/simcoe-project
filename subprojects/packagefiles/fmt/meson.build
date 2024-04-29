@@ -42,3 +42,8 @@ pkg_mod.generate(fmt_lib,
   name: 'fmt',
   filebase: 'fmt',
 )
+
+install_data('LICENSE',
+    install_dir : get_option('datadir') / 'licenses',
+    rename : meson.project_name() + '.LICENSE.txt'
+)

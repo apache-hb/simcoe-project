@@ -60,3 +60,8 @@ wuffs_dep = declare_dependency(
     link_with : libwuffs,
     compile_args : defines
 )
+
+install_data(meson.project_license_files(),
+    install_dir : get_option('datadir') / 'licenses',
+    rename : meson.project_name() + '.LICENSE.txt'
+)

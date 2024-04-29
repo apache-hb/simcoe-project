@@ -36,3 +36,8 @@ d3d12 = declare_dependency(
 
 meson.override_find_program('d3dconfig', d3dconfig)
 meson.override_dependency('d3d12', d3d12)
+
+install_data('LICENSE.txt',
+    install_dir : get_option('datadir') / 'licenses',
+    rename : meson.project_name() + '.LICENSE.txt'
+)

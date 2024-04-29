@@ -1,0 +1,1 @@
+option('build_tool', type : 'feature', value : 'auto')

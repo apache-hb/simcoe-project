@@ -36,6 +36,7 @@ subprojects/*
 !subprojects/packagefiles
 !subprojects/packagefiles/**
 !subprojects/.clang-tidy
+!subprojects/directx-strings
 
 !LICENSE
 !README

@@ -65,32 +65,32 @@ static constexpr D3D12_CLEAR_VALUE getClearValue(const Clear& clear) {
     }
 }
 
-void PassBuilder::add_write(Handle handle, sm::StringView name, Usage access) {
-    mRenderPass.writes.push_back({sm::String{name}, handle, access});
+ResourceAccess& PassBuilder::addWriteAccess(Handle handle, sm::StringView name, Usage access) {
+    return mRenderPass.writes.emplace_back(ResourceAccess{sm::String{name}, handle, access});
 }
 
 FrameGraph::AccessBuilder PassBuilder::read(Handle handle, sm::StringView name, Usage access) {
-    mRenderPass.reads.push_back({sm::String{name}, handle, access});
+    ResourceAccess& self = mRenderPass.reads.emplace_back(ResourceAccess{sm::String{name}, handle, access});
 
-    return FrameGraph::AccessBuilder{mFrameGraph, handle};
+    return FrameGraph::AccessBuilder{mFrameGraph, self, handle};
 }
 
 FrameGraph::AccessBuilder PassBuilder::write(Handle handle, sm::StringView name, Usage access) {
     if (mFrameGraph.is_imported(handle)) {
-        side_effects(true);
+        hasSideEffects(true);
     }
 
-    add_write(handle, name, access);
+    ResourceAccess& self = addWriteAccess(handle, name, access);
 
-    return FrameGraph::AccessBuilder{mFrameGraph, handle};
+    return FrameGraph::AccessBuilder{mFrameGraph, self, handle};
 }
 
 FrameGraph::AccessBuilder PassBuilder::create(ResourceInfo info, sm::StringView name, Usage access) {
     auto id = fmt::format("{}/{}", mRenderPass.name, name);
     Handle handle = mFrameGraph.add_transient(info, access, id);
-    mRenderPass.creates.push_back({id, handle, access});
-    add_write(handle, name, access);
-    return FrameGraph::AccessBuilder{mFrameGraph, handle};
+    ResourceAccess& self = mRenderPass.creates.emplace_back(ResourceAccess{id, handle, access});
+    addWriteAccess(handle, name, access);
+    return FrameGraph::AccessBuilder{mFrameGraph, self, handle};
 }
 
 void PassBuilder::side_effects(bool effects) {
@@ -306,6 +306,21 @@ AccessBuilder& AccessBuilder::override_desc(D3D12_RENDER_TARGET_VIEW_DESC desc) 
 AccessBuilder& AccessBuilder::override_desc(D3D12_DEPTH_STENCIL_VIEW_DESC desc) {
     mFrameGraph.mHandles[mHandle.index].dsv_desc = desc;
 
+    return *this;
+}
+
+AccessBuilder& AccessBuilder::withLayout(D3D12_BARRIER_LAYOUT value) {
+    mAccess.layout = value;
+    return *this;
+}
+
+AccessBuilder& AccessBuilder::withAccess(D3D12_BARRIER_ACCESS value) {
+    mAccess.access = value;
+    return *this;
+}
+
+AccessBuilder& AccessBuilder::withSyncPoint(D3D12_BARRIER_SYNC value) {
+    mAccess.sync = value;
     return *this;
 }
 
@@ -547,7 +562,7 @@ CommandListHandle FrameGraph::add_commands(render::CommandListType type) {
     return {index};
 }
 
-render::CommandListType FrameGraph::get_command_type(CommandListHandle handle) {
+render::CommandListType FrameGraph::getCommandListType(CommandListHandle handle) {
     return mFrameData[handle.index].type;
 }
 
@@ -573,7 +588,7 @@ void FrameGraph::closeCommandBuffer(CommandListHandle handle) {
     SM_ASSERT_HR(commands->Close());
 }
 
-ID3D12GraphicsCommandList1 *FrameGraph::getCommandBuffer(CommandListHandle handle) {
+ID3D12GraphicsCommandList1 *FrameGraph::getCommandList(CommandListHandle handle) {
     return mFrameData[handle.index].commands.get();
 }
 
@@ -606,6 +621,55 @@ void FrameGraph::clearFences() {
 ///
 
 void FrameGraph::schedule_graph() {
+    // responsible for adding new events to the frame schedule
+    struct ScheduleBuilder {
+        FrameGraph& self;
+        FrameSchedule& schedule;
+
+        CommandListHandle openCommandBuffer(render::CommandListType type) {
+            CommandListHandle handle = self.add_commands(type);
+
+            events::OpenCommands open = { .handle = handle };
+
+            schedule.push_back(open);
+
+            return handle;
+        }
+
+        void submitCommandBuffer(CommandListHandle handle) {
+            events::SubmitCommands submit = { .handle = handle };
+
+            schedule.push_back(submit);
+        }
+
+        void recordCommands(CommandListHandle handle, PassHandle pass) {
+            events::RecordCommands record = {
+                .handle = handle,
+                .pass = pass
+            };
+
+            schedule.push_back(record);
+        }
+
+        void syncQueue(render::CommandListType signal, render::CommandListType wait) {
+            events::DeviceSync sync = {
+                .signal = signal,
+                .wait = wait,
+                .fence = self.addFence(fmt::format("sync {} -> {}", signal, wait))
+            };
+
+            schedule.push_back(sync);
+        }
+    } schedule = { *this, mFrameSchedule };
+
+    // the state of a resource at a given point in the frame
+    struct HandleStatePoint {
+        Handle handle;
+        D3D12_RESOURCE_STATES state;
+    };
+
+    // track the expected state of each resource
+    sm::HashMap<Handle, D3D12_RESOURCE_STATES> initial;
     struct BarrierRecord {
         FrameGraph& graph;
         sm::Vector<events::ResourceBarrier::Transition> transitions;
@@ -628,47 +692,9 @@ void FrameGraph::schedule_graph() {
 
             transitions.clear();
         }
-    };
+    } barriers = { *this };
 
-    struct ScheduleBuilder {
-        FrameGraph& self;
-        FrameSchedule& schedule;
-
-        CommandListHandle openCommandBuffer(render::CommandListType type) {
-            CommandListHandle handle = self.add_commands(type);
-
-            events::OpenCommands open = {
-                .handle = handle
-            };
-
-            schedule.push_back(open);
-
-            return handle;
-        }
-
-        void submitCommandBuffer(CommandListHandle handle) {
-            events::SubmitCommands submit = {
-                .handle = handle
-            };
-
-            schedule.push_back(submit);
-        }
-
-        void recordCommands(CommandListHandle handle, PassHandle pass) {
-            events::RecordCommands record = {
-                .handle = handle,
-                .pass = pass
-            };
-
-            schedule.push_back(record);
-        }
-    } builder = { *this, mFrameSchedule };
-
-    // track the expected state of each resource
-    sm::HashMap<Handle, D3D12_RESOURCE_STATES> initial;
-    BarrierRecord barriers{*this};
-
-    auto update_state = [&](Handle index, Usage access) {
+    auto updateResourceState = [&](Handle index, Usage access) {
         D3D12_RESOURCE_STATES state = getInitialUsageState(access);
 
         if (initial.contains(index)) {
@@ -690,12 +716,14 @@ void FrameGraph::schedule_graph() {
         auto& handle = mHandles[i];
         if (!handle.is_imported() || !handle.is_used()) continue;
 
+        Handle idx{i};
+
         auto state = getInitialUsageState(handle.access);
-        restore.push_back({Handle{i}, state});
-        initial[Handle{i}] = state;
+        restore.push_back({idx, state});
+        initial[idx] = state;
     }
 
-    const render::CommandListType queue = [&] {
+    const render::CommandListType initialQueueType = [&] {
         for (auto& pass : mRenderPasses) {
             if (!pass.is_used()) continue;
 
@@ -705,68 +733,75 @@ void FrameGraph::schedule_graph() {
         CT_NEVER("All render passes are culled, no queue type found");
     }();
 
-    CommandListHandle cmd = builder.openCommandBuffer(queue);
+    CommandListHandle list = schedule.openCommandBuffer(initialQueueType);
 
-    sm::Vector<RenderPass> stack;
+    sm::Vector<RenderPass> unsyncedPasses;
 
-    std::array<bool, D3D12_COMMAND_LIST_TYPE_VIDEO_ENCODE + 1> synced = { false };
+    struct QueueSyncStatus {
+        std::array<bool, D3D12_COMMAND_LIST_TYPE_VIDEO_ENCODE + 1> status = { false };
+
+        bool isQueueSynced(D3D12_COMMAND_LIST_TYPE type) {
+            return status[type];
+        }
+
+        void markQueueSynced(D3D12_COMMAND_LIST_TYPE type) {
+            status[type] = true;
+        }
+
+        void reset() { status.fill(false); }
+    } queueSyncStatus;
 
     for (uint i = 0; i < mRenderPasses.size(); i++) {
         auto& pass = mRenderPasses[i];
         if (!pass.is_used()) continue;
 
         // if the queue type changes, add a sync event
-        if (pass.type != get_command_type(cmd)) {
+        if (pass.type != getCommandListType(list)) {
             // submit the current queues work
-            builder.submitCommandBuffer(cmd);
+            schedule.submitCommandBuffer(list);
 
-            for (auto& p : stack) {
-                if (pass.depends_on(p) && pass.type != p.type) {
-                    D3D12_COMMAND_LIST_TYPE ty = p.type.as_facade();
-                    if (!synced[ty]) {
-                        events::DeviceSync sync = {
-                            .signal = p.type,
-                            .wait = pass.type,
-                            .fence = addFence(fmt::format("sync {} -> {}", p.name, pass.name))
-                        };
+            // syncronize with all the queues we depend on
+            for (auto& dep : unsyncedPasses) {
+                if (pass.depends_on(dep) && pass.type != dep.type) {
+                    D3D12_COMMAND_LIST_TYPE ty = dep.type.as_facade();
 
-                        mFrameSchedule.push_back(sync);
-
-                        synced[ty] = true;
+                    if (!queueSyncStatus.isQueueSynced(ty)) {
+                        schedule.syncQueue(dep.type, pass.type);
+                        queueSyncStatus.markQueueSynced(ty);
                     }
                 }
             }
 
-            synced.fill(false);
+            queueSyncStatus.reset();
 
             // open a new command buffer
-            cmd = builder.openCommandBuffer(pass.type);
+            list = schedule.openCommandBuffer(pass.type);
 
-            stack.push_back(pass);
+            unsyncedPasses.push_back(pass);
         }
 
-        stack.push_back(pass);
+        unsyncedPasses.push_back(pass);
 
         for (auto& access : pass.creates) {
             restore.push_back({access.index, getInitialUsageState(access.usage)});
-            update_state(access.index, access.usage);
+            updateResourceState(access.index, access.usage);
         }
 
         pass.foreach(eRead | eWrite, [&](const ResourceAccess& access) {
-            update_state(access.index, access.usage);
+            updateResourceState(access.index, access.usage);
         });
 
         // TODO: do we need to handle UAV barriers or is our stuff
         // so pessemistic with waits that we don't need to worry about it?
 
         // if we have any barriers, submit them
-        barriers.submit(mFrameSchedule, cmd);
+        barriers.submit(mFrameSchedule, list);
 
-        builder.recordCommands(cmd, PassHandle{i});
+        schedule.recordCommands(list, PassHandle{i});
 
         // only add early barriers on direct command list
         // not sure of all the special cases yet
-        if (get_command_type(cmd) != render::CommandListType::eDirect)
+        if (getCommandListType(list) != render::CommandListType::eDirect)
             continue;
 
         // if we can add barriers for the next pass, do so
@@ -775,11 +810,11 @@ void FrameGraph::schedule_graph() {
             if (!n.is_valid()) return;
 
             auto state = mRenderPasses[n.index].get_handle_usage(access.index);
-            update_state(access.index, state);
+            updateResourceState(access.index, state);
         });
 
         // if we have any barriers, submit them
-        barriers.submit(mFrameSchedule, cmd);
+        barriers.submit(mFrameSchedule, list);
     }
 
     // transition imported and created resources back to their initial state
@@ -787,10 +822,10 @@ void FrameGraph::schedule_graph() {
         barriers.transition(handle, initial[handle], state);
     }
 
-    barriers.submit(mFrameSchedule, cmd);
+    barriers.submit(mFrameSchedule, list);
 
     // submit the last command list
-    builder.submitCommandBuffer(cmd);
+    schedule.submitCommandBuffer(list);
 
     // TODO: need to sync all unsynced work here
 }
@@ -867,7 +902,7 @@ void FrameGraph::execute() {
             [&](events::ResourceBarrier& barrier) {
                 gRenderLog.info("ResourceBarrier {} barriers {}.{}", barrier.size(), mFrameData[barrier.handle.index].type, barrier.handle.index);
                 build_raw_events(barrier);
-                ID3D12GraphicsCommandList1 *commands = getCommandBuffer(barrier.handle);
+                ID3D12GraphicsCommandList1 *commands = getCommandList(barrier.handle);
                 commands->ResourceBarrier(barrier.size(), barrier.data());
             },
             [&](events::OpenCommands open) {
@@ -876,7 +911,7 @@ void FrameGraph::execute() {
             },
             [&](events::RecordCommands record) {
                 gRenderLog.info("RecordCommands {}.{}", mRenderPasses[record.pass.index].name, record.pass.index);
-                ID3D12GraphicsCommandList1 *commands = getCommandBuffer(record.handle);
+                ID3D12GraphicsCommandList1 *commands = getCommandList(record.handle);
                 auto& pass = mRenderPasses[record.pass.index];
                 RenderContext ctx{getContext(), *this, pass, commands};
 
@@ -887,8 +922,8 @@ void FrameGraph::execute() {
             [&](events::SubmitCommands submit) {
                 gRenderLog.info("SubmitCommands {}.{}", mFrameData[submit.handle.index].type, submit.handle.index);
                 closeCommandBuffer(submit.handle);
-                ID3D12GraphicsCommandList1 *commands = getCommandBuffer(submit.handle);
-                ID3D12CommandQueue *queue = mContext.getQueue(get_command_type(submit.handle));
+                ID3D12GraphicsCommandList1 *commands = getCommandList(submit.handle);
+                ID3D12CommandQueue *queue = mContext.getQueue(getCommandListType(submit.handle));
 
                 ID3D12CommandList *lists[] = { commands };
                 queue->ExecuteCommandLists(1, lists);

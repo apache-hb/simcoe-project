@@ -38,3 +38,12 @@ dxcompiler_dep = declare_dependency(
 
 meson.override_find_program('dxc', dxc)
 meson.override_dependency('dxcompiler', dxcompiler_dep)
+
+install_data(bindir / 'dxil.dll', bindir / 'dxcompiler.dll',
+    install_dir : get_option('bindir') / 'redist'
+)
+
+install_data([ 'LICENSE-MS.txt', 'LICENSE-LLVM.txt' ],
+    install_dir : get_option('datadir') / 'licenses',
+    rename : [ meson.project_name() + '.LICENSE-MS.txt', meson.project_name() + '.LICENSE-LLVM.txt' ]
+)

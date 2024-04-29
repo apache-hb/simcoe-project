@@ -164,11 +164,15 @@ namespace sm::graph {
         void reset_frame_commands();
         void init_frame_commands();
         CommandListHandle add_commands(render::CommandListType type);
-        render::CommandListType get_command_type(CommandListHandle handle);
+        render::CommandListType getCommandListType(CommandListHandle handle);
 
         void resetCommandBuffer(CommandListHandle handle);
         void closeCommandBuffer(CommandListHandle handle);
-        ID3D12GraphicsCommandList1 *getCommandBuffer(CommandListHandle handle);
+        ID3D12GraphicsCommandList1 *getCommandList(CommandListHandle handle);
+
+        ///
+        /// queue fences
+        ///
 
         sm::Vector<FenceData> mFences;
 
@@ -221,43 +225,92 @@ namespace sm::graph {
 
         class AccessBuilder {
             FrameGraph& mFrameGraph;
+            ResourceAccess& mAccess;
             Handle mHandle;
 
         public:
-            AccessBuilder(FrameGraph& graph, Handle handle)
+            AccessBuilder(FrameGraph& graph, ResourceAccess& access, Handle handle)
                 : mFrameGraph(graph)
+                , mAccess(access)
                 , mHandle(handle)
             { }
 
             operator Handle() const { return mHandle; }
 
-            AccessBuilder& override_srv(D3D12_SHADER_RESOURCE_VIEW_DESC desc) {
-                return override_desc(desc);
-            }
+            AccessBuilder& override_srv(D3D12_SHADER_RESOURCE_VIEW_DESC desc) { return override_desc(desc); }
+            AccessBuilder& override_uav(D3D12_UNORDERED_ACCESS_VIEW_DESC desc) { return override_desc(desc); }
+            AccessBuilder& override_rtv(D3D12_RENDER_TARGET_VIEW_DESC desc) { return override_desc(desc); }
+            AccessBuilder& override_dsv(D3D12_DEPTH_STENCIL_VIEW_DESC desc) { return override_desc(desc); }
 
-            AccessBuilder& override_uav(D3D12_UNORDERED_ACCESS_VIEW_DESC desc) {
-                return override_desc(desc);
-            }
-
-            AccessBuilder& override_rtv(D3D12_RENDER_TARGET_VIEW_DESC desc) {
-                return override_desc(desc);
-            }
-
-            AccessBuilder& override_dsv(D3D12_DEPTH_STENCIL_VIEW_DESC desc) {
-                return override_desc(desc);
-            }
+            AccessBuilder& srv(D3D12_SHADER_RESOURCE_VIEW_DESC desc) { return override_desc(desc); }
+            AccessBuilder& uav(D3D12_UNORDERED_ACCESS_VIEW_DESC desc) { return override_desc(desc); }
+            AccessBuilder& rtv(D3D12_RENDER_TARGET_VIEW_DESC desc) { return override_desc(desc); }
+            AccessBuilder& dsv(D3D12_DEPTH_STENCIL_VIEW_DESC desc) { return override_desc(desc); }
 
             AccessBuilder& override_desc(D3D12_SHADER_RESOURCE_VIEW_DESC desc);
             AccessBuilder& override_desc(D3D12_UNORDERED_ACCESS_VIEW_DESC desc);
             AccessBuilder& override_desc(D3D12_RENDER_TARGET_VIEW_DESC desc);
             AccessBuilder& override_desc(D3D12_DEPTH_STENCIL_VIEW_DESC desc);
+
+            AccessBuilder& overrideView(D3D12_SHADER_RESOURCE_VIEW_DESC desc) { return override_srv(desc); }
+            AccessBuilder& overrideView(D3D12_UNORDERED_ACCESS_VIEW_DESC desc) { return override_uav(desc); }
+            AccessBuilder& overrideView(D3D12_RENDER_TARGET_VIEW_DESC desc) { return override_rtv(desc); }
+            AccessBuilder& overrideView(D3D12_DEPTH_STENCIL_VIEW_DESC desc) { return override_dsv(desc); }
+
+            AccessBuilder& withLayout(D3D12_BARRIER_LAYOUT value);
+            AccessBuilder& withAccess(D3D12_BARRIER_ACCESS value);
+            AccessBuilder& withSyncPoint(D3D12_BARRIER_SYNC value);
         };
+
+#if 0
+        class CreateAccessBuilder {
+            FrameGraph& mFrameGraph;
+            ResourceAccess& mCreateAccess;
+            ResourceAccess& mWriteAccess;
+            Handle mHandle;
+
+        public:
+            CreateAccessBuilder(FrameGraph& graph, ResourceAccess& create, ResourceAccess& write, Handle handle)
+                : mFrameGraph(graph)
+                , mCreateAccess(create)
+                , mWriteAccess(write)
+                , mHandle(handle)
+            { }
+
+            operator Handle() const { return mHandle; }
+
+            CreateAccessBuilder& srv(D3D12_SHADER_RESOURCE_VIEW_DESC desc) {
+                return overrideView(desc);
+            }
+
+            CreateAccessBuilder& uav(D3D12_UNORDERED_ACCESS_VIEW_DESC desc) {
+                return overrideView(desc);
+            }
+
+            CreateAccessBuilder& rtv(D3D12_RENDER_TARGET_VIEW_DESC desc) {
+                return overrideView(desc);
+            }
+
+            CreateAccessBuilder& dsv(D3D12_DEPTH_STENCIL_VIEW_DESC desc) {
+                return overrideView(desc);
+            }
+
+            CreateAccessBuilder& overrideView(D3D12_SHADER_RESOURCE_VIEW_DESC desc);
+            CreateAccessBuilder& overrideView(D3D12_UNORDERED_ACCESS_VIEW_DESC desc);
+            CreateAccessBuilder& overrideView(D3D12_RENDER_TARGET_VIEW_DESC desc);
+            CreateAccessBuilder& overrideView(D3D12_DEPTH_STENCIL_VIEW_DESC desc);
+
+            CreateAccessBuilder& withLayout(D3D12_BARRIER_LAYOUT value);
+            CreateAccessBuilder& withAccess(D3D12_BARRIER_ACCESS value);
+            CreateAccessBuilder& withSyncPoint(D3D12_BARRIER_SYNC value);
+        };
+#endif
 
         class PassBuilder {
             FrameGraph& mFrameGraph;
             RenderPass& mRenderPass;
 
-            void add_write(Handle handle, sm::StringView name, Usage access);
+            ResourceAccess& addWriteAccess(Handle handle, sm::StringView name, Usage access);
 
         public:
             PassBuilder(FrameGraph& graph, RenderPass& pass)
@@ -270,6 +323,11 @@ namespace sm::graph {
             AccessBuilder create(ResourceInfo info, sm::StringView name, Usage access);
 
             void side_effects(bool effects);
+
+            PassBuilder& hasSideEffects(bool effects = true) {
+                side_effects(effects);
+                return *this;
+            }
 
             template<typename F> requires std::invocable<F, RenderContext&>
             void bind(F&& execute) {
@@ -297,14 +355,16 @@ namespace sm::graph {
 
             uint32 index = TypeIndex<ActualData>::index();
             if (auto it = mDeviceData.find(index); it != mDeviceData.end()) {
-                return static_cast<DeviceData*>(it->second.get())->data;
+                auto& [_, result] = *it;
+                return static_cast<DeviceData*>(result.get())->data;
             }
 
             auto [it, _] = mDeviceData.emplace(index, new DeviceData(std::forward<F>(setup)));
+            auto& [_, data] = *it;
 
-            it->second->setup(mContext);
+            data->setup(mContext);
 
-            return static_cast<DeviceData*>(it->second.get())->data;
+            return static_cast<DeviceData*>(data.get())->data;
         }
 
         // update a handle with new data

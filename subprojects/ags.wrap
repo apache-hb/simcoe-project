@@ -1,5 +1,5 @@
 [wrap-file]
-directory = ags-6.2.0
+directory = AGS_SDK-6.2.0
 
 source_url = https://github.com/GPUOpen-LibrariesAndSDKs/AGS_SDK/archive/refs/tags/v6.2.0.zip
 source_filename = AGS_SDK-6.2.0.zip
@@ -8,4 +8,4 @@ source_hash = 32fe736831d5790cadc866cc604eb35ba7f44179cf1dd0a62f27fa3d2b851531
 patch_directory = ags
 
 [provide]
-dependency_names = ags
+dependency_names = amd_ags

@@ -52,6 +52,28 @@ void IDeviceContext::destroyStorageDeviceData() {
     mStorageFence.reset();
 }
 
+IDStorageFile *IDeviceContext::getStorageFile(world::IndexOf<world::File> index) {
+    if (auto it = mStorageFiles.find(index); it != mStorageFiles.end()) {
+        return it->second.get();
+    }
+
+    const auto& file = mWorld.get(index);
+
+    Object<IDStorageFile> dsfile;
+    SM_ASSERT_HR(mStorage.open(file.path, &dsfile));
+
+    auto [it, _] = mStorageFiles.emplace(index, std::move(dsfile));
+    auto& [_, fd] = *it;
+
+    return fd.get();
+}
+
+const uint8 *IDeviceContext::getStorageBuffer(world::IndexOf<world::Buffer> index) {
+    auto& buffer = mWorld.get(index);
+
+    return buffer.data.data();
+}
+
 #pragma region Device creation and lifetime
 
 static uint getSwapChainFlags(const Instance& instance) {
@@ -361,7 +383,7 @@ static void buildFileUploadRequest(
     uint64 offset,
     uint32 size)
 {
-    IDStorageFile *storage = self.get_storage_file(file);
+    IDStorageFile *storage = self.getStorageFile(file);
 
     self.mFileQueue.enqueue(request.src(storage, offset, size).name("Load File Region"));
 }
@@ -373,7 +395,7 @@ static void buildBufferUploadRequest(
     uint64 offset,
     uint32 size)
 {
-    const uint8 *data = self.get_storage_buffer(buffer) + offset;
+    const uint8 *data = self.getStorageBuffer(buffer) + offset;
 
     self.mMemoryQueue.enqueue(request.src(data, size).name("Load Buffer Region"));
 }
@@ -404,11 +426,11 @@ static Resource addBufferViewUpload(IDeviceContext& self, const world::BufferVie
 
 void IDeviceContext::upload_buffer_view(RequestBuilder& request, const world::BufferView& view) {
     if (world::IndexOf file = world::get<world::File>(view.source); file != world::kInvalidIndex) {
-        request.src(get_storage_file(file), view.offset, view.source_size);
+        request.src(getStorageFile(file), view.offset, view.source_size);
         mFileQueue.enqueue(request);
     }
     else if (world::IndexOf buffer = world::get<world::Buffer>(view.source); buffer != world::kInvalidIndex) {
-        request.src(get_storage_buffer(buffer) + view.offset, view.source_size);
+        request.src(getStorageBuffer(buffer) + view.offset, view.source_size);
         mMemoryQueue.enqueue(request);
     }
     else {

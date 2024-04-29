@@ -27,6 +27,8 @@ project('freetype2', 'c',
   version: run_command('builds/meson/extract_freetype_version.py',
                        'include/freetype/freetype.h',
                        check: true).stdout().strip(),
+  license: 'FLT',
+  license_files : [ 'LICENSE.TXT' ]
 )
 
 
@@ -505,5 +507,10 @@ summary({'Zlib': zlib_option,
          'Harfbuzz': harfbuzz_dep.found() ? 'yes' : 'no',
          'Brotli': brotli_dep.found() ? 'yes' : 'no',
         }, section: 'Used Libraries')
+
+install_data(meson.project_license_files(),
+    install_dir : get_option('datadir') / 'licenses',
+    rename : meson.project_name() + '.LICENSE.txt'
+)
 
 # EOF

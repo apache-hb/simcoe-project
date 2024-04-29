@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "render/render.hpp"
+#include "render/dstorage.hpp"
 
 using namespace sm;
 using namespace sm::render;
@@ -132,31 +132,4 @@ RequestBuilder& RequestBuilder::tag(uint64 tag) {
 RequestBuilder& RequestBuilder::name(char const *name) {
     Name = name;
     return *this;
-}
-
-///
-/// storage context stuff
-/// TODO: move this out of here
-///
-
-IDStorageFile *IDeviceContext::get_storage_file(world::IndexOf<world::File> index) {
-    if (auto it = mStorageFiles.find(index); it != mStorageFiles.end()) {
-        return it->second.get();
-    }
-
-    const auto& file = mWorld.get(index);
-
-    Object<IDStorageFile> dsfile;
-    SM_ASSERT_HR(mStorage.open(file.path, &dsfile));
-
-    auto [it, _] = mStorageFiles.emplace(index, std::move(dsfile));
-    auto& [_, fd] = *it;
-
-    return fd.get();
-}
-
-const uint8 *IDeviceContext::get_storage_buffer(world::IndexOf<world::Buffer> index) {
-    auto& buffer = mWorld.get(index);
-
-    return buffer.data.data();
 }

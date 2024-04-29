@@ -38,6 +38,10 @@ namespace sm::graph {
         sm::String name;
         Handle index;
         Usage usage;
+
+        D3D12_BARRIER_LAYOUT layout = D3D12_BARRIER_LAYOUT_UNDEFINED;
+        D3D12_BARRIER_ACCESS access = D3D12_BARRIER_ACCESS_NO_ACCESS;
+        D3D12_BARRIER_SYNC sync = D3D12_BARRIER_SYNC_NONE;
     };
 
     enum : int {

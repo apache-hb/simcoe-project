@@ -32,4 +32,6 @@
 
 #include "config/config.hpp"
 
+#include "system/system.hpp"
+
 // IWYU pragma: end_exports

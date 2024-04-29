@@ -1,13 +1,10 @@
 #pragma once
 
 #include "core/bitmap.hpp"
-
-// #include "sul/dynamic_bitset.hpp"
-
-#include "render.reflect.h"
+#include "render/object.hpp"
 
 namespace sm::render {
-    template<DescriptorType::Inner D>
+    template<D3D12_DESCRIPTOR_HEAP_TYPE D>
     class DescriptorPool {
         Object<ID3D12DescriptorHeap> mHeap;
         uint mDescriptorSize;
@@ -15,14 +12,13 @@ namespace sm::render {
         sm::BitMap mAllocator;
 
     public:
-        constexpr static DescriptorType kType = D;
+        constexpr static D3D12_DESCRIPTOR_HEAP_TYPE kHeapType = D;
 
         enum class Index : uint { eInvalid = UINT_MAX };
 
         bool test_bit(Index index) const { return mAllocator.test(sm::BitMap::Index{size_t(index)}); }
 
         Result init(ID3D12Device1 *device, uint capacity, D3D12_DESCRIPTOR_HEAP_FLAGS flags) {
-            constexpr D3D12_DESCRIPTOR_HEAP_TYPE kHeapType = kType.as_facade();
             const D3D12_DESCRIPTOR_HEAP_DESC kDesc = {
                 .Type = kHeapType,
                 .NumDescriptors = capacity,
@@ -79,9 +75,9 @@ namespace sm::render {
         }
     };
 
-    using RtvPool = DescriptorPool<DescriptorType::eRTV>;
-    using DsvPool = DescriptorPool<DescriptorType::eDSV>;
-    using SrvPool = DescriptorPool<DescriptorType::eSRV>;
+    using RtvPool = DescriptorPool<D3D12_DESCRIPTOR_HEAP_TYPE_RTV>;
+    using DsvPool = DescriptorPool<D3D12_DESCRIPTOR_HEAP_TYPE_DSV>;
+    using SrvPool = DescriptorPool<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV>;
 
     using RtvIndex = RtvPool::Index;
     using DsvIndex = DsvPool::Index;

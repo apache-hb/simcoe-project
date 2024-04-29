@@ -1,0 +1,9 @@
+[wrap-file]
+directory = brotli_g_sdk-meson-1.0.3
+
+source_url = https://github.com/apache-hb/brotli_g_sdk/archive/refs/tags/meson-1.0.3.zip
+source_filename = brotli_g_sdk-meson-1.0.3.zip
+source_hash = f4fcb26fc965a9593be7837eabdcfee483bde97fa13c44b536567827c65eca49
+
+[provide]
+dependency_names = brotli_g_sdk

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <simcoe_render_config.h>
+
 #include "archive/bundle.hpp"
 
 #include "core/array.hpp"
@@ -292,8 +294,8 @@ namespace sm::render {
         void createStorageDeviceData();
         void destroyStorageDeviceData();
 
-        IDStorageFile *get_storage_file(world::IndexOf<world::File> index);
-        const uint8 *get_storage_buffer(world::IndexOf<world::Buffer> index);
+        IDStorageFile *getStorageFile(world::IndexOf<world::File> index);
+        const uint8 *getStorageBuffer(world::IndexOf<world::Buffer> index);
 
         void upload_buffer_view(RequestBuilder& request, const world::BufferView& view);
 

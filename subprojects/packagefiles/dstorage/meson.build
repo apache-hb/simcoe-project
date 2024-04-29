@@ -37,3 +37,12 @@ dstorage_dep = declare_dependency(
 )
 
 meson.override_dependency('dstorage', dstorage_dep)
+
+install_data(bindir / 'dstorage.dll', bindir / 'dstoragecore.dll',
+    install_dir : get_option('bindir') / 'redist'
+)
+
+install_data('LICENSE.txt',
+    install_dir : get_option('datadir') / 'licenses',
+    rename : meson.project_name() + '.LICENSE.txt'
+)
