@@ -321,7 +321,7 @@ void ViewportPanel::draw_content() {
 
     const auto& [t, r, s] = item.transform;
 
-    auto deg = math::to_degrees(r.to_euler());
+    auto deg = math::to_degrees(r.asEulerAngle());
 
     // convert our euler order to ImGuizmo's
     float3 euler = { deg.y, deg.z, deg.x };
@@ -340,7 +340,7 @@ void ViewportPanel::draw_content() {
 
         // convert back to our euler order
         auto rot = float3(r.z, r.x, r.y);
-        math::quatf q = math::quatf::from_euler(degf3(rot));
+        math::quatf q = math::quatf::fromEulerAngle(degf3(rot));
 
         item.transform = { t, q, s };
     }

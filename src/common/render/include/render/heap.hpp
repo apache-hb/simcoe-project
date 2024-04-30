@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/bitmap.hpp"
+#include "core/units.hpp"
 #include "render/object.hpp"
 
 namespace sm::render {

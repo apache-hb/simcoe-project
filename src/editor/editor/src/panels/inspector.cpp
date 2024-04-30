@@ -169,9 +169,9 @@ static void drawItemInspector(Inspector& self, world::IndexOf<world::Node> index
 
     ImGui::DragFloat3("Position", t.data(), 0.1f);
 
-    auto e = r.to_euler().get_degrees();
+    auto e = r.asEulerAngle().get_degrees();
     ImGui::Text("Rotation: %f.%f.%f", e.roll, e.pitch, e.yaw);
-    ImGui::Text("Rotation: %f.%f.%f (%f)", r.v.x, r.v.y, r.v.z, r.angle);
+    ImGui::Text("Rotation: %f.%f.%f (%f)", r.v.x, r.v.y, r.v.z, r.w);
     // MyGui::DragAngle3("Rotation", &r, 1._deg, 0._deg, 360._deg);
     ImGui::DragFloat3("Scale", s.data(), 0.1f);
 

@@ -4,6 +4,9 @@
 
 #include "fmtlib/format.h" // IWYU pragma: export
 
+#include "core/small_string.hpp"
+#include "core/error.hpp"
+
 namespace sm::render {
     class Result {
         HRESULT mValue;
@@ -35,7 +38,7 @@ struct fmt::formatter<sm::render::Result> {
     constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
 
     auto format(const sm::render::Result& result, fmt::format_context& ctx) const {
-        return format_to(ctx.out(), "{}", result.to_string<512>().c_str());
+        return format_to(ctx.out(), "{}", result.to_string().c_str());
     }
 };
 

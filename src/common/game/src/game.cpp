@@ -51,7 +51,7 @@ static math::float3 from_jph(const JPH::Vec3& v) {
 }
 
 static JPH::Quat to_jph(const math::quatf& q) {
-    return {q.v.x, q.v.y, q.v.z, q.angle};
+    return {q.v.x, q.v.y, q.v.z, q.w};
 }
 
 static math::quatf from_jph(const JPH::Quat& q) {

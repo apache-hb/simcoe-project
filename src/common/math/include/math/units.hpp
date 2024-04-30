@@ -1,50 +1,8 @@
 #pragma once
 
-#include <numbers>
-#include <cmath>
+#include "math/utils.hpp"
 
 namespace sm::math {
-    template<typename T>
-    constexpr inline T kPi = T(std::numbers::pi);
-
-    template<typename T>
-    constexpr inline T kRadToDeg = T(180) / kPi<T>;
-
-    template<typename T>
-    constexpr inline T kDegToRad = kPi<T> / T(180);
-
-    template<typename T = float>
-    consteval T pi() { return kPi<T>; }
-
-    template<typename T = float>
-    consteval T pi2() { return kPi<T> * T(2); }
-
-    template<typename T = float>
-    consteval T pidiv2() { return kPi<T> / T(2); }
-
-    template<typename T> struct Radians;
-    template<typename T> struct Degrees;
-
-    template<typename T>
-    concept IsVector = requires (T it) {
-        typename T::Type;
-        { T::kSize } -> std::convertible_to<size_t>;
-        { it.fields } -> std::convertible_to<typename T::Type*>;
-        std::size(it.fields) == T::kSize;
-
-        { it.data() } -> std::convertible_to<typename T::Type*>;
-    };
-
-    template<typename T>
-    concept IsAngle = requires (T it) {
-        typename T::Type;
-        { it.to_degrees() } -> std::convertible_to<typename T::Degrees>;
-        { it.to_radians() } -> std::convertible_to<typename T::Radians>;
-        { it.get_degrees() } -> std::convertible_to<typename T::Type>;
-        { it.get_radians() } -> std::convertible_to<typename T::Type>;
-        { it.get() } -> std::convertible_to<typename T::Type>;
-    };
-
     template<typename T>
     struct Radians {
         using Degrees = Degrees<T>;
