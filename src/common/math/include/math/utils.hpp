@@ -173,11 +173,11 @@ namespace sm::math {
         return out;
     }
 
-    template<IsVector T>
-    constexpr T gather(Vec<uint, T::kSize> offsets, const T& values) {
+    template<typename T>
+    constexpr T gather(Vec<uint, T::kSize> offsets, const typename T::Type *values) {
         T out;
         for (size_t i = 0; i < T::kSize; i++) {
-            out.fields[i] = values.fields[offsets.fields[i]];
+            out.fields[i] = values[offsets.fields[i]];
         }
         return out;
     }

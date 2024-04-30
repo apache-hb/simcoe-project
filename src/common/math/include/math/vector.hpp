@@ -3,7 +3,6 @@
 #include "base/panic.h"
 
 #include "math/utils.hpp"
-#include "math/swizzle.hpp"
 
 namespace sm::math {
     /**

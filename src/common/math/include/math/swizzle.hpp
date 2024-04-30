@@ -3,14 +3,22 @@
 #include "math/utils.hpp"
 
 namespace sm::math {
-    template<IsVector T, size_t... I>
+    /// @brief swizzle mixin for vector types
+    /// @tparam T vector element type
+    /// @tparam N vector size
+    /// @tparam I swizzle indices
+    template<typename T, size_t N, size_t... I>
     class SwizzleField {
-        T mBody;
+        T mFields[N];
 
     public:
-        constexpr operator T() const {
-            Vec<uint, T::kSize> mask = { I... };
-            return gather(mask, mBody);
+        using Result = Vec<T, sizeof...(I)>;
+
+        constexpr operator Result() const requires (IsVector<T>) {
+            Vec<uint, sizeof...(I)> mask = { I... };
+            return gather(mask, mFields);
         }
     };
 }
+
+// TODO: use swizzle mixin in Vec2, Vec3, Vec4
