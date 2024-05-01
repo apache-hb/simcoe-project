@@ -190,7 +190,7 @@ namespace sm::graph {
 
         bool is_imported(Handle handle) const;
 
-        RenderPassHandle find_next_use(size_t start, Handle handle) const {
+        RenderPassHandle findNextHandleUse(size_t start, Handle handle) const {
             if (start >= mRenderPasses.size()) {
                 return RenderPassHandle{UINT_MAX};
             }
@@ -203,8 +203,6 @@ namespace sm::graph {
 
             return RenderPassHandle{UINT_MAX};
         }
-
-        void build_raw_events(events::ResourceBarrier& barrier);
 
         void createManagedResources();
 
@@ -261,50 +259,6 @@ namespace sm::graph {
             AccessBuilder& withAccess(D3D12_BARRIER_ACCESS value);
             AccessBuilder& withSyncPoint(D3D12_BARRIER_SYNC value);
         };
-
-#if 0
-        class CreateAccessBuilder {
-            FrameGraph& mFrameGraph;
-            ResourceAccess& mCreateAccess;
-            ResourceAccess& mWriteAccess;
-            Handle mHandle;
-
-        public:
-            CreateAccessBuilder(FrameGraph& graph, ResourceAccess& create, ResourceAccess& write, Handle handle)
-                : mFrameGraph(graph)
-                , mCreateAccess(create)
-                , mWriteAccess(write)
-                , mHandle(handle)
-            { }
-
-            operator Handle() const { return mHandle; }
-
-            CreateAccessBuilder& srv(D3D12_SHADER_RESOURCE_VIEW_DESC desc) {
-                return overrideView(desc);
-            }
-
-            CreateAccessBuilder& uav(D3D12_UNORDERED_ACCESS_VIEW_DESC desc) {
-                return overrideView(desc);
-            }
-
-            CreateAccessBuilder& rtv(D3D12_RENDER_TARGET_VIEW_DESC desc) {
-                return overrideView(desc);
-            }
-
-            CreateAccessBuilder& dsv(D3D12_DEPTH_STENCIL_VIEW_DESC desc) {
-                return overrideView(desc);
-            }
-
-            CreateAccessBuilder& overrideView(D3D12_SHADER_RESOURCE_VIEW_DESC desc);
-            CreateAccessBuilder& overrideView(D3D12_UNORDERED_ACCESS_VIEW_DESC desc);
-            CreateAccessBuilder& overrideView(D3D12_RENDER_TARGET_VIEW_DESC desc);
-            CreateAccessBuilder& overrideView(D3D12_DEPTH_STENCIL_VIEW_DESC desc);
-
-            CreateAccessBuilder& withLayout(D3D12_BARRIER_LAYOUT value);
-            CreateAccessBuilder& withAccess(D3D12_BARRIER_ACCESS value);
-            CreateAccessBuilder& withSyncPoint(D3D12_BARRIER_SYNC value);
-        };
-#endif
 
         class PassBuilder {
             FrameGraph& mFrameGraph;

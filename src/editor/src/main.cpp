@@ -1,4 +1,5 @@
 #include "editor/panels/viewport.hpp"
+#include "input/toggle.hpp"
 #include "stdafx.hpp"
 
 #include "system/input.hpp"
@@ -10,7 +11,6 @@
 #include "threads/threads.hpp"
 
 #include "archive/record.hpp"
-#include "archive/io.hpp"
 
 #include "editor/editor.hpp"
 
@@ -278,6 +278,9 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .member<math::float3>("v")
         .member<float>("angle");
 
+    world.component<ed::ecs::MouseCaptured>()
+        .member<bool>("captured");
+
     world::ecs::initSystems(world);
     game::ecs::initCameraSystems(world);
 
@@ -303,6 +306,8 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .set<world::ecs::Colour>({ float3(1.f, 1.f, 1.f) })
         .set<world::ecs::Intensity>({ 1.f })
         .add<world::ecs::Light, world::ecs::PointLight>();
+
+    world.set<ed::ecs::MouseCaptured>({ false });
 
     ed::Editor editor{context};
 
@@ -330,6 +335,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         if (cameraActive.update(state.buttons[(size_t)input::Button::eTilde])) {
             context.input.capture_cursor(cameraActive.is_active());
             sys::mouse::set_visible(!cameraActive.is_active());
+            world.set<ed::ecs::MouseCaptured>({ cameraActive.is_active() });
         }
 
         if (cameraActive.is_active()) {

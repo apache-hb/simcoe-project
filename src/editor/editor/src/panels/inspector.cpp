@@ -4,8 +4,6 @@
 
 #include "render/render.hpp"
 
-#include "editor/mygui.hpp"
-
 using namespace sm;
 using namespace sm::ed;
 using namespace sm::math;

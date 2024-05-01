@@ -14,24 +14,16 @@ namespace sm::graph::events {
     };
 
     struct ResourceBarrier {
-        struct Transition {
-            Handle handle;
-            D3D12_RESOURCE_STATES before;
-            D3D12_RESOURCE_STATES after;
-        };
-
         CommandListHandle handle;
-        sm::Vector<Transition> barriers;
-        sm::Vector<D3D12_RESOURCE_BARRIER> raw;
+        sm::Vector<D3D12_RESOURCE_BARRIER> barriers;
 
-        ResourceBarrier(CommandListHandle cmd, sm::Vector<Transition> it)
+        ResourceBarrier(CommandListHandle cmd, sm::Vector<D3D12_RESOURCE_BARRIER> it)
             : handle(cmd)
             , barriers(std::move(it))
-            , raw(barriers.size())
         { }
 
         size_t size() const { return barriers.size(); }
-        D3D12_RESOURCE_BARRIER *data() { return raw.data(); }
+        D3D12_RESOURCE_BARRIER *data() { return barriers.data(); }
     };
 
     struct OpenCommands {

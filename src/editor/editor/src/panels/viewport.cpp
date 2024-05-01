@@ -1,19 +1,141 @@
 #include "stdafx.hpp"
 
-#include "std/str.h"
+#include "editor/draw.hpp"
 
 #include "editor/panels/viewport.hpp"
 
 #include "world/ecs.hpp"
 
-#include "math/format.hpp"
+#include "ImGuizmo.h"
 
 using namespace sm;
 using namespace sm::math;
 using namespace sm::math::literals;
 using namespace sm::ed;
 
-REFLECT_ENUM_BITFLAGS(ImGuizmo::OPERATION, int);
+static constexpr ImGuizmo::OPERATION kRotateXYZ
+    = ImGuizmo::ROTATE_X
+    | ImGuizmo::ROTATE_Y
+    | ImGuizmo::ROTATE_Z;
+
+enum OverlayPosition {
+    eOverlayClosed = -1,
+
+    eOverlayTop = (1 << 0),
+    eOverlayLeft = (1 << 1),
+
+    eOverlayTopLeft = eOverlayTop | eOverlayLeft,
+    eOverlayTopRight = eOverlayTop,
+    eOverlayBottomLeft = eOverlayLeft,
+    eOverlayBottomRight = 0,
+};
+
+#if 0
+void ViewportPanel::draw_content() {
+    auto& context = *mContext;
+
+    float2 avail = ImGui::GetContentRegionAvail();
+
+    if (mScaleViewport) {
+        uint2 sz = avail.as<uint>();
+
+        const world::ecs::Camera *info = mCamera.get<world::ecs::Camera>();
+        if (sz != info->window) {
+            world::ecs::Camera update = *info;
+            update.window = sz;
+            mCamera.set(update);
+        }
+    }
+
+    auto srv = context.mFrameGraph.srv(get_target());
+    auto idx = context.mSrvPool.gpu_handle(srv);
+    ImGui::Image((ImTextureID)idx.ptr, avail);
+
+    if (!context.selected.has_value()) return;
+
+    auto selected = world::get<world::Node>(*context.selected);
+    if (selected == world::kInvalidIndex) return;
+
+    float2 size = ImGui::GetWindowSize();
+    float2 pos = ImGui::GetWindowPos();
+
+    ImGuizmo::SetDrawlist();
+    ImGuizmo::SetRect(pos.x, pos.y, size.width, size.height);
+
+    if (ImGui::IsWindowHovered() && ImGui::IsMouseHoveringRect(pos, pos + size)) {
+        mFlags |= ImGuiWindowFlags_NoMove;
+    } else {
+        mFlags &= ~ImGuiWindowFlags_NoMove;
+    }
+
+    auto& scene = context.mWorld;
+    auto& item = scene.get(selected);
+
+    const auto& [t, r, s] = item.transform;
+
+    auto deg = math::to_degrees(r.asEulerAngle());
+
+    // convert our euler order to ImGuizmo's
+    float3 euler = { deg.y, deg.z, deg.x };
+
+    float matrix[16];
+    ImGuizmo::RecomposeMatrixFromComponents(t.data(), euler.data(), s.data(), matrix);
+
+    const world::ecs::Camera *info = mCamera.get<world::ecs::Camera>();
+
+    float4x4 view = world::ecs::getViewMatrix(*mCamera.get<world::ecs::Position, world::ecs::World>(), *mCamera.get<world::ecs::Direction>());
+    float4x4 proj = info->getProjectionMatrix();
+
+    if (ImGuizmo::Manipulate(view.data(), proj.data(), mOperation, mMode, matrix)) {
+        float3 t, r, s;
+        ImGuizmo::DecomposeMatrixToComponents(matrix, t.data(), r.data(), s.data());
+
+        // convert back to our euler order
+        auto rot = float3(r.z, r.x, r.y);
+        math::quatf q = math::quatf::fromEulerAngle(degf3(rot));
+
+        item.transform = { t, q, s };
+    }
+
+    float2 topright = { pos.x + size.width, pos.y };
+    float sz = 128.f;
+
+    ImGuizmo::ViewManipulate(view.data(), 10.f, ImVec2(topright.x - sz, topright.y), ImVec2(sz, sz), 0x10101010);
+}
+
+void ViewportPanel::gizmo_settings_panel() {
+    if (ImGui::RadioButton("Translate", isModeTranslate(mOperation)))
+        mOperation = mTranslateOperation;
+    ImGui::SameLine();
+    draw_gizmo_mode(mTranslateOperation, ImGuizmo::TRANSLATE_X, ImGuizmo::TRANSLATE_Y, ImGuizmo::TRANSLATE_Z);
+    ImGui::SameLine();
+
+	if (ImGui::RadioButton("Rotate", isModeRotate(mOperation)))
+		mOperation = mRotateOperation;
+    ImGui::SameLine();
+    drawRotateMode(mOperation);
+	ImGui::SameLine();
+
+	if (ImGui::RadioButton("Scale", isModeScale(mOperation)))
+		mOperation = mScaleOperation;
+    ImGui::SameLine();
+    draw_gizmo_mode(mScaleOperation, ImGuizmo::SCALE_X, ImGuizmo::SCALE_Y, ImGuizmo::SCALE_Z);
+
+    ImGui::BeginDisabled(mOperation == ImGuizmo::SCALE);
+    ImGui::Text("Transform Mode");
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Local", mMode == ImGuizmo::LOCAL))
+        mMode = ImGuizmo::LOCAL;
+    ImGui::SameLine();
+    if (ImGui::RadioButton("World", mMode == ImGuizmo::WORLD))
+        mMode = ImGuizmo::WORLD;
+    ImGui::EndDisabled();
+    if (ImGui::CheckboxFlags("Screen space rotation", (int*)&mRotateOperation, ImGuizmo::ROTATE_SCREEN)) {
+        if (mOperation & ImGuizmo::ROTATE)
+            mOperation = mRotateOperation;
+    }
+}
+#endif
 
 // ecs data
 
@@ -155,15 +277,6 @@ struct ViewportSettings {
     }
 };
 
-void ViewportPanel::begin_frame(draw::Camera& camera) {
-    ImGuizmo::SetOrthographic(false);
-    ImGuizmo::BeginFrame();
-}
-
-void ViewportPanel::draw_gizmo_mode(ImGuizmo::OPERATION op, ImGuizmo::OPERATION x, ImGuizmo::OPERATION y, ImGuizmo::OPERATION z) const {
-    drawGizmoMode(mOperation, op, x, y, z);
-}
-
 struct OverlayCoords {
     float2 position;
     float2 pivot;
@@ -185,83 +298,6 @@ static OverlayCoords getOverlayPosition(OverlayPosition overlay, float2 size, fl
     return { position, pivot };
 }
 
-void ViewportPanel::draw_window() {
-    // const auto& camera = get_camera();
-
-    if constexpr (false) {
-        // blender keybinds
-        if (ImGui::IsKeyPressed(ImGuiKey_G))
-            mOperation = mTranslateOperation;
-        if (ImGui::IsKeyPressed(ImGuiKey_R))
-            mOperation = mRotateOperation;
-        if (ImGui::IsKeyPressed(ImGuiKey_S))
-            mOperation = mScaleOperation;
-
-        if (ImGui::IsKeyPressed(ImGuiKey_X))
-            mOperation = setTransformX(mOperation);
-        if (ImGui::IsKeyPressed(ImGuiKey_Y))
-            mOperation = setTransformY(mOperation);
-        if (ImGui::IsKeyPressed(ImGuiKey_Z))
-            mOperation = setTransfomZ(mOperation);
-    }
-
-    ImGui::SetNextWindowSizeConstraints(ImVec2(512.f, 512.f), ImVec2(8192.f, 8192.f));
-
-    float2 cursor;
-    float2 avail;
-
-    bool focused = false;
-
-    const char *name = getWindowTitle();
-
-    if (ImGui::Begin(name, nullptr, mFlags)) {
-        cursor = ImGui::GetCursorScreenPos();
-        avail = ImGui::GetContentRegionAvail();
-        draw_content();
-
-        // focused = ImGui::IsWindowFocused();
-    }
-    ImGui::End();
-
-    constexpr ImGuiWindowFlags kOverlayFlags
-        = ImGuiWindowFlags_NoDecoration
-        | ImGuiWindowFlags_NoDocking
-        | ImGuiWindowFlags_AlwaysAutoResize
-        | ImGuiWindowFlags_NoSavedSettings
-        | ImGuiWindowFlags_NoFocusOnAppearing
-        | ImGuiWindowFlags_NoNav
-        | ImGuiWindowFlags_NoMove;
-
-    auto [position, pivot] = getOverlayPosition(mOverlayPosition, avail, cursor);
-    ImGui::SetNextWindowPos(position, ImGuiCond_Always, pivot);
-    ImGui::SetNextWindowBgAlpha(0.35f);
-
-    // only focus the overlay if the main window is focused
-    if (focused)
-        ImGui::SetNextWindowFocus();
-
-    char label[128];
-    str_sprintf(label, sizeof(label), "Gizmo Settings##%s", name);
-
-    if (ImGui::Begin(label, nullptr, kOverlayFlags)) {
-        gizmo_settings_panel();
-
-        if (ImGui::BeginPopupContextWindow()) {
-            if (ImGui::MenuItem("Top Left", nullptr, mOverlayPosition == eOverlayTopLeft))
-                mOverlayPosition = eOverlayTopLeft;
-            if (ImGui::MenuItem("Top Right", nullptr, mOverlayPosition == eOverlayTopRight))
-                mOverlayPosition = eOverlayTopRight;
-            if (ImGui::MenuItem("Bottom Left", nullptr, mOverlayPosition == eOverlayBottomLeft))
-                mOverlayPosition = eOverlayBottomLeft;
-            if (ImGui::MenuItem("Bottom Right", nullptr, mOverlayPosition == eOverlayBottomRight))
-                mOverlayPosition = eOverlayBottomRight;
-
-            ImGui::EndPopup();
-        }
-    }
-    ImGui::End();
-}
-
 static void drawViewportContent(flecs::entity entity, D3D12_GPU_DESCRIPTOR_HANDLE handle, bool scaleViewport) {
     float2 avail = ImGui::GetContentRegionAvail();
 
@@ -278,116 +314,6 @@ static void drawViewportContent(flecs::entity entity, D3D12_GPU_DESCRIPTOR_HANDL
 
     ImGui::Image((ImTextureID)handle.ptr, avail);
 }
-
-void ViewportPanel::draw_content() {
-    auto& context = *mContext;
-
-    float2 avail = ImGui::GetContentRegionAvail();
-
-    if (mScaleViewport) {
-        uint2 sz = avail.as<uint>();
-
-        const world::ecs::Camera *info = mCamera.get<world::ecs::Camera>();
-        if (sz != info->window) {
-            world::ecs::Camera update = *info;
-            update.window = sz;
-            mCamera.set(update);
-        }
-    }
-
-    auto srv = context.mFrameGraph.srv(get_target());
-    auto idx = context.mSrvPool.gpu_handle(srv);
-    ImGui::Image((ImTextureID)idx.ptr, avail);
-
-    if (!context.selected.has_value()) return;
-
-    auto selected = world::get<world::Node>(*context.selected);
-    if (selected == world::kInvalidIndex) return;
-
-    float2 size = ImGui::GetWindowSize();
-    float2 pos = ImGui::GetWindowPos();
-
-    ImGuizmo::SetDrawlist();
-    ImGuizmo::SetRect(pos.x, pos.y, size.width, size.height);
-
-    if (ImGui::IsWindowHovered() && ImGui::IsMouseHoveringRect(pos, pos + size)) {
-        mFlags |= ImGuiWindowFlags_NoMove;
-    } else {
-        mFlags &= ~ImGuiWindowFlags_NoMove;
-    }
-
-    auto& scene = context.mWorld;
-    auto& item = scene.get(selected);
-
-    const auto& [t, r, s] = item.transform;
-
-    auto deg = math::to_degrees(r.asEulerAngle());
-
-    // convert our euler order to ImGuizmo's
-    float3 euler = { deg.y, deg.z, deg.x };
-
-    float matrix[16];
-    ImGuizmo::RecomposeMatrixFromComponents(t.data(), euler.data(), s.data(), matrix);
-
-    const world::ecs::Camera *info = mCamera.get<world::ecs::Camera>();
-
-    float4x4 view = world::ecs::getViewMatrix(*mCamera.get<world::ecs::Position, world::ecs::World>(), *mCamera.get<world::ecs::Direction>());
-    float4x4 proj = info->getProjectionMatrix();
-
-    if (ImGuizmo::Manipulate(view.data(), proj.data(), mOperation, mMode, matrix)) {
-        float3 t, r, s;
-        ImGuizmo::DecomposeMatrixToComponents(matrix, t.data(), r.data(), s.data());
-
-        // convert back to our euler order
-        auto rot = float3(r.z, r.x, r.y);
-        math::quatf q = math::quatf::fromEulerAngle(degf3(rot));
-
-        item.transform = { t, q, s };
-    }
-
-    float2 topright = { pos.x + size.width, pos.y };
-    float sz = 128.f;
-
-    ImGuizmo::ViewManipulate(view.data(), 10.f, ImVec2(topright.x - sz, topright.y), ImVec2(sz, sz), 0x10101010);
-}
-
-void ViewportPanel::gizmo_settings_panel() {
-    if (ImGui::RadioButton("Translate", isModeTranslate(mOperation)))
-        mOperation = mTranslateOperation;
-    ImGui::SameLine();
-    draw_gizmo_mode(mTranslateOperation, ImGuizmo::TRANSLATE_X, ImGuizmo::TRANSLATE_Y, ImGuizmo::TRANSLATE_Z);
-    ImGui::SameLine();
-
-	if (ImGui::RadioButton("Rotate", isModeRotate(mOperation)))
-		mOperation = mRotateOperation;
-    ImGui::SameLine();
-    drawRotateMode(mOperation);
-	ImGui::SameLine();
-
-	if (ImGui::RadioButton("Scale", isModeScale(mOperation)))
-		mOperation = mScaleOperation;
-    ImGui::SameLine();
-    draw_gizmo_mode(mScaleOperation, ImGuizmo::SCALE_X, ImGuizmo::SCALE_Y, ImGuizmo::SCALE_Z);
-
-    ImGui::BeginDisabled(mOperation == ImGuizmo::SCALE);
-    ImGui::Text("Transform Mode");
-    ImGui::SameLine();
-    if (ImGui::RadioButton("Local", mMode == ImGuizmo::LOCAL))
-        mMode = ImGuizmo::LOCAL;
-    ImGui::SameLine();
-    if (ImGui::RadioButton("World", mMode == ImGuizmo::WORLD))
-        mMode = ImGuizmo::WORLD;
-    ImGui::EndDisabled();
-    if (ImGui::CheckboxFlags("Screen space rotation", (int*)&mRotateOperation, ImGuizmo::ROTATE_SCREEN)) {
-        if (mOperation & ImGuizmo::ROTATE)
-            mOperation = mRotateOperation;
-    }
-}
-
-ViewportPanel::ViewportPanel(ed::EditorContext *context, flecs::entity camera)
-    : mContext(context)
-    , mCamera(camera)
-{ }
 
 static bool isActiveViewport(flecs::world& world, flecs::entity entity) {
     return ecs::getPrimaryCamera(world) == entity;
@@ -444,14 +370,7 @@ void ecs::drawViewportWindows(render::IDeviceContext& ctx, flecs::world& world) 
         | ImGuiChildFlags_AutoResizeX
         | ImGuiChildFlags_AutoResizeY;
 
-    [[maybe_unused]]
-    static constexpr ImGuiWindowFlags kOverlayFlags
-        = ImGuiWindowFlags_NoDecoration
-        | ImGuiWindowFlags_NoDocking
-        | ImGuiWindowFlags_NoSavedSettings
-        | ImGuiWindowFlags_NoFocusOnAppearing
-        | ImGuiWindowFlags_NoNav
-        | ImGuiWindowFlags_NoMove;
+    bool captured = world.get<MouseCaptured>()->captured;
 
     q.each([&](flecs::entity entity, ecs::CameraData& data, ViewportSettings& gizmo) {
         flecs::string_view name = entity.name();
@@ -468,7 +387,7 @@ void ecs::drawViewportWindows(render::IDeviceContext& ctx, flecs::world& world) 
                 world.set<PrimaryViewport>({ entity });
             }
 
-            if (isActiveViewport(world, entity)) {
+            if (isActiveViewport(world, entity) && !captured) {
                 gizmo.acceptKeyEvents();
             }
 

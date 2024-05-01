@@ -3,6 +3,7 @@
 #include "render/graph.hpp"
 
 #include "render/render.hpp"
+#include <set>
 
 using namespace sm;
 using namespace sm::graph;
@@ -322,6 +323,16 @@ AccessBuilder& AccessBuilder::withAccess(D3D12_BARRIER_ACCESS value) {
 AccessBuilder& AccessBuilder::withSyncPoint(D3D12_BARRIER_SYNC value) {
     mAccess.sync = value;
     return *this;
+}
+
+static bool isUavRead(Usage usage) {
+    using enum Usage::Inner;
+    return usage == eTextureRead || usage == eBufferRead;
+}
+
+static bool isUavWrite(Usage usage) {
+    using enum Usage::Inner;
+    return usage == eTextureWrite || usage == eBufferWrite;
 }
 
 struct UsageTracker {
@@ -662,35 +673,37 @@ void FrameGraph::schedule_graph() {
         }
     } schedule = { *this, mFrameSchedule };
 
-    // the state of a resource at a given point in the frame
-    struct HandleStatePoint {
-        Handle handle;
-        D3D12_RESOURCE_STATES state;
-    };
-
     // track the expected state of each resource
     sm::HashMap<Handle, D3D12_RESOURCE_STATES> initial;
     struct BarrierRecord {
         FrameGraph& graph;
-        sm::Vector<events::ResourceBarrier::Transition> transitions;
+        sm::Vector<D3D12_RESOURCE_BARRIER> barriers;
 
         BarrierRecord(FrameGraph& graph)
             : graph(graph)
         { }
 
-        void transition(Handle handle, D3D12_RESOURCE_STATES from, D3D12_RESOURCE_STATES to) {
-            if (from == to) return;
+        void transition(Handle handle, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
+            if (before == after) return;
 
-            transitions.push_back({handle, from, to});
+            barriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(
+                graph.resource(handle),
+                before,
+                after
+            ));
+        }
+
+        void uav(Handle handle) {
+            barriers.push_back(CD3DX12_RESOURCE_BARRIER::UAV(graph.resource(handle)));
         }
 
         void submit(FrameSchedule& schedule, CommandListHandle handle) {
-            if (transitions.empty()) return;
+            if (barriers.empty()) return;
 
-            events::ResourceBarrier event{handle, transitions};
+            events::ResourceBarrier event{handle, barriers};
+            barriers.clear();
+
             schedule.push_back(event);
-
-            transitions.clear();
         }
     } barriers = { *this };
 
@@ -735,21 +748,34 @@ void FrameGraph::schedule_graph() {
 
     CommandListHandle list = schedule.openCommandBuffer(initialQueueType);
 
-    sm::Vector<RenderPass> unsyncedPasses;
-
     struct QueueSyncStatus {
-        std::array<bool, D3D12_COMMAND_LIST_TYPE_VIDEO_ENCODE + 1> status = { false };
+        std::set<D3D12_COMMAND_LIST_TYPE> status;
 
         bool isQueueSynced(D3D12_COMMAND_LIST_TYPE type) {
-            return status[type];
+            return status.contains(type);
         }
 
         void markQueueSynced(D3D12_COMMAND_LIST_TYPE type) {
-            status[type] = true;
+            status.insert(type);
         }
 
-        void reset() { status.fill(false); }
+        void reset() { status.clear(); }
     } queueSyncStatus;
+
+    // all unsynchronized uav writes
+    // assume that all uav reads want to be synchronized
+    std::set<Handle> uavWrites;
+
+    // all render passes that havent been synchronized
+    sm::Vector<RenderPass> unsyncedPasses;
+
+    for (uint i = 0; i < mRenderPasses.size(); i++) {
+        auto& pass = mRenderPasses[i];
+        if (!pass.is_used()) continue;
+
+        // todo: go through the resource barriers and try and move them to direct command lists
+        // its such a pain that no other queue can actually do most of the transitions.
+    }
 
     for (uint i = 0; i < mRenderPasses.size(); i++) {
         auto& pass = mRenderPasses[i];
@@ -776,45 +802,67 @@ void FrameGraph::schedule_graph() {
 
             // open a new command buffer
             list = schedule.openCommandBuffer(pass.type);
-
-            unsyncedPasses.push_back(pass);
         }
 
         unsyncedPasses.push_back(pass);
 
-        for (auto& access : pass.creates) {
-            restore.push_back({access.index, getInitialUsageState(access.usage)});
-            updateResourceState(access.index, access.usage);
-        }
-
-        pass.foreach(eRead | eWrite, [&](const ResourceAccess& access) {
-            updateResourceState(access.index, access.usage);
+        // sync any uav reads that are not synchronized for this pass
+        pass.foreach(eRead, [&](const ResourceAccess& access) {
+            if (isUavRead(access.usage) && uavWrites.contains(access.index)) {
+                barriers.uav(access.index);
+                uavWrites.erase(access.index);
+            }
         });
 
-        // TODO: do we need to handle UAV barriers or is our stuff
-        // so pessemistic with waits that we don't need to worry about it?
+        // mark all new uav writes as needing synchronization
+        pass.foreach(eWrite, [&](const ResourceAccess& access) {
+            if (isUavWrite(access.usage)) {
+                uavWrites.insert(access.index);
+            }
+        });
+
+        // mark the initial state of all resources this pass creates
+        for (auto& access : pass.creates) {
+            D3D12_RESOURCE_STATES state = getInitialUsageState(access.usage);
+            restore.push_back({access.index, state});
+            initial[access.index] = state;
+        }
+
+        // dont do any resource transitions on the copy queue
+        // cant be bothered to try and figure out the edge cases
+        auto type = getCommandListType(list);
+        if (type == render::CommandListType::eCopy) {
+            schedule.recordCommands(list, PassHandle{i});
+
+            // only update the state of the resources used by this pass
+            // TODO: this assumes that a copy pass will never read/write to a resource
+            // it doesnt create.
+            pass.foreach(eRead | eWrite, [&](const ResourceAccess& access) {
+                initial[access.index] = getInitialUsageState(access.usage);
+            });
+
+            continue;
+        } else if (type == render::CommandListType::eDirect) {
+            pass.foreach(eRead | eWrite, [&](const ResourceAccess& access) {
+                if (auto next = findNextHandleUse(i, access.index); next.is_valid()) {
+                    if (mRenderPasses[next.index].type != render::CommandListType::eDirect) {
+                        updateResourceState(access.index, access.usage);
+                    }
+                } else {
+                    updateResourceState(access.index, access.usage);
+                }
+            });
+
+        } else {
+            pass.foreach(eRead | eWrite, [&](const ResourceAccess& access) {
+                updateResourceState(access.index, access.usage);
+            });
+        }
 
         // if we have any barriers, submit them
         barriers.submit(mFrameSchedule, list);
 
         schedule.recordCommands(list, PassHandle{i});
-
-        // only add early barriers on direct command list
-        // not sure of all the special cases yet
-        if (getCommandListType(list) != render::CommandListType::eDirect)
-            continue;
-
-        // if we can add barriers for the next pass, do so
-        pass.foreach(eRead | eWrite, [&](const auto& access) {
-            auto n = find_next_use(i, access.index);
-            if (!n.is_valid()) return;
-
-            auto state = mRenderPasses[n.index].get_handle_usage(access.index);
-            updateResourceState(access.index, state);
-        });
-
-        // if we have any barriers, submit them
-        barriers.submit(mFrameSchedule, list);
     }
 
     // transition imported and created resources back to their initial state
@@ -826,8 +874,6 @@ void FrameGraph::schedule_graph() {
 
     // submit the last command list
     schedule.submitCommandBuffer(list);
-
-    // TODO: need to sync all unsynced work here
 }
 
 void FrameGraph::destroyManagedResources() {
@@ -869,15 +915,6 @@ void FrameGraph::compile() {
     init_frame_commands();
 }
 
-void FrameGraph::build_raw_events(events::ResourceBarrier& barrier) {
-    for (size_t i = 0; i < barrier.size(); i++) {
-        auto& detail = barrier.barriers[i];
-        auto& raw = barrier.raw[i];
-
-        raw = CD3DX12_RESOURCE_BARRIER::Transition(resource(detail.handle), detail.before, detail.after);
-    }
-}
-
 template<typename... T>
 struct overloaded : T... {
     using T::operator()...;
@@ -901,7 +938,6 @@ void FrameGraph::execute() {
             },
             [&](events::ResourceBarrier& barrier) {
                 gRenderLog.info("ResourceBarrier {} barriers {}.{}", barrier.size(), mFrameData[barrier.handle.index].type, barrier.handle.index);
-                build_raw_events(barrier);
                 ID3D12GraphicsCommandList1 *commands = getCommandList(barrier.handle);
                 commands->ResourceBarrier(barrier.size(), barrier.data());
             },

@@ -9,7 +9,7 @@ namespace sm::math {
     /// @tparam I swizzle indices
     template<typename T, size_t N, size_t... I>
     class SwizzleField {
-        T mFields[N];
+        T mFields[T::kSize];
 
     public:
         using Result = Vec<T, sizeof...(I)>;

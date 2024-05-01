@@ -14,6 +14,10 @@ namespace sm::ed {
             graph::Handle target;
             graph::Handle depth;
         };
+
+        struct MouseCaptured {
+            bool captured;
+        };
     }
 
     struct EditorContext final : public render::IDeviceContext {
