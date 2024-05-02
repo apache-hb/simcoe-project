@@ -5,30 +5,41 @@
 #include <fmt/ranges.h>
 
 sm::String sm::render::format(D3D12_RESOURCE_STATES states) {
-    struct BitName {
+    struct StateFlag {
         D3D12_RESOURCE_STATES state;
         const char *name;
+
+        constexpr StateFlag(D3D12_RESOURCE_STATES state, const char *name)
+            : state(state)
+            , name(name + sizeof("D3D12_RESOURCE_STATE_") - 1)
+        { }
     };
 
-    static constexpr BitName kStates[] = {
-        { D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, "vbo/cbuffer" },
-        { D3D12_RESOURCE_STATE_INDEX_BUFFER, "ibo" },
-        { D3D12_RESOURCE_STATE_RENDER_TARGET, "rt" },
-        { D3D12_RESOURCE_STATE_UNORDERED_ACCESS, "unordered_access" },
-        { D3D12_RESOURCE_STATE_DEPTH_WRITE, "depth_write" },
-        { D3D12_RESOURCE_STATE_DEPTH_READ, "depth_read" },
-        { D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, "non_pixel_shader_resource" },
-        { D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, "pixel_shader_resource" },
-        { D3D12_RESOURCE_STATE_STREAM_OUT, "stream_out" },
-        { D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, "indirect" },
-        { D3D12_RESOURCE_STATE_COPY_DEST, "copy_dst" },
-        { D3D12_RESOURCE_STATE_COPY_SOURCE, "copy_src" },
-        { D3D12_RESOURCE_STATE_VIDEO_DECODE_READ, "video_decode_read" },
-        { D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE, "video_decode_write" },
-        { D3D12_RESOURCE_STATE_VIDEO_PROCESS_READ, "video_process_read" },
-        { D3D12_RESOURCE_STATE_VIDEO_PROCESS_WRITE, "video_process_write" },
-        { D3D12_RESOURCE_STATE_VIDEO_ENCODE_READ, "video_encode_read" },
-        { D3D12_RESOURCE_STATE_VIDEO_ENCODE_WRITE, "video_encode_write" }
+#define FLAG_NAME(x) { x, #x }
+
+    static constexpr StateFlag kStates[] = {
+        FLAG_NAME(D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER),
+        FLAG_NAME(D3D12_RESOURCE_STATE_INDEX_BUFFER),
+        FLAG_NAME(D3D12_RESOURCE_STATE_RENDER_TARGET),
+        FLAG_NAME(D3D12_RESOURCE_STATE_UNORDERED_ACCESS),
+        FLAG_NAME(D3D12_RESOURCE_STATE_DEPTH_WRITE),
+        FLAG_NAME(D3D12_RESOURCE_STATE_DEPTH_READ),
+        FLAG_NAME(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
+        FLAG_NAME(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
+        FLAG_NAME(D3D12_RESOURCE_STATE_STREAM_OUT),
+        FLAG_NAME(D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT),
+        FLAG_NAME(D3D12_RESOURCE_STATE_COPY_DEST),
+        FLAG_NAME(D3D12_RESOURCE_STATE_COPY_SOURCE),
+        FLAG_NAME(D3D12_RESOURCE_STATE_RESOLVE_DEST),
+        FLAG_NAME(D3D12_RESOURCE_STATE_RESOLVE_SOURCE),
+        FLAG_NAME(D3D12_RESOURCE_STATE_PRESENT),
+        FLAG_NAME(D3D12_RESOURCE_STATE_PREDICATION),
+        FLAG_NAME(D3D12_RESOURCE_STATE_VIDEO_DECODE_READ),
+        FLAG_NAME(D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE),
+        FLAG_NAME(D3D12_RESOURCE_STATE_VIDEO_PROCESS_READ),
+        FLAG_NAME(D3D12_RESOURCE_STATE_VIDEO_PROCESS_WRITE),
+        FLAG_NAME(D3D12_RESOURCE_STATE_VIDEO_ENCODE_READ),
+        FLAG_NAME(D3D12_RESOURCE_STATE_VIDEO_ENCODE_WRITE),
     };
 
     sm::SmallVector<sm::StringView, std::size(kStates)> parts;
@@ -38,5 +49,9 @@ sm::String sm::render::format(D3D12_RESOURCE_STATES states) {
         }
     }
 
-    return fmt::format("state({})", fmt::join(parts, "|"));
+    if (parts.empty()) {
+        return "D3D12_RESOURCE_STATE_COMMON";
+    }
+
+    return fmt::format("D3D12_RESOURCE_STATE_{}", fmt::join(parts, "|"));
 }

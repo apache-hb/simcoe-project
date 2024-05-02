@@ -4,9 +4,6 @@
 
 #include "draw/draw.hpp"
 
-#include <directx/d3dx12_core.h>
-#include <directx/d3dx12_root_signature.h>
-
 using namespace sm;
 using namespace sm::draw;
 using namespace sm::world;
@@ -44,8 +41,10 @@ void draw::ecs::copyLightData(
         .with<world::ecs::Light>()
         .build();
 
+
     const graph::ResourceInfo lightDataInfo = {
-        .size = graph::ResourceSize::buffer(sizeof(LightVolumeData) * MAX_LIGHTS)
+        .size = graph::ResourceSize::buffer(sizeof(LightVolumeData) * MAX_LIGHTS),
+        .buffered = true // this is per frame data as the uploads are done per frame
     };
 
     graph::PassBuilder pass = graph.copy("Upload Light Data");

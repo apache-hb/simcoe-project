@@ -709,6 +709,7 @@ void IDeviceContext::create_assets() {
 }
 
 void IDeviceContext::build_command_list() {
+    mFrameGraph.setFrameIndex(mFrameIndex);
     mAllocator->SetCurrentFrameIndex(mFrameIndex);
 
     auto& [backbuffer, _, rtv, _] = mFrames[mFrameIndex];

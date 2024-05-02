@@ -7,6 +7,12 @@
 #include <dstorage.h>
 #include <dxgi1_6.h>
 
+#include <directx/d3dx12_core.h>
+#include <directx/d3dx12_barriers.h>
+#include <directx/d3dx12_check_feature_support.h>
+
+#include <set>
+
 #include "core/error.hpp"
 #include "core/memory.h"
 #include "os/core.h"
@@ -33,5 +39,8 @@
 #include "config/config.hpp"
 
 #include "system/system.hpp"
+
+LOG_CATEGORY(gGpuLog);
+LOG_CATEGORY(gRenderLog);
 
 // IWYU pragma: end_exports

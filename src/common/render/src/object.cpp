@@ -71,3 +71,24 @@ void Pipeline::reset() {
     signature.reset();
     pso.reset();
 }
+
+void render::setObjectDebugName(ID3D12Object *object, std::string_view name) {
+    auto wide = sm::widen(name);
+    object->SetName(wide.c_str());
+}
+
+std::string render::getObjectDebugName(ID3D12Object *object) {
+    UINT size = 0;
+    object->GetPrivateData(WKPDID_D3DDebugObjectNameW, &size, nullptr);
+
+    if (size == 0) return {};
+
+    std::wstring wide;
+    wide.resize(size / sizeof(wchar_t) + 1);
+
+    object->GetPrivateData(WKPDID_D3DDebugObjectNameW, &size, wide.data());
+
+    wide.resize(size / sizeof(wchar_t));
+
+    return sm::narrow(wide);
+}

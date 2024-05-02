@@ -25,6 +25,9 @@ namespace sm::render {
         object->Release();
     };
 
+    void setObjectDebugName(ID3D12Object *object, std::string_view name);
+    std::string getObjectDebugName(ID3D12Object *object);
+
     template <ComObject T>
     class Object : public sm::UniquePtr<T, decltype(kComRelease)> {
         using Super = sm::UniquePtr<T, decltype(kComRelease)>;
@@ -38,7 +41,11 @@ namespace sm::render {
         }
 
         void rename(std::string_view name) requires D3DObject<T> {
-            Super::get()->SetName(sm::widen(name).c_str());
+            setObjectDebugName(Super::get(), name);
+        }
+
+        std::string getName() const requires D3DObject<T> {
+            return getObjectDebugName(Super::get());
         }
     };
 

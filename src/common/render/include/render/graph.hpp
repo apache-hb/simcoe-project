@@ -10,8 +10,6 @@
 #include "render/heap.hpp"
 #include "render/resource.hpp"
 
-#include <functional>
-
 #include "render/graph/handle.hpp"
 #include "render/graph/events.hpp"
 #include "render/graph/render_pass.hpp"
@@ -81,6 +79,17 @@ namespace sm::graph {
         ResourceSize size;
         render::Format format;
         Clear clear;
+        bool buffered = false;
+    };
+
+    struct DescriptorPack {
+        // will be filled depending on the type of resource
+        render::RtvIndex rtv = render::RtvIndex::eInvalid;
+        render::DsvIndex dsv = render::DsvIndex::eInvalid;
+        render::SrvIndex srv = render::SrvIndex::eInvalid;
+        render::SrvIndex uav = render::SrvIndex::eInvalid;
+
+        void release(render::IDeviceContext& context);
     };
 
     class FrameGraph {
@@ -99,10 +108,16 @@ namespace sm::graph {
 
         using FrameSchedule = sm::Vector<events::Event>;
 
-        struct RenderPassHandle {
-            uint index;
+        struct HandleRange {
+            uint front;
+            uint back;
 
-            bool is_valid() const { return index != UINT_MAX; }
+            uint length() const { return back - front; }
+
+            template<typename T>
+            sm::Span<T> viewOfData(T *data) const {
+                return {data + front, length()};
+            }
         };
 
         struct ResourceHandle final {
@@ -126,15 +141,17 @@ namespace sm::graph {
             // the last pass that uses the resource
             RenderPass *last = nullptr;
 
-            // the resource itself
-            ID3D12Resource *resource = nullptr;
+            // if this is an external resource this is the handle to the resource
+            ID3D12Resource *external = nullptr;
+            DescriptorPack descriptors;
 
-            // will be filled depending on the type of resource
-            render::RtvIndex rtv = render::RtvIndex::eInvalid;
-            render::DsvIndex dsv = render::DsvIndex::eInvalid;
-            render::SrvIndex srv = render::SrvIndex::eInvalid;
-            render::SrvIndex uav = render::SrvIndex::eInvalid;
+            // the range of resources that this handle names
+            // usually start == end, but if the resource is buffered
+            // this should be a range of resources the same length
+            // as the swapchain backbuffer length
+            HandleRange resources{UINT_MAX, UINT_MAX};
 
+            // override the default generation of the resource descriptions
             std::optional<D3D12_SHADER_RESOURCE_VIEW_DESC> srv_desc;
             std::optional<D3D12_UNORDERED_ACCESS_VIEW_DESC> uav_desc;
             std::optional<D3D12_RENDER_TARGET_VIEW_DESC> rtv_desc;
@@ -143,15 +160,34 @@ namespace sm::graph {
             bool is_imported() const { return type == ResourceType::eImported; }
             bool is_managed() const { return type == ResourceType::eManaged || type == ResourceType::eTransient; }
             bool is_used() const { return is_managed() || refcount > 0; }
+
+            bool isBuffered() const { return info.buffered; }
+            bool isExternal() const { return type == ResourceType::eImported; }
+            bool isInternal() const { return type == ResourceType::eManaged || type == ResourceType::eTransient; }
         };
 
         render::IDeviceContext& mContext;
 
         sm::Vector<RenderPass> mRenderPasses;
         sm::Vector<ResourceHandle> mHandles;
-        sm::Vector<render::Resource> mResources;
+
+        struct ResourceData {
+            render::Resource resource;
+            DescriptorPack descriptors;
+
+            ID3D12Resource *getResource() { return resource.get(); }
+            DescriptorPack& getDescriptors() { return descriptors; }
+        };
+
+        sm::Vector<ResourceData> mResources;
+
+        ResourceData& getResourceData(Handle handle);
+        sm::Span<ResourceData> getAllResourceData(Handle handle);
+        DescriptorPack& getResourceDescriptors(Handle handle);
 
         sm::HashMap<uint32, sm::UniquePtr<IDeviceData>> mDeviceData;
+
+        uint mFrameIndex;
 
         FrameSchedule mFrameSchedule;
 
@@ -163,7 +199,7 @@ namespace sm::graph {
 
         void reset_frame_commands();
         void init_frame_commands();
-        CommandListHandle add_commands(render::CommandListType type);
+        CommandListHandle addCommandList(render::CommandListType type);
         render::CommandListType getCommandListType(CommandListHandle handle);
 
         void resetCommandBuffer(CommandListHandle handle);
@@ -190,19 +226,9 @@ namespace sm::graph {
 
         bool is_imported(Handle handle) const;
 
-        RenderPassHandle findNextHandleUse(size_t start, Handle handle) const {
-            if (start >= mRenderPasses.size()) {
-                return RenderPassHandle{UINT_MAX};
-            }
+        RenderPassHandle findNextHandleUse(size_t start, Handle handle) const;
 
-            for (uint i = start + 1; i < mRenderPasses.size(); i++) {
-                if (mRenderPasses[i].uses_handle(handle)) {
-                    return RenderPassHandle{i};
-                }
-            }
-
-            return RenderPassHandle{UINT_MAX};
-        }
+        Usage getNextAccess(size_t start, Handle handle) const;
 
         void createManagedResources();
 
@@ -240,20 +266,10 @@ namespace sm::graph {
             AccessBuilder& override_rtv(D3D12_RENDER_TARGET_VIEW_DESC desc) { return override_desc(desc); }
             AccessBuilder& override_dsv(D3D12_DEPTH_STENCIL_VIEW_DESC desc) { return override_desc(desc); }
 
-            AccessBuilder& srv(D3D12_SHADER_RESOURCE_VIEW_DESC desc) { return override_desc(desc); }
-            AccessBuilder& uav(D3D12_UNORDERED_ACCESS_VIEW_DESC desc) { return override_desc(desc); }
-            AccessBuilder& rtv(D3D12_RENDER_TARGET_VIEW_DESC desc) { return override_desc(desc); }
-            AccessBuilder& dsv(D3D12_DEPTH_STENCIL_VIEW_DESC desc) { return override_desc(desc); }
-
             AccessBuilder& override_desc(D3D12_SHADER_RESOURCE_VIEW_DESC desc);
             AccessBuilder& override_desc(D3D12_UNORDERED_ACCESS_VIEW_DESC desc);
             AccessBuilder& override_desc(D3D12_RENDER_TARGET_VIEW_DESC desc);
             AccessBuilder& override_desc(D3D12_DEPTH_STENCIL_VIEW_DESC desc);
-
-            AccessBuilder& overrideView(D3D12_SHADER_RESOURCE_VIEW_DESC desc) { return override_srv(desc); }
-            AccessBuilder& overrideView(D3D12_UNORDERED_ACCESS_VIEW_DESC desc) { return override_uav(desc); }
-            AccessBuilder& overrideView(D3D12_RENDER_TARGET_VIEW_DESC desc) { return override_rtv(desc); }
-            AccessBuilder& overrideView(D3D12_DEPTH_STENCIL_VIEW_DESC desc) { return override_dsv(desc); }
 
             AccessBuilder& withLayout(D3D12_BARRIER_LAYOUT value);
             AccessBuilder& withAccess(D3D12_BARRIER_ACCESS value);
@@ -276,12 +292,7 @@ namespace sm::graph {
             AccessBuilder write(Handle handle,      sm::StringView name, Usage access);
             AccessBuilder create(ResourceInfo info, sm::StringView name, Usage access);
 
-            void side_effects(bool effects);
-
-            PassBuilder& hasSideEffects(bool effects = true) {
-                side_effects(effects);
-                return *this;
-            }
+            PassBuilder& hasSideEffects(bool effects = true);
 
             template<typename F> requires std::invocable<F, RenderContext&>
             void bind(F&& execute) {
@@ -350,6 +361,8 @@ namespace sm::graph {
 
         void resize_frame_data(uint size);
 
+        void setFrameIndex(uint index) { mFrameIndex = index; }
+
         // also destroy the device data
         void reset_device_data();
         void compile();
@@ -358,10 +371,3 @@ namespace sm::graph {
 
     using PassBuilder = FrameGraph::PassBuilder;
 }
-
-template<>
-struct std::hash<sm::graph::Handle> {
-    size_t operator()(const sm::graph::Handle& handle) const {
-        return std::hash<sm::uint>{}(handle.index);
-    }
-};

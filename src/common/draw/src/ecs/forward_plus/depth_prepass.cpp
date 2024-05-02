@@ -4,13 +4,9 @@
 
 #include "draw/draw.hpp"
 
-#include <directx/d3dx12_core.h>
-#include <directx/d3dx12_root_signature.h>
-
 using namespace sm;
 using namespace sm::draw;
 using namespace sm::world;
-
 
 static constexpr D3D12_ROOT_SIGNATURE_FLAGS kPrePassRootFlags
     = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT

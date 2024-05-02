@@ -2,9 +2,6 @@
 
 #include "draw/draw.hpp"
 
-#include <directx/d3dx12_core.h>
-#include <directx/d3dx12_root_signature.h>
-
 using namespace sm;
 using namespace sm::draw;
 
@@ -82,8 +79,8 @@ void ecs::lightBinning(
     flecs::entity camera
 )
 {
-    graph::PassBuilder pass = graph.compute("Light Binning");
-    pass.side_effects(true);
+    graph::PassBuilder pass = graph.compute("Light Binning")
+        .hasSideEffects();
 
     const graph::ResourceInfo lightIndexInfo = {
         .size = graph::ResourceSize::buffer(sizeof(uint) * MAX_LIGHTS)

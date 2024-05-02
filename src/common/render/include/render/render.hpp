@@ -17,8 +17,8 @@
 #include "world/world.hpp"
 
 #include <directx/d3dx12_core.h>
-#include <directx/d3dx12_check_feature_support.h>
 #include <directx/d3dx12_barriers.h>
+#include <directx/d3dx12_check_feature_support.h>
 
 namespace sm::render {
     using DeviceHandle = Object<ID3D12Device1>;

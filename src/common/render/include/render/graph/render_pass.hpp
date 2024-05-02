@@ -63,21 +63,21 @@ namespace sm::graph {
 
         std::function<void(RenderContext&)> execute;
 
-        void foreach(int flags, auto&& fn) {
+        void foreach(this auto& self, int flags, auto&& fn) {
             if (flags & eRead) {
-                for (auto& access : reads) {
+                for (auto& access : self.reads) {
                     fn(access);
                 }
             }
 
             if (flags & eWrite) {
-                for (auto& access : writes) {
+                for (auto& access : self.writes) {
                     fn(access);
                 }
             }
 
             if (flags & eCreate) {
-                for (auto& access : creates) {
+                for (auto& access : self.creates) {
                     fn(access);
                 }
             }
@@ -114,7 +114,7 @@ namespace sm::graph {
         bool is_used() const { return has_side_effects || refcount > 0; }
         bool uses_handle(Handle handle) const;
         bool updates_handle(Handle handle) const;
-        Usage get_handle_usage(Handle handle);
+        Usage get_handle_usage(Handle handle) const;
         bool depends_on(const RenderPass& other) const;
     };
 }

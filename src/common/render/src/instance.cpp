@@ -5,7 +5,7 @@
 using namespace sm;
 using namespace sm::render;
 
-LOG_CATEGORY_IMPL(sm::gGpuLog, "gpu");
+LOG_CATEGORY_IMPL(gGpuLog, "gpu");
 
 static void logAdapterInfo(const Adapter &adapter) {
     gGpuLog.info("|| video memory: {}", adapter.vidmem());

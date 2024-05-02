@@ -10,7 +10,9 @@ namespace sm::render {
 
 template<>
 struct fmt::formatter<D3D12_RESOURCE_STATES> {
-    constexpr auto format(D3D12_RESOURCE_STATES states, fmt::format_context& ctx) {
+    constexpr auto parse(fmt::format_parse_context& ctx) const { return ctx.begin(); }
+
+    constexpr auto format(D3D12_RESOURCE_STATES states, fmt::format_context& ctx) const {
         return fmt::format_to(ctx.out(), "{}", sm::render::format(states));
     }
 };
