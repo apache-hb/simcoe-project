@@ -45,7 +45,7 @@ static void createOpaquePipeline(
         params[eObjectBuffer].InitAsConstantBufferView(1);
 
         CD3DX12_DESCRIPTOR_RANGE1 texture[1];
-        texture[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX, 0, 1, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE);
+        texture[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX, 0, 1, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE | D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE);
 
         params[eTextureArray].InitAsDescriptorTable(1, texture);
 
@@ -126,11 +126,16 @@ void ecs::forwardPlusOpaque(
     target = pass.create(targetInfo, "Target", graph::Usage::eRenderTarget);
     depth = pass.create(depthInfo, "Depth", graph::Usage::eDepthWrite);
 
-    pass.read(lightIndices, "Light Indices", graph::Usage::eBufferRead);
-    pass.read(pointLightVolumeData, "Point Light Volume Data", graph::Usage::eBufferRead);
-    pass.read(spotLightVolumeData, "Spot Light Volume Data", graph::Usage::eBufferRead);
-    pass.read(pointLightData, "Point Light Data", graph::Usage::eBufferRead);
-    pass.read(spotLightData, "Spot Light Data", graph::Usage::eBufferRead);
+    pass.read(lightIndices, "Light Indices", graph::Usage::ePixelShaderResource)
+        .withStates(D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
+    pass.read(pointLightVolumeData, "Point Light Volume Data", graph::Usage::ePixelShaderResource)
+        .withStates(D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
+    pass.read(spotLightVolumeData, "Spot Light Volume Data", graph::Usage::ePixelShaderResource)
+        .withStates(D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
+    pass.read(pointLightData, "Point Light Data", graph::Usage::ePixelShaderResource)
+        .withStates(D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
+    pass.read(spotLightData, "Spot Light Data", graph::Usage::ePixelShaderResource)
+        .withStates(D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
 
     auto& data = dd.graph.newDeviceData([colour = info->colour, depth = info->depth](render::IDeviceContext& context) {
         struct {

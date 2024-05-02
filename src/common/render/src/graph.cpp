@@ -11,6 +11,7 @@ using namespace sm::graph;
 using enum render::ResourceState::Inner;
 
 using PassBuilder = FrameGraph::PassBuilder;
+using AccessBuilder = FrameGraph::AccessBuilder;
 
 LOG_CATEGORY_IMPL(gRenderLog, "render");
 
@@ -55,6 +56,26 @@ Clear Clear::depthStencil(float depth, uint8 stencil, DXGI_FORMAT format) {
     return clear;
 }
 
+#if 0
+static bool isReadState(D3D12_RESOURCE_STATES states) {
+    return (states & ~D3D12_RESOURCE_STATE_GENERIC_READ) == 0;
+}
+
+static bool isShaderResourceState(D3D12_RESOURCE_STATES states) {
+    return (states & ~D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE) == 0;
+}
+
+static bool isWriteState(D3D12_RESOURCE_STATES states) {
+    static constexpr D3D12_RESOURCE_STATES kWriteStates
+        = D3D12_RESOURCE_STATE_RENDER_TARGET
+        | D3D12_RESOURCE_STATE_UNORDERED_ACCESS
+        | D3D12_RESOURCE_STATE_DEPTH_WRITE
+        | D3D12_RESOURCE_STATE_STREAM_OUT
+        | D3D12_RESOURCE_STATE_COPY_DEST;
+
+    return (states & ~kWriteStates) == 0;
+}
+#endif
 static constexpr D3D12_CLEAR_VALUE getClearValue(const Clear& clear) {
     switch (clear.getClearType()) {
     case ClearType::eDepth:
@@ -70,28 +91,34 @@ ResourceAccess& PassBuilder::addWriteAccess(Handle handle, sm::StringView name, 
     return mRenderPass.writes.emplace_back(ResourceAccess{sm::String{name}, handle, access});
 }
 
-FrameGraph::AccessBuilder PassBuilder::read(Handle handle, sm::StringView name, Usage access) {
+AccessBuilder PassBuilder::read(Handle handle, sm::StringView name, Usage access) {
     ResourceAccess& self = mRenderPass.reads.emplace_back(ResourceAccess{sm::String{name}, handle, access});
 
-    return FrameGraph::AccessBuilder{mFrameGraph, self, handle};
+    return AccessBuilder{mFrameGraph, self, handle};
 }
 
-FrameGraph::AccessBuilder PassBuilder::write(Handle handle, sm::StringView name, Usage access) {
+AccessBuilder PassBuilder::write(Handle handle, sm::StringView name, Usage access) {
     if (mFrameGraph.is_imported(handle)) {
         hasSideEffects(true);
     }
 
     ResourceAccess& self = addWriteAccess(handle, name, access);
 
-    return FrameGraph::AccessBuilder{mFrameGraph, self, handle};
+    return AccessBuilder{mFrameGraph, self, handle};
 }
 
-FrameGraph::AccessBuilder PassBuilder::create(ResourceInfo info, sm::StringView name, Usage access) {
+AccessBuilder PassBuilder::create(ResourceInfo info, sm::StringView name, Usage access) {
     auto id = fmt::format("{}/{}", mRenderPass.name, name);
     Handle handle = mFrameGraph.add_transient(info, access, id);
     ResourceAccess& self = mRenderPass.creates.emplace_back(ResourceAccess{id, handle, access});
     addWriteAccess(handle, name, access);
-    return FrameGraph::AccessBuilder{mFrameGraph, self, handle};
+    return AccessBuilder{mFrameGraph, self, handle};
+}
+
+AccessBuilder PassBuilder::read(Handle handle, sm::StringView name) {
+    ResourceAccess& self = mRenderPass.reads.emplace_back(ResourceAccess{sm::String{name}, handle, Usage::eManualOverride});
+
+    return AccessBuilder{mFrameGraph, self, handle};
 }
 
 PassBuilder& PassBuilder::hasSideEffects(bool effects) {
@@ -115,7 +142,11 @@ RenderPassHandle FrameGraph::findNextHandleUse(size_t start, Handle handle) cons
     }
 
     for (uint i = start + 1; i < mRenderPasses.size(); i++) {
-        if (mRenderPasses[i].uses_handle(handle)) {
+        auto& pass = mRenderPasses[i];
+        if (!pass.is_used())
+            continue;
+
+        if (pass.uses_handle(handle)) {
             return RenderPassHandle{i};
         }
     }
@@ -304,35 +335,6 @@ void FrameGraph::optimize() {
     }
 }
 
-static constexpr D3D12_RESOURCE_STATES getStateFromUsage(Usage usage) {
-    using enum Usage::Inner;
-    switch (usage) {
-    case ePresent: return D3D12_RESOURCE_STATE_PRESENT;
-    case eUnknown: return D3D12_RESOURCE_STATE_COMMON;
-
-    case ePixelShaderResource: return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-
-    case eTextureRead: return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-    case eTextureWrite: return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-
-    case eRenderTarget: return D3D12_RESOURCE_STATE_RENDER_TARGET;
-
-    case eCopySource: return D3D12_RESOURCE_STATE_COPY_SOURCE;
-    case eCopyTarget: return D3D12_RESOURCE_STATE_COPY_DEST;
-
-    case eBufferRead: return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-    case eBufferWrite: return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-
-    case eDepthRead: return D3D12_RESOURCE_STATE_DEPTH_READ;
-    case eDepthWrite: return D3D12_RESOURCE_STATE_DEPTH_WRITE;
-
-    case eIndexBuffer: return D3D12_RESOURCE_STATE_INDEX_BUFFER;
-    case eVertexBuffer: return D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
-    }
-}
-
-using AccessBuilder = FrameGraph::AccessBuilder;
-
 AccessBuilder& AccessBuilder::override_desc(D3D12_SHADER_RESOURCE_VIEW_DESC desc) {
     mFrameGraph.mHandles[mHandle.index].srv_desc = desc;
 
@@ -354,6 +356,11 @@ AccessBuilder& AccessBuilder::override_desc(D3D12_RENDER_TARGET_VIEW_DESC desc) 
 AccessBuilder& AccessBuilder::override_desc(D3D12_DEPTH_STENCIL_VIEW_DESC desc) {
     mFrameGraph.mHandles[mHandle.index].dsv_desc = desc;
 
+    return *this;
+}
+
+AccessBuilder& AccessBuilder::withStates(D3D12_RESOURCE_STATES value) {
+    mAccess.states = value;
     return *this;
 }
 
@@ -486,6 +493,26 @@ static D3D12_UNORDERED_ACCESS_VIEW_DESC buildUavDesc(const ResourceInfo& info) {
     return uavDesc;
 }
 
+static D3D12_SHADER_RESOURCE_VIEW_DESC buildSrvDesc(const ResourceInfo& info) {
+    DXGI_FORMAT format = info.getFormat();
+    auto *array = info.asArray();
+    CTASSERTF(array != nullptr, "cannot build srv desc for non-array resources currently");
+
+    bool isStructuredBuffer = format == DXGI_FORMAT_UNKNOWN;
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {
+        .Format = format,
+        .ViewDimension = D3D12_SRV_DIMENSION_BUFFER,
+        .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+        .Buffer = {
+            .FirstElement = 0,
+            .NumElements = array->length,
+            .StructureByteStride = isStructuredBuffer ? array->stride : 0,
+        }
+    };
+
+    return srvDesc;
+}
+
 void FrameGraph::createManagedResources() {
     mResources.clear();
     UsageTracker tracker;
@@ -524,8 +551,17 @@ void FrameGraph::createManagedResources() {
             auto srv = mContext.mSrvPool.allocate();
 
             const auto srvHandle = mContext.mSrvPool.cpu_handle(srv);
-            const D3D12_SHADER_RESOURCE_VIEW_DESC *desc = handle.srv_desc ? &*handle.srv_desc : nullptr;
-            device->CreateShaderResourceView(resource, desc, srvHandle);
+            if (handle.info.isArray()) {
+                const D3D12_SHADER_RESOURCE_VIEW_DESC desc
+                    = handle.srv_desc.has_value()
+                    ? handle.srv_desc.value()
+                    : buildSrvDesc(handle.info);
+
+                device->CreateShaderResourceView(resource, &desc, srvHandle);
+            } else {
+                const D3D12_SHADER_RESOURCE_VIEW_DESC *desc = handle.srv_desc ? &*handle.srv_desc : nullptr;
+                device->CreateShaderResourceView(resource, desc, srvHandle);
+            }
 
             pack.srv = srv;
         }
@@ -825,6 +861,13 @@ void FrameGraph::schedule_graph() {
         void transition(Handle handle, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
             if (before == after) return;
 
+            // if the new state is a subset of the old state
+            // and its read only, we should skip the transition
+            if (isReadOnlyState(before | after)) {
+                if ((after | before) == before)
+                    return;
+            }
+
             transitions.push_back(events::Transition{handle, before, after});
         }
 
@@ -846,14 +889,16 @@ void FrameGraph::schedule_graph() {
         }
     } barriers = { *this };
 
-    auto updateResourceState = [&](Handle index, Usage access) {
-        D3D12_RESOURCE_STATES state = getStateFromUsage(access);
-
+    auto updateResourceFlags = [&](Handle index, D3D12_RESOURCE_STATES states) {
         if (current.contains(index)) {
-            barriers.transition(index, current[index], state);
+            barriers.transition(index, current[index], states);
         }
 
-        current[index] = state;
+        current[index] = states;
+    };
+
+    auto updateResourceState = [&](Handle index, Usage access) {
+        updateResourceFlags(index, getStateFromUsage(access));
     };
 
     // save the initial state of all resources
@@ -959,7 +1004,7 @@ void FrameGraph::schedule_graph() {
         });
 
         // mark the initial state of all resources this pass creates
-        for (auto& access : pass.creates) {
+        for (const ResourceAccess& access : pass.creates) {
             D3D12_RESOURCE_STATES state = getStateFromUsage(access.usage);
             restore.push_back({access.index, state});
             current[access.index] = state;
@@ -973,14 +1018,14 @@ void FrameGraph::schedule_graph() {
 
             // TODO: bad assumptions?
             pass.foreach(eRead | eWrite, [&](const ResourceAccess& access) {
-                updateResourceState(access.index, access.usage);
+                updateResourceFlags(access.index, access.getStateFlags());
             });
 
             continue;
         }
 
         pass.foreach(eRead | eWrite, [&](const ResourceAccess& access) {
-            updateResourceState(access.index, access.usage);
+            updateResourceFlags(access.index, access.getStateFlags());
         });
 
         barriers.submit(mFrameSchedule, list);
@@ -989,7 +1034,20 @@ void FrameGraph::schedule_graph() {
 
         if (type == render::CommandListType::eDirect) {
             pass.foreach(eRead | eWrite, [&](const ResourceAccess& access) {
-                if (auto next = getNextAccess(i, access.index); next != Usage::eUnknown) {
+
+                // collect all the future states of this resource if its only read
+                D3D12_RESOURCE_STATES mask = D3D12_RESOURCE_STATE_COMMON;
+                bool onlyReadStates = forEachAccess(i, access.index, [&](const ResourceAccess& next) {
+                    if (!next.isReadState())
+                        return false;
+
+                    mask |= next.getStateFlags();
+                    return true;
+                });
+
+                if (onlyReadStates) {
+                    updateResourceFlags(access.index, mask);
+                } else if (auto next = getNextAccess(i, access.index); next != Usage::eUnknown) {
                     updateResourceState(access.index, next);
                 }
             });

@@ -58,6 +58,7 @@ static void createDepthPassPipeline(
             .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT), // TODO: is this blend state correct
             .SampleMask = UINT_MAX,
             .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
+            .DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT),
             .InputLayout = { kInputElements, _countof(kInputElements) },
             .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
             .DSVFormat = depth,
@@ -82,20 +83,24 @@ void draw::ecs::depthPrePass(
 
     const world::ecs::Camera *info = dd.camera.get<world::ecs::Camera>();
 
-    const graph::ResourceInfo depthTargetInfo = graph::ResourceInfo::tex2d(info->window, info->depth)
-        .clearDepthStencil(1.f, 0);
+    const graph::ResourceInfo depthTargetInfo = graph::ResourceInfo::tex2d(info->window, render::getDepthTextureFormat(info->depth))
+        .clearDepthStencil(1.f, 0, info->depth);
 
     graph::PassBuilder pass = dd.graph.graphics(fmt::format("Forward+ Depth Prepass ({})", dd.camera.name().c_str()));
 
     depthTarget = pass.create(depthTargetInfo, "Depth", graph::Usage::eDepthWrite)
         .override_srv({
-            .Format = DXGI_FORMAT_R32_FLOAT,
+            .Format = render::getShaderViewFormat(info->depth),
             .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
             .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
             .Texture2D = {
                 .MostDetailedMip = 0,
                 .MipLevels = 1,
             },
+        })
+        .override_dsv({
+            .Format = info->depth,
+            .ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
         });
 
     auto& data = dd.graph.newDeviceData([depth = info->depth](render::IDeviceContext& context) {

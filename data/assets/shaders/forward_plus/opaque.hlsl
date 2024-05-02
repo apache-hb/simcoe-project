@@ -15,13 +15,6 @@ StructuredBuffer<SpotLightData> gSpotLightParams : register(t3);
 
 Buffer<light_index_t> gLightIndexBuffer : register(t4);
 
-struct VertexInput {
-    float3 position : POSITION;
-    float3 normal : NORMAL;
-    float2 uv : TEXCOORD;
-    float3 tangent : TANGENT;
-};
-
 float4x4 getModelMatrix() {
     return gObjectData.model;
 }
@@ -64,12 +57,19 @@ DepthPassAlphaTestVertexOutput vsDepthPassAlphaTest(float3 position : POSITION, 
 
 // vertex shader for opaque objects
 
+struct VertexInput {
+    float3 position : POSITION;
+    float3 normal : NORMAL;
+    float2 uv : TEXCOORD;
+    float3 tangent : TANGENT;
+};
+
 struct VertexOutput {
     float4 position : SV_POSITION;
     float3 normal : NORMAL;
     float2 uv : TEXCOORD0;
     float3 tangent : TANGENT;
-    float3 worldPosition : TEXCOORD2;
+    float3 worldPosition : TEXCOORD1;
 };
 
 VertexOutput vsOpaque(VertexInput input) {
@@ -90,5 +90,5 @@ VertexOutput vsOpaque(VertexInput input) {
 float4 psOpaque(VertexOutput vin) : SV_TARGET {
     // TODO: implement all this
 
-    return float4(vin.worldPosition.xyz, 1.0f);
+    return float4(vin.uv, 0.f, 1.0f);
 }

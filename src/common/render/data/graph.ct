@@ -12,6 +12,7 @@ variant Usage {
     case Present
 
     case PixelShaderResource
+    case ComputeShaderResource
 
     case TextureRead
     case TextureWrite
@@ -29,4 +30,6 @@ variant Usage {
 
     case IndexBuffer
     case VertexBuffer
+
+    case ManualOverride
 }

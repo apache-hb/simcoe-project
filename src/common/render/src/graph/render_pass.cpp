@@ -64,3 +64,24 @@ bool RenderPass::depends_on(const RenderPass& other) const {
         return other.updates_handle(access.index);
     });
 }
+
+ResourceAccess RenderPass::getHandleAccess(Handle handle) const {
+    ResourceAccess result;
+
+    foreach(eRead | eWrite, [&](const ResourceAccess& access) {
+        if (access.index == handle) {
+            result = access;
+        }
+    });
+
+    return result;
+}
+
+D3D12_RESOURCE_STATES ResourceAccess::getStateFlags() const {
+    D3D12_RESOURCE_STATES usageState = getStateFromUsage(usage);
+    return states | usageState;
+}
+
+bool ResourceAccess::isReadState() const {
+    return isReadOnlyState(getStateFlags());
+}

@@ -126,26 +126,7 @@ void ecs::lightBinning(
         auto lightIndices = graph.uav(indices);
         auto lightIndicesHandle = context.mSrvPool.gpu_handle(lightIndices);
 
-        const world::ecs::Camera *info = camera.get<world::ecs::Camera>();
-        const world::ecs::Position *position = camera.get<world::ecs::Position, world::ecs::World>();
-        const world::ecs::Direction *direction = camera.get<world::ecs::Direction>();
-        ecs::ViewportDeviceData *vpd = camera.get_mut<ecs::ViewportDeviceData>();
-
-        ViewportData& viewport = vpd->data;
-        viewport.window = info->window;
-
-        float4x4 projection = info->getProjectionMatrix();
-        float4x4 invProjection = projection.inverse();
-        float4x4 view = world::ecs::getViewMatrix(*position, *direction);
-
-        viewport.projection = projection;
-        viewport.invProjection = invProjection;
-        viewport.worldView = view;
-        viewport.cameraPosition = position->position;
-        viewport.depthBufferSampleCount = 0;
-        viewport.depthBufferSize = info->window;
-
-        vpd->update(viewport);
+        const ecs::ViewportDeviceData *vpd = camera.get<ecs::ViewportDeviceData>();
 
         commands->SetComputeRootSignature(data.pipeline.signature.get());
         commands->SetPipelineState(data.pipeline.pso.get());

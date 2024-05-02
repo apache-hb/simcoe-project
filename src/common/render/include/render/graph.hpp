@@ -106,13 +106,13 @@ namespace sm::graph {
 
         ResourceInfo& clear(Clear clear) { mClearValue = clear; return *this; }
 
-        ResourceInfo& clearColour(math::float4 colour) {
-            mClearValue = Clear::colour(colour, mFormat);
+        ResourceInfo& clearColour(math::float4 colour, DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN) {
+            mClearValue = Clear::colour(colour, (format == DXGI_FORMAT_UNKNOWN) ? getFormat() : format);
             return *this;
         }
 
-        ResourceInfo& clearDepthStencil(float depth, uint8 stencil) {
-            mClearValue = Clear::depthStencil(depth, stencil, mFormat);
+        ResourceInfo& clearDepthStencil(float depth, uint8 stencil, DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN) {
+            mClearValue = Clear::depthStencil(depth, stencil, (format == DXGI_FORMAT_UNKNOWN) ? getFormat() : format);
             return *this;
         }
 
@@ -125,6 +125,8 @@ namespace sm::graph {
 
         const Tex2dInfo *asTex2d() const { return std::get_if<Tex2dInfo>(&mResourceSize); }
         const ArrayInfo *asArray() const { return std::get_if<ArrayInfo>(&mResourceSize); }
+        bool isTex2d() const { return asTex2d() != nullptr; }
+        bool isArray() const { return asArray() != nullptr; }
     };
 
     struct DescriptorPack {
@@ -275,6 +277,23 @@ namespace sm::graph {
 
         Usage getNextAccess(size_t start, Handle handle) const;
 
+        bool forEachAccess(size_t start, Handle handle, auto&& fn) const {
+            if (start >= mRenderPasses.size()) return true;
+
+            for (size_t i = start; i < mRenderPasses.size(); i++) {
+                auto& pass = mRenderPasses[i];
+                if (!pass.is_used()) continue;
+
+                if (pass.uses_handle(handle)) {
+                    if (!fn(pass.getHandleAccess(handle))) {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
         void createManagedResources();
 
         // figure out what passes should be run on which queues
@@ -316,6 +335,7 @@ namespace sm::graph {
             AccessBuilder& override_desc(D3D12_RENDER_TARGET_VIEW_DESC desc);
             AccessBuilder& override_desc(D3D12_DEPTH_STENCIL_VIEW_DESC desc);
 
+            AccessBuilder& withStates(D3D12_RESOURCE_STATES value);
             AccessBuilder& withLayout(D3D12_BARRIER_LAYOUT value);
             AccessBuilder& withAccess(D3D12_BARRIER_ACCESS value);
             AccessBuilder& withSyncPoint(D3D12_BARRIER_SYNC value);
@@ -336,6 +356,8 @@ namespace sm::graph {
             AccessBuilder read(Handle handle,       sm::StringView name, Usage access);
             AccessBuilder write(Handle handle,      sm::StringView name, Usage access);
             AccessBuilder create(ResourceInfo info, sm::StringView name, Usage access);
+
+            AccessBuilder read(Handle handle, sm::StringView name);
 
             PassBuilder& hasSideEffects(bool effects = true);
 

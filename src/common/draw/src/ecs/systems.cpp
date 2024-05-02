@@ -92,6 +92,10 @@ void draw::ecs::initObjectObservers(flecs::world& world, render::IDeviceContext 
                     .viewProjection = float4x4::identity(),
                     .worldView = v.transpose(),
                     .projection = p.transpose(),
+                    .invProjection = p.inverse().transpose(),
+                    .cameraPosition = pos[i].position,
+                    .window = camera[i].window,
+                    .depthBufferSize = camera[i].window,
                 });
             }
         });
