@@ -4,6 +4,8 @@
 #include "math/units.hpp"
 #include "math/vector.hpp"
 
+#include <DirectXMath.h>
+
 namespace sm::math {
     template<typename T>
     struct alignas(sizeof(T) * 16) Mat4x4 {
@@ -273,6 +275,104 @@ namespace sm::math {
             Vec4 r2 = { rows[0].z, rows[1].z, rows[2].z, rows[3].z };
             Vec4 r3 = { rows[0].w, rows[1].w, rows[2].w, rows[3].w };
             return { r0, r1, r2, r3 };
+        }
+
+        constexpr Mat4x4 inverse() const {
+            Mat4x4 mt = transpose();
+
+            Vec4 v0[4];
+            Vec4 v1[4];
+
+            v0[0] = swizzle(mt.row(2), X, X, Y, Y);
+            v1[0] = swizzle(mt.row(3), Z, W, Z, W);
+            v0[1] = swizzle(mt.row(0), X, X, Y, Y);
+            v1[1] = swizzle(mt.row(1), Z, W, Z, W);
+            v0[2] = permute(mt.row(2), mt.row(0), X0, Z0, X1, Z1);
+            v1[2] = permute(mt.row(3), mt.row(1), Y0, W0, Y1, W1);
+
+            Vec4 d0 = v0[0] * v1[0];
+            Vec4 d1 = v0[1] * v1[1];
+            Vec4 d2 = v0[2] * v1[2];
+
+            v0[0] = swizzle(mt.row(2), Z, W, Z, W);
+            v1[0] = swizzle(mt.row(3), X, X, Y, Y);
+            v0[1] = swizzle(mt.row(0), Z, W, Z, W);
+            v1[1] = swizzle(mt.row(1), X, X, Y, Y);
+            v0[2] = permute(mt.row(2), mt.row(0), Y0, W0, Y1, W1);
+            v1[2] = permute(mt.row(3), mt.row(1), X0, Z0, X1, Z1);
+
+            d0 -= v0[0] * v1[0];
+            d1 -= v0[1] * v1[1];
+            d2 -= v0[2] * v1[2];
+
+            v0[0] = swizzle(mt.row(1), Y, Z, X, Y);
+            v1[0] = permute(d0, d2, Y1, Y0, W0, X0);
+            v0[1] = swizzle(mt.row(0), Z, X, Y, X);
+            v1[1] = permute(d0, d2, W0, Y1, Y0, Z0);
+            v0[2] = swizzle(mt.row(3), Y, Z, X, Y);
+            v1[2] = permute(d1, d2, W1, Y0, W0, X0);
+            v0[3] = swizzle(mt.row(2), Z, X, Y, X);
+            v1[3] = permute(d1, d2, W0, W1, Y0, Z0);
+
+            Vec4 c0 = v0[0] * v1[0];
+            Vec4 c2 = v0[1] * v1[1];
+            Vec4 c4 = v0[2] * v1[2];
+            Vec4 c6 = v0[3] * v1[3];
+
+            v0[0] = swizzle(mt.row(1), Z, W, Y, Z);
+            v1[0] = permute(d0, d2, W0, X0, Y0, X1);
+            v0[1] = swizzle(mt.row(0), W, Z, W, Y);
+            v1[1] = permute(d0, d2, Z0, Y0, X1, X0);
+            v0[2] = swizzle(mt.row(3), Z, W, Y, Z);
+            v1[2] = permute(d1, d2, W0, X0, Y0, Z1);
+            v0[3] = swizzle(mt.row(2), W, Z, W, Y);
+            v1[3] = permute(d1, d2, Z0, Y0, Z1, X0);
+
+            c0 -= v0[0] * v1[0];
+            c2 -= v0[1] * v1[1];
+            c4 -= v0[2] * v1[2];
+            c6 -= v0[3] * v1[3];
+
+            v0[0] = swizzle(mt.row(1), W, X, W, X);
+            v1[0] = permute(d0, d2, Z0, Y1, X1, Z0);
+            v0[1] = swizzle(mt.row(0), Y, W, X, Z);
+            v1[1] = permute(d0, d2, Y1, X0, W0, X1);
+            v0[2] = swizzle(mt.row(3), W, X, W, X);
+            v1[2] = permute(d1, d2, Z0, W1, Z1, Z0);
+            v0[3] = swizzle(mt.row(2), Y, W, X, Z);
+            v1[3] = permute(d1, d2, W1, X0, W0, Z1);
+
+            Vec4 c1 = c0 - (v0[0] * v1[0]);
+            c0 += v0[0] * v1[0];
+
+            Vec4 c3 = c2 + (v0[1] * v1[1]);
+            c2 -= v0[1] * v1[1];
+
+            Vec4 c5 = c4 + (v0[2] * v1[2]);
+            c4 += v0[2] * v1[2];
+
+            Vec4 c7 = c6 + (v0[3] * v1[3]);
+            c6 -= v0[3] * v1[3];
+
+            Mat4x4 r = {
+                select(c0, c1, A, B, A, B),
+                select(c2, c3, A, B, A, B),
+                select(c4, c5, A, B, A, B),
+                select(c6, c7, A, B, A, B)
+            };
+
+            Vec4 det = Vec4::dot(r.row(0), mt.row(0));
+
+            Vec4 reciprocal = det.reciprocal();
+
+            Mat4x4 result = {
+                r.row(0) * reciprocal,
+                r.row(1) * reciprocal,
+                r.row(2) * reciprocal,
+                r.row(3) * reciprocal
+            };
+
+            return result;
         }
 
         static constexpr Mat4x4 identity() {

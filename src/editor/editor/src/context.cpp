@@ -110,12 +110,19 @@ void EditorContext::setup_framegraph(graph::FrameGraph& graph) {
 
             entity.set<ecs::CameraData>({ target, depth });
 
+            draw::ecs::DrawData dd {
+                .depthBoundsMode = draw::forward_plus::DepthBoundsMode::eEnabled,
+                .graph = graph,
+                .world = getWorld(),
+                .camera = entity,
+            };
+
             graph::Handle spotLightVolumes, pointLightVolumes, spotLightData, pointLightData;
             graph::Handle depthPrePassTarget;
             graph::Handle lightIndices;
-            draw::ecs::copyLightData(getWorld(), graph, spotLightVolumes, pointLightVolumes, spotLightData, pointLightData);
-            draw::ecs::depthPrePass(getWorld(), graph, depthPrePassTarget, entity);
-            draw::ecs::lightBinning(getWorld(), graph, lightIndices, depthPrePassTarget, pointLightData, spotLightData, entity);
+            draw::ecs::copyLightData(dd, spotLightVolumes, pointLightVolumes, spotLightData, pointLightData);
+            draw::ecs::depthPrePass(dd, depthPrePassTarget);
+            draw::ecs::lightBinning(dd, lightIndices, depthPrePassTarget, pointLightData, spotLightData);
         });
     });
 

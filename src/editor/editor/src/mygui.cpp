@@ -49,14 +49,14 @@ bool MyGui::EditSwizzle(const char *label, uint8 *mask, int components) {
     uint8 it = *mask;
     for (int i = 0; i < components; ++i) {
         ImGui::SameLine();
-        int v = math::swizzle_get(it, Swizzle(i));
+        int v = math::swizzle_get(it, Channel(i));
         ImGui::PushID(i);
         if (ImGui::BeginCombo("", labels[v], flags)) {
             for (int j = 0; j < 4; ++j) {
                 bool selected = v == j;
                 if (ImGui::Selectable(labels[j], selected)) {
                     v = j;
-                    it = math::swizzle_set(it, Swizzle(i), Swizzle(v));
+                    it = math::swizzle_set(it, Channel(i), Channel(v));
                 }
                 if (selected) {
                     ImGui::SetItemDefaultFocus();

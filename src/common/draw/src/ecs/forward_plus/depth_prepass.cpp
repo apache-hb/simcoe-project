@@ -70,18 +70,17 @@ static void createDepthPassPipeline(
 }
 
 void draw::ecs::depthPrePass(
-    flecs::world& world,
-    graph::FrameGraph &graph,
-    graph::Handle &depthTarget,
-    flecs::entity camera)
+    DrawData& dd,
+    graph::Handle &depthTarget
+)
 {
-    static flecs::query drawObjectData = world.query<
+    static flecs::query drawObjectData = dd.world.query<
         const ecs::ObjectDeviceData,
         const render::ecs::IndexBuffer,
         const render::ecs::VertexBuffer
     >();
 
-    const world::ecs::Camera *info = camera.get<world::ecs::Camera>();
+    const world::ecs::Camera *info = dd.camera.get<world::ecs::Camera>();
 
     const graph::ResourceInfo depthTargetInfo = {
         .size = graph::ResourceSize::tex2d(info->window),
@@ -89,7 +88,7 @@ void draw::ecs::depthPrePass(
         .clear = graph::Clear::depthStencil(1.f, 0, info->depth),
     };
 
-    graph::PassBuilder pass = graph.graphics(fmt::format("Forward+ Depth Prepass ({})", camera.name().c_str()));
+    graph::PassBuilder pass = dd.graph.graphics(fmt::format("Forward+ Depth Prepass ({})", dd.camera.name().c_str()));
 
     depthTarget = pass.create(depthTargetInfo, "Depth", graph::Usage::eDepthWrite)
         .override_srv({
@@ -102,7 +101,7 @@ void draw::ecs::depthPrePass(
             },
         });
 
-    auto& data = graph.newDeviceData([depth = info->depth](render::IDeviceContext& context) {
+    auto& data = dd.graph.newDeviceData([depth = info->depth](render::IDeviceContext& context) {
         struct {
             render::Pipeline pipeline;
         } info;
@@ -112,7 +111,7 @@ void draw::ecs::depthPrePass(
         return info;
     });
 
-    pass.bind([depthTarget, camera, &data](graph::RenderContext& ctx) {
+    pass.bind([depthTarget, camera = dd.camera, &data](graph::RenderContext& ctx) {
         auto& [context, graph, _, commands] = ctx;
 
         auto dsv = graph.dsv(depthTarget);

@@ -1055,7 +1055,9 @@ void FrameGraph::execute() {
     for (auto& step : mFrameSchedule) {
         std::visit(overloaded {
             [&](events::DeviceSync sync) {
+#if SMC_RENDER_FRAMEGRAPH_TRACE
                 gRenderLog.info("Sync(signal: {}, wait: {})", sync.signal, sync.wait);
+#endif
                 ID3D12CommandQueue *signal = mContext.getQueue(sync.signal);
                 ID3D12CommandQueue *wait = mContext.getQueue(sync.wait);
                 auto& [fence, value] = getFence(sync.fence);
@@ -1066,19 +1068,24 @@ void FrameGraph::execute() {
                 SM_ASSERT_HR(wait->Wait(fence.get(), it));
             },
             [&](events::ResourceBarrier& event) {
+#if SMC_RENDER_FRAMEGRAPH_TRACE
                 gRenderLog.info("ResourceBarrier({}) - {}", mFrameData[event.handle.index].type, event.handle.index);
+#endif
                 ID3D12GraphicsCommandList1 *commands = getCommandList(event.handle);
                 event.build(*this);
                 commands->ResourceBarrier(event.size(), event.data());
             },
             [&](events::OpenCommands open) {
+#if SMC_RENDER_FRAMEGRAPH_TRACE
                 auto& list = mFrameData[open.handle.index];
                 gRenderLog.info("OpenCommands({}) - {}", list.type, open.handle.index);
+#endif
 
                 resetCommandBuffer(open.handle);
             },
             [&](events::RecordCommands record) {
                 auto& pass = mRenderPasses[record.pass.index];
+#if SMC_RENDER_FRAMEGRAPH_TRACE
                 gRenderLog.info("RecordCommands({}) - {}", pass.name, record.pass.index);
                 for (auto& access : pass.reads) {
                     gRenderLog.info("  | read {} ({})", access.name, getStateFromUsage(access.usage));
@@ -1091,6 +1098,7 @@ void FrameGraph::execute() {
                 for (auto& access : pass.creates) {
                     gRenderLog.info("  | create {} ({})", access.name, getStateFromUsage(access.usage));
                 }
+#endif
 
                 ID3D12GraphicsCommandList1 *commands = getCommandList(record.handle);
                 RenderContext ctx{getContext(), *this, pass, commands};
@@ -1101,12 +1109,15 @@ void FrameGraph::execute() {
             },
             [&](events::SubmitCommands submit) {
                 auto& list = mFrameData[submit.handle.index];
-                gRenderLog.info("SubmitCommands({}) - {}", list.type, submit.handle.index);
-                closeCommandBuffer(submit.handle);
-                ID3D12GraphicsCommandList1 *commands = getCommandList(submit.handle);
-                ID3D12CommandQueue *queue = mContext.getQueue(getCommandListType(submit.handle));
 
-                ID3D12CommandList *lists[] = { commands };
+#if SMC_RENDER_FRAMEGRAPH_TRACE
+                gRenderLog.info("SubmitCommands({}) - {}", list.type, submit.handle.index);
+#endif
+
+                closeCommandBuffer(submit.handle);
+                ID3D12CommandQueue *queue = mContext.getQueue(list.type);
+
+                ID3D12CommandList *lists[] = { list.commands.get() };
                 queue->ExecuteCommandLists(1, lists);
             }
         }, step);

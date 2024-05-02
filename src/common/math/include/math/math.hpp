@@ -85,73 +85,7 @@ namespace sm::math {
     static_assert(sizeof(uint32x2) == sizeof(uint32) * 2);
     static_assert(sizeof(uint32x3) == sizeof(uint32) * 3);
     static_assert(sizeof(uint32x4) == sizeof(uint32) * 4);
-
-    enum Swizzle {
-        X = 0, R = 0,
-        Y = 1, G = 1,
-        Z = 2, B = 2,
-        W = 3, A = 3,
-    };
     // NOLINTEND
-
-    constexpr uint8 swizzle_mask(Swizzle x, Swizzle y, Swizzle z, Swizzle w) {
-        return (x << 0) | (y << 2) | (z << 4) | (w << 6);
-    }
-
-    constexpr Swizzle swizzle_get(uint8 mask, Swizzle channel) {
-        return static_cast<Swizzle>((mask >> (channel * 2)) & 0x3);
-    }
-
-    constexpr uint8 swizzle_set(uint8 mask, Swizzle channel, Swizzle value) {
-        return (mask & ~(0x3 << (channel * 2))) | (value << (channel * 2));
-    }
-
-    // NOLINTBEGIN
-    enum Select : uint {
-        LO = 0,
-        HI = 0xFFFFFFFF,
-    };
-    // NOLINTEND
-
-    constexpr uint32x4 select_mask(Select x, Select y, Select z, Select w) {
-        static_assert(sizeof(uint32) == sizeof(float), "uint32 and float must be the same size for masking to work");
-        return uint32x4(x, y, z, w);
-    }
-
-    // TODO: should this be a static in Quat<T>
-    template <typename T>
-    constexpr Vec3<T> rotate(const Quat<T> &q, const Vec3<T> &v) {
-        const Vec3<T> t = cross(q.v, v) * T(2);
-        return v + t * q.angle + cross(q.v, t);
-    }
-
-    template<IsVector T>
-    constexpr T swizzle(const T& v, uint8 mask) {
-        T out;
-        for (size_t i = 0; i < T::kSize; i++) {
-            out.fields[i] = v.fields[(mask >> (i * 2)) & 0x3];
-        }
-        return out;
-    }
-
-    template<IsVector T>
-    constexpr T swizzle(const T& v, Swizzle x = X, Swizzle y = Y, Swizzle z = Z, Swizzle w = W) {
-        return swizzle(v, swizzle_mask(x, y, z, w));
-    }
-
-    template<IsVector T>
-    constexpr bool nearly_equal(const T& lhs, const T& rhs, typename T::Type epsilon) {
-        return (lhs - rhs).length() < epsilon;
-    }
-
-    template<IsVector T>
-    constexpr T select(Vec<uint, T::kSize> mask, const T& lhs, const T& rhs) {
-        T out;
-        for (size_t i = 0; i < T::kSize; i++) {
-            out.fields[i] = (lhs.fields[i] & ~mask.fields[i]) | (rhs.fields[i] & mask.fields[i]);
-        }
-        return out;
-    }
 }
 
 // NOLINTBEGIN

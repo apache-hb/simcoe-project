@@ -14,20 +14,24 @@ void events::ResourceBarrier::build(FrameGraph& graph) {
 
     for (const Transition& transition : transitions) {
         ID3D12Resource *resource = graph.resource(transition.resource);
-        auto name = render::getObjectDebugName(resource);
 
         barriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(resource, transition.before, transition.after));
 
+#if SMC_RENDER_FRAMEGRAPH_TRACE
+        auto name = render::getObjectDebugName(resource);
         gRenderLog.info(" - {} (before: {}, after: {})", name, transition.before, transition.after);
+#endif
     }
 
     for (const UnorderedAccess& uav : uavs) {
         ID3D12Resource *resource = graph.resource(uav.resource);
-        auto name = render::getObjectDebugName(resource);
 
         barriers.push_back(CD3DX12_RESOURCE_BARRIER::UAV(resource));
 
+#if SMC_RENDER_FRAMEGRAPH_TRACE
+        auto name = render::getObjectDebugName(resource);
         gRenderLog.info(" - {} (UAV)", name);
+#endif
     }
 }
 

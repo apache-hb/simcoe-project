@@ -19,18 +19,6 @@ namespace sm::draw {
     /// forward+ pipeline
     ///
 
-    struct WorldDrawData {
-        sm::Vector<MaterialData> materialData;
-
-        sm::Vector<ObjectData> objectData;
-
-        // staging buffers for light data to be processed into
-        // before being uploaded to the gpu
-        sm::Vector<LightVolumeData> lightVolumeData;
-        sm::Vector<PointLightData> pointLightData;
-        sm::Vector<SpotLightData> spotLightData;
-    };
-
     namespace forward_plus {
         enum class DepthBoundsMode {
             eDisabled = 0,
@@ -117,14 +105,16 @@ namespace sm::draw {
     namespace ecs {
         struct DrawData {
             forward_plus::DepthBoundsMode depthBoundsMode;
+            graph::FrameGraph& graph;
+            flecs::world& world;
+            flecs::entity camera;
         };
 
         void initObjectObservers(flecs::world& world, render::IDeviceContext &context);
         void opaque(flecs::world& world, graph::FrameGraph& graph, graph::Handle& target, graph::Handle& depth, flecs::entity camera);
 
         void copyLightData(
-            flecs::world& world,
-            graph::FrameGraph& graph,
+            DrawData& dd,
             graph::Handle& spotLightVolumeData,
             graph::Handle& pointLightVolumeData,
             graph::Handle& spotLightData,
@@ -132,19 +122,17 @@ namespace sm::draw {
         );
 
         void depthPrePass(
-            flecs::world& world,
-            graph::FrameGraph& graph,
-            graph::Handle& depthTarget,
-            flecs::entity camera);
+            DrawData& dd,
+            graph::Handle& depthTarget
+        );
 
         void lightBinning(
-            flecs::world& world,
-            graph::FrameGraph& graph,
+            DrawData& dd,
             graph::Handle& indices,
             graph::Handle depth,
             graph::Handle pointLightData,
-            graph::Handle spotLightData,
-            flecs::entity camera);
+            graph::Handle spotLightData
+        );
     }
 
     ///

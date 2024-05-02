@@ -1,1 +1,0 @@
-project('directx-strings', 'cpp')

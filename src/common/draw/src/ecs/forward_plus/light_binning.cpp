@@ -1,6 +1,9 @@
 #include "stdafx.hpp"
 
 #include "draw/draw.hpp"
+#include "draw/shared.hpp"
+
+#include "world/ecs.hpp"
 
 using namespace sm;
 using namespace sm::draw;
@@ -70,21 +73,25 @@ static void createLightBinningPipeline(
 }
 
 void ecs::lightBinning(
-    flecs::world &world,
-    graph::FrameGraph &graph,
+    DrawData& dd,
     graph::Handle &indices,
     graph::Handle depth,
     graph::Handle pointLightData,
-    graph::Handle spotLightData,
-    flecs::entity camera
+    graph::Handle spotLightData
 )
 {
-    graph::PassBuilder pass = graph.compute("Light Binning")
-        .hasSideEffects();
+    const world::ecs::Camera *info = dd.camera.get<world::ecs::Camera>();
+
+    uint tileCount = draw::get_tile_count(info->window, TILE_SIZE);
+    uint tileIndexCount = tileCount * MAX_LIGHTS_PER_TILE;
 
     const graph::ResourceInfo lightIndexInfo = {
-        .size = graph::ResourceSize::buffer(sizeof(uint) * MAX_LIGHTS)
+        .size = graph::ResourceSize::buffer(sizeof(uint) * tileIndexCount),
+        .format = DXGI_FORMAT_R32_UINT,
     };
+
+    graph::PassBuilder pass = dd.graph.compute("Light Binning")
+        .hasSideEffects();
 
     indices = pass.create(lightIndexInfo, "Light Indices", graph::Usage::eBufferWrite)
         .override_uav({
@@ -92,7 +99,7 @@ void ecs::lightBinning(
             .ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
             .Buffer = {
                 .FirstElement = 0,
-                .NumElements = MAX_LIGHTS,
+                .NumElements = tileIndexCount,
             },
         })
         .override_srv({
@@ -101,7 +108,7 @@ void ecs::lightBinning(
             .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
             .Buffer = {
                 .FirstElement = 0,
-                .NumElements = MAX_LIGHTS,
+                .NumElements = tileIndexCount,
             },
         });
 
@@ -109,7 +116,7 @@ void ecs::lightBinning(
     pass.read(pointLightData, "Point Light Data", graph::Usage::eBufferRead);
     pass.read(spotLightData, "Spot Light Data", graph::Usage::eBufferRead);
 
-    auto& data = graph.newDeviceData([](render::IDeviceContext& context) {
+    auto& data = dd.graph.newDeviceData([](render::IDeviceContext& context) {
         struct {
             render::Pipeline pipeline;
         } info;
@@ -119,7 +126,7 @@ void ecs::lightBinning(
         return info;
     });
 
-    pass.bind([=, &data](graph::RenderContext& ctx) {
+    pass.bind([=, camera = dd.camera, &data](graph::RenderContext& ctx) {
         auto& [context, graph, _, commands] = ctx;
 
         ID3D12Resource *pointLightHandle = graph.resource(pointLightData);
@@ -131,7 +138,25 @@ void ecs::lightBinning(
         auto lightIndices = graph.uav(indices);
         auto lightIndicesHandle = context.mSrvPool.gpu_handle(lightIndices);
 
-        const ecs::ViewportDeviceData *vpd = camera.get<ecs::ViewportDeviceData>();
+        const world::ecs::Camera *info = camera.get<world::ecs::Camera>();
+        const world::ecs::Position *position = camera.get<world::ecs::Position, world::ecs::World>();
+        const world::ecs::Direction *direction = camera.get<world::ecs::Direction>();
+        ecs::ViewportDeviceData *vpd = camera.get_mut<ecs::ViewportDeviceData>();
+
+        ViewportData& viewport = vpd->data;
+        viewport.window = info->window;
+
+        float4x4 projection = info->getProjectionMatrix();
+        float4x4 invProjection = projection.inverse();
+        float4x4 view = world::ecs::getViewMatrix(*position, *direction);
+
+        viewport.projection = projection;
+        viewport.invProjection = invProjection;
+        viewport.worldView = view;
+        viewport.depthBufferSampleCount = 0;
+        viewport.depthBufferSize = info->window;
+
+        vpd->update(viewport);
 
         commands->SetComputeRootSignature(data.pipeline.signature.get());
         commands->SetPipelineState(data.pipeline.pso.get());

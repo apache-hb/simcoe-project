@@ -45,6 +45,11 @@ option('amd_ags_enable', type : 'boolean',
     value : 'true'
 )
 
+option('framegraph_trace', type : 'boolean',
+    description : 'Enable framegraph trace',
+    value : 'false'
+)
+
 option('tracy_enable', type : 'boolean',
     value : 'false'
 )

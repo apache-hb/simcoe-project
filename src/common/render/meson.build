@@ -7,6 +7,7 @@ ags = dependency('amd_ags', required : get_option('amd_ags_enable'))
 render_cdata = configuration_data()
 render_cdata.set10('SMC_RENDER_ENABLE_NVAPI', nvapi.found())
 render_cdata.set10('SMC_RENDER_ENABLE_AMD_AGS', ags.found())
+render_cdata.set10('SMC_RENDER_FRAMEGRAPH_TRACE', get_option('framegraph_trace'))
 
 render_config = configure_file(
     output : 'simcoe_render_config.h',

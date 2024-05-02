@@ -179,13 +179,15 @@ void forward_plus::light_binning(
     graph::Handle depth,
     graph::Handle point_light_data,
     graph::Handle spot_light_data,
-    forward_plus::DrawData dd)
+    forward_plus::DrawData dd
+)
 {
     const auto& camera = dd.camera.config();
-    uint tile_count = draw::get_tile_count(camera.size, TILE_SIZE);
+    uint tileCount = draw::get_tile_count(camera.size, TILE_SIZE);
+    uint tileIndexCount = tileCount * MAX_LIGHTS_PER_TILE;
 
     graph::ResourceInfo info = {
-        .size = graph::ResourceSize::buffer(sizeof(uint) * LIGHT_INDEX_BUFFER_STRIDE * tile_count),
+        .size = graph::ResourceSize::buffer(sizeof(uint) * tileIndexCount),
         .format = DXGI_FORMAT_R32_UINT,
     };
 
@@ -201,7 +203,7 @@ void forward_plus::light_binning(
             .ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
             .Buffer = {
                 .FirstElement = 0,
-                .NumElements = LIGHT_INDEX_BUFFER_STRIDE * tile_count,
+                .NumElements = tileIndexCount,
             },
         });
 

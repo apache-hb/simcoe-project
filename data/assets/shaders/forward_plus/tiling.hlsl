@@ -26,7 +26,7 @@ Texture2D<float> gDepthTexture : register(t2);
 //   uint pointLightIndices[MAX_POINT_LIGHTS_PER_TILE];
 //   uint spotLightIndices[MAX_SPOT_LIGHTS_PER_TILE];
 // };
-RWBuffer<uint> gLightIndexBuffer : register(u0);
+RWBuffer<light_index_t> gLightIndexBuffer : register(u0);
 
 // shared memory for light culling
 
@@ -35,16 +35,13 @@ groupshared uint ldsZMax;
 groupshared uint ldsZMin;
 #endif
 
-groupshared uint gLightIndexCount;
-groupshared uint gLightIndex[MAX_LIGHTS_PER_TILE];
+groupshared light_index_t gLightIndexCount;
+groupshared light_index_t gLightIndex[MAX_LIGHTS_PER_TILE];
 
 // helper functions
 
-uint2 get_tile_count() {
-    uint x = uint((gCameraData.window_width() + TILE_SIZE - 1) / float(TILE_SIZE));
-    uint y = uint((gCameraData.window_height() + TILE_SIZE - 1) / float(TILE_SIZE));
-
-    return uint2(x, y);
+uint2 getWindowTileCount() {
+    return computeTileCount(gCameraData.window);
 }
 
 float3 convert_projection_to_view(float4 p) {
@@ -185,7 +182,7 @@ void cs_cull_lights(
         gLightIndexCount = 0;
     }
 
-    uint2 tile_count = get_tile_count();
+    uint2 tile_count = getWindowTileCount();
 
     FrustumData frustum;
     {
@@ -207,7 +204,6 @@ void cs_cull_lights(
         frustum.plane3 = create_plane_equation(frustum3, frustum0);
     }
 
-#if 0
     GroupMemoryBarrierWithGroupSync();
 
 #if DEPTH_BOUNDS_MODE == DEPTH_BOUNDS_ENABLED
@@ -222,11 +218,11 @@ void cs_cull_lights(
 
     // cull point lights for this tile
     frustum.cull_lights(localIndex, gCameraData.pointLightCount, gPointLightData);
-    uint pointLightsInTile = gLightIndexCount;
+    light_index_t pointLightsInTile = gLightIndexCount;
 
     // cull spot lights for this tile
     frustum.cull_lights(localIndex, gCameraData.spotLightCount, gSpotLightData);
-    uint spotLightsInTile = gLightIndexCount - pointLightsInTile;
+    light_index_t spotLightsInTile = gLightIndexCount - pointLightsInTile;
 
     // write the light indices to the buffer
     uint globalTileIndex = groupId.x + groupId.y * tile_count.x;
@@ -248,5 +244,4 @@ void cs_cull_lights(
             gLightIndexBuffer[startOffset + LIGHT_INDEX_BUFFER_HEADER + MAX_POINT_LIGHTS_PER_TILE + j] = gLightIndex[j + pointLightsInTile];
         }
     }
-#endif
 }

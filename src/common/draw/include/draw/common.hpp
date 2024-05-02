@@ -8,6 +8,12 @@ namespace sm::draw {
 using namespace sm::math;
 #endif
 
+#ifdef __HLSL_VERSION
+#   define CXX_CONSTEXPR
+#else
+#   define CXX_CONSTEXPR constexpr
+#endif
+
 #define TILE_SIZE 16
 
 #define MAX_LIGHTS 0x1000
@@ -30,6 +36,8 @@ using namespace sm::math;
 // };
 #define LIGHT_INDEX_BUFFER_HEADER (1 + 1)
 #define LIGHT_INDEX_BUFFER_STRIDE (LIGHT_INDEX_BUFFER_HEADER + MAX_POINT_LIGHTS_PER_TILE + MAX_SPOT_LIGHTS_PER_TILE)
+
+typedef uint light_index_t;
 
 struct ObjectData {
     float4x4 model;
@@ -55,6 +63,13 @@ struct ViewportData {
     uint depth_width() { return depthBufferSize.x; }
     uint depth_height() { return depthBufferSize.y; }
 };
+
+CXX_CONSTEXPR uint2 computeTileCount(uint2 size) {
+    uint x = uint((size.x + TILE_SIZE - 1) / TILE_SIZE);
+    uint y = uint((size.y + TILE_SIZE - 1) / TILE_SIZE);
+
+    return uint2(x, y);
+}
 
 struct LightVolumeData {
     float3 position;

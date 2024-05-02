@@ -339,6 +339,14 @@ namespace sm::math {
             );
         }
 
+        constexpr Vec4 reciprocal() const {
+            return Vec4(1 / x, 1 / y, 1 / z, 1 / w);
+        }
+
+        static constexpr Vec4 dot(const Vec4& lhs, const Vec4& rhs) {
+            return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z + lhs.w * rhs.w;
+        }
+
         constexpr const T& operator[](size_t index) const { return at(index); }
         constexpr T& operator[](size_t index) { return at(index); }
 
@@ -361,4 +369,78 @@ namespace sm::math {
             CTASSERTF(index < 4, "index out of bounds (%zu < 4)", index);
         }
     };
+
+    // NOLINTBEGIN
+    template<IsVector T>
+    T fma(T a, T b, T c) {
+        return c + (a * b);
+    }
+
+    enum Channel {
+        X = 0,
+        Y = 1,
+        Z = 2,
+        W = 3,
+    };
+
+    enum Side { A = 0, B = 0xFFFFFFFF };
+
+    constexpr uint8 swizzle_mask(Channel x, Channel y, Channel z, Channel w) {
+        return (x << 0) | (y << 2) | (z << 4) | (w << 6);
+    }
+
+    constexpr Channel swizzle_get(uint8 mask, Channel channel) {
+        return static_cast<Channel>((mask >> (channel * 2)) & 0x3);
+    }
+
+    constexpr uint8 swizzle_set(uint8 mask, Channel channel, Channel value) {
+        return (mask & ~(0x3 << (channel * 2))) | (value << (channel * 2));
+    }
+
+    template<IsVector T>
+    constexpr T swizzle(T v, uint8 mask) {
+        T out;
+        for (size_t i = 0; i < T::kSize; i++) {
+            out.fields[i] = v.fields[(mask >> (i * 2)) & 0x3];
+        }
+        return out;
+    }
+
+    template<IsVector T>
+    constexpr T swizzle(T v, Channel x = X, Channel y = Y, Channel z = Z, Channel w = W) {
+        return swizzle(v, swizzle_mask(x, y, z, w));
+    }
+
+    template<IsVector T>
+    constexpr bool nearly_equal(T lhs, T rhs, typename T::Type epsilon) {
+        return (lhs - rhs).length() < epsilon;
+    }
+
+    template<typename T>
+    constexpr Vec4<T> select(Vec4<T> a, Vec4<T> b, Side x, Side y, Side z, Side w) {
+        T sx = x == Side::A ? a.x : b.x;
+        T sy = y == Side::A ? a.y : b.y;
+        T sz = z == Side::A ? a.z : b.z;
+        T sw = w == Side::A ? a.w : b.w;
+
+        return Vec4<T>(sx, sy, sz, sw);
+    }
+
+    enum PermuteChannel {
+        X0 = 0, Y0 = 1, Z0 = 2, W0 = 3,
+        X1 = 4, Y1 = 5, Z1 = 6, W1 = 7,
+    };
+
+    template<typename T>
+    constexpr Vec4<T> permute(Vec4<T> lhs, Vec4<T> rhs, PermuteChannel x, PermuteChannel y, PermuteChannel z, PermuteChannel w) {
+        T data[8] = { lhs.x, lhs.y, lhs.z, lhs.w, rhs.x, rhs.y, rhs.z, rhs.w };
+        T px = data[x];
+        T py = data[y];
+        T pz = data[z];
+        T pw = data[w];
+
+        return Vec4<T>(px, py, pz, pw);
+    }
+
+    // NOLINTEND
 }

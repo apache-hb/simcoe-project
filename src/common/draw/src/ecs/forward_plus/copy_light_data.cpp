@@ -9,15 +9,15 @@ using namespace sm::draw;
 using namespace sm::world;
 
 void draw::ecs::copyLightData(
-    flecs::world& world,
-    graph::FrameGraph &graph,
+    DrawData& dd,
     graph::Handle &spotLightVolumeData,
     graph::Handle &pointLightVolumeData,
     graph::Handle &spotLightData,
-    graph::Handle &pointLightData)
+    graph::Handle &pointLightData
+)
 {
     static flecs::query queryAllPointLights
-        = world.query_builder<
+        = dd.world.query_builder<
             const world::ecs::Position,
             const world::ecs::Intensity,
             const world::ecs::Colour
@@ -29,7 +29,7 @@ void draw::ecs::copyLightData(
         .build();
 
     static flecs::query queryAllSpotLights
-        = world.query_builder<
+        = dd.world.query_builder<
             const world::ecs::Position,
             const world::ecs::Direction,
             const world::ecs::Intensity,
@@ -47,7 +47,7 @@ void draw::ecs::copyLightData(
         .buffered = true // this is per frame data as the uploads are done per frame
     };
 
-    graph::PassBuilder pass = graph.copy("Upload Light Data");
+    graph::PassBuilder pass = dd.graph.copy("Upload Light Data");
 
     spotLightVolumeData = pass.create(lightDataInfo, "Spot Light Volume Data", graph::Usage::eCopyTarget)
         .override_uav({
@@ -93,7 +93,7 @@ void draw::ecs::copyLightData(
             },
         });
 
-    auto& data = graph.newDeviceData([](render::IDeviceContext& context) {
+    auto& data = dd.graph.newDeviceData([](render::IDeviceContext& context) {
         struct {
             render::Resource pointLightVolumeData;
             render::Resource spotLightVolumeData;
@@ -142,12 +142,14 @@ void draw::ecs::copyLightData(
         return info;
     });
 
-    pass.bind([=, &data](graph::RenderContext& ctx) {
+    pass.bind([=, camera = dd.camera, &data](graph::RenderContext& ctx) {
         size_t pointLightIndex = 0;
         size_t spotLightIndex = 0;
 
         auto& [device, graph, _, commands] = ctx;
 
+        draw::ecs::ViewportDeviceData *vpd = camera.get_mut<draw::ecs::ViewportDeviceData>();
+        auto& info = vpd->data;
 
         // if (queryAllPointLights.changed()) {
             queryAllPointLights.iter(
@@ -158,8 +160,11 @@ void draw::ecs::copyLightData(
                     const world::ecs::Colour *colour
                 ) {
 
+                info.pointLightCount = it.count();
+
                 if (it.count() > 0)
                     logs::gGlobal.info("Point light count: {}", it.count());
+
                 for (auto i : it) {
                     size_t index = pointLightIndex++;
                     LightVolumeData volume = {
@@ -194,6 +199,8 @@ void draw::ecs::copyLightData(
                     const world::ecs::Intensity* intensity,
                     const world::ecs::Colour *colour
                 ) {
+
+                info.spotLightCount = it.count();
 
                 if (it.count() > 0)
                     logs::gGlobal.info("Spot light count: {}", it.count());
