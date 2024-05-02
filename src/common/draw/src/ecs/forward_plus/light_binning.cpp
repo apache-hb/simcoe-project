@@ -83,24 +83,15 @@ void ecs::lightBinning(
     const world::ecs::Camera *info = dd.camera.get<world::ecs::Camera>();
 
     uint tileCount = draw::get_tile_count(info->window, TILE_SIZE);
-    uint tileIndexCount = tileCount * MAX_LIGHTS_PER_TILE;
+    uint tileIndexCount = tileCount * LIGHT_INDEX_BUFFER_STRIDE;
 
-    const graph::ResourceInfo lightIndexInfo = graph::ResourceInfo::arrayOf<uint>(tileIndexCount);
+    const graph::ResourceInfo lightIndexInfo = graph::ResourceInfo::arrayOf<light_index_t>(tileIndexCount);
 
-    graph::PassBuilder pass = dd.graph.compute("Light Binning")
-        .hasSideEffects();
+    graph::PassBuilder pass = dd.graph.compute("Light Binning");
 
     indices = pass.create(lightIndexInfo, "Light Indices", graph::Usage::eBufferWrite)
-        .override_uav({
-            .Format = DXGI_FORMAT_R32_UINT,
-            .ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
-            .Buffer = {
-                .FirstElement = 0,
-                .NumElements = tileIndexCount,
-            },
-        })
         .override_srv({
-            .Format = DXGI_FORMAT_R32_UINT,
+            .Format = render::bufferFormatOf<light_index_t>(),
             .ViewDimension = D3D12_SRV_DIMENSION_BUFFER,
             .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
             .Buffer = {
@@ -150,6 +141,7 @@ void ecs::lightBinning(
         viewport.projection = projection;
         viewport.invProjection = invProjection;
         viewport.worldView = view;
+        viewport.cameraPosition = position->position;
         viewport.depthBufferSampleCount = 0;
         viewport.depthBufferSize = info->window;
 

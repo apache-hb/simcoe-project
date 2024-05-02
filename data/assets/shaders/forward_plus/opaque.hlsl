@@ -8,12 +8,12 @@ cbuffer ObjectBuffer : register(b1) {
 Texture2D gTextures[] : register(t0, space1);
 SamplerState gSampler : register(s0);
 
-StructuredBuffer<LightVolumeData> gPointLightData : register(t1);
-StructuredBuffer<LightVolumeData> gSpotLightData : register(t2);
-StructuredBuffer<PointLightData> gPointLightParams : register(t3);
-StructuredBuffer<SpotLightData> gSpotLightParams : register(t4);
+StructuredBuffer<LightVolumeData> gPointLightData : register(t0);
+StructuredBuffer<LightVolumeData> gSpotLightData : register(t1);
+StructuredBuffer<PointLightData> gPointLightParams : register(t2);
+StructuredBuffer<SpotLightData> gSpotLightParams : register(t3);
 
-Buffer<uint> gLightIndexBuffer : register(t5);
+Buffer<light_index_t> gLightIndexBuffer : register(t4);
 
 struct VertexInput {
     float3 position : POSITION;

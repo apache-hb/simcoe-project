@@ -133,6 +133,17 @@ namespace sm::draw {
             graph::Handle pointLightData,
             graph::Handle spotLightData
         );
+
+        void forwardPlusOpaque(
+            DrawData& dd,
+            graph::Handle lightIndices,
+            graph::Handle pointLightVolumeData,
+            graph::Handle spotLightVolumeData,
+            graph::Handle pointLightData,
+            graph::Handle spotLightData,
+            graph::Handle& target,
+            graph::Handle& depth
+        );
     }
 
     ///

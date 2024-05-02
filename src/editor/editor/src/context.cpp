@@ -120,9 +120,11 @@ void EditorContext::setup_framegraph(graph::FrameGraph& graph) {
             graph::Handle spotLightVolumes, pointLightVolumes, spotLightData, pointLightData;
             graph::Handle depthPrePassTarget;
             graph::Handle lightIndices;
+            graph::Handle forwardPlusOpaqueTarget, forwardPlusOpaqueDepth;
             draw::ecs::copyLightData(dd, spotLightVolumes, pointLightVolumes, spotLightData, pointLightData);
             draw::ecs::depthPrePass(dd, depthPrePassTarget);
             draw::ecs::lightBinning(dd, lightIndices, depthPrePassTarget, pointLightData, spotLightData);
+            draw::ecs::forwardPlusOpaque(dd, lightIndices, pointLightVolumes, spotLightVolumes, pointLightData, spotLightData, forwardPlusOpaqueTarget, forwardPlusOpaqueDepth);
         });
     });
 

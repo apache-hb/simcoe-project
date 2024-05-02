@@ -48,49 +48,10 @@ void draw::ecs::copyLightData(
 
     graph::PassBuilder pass = dd.graph.copy("Upload Light Data");
 
-    spotLightVolumeData = pass.create(spotLightVolumeInfo, "Spot Light Volume Data", graph::Usage::eCopyTarget)
-        .override_uav({
-            .Format = DXGI_FORMAT_UNKNOWN,
-            .ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
-            .Buffer = {
-                .FirstElement = 0,
-                .NumElements = MAX_SPOT_LIGHTS,
-                .StructureByteStride = sizeof(LightVolumeData),
-            },
-        });
-
-    pointLightVolumeData = pass.create(pointLightVolumeInfo, "Point Light Volume Data", graph::Usage::eCopyTarget)
-        .override_uav({
-            .Format = DXGI_FORMAT_UNKNOWN,
-            .ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
-            .Buffer = {
-                .FirstElement = 0,
-                .NumElements = MAX_POINT_LIGHTS,
-                .StructureByteStride = sizeof(LightVolumeData),
-            },
-        });
-
-    spotLightData = pass.create(spotLightInfo, "Spot Light Data", graph::Usage::eCopyTarget)
-        .override_uav({
-            .Format = DXGI_FORMAT_UNKNOWN,
-            .ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
-            .Buffer = {
-                .FirstElement = 0,
-                .NumElements = MAX_SPOT_LIGHTS,
-                .StructureByteStride = sizeof(SpotLightData),
-            },
-        });
-
-    pointLightData = pass.create(pointLightInfo, "Point Light Data", graph::Usage::eCopyTarget)
-        .override_uav({
-            .Format = DXGI_FORMAT_UNKNOWN,
-            .ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
-            .Buffer = {
-                .FirstElement = 0,
-                .NumElements = MAX_POINT_LIGHTS,
-                .StructureByteStride = sizeof(PointLightData),
-            },
-        });
+    spotLightVolumeData = pass.create(spotLightVolumeInfo, "Spot Light Volumes", graph::Usage::eCopyTarget);
+    pointLightVolumeData = pass.create(pointLightVolumeInfo, "Point Light Volumes", graph::Usage::eCopyTarget);
+    spotLightData = pass.create(spotLightInfo, "Spot Light Params", graph::Usage::eCopyTarget);
+    pointLightData = pass.create(pointLightInfo, "Point Light Params", graph::Usage::eCopyTarget);
 
     auto& data = dd.graph.newDeviceData([](render::IDeviceContext& context) {
         struct {

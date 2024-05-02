@@ -402,25 +402,26 @@ struct UsageTracker {
 
     void recordResourceAccess(uint resource, Usage usage) {
         using enum Usage::Inner;
+        auto& state = states[resource];
         switch (usage) {
         case ePixelShaderResource:
         case eTextureRead:
-            states[resource].srv = true;
+            state.srv = true;
             break;
 
         case eTextureWrite:
         case eBufferRead:
         case eBufferWrite:
-            states[resource].uav = true;
+            state.uav = true;
             break;
 
         case eRenderTarget:
-            states[resource].rtv = true;
+            state.rtv = true;
             break;
 
         case eDepthRead:
         case eDepthWrite:
-            states[resource].dsv = true;
+            state.dsv = true;
             break;
 
         default:
@@ -447,7 +448,9 @@ struct UsageTracker {
     D3D12_RESOURCE_FLAGS getResourceFlags(uint resource) const {
         D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE;
 
-        UsageBits usage = tryGetUsage(resource);
+        CTASSERTF(states.contains(resource), "resource %u not found in usage tracker", resource);
+
+        UsageBits usage = states.at(resource);
         if (usage.uav)
             flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
@@ -457,7 +460,7 @@ struct UsageTracker {
         if (usage.rtv)
             flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
-        if (!usage.srv && !usage.uav)
+        if (!usage.srv && !usage.uav && usage.dsv)
             flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 
         return flags;
@@ -468,7 +471,6 @@ static D3D12_UNORDERED_ACCESS_VIEW_DESC buildUavDesc(const ResourceInfo& info) {
     DXGI_FORMAT format = info.getFormat();
     auto *array = info.asArray();
     CTASSERTF(array != nullptr, "cannot build uav desc for non-array resources currently");
-
 
     bool isStructuredBuffer = format == DXGI_FORMAT_UNKNOWN;
     D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {
@@ -515,14 +517,15 @@ void FrameGraph::createManagedResources() {
     };
 
     auto createResourceViews = [&](uint i, const ResourceHandle& handle, ID3D12Resource *resource) -> DescriptorPack {
+        gRenderLog.info("Creating resource views for {} ({})", handle.name, i);
         ID3D12Device *device = mContext.getDevice();
         DescriptorPack pack;
         if (tracker.needsSrv(i)) {
             auto srv = mContext.mSrvPool.allocate();
 
-            const auto srv_handle = mContext.mSrvPool.cpu_handle(srv);
+            const auto srvHandle = mContext.mSrvPool.cpu_handle(srv);
             const D3D12_SHADER_RESOURCE_VIEW_DESC *desc = handle.srv_desc ? &*handle.srv_desc : nullptr;
-            device->CreateShaderResourceView(resource, desc, srv_handle);
+            device->CreateShaderResourceView(resource, desc, srvHandle);
 
             pack.srv = srv;
         }
@@ -544,9 +547,9 @@ void FrameGraph::createManagedResources() {
         if (tracker.needsDsv(i)) {
             auto dsv = mContext.mDsvPool.allocate();
 
-            const auto dsv_handle = mContext.mDsvPool.cpu_handle(dsv);
+            const auto dsvHandle = mContext.mDsvPool.cpu_handle(dsv);
             const D3D12_DEPTH_STENCIL_VIEW_DESC *desc = handle.dsv_desc ? &*handle.dsv_desc : nullptr;
-            device->CreateDepthStencilView(resource, desc, dsv_handle);
+            device->CreateDepthStencilView(resource, desc, dsvHandle);
 
             pack.dsv = dsv;
         }
@@ -554,9 +557,9 @@ void FrameGraph::createManagedResources() {
         if (tracker.needsRtv(i)) {
             auto rtv = mContext.mRtvPool.allocate();
 
-            const auto rtv_handle = mContext.mRtvPool.cpu_handle(rtv);
+            const auto rtvHandle = mContext.mRtvPool.cpu_handle(rtv);
             const D3D12_RENDER_TARGET_VIEW_DESC *desc = handle.rtv_desc ? &*handle.rtv_desc : nullptr;
-            device->CreateRenderTargetView(resource, desc, rtv_handle);
+            device->CreateRenderTargetView(resource, desc, rtvHandle);
 
             pack.rtv = rtv;
         }
@@ -611,13 +614,13 @@ void FrameGraph::createManagedResources() {
         handle.resources = { first, last };
     }
 
-    for (uint i = 0; i < mHandles.size(); i++) {
-        auto& handle = mHandles[i];
-        if (!handle.isInternal()) continue;
+    for (uint index = 0; index < mHandles.size(); index++) {
+        auto& handle = mHandles[index];
+        if (!handle.is_used() || handle.is_imported()) continue;
 
-        auto data = getAllResourceData(Handle{i});
+        auto data = getAllResourceData(Handle{index});
         for (auto& buffer : data) {
-            buffer.descriptors = createResourceViews(i, handle, buffer.getResource());
+            buffer.descriptors = createResourceViews(index, handle, buffer.getResource());
         }
     }
 }
