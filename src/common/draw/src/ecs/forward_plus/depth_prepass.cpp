@@ -82,11 +82,8 @@ void draw::ecs::depthPrePass(
 
     const world::ecs::Camera *info = dd.camera.get<world::ecs::Camera>();
 
-    const graph::ResourceInfo depthTargetInfo = {
-        .size = graph::ResourceSize::tex2d(info->window),
-        .format = info->depth,
-        .clear = graph::Clear::depthStencil(1.f, 0, info->depth),
-    };
+    const graph::ResourceInfo depthTargetInfo = graph::ResourceInfo::tex2d(info->window, info->depth)
+        .clearDepthStencil(1.f, 0);
 
     graph::PassBuilder pass = dd.graph.graphics(fmt::format("Forward+ Depth Prepass ({})", dd.camera.name().c_str()));
 

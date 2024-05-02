@@ -85,10 +85,7 @@ void ecs::lightBinning(
     uint tileCount = draw::get_tile_count(info->window, TILE_SIZE);
     uint tileIndexCount = tileCount * MAX_LIGHTS_PER_TILE;
 
-    const graph::ResourceInfo lightIndexInfo = {
-        .size = graph::ResourceSize::buffer(sizeof(uint) * tileIndexCount),
-        .format = DXGI_FORMAT_R32_UINT,
-    };
+    const graph::ResourceInfo lightIndexInfo = graph::ResourceInfo::arrayOf<uint>(tileIndexCount);
 
     graph::PassBuilder pass = dd.graph.compute("Light Binning")
         .hasSideEffects();

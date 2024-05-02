@@ -67,10 +67,7 @@ void forward_plus::upload_light_data(
         },
     };
 
-    graph::ResourceInfo light_data_info = {
-        .size = graph::ResourceSize::buffer(sizeof(LightVolumeData) * MAX_LIGHTS),
-        .format = DXGI_FORMAT_UNKNOWN,
-    };
+    const graph::ResourceInfo light_data_info = graph::ResourceInfo::structuredBuffer<LightVolumeData>(MAX_LIGHTS);
 
     graph::PassBuilder pass = graph.copy("Upload Light Data");
 
@@ -186,10 +183,7 @@ void forward_plus::light_binning(
     uint tileCount = draw::get_tile_count(camera.size, TILE_SIZE);
     uint tileIndexCount = tileCount * MAX_LIGHTS_PER_TILE;
 
-    graph::ResourceInfo info = {
-        .size = graph::ResourceSize::buffer(sizeof(uint) * tileIndexCount),
-        .format = DXGI_FORMAT_R32_UINT,
-    };
+    graph::ResourceInfo info = graph::ResourceInfo::arrayOf<uint>(tileIndexCount);
 
     graph::PassBuilder pass = graph.compute(fmt::format("Forward+ Light Binning ({})", dd.camera.name()));
 

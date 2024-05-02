@@ -92,17 +92,11 @@ void draw::ecs::opaque(flecs::world& world, graph::FrameGraph& graph, graph::Han
 
     graph::PassBuilder pass = graph.graphics(fmt::format("Opaque {}", camera.name().c_str()));
 
-    graph::ResourceInfo depthInfo = {
-        .size = graph::ResourceSize::tex2d(it->window),
-        .format = it->depth,
-        .clear = graph::Clear::depthStencil(1.f, 0, it->depth),
-    };
+    graph::ResourceInfo depthInfo = graph::ResourceInfo::tex2d(it->window, it->depth)
+        .clearDepthStencil(1.f, 0);
 
-    graph::ResourceInfo targetInfo = {
-        .size = graph::ResourceSize::tex2d(it->window),
-        .format = it->colour,
-        .clear = graph::Clear::colour(render::kClearColour, it->colour),
-    };
+    graph::ResourceInfo targetInfo = graph::ResourceInfo::tex2d(it->window, it->colour)
+        .clearColour(render::kClearColour);
 
     target = pass.create(targetInfo, "Target", graph::Usage::eRenderTarget);
     depth = pass.create(depthInfo, "Depth", graph::Usage::eDepthWrite);

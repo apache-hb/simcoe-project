@@ -696,11 +696,8 @@ void game::physics_debug(
     graph::PassBuilder pass = graph.graphics("Physics Debug");
     pass.write(target, "Target", graph::Usage::eRenderTarget);
 
-    graph::ResourceInfo info = {
-        .size = graph::ResourceSize::tex2d(config->window),
-        .format = config->depth,
-        .clear = graph::Clear::depthStencil(1.0f, 0, config->depth)
-    };
+    graph::ResourceInfo info = graph::ResourceInfo::tex2d(config->window, config->depth)
+        .clearDepthStencil(1.f, 0);
 
     graph::Handle depth = pass.create(info, "Depth", graph::Usage::eDepthWrite);
 

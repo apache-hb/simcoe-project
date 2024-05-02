@@ -41,11 +41,7 @@ void draw::ecs::copyLightData(
         .with<world::ecs::Light>()
         .build();
 
-
-    const graph::ResourceInfo lightDataInfo = {
-        .size = graph::ResourceSize::buffer(sizeof(LightVolumeData) * MAX_LIGHTS),
-        .buffered = true // this is per frame data as the uploads are done per frame
-    };
+    const graph::ResourceInfo lightDataInfo = graph::ResourceInfo::structuredBuffer<LightVolumeData>(MAX_LIGHTS).buffered();
 
     graph::PassBuilder pass = dd.graph.copy("Upload Light Data");
 

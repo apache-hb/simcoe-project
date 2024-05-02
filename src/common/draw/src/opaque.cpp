@@ -128,17 +128,11 @@ static void create_primitive_pipeline(render::Pipeline& pipeline, const draw::Vi
 
 void draw::opaque(graph::FrameGraph& graph, graph::Handle& target, graph::Handle& depth, const Camera& camera) {
     auto config = camera.config();
-    graph::ResourceInfo depth_info = {
-        .size = graph::ResourceSize::tex2d(config.size),
-        .format = config.getDepthFormat(),
-        .clear = graph::Clear::depthStencil(1.f, 0, config.getDepthFormat())
-    };
+    graph::ResourceInfo depth_info = graph::ResourceInfo::tex2d(config.size, config.getDepthFormat())
+        .clearDepthStencil(1.f, 0);
 
-    graph::ResourceInfo target_info = {
-        .size = graph::ResourceSize::tex2d(config.size),
-        .format = config.getColourFormat(),
-        .clear = graph::Clear::colour(render::kClearColour, config.getColourFormat())
-    };
+    graph::ResourceInfo target_info = graph::ResourceInfo::tex2d(config.size, config.getColourFormat())
+        .clearColour(render::kClearColour);
 
     graph::PassBuilder pass = graph.graphics(fmt::format("Opaque ({})", camera.name()));
     target = pass.create(target_info, "Target", graph::Usage::eRenderTarget);

@@ -471,21 +471,17 @@ void FrameGraph::createManagedResources() {
     auto createNewResource = [&](const ResourceInfo& info, D3D12_RESOURCE_FLAGS flags, D3D12_RESOURCE_STATES state) {
         render::Resource resource;
 
-        auto clear = getClearValue(info.clear);
+        auto clear = getClearValue(info.getClearValue());
         D3D12_CLEAR_VALUE *ptr = clear.Format == DXGI_FORMAT_UNKNOWN ? nullptr : &clear;
 
-        ResourceSize size = info.size;
-
-        if (size.type == ResourceSize::eBuffer) {
-            if (info.buffered) {
-
-            }
-            SM_ASSERT_HR(mContext.createBufferResource(resource, D3D12_HEAP_TYPE_DEFAULT, size.buffer_size, D3D12_RESOURCE_STATE_COMMON, flags));
-        } else {
+        if (auto *array = info.asArray()) {
+            SM_ASSERT_HR(mContext.createBufferResource(resource, D3D12_HEAP_TYPE_DEFAULT, array->getSize(), D3D12_RESOURCE_STATE_COMMON, flags));
+        } else if (auto *tex2d = info.asTex2d()) {
+            auto [width, height] = tex2d->size;
             auto desc = CD3DX12_RESOURCE_DESC::Tex2D(
-                /*format=*/ info.format,
-                /*width=*/ size.tex2d_size.width,
-                /*height=*/ size.tex2d_size.height,
+                /*format=*/ info.getFormat(),
+                /*width=*/ width,
+                /*height=*/ height,
                 /*arraySize=*/ 1,
                 /*mipLevels=*/ 1,
                 /*sampleCount=*/ 1,
@@ -571,7 +567,7 @@ void FrameGraph::createManagedResources() {
 
         uint first = mResources.size();
 
-        if (handle.info.buffered) {
+        if (handle.isBuffered()) {
             uint count = mContext.getSwapChainLength();
             for (uint i = 0; i < count; i++) {
                 auto resource = createNewResource(handle.info, flags, state);

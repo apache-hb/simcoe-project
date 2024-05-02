@@ -91,11 +91,8 @@ void forward_plus::depth_prepass(
 {
     const auto& config = dd.camera.config();
 
-    graph::ResourceInfo info = {
-        .size = graph::ResourceSize::tex2d(config.size),
-        .format = kDepthFormat,
-        .clear = graph::Clear::depthStencil(1.f, 0, kDepthFormat),
-    };
+    graph::ResourceInfo info = graph::ResourceInfo::tex2d(config.size, kDepthFormat)
+        .clearDepthStencil(1.f, 0);
 
     graph::PassBuilder pass = graph.graphics(fmt::format("Forward+ Depth Prepass ({})", dd.camera.name()));
 

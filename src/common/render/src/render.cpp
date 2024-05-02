@@ -721,10 +721,7 @@ void IDeviceContext::build_command_list() {
 }
 
 void IDeviceContext::create_framegraph() {
-    graph::ResourceInfo info = {
-        .size = graph::ResourceSize::tex2d(mSwapChainConfig.size),
-        .format = mSwapChainConfig.format,
-    };
+    graph::ResourceInfo info = graph::ResourceInfo::tex2d(mSwapChainConfig.size, mSwapChainConfig.format);
     mSwapChainHandle = mFrameGraph.include("BackBuffer", info, graph::Usage::ePresent, nullptr);
 
     setup_framegraph(mFrameGraph);

@@ -9,6 +9,7 @@
 
 #include "render/heap.hpp"
 #include "render/resource.hpp"
+#include "render/format.hpp"
 
 #include "render/graph/handle.hpp"
 #include "render/graph/events.hpp"
@@ -59,27 +60,71 @@ namespace sm::graph {
         static Clear depthStencil(float depth, uint8 stencil, DXGI_FORMAT format);
     };
 
-    struct ResourceSize {
-        static ResourceSize tex2d(math::uint2 size) {
-            return { .type = eTex2D, .tex2d_size = size };
-        }
-
-        static ResourceSize buffer(uint size) {
-            return { .type = eBuffer, .buffer_size = size };
-        }
-
-        enum { eTex2D, eBuffer } type;
-        union {
-            math::uint2 tex2d_size;
-            uint buffer_size;
-        };
+    struct Tex2dInfo {
+        math::uint2 size;
     };
 
-    struct ResourceInfo {
-        ResourceSize size;
-        render::Format format;
-        Clear clear;
-        bool buffered = false;
+    struct ArrayInfo {
+        uint stride;
+        uint length;
+
+        uint getSize() const { return stride * length; }
+    };
+
+    using ResourceSize = std::variant<
+        Tex2dInfo,
+        ArrayInfo
+    >;
+
+    class ResourceInfo {
+        ResourceSize mResourceSize;
+        DXGI_FORMAT mFormat;
+        Clear mClearValue;
+        bool mBuffered = false;
+
+    public:
+        ResourceInfo(ResourceSize size, DXGI_FORMAT format, Clear clear = Clear::empty(), bool buffered = false)
+            : mResourceSize(size)
+            , mFormat(format)
+            , mClearValue(clear)
+            , mBuffered(buffered)
+        { }
+
+        static ResourceInfo tex2d(math::uint2 size, DXGI_FORMAT format) {
+            return ResourceInfo(Tex2dInfo { size }, format);
+        }
+
+        template<typename T> requires (std::is_standard_layout_v<T> && std::is_trivial_v<T>)
+        static ResourceInfo structuredBuffer(uint size) {
+            return ResourceInfo(ArrayInfo { sizeof(T), size }, DXGI_FORMAT_UNKNOWN);
+        }
+
+        template<typename T> requires (render::bufferFormatOf<T>() != DXGI_FORMAT_UNKNOWN)
+        static ResourceInfo arrayOf(uint length) {
+            return ResourceInfo(ArrayInfo { sizeof(T), length }, render::bufferFormatOf<T>());
+        }
+
+        ResourceInfo& clear(Clear clear) { mClearValue = clear; return *this; }
+
+        ResourceInfo& clearColour(math::float4 colour) {
+            mClearValue = Clear::colour(colour, mFormat);
+            return *this;
+        }
+
+        ResourceInfo& clearDepthStencil(float depth, uint8 stencil) {
+            mClearValue = Clear::depthStencil(depth, stencil, mFormat);
+            return *this;
+        }
+
+        ResourceInfo& buffered(bool value = true) { mBuffered = value; return *this; }
+
+        ResourceSize getSize() const { return mResourceSize; }
+        DXGI_FORMAT getFormat() const { return mFormat; }
+        Clear getClearValue() const { return mClearValue; }
+        bool isBuffered() const { return mBuffered; }
+
+        const Tex2dInfo *asTex2d() const { return std::get_if<Tex2dInfo>(&mResourceSize); }
+        const ArrayInfo *asArray() const { return std::get_if<ArrayInfo>(&mResourceSize); }
     };
 
     struct DescriptorPack {
@@ -161,7 +206,7 @@ namespace sm::graph {
             bool is_managed() const { return type == ResourceType::eManaged || type == ResourceType::eTransient; }
             bool is_used() const { return is_managed() || refcount > 0; }
 
-            bool isBuffered() const { return info.buffered; }
+            bool isBuffered() const { return info.isBuffered(); }
             bool isExternal() const { return type == ResourceType::eImported; }
             bool isInternal() const { return type == ResourceType::eManaged || type == ResourceType::eTransient; }
         };
