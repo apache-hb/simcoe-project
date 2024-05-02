@@ -41,11 +41,14 @@ void draw::ecs::copyLightData(
         .with<world::ecs::Light>()
         .build();
 
-    const graph::ResourceInfo lightDataInfo = graph::ResourceInfo::structuredBuffer<LightVolumeData>(MAX_LIGHTS).buffered();
+    const graph::ResourceInfo spotLightVolumeInfo = graph::ResourceInfo::structuredBuffer<LightVolumeData>(MAX_SPOT_LIGHTS).buffered();
+    const graph::ResourceInfo pointLightVolumeInfo = graph::ResourceInfo::structuredBuffer<LightVolumeData>(MAX_POINT_LIGHTS).buffered();
+    const graph::ResourceInfo spotLightInfo = graph::ResourceInfo::structuredBuffer<SpotLightData>(MAX_SPOT_LIGHTS).buffered();
+    const graph::ResourceInfo pointLightInfo = graph::ResourceInfo::structuredBuffer<PointLightData>(MAX_POINT_LIGHTS).buffered();
 
     graph::PassBuilder pass = dd.graph.copy("Upload Light Data");
 
-    spotLightVolumeData = pass.create(lightDataInfo, "Spot Light Volume Data", graph::Usage::eCopyTarget)
+    spotLightVolumeData = pass.create(spotLightVolumeInfo, "Spot Light Volume Data", graph::Usage::eCopyTarget)
         .override_uav({
             .Format = DXGI_FORMAT_UNKNOWN,
             .ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
@@ -56,7 +59,7 @@ void draw::ecs::copyLightData(
             },
         });
 
-    pointLightVolumeData = pass.create(lightDataInfo, "Point Light Volume Data", graph::Usage::eCopyTarget)
+    pointLightVolumeData = pass.create(pointLightVolumeInfo, "Point Light Volume Data", graph::Usage::eCopyTarget)
         .override_uav({
             .Format = DXGI_FORMAT_UNKNOWN,
             .ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
@@ -67,7 +70,7 @@ void draw::ecs::copyLightData(
             },
         });
 
-    spotLightData = pass.create(lightDataInfo, "Spot Light Data", graph::Usage::eCopyTarget)
+    spotLightData = pass.create(spotLightInfo, "Spot Light Data", graph::Usage::eCopyTarget)
         .override_uav({
             .Format = DXGI_FORMAT_UNKNOWN,
             .ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
@@ -78,7 +81,7 @@ void draw::ecs::copyLightData(
             },
         });
 
-    pointLightData = pass.create(lightDataInfo, "Point Light Data", graph::Usage::eCopyTarget)
+    pointLightData = pass.create(pointLightInfo, "Point Light Data", graph::Usage::eCopyTarget)
         .override_uav({
             .Format = DXGI_FORMAT_UNKNOWN,
             .ViewDimension = D3D12_UAV_DIMENSION_BUFFER,

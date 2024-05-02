@@ -320,7 +320,7 @@ static constexpr D3D12_RESOURCE_STATES getStateFromUsage(Usage usage) {
     case eCopySource: return D3D12_RESOURCE_STATE_COPY_SOURCE;
     case eCopyTarget: return D3D12_RESOURCE_STATE_COPY_DEST;
 
-    case eBufferRead:
+    case eBufferRead: return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
     case eBufferWrite: return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 
     case eDepthRead: return D3D12_RESOURCE_STATE_DEPTH_READ;
@@ -533,7 +533,7 @@ void FrameGraph::createManagedResources() {
             const auto uavHandle = mContext.mSrvPool.cpu_handle(uav);
             const D3D12_UNORDERED_ACCESS_VIEW_DESC desc
                 = handle.uav_desc.has_value()
-                ? *handle.uav_desc
+                ? handle.uav_desc.value()
                 : buildUavDesc(handle.info);
 
             device->CreateUnorderedAccessView(resource, nullptr, &desc, uavHandle);
