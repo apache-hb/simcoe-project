@@ -104,12 +104,6 @@ void EditorContext::setup_framegraph(graph::FrameGraph& graph) {
     mSystem.defer([&] {
         q.each([&](flecs::entity entity, world::ecs::Camera& camera) {
             logs::gGlobal.info("Adding camera pass: {}", entity.name().c_str());
-            graph::Handle target;
-            graph::Handle depth;
-            draw::ecs::opaque(getWorld(), graph, target, depth, entity);
-
-            entity.set<ecs::CameraData>({ target, depth });
-
             draw::ecs::DrawData dd {
                 .depthBoundsMode = draw::forward_plus::DepthBoundsMode::eEnabled,
                 .graph = graph,
@@ -125,6 +119,8 @@ void EditorContext::setup_framegraph(graph::FrameGraph& graph) {
             draw::ecs::depthPrePass(dd, depthPrePassTarget);
             draw::ecs::lightBinning(dd, lightIndices, depthPrePassTarget, pointLightData, spotLightData);
             draw::ecs::forwardPlusOpaque(dd, lightIndices, pointLightVolumes, spotLightVolumes, pointLightData, spotLightData, forwardPlusOpaqueTarget, forwardPlusOpaqueDepth);
+
+            entity.set<ecs::CameraData>({ forwardPlusOpaqueTarget, forwardPlusOpaqueDepth });
         });
     });
 
