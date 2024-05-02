@@ -464,6 +464,26 @@ struct UsageTracker {
     }
 };
 
+static D3D12_UNORDERED_ACCESS_VIEW_DESC buildUavDesc(const ResourceInfo& info) {
+    DXGI_FORMAT format = info.getFormat();
+    auto *array = info.asArray();
+    CTASSERTF(array != nullptr, "cannot build uav desc for non-array resources currently");
+
+
+    bool isStructuredBuffer = format == DXGI_FORMAT_UNKNOWN;
+    D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {
+        .Format = format,
+        .ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
+        .Buffer = {
+            .FirstElement = 0,
+            .NumElements = array->length,
+            .StructureByteStride = isStructuredBuffer ? array->stride : 0,
+        }
+    };
+
+    return uavDesc;
+}
+
 void FrameGraph::createManagedResources() {
     mResources.clear();
     UsageTracker tracker;
@@ -510,9 +530,13 @@ void FrameGraph::createManagedResources() {
         if (tracker.needsUav(i)) {
             auto uav = mContext.mSrvPool.allocate();
 
-            const auto uav_handle = mContext.mSrvPool.cpu_handle(uav);
-            const D3D12_UNORDERED_ACCESS_VIEW_DESC *desc = handle.uav_desc ? &*handle.uav_desc : nullptr;
-            device->CreateUnorderedAccessView(resource, nullptr, desc, uav_handle);
+            const auto uavHandle = mContext.mSrvPool.cpu_handle(uav);
+            const D3D12_UNORDERED_ACCESS_VIEW_DESC desc
+                = handle.uav_desc.has_value()
+                ? *handle.uav_desc
+                : buildUavDesc(handle.info);
+
+            device->CreateUnorderedAccessView(resource, nullptr, &desc, uavHandle);
 
             pack.uav = uav;
         }

@@ -139,16 +139,6 @@ void draw::ecs::opaque(flecs::world& world, graph::FrameGraph& graph, graph::Han
 
         commands->SetGraphicsRootConstantBufferView(eViewportBuffer, dd->getDeviceAddress());
 
-#if 0
-        updateObjectData.iter([&](flecs::iter& it, ecs::ObjectDeviceData *dd, const world::ecs::Position *position, const world::ecs::Rotation *rotation, const world::ecs::Scale *scale) {
-            for (auto i : it) {
-                // TODO: multiplying scale by -1 is wrong, figure it out when im less tired
-                float4x4 model = math::float4x4::transform(position[i].position, rotation[i].rotation, -scale[i].scale);
-                dd[i].update({ (model.transpose() * v * p).transpose() });
-            }
-        });
-#endif
-
         drawObjectData.iter([&](flecs::iter& it, const ecs::ObjectDeviceData *dd, const render::ecs::IndexBuffer *ibo, const render::ecs::VertexBuffer *vbo) {
             for (auto i : it) {
                 commands->SetGraphicsRootConstantBufferView(eObjectBuffer, dd[i].getDeviceAddress());
