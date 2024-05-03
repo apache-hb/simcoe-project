@@ -105,9 +105,6 @@ void draw::ecs::copyLightData(
 
                 info.pointLightCount = it.count();
 
-                if (it.count() > 0)
-                    logs::gGlobal.info("Point light count: {}", it.count());
-
                 for (auto i : it) {
                     size_t index = pointLightIndex++;
                     LightVolumeData volume = {
@@ -144,9 +141,6 @@ void draw::ecs::copyLightData(
                 ) {
 
                 info.spotLightCount = it.count();
-
-                if (it.count() > 0)
-                    logs::gGlobal.info("Spot light count: {}", it.count());
 
                 for (auto i : it) {
                     size_t index = spotLightIndex++;

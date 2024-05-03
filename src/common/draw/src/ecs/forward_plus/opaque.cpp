@@ -24,7 +24,7 @@ enum {
     eBindingCount
 };
 
-static constexpr D3D12_ROOT_SIGNATURE_FLAGS kBinningPassRootFlags
+static constexpr D3D12_ROOT_SIGNATURE_FLAGS kOpaquePassRootFlags
     = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS
@@ -41,23 +41,36 @@ static void createOpaquePipeline(
 {
     {
         CD3DX12_ROOT_PARAMETER1 params[eBindingCount];
-        params[eViewportBuffer].InitAsConstantBufferView(0);
-        params[eObjectBuffer].InitAsConstantBufferView(1);
+        params[eViewportBuffer].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE);
+        params[eObjectBuffer].InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE);
 
         CD3DX12_DESCRIPTOR_RANGE1 texture[1];
         texture[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX, 0, 1, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE | D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE);
 
-        params[eTextureArray].InitAsDescriptorTable(1, texture);
+        params[eTextureArray].InitAsDescriptorTable(_countof(texture), texture);
 
-        params[ePointLightVolumeData].InitAsShaderResourceView(0);
-        params[eSpotLightVolumeData].InitAsShaderResourceView(1);
-        params[ePointLightParams].InitAsShaderResourceView(2);
-        params[eSpotLightParams].InitAsShaderResourceView(3);
+        params[ePointLightVolumeData].InitAsShaderResourceView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE, D3D12_SHADER_VISIBILITY_PIXEL);
+        params[eSpotLightVolumeData].InitAsShaderResourceView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE, D3D12_SHADER_VISIBILITY_PIXEL);
+        params[ePointLightParams].InitAsShaderResourceView(2, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE, D3D12_SHADER_VISIBILITY_PIXEL);
+        params[eSpotLightParams].InitAsShaderResourceView(3, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE, D3D12_SHADER_VISIBILITY_PIXEL);
 
-        params[eLightIndexBuffer].InitAsShaderResourceView(4);
+        CD3DX12_DESCRIPTOR_RANGE1 indices[1];
+        indices[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE | D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE);
+
+        params[eLightIndexBuffer].InitAsDescriptorTable(_countof(indices), indices, D3D12_SHADER_VISIBILITY_PIXEL);
+
+        CD3DX12_STATIC_SAMPLER_DESC samplers[1];
+        samplers[0].Init(
+            0, D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+            D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+            0, 16,
+            D3D12_COMPARISON_FUNC_NEVER,
+            D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
+            0, D3D12_FLOAT32_MAX, D3D12_SHADER_VISIBILITY_PIXEL
+        );
 
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
-        desc.Init_1_1(_countof(params), params, 0, nullptr, kBinningPassRootFlags);
+        desc.Init_1_1(_countof(params), params, _countof(samplers), samplers, kOpaquePassRootFlags);
 
         context.serialize_root_signature(pipeline.signature, desc);
     }
@@ -158,7 +171,8 @@ void ecs::forwardPlusOpaque(
         ID3D12Resource *spotLightVolumeHandle = graph.resource(spotLightVolumeData);
         ID3D12Resource *pointLightHandle = graph.resource(pointLightData);
         ID3D12Resource *spotLightHandle = graph.resource(spotLightData);
-        ID3D12Resource *lightIndexHandle = graph.resource(lightIndices);
+
+        D3D12_GPU_DESCRIPTOR_HANDLE lightIndicesHandle = context.mSrvPool.gpu_handle(graph.srv(lightIndices));
 
         render::Viewport viewport{it->window};
 
@@ -183,7 +197,7 @@ void ecs::forwardPlusOpaque(
         commands->SetGraphicsRootShaderResourceView(ePointLightParams, pointLightHandle->GetGPUVirtualAddress());
         commands->SetGraphicsRootShaderResourceView(eSpotLightParams, spotLightHandle->GetGPUVirtualAddress());
 
-        commands->SetGraphicsRootShaderResourceView(eLightIndexBuffer, lightIndexHandle->GetGPUVirtualAddress());
+        commands->SetGraphicsRootDescriptorTable(eLightIndexBuffer, lightIndicesHandle);
 
         objectDrawData.iter([&](flecs::iter& it, const ecs::ObjectDeviceData *dd, const render::ecs::IndexBuffer *ibo, const render::ecs::VertexBuffer *vbo) {
             for (auto i : it) {

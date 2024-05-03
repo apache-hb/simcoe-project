@@ -82,8 +82,8 @@ void ecs::lightBinning(
 {
     const world::ecs::Camera *info = dd.camera.get<world::ecs::Camera>();
 
-    uint tileCount = draw::get_tile_count(info->window, TILE_SIZE);
-    uint tileIndexCount = tileCount * LIGHT_INDEX_BUFFER_STRIDE;
+    uint2 gridSize = draw::computeTileCount(info->window);
+    uint tileIndexCount = gridSize.x * gridSize.y * LIGHT_INDEX_BUFFER_STRIDE;
 
     const graph::ResourceInfo lightIndexInfo = graph::ResourceInfo::arrayOf<light_index_t>(tileIndexCount);
 
@@ -101,8 +101,8 @@ void ecs::lightBinning(
         });
 
     pass.read(depth, "Depth", graph::Usage::eTextureRead);
-    pass.read(pointLightData, "Point Light Data", graph::Usage::eBufferRead);
-    pass.read(spotLightData, "Spot Light Data", graph::Usage::eBufferRead);
+    pass.read(pointLightData, "Point Light Volumes", graph::Usage::eBufferRead);
+    pass.read(spotLightData, "Spot Light Volumes", graph::Usage::eBufferRead);
 
     auto& data = dd.graph.newDeviceData([](render::IDeviceContext& context) {
         struct {

@@ -65,8 +65,8 @@ struct ViewportData {
 };
 
 CXX_CONSTEXPR uint2 computeTileCount(uint2 size) {
-    uint x = uint((size.x + TILE_SIZE - 1) / TILE_SIZE);
-    uint y = uint((size.y + TILE_SIZE - 1) / TILE_SIZE);
+    uint x = (uint)((size.x + TILE_SIZE - 1) / (float)TILE_SIZE);
+    uint y = (uint)((size.y + TILE_SIZE - 1) / (float)TILE_SIZE);
 
     return uint2(x, y);
 }

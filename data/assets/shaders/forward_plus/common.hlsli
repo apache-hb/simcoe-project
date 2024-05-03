@@ -8,14 +8,7 @@
 #define DEPTH_BOUNDS_MSAA 2
 
 #ifndef DEPTH_BOUNDS_MODE
-#   define DEPTH_BOUNDS_MODE DEPTH_BOUNDS_ENABLED
-#endif
-
-#define LIGHT_CULLING_DISABLED 0
-#define LIGHT_CULLING_ENABLED 1
-
-#ifndef LIGHT_CULLING_MODE
-#   define LIGHT_CULLING_MODE LIGHT_CULLING_ENABLED
+#   define DEPTH_BOUNDS_MODE DEPTH_BOUNDS_DISABLED
 #endif
 
 #define ALPHA_TEST_DISABLED 0
@@ -51,10 +44,9 @@ cbuffer FrameBuffer : register(b0) {
     ViewportData gCameraData;
 };
 
-uint get_tile_index(float2 screen) {
+uint getTileIndex(float2 screen) {
     float res = float(TILE_SIZE);
-    uint cells_x = (gCameraData.window_width() + TILE_SIZE - 1) / TILE_SIZE;
-    uint tile_idx = floor(screen.x / res) + floor(screen.y / res) * cells_x;
-
-    return tile_idx;
+    uint tilesAcross = (gCameraData.window_width() + TILE_SIZE - 1) / TILE_SIZE;
+    uint index = floor(screen.x / res) + floor(screen.y / res) * tilesAcross;
+    return index;
 }

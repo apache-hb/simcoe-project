@@ -117,7 +117,7 @@ void EditorContext::setup_framegraph(graph::FrameGraph& graph) {
             graph::Handle forwardPlusOpaqueTarget, forwardPlusOpaqueDepth;
             draw::ecs::copyLightData(dd, spotLightVolumes, pointLightVolumes, spotLightData, pointLightData);
             draw::ecs::depthPrePass(dd, depthPrePassTarget);
-            draw::ecs::lightBinning(dd, lightIndices, depthPrePassTarget, pointLightData, spotLightData);
+            draw::ecs::lightBinning(dd, lightIndices, depthPrePassTarget, pointLightVolumes, spotLightVolumes);
             draw::ecs::forwardPlusOpaque(dd, lightIndices, pointLightVolumes, spotLightVolumes, pointLightData, spotLightData, forwardPlusOpaqueTarget, forwardPlusOpaqueDepth);
 
             entity.set<ecs::CameraData>({ forwardPlusOpaqueTarget, forwardPlusOpaqueDepth });

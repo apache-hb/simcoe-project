@@ -18,7 +18,7 @@ Texture2DMS<float> gDepthTexture : register(t2);
 Texture2D<float> gDepthTexture : register(t2);
 #endif
 
-// TileLightData[tile_count.x * tile_count.y]
+// TileLightData[tileGridSize.x * tileGridSize.y]
 // output buffer for light indices
 // struct PointLightData {
 //   uint pointLightCount;
@@ -170,7 +170,8 @@ struct FrustumData {
 void cs_cull_lights(
     uint3 globalId : SV_DispatchThreadID,
     uint3 localId : SV_GroupThreadID,
-    uint3 groupId : SV_GroupID)
+    uint3 groupId : SV_GroupID
+)
 {
     uint localIndex = localId.x + localId.y * CS_THREADS_X;
 
@@ -182,7 +183,7 @@ void cs_cull_lights(
         gLightIndexCount = 0;
     }
 
-    uint2 tile_count = getWindowTileCount();
+    uint2 tileGridSize = getWindowTileCount();
 
     FrustumData frustum;
     {
@@ -191,7 +192,7 @@ void cs_cull_lights(
         uint pxp = TILE_SIZE * (groupId.x + 1);
         uint pyp = TILE_SIZE * (groupId.y + 1);
 
-        uint2 window_size = TILE_SIZE * tile_count;
+        uint2 window_size = TILE_SIZE * tileGridSize;
 
         float3 frustum0 = convert_projection_to_view(create_projection(window_size, pxm, pym));
         float3 frustum1 = convert_projection_to_view(create_projection(window_size, pxp, pym));
@@ -224,13 +225,11 @@ void cs_cull_lights(
     frustum.cull_lights(localIndex, gCameraData.spotLightCount, gSpotLightData);
     light_index_t spotLightsInTile = gLightIndexCount - pointLightsInTile;
 
-    // write the light indices to the buffer
-    uint globalTileIndex = groupId.x + groupId.y * tile_count.x;
-    uint startOffset = LIGHT_INDEX_BUFFER_STRIDE * globalTileIndex;
+    GroupMemoryBarrierWithGroupSync();
 
-    // save the light counts for this tile
-    gLightIndexBuffer[startOffset + 0] = pointLightsInTile;
-    gLightIndexBuffer[startOffset + 1] = spotLightsInTile;
+    // write the light indices to the buffer
+    uint globalTileIndex = groupId.x + groupId.y * tileGridSize.x;
+    uint startOffset = LIGHT_INDEX_BUFFER_STRIDE * globalTileIndex;
 
     // copy the light indices to the buffer
     {
@@ -243,5 +242,11 @@ void cs_cull_lights(
         for (uint j = 0; j < gLightIndexCount; j += THREADS_PER_TILE) {
             gLightIndexBuffer[startOffset + LIGHT_INDEX_BUFFER_HEADER + MAX_POINT_LIGHTS_PER_TILE + j] = gLightIndex[j + pointLightsInTile];
         }
+    }
+
+    // save the light counts for this tile
+    if (localIndex == 0) {
+        gLightIndexBuffer[startOffset + 0] = 1; // pointLightsInTile;
+        gLightIndexBuffer[startOffset + 1] = 1; // spotLightsInTile;
     }
 }

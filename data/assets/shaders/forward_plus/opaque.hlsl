@@ -29,6 +29,19 @@ float4 project(float3 position) {
     return mul(float4(position, 1.f), mvp);
 }
 
+uint getLightsInTile(uint tileIndex) {
+    uint index = LIGHT_INDEX_BUFFER_STRIDE * tileIndex;
+
+    uint lightCount
+        // all point lights
+        = gLightIndexBuffer[index + 0]
+
+        // all spot lights
+        + gLightIndexBuffer[index + 1];
+
+    return lightCount;
+}
+
 // vertex shader for depth prepass
 
 struct DepthPassVertexOutput {
@@ -88,7 +101,16 @@ VertexOutput vsOpaque(VertexInput input) {
 }
 
 float4 psOpaque(VertexOutput vin) : SV_TARGET {
-    // TODO: implement all this
+    uint tileIndex = getTileIndex(vin.position.xy);
+    uint lightCount = getLightsInTile(tileIndex);
 
-    return float4(vin.uv, 0.f, 1.0f);
+    if (lightCount == 0)
+        return float4(0.f, 0.f, 0.f, 1.f);
+
+    float4 maxColour = float4(1.f, 0.f, 0.f, 1.f);
+    float4 minColour = float4(0.f, 1.f, 0.f, 1.f);
+
+    float ratio = float(lightCount) / float(MAX_LIGHTS_PER_TILE);
+
+    return lerp(minColour, maxColour, ratio);
 }
