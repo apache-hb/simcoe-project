@@ -106,12 +106,6 @@ void ecs::forwardPlusOpaque(
     graph::Handle& depth
 )
 {
-    static flecs::query drawObjectData = dd.world.query<
-        const ecs::ObjectDeviceData,
-        const render::ecs::IndexBuffer,
-        const render::ecs::VertexBuffer
-    >();
-
     const world::ecs::Camera *info = dd.camera.get<world::ecs::Camera>();
 
     const graph::ResourceInfo targetInfo = graph::ResourceInfo::tex2d(info->window, info->colour)
@@ -147,7 +141,7 @@ void ecs::forwardPlusOpaque(
         return info;
     });
 
-    pass.bind([=, camera = dd.camera, &data](graph::RenderContext& ctx) {
+    pass.bind([=, objectDrawData = dd.objectDrawData, camera = dd.camera, &data](graph::RenderContext& ctx) {
         auto& [context, graph, _, commands] = ctx;
 
         const world::ecs::Camera *it = camera.get<world::ecs::Camera>();
@@ -191,7 +185,7 @@ void ecs::forwardPlusOpaque(
 
         commands->SetGraphicsRootShaderResourceView(eLightIndexBuffer, lightIndexHandle->GetGPUVirtualAddress());
 
-        drawObjectData.iter([&](flecs::iter& it, const ecs::ObjectDeviceData *dd, const render::ecs::IndexBuffer *ibo, const render::ecs::VertexBuffer *vbo) {
+        objectDrawData.iter([&](flecs::iter& it, const ecs::ObjectDeviceData *dd, const render::ecs::IndexBuffer *ibo, const render::ecs::VertexBuffer *vbo) {
             for (auto i : it) {
                 commands->SetGraphicsRootConstantBufferView(eObjectBuffer, dd[i].getDeviceAddress());
                 commands->IASetVertexBuffers(0, 1, &vbo[i].view);

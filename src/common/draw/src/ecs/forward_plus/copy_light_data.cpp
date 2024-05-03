@@ -16,31 +16,6 @@ void draw::ecs::copyLightData(
     graph::Handle &pointLightData
 )
 {
-    static flecs::query queryAllPointLights
-        = dd.world.query_builder<
-            const world::ecs::Position,
-            const world::ecs::Intensity,
-            const world::ecs::Colour
-        >()
-        // select the world position
-        .term_at(1).second<world::ecs::World>()
-        // only select point lights
-        .with<world::ecs::Light>()
-        .build();
-
-    static flecs::query queryAllSpotLights
-        = dd.world.query_builder<
-            const world::ecs::Position,
-            const world::ecs::Direction,
-            const world::ecs::Intensity,
-            const world::ecs::Colour
-        >()
-        // select the world position
-        .term_at(1).second<world::ecs::World>()
-        // only select spot lights
-        .with<world::ecs::Light>()
-        .build();
-
     const graph::ResourceInfo spotLightVolumeInfo = graph::ResourceInfo::structuredBuffer<LightVolumeData>(MAX_SPOT_LIGHTS).buffered();
     const graph::ResourceInfo pointLightVolumeInfo = graph::ResourceInfo::structuredBuffer<LightVolumeData>(MAX_POINT_LIGHTS).buffered();
     const graph::ResourceInfo spotLightInfo = graph::ResourceInfo::structuredBuffer<SpotLightData>(MAX_SPOT_LIGHTS).buffered();
@@ -102,7 +77,15 @@ void draw::ecs::copyLightData(
         return info;
     });
 
-    pass.bind([=, camera = dd.camera, &data](graph::RenderContext& ctx) {
+    pass.bind(
+        [
+            =,
+            allPointLights = dd.allPointLights,
+            allSpotLights = dd.allSpotLights,
+            camera = dd.camera,
+            &data
+        ]
+        (graph::RenderContext& ctx) {
         size_t pointLightIndex = 0;
         size_t spotLightIndex = 0;
 
@@ -112,7 +95,7 @@ void draw::ecs::copyLightData(
         auto& info = vpd->data;
 
         // if (queryAllPointLights.changed()) {
-            queryAllPointLights.iter(
+            allPointLights.iter(
                 [&](
                     flecs::iter& it,
                     const world::ecs::Position* position,
@@ -151,7 +134,7 @@ void draw::ecs::copyLightData(
         // }
 
         // if (queryAllSpotLights.changed()) {
-            queryAllSpotLights.iter(
+            allSpotLights.iter(
                 [&](
                     flecs::iter& it,
                     const world::ecs::Position* position,

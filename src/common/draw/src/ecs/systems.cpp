@@ -100,3 +100,34 @@ void draw::ecs::initObjectObservers(flecs::world& world, render::IDeviceContext 
             }
         });
 }
+
+void draw::ecs::DrawData::init() {
+    objectDrawData = world.query<
+        const ecs::ObjectDeviceData,
+        const render::ecs::IndexBuffer,
+        const render::ecs::VertexBuffer
+    >();
+
+    allPointLights = world.query_builder<
+            const world::ecs::Position,
+            const world::ecs::Intensity,
+            const world::ecs::Colour
+        >()
+        // select the world position
+        .term_at(1).second<world::ecs::World>()
+        // only select point lights
+        .with<world::ecs::PointLight>()
+        .build();
+
+    allSpotLights = world.query_builder<
+            const world::ecs::Position,
+            const world::ecs::Direction,
+            const world::ecs::Intensity,
+            const world::ecs::Colour
+        >()
+        // select the world position
+        .term_at(1).second<world::ecs::World>()
+        // only select spot lights
+        .with<world::ecs::SpotLight>()
+        .build();
+}

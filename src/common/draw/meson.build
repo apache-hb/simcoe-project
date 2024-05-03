@@ -6,7 +6,6 @@ src = [
     'src/camera.cpp',
 
     'src/ecs/systems.cpp',
-    'src/ecs/opaque.cpp',
     'src/ecs/forward_plus/copy_light_data.cpp',
     'src/ecs/forward_plus/depth_prepass.cpp',
     'src/ecs/forward_plus/light_binning.cpp',

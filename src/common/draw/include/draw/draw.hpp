@@ -4,8 +4,7 @@
 
 #include "render/graph.hpp"
 #include "render/render.hpp"
-
-#include <flecs.h>
+#include "world/ecs.hpp"
 
 namespace sm::draw {
     class Camera;
@@ -108,10 +107,45 @@ namespace sm::draw {
             graph::FrameGraph& graph;
             flecs::world& world;
             flecs::entity camera;
+
+            flecs::query<
+                const ecs::ObjectDeviceData,
+                const render::ecs::IndexBuffer,
+                const render::ecs::VertexBuffer
+            > objectDrawData;
+
+            flecs::query<
+                const world::ecs::Position,
+                const world::ecs::Intensity,
+                const world::ecs::Colour
+            > allPointLights;
+
+            flecs::query<
+                const world::ecs::Position,
+                const world::ecs::Direction,
+                const world::ecs::Intensity,
+                const world::ecs::Colour
+            > allSpotLights;
+
+            DrawData(
+                forward_plus::DepthBoundsMode depthBoundsMode,
+                graph::FrameGraph& graph,
+                flecs::world& world,
+                flecs::entity camera
+            )
+                : depthBoundsMode(depthBoundsMode)
+                , graph(graph)
+                , world(world)
+                , camera(camera)
+            {
+                init();
+            }
+
+        private:
+            void init();
         };
 
         void initObjectObservers(flecs::world& world, render::IDeviceContext &context);
-        void opaque(flecs::world& world, graph::FrameGraph& graph, graph::Handle& target, graph::Handle& depth, flecs::entity camera);
 
         void copyLightData(
             DrawData& dd,

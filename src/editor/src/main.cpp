@@ -305,7 +305,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .set<world::ecs::Position, world::ecs::Local>({ float3(0.f, 5.f, 0.f) })
         .set<world::ecs::Colour>({ float3(1.f, 1.f, 1.f) })
         .set<world::ecs::Intensity>({ 1.f })
-        .add<world::ecs::Light, world::ecs::PointLight>();
+        .add<world::ecs::PointLight>();
 
     world.set<ed::ecs::MouseCaptured>({ false });
 

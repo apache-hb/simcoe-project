@@ -105,10 +105,10 @@ void EditorContext::setup_framegraph(graph::FrameGraph& graph) {
         q.each([&](flecs::entity entity, world::ecs::Camera& camera) {
             logs::gGlobal.info("Adding camera pass: {}", entity.name().c_str());
             draw::ecs::DrawData dd {
-                .depthBoundsMode = draw::forward_plus::DepthBoundsMode::eEnabled,
-                .graph = graph,
-                .world = getWorld(),
-                .camera = entity,
+                draw::forward_plus::DepthBoundsMode::eEnabled,
+                graph,
+                getWorld(),
+                entity,
             };
 
             graph::Handle spotLightVolumes, pointLightVolumes, spotLightData, pointLightData;

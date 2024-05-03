@@ -75,12 +75,6 @@ void draw::ecs::depthPrePass(
     graph::Handle &depthTarget
 )
 {
-    static flecs::query drawObjectData = dd.world.query<
-        const ecs::ObjectDeviceData,
-        const render::ecs::IndexBuffer,
-        const render::ecs::VertexBuffer
-    >();
-
     const world::ecs::Camera *info = dd.camera.get<world::ecs::Camera>();
 
     const graph::ResourceInfo depthTargetInfo = graph::ResourceInfo::tex2d(info->window, render::getDepthTextureFormat(info->depth))
@@ -113,7 +107,7 @@ void draw::ecs::depthPrePass(
         return info;
     });
 
-    pass.bind([depthTarget, camera = dd.camera, &data](graph::RenderContext& ctx) {
+    pass.bind([depthTarget, objectDrawData = dd.objectDrawData, camera = dd.camera, &data](graph::RenderContext& ctx) {
         auto& [context, graph, _, commands] = ctx;
 
         auto dsv = graph.dsv(depthTarget);
@@ -137,7 +131,7 @@ void draw::ecs::depthPrePass(
 
         commands->SetGraphicsRootConstantBufferView(eViewportBuffer, vpd->getDeviceAddress());
 
-        drawObjectData.iter([&](flecs::iter& it, const ecs::ObjectDeviceData *dd, const render::ecs::IndexBuffer *ib, const render::ecs::VertexBuffer *vb) {
+        objectDrawData.iter([&](flecs::iter& it, const ecs::ObjectDeviceData *dd, const render::ecs::IndexBuffer *ib, const render::ecs::VertexBuffer *vb) {
             for (auto i : it) {
                 commands->SetGraphicsRootConstantBufferView(eObjectBuffer, dd[i].getDeviceAddress());
 

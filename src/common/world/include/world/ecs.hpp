@@ -10,7 +10,6 @@
 
 namespace sm::world::ecs {
     /// lights
-    struct Light {};
     struct PointLight {};
     struct SpotLight {};
 
