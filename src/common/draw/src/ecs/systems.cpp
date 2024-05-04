@@ -5,6 +5,8 @@
 
 using namespace sm;
 
+LOG_CATEGORY_IMPL(gDrawLog, "draw");
+
 void draw::ecs::initObjectObservers(flecs::world& world, render::IDeviceContext &context) {
 
     // when an object is added to the world, create the required device data
@@ -94,7 +96,7 @@ void draw::ecs::initObjectObservers(flecs::world& world, render::IDeviceContext 
                     .projection = p.transpose(),
                     .invProjection = p.inverse().transpose(),
                     .cameraPosition = pos[i].position,
-                    .window = camera[i].window,
+                    .windowSize = camera[i].window,
                     .depthBufferSize = camera[i].window,
                 });
             }

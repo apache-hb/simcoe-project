@@ -84,7 +84,7 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
 
     void resize(sys::Window &, math::int2 size) override {
         if (mContext != nullptr) {
-            mContext->resize_swapchain(size.as<uint>());
+            mContext->resize_swapchain(uint2(size));
         }
     }
 
@@ -240,7 +240,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .feature_level = render::FeatureLevel::eLevel_11_0,
 
         .swapchain = {
-            .size = client.as<uint>(),
+            .size = uint2(client),
             .length = 2,
             .format = DXGI_FORMAT_R8G8B8A8_UNORM,
         },

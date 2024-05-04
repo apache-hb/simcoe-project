@@ -72,6 +72,11 @@ void Pipeline::reset() {
     pso.reset();
 }
 
+void Pipeline::rename(std::string_view name) {
+    if (signature) signature.rename(fmt::format("{}.signature", name));
+    if (pso) pso.rename(fmt::format("{}.pso", name));
+}
+
 void render::setObjectDebugName(ID3D12Object *object, std::string_view name) {
     auto wide = sm::widen(name);
     object->SetName(wide.c_str());

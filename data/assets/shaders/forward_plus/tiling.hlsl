@@ -40,8 +40,8 @@ groupshared light_index_t gLightIndex[MAX_LIGHTS_PER_TILE];
 
 // helper functions
 
-uint2 getWindowTileCount() {
-    return computeTileCount(gCameraData.window);
+uint2 getWindowGridSize() {
+    return gCameraData.getGridSize(TILE_SIZE);
 }
 
 float3 convert_projection_to_view(float4 p) {
@@ -167,7 +167,7 @@ struct FrustumData {
 // light culling and binning compute shader
 
 [numthreads(CS_THREADS_X, CS_THREADS_Y, 1)]
-void cs_cull_lights(
+void csCullLights(
     uint3 globalId : SV_DispatchThreadID,
     uint3 localId : SV_GroupThreadID,
     uint3 groupId : SV_GroupID
@@ -183,8 +183,7 @@ void cs_cull_lights(
         gLightIndexCount = 0;
     }
 
-    uint2 tileGridSize = getWindowTileCount();
-
+#if 0
     FrustumData frustum;
     {
         uint pxm = TILE_SIZE * groupId.x;
@@ -192,12 +191,12 @@ void cs_cull_lights(
         uint pxp = TILE_SIZE * (groupId.x + 1);
         uint pyp = TILE_SIZE * (groupId.y + 1);
 
-        uint2 window_size = TILE_SIZE * tileGridSize;
+        uint2 windowSize = gCameraData.getWindowTiledSize(TILE_SIZE);
 
-        float3 frustum0 = convert_projection_to_view(create_projection(window_size, pxm, pym));
-        float3 frustum1 = convert_projection_to_view(create_projection(window_size, pxp, pym));
-        float3 frustum2 = convert_projection_to_view(create_projection(window_size, pxp, pyp));
-        float3 frustum3 = convert_projection_to_view(create_projection(window_size, pxm, pyp));
+        float3 frustum0 = convert_projection_to_view(create_projection(windowSize, pxm, pym));
+        float3 frustum1 = convert_projection_to_view(create_projection(windowSize, pxp, pym));
+        float3 frustum2 = convert_projection_to_view(create_projection(windowSize, pxp, pyp));
+        float3 frustum3 = convert_projection_to_view(create_projection(windowSize, pxm, pyp));
 
         frustum.plane0 = create_plane_equation(frustum0, frustum1);
         frustum.plane1 = create_plane_equation(frustum1, frustum2);
@@ -226,11 +225,13 @@ void cs_cull_lights(
     light_index_t spotLightsInTile = gLightIndexCount - pointLightsInTile;
 
     GroupMemoryBarrierWithGroupSync();
+#endif
 
     // write the light indices to the buffer
-    uint globalTileIndex = groupId.x + groupId.y * tileGridSize.x;
-    uint startOffset = LIGHT_INDEX_BUFFER_STRIDE * globalTileIndex;
+    uint groupIdIndex = gCameraData.getGroupTileIndex(groupId, TILE_SIZE);
+    uint startOffset = groupIdIndex * LIGHT_INDEX_BUFFER_STRIDE;
 
+#if 0
     // copy the light indices to the buffer
     {
         for (uint i = 0; i < pointLightsInTile; i += THREADS_PER_TILE) {
@@ -242,6 +243,15 @@ void cs_cull_lights(
         for (uint j = 0; j < gLightIndexCount; j += THREADS_PER_TILE) {
             gLightIndexBuffer[startOffset + LIGHT_INDEX_BUFFER_HEADER + MAX_POINT_LIGHTS_PER_TILE + j] = gLightIndex[j + pointLightsInTile];
         }
+    }
+#endif
+
+    if (startOffset >= 3691548) {
+        gLightIndexBuffer[(groupIdIndex * 4) + 0] = groupId.x;
+        gLightIndexBuffer[(groupIdIndex * 4) + 1] = groupId.y;
+        gLightIndexBuffer[(groupIdIndex * 4) + 2] = groupIdIndex;
+        gLightIndexBuffer[(groupIdIndex * 4) + 3] = startOffset;
+        return;
     }
 
     // save the light counts for this tile

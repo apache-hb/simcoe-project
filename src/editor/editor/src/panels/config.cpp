@@ -171,7 +171,7 @@ void RenderConfig::draw_content() {
     }
 
     {
-        auto [width, height] = mContext.getSwapChainSize().as<int>();
+        auto [width, height] = math::int2(mContext.getSwapChainSize());
         ImGui::Text("Display Resolution: %u x %u", width, height);
     }
 

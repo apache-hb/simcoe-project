@@ -70,6 +70,8 @@ static void createLightBinningPipeline(
         auto device = context.getDevice();
         SM_ASSERT_HR(device->CreateComputePipelineState(&kPipeline, IID_PPV_ARGS(&pipeline.pso)));
     }
+
+    pipeline.rename("forward_plus_tiling");
 }
 
 void ecs::lightBinning(
@@ -82,8 +84,10 @@ void ecs::lightBinning(
 {
     const world::ecs::Camera *info = dd.camera.get<world::ecs::Camera>();
 
-    uint2 gridSize = draw::computeTileCount(info->window);
-    uint tileIndexCount = gridSize.x * gridSize.y * LIGHT_INDEX_BUFFER_STRIDE;
+    uint tileCount = draw::computeTileCount(info->window, TILE_SIZE);
+    uint tileIndexCount = tileCount * LIGHT_INDEX_BUFFER_STRIDE;
+
+    gDrawLog.info("Light Binning: Window Size: {}, Tile Count: {}, Tile Index Count: {}", info->window, tileCount, tileIndexCount);
 
     const graph::ResourceInfo lightIndexInfo = graph::ResourceInfo::arrayOf<light_index_t>(tileIndexCount);
 
@@ -140,6 +144,9 @@ void ecs::lightBinning(
 
         commands->SetComputeRootDescriptorTable(eLightIndexBuffer, lightIndicesHandle);
 
-        commands->Dispatch(TILE_SIZE, TILE_SIZE, 1);
+        uint2 gridSize = computeGridSize(info->window, TILE_SIZE) - 1;
+        gDrawLog.info("Light Binning: Dispatching {} x {} x 1", gridSize.x, gridSize.y);
+
+        commands->Dispatch(gridSize.x, gridSize.y, 1);
     });
 }

@@ -42,6 +42,9 @@ namespace sm::math {
         constexpr Vec2(T it) : Vec2(it, it) { }
         constexpr Vec2(const T *data) : Vec2(data[0], data[1]) { }
 
+        template<typename O> requires (!std::is_same_v<T, O>)
+        constexpr Vec2(Vec2<O> other) : Vec2((T)other.x, (T)other.y) { }
+
         constexpr Vec2(MembersAxis members) : Vec2(members.x, members.y) { }
         constexpr Vec2(MembersUV members) : Vec2(members.u, members.v) { }
         constexpr Vec2(MembersSize members) : Vec2(members.width, members.height) { }
@@ -63,9 +66,6 @@ namespace sm::math {
         constexpr Vec2 operator-=(const Vec2& other) { return *this = *this - other; }
         constexpr Vec2 operator*=(const Vec2& other) { return *this = *this * other; }
         constexpr Vec2 operator/=(const Vec2& other) { return *this = *this / other; }
-
-        template<typename O>
-        constexpr Vec2<O> as() const { return Vec2<O>(O(x), O(y)); }
 
         bool isinf() const { return std::isinf(x) || std::isinf(y); }
 
@@ -163,6 +163,9 @@ namespace sm::math {
         constexpr Vec3(MembersEuler members) : Vec3(members.roll, members.pitch, members.yaw) { }
         constexpr Vec3(MembersUVW members) : Vec3(members.u, members.v, members.w) { }
 
+        template<typename O> requires (!std::is_same_v<T, O>)
+        constexpr Vec3(Vec3<O> other) : Vec3((T)other.x, (T)other.y, (T)other.z) { }
+
         static constexpr Vec3 zero() { return Vec3(T(0)); }
 
         constexpr bool operator==(const Vec3& other) const { return x == other.x && y == other.y && z == other.z; }
@@ -180,9 +183,6 @@ namespace sm::math {
 
         constexpr Vec3 operator-() const { return negate(); }
         constexpr Vec3 operator+() const { return abs(); }
-
-        template<typename O>
-        constexpr Vec3<O> as() const { return Vec3<O>(O(x), O(y), O(z)); }
 
         constexpr Vec2 xy() const { return Vec2(x, y); }
         constexpr Vec2 xz() const { return Vec2(x, z); }
@@ -269,7 +269,7 @@ namespace sm::math {
     };
 
     template<typename T>
-    constexpr Vec3<T> operator*(float scalar, const Vec3<T>& vec) {
+    constexpr Vec3<T> operator*(T scalar, Vec3<T> vec) {
         return Vec3<T>(scalar * vec.x, scalar * vec.y, scalar * vec.z);
     }
 
@@ -299,6 +299,9 @@ namespace sm::math {
         constexpr Vec4(MembersAxis members) : Vec4(members.x, members.y, members.z, members.w) { }
         constexpr Vec4(MembersColour members) : Vec4(members.r, members.g, members.b, members.a) { }
 
+        template<typename O> requires (!std::is_same_v<T, O>)
+        constexpr Vec4(Vec4<O> other) : Vec4((T)other.x, (T)other.y, (T)other.z, (T)other.w) { }
+
         static constexpr Vec4 zero() { return Vec4(T(0)); }
 
         constexpr bool operator==(const Vec4& other) const { return x == other.x && y == other.y && z == other.z && w == other.w; }
@@ -313,9 +316,6 @@ namespace sm::math {
         constexpr Vec4 operator-=(const Vec4& other) { return *this = *this - other; }
         constexpr Vec4 operator*=(const Vec4& other) { return *this = *this * other; }
         constexpr Vec4 operator/=(const Vec4& other) { return *this = *this / other; }
-
-        template<typename O>
-        constexpr Vec4<O> as() const { return Vec4<O>(O(x), O(y), O(z), O(w)); }
 
         constexpr Vec3 xyz() const { return Vec3(x, y, z); }
 
@@ -372,7 +372,7 @@ namespace sm::math {
 
     // NOLINTBEGIN
     template<IsVector T>
-    T fma(T a, T b, T c) {
+    constexpr T fma(T a, T b, T c) {
         return c + (a * b);
     }
 

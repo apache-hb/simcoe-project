@@ -29,7 +29,7 @@ float4 project(float3 position) {
     return mul(float4(position, 1.f), mvp);
 }
 
-uint getLightsInTile(uint tileIndex) {
+uint getTileLightCount(uint tileIndex) {
     uint index = LIGHT_INDEX_BUFFER_STRIDE * tileIndex;
 
     uint lightCount
@@ -101,16 +101,16 @@ VertexOutput vsOpaque(VertexInput input) {
 }
 
 float4 psOpaque(VertexOutput vin) : SV_TARGET {
-    uint tileIndex = getTileIndex(vin.position.xy);
-    uint lightCount = getLightsInTile(tileIndex);
+    uint tileCount = gCameraData.getTileCount(TILE_SIZE);
+    uint tileIndex = gCameraData.getPixelTileIndex(vin.position.xy, TILE_SIZE);
+    uint lightCount = getTileLightCount(tileIndex);
+    float ratio = float(lightCount) / float(MAX_LIGHTS_PER_TILE);
 
     if (lightCount == 0)
         return float4(0.f, 0.f, 0.f, 1.f);
 
     float4 maxColour = float4(1.f, 0.f, 0.f, 1.f);
     float4 minColour = float4(0.f, 1.f, 0.f, 1.f);
-
-    float ratio = float(lightCount) / float(MAX_LIGHTS_PER_TILE);
 
     return lerp(minColour, maxColour, ratio);
 }

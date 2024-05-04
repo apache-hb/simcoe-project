@@ -101,7 +101,7 @@
             "name": "forward_plus_tiling",
             "path": "shaders/forward_plus/tiling.hlsl",
             "targets": [
-                { "entry": "cs_cull_lights", "target": "cs" }
+                { "entry": "csCullLights", "target": "cs" }
             ]
         },
         {

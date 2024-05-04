@@ -302,7 +302,7 @@ static void drawViewportContent(flecs::entity entity, D3D12_GPU_DESCRIPTOR_HANDL
     float2 avail = ImGui::GetContentRegionAvail();
 
     if (scaleViewport) {
-        uint2 sz = avail.as<uint>();
+        uint2 sz = uint2(avail);
 
         const world::ecs::Camera *info = entity.get<world::ecs::Camera>();
         if (sz != info->window) {

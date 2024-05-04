@@ -6,8 +6,8 @@ using namespace sm;
 using namespace sm::render;
 
 Viewport Viewport::letterbox(math::uint2 display, math::uint2 render) {
-    auto [renderWidth, renderHeight] = render.as<float>();
-    auto [displayWidth, displayHeight] = display.as<float>();
+    auto [renderWidth, renderHeight] = math::float2(render);
+    auto [displayWidth, displayHeight] = math::float2(display);
 
     auto widthRatio = renderWidth / displayWidth;
     auto heightRatio = renderHeight / displayHeight;

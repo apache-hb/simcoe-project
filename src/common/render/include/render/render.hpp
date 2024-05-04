@@ -79,6 +79,8 @@ namespace sm::render {
         Object<ID3D12PipelineState> pso;
 
         void reset();
+
+        void rename(std::string_view name);
     };
 
     namespace ecs {
