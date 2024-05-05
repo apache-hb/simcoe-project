@@ -4,11 +4,11 @@
 
 #include "archive/bundle.hpp"
 
-#include "core/array.hpp"
-#include "core/queue.hpp"
+#include "core/adt/array.hpp"
+#include "core/adt/queue.hpp"
 
 #include "render/instance.hpp"
-#include "render/heap.hpp"
+#include "render/descriptor_heap.hpp"
 #include "render/resource.hpp"
 #include "render/dstorage.hpp"
 

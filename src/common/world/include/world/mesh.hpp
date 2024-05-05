@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/vector.hpp"
+#include "core/adt/vector.hpp"
 #include "math/math.hpp"
 
 #include <directx/dxgiformat.h>

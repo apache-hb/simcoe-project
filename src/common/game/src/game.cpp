@@ -264,30 +264,30 @@ struct game::GameContextImpl {
 
         JPH::Factory::sInstance = new JPH::Factory();
 
-        debugRenderer = sm::make_unique<CDebugRenderer>();
+        debugRenderer = sm::makeUnique<CDebugRenderer>();
         JPH::DebugRenderer::sInstance = debugRenderer.get();
 
         JPH::RegisterTypes();
 
-        physicsAllocator = sm::make_unique<JPH::TempAllocatorImpl>((16_mb).as_bytes());
-        physicsThreadPool = sm::make_unique<JPH::JobSystemSingleThreaded>(0x1000 * 4);
+        physicsAllocator = sm::makeUnique<JPH::TempAllocatorImpl>((16_mb).asBytes());
+        physicsThreadPool = sm::makeUnique<JPH::JobSystemSingleThreaded>(0x1000 * 4);
 
-        broadPhaseLayer = sm::make_unique<CBroadPhaseLayer>();
-        objectLayerPairFilter = sm::make_unique<CObjectLayerPairFilter>();
-        objectVsBroadPhaseLayerFilter = sm::make_unique<CObjectVsBroadPhaseFilter>();
+        broadPhaseLayer = sm::makeUnique<CBroadPhaseLayer>();
+        objectLayerPairFilter = sm::makeUnique<CObjectLayerPairFilter>();
+        objectVsBroadPhaseLayerFilter = sm::makeUnique<CObjectVsBroadPhaseFilter>();
 
         JPH::PhysicsSettings settings = {
             .mTimeBeforeSleep = 5.f,
         };
 
-        physicsSystem = sm::make_unique<JPH::PhysicsSystem>();
+        physicsSystem = sm::makeUnique<JPH::PhysicsSystem>();
         physicsSystem->SetPhysicsSettings(settings);
         physicsSystem->Init(kMaxBodies, kBodyMutexCount, kMaxBodyPairs, kMaxContactConstraints, broadPhaseLayer.ref(), objectVsBroadPhaseLayerFilter.ref(), objectLayerPairFilter.ref());
 
-        bodyActivationListener = sm::make_unique<CBodyActivationListener>();
+        bodyActivationListener = sm::makeUnique<CBodyActivationListener>();
         physicsSystem->SetBodyActivationListener(*bodyActivationListener);
 
-        contactListener = sm::make_unique<CContactListener>();
+        contactListener = sm::makeUnique<CContactListener>();
         physicsSystem->SetContactListener(*contactListener);
 
         debugRenderer->DrawCoordinateSystem(JPH::RMat44::sIdentity());

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/small_string.hpp"
+#include "core/adt/small_string.hpp"
 
 #include "core/format.hpp" // IWYU pragma: export
 
@@ -38,21 +38,15 @@ namespace sm {
             : mBytes(memory * kSizes[unit])
         { }
 
-        constexpr size_t b() const { return mBytes; }
-        constexpr size_t kb() const { return mBytes / kKilobyte; }
-        constexpr size_t mb() const { return mBytes / kMegabyte; }
-        constexpr size_t gb() const { return mBytes / kGigabyte; }
-        constexpr size_t tb() const { return mBytes / kTerabyte; }
-
-        constexpr size_t as_bytes() const { return mBytes; }
-        constexpr size_t as_kilobytes() const { return mBytes / kKilobyte; }
-        constexpr size_t as_megabytes() const { return mBytes / kMegabyte; }
-        constexpr size_t as_gigabytes() const { return mBytes / kGigabyte; }
-        constexpr size_t as_terabytes() const { return mBytes / kTerabyte; }
+        constexpr size_t asBytes() const noexcept { return mBytes; }
+        constexpr size_t asKilobytes() const noexcept { return mBytes / kKilobyte; }
+        constexpr size_t asMegabytes() const noexcept { return mBytes / kMegabyte; }
+        constexpr size_t asGigabytes() const noexcept { return mBytes / kGigabyte; }
+        constexpr size_t asTerabytes() const noexcept { return mBytes / kTerabyte; }
 
         friend constexpr auto operator<=>(const Memory& lhs, const Memory& rhs) = default;
 
-        SmallString<64> to_string() const;
+        SmallString<64> toString() const noexcept;
 
     private:
         size_t mBytes;
@@ -78,6 +72,6 @@ struct fmt::formatter<sm::Memory> {
     }
 
     auto format(const sm::Memory& value, format_context& ctx) const {
-        return fmt::format_to(ctx.out(), "{}", value.to_string().c_str());
+        return fmt::format_to(ctx.out(), "{}", value.toString().c_str());
     }
 };

@@ -1,7 +1,6 @@
 #include "stdafx.hpp"
 
 #include "draw/draw.hpp"
-#include "draw/shared.hpp"
 
 #include "world/ecs.hpp"
 
@@ -144,7 +143,7 @@ void ecs::lightBinning(
 
         commands->SetComputeRootDescriptorTable(eLightIndexBuffer, lightIndicesHandle);
 
-        uint2 gridSize = computeGridSize(info->window, TILE_SIZE) - 1;
+        uint2 gridSize = computeGridSize(info->window, TILE_SIZE);
         gDrawLog.info("Light Binning: Dispatching {} x {} x 1", gridSize.x, gridSize.y);
 
         commands->Dispatch(gridSize.x, gridSize.y, 1);

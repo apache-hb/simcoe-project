@@ -1,0 +1,5 @@
+option('double_precision', type : 'boolean', value : 'false')
+
+option('tools', type : 'feature', value : 'auto')
+option('tests', type : 'feature', value : 'auto')
+option('examples', type : 'feature', value : 'auto')

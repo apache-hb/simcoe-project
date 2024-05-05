@@ -1,3 +1,5 @@
+#include "stdafx.hpp"
+
 #include "core/typeindex.hpp"
 
 sm::uint32 sm::next_index() noexcept {

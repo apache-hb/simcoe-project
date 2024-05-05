@@ -1,3 +1,5 @@
+#include "stdafx.hpp"
+
 #include "core/library.hpp"
 
 using namespace sm;

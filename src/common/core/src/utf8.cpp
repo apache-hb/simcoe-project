@@ -1,3 +1,5 @@
+#include "stdafx.hpp"
+
 #include "core/utf8.hpp"
 #include "base/panic.h"
 

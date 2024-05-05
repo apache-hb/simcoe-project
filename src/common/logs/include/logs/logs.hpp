@@ -5,7 +5,7 @@
 
 #include "core/core.hpp"
 #include "core/string.hpp"
-#include "core/vector.hpp"
+#include "core/adt/vector.hpp"
 
 typedef struct colour_pallete_t colour_pallete_t;
 

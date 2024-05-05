@@ -37,7 +37,7 @@ void EditorContext::imgui(graph::FrameGraph& graph, graph::Handle target) {
 EditorContext::EditorContext(const render::RenderConfig& config)
     : Super(config)
 {
-    draw::ecs::initObjectObservers(getWorld(), *this);
+    draw::ecs::initSystems(getWorld(), *this);
     ecs::initWindowComponents(getWorld());
 }
 

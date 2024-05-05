@@ -1,10 +1,10 @@
-#include "core/memory.hpp"
+#include "stdafx.hpp"
 
-#include <iterator>
+#include "core/memory.hpp"
 
 using namespace sm;
 
-SmallString<64> Memory::to_string() const {
+SmallString<64> Memory::toString() const noexcept {
     if (mBytes == 0) { return "0b"; }
 
     sm::FormatBuffer buffer;

@@ -666,7 +666,7 @@ void FrameGraph::createManagedResources() {
 ///
 
 void FrameGraph::FrameCommandData::resize(ID3D12Device1 *device, uint length) {
-    for (uint i = 0; i < allocators.length(); i++) {
+    for (uint i = 0; i < allocators.size(); i++) {
         allocators[i].reset();
     }
 

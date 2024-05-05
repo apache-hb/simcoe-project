@@ -55,7 +55,7 @@ bool RecordStore::create() {
             .version = kCurrentVersion,
             .count = int_cast<uint16>(mCapacity),
             .used = int_cast<uint16>(mUsed),
-            .size = int_cast<uint32>(mSize.as_bytes()),
+            .size = int_cast<uint32>(mSize.asBytes()),
             .checksum = 0, // we calculate checksum at closing
         };
 
@@ -101,9 +101,9 @@ bool RecordStore::create() {
 
     // resize file to the desired size
 
-    CTASSERTF(mSize <= UINT32_MAX, "file size too large: %s", mSize.to_string().c_str());
+    CTASSERTF(mSize <= UINT32_MAX, "file size too large: %s", mSize.toString().c_str());
 
-    size_t size_as_bytes = mSize.as_bytes();
+    size_t size_as_bytes = mSize.asBytes();
 
     if (OsError err = os_file_resize(&mFileHandle, size_as_bytes)) {
         logs::gAssets.error("unable to expand file, {}", err);
@@ -141,28 +141,27 @@ bool RecordStore::create() {
     }
 
     sm::Memory public_size = get_public_size();
-    if (public_size.as_bytes() % 8 != 0) {
+    if (public_size.asBytes() % 8 != 0) {
         logs::gAssets.error("public_size size must be a multiple of 8, {}", public_size);
         return false;
     }
 
-    size_t as_bytes = public_size.as_bytes();
+    size_t as_bytes = public_size.asBytes();
 
     // intialize allocation data
     mUsed = header->used;
     mCapacity = header->count;
 
     // mark header region as used
-    mAllocator.resize(as_bytes / 8);
-    mAllocator.set_range(BitMap::Index(0), BitMap::Index(as_bytes / 8));
+    mIndexAllocator.resize(as_bytes / 8);
+    mIndexAllocator.setRange(0, as_bytes / 8);
 
     // mark already used record data as used
     for (uint32_t i = 0; i < mUsed; i++) {
         const RecordEntryHeader *record = get_record_header(i);
         if (record->id == 0) continue;
 
-        mAllocator.set_range(BitMap::Index(record->offset),
-                          BitMap::Index(record->offset + record->size));
+        mIndexAllocator.setRange(record->offset, record->offset + record->size);
     }
 
     return true;
@@ -189,7 +188,7 @@ void RecordStore::destroy() {
     // reset the size
     mSize = 0;
 
-    mAllocator.reset();
+    mIndexAllocator.clear();
 }
 
 RecordLookup RecordStore::get_record(uint32_t id, void **data, uint16_t size) {
@@ -222,10 +221,10 @@ RecordLookup RecordStore::get_record(uint32_t id, void **data, uint16_t size) {
 
     // mAllocator operates on 8 byte chunks, convert the size and scan for free space
     uint16_t chunks = (size + 7) / 8;
-    BitMap::Index index = mAllocator.scan_set_range(BitMap::Index{chunks});
+    size_t index = mIndexAllocator.allocateRange(chunks);
 
-    if (!check(index != BitMap::Index::eInvalid,
-                   "unable to find free record header, {}/{}", size, mAllocator.freecount()))
+    if (!check(index != BitMapIndexAllocator::kInvalidIndex,
+                   "unable to find free record header, {}/{}", size, mIndexAllocator.freecount()))
         return RecordLookup::eDataRegionExhausted;
 
     // write record header
@@ -249,15 +248,14 @@ void RecordStore::init_alloc_info() {
     size_t public_size = get_public_size();
 
     // mark header region as used
-    mAllocator.resize(public_size / 8);
-    mAllocator.set_range(BitMap::Index(0), BitMap::Index(public_size / 8));
+    mIndexAllocator.resize(public_size / 8);
+    mIndexAllocator.setRange(0, public_size / 8);
 
     // mark already used record data as used
     for (uint32_t i = 0; i < mUsed; i++) {
         const RecordEntryHeader *record = get_record_header(i);
         if (record->id == 0) continue;
-        mAllocator.set_range(BitMap::Index(record->offset),
-                          BitMap::Index(record->offset + record->size));
+        mIndexAllocator.setRange(record->offset, record->offset + record->size);
     }
 }
 
@@ -268,7 +266,7 @@ void RecordStore::update_header() {
         .version = kCurrentVersion,
         .count = header->count,
         .used = header->used,
-        .size = uint32_t(mSize.as_bytes()),
+        .size = uint32_t(mSize.asBytes()),
         .checksum = calc_checksum(),
     };
 
@@ -281,7 +279,8 @@ void RecordStore::destroy_safe() {
 
 RecordStore::RecordStore(const RecordStoreConfig &config)
     : mFilePath(config.path)
-    , mSize(config.size.b() + (header_size(config.record_count)))
+    , mSize(config.size.asBytes() + (header_size(config.record_count)))
+    , mIndexAllocator(64)
     , mCapacity(config.record_count)
 {
     CTASSERT(mFilePath != nullptr);
@@ -306,16 +305,13 @@ void RecordStore::reset() {
     RecordStoreHeader *header = get_private_header();
     header->magic = kFileMagic;
     header->version = kCurrentVersion;
-    header->size = uint32_t(mSize.as_bytes());
+    header->size = uint32_t(mSize.asBytes());
     header->checksum = 0;
     header->count = uint16_t(mCapacity);
     header->used = 0;
 
     // reset the space bitmap
-    if (mAllocator.is_valid())
-        mAllocator.reset();
-    else
-        mAllocator.resize(get_public_size() / 8);
+    mIndexAllocator.resizeAndClear(get_public_size() / 8);
 
     init_alloc_info();
 }
@@ -355,7 +351,7 @@ uint8_t *RecordStore::get_private_region() const {
 
 size_t RecordStore::get_public_size() const {
     CTASSERT(is_data_mapped());
-    return mSize.as_bytes() - header_size(mCapacity);
+    return mSize.asBytes() - header_size(mCapacity);
 }
 
 void *RecordStore::get_record_data(uint32_t offset) const {

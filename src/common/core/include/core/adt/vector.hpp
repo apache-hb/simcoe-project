@@ -1,8 +1,8 @@
 #pragma once
 
-#include "base/panic.h"
-
 #include "core/core.hpp"
+
+#include "base/panic.h"
 
 #include <vector>
 #include <memory>
@@ -27,21 +27,21 @@ namespace sm {
         T *mCapacity = nullptr;
 
         // destroy the data and release the memory
-        constexpr void release_data() noexcept {
+        constexpr void releaseData() noexcept {
             std::destroy(mFront, mBack);
             delete[] mFront;
         }
 
         // set new data pointers
-        constexpr void update_data(T *front, SizeType used, SizeType capacity) noexcept {
+        constexpr void updateData(T *front, SizeType used, SizeType capacity) noexcept {
             mFront = front;
             mBack = front + used;
             mCapacity = front + capacity;
         }
 
         constexpr void replace_data(T *front, SizeType used, SizeType capacity) noexcept {
-            release_data();
-            update_data(front, used, capacity);
+            releaseData();
+            updateData(front, used, capacity);
         }
 
         constexpr void init(SizeType capacity, SizeType used = 0) noexcept {
@@ -51,16 +51,16 @@ namespace sm {
 
             T *data = new T[capacity];
 
-            update_data(data, used, capacity);
+            updateData(data, used, capacity);
         }
 
-        constexpr void verify_index(SizeType index) const noexcept {
+        constexpr void verifyIndex(SizeType index) const noexcept {
             CTASSERTF(index >= 0, "Index must be non-negative: %zd", index);
             CTASSERTF(index < ssize(), "Index must be less than size: %zd < %zu", index, ssize());
         }
 
         // only ever grows the backing data
-        constexpr void ensure_growth(SizeType size) noexcept {
+        constexpr void ensureGrowth(SizeType size) noexcept {
             if (size > capacity()) {
                 SizeType new_capacity = (std::max)(capacity() * 2, size);
                 SizeType old_size = ssize();
@@ -75,12 +75,12 @@ namespace sm {
         }
 
         // ensure extra space is available
-        constexpr void ensure_extra(SizeType extra) noexcept {
-            ensure_growth(ssize() + extra);
+        constexpr void ensureExtra(SizeType extra) noexcept {
+            ensureGrowth(ssize() + extra);
         }
 
         // shrink the backing data, dont release memory
-        constexpr void shrink_size(SizeType size) noexcept {
+        constexpr void shrinkSize(SizeType size) noexcept {
             CTASSERTF(size >= 0, "Size must be non-negative: %zd", size);
 
             if (size < ssize()) {
@@ -90,7 +90,7 @@ namespace sm {
         }
 
         // shrink the backing data and release extra memory
-        constexpr void shrink_capacity(SizeType size) noexcept {
+        constexpr void shrinkCapacity(SizeType size) noexcept {
             CTASSERTF(size >= 0, "Size must be non-negative: %zd", size);
 
             if (size < capacity()) {
@@ -107,7 +107,7 @@ namespace sm {
             }
         }
 
-        constexpr void set_capacity(SizeType cap) noexcept {
+        constexpr void setCapacity(SizeType cap) noexcept {
             CTASSERTF(cap >= 0, "Capacity must be non-negative: %zd", cap);
 
             if (cap != capacity()) {
@@ -174,10 +174,10 @@ namespace sm {
         // size query
 
         constexpr size_t size() const noexcept { return mBack - mFront; }
-        constexpr size_t size_bytes() const noexcept { return ssize() * sizeof(T); }
+        constexpr size_t sizeInBytes() const noexcept { return ssize() * sizeof(T); }
 
         constexpr ssize_t ssize() const noexcept { return mBack - mFront; }
-        constexpr ssize_t ssize_bytes() const noexcept { return ssize() * sizeof(T); }
+        constexpr ssize_t ssizeInBytes() const noexcept { return ssize() * sizeof(T); }
 
         constexpr ssize_t capacity() const noexcept { return mCapacity - mFront; }
         constexpr bool empty() const noexcept { return mFront == mBack; }
@@ -185,22 +185,22 @@ namespace sm {
         // element access
 
         constexpr T& operator[](SizeType index) noexcept {
-            verify_index(index);
+            verifyIndex(index);
             return mFront[index];
         }
 
         constexpr const T& operator[](SizeType index) const noexcept {
-            verify_index(index);
+            verifyIndex(index);
             return mFront[index];
         }
 
         constexpr T& at(SizeType index) noexcept {
-            verify_index(index);
+            verifyIndex(index);
             return mFront[index];
         }
 
         constexpr const T& at(SizeType index) const noexcept {
-            verify_index(index);
+            verifyIndex(index);
             return mFront[index];
         }
 
@@ -209,7 +209,7 @@ namespace sm {
 
         constexpr T *release() noexcept {
             T *data = mFront;
-            update_data(nullptr, 0, 0);
+            updateData(nullptr, 0, 0);
             return data;
         }
 
@@ -245,10 +245,10 @@ namespace sm {
             CTASSERTF(count >= 0, "Size must be non-negative: %zd", count);
 
             if (count > ssize()) {
-                ensure_growth(count);
+                ensureGrowth(count);
                 std::uninitialized_value_construct(mBack, mFront + count);
             } else if (count < ssize()) {
-                shrink_size(count);
+                shrinkSize(count);
             }
 
             mBack = mFront + count;
@@ -259,10 +259,10 @@ namespace sm {
             CTASSERTF(count >= 0, "Size must be non-negative: %zd", count);
 
             if (count > ssize()) {
-                ensure_growth(count);
+                ensureGrowth(count);
                 std::uninitialized_value_construct(mBack, mFront + count);
             } else if (count < ssize()) {
-                shrink_capacity(count);
+                shrinkCapacity(count);
             }
 
             mBack = mFront + count;
@@ -271,28 +271,28 @@ namespace sm {
         // appending
 
         constexpr T& emplace_back(auto&&... args) noexcept {
-            ensure_extra(1);
+            ensureExtra(1);
             return *new (mBack++) T(std::forward<decltype(args)>(args)...);
         }
 
         constexpr T& emplace_back(T &&value) noexcept {
-            ensure_extra(1);
+            ensureExtra(1);
             return (*mBack++ = std::move(value));
         }
 
         constexpr void push_back(const T &value) noexcept {
-            ensure_extra(1);
+            ensureExtra(1);
             *mBack++ = value;
         }
 
         constexpr void push_back(T &&value) noexcept {
-            ensure_extra(1);
+            ensureExtra(1);
             *mBack++ = std::move(value);
         }
 
         constexpr void assign(const T *first, const T *last) noexcept {
             SizeType count = last - first;
-            ensure_extra(count);
+            ensureExtra(count);
             std::move(first, last, mBack);
             mBack += count;
         }

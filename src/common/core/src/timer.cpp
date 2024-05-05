@@ -1,3 +1,5 @@
+#include "stdafx.hpp"
+
 #include "core/timer.hpp"
 
 using namespace sm;

@@ -1,8 +1,10 @@
 #pragma once
 
-#include "core/core.hpp"
-#include "core/vector.hpp"
+#include <simcoe_config.h>
+
+#include "core/adt/vector.hpp"
 #include "core/string.hpp"
+#include "core/traits.hpp"
 
 #include "archive/io.hpp"
 

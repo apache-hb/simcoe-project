@@ -1,3 +1,5 @@
+#include "stdafx.hpp"
+
 #include "core/error.hpp"
 
 using namespace sm;

@@ -1,4 +1,4 @@
-#include "core/small_string.hpp"
+#include "core/adt/small_string.hpp"
 #include "core/units.hpp"
 
 #include <cstring>

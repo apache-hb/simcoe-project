@@ -6,14 +6,11 @@ src = [
     'src/camera.cpp',
 
     'src/ecs/systems.cpp',
+
     'src/ecs/forward_plus/copy_light_data.cpp',
     'src/ecs/forward_plus/depth_prepass.cpp',
     'src/ecs/forward_plus/light_binning.cpp',
-    'src/ecs/forward_plus/opaque.cpp',
-
-    'src/forward_plus/depth_prepass.cpp',
-    'src/forward_plus/light_cull.cpp',
-    'src/forward_plus/opaque.cpp'
+    'src/ecs/forward_plus/opaque.cpp'
 ]
 
 deps = [ render, input ]

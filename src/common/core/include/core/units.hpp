@@ -2,9 +2,9 @@
 
 #include <simcoe_config.h>
 
-#include <limits>
+#include "core/traits.hpp"
 
-#include "core/core.hpp"
+#include <limits>
 
 namespace sm {
     enum class CastError {

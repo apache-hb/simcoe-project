@@ -27,6 +27,7 @@ src = [
     # utils
     'src/result.cpp',
     'src/object.cpp',
+    'src/descriptor_heap.cpp',
     'src/viewport.cpp',
     'src/format.cpp',
 

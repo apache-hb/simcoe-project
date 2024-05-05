@@ -561,7 +561,7 @@ void IDeviceContext::upload_model(world::IndexOf<world::Model> model) {
 
 render::ecs::VertexBuffer IDeviceContext::uploadVertexBuffer(world::VertexBuffer&& buffer) {
     uint length = uint(buffer.size());
-    size_t size = buffer.size_bytes();
+    size_t size = buffer.sizeInBytes();
 
     Resource resource;
     SM_ASSERT_HR(createBufferResource(resource, D3D12_HEAP_TYPE_DEFAULT, size, D3D12_RESOURCE_STATE_COMMON));
@@ -587,7 +587,7 @@ render::ecs::VertexBuffer IDeviceContext::uploadVertexBuffer(world::VertexBuffer
 
 render::ecs::IndexBuffer IDeviceContext::uploadIndexBuffer(world::IndexBuffer&& buffer) {
     uint length = uint(buffer.size());
-    size_t size = buffer.size_bytes();
+    size_t size = buffer.sizeInBytes();
 
     Resource resource;
     SM_ASSERT_HR(createBufferResource(resource, D3D12_HEAP_TYPE_DEFAULT, size, D3D12_RESOURCE_STATE_COMMON));

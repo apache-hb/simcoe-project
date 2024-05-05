@@ -9,11 +9,9 @@ using namespace sm::math;
 #endif
 
 #ifdef __HLSL_VERSION
-#   define CXX_CONSTEXPR
-#   define CXX_CONST
+#   define CXX(...)
 #else
-#   define CXX_CONSTEXPR constexpr
-#   define CXX_CONST const
+#   define CXX(...) __VA_ARGS__
 #endif
 
 #define TILE_SIZE 16
@@ -39,25 +37,27 @@ using namespace sm::math;
 #define LIGHT_INDEX_BUFFER_HEADER (1 + 1)
 #define LIGHT_INDEX_BUFFER_STRIDE (LIGHT_INDEX_BUFFER_HEADER + MAX_POINT_LIGHTS_PER_TILE + MAX_SPOT_LIGHTS_PER_TILE)
 
-CXX_CONSTEXPR int cxxCeil(float x) {
+CXX(constexpr) int cxxCeil(float x) {
 #ifdef __cplusplus
-    const int i = int(x);
+    const int i = static_cast<int>(x);
     return (x > i) ? i + 1 : i;
 #else
     return ceil(x);
 #endif
 }
 
-CXX_CONSTEXPR int cxxFloor(float x) {
+CXX(constexpr) int cxxFloor(float x) {
 #ifdef __cplusplus
-    const int i = int(x);
-    return i - (i > x);
+    const int i = static_cast<int>(x);
+    return (x < i) ? i - 1 : i;
 #else
     return floor(x);
 #endif
 }
 
-CXX_CONSTEXPR uint2 computeGridSize(uint2 windowSize, uint tileSize) {
+CXX(constexpr) uint2 computeGridSize(uint2 windowSize, uint tileSize) {
+    CXX(CTASSERTF(sm::isPowerOf2(tileSize), "tile size must be a power of 2"));
+
     uint x = (uint)((windowSize.x + tileSize - 1) / (float)(tileSize));
     uint y = (uint)((windowSize.y + tileSize - 1) / (float)(tileSize));
 
@@ -65,17 +65,17 @@ CXX_CONSTEXPR uint2 computeGridSize(uint2 windowSize, uint tileSize) {
 }
 
 // gets the size of the window rounded up to the next multiple of the tile size
-CXX_CONSTEXPR uint2 computeWindowTiledSize(uint2 windowSize, uint tileSize) {
+CXX(constexpr) uint2 computeWindowTiledSize(uint2 windowSize, uint tileSize) {
     uint2 gridSize = computeGridSize(windowSize, tileSize);
     return gridSize * tileSize;
 }
 
-CXX_CONSTEXPR uint computeTileCount(uint2 windowSize, uint tileSize) {
+CXX(constexpr) uint computeTileCount(uint2 windowSize, uint tileSize) {
     uint2 grid = computeGridSize(windowSize, tileSize);
     return grid.x * grid.y;
 }
 
-CXX_CONSTEXPR uint computePixelTileIndex(uint2 windowSize, float2 position, uint tileSize) {
+CXX(constexpr) uint computePixelTileIndex(uint2 windowSize, float2 position, uint tileSize) {
     uint2 grid = computeGridSize(windowSize, tileSize);
 
     uint row = cxxFloor(position.x / float(tileSize));
@@ -85,7 +85,7 @@ CXX_CONSTEXPR uint computePixelTileIndex(uint2 windowSize, float2 position, uint
     return index;
 }
 
-CXX_CONSTEXPR uint computeGroupTileIndex(uint3 groupId, uint2 windowSize, uint tileSize) {
+CXX(constexpr) uint computeGroupTileIndex(uint3 groupId, uint2 windowSize, uint tileSize) {
     uint2 grid = computeGridSize(windowSize, tileSize);
 
     uint row = groupId.x;
@@ -101,7 +101,7 @@ struct ObjectData {
     float4x4 model;
 };
 
-struct ViewportData {
+struct CXX(alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT)) ViewportData {
     float4x4 viewProjection;
     float4x4 worldView;
 
@@ -115,31 +115,31 @@ struct ViewportData {
     uint pointLightCount;
     uint spotLightCount;
 
-    CXX_CONSTEXPR uint2 getWindowSize() CXX_CONST { return windowSize; }
-    CXX_CONSTEXPR uint getWindowWidth() CXX_CONST { return windowSize.x; }
-    CXX_CONSTEXPR uint getWindowHeight() CXX_CONST { return windowSize.y; }
+    CXX(constexpr) uint2 getWindowSize() CXX(const) { return windowSize; }
+    CXX(constexpr) uint getWindowWidth() CXX(const) { return windowSize.x; }
+    CXX(constexpr) uint getWindowHeight() CXX(const) { return windowSize.y; }
 
-    CXX_CONSTEXPR uint2 getDepthBufferSize() CXX_CONST { return depthBufferSize; }
-    CXX_CONSTEXPR uint getDepthBufferWidth() CXX_CONST { return depthBufferSize.x; }
-    CXX_CONSTEXPR uint getDepthBufferHeight() CXX_CONST { return depthBufferSize.y; }
+    CXX(constexpr) uint2 getDepthBufferSize() CXX(const) { return depthBufferSize; }
+    CXX(constexpr) uint getDepthBufferWidth() CXX(const) { return depthBufferSize.x; }
+    CXX(constexpr) uint getDepthBufferHeight() CXX(const) { return depthBufferSize.y; }
 
-    CXX_CONSTEXPR uint2 getGridSize(uint tileSize) CXX_CONST {
+    CXX(constexpr) uint2 getGridSize(uint tileSize) CXX(const) {
         return computeGridSize(getWindowSize(), tileSize);
     }
 
-    CXX_CONSTEXPR uint getTileCount(uint tileSize) CXX_CONST {
+    CXX(constexpr) uint getTileCount(uint tileSize) CXX(const) {
         return computeTileCount(getWindowSize(), tileSize);
     }
 
-    CXX_CONSTEXPR uint getPixelTileIndex(float2 position, uint tileSize) CXX_CONST {
+    CXX(constexpr) uint getPixelTileIndex(float2 position, uint tileSize) CXX(const) {
         return computePixelTileIndex(getWindowSize(), position, tileSize);
     }
 
-    CXX_CONSTEXPR uint getGroupTileIndex(uint3 groupThreadIndex, uint tileSize) CXX_CONST {
+    CXX(constexpr) uint getGroupTileIndex(uint3 groupThreadIndex, uint tileSize) CXX(const) {
         return computeGroupTileIndex(groupThreadIndex, getWindowSize(), tileSize);
     }
 
-    CXX_CONSTEXPR uint2 getWindowTiledSize(uint tileSize) CXX_CONST {
+    CXX(constexpr) uint2 getWindowTiledSize(uint tileSize) CXX(const) {
         return computeWindowTiledSize(getWindowSize(), tileSize);
     }
 };

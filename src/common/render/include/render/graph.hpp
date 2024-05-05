@@ -1,13 +1,14 @@
 #pragma once
 
+#include "core/adt/array.hpp"
 #include "core/string.hpp"
-#include "core/vector.hpp"
+#include "core/adt/vector.hpp"
 #include "core/typeindex.hpp"
 #include "core/map.hpp"
 
 #include "math/math.hpp"
 
-#include "render/heap.hpp"
+#include "render/descriptor_heap.hpp"
 #include "render/resource.hpp"
 #include "render/format.hpp"
 

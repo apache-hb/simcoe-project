@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/array.hpp"
+#include "core/adt/array.hpp"
 #include "core/error.hpp"
 
 #include <atomic>

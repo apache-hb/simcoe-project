@@ -17,7 +17,7 @@
 #include "core/memory.h"
 #include "os/core.h"
 
-#include "core/vector.hpp"
+#include "core/adt/vector.hpp"
 #include "core/format.hpp"
 #include "core/stack.hpp"
 #include "core/map.hpp"

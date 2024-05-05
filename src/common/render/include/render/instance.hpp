@@ -2,7 +2,7 @@
 
 #include <simcoe_config.h>
 
-#include "core/vector.hpp"
+#include "core/adt/vector.hpp"
 #include "core/memory.hpp"
 #include "core/library.hpp"
 

@@ -9,11 +9,6 @@
 namespace sm::draw {
     class Camera;
 
-    namespace ecs {
-        using ObjectDeviceData = render::ConstBuffer<ObjectData>;
-        using ViewportDeviceData = render::ConstBuffer<ViewportData>;
-    }
-
     ///
     /// forward+ pipeline
     ///
@@ -24,65 +19,6 @@ namespace sm::draw {
             eEnabled = 1,
             eEnabledMSAA = 2,
         };
-
-        struct DrawData {
-            const Camera& camera;
-            DepthBoundsMode depth_mode;
-
-            DrawData(const Camera& camera, DepthBoundsMode mode)
-                : camera(camera)
-                , depth_mode(mode)
-            { }
-        };
-
-        /// @brief upload light data to the gpu
-        ///
-        /// @param graph the render graph
-        /// @param[out] point_light_data the handle to the point light data
-        /// @param[out] spot_light_data the handle to the spot light data
-        void upload_light_data(
-            graph::FrameGraph& graph,
-            graph::Handle& point_light_data,
-            graph::Handle& spot_light_data);
-
-        /// @brief forward+ depth prepass
-        ///
-        /// @param graph the render graph
-        /// @param depth_target the depth target that will be rendered to
-        /// @param dd the draw data
-        void depth_prepass(
-            graph::FrameGraph& graph,
-            graph::Handle& depth_target,
-            DrawData dd);
-
-        /// @brief forward+ light binning pass
-        ///
-        /// @param graph the render graph
-        /// @param[out] indices the uav that light indices will be written to
-        /// @param depth the depth target that will be read from
-        /// @param point_light_data the point light data
-        /// @param spot_light_data the spot light data
-        /// @param dd the draw data
-        void light_binning(
-            graph::FrameGraph& graph,
-            graph::Handle& indices,
-            graph::Handle depth,
-            graph::Handle point_light_data,
-            graph::Handle spot_light_data,
-            DrawData dd);
-
-        /// @brief forward+ opaque rendering pass
-        /// @pre @a camera must be the same camera used in the forward_cull pass
-        ///
-        /// @param graph the render graph
-        /// @param[out] target the render target that will be rendered to
-        /// @param indices the uav that light indices will be read from
-        /// @param dd the draw data
-        void opaque(
-            graph::FrameGraph& graph,
-            graph::Handle& target,
-            graph::Handle indices,
-            DrawData dd);
     }
 
     ///
@@ -102,6 +38,9 @@ namespace sm::draw {
         const Camera& camera);
 
     namespace ecs {
+        using ObjectDeviceData = render::ConstBuffer<ObjectData>;
+        using ViewportDeviceData = render::ConstBuffer<ViewportData>;
+
         struct DrawData {
             forward_plus::DepthBoundsMode depthBoundsMode;
             graph::FrameGraph& graph;
@@ -113,19 +52,6 @@ namespace sm::draw {
                 const render::ecs::IndexBuffer,
                 const render::ecs::VertexBuffer
             > objectDrawData;
-
-            flecs::query<
-                const world::ecs::Position,
-                const world::ecs::Intensity,
-                const world::ecs::Colour
-            > allPointLights;
-
-            flecs::query<
-                const world::ecs::Position,
-                const world::ecs::Direction,
-                const world::ecs::Intensity,
-                const world::ecs::Colour
-            > allSpotLights;
 
             DrawData(
                 forward_plus::DepthBoundsMode depthBoundsMode,
@@ -145,7 +71,20 @@ namespace sm::draw {
             void init();
         };
 
-        void initObjectObservers(flecs::world& world, render::IDeviceContext &context);
+        extern flecs::query<
+            const world::ecs::Position,
+            const world::ecs::Intensity,
+            const world::ecs::Colour
+        > gAllPointLights;
+
+        extern flecs::query<
+            const world::ecs::Position,
+            const world::ecs::Direction,
+            const world::ecs::Intensity,
+            const world::ecs::Colour
+        > gAllSpotLights;
+
+        void initSystems(flecs::world& world, render::IDeviceContext &context);
 
         void copyLightData(
             DrawData& dd,

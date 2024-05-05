@@ -246,11 +246,24 @@ void csCullLights(
     }
 #endif
 
-    if (startOffset >= 3691548) {
-        gLightIndexBuffer[(groupIdIndex * 4) + 0] = groupId.x;
-        gLightIndexBuffer[(groupIdIndex * 4) + 1] = groupId.y;
-        gLightIndexBuffer[(groupIdIndex * 4) + 2] = groupIdIndex;
-        gLightIndexBuffer[(groupIdIndex * 4) + 3] = startOffset;
+    uint2 gridSize = getWindowGridSize();
+
+    if (startOffset >= 3896634) {
+        gLightIndexBuffer[(groupIdIndex * 16) + 0] = 0xFFFFFFFF;
+
+        gLightIndexBuffer[(groupIdIndex * 16) + 1] = groupId.x;
+        gLightIndexBuffer[(groupIdIndex * 16) + 2] = groupId.y;
+        gLightIndexBuffer[(groupIdIndex * 16) + 3] = groupIdIndex;
+        gLightIndexBuffer[(groupIdIndex * 16) + 4] = startOffset;
+
+        gLightIndexBuffer[(groupIdIndex * 16) + 5] = gCameraData.windowSize.x;
+        gLightIndexBuffer[(groupIdIndex * 16) + 6] = gCameraData.windowSize.y;
+        gLightIndexBuffer[(groupIdIndex * 16) + 7] = gridSize.x;
+        gLightIndexBuffer[(groupIdIndex * 16) + 8] = gridSize.y;
+
+        gLightIndexBuffer[(groupIdIndex * 16) + 9] = LIGHT_INDEX_BUFFER_STRIDE;
+
+        gLightIndexBuffer[(groupIdIndex * 16) + 10] = 0xFFFFFFFF;
         return;
     }
 

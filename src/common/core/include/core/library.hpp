@@ -1,10 +1,10 @@
 #pragma once
 
-#include "os/os.h"
-
 #include "core/error.hpp"
 #include "core/unique.hpp"
 #include "core/fs.hpp"
+
+#include "os/os.h"
 
 constexpr bool operator!=(const os_library_t& lhs, const os_library_t& rhs) {
     return lhs.impl != rhs.impl;

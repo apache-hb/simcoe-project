@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/small_string.hpp"
+#include "core/adt/small_string.hpp"
 
 #include <expected>
 

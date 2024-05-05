@@ -3,7 +3,7 @@
 #include <concepts>
 
 #include "core/string.hpp"
-#include "core/vector.hpp"
+#include "core/adt/vector.hpp"
 
 namespace sm {
     template<typename T>

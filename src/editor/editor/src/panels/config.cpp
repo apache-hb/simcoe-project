@@ -36,9 +36,9 @@ static bool draw_adapter_info(render::IDeviceContext& context, const render::Ada
 
     if (ImGui::TreeNodeEx((void *)name.data(), ImGuiTreeNodeFlags_None, "%s",
                             name.data())) {
-        ImGui::Text("Video memory: %s", adapter.vidmem().to_string().c_str());
-        ImGui::Text("System memory: %s", adapter.sysmem().to_string().c_str());
-        ImGui::Text("Shared memory: %s", adapter.sharedmem().to_string().c_str());
+        ImGui::Text("Video memory: %s", adapter.vidmem().toString().c_str());
+        ImGui::Text("System memory: %s", adapter.sysmem().toString().c_str());
+        ImGui::Text("Shared memory: %s", adapter.sharedmem().toString().c_str());
         ImGui::Text("Flags: %s", ctu::TypeInfo<render::AdapterFlag>::to_string(adapter.flags()).data());
         ImGui::Text("LUID: %08lX:%08X", luid.high, luid.low);
         ImGui::SameLine();
@@ -77,8 +77,8 @@ void RenderConfig::draw_adapters() const {
 static void display_mem_budget(const D3D12MA::Budget &budget) {
     sm::Memory usage_bytes = budget.UsageBytes;
     sm::Memory budget_bytes = budget.BudgetBytes;
-    ImGui::Text("Usage: %s", usage_bytes.to_string().c_str());
-    ImGui::Text("Budget: %s", budget_bytes.to_string().c_str());
+    ImGui::Text("Usage: %s", usage_bytes.toString().c_str());
+    ImGui::Text("Budget: %s", budget_bytes.toString().c_str());
 
     uint64 alloc_count = budget.Stats.AllocationCount;
     sm::Memory alloc_bytes = budget.Stats.AllocationBytes;
@@ -86,10 +86,10 @@ static void display_mem_budget(const D3D12MA::Budget &budget) {
     sm::Memory block_bytes = budget.Stats.BlockBytes;
 
     ImGui::Text("Allocated blocks: %llu", alloc_count);
-    ImGui::Text("Allocated: %s", alloc_bytes.to_string().c_str());
+    ImGui::Text("Allocated: %s", alloc_bytes.toString().c_str());
 
     ImGui::Text("Block count: %llu", block_count);
-    ImGui::Text("Block: %s", block_bytes.to_string().c_str());
+    ImGui::Text("Block: %s", block_bytes.toString().c_str());
 }
 
 void RenderConfig::draw_allocator_info() const {
@@ -99,8 +99,8 @@ void RenderConfig::draw_allocator_info() const {
         sm::Memory local = allocator->GetMemoryCapacity(DXGI_MEMORY_SEGMENT_GROUP_LOCAL);
         sm::Memory nonlocal = allocator->GetMemoryCapacity(DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL);
 
-        ImGui::Text("Local: %s", local.to_string().c_str());
-        ImGui::Text("Non-Local: %s", nonlocal.to_string().c_str());
+        ImGui::Text("Local: %s", local.toString().c_str());
+        ImGui::Text("Non-Local: %s", nonlocal.toString().c_str());
     }
 
     {
@@ -200,9 +200,9 @@ void RenderConfig::draw_content() {
     auto& rtv = mContext.mRtvPool;
     auto& dsv = mContext.mDsvPool;
     auto& srv = mContext.mSrvPool;
-    ImGui::Text("RTV: %u (%u used)", rtv.get_capacity(), rtv.get_used());
-    ImGui::Text("DSV: %u (%u used)", dsv.get_capacity(), dsv.get_used());
-    ImGui::Text("CBV/SRV/UAV: %u (%u used)", srv.get_capacity(), srv.get_used());
+    ImGui::Text("RTV: %u (%u used)", rtv.getCapacity(), rtv.countUsedHandles());
+    ImGui::Text("DSV: %u (%u used)", dsv.getCapacity(), dsv.countUsedHandles());
+    ImGui::Text("CBV/SRV/UAV: %u (%u used)", srv.getCapacity(), srv.countUsedHandles());
 
     ImGui::SeparatorText("Debug Flags");
     if (draw_debug_flags()) {

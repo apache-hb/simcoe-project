@@ -14,10 +14,8 @@ namespace sm {
         void init(char *buffer, const char *str);
     };
 
-    template<size_t N>
+    template<size_t N> requires (N > 0)
     class SmallString : private SmallStringBase {
-        static_assert(N > 0);
-
         // round up to next multiple of 2 for better alignment
         static constexpr size_t kAlignedSize = (N + 1 + 1) & ~1;
 

@@ -2,8 +2,9 @@
 
 #include <simcoe_config.h>
 
+#include "core/adt/small_string.hpp"
+
 #include "backtrace/backtrace.h"
-#include "core/small_string.hpp"
 #include "core/source_info.h"
 
 #include "fmtlib/format.h" // IWYU pragma: keep

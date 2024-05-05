@@ -1,3 +1,5 @@
+#include "stdafx.hpp"
+
 #include "core/bitmap.hpp"
 
 using namespace sm;

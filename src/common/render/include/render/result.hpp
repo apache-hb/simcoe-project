@@ -1,11 +1,11 @@
 #pragma once
 
+#include "core/adt/small_string.hpp"
+#include "core/error.hpp"
+
 #include "core/win32.hpp" // IWYU pragma: export
 
 #include "fmtlib/format.h" // IWYU pragma: export
-
-#include "core/small_string.hpp"
-#include "core/error.hpp"
 
 namespace sm::render {
     class Result {

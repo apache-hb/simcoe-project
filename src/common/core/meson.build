@@ -21,12 +21,16 @@ src = [
     'src/library.cpp',
     'src/timer.cpp',
     'src/typeindex.cpp',
-    'src/small_string.cpp'
+
+    'src/adt/small_string.cpp',
+
+    'src/allocators/bitmap_allocator.cpp'
 ]
 
 libcore = library('core', src,
     cpp_args : [ '-DSM_CORE_BUILD=1' ],
-    include_directories : [ core_include, config_include, reflect_include ],
+    cpp_pch : 'src/stdafx.hpp',
+    include_directories : [ 'src', core_include, config_include, reflect_include ],
     dependencies : core_dependencies
 )
 

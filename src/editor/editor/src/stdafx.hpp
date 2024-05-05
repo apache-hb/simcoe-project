@@ -19,7 +19,7 @@
 #include "core/span.hpp"
 #include "core/string.hpp"
 #include "core/units.hpp"
-#include "core/array.hpp"
+#include "core/adt/array.hpp"
 
 #include "fmt/ranges.h"
 

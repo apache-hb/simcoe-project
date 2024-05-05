@@ -3,7 +3,7 @@
 #include "editor/panels/panel.hpp"
 
 #include "core/map.hpp"
-#include "core/vector.hpp"
+#include "core/adt/vector.hpp"
 
 #include "ImNodesEz.h"
 

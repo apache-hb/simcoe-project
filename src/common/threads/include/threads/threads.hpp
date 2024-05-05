@@ -4,7 +4,7 @@
 #include "core/win32.hpp" // IWYU pragma: keep
 
 #include "core/macros.hpp"
-#include "core/vector.hpp"
+#include "core/adt/vector.hpp"
 #include "core/core.hpp"
 #include <bitset>
 

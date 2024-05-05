@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/bitmap.hpp"
+#include "core/allocators/bitmap_allocator.hpp"
 
 #include "os/os.h"
 
@@ -25,7 +25,7 @@ namespace sm::archive {
         // bitmap of allocated space
         // is divided into 8 byte blocks starting from the user region
         // doesnt include the file or record headers
-        sm::BitMap mAllocator;
+        sm::BitMapIndexAllocator mIndexAllocator;
 
         // number of records
         uint_fast16_t mCapacity = 0;

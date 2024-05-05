@@ -1,5 +1,5 @@
 #include "core/map.hpp"
-#include "core/vector.hpp"
+#include "core/adt/vector.hpp"
 #include "stdafx.hpp"
 
 #include "archive/fs.hpp"

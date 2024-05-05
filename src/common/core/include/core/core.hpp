@@ -25,15 +25,6 @@ namespace sm {
     using ssize_t = ptrdiff_t; // NOLINT
 
     template<typename T>
-    concept StandardLayout = __is_standard_layout(T);
-
-    template<typename T>
-    concept IsEnum = __is_enum(T);
-
-    template<typename T, typename... A>
-    concept Construct = __is_constructible(T, A...);
-
-    template<typename T>
     struct Empty {
         constexpr Empty() = default;
         constexpr Empty(const T&) { }
@@ -41,6 +32,15 @@ namespace sm {
 
         constexpr void operator=(T&&) const { }
     };
+
+    constexpr bool isPowerOf2(auto it) {
+        return it && !(it & (it - 1));
+    }
+
+    template<typename T>
+    constexpr bool isMultipleOf(T value, T multiple) {
+        return value % multiple == 0;
+    }
 }
 
 /// @brief debug member variables and required macros
@@ -52,7 +52,7 @@ namespace sm {
 #if SMC_DEBUG
 #   define DBG_MEMBER(T) T
 #   define DBG_MEMBER_OR(name, ...) name
-#   define DBG_ASSERT(expr, ...) SM_ASSERTF(expr, __VA_ARGS__)
+#   define DBG_ASSERT(expr, ...) CTASSERTF(expr, __VA_ARGS__)
 #else
 #   define DBG_MEMBER(T) SM_NO_UNIQUE_ADDRESS sm::Empty<T>
 #   define DBG_MEMBER_OR(name, ...) __VA_ARGS__

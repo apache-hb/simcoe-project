@@ -1,0 +1,11 @@
+[wrap-file]
+directory = assimp-5.4.0
+
+source_url = https://github.com/assimp/assimp/archive/refs/tags/v5.4.0.zip
+source_filename = assimp-5.4.0.zip
+source_hash = 0f3698e9ba0110df0b636dbdd95706e7e28d443ff3dbaf5828926c23bfff778d
+
+patch_directory = assimp
+
+[provide]
+dependency_names = assimp

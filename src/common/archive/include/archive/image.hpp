@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/span.hpp"
-#include "core/vector.hpp"
+#include "core/adt/vector.hpp"
 #include "core/fs.hpp"
 
 #include "math/math.hpp"

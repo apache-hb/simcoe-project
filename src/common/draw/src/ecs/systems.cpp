@@ -7,16 +7,51 @@ using namespace sm;
 
 LOG_CATEGORY_IMPL(gDrawLog, "draw");
 
-void draw::ecs::initObjectObservers(flecs::world& world, render::IDeviceContext &context) {
+flecs::query<
+    const world::ecs::Position,
+    const world::ecs::Intensity,
+    const world::ecs::Colour
+> draw::ecs::gAllPointLights;
+
+flecs::query<
+    const world::ecs::Position,
+    const world::ecs::Direction,
+    const world::ecs::Intensity,
+    const world::ecs::Colour
+> draw::ecs::gAllSpotLights;
+
+void draw::ecs::initSystems(flecs::world& world, render::IDeviceContext &context) {
+    gAllPointLights = world.query_builder<
+            const world::ecs::Position,
+            const world::ecs::Intensity,
+            const world::ecs::Colour
+        >()
+        // select the world position
+        .term_at(1).second<world::ecs::World>()
+        // only select point lights
+        .with<world::ecs::PointLight>()
+        .build();
+
+    gAllSpotLights = world.query_builder<
+            const world::ecs::Position,
+            const world::ecs::Direction,
+            const world::ecs::Intensity,
+            const world::ecs::Colour
+        >()
+        // select the world position
+        .term_at(1).second<world::ecs::World>()
+        // only select spot lights
+        .with<world::ecs::SpotLight>()
+        .build();
 
     // when an object is added to the world, create the required device data
     // to draw it
     world.observer<const world::ecs::Object>()
         .event(flecs::OnAdd)
         .each([&context](flecs::iter& it, size_t i, const world::ecs::Object& obj) {
-            render::ConstBuffer<ObjectData> cbuffer = render::newConstBuffer<ObjectData>(context);
-
-            it.entity(i).set<ecs::ObjectDeviceData>({ std::move(cbuffer) });
+            it.entity(i).set<ecs::ObjectDeviceData>({
+                render::newConstBuffer<ObjectData>(context)
+            });
         });
 
     // when a shape is setup, upload its mesh data to the gpu
@@ -41,9 +76,9 @@ void draw::ecs::initObjectObservers(flecs::world& world, render::IDeviceContext 
     world.observer<const world::ecs::Camera>()
         .event(flecs::OnAdd)
         .each([&context](flecs::iter& it, size_t i, const world::ecs::Camera& perspective) {
-            render::ConstBuffer<ViewportData> cbuffer = render::newConstBuffer<ViewportData>(context);
-
-            it.entity(i).set<ecs::ViewportDeviceData>({ std::move(cbuffer) });
+            it.entity(i).set<ecs::ViewportDeviceData>({
+                render::newConstBuffer<ViewportData>(context)
+            });
         });
 
     world.system<
@@ -98,7 +133,11 @@ void draw::ecs::initObjectObservers(flecs::world& world, render::IDeviceContext 
                     .cameraPosition = pos[i].position,
                     .windowSize = camera[i].window,
                     .depthBufferSize = camera[i].window,
+                    .pointLightCount = (uint)gAllPointLights.count(),
+                    .spotLightCount = (uint)gAllSpotLights.count(),
                 });
+
+                gDrawLog.info("Window Size[{}]: {}", i, camera[i].window);
             }
         });
 }
@@ -109,27 +148,4 @@ void draw::ecs::DrawData::init() {
         const render::ecs::IndexBuffer,
         const render::ecs::VertexBuffer
     >();
-
-    allPointLights = world.query_builder<
-            const world::ecs::Position,
-            const world::ecs::Intensity,
-            const world::ecs::Colour
-        >()
-        // select the world position
-        .term_at(1).second<world::ecs::World>()
-        // only select point lights
-        .with<world::ecs::PointLight>()
-        .build();
-
-    allSpotLights = world.query_builder<
-            const world::ecs::Position,
-            const world::ecs::Direction,
-            const world::ecs::Intensity,
-            const world::ecs::Colour
-        >()
-        // select the world position
-        .term_at(1).second<world::ecs::World>()
-        // only select spot lights
-        .with<world::ecs::SpotLight>()
-        .build();
 }

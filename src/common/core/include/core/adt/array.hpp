@@ -7,12 +7,12 @@ namespace sm {
     class Array {
         T mData[N];
 
-        constexpr void verify_index(size_t index) const noexcept {
+        constexpr void verifyIndex(size_t index) const noexcept {
             CTASSERTF(index < N, "Index out of bounds: %zu >= %zu", index, N);
         }
     public:
-        constexpr T &operator[](size_t index) noexcept { verify_index(index); return mData[index]; }
-        constexpr const T &operator[](size_t index) const noexcept { verify_index(index); return mData[index]; }
+        constexpr T &operator[](size_t index) noexcept { verifyIndex(index); return mData[index]; }
+        constexpr const T &operator[](size_t index) const noexcept { verifyIndex(index); return mData[index]; }
 
         constexpr T *begin() noexcept { return mData; }
         constexpr const T *begin() const noexcept { return mData; }
@@ -30,7 +30,7 @@ namespace sm {
     };
 
     template<typename T, size_t N>
-    constexpr Array<T, N> to_array(const T (&data)[N]) noexcept {
+    constexpr Array<T, N> toArray(const T (&data)[N]) noexcept {
         Array<T, N> result;
         for (size_t i = 0; i < N; ++i) {
             result[i] = data[i];
@@ -41,7 +41,7 @@ namespace sm {
     template<typename T, typename TDelete = DefaultDelete<T[]>>
     class UniqueArray : public UniquePtr<T, TDelete> {
         using Super = UniquePtr<T, TDelete>;
-        size_t mLength = 0;
+        ssize_t mLength;
 
     public:
         using Iterator = T *;
@@ -75,7 +75,11 @@ namespace sm {
             fill(init);
         }
 
-        constexpr size_t length() const noexcept { return mLength; }
+        constexpr size_t size() const noexcept { return mLength; }
+        constexpr size_t sizeInBytes() const noexcept { return mLength * sizeof(T); }
+
+        constexpr ssize_t ssize() const noexcept { return mLength; }
+        constexpr ssize_t ssizeInBytes() const noexcept { return mLength * sizeof(T); }
 
         constexpr T &operator[](size_t index) noexcept { return Super::get()[index]; }
         constexpr const T &operator[](size_t index) const noexcept { return Super::get()[index]; }

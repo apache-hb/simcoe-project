@@ -4,7 +4,7 @@
 #include "meta/meta.hpp"
 #include "meta/class.hpp"
 
-#include "core/vector.hpp"
+#include "core/adt/vector.hpp"
 #include "core/core.hpp"
 
 #include "object.meta.h"

@@ -46,127 +46,91 @@ void draw::ecs::copyLightData(
             SpotLightData spotLightBuffer[MAX_SPOT_LIGHTS] = {};
         } info;
 
-        {
-            size_t size = sizeof(LightVolumeData) * MAX_POINT_LIGHTS;
-            SM_ASSERT_HR(context.createBufferResource(info.pointLightVolumeData, D3D12_HEAP_TYPE_UPLOAD, size, D3D12_RESOURCE_STATE_GENERIC_READ));
+        auto createUploadBuffer = [&](render::Resource& resource, size_t size, void **memory) {
+            SM_ASSERT_HR(context.createBufferResource(resource, D3D12_HEAP_TYPE_UPLOAD, size, D3D12_RESOURCE_STATE_GENERIC_READ));
+            SM_ASSERT_HR(resource.map(nullptr, memory));
+        };
 
-            SM_ASSERT_HR(info.pointLightVolumeData.map(nullptr, (void**)&info.pointLightVolumeMemory));
-        }
-
-        {
-            size_t size = sizeof(LightVolumeData) * MAX_SPOT_LIGHTS;
-            SM_ASSERT_HR(context.createBufferResource(info.spotLightVolumeData, D3D12_HEAP_TYPE_UPLOAD, size, D3D12_RESOURCE_STATE_GENERIC_READ));
-
-            SM_ASSERT_HR(info.spotLightVolumeData.map(nullptr, (void**)&info.spotLightVolumeMemory));
-        }
-
-        {
-            size_t size = sizeof(PointLightData) * MAX_POINT_LIGHTS;
-            SM_ASSERT_HR(context.createBufferResource(info.pointLightData, D3D12_HEAP_TYPE_UPLOAD, size, D3D12_RESOURCE_STATE_GENERIC_READ));
-
-            SM_ASSERT_HR(info.pointLightData.map(nullptr, (void**)&info.pointLightMemory));
-        }
-
-        {
-            size_t size = sizeof(SpotLightData) * MAX_SPOT_LIGHTS;
-            SM_ASSERT_HR(context.createBufferResource(info.spotLightData, D3D12_HEAP_TYPE_UPLOAD, size, D3D12_RESOURCE_STATE_GENERIC_READ));
-
-            SM_ASSERT_HR(info.spotLightData.map(nullptr, (void**)&info.spotLightMemory));
-        }
+        createUploadBuffer(info.pointLightVolumeData, sizeof(LightVolumeData) * MAX_POINT_LIGHTS, (void**)&info.pointLightVolumeMemory);
+        createUploadBuffer(info.spotLightVolumeData, sizeof(LightVolumeData) * MAX_SPOT_LIGHTS, (void**)&info.spotLightVolumeMemory);
+        createUploadBuffer(info.pointLightData, sizeof(PointLightData) * MAX_POINT_LIGHTS, (void**)&info.pointLightMemory);
+        createUploadBuffer(info.spotLightData, sizeof(SpotLightData) * MAX_SPOT_LIGHTS, (void**)&info.spotLightMemory);
 
         return info;
     });
 
     pass.bind(
-        [
-            =,
-            allPointLights = dd.allPointLights,
-            allSpotLights = dd.allSpotLights,
-            camera = dd.camera,
-            &data
-        ]
+        [=, &data]
         (graph::RenderContext& ctx) {
         size_t pointLightIndex = 0;
         size_t spotLightIndex = 0;
 
         auto& [device, graph, _, commands] = ctx;
 
-        draw::ecs::ViewportDeviceData *vpd = camera.get_mut<draw::ecs::ViewportDeviceData>();
-        auto& info = vpd->data;
+        gAllPointLights.iter(
+            [&](
+                flecs::iter& it,
+                const world::ecs::Position* position,
+                const world::ecs::Intensity* intensity,
+                const world::ecs::Colour *colour
+            ) {
 
-        // if (queryAllPointLights.changed()) {
-            allPointLights.iter(
-                [&](
-                    flecs::iter& it,
-                    const world::ecs::Position* position,
-                    const world::ecs::Intensity* intensity,
-                    const world::ecs::Colour *colour
-                ) {
+            for (auto i : it) {
+                size_t index = pointLightIndex++;
+                LightVolumeData volume = {
+                    .position = position[i].position,
+                    .radius = intensity[i].intensity,
+                };
+                data.pointLightVolumeBuffer[index] = volume;
 
-                info.pointLightCount = it.count();
+                PointLightData light = {
+                    .colour = colour[i].colour
+                };
+                data.pointLightBuffer[index] = light;
+            }
+        });
 
-                for (auto i : it) {
-                    size_t index = pointLightIndex++;
-                    LightVolumeData volume = {
-                        .position = position[i].position,
-                        .radius = intensity[i].intensity,
-                    };
-                    data.pointLightVolumeBuffer[index] = volume;
+        gAllSpotLights.iter(
+            [&](
+                flecs::iter& it,
+                const world::ecs::Position* position,
+                const world::ecs::Direction* direction,
+                const world::ecs::Intensity* intensity,
+                const world::ecs::Colour *colour
+            ) {
 
-                    PointLightData light = {
-                        .colour = colour[i].colour
-                    };
-                    data.pointLightBuffer[index] = light;
-                }
-            });
+            for (auto i : it) {
+                size_t index = spotLightIndex++;
+                LightVolumeData volume = {
+                    .position = position[i].position,
+                    .radius = intensity[i].intensity,
+                };
+                data.spotLightVolumeBuffer[index] = volume;
 
-            ID3D12Resource *pointLightVolumeHandle = graph.resource(spotLightVolumeData);
-            ID3D12Resource *pointLightHandle = graph.resource(pointLightData);
+                SpotLightData light = {
+                    .direction = direction[i].direction,
+                    .colour = colour[i].colour,
+                    .angle = 0.0f
+                };
+                data.spotLightBuffer[index] = light;
+            }
+        });
 
-            memcpy(data.pointLightVolumeMemory, data.pointLightVolumeBuffer, sizeof(LightVolumeData) * pointLightIndex);
-            memcpy(data.pointLightMemory, data.pointLightBuffer, sizeof(PointLightData) * pointLightIndex);
+        ID3D12Resource *pointLightVolumeHandle = graph.resource(spotLightVolumeData);
+        ID3D12Resource *pointLightHandle = graph.resource(pointLightData);
+        ID3D12Resource *spotLightVolumeHandle = graph.resource(pointLightVolumeData);
+        ID3D12Resource *spotLightHandle = graph.resource(spotLightData);
 
-            commands->CopyBufferRegion(pointLightVolumeHandle, 0, data.pointLightVolumeData.get(), 0, sizeof(LightVolumeData) * pointLightIndex);
-            commands->CopyBufferRegion(pointLightHandle, 0, data.pointLightData.get(), 0, sizeof(PointLightData) * pointLightIndex);
-        // }
+        memcpy(data.pointLightVolumeMemory, data.pointLightVolumeBuffer, sizeof(LightVolumeData) * pointLightIndex);
+        memcpy(data.pointLightMemory, data.pointLightBuffer, sizeof(PointLightData) * pointLightIndex);
 
-        // if (queryAllSpotLights.changed()) {
-            allSpotLights.iter(
-                [&](
-                    flecs::iter& it,
-                    const world::ecs::Position* position,
-                    const world::ecs::Direction* direction,
-                    const world::ecs::Intensity* intensity,
-                    const world::ecs::Colour *colour
-                ) {
+        memcpy(data.spotLightVolumeMemory, data.spotLightVolumeBuffer, sizeof(LightVolumeData) * spotLightIndex);
+        memcpy(data.spotLightMemory, data.spotLightBuffer, sizeof(SpotLightData) * spotLightIndex);
 
-                info.spotLightCount = it.count();
+        commands->CopyBufferRegion(pointLightVolumeHandle, 0, data.pointLightVolumeData.get(), 0, sizeof(LightVolumeData) * pointLightIndex);
+        commands->CopyBufferRegion(pointLightHandle, 0, data.pointLightData.get(), 0, sizeof(PointLightData) * pointLightIndex);
 
-                for (auto i : it) {
-                    size_t index = spotLightIndex++;
-                    LightVolumeData volume = {
-                        .position = position[i].position,
-                        .radius = intensity[i].intensity,
-                    };
-                    data.spotLightVolumeBuffer[index] = volume;
-
-                    SpotLightData light = {
-                        .direction = direction[i].direction,
-                        .colour = colour[i].colour,
-                        .angle = 0.0f
-                    };
-                    data.spotLightBuffer[index] = light;
-                }
-
-                ID3D12Resource *spotLightVolumeHandle = graph.resource(pointLightVolumeData);
-                ID3D12Resource *spotLightHandle = graph.resource(spotLightData);
-
-                memcpy(data.spotLightVolumeMemory, data.spotLightVolumeBuffer, sizeof(LightVolumeData) * spotLightIndex);
-                memcpy(data.spotLightMemory, data.spotLightBuffer, sizeof(SpotLightData) * spotLightIndex);
-
-                commands->CopyBufferRegion(spotLightVolumeHandle, 0, data.spotLightVolumeData.get(), 0, sizeof(LightVolumeData) * spotLightIndex);
-                commands->CopyBufferRegion(spotLightHandle, 0, data.spotLightData.get(), 0, sizeof(SpotLightData) * spotLightIndex);
-            });
-        // }
+        commands->CopyBufferRegion(spotLightVolumeHandle, 0, data.spotLightVolumeData.get(), 0, sizeof(LightVolumeData) * spotLightIndex);
+        commands->CopyBufferRegion(spotLightHandle, 0, data.spotLightData.get(), 0, sizeof(SpotLightData) * spotLightIndex);
     });
 }

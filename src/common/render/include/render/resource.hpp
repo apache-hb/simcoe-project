@@ -25,16 +25,10 @@ namespace sm::render {
 
     template<typename T>
     struct ConstBuffer : Resource {
-        T data;
         void *mapped;
 
-        void update() {
-            memcpy(mapped, &data, sizeof(T));
-        }
-
         void update(const T& value) {
-            data = value;
-            update();
+            memcpy(mapped, &value, sizeof(T));
         }
 
         void init() {
