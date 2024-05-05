@@ -7,7 +7,7 @@ using namespace sm;
 Library::Library(const char *path) {
     os_library_t library;
     mError = os_library_open(path, &library);
-    LibraryHandle::reset(library);
+    mHandle.reset(library);
 }
 
 Library::Library(const fs::path& path)
@@ -16,7 +16,7 @@ Library::Library(const fs::path& path)
 
 void *Library::get_symbol(const char *name) {
     void *result;
-    mError = os_library_symbol(LibraryHandle::address(), &result, name);
+    mError = os_library_symbol(mHandle.address(), &result, name);
 
     if (mError.failed())
         return nullptr;

@@ -46,20 +46,25 @@ namespace sm {
             return *this;
         }
 
-        constexpr T get() noexcept { return ref(); }
-        constexpr const T get() const noexcept { return ref(); }
+        constexpr auto get(this auto& self) noexcept {
+            CTASSERT(self.isValid());
+            return self.mHandle;
+        }
 
-        constexpr T& ref() noexcept { CTASSERT(is_valid()); return mHandle; }
-        constexpr const T& ref() const noexcept { CTASSERT(is_valid()); return mHandle; }
+        constexpr auto& ref(this auto& self) noexcept {
+            CTASSERT(self.isValid());
+            return self.mHandle;
+        }
 
-        constexpr T& operator*() noexcept { return ref(); }
-        constexpr const T& operator*() const noexcept { return ref(); }
+        constexpr auto& operator*(this auto& self) noexcept {
+            CTASSERT(self.isValid());
+            return self.mHandle;
+        }
 
-        constexpr T *address() noexcept { return &mHandle; }
-        constexpr T *const address() const noexcept { return &mHandle; }
+        constexpr auto *address(this auto& self) noexcept { return &self.mHandle; }
 
-        constexpr bool is_valid() const noexcept { return mHandle != TEmpty; }
-        constexpr explicit operator bool() const noexcept { return mHandle != TEmpty; }
+        constexpr bool isValid() const noexcept { return mHandle != TEmpty; }
+        constexpr explicit operator bool() const noexcept { return isValid(); }
 
         constexpr void reset(T handle = TEmpty) noexcept {
             if (mHandle != TEmpty) {
@@ -97,17 +102,11 @@ namespace sm {
     public:
         using Super::Super;
 
-        constexpr T *operator->() noexcept { return Super::get(); }
-        constexpr const T *operator->() const noexcept { return Super::get(); }
-
-        constexpr T** operator&() noexcept { return Super::address(); }
-        constexpr T* const* operator&() const noexcept { return Super::address(); }
+        constexpr auto *operator->(this auto& self) noexcept { return self.get(); }
+        constexpr auto** operator&(this auto& self) noexcept { return self.address(); }
 
         constexpr T& ref() noexcept { return *Super::get(); }
         constexpr const T& ref() const noexcept { return *Super::get(); }
-
-        constexpr T *ptr() noexcept { return Super::get(); }
-        constexpr const T *ptr() const noexcept { return Super::get(); }
 
         constexpr void reset(T *data = nullptr) noexcept {
             Super::reset(data);
@@ -121,11 +120,12 @@ namespace sm {
     class UniquePtr<T[], TDelete> : public UniquePtr<T, TDelete> {
         using Super = UniquePtr<T, TDelete>;
 
+        DBG_MEMBER(size_t) mSize;
+
         constexpr void verifyIndex(SM_UNUSED size_t index) const noexcept {
             DBG_ASSERT(index < mSize, "index out of bounds (%zu < %zu)", index, mSize);
         }
 
-        DBG_MEMBER(size_t) mSize;
     public:
         using Super::Super;
 
@@ -152,14 +152,9 @@ namespace sm {
             mSize = size;
         }
 
-        constexpr T &operator[](size_t index) noexcept {
-            verifyIndex(index);
-            return Super::get()[index];
-        }
-
-        constexpr const T& operator[](size_t index) const noexcept {
-            verifyIndex(index);
-            return Super::get()[index];
+        constexpr auto &operator[](this auto& self, size_t index) noexcept {
+            self.verifyIndex(index);
+            return self.get()[index];
         }
     };
 

@@ -15,7 +15,6 @@ src = [
     'src/memory.c',
     'src/string.cpp',
     'src/error.cpp',
-    'src/bitmap.cpp',
     'src/units.cpp',
     'src/utf8.cpp',
     'src/library.cpp',

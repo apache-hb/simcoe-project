@@ -46,7 +46,7 @@ ImageData sm::open_image(const fs::path& path) {
     }
 
     auto file = Io::file(path.string().c_str(), eOsAccessRead);
-    if (!file.is_valid()) {
+    if (!file.isValid()) {
         logs::gAssets.error("Failed to open image file `{}`: {}", path, file.error());
         return {};
     }

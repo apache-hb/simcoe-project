@@ -17,8 +17,8 @@ static_assert(sizeof(RecordEntryHeader) == 8);
 static constexpr uint32_t kFileMagic = '\0MUC';
 static constexpr RecordStoreVersion kCurrentVersion = RecordStoreVersion::eCurrent;
 
-static constexpr size_t header_size(size_t record_count) {
-    return sizeof(RecordStoreHeader) + (record_count * sizeof(RecordEntryHeader));
+static constexpr size_t computeHeaderSize(size_t records) {
+    return sizeof(RecordStoreHeader) + (records * sizeof(RecordEntryHeader));
 }
 
 // fletcher32 checksum
@@ -49,7 +49,7 @@ bool RecordLookup::has_valid_data() const {
 
 bool RecordStore::create() {
     // do first time initialization of file header
-    auto setup_file = [&] {
+    auto initFileHeader = [&] {
         RecordStoreHeader data = {
             .magic = kFileMagic,
             .version = kCurrentVersion,
@@ -64,7 +64,7 @@ bool RecordStore::create() {
     };
 
     // we have an existing file, validate it
-    auto validate_file = [&]() -> bool {
+    auto validateFileContents = [&]() -> bool {
         RecordStoreHeader *header = get_private_header();
 
         if (!check(header->version == kCurrentVersion, "file version mismatch, {}/{}",
@@ -76,7 +76,7 @@ bool RecordStore::create() {
                        mSize))
             return false;
 
-        uint32_t checksum = calc_checksum();
+        uint32_t checksum = computeNewChecksum();
         if (!check(header->checksum == checksum,
                        "file checksum mismatch, {:#08x}/{:#08x}", header->checksum, checksum))
             return false;
@@ -103,9 +103,9 @@ bool RecordStore::create() {
 
     CTASSERTF(mSize <= UINT32_MAX, "file size too large: %s", mSize.toString().c_str());
 
-    size_t size_as_bytes = mSize.asBytes();
+    size_t sizeInBytes = mSize.asBytes();
 
-    if (OsError err = os_file_resize(&mFileHandle, size_as_bytes)) {
+    if (OsError err = os_file_resize(&mFileHandle, sizeInBytes)) {
         logs::gAssets.error("unable to expand file, {}", err);
         return false;
     }
@@ -114,7 +114,7 @@ bool RecordStore::create() {
 
     static constexpr os_protect_t kProtect = eOsProtectRead | eOsProtectWrite;
 
-    if (OsError err = os_file_map(&mFileHandle, kProtect, size_as_bytes, &mMapHandle)) {
+    if (OsError err = os_file_map(&mFileHandle, kProtect, sizeInBytes, &mMapHandle)) {
         logs::gAssets.error("unable to map file, {}", err);
         return false;
     }
@@ -128,11 +128,11 @@ bool RecordStore::create() {
     RecordStoreHeader *header = get_private_header();
     switch (header->magic) {
     case 0: // no magic, assume new file
-        setup_file();
+        initFileHeader();
         break;
 
     case kFileMagic: // magic matches, validate file before use
-        if (!validate_file()) return false;
+        if (!validateFileContents()) return false;
         break;
 
     default: // magic doesnt match, dont use it to avoid stomping
@@ -170,8 +170,8 @@ bool RecordStore::create() {
 void RecordStore::destroy() {
     logs::gAssets.info("closing record store {}", mFilePath);
     // unmap the file from memory
-    if (is_valid())
-        update_header();
+    if (isValid())
+        writeNewHeader();
 
     mMemory = nullptr;
 
@@ -191,7 +191,7 @@ void RecordStore::destroy() {
     mIndexAllocator.clear();
 }
 
-RecordLookup RecordStore::get_record(uint32_t id, void **data, uint16_t size) {
+RecordLookup RecordStore::getRecordImpl(uint32_t id, void **data, uint16_t size) {
     logs::gAssets.info("looking for record {}", id);
     RecordEntryHeader *found = nullptr;
     for (uint32_t i = 0; i <= mUsed; i++) {
@@ -259,7 +259,7 @@ void RecordStore::init_alloc_info() {
     }
 }
 
-void RecordStore::update_header() {
+void RecordStore::writeNewHeader() {
     RecordStoreHeader *header = get_private_header();
     RecordStoreHeader it = {
         .magic = kFileMagic,
@@ -267,21 +267,21 @@ void RecordStore::update_header() {
         .count = header->count,
         .used = header->used,
         .size = uint32_t(mSize.asBytes()),
-        .checksum = calc_checksum(),
+        .checksum = computeNewChecksum(),
     };
 
     std::memcpy(header, &it, sizeof(it));
 }
 
 void RecordStore::destroy_safe() {
-    if (is_data_mapped()) destroy();
+    if (isDataMapped()) destroy();
 }
 
 RecordStore::RecordStore(const RecordStoreConfig &config)
     : mFilePath(config.path)
-    , mSize(config.size.asBytes() + (header_size(config.record_count)))
-    , mIndexAllocator(64)
+    , mSize(config.size.asBytes() + (computeHeaderSize(config.record_count)))
     , mCapacity(config.record_count)
+    , mIndexAllocator(64)
 {
     CTASSERT(mFilePath != nullptr);
     CTASSERT(mSize > 0);
@@ -289,8 +289,15 @@ RecordStore::RecordStore(const RecordStoreConfig &config)
 
     mValid = create();
     if (mValid) {
-        logs::gAssets.info("record store created\n| path: {}\n| size: {}\n| records: {}", mFilePath, mSize,
-                   mCapacity);
+        logs::gAssets.info(
+            "record store created\n"
+            "| path: {}\n"
+            "| size: {}\n"
+            "| records: {}",
+            mFilePath,
+            mSize,
+            mCapacity
+        );
     }
 }
 
@@ -316,48 +323,48 @@ void RecordStore::reset() {
     init_alloc_info();
 }
 
-uint32_t RecordStore::read_checksum() const {
-    CTASSERT(is_data_mapped());
+uint32_t RecordStore::getChecksum() const {
+    CTASSERT(isDataMapped());
 
     RecordStoreHeader *header = get_private_header();
     return header->checksum;
 }
 
-uint32_t RecordStore::get_record_count() const {
+uint32_t RecordStore::getRecordCount() const {
     return mCapacity;
 }
 
 RecordStoreHeader *RecordStore::get_private_header() const {
-    CTASSERT(is_data_mapped());
+    CTASSERT(isDataMapped());
 
     return reinterpret_cast<RecordStoreHeader *>(get_private_region());
 }
 
 uint8_t *RecordStore::get_public_region() const {
-    CTASSERT(is_data_mapped());
+    CTASSERT(isDataMapped());
 
-    return reinterpret_cast<uint8_t *>(mMemory) + header_size(get_record_count());
+    return reinterpret_cast<uint8_t *>(mMemory) + computeHeaderSize(getRecordCount());
 }
 
 RecordEntryHeader *RecordStore::get_record_header(uint32_t index) const {
-    return reinterpret_cast<RecordEntryHeader *>(get_private_region() + header_size(index));
+    return reinterpret_cast<RecordEntryHeader *>(get_private_region() + computeHeaderSize(index));
 }
 
 uint8_t *RecordStore::get_private_region() const {
-    CTASSERT(is_data_mapped());
+    CTASSERT(isDataMapped());
 
     return reinterpret_cast<uint8_t *>(mMemory);
 }
 
 size_t RecordStore::get_public_size() const {
-    CTASSERT(is_data_mapped());
-    return mSize.asBytes() - header_size(mCapacity);
+    CTASSERT(isDataMapped());
+    return mSize.asBytes() - computeHeaderSize(mCapacity);
 }
 
 void *RecordStore::get_record_data(uint32_t offset) const {
     return get_public_region() + offset;
 }
 
-uint32_t RecordStore::calc_checksum() const {
+uint32_t RecordStore::computeNewChecksum() const {
     return checksum(get_public_region(), get_public_size());
 }

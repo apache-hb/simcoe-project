@@ -10,18 +10,21 @@ namespace sm {
     namespace detail {
         template<typename T>
         class BitSetBase {
-            sm::UniquePtr<T[]> mStorage;
-            size_t mBitCount;
+            using ElementType = T;
+            using IndexType = size_t;
 
-            constexpr void verifyIndex(size_t bit) const noexcept {
+            sm::UniquePtr<T[]> mStorage;
+            IndexType mBitCount;
+
+            constexpr void verifyIndex(IndexType bit) const noexcept {
                 CTASSERTF(bit < getBitCapacity(), "bit (%zu) must be less than number of bits available (%zu)", bit, getBitCapacity());
             }
 
-            constexpr void zeroRange(size_t words) noexcept {
+            constexpr void zeroRange(IndexType words) noexcept {
                 std::fill_n(mStorage.get(), words, T(0));
             }
 
-            constexpr void init(size_t bitcount) noexcept {
+            constexpr void init(IndexType bitcount) noexcept {
                 CTASSERT(bitcount > 0);
 
                 size_t capacity = computeWordCapacity(bitcount);
@@ -31,7 +34,7 @@ namespace sm {
                 mBitCount = bitcount;
             }
 
-            constexpr void resizeStorage(size_t bitcount) noexcept {
+            constexpr void resizeStorage(IndexType bitcount) noexcept {
                 CTASSERT(bitcount > 0);
 
                 size_t currentCapacity = getWordCapacity();
@@ -51,7 +54,7 @@ namespace sm {
                 mBitCount = bitcount;
             }
 
-            constexpr void zeroStorage(size_t bitcount) noexcept {
+            constexpr void zeroStorage(IndexType bitcount) noexcept {
                 CTASSERT(bitcount > 0);
 
                 size_t currentCapacity = getWordCapacity();
@@ -67,66 +70,66 @@ namespace sm {
             }
 
         protected:
-            static constexpr size_t computeWordCapacity(size_t bitcount) noexcept {
+            static constexpr size_t computeWordCapacity(IndexType bitcount) noexcept {
                 return bitcount / kBitsPerWord + 1;
             }
 
-            static constexpr size_t computeWordIndex(size_t bit) noexcept {
+            static constexpr size_t computeWordIndex(IndexType bit) noexcept {
                 return bit / kBitsPerWord;
             }
 
-            static constexpr size_t computeBitMask(size_t bit) noexcept {
+            static constexpr size_t computeBitMask(IndexType bit) noexcept {
                 return T(1) << (bit % kBitsPerWord);
             }
 
-            constexpr auto& getWord(this auto& self, size_t bit) noexcept {
+            constexpr auto& getWord(this auto& self, IndexType bit) noexcept {
                 self.verifyIndex(bit);
                 return self.mStorage[computeWordIndex(bit)];
             }
 
-            constexpr BitSetBase(size_t bitcount) noexcept {
+            constexpr BitSetBase(IndexType bitcount) noexcept {
                 init(bitcount);
             }
 
         public:
-            static constexpr inline size_t kBitsPerWord = sizeof(T) * CHAR_BIT;
+            static constexpr inline IndexType kBitsPerWord = sizeof(T) * CHAR_BIT;
 
             constexpr size_t getWordCapacity() const noexcept {
                 return computeWordCapacity(mBitCount);
             }
 
-            constexpr size_t getBitCapacity() const noexcept {
+            constexpr IndexType getBitCapacity() const noexcept {
                 return mBitCount;
             }
 
             /// @brief resize a bitset
             /// @note may not shrink the bitsets backing storage
             /// @param bitcount the new bit count
-            constexpr void resize(size_t bitcount) noexcept {
+            constexpr void resize(IndexType bitcount) noexcept {
                 resizeStorage(bitcount);
             }
 
-            constexpr void resizeAndClear(size_t bitcount) noexcept {
+            constexpr void resizeAndClear(IndexType bitcount) noexcept {
                 zeroStorage(bitcount);
             }
 
-            constexpr bool test(size_t bit) const noexcept {
+            constexpr bool test(IndexType bit) const noexcept {
                 return getWord(bit) & computeBitMask(bit);
             }
 
-            constexpr void set(size_t bit) noexcept {
+            constexpr void set(IndexType bit) noexcept {
                 getWord(bit) |= computeBitMask(bit);
             }
 
-            constexpr void clear(size_t bit) noexcept {
+            constexpr void clear(IndexType bit) noexcept {
                 getWord(bit) &= ~computeBitMask(bit);
             }
 
-            constexpr void flip(size_t bit) noexcept {
+            constexpr void flip(IndexType bit) noexcept {
                 getWord(bit) ^= computeBitMask(bit);
             }
 
-            constexpr void update(size_t bit, bool value) noexcept {
+            constexpr void update(IndexType bit, bool value) noexcept {
                 if (value) {
                     set(bit);
                 } else {

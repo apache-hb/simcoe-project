@@ -90,7 +90,7 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
 
     void create(sys::Window &window) override {
         logs::gGlobal.info("create window");
-        if (mPlacementLookup = mStore.get_record(&mWindowPlacement); mPlacementLookup == archive::RecordLookup::eOpened) {
+        if (mPlacementLookup = mStore.getRecord(&mWindowPlacement); mPlacementLookup == archive::RecordLookup::eOpened) {
             window.set_placement(*mWindowPlacement);
         } else {
             window.center_window(sys::MultiMonitor::ePrimary);

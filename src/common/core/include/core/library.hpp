@@ -13,7 +13,8 @@ constexpr bool operator!=(const os_library_t& lhs, const os_library_t& rhs) {
 namespace sm {
     using LibraryHandle = sm::UniqueHandle<os_library_t, decltype([](os_library_t& it) { os_library_close(&it); })>;
 
-    class Library : LibraryHandle {
+    class Library {
+        LibraryHandle mHandle;
         OsError mError = 0;
 
         void *get_symbol(const char *name);

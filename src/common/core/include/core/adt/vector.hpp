@@ -15,12 +15,10 @@ namespace sm {
     template<typename T, size_t N>
     using SmallVector = Vector<T>; // TODO: make a small vector
 
-    template<typename T>
+    template<typename T> requires (std::is_object_v<T>)
     class VectorBase final {
         using SizeType = ssize_t;
         using Self = VectorBase;
-
-        static_assert(std::is_object_v<T>, "T must be an object type because of [container.requirements].");
 
         T *mFront = nullptr;
         T *mBack = nullptr;

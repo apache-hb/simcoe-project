@@ -10,7 +10,7 @@ namespace sm {
         size_t acquireFirstFreeRange(size_t count) noexcept;
 
     public:
-        static constexpr size_t kInvalidIndex = SIZE_MAX;
+        static constexpr inline size_t kInvalidIndex = SIZE_MAX;
 
         BitMapIndexAllocator(size_t capacity) noexcept
             : mBitSet(capacity)

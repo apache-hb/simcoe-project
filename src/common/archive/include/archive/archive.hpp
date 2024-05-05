@@ -19,7 +19,7 @@ namespace sm {
             : mStream(stream)
         { }
 
-        constexpr bool is_valid() const { return mStream.is_valid(); }
+        constexpr bool isValid() const { return mStream.isValid(); }
 
         void write_bytes(const void *data, size_t size);
         void write_string(sm::StringView str);

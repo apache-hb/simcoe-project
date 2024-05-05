@@ -9,7 +9,6 @@
 #include "threads/threads.hpp"
 
 #include "archive/record.hpp"
-#include "archive/io.hpp"
 
 #include "config/config.hpp"
 
@@ -79,7 +78,7 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
 
     void create(sys::Window &window) override {
         logs::gGlobal.info("create window");
-        if (mPlacementLookup = mStore.get_record(&mWindowPlacement); mPlacementLookup == archive::RecordLookup::eOpened) {
+        if (mPlacementLookup = mStore.getRecord(&mWindowPlacement); mPlacementLookup == archive::RecordLookup::eOpened) {
             window.set_placement(*mWindowPlacement);
         } else {
             window.center_window(sys::MultiMonitor::ePrimary);
@@ -292,7 +291,7 @@ static int client_main(sys::ShowWindow show) {
     };
     threads::Scheduler scheduler{thread_config, geometry};
 
-    if (!store.is_valid()) {
+    if (!store.isValid()) {
         store.reset();
     }
 

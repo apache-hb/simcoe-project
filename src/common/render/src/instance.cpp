@@ -170,7 +170,7 @@ sm::Vector<Adapter> &Instance::get_adapters() {
 }
 
 bool Instance::has_viable_adapter() const {
-    return mWarpAdapter.is_valid() || !mAdapters.empty();
+    return mWarpAdapter.isValid() || !mAdapters.empty();
 }
 
 Adapter *Instance::get_adapter_by_luid(LUID luid) {
