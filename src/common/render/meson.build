@@ -1,13 +1,21 @@
 
 render_include = include_directories('.', 'include')
 
+dstorage = dependency('dstorage')
+winpixruntime = dependency('winpixruntime')
 nvapi = dependency('nvapi', required : get_option('nvapi_enable'))
 ags = dependency('amd_ags', required : get_option('amd_ags_enable'))
+
+framegraph_trace_feature = get_option('framegraph_trace').disable_auto_if(is_release)
+warp_feature = get_option('warp_enable').disable_auto_if(is_release)
+pix_feature = get_option('pix_enable').disable_auto_if(is_release)
 
 render_cdata = configuration_data()
 render_cdata.set10('SMC_RENDER_ENABLE_NVAPI', nvapi.found())
 render_cdata.set10('SMC_RENDER_ENABLE_AMD_AGS', ags.found())
-render_cdata.set10('SMC_RENDER_FRAMEGRAPH_TRACE', get_option('framegraph_trace'))
+render_cdata.set10('SMC_RENDER_FRAMEGRAPH_TRACE', framegraph_trace_feature.allowed())
+render_cdata.set10('SMC_RENDER_ENABLE_WINPIXRUNTIME', pix_feature.allowed())
+render_cdata.set10('SMC_RENDER_ENABLE_WARP', warp_feature.allowed())
 
 render_config = configure_file(
     output : 'simcoe_render_config.h',
@@ -27,7 +35,10 @@ src = [
     # utils
     'src/result.cpp',
     'src/object.cpp',
+
     'src/descriptor_heap.cpp',
+    'src/resource.cpp',
+
     'src/viewport.cpp',
     'src/format.cpp',
 
@@ -52,11 +63,16 @@ deps = [
     tracy,
 
     # microsoft
-    d3d12, d3dx12, d3d12ma, pix, dstorage,
+    d3d12, d3dx12, d3d12ma, dstorage,
+    winpixruntime.partial_dependency(includes : true),
 
     # hardware vendors
     nvapi, ags
 ]
+
+if pix_feature.allowed()
+    deps += [ winpixruntime ]
+endif
 
 librender = library('render', src,
     cpp_args : [ '-DSM_RENDER_BUILD=1' ],

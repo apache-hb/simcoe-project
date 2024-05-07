@@ -2,10 +2,12 @@
 
 #include "core/allocators/bitmap_allocator.hpp"
 
-#include "core/units.hpp"
 #include "render/object.hpp"
 
 namespace sm::render {
+    using HostDescriptorHandle = D3D12_CPU_DESCRIPTOR_HANDLE;
+    using DeviceDescriptorHandle = D3D12_GPU_DESCRIPTOR_HANDLE;
+
     class DescriptorPoolBase {
         static constexpr inline size_t kInitialAllocatorSize = 64;
         sm::BitMapIndexAllocator mAllocator{kInitialAllocatorSize};
@@ -14,8 +16,8 @@ namespace sm::render {
         uint mDescriptorSize = 0;
         bool mIsShaderVisible = false;
 
-        D3D12_CPU_DESCRIPTOR_HANDLE mFirstHostHandle = {};
-        D3D12_GPU_DESCRIPTOR_HANDLE mFirstDeviceHandle = {};
+        HostDescriptorHandle mFirstHostHandle = {};
+        DeviceDescriptorHandle mFirstDeviceHandle = {};
 
     protected:
         HRESULT createDescriptorHeap(ID3D12Device1 *device, const D3D12_DESCRIPTOR_HEAP_DESC &desc) noexcept;
@@ -33,12 +35,11 @@ namespace sm::render {
         uint getDescriptorSize() const noexcept { return mDescriptorSize; }
         ID3D12DescriptorHeap *get() const noexcept { return mHeap.get(); }
 
-        D3D12_GPU_DESCRIPTOR_HANDLE getBaseDeviceHandle() const noexcept {
-            CTASSERT(isShaderVisible());
-            return mFirstDeviceHandle;
-        }
+        HostDescriptorHandle getHostDescriptorHandle(size_t index) const noexcept;
+        DeviceDescriptorHandle getDeviceDescriptorHandle(size_t index) const noexcept;
 
-        D3D12_CPU_DESCRIPTOR_HANDLE getBaseHostHandle() const noexcept { return mFirstHostHandle; }
+        HostDescriptorHandle getBaseHostHandle() const noexcept { return mFirstHostHandle; }
+        DeviceDescriptorHandle getBaseDeviceHandle() const noexcept { return mFirstDeviceHandle; }
 
         void reset() noexcept {
             mHeap.reset();
@@ -81,18 +82,14 @@ namespace sm::render {
             return Super::tryRelease(uint(index));
         }
 
-        D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle(Index index) const noexcept {
+        HostDescriptorHandle cpu_handle(Index index) const noexcept {
             CTASSERT(Super::test(uint(index)));
-            D3D12_CPU_DESCRIPTOR_HANDLE handle = Super::getBaseHostHandle();
-            handle.ptr += enum_cast<uint>(index) * Super::getDescriptorSize();
-            return handle;
+            return Super::getHostDescriptorHandle(uint(index));
         }
 
-        D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle(Index index) const noexcept {
+        DeviceDescriptorHandle gpu_handle(Index index) const noexcept {
             CTASSERT(Super::test(uint(index)));
-            D3D12_GPU_DESCRIPTOR_HANDLE handle = Super::getBaseDeviceHandle();
-            handle.ptr += enum_cast<uint>(index) * Super::getDescriptorSize();
-            return handle;
+            return Super::getDeviceDescriptorHandle(uint(index));
         }
     };
 

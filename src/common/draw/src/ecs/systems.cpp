@@ -20,6 +20,25 @@ flecs::query<
     const world::ecs::Colour
 > draw::ecs::gAllSpotLights;
 
+static constexpr D3D12MA::ALLOCATION_DESC kObjectMemoryAlloc = {
+    .Flags = D3D12MA::ALLOCATION_FLAG_NONE,
+    .HeapType = D3D12_HEAP_TYPE_UPLOAD,
+};
+
+static constexpr D3D12MA::ALLOCATION_DESC kViewportMemoryAlloc = {
+    .Flags = D3D12MA::ALLOCATION_FLAG_NONE,
+    .HeapType = D3D12_HEAP_TYPE_UPLOAD,
+};
+
+draw::DrawData::DrawData(render::IDeviceContext& context)
+    : mObjectResource(context, CD3DX12_RESOURCE_DESC::Buffer(sizeof(ObjectData) * kMaxObjects), D3D12_RESOURCE_STATE_COMMON, kObjectMemoryAlloc)
+    , mViewportResource(context, CD3DX12_RESOURCE_DESC::Buffer(sizeof(ViewportData) * kMaxViewports), D3D12_RESOURCE_STATE_COMMON, kViewportMemoryAlloc)
+    , mViewportMemory(mViewportResource.mapWriteOnly<ViewportData>())
+    , mObjectMemory(mObjectResource.mapWriteOnly<ObjectData>())
+{
+
+}
+
 void draw::ecs::initSystems(flecs::world& world, render::IDeviceContext &context) {
     gAllPointLights = world.query_builder<
             const world::ecs::Position,

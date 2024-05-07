@@ -1,24 +1,31 @@
-# devel package: internal use only (default)
-# private package: shipping to testers
-# release package: shipping to public
-option('package_type', type : 'combo',
-    description : 'Package type when building',
-    choices : [ 'devel', 'private', 'release' ],
-    value : 'devel'
-)
-
-option('trace_time', type : 'feature',
+option('trace_time', type : 'boolean',
     description : 'Trace compile time',
-    value : 'disabled'
+    value : 'false'
 )
 
-option('freetype_logging', type : 'feature',
-    description : 'Enable freetype logging',
-    value : 'disabled'
+option('client_win_subsystem', type : 'combo',
+    description : 'Subsystem to link as for client applications',
+    choices : [ 'console', 'windows' ],
+    value : 'console'
+)
+
+option('editor_win_subsystem', type : 'combo',
+    description : 'Subsystem to link as for editor applications',
+    choices : [ 'console', 'windows' ],
+    value : 'console'
 )
 
 ###
 ### debug features
+###
+
+option('freetype_logging', type : 'boolean',
+    description : 'Enable freetype logging',
+    value : 'false'
+)
+
+###
+### render debug features
 ###
 
 option('pix_enable', type : 'feature',
@@ -31,8 +38,13 @@ option('warp_enable', type : 'feature',
     value : 'auto'
 )
 
+option('framegraph_trace', type : 'feature',
+    description : 'Enable framegraph debug tracing',
+    value : 'disabled'
+)
+
 ###
-### boolean features
+### extra render features
 ###
 
 option('nvapi_enable', type : 'boolean',
@@ -43,11 +55,6 @@ option('nvapi_enable', type : 'boolean',
 option('amd_ags_enable', type : 'boolean',
     description : 'Enable AMD AGS support',
     value : 'true'
-)
-
-option('framegraph_trace', type : 'boolean',
-    description : 'Enable framegraph trace',
-    value : 'false'
 )
 
 option('tracy_enable', type : 'boolean',

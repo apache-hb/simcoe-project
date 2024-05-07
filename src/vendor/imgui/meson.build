@@ -22,12 +22,12 @@ src = [
 imgui_include = include_directories('include')
 private_imgui_include = include_directories('include/imgui', 'include/imgui/backends', 'include/imgui/misc')
 
-imgui_deps = [ dxgi, core, math ]
+imgui_deps = [ d3d12, core, math ]
 
 libimgui = library('imgui', src,
     cpp_args : cpp.get_supported_arguments('/wd4702', '/wd4127', '-Wno-unused-function'),
     include_directories : [ imgui_include, private_imgui_include ],
-    dependencies : imgui_deps + [ d3d12, dxguid ] # freetype
+    dependencies : imgui_deps
 )
 
 imgui = declare_dependency(

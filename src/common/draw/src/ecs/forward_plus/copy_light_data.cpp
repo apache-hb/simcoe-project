@@ -40,10 +40,10 @@ void draw::ecs::copyLightData(
             PointLightData *pointLightMemory;
             SpotLightData *spotLightMemory;
 
-            LightVolumeData pointLightVolumeBuffer[MAX_POINT_LIGHTS] = {};
-            LightVolumeData spotLightVolumeBuffer[MAX_SPOT_LIGHTS] = {};
-            PointLightData pointLightBuffer[MAX_POINT_LIGHTS] = {};
-            SpotLightData spotLightBuffer[MAX_SPOT_LIGHTS] = {};
+            LightVolumeData pointLightVolumeBuffer[kMaxPointLights] = {};
+            LightVolumeData spotLightVolumeBuffer[kMaxSpotLights] = {};
+            PointLightData pointLightBuffer[kMaxPointLights] = {};
+            SpotLightData spotLightBuffer[kMaxSpotLights] = {};
         } info;
 
         auto createUploadBuffer = [&](render::Resource& resource, size_t size, void **memory) {
@@ -51,10 +51,10 @@ void draw::ecs::copyLightData(
             SM_ASSERT_HR(resource.map(nullptr, memory));
         };
 
-        createUploadBuffer(info.pointLightVolumeData, sizeof(LightVolumeData) * MAX_POINT_LIGHTS, (void**)&info.pointLightVolumeMemory);
-        createUploadBuffer(info.spotLightVolumeData, sizeof(LightVolumeData) * MAX_SPOT_LIGHTS, (void**)&info.spotLightVolumeMemory);
-        createUploadBuffer(info.pointLightData, sizeof(PointLightData) * MAX_POINT_LIGHTS, (void**)&info.pointLightMemory);
-        createUploadBuffer(info.spotLightData, sizeof(SpotLightData) * MAX_SPOT_LIGHTS, (void**)&info.spotLightMemory);
+        createUploadBuffer(info.pointLightVolumeData, sizeof(LightVolumeData) * kMaxPointLights, (void**)&info.pointLightVolumeMemory);
+        createUploadBuffer(info.spotLightVolumeData, sizeof(LightVolumeData) * kMaxSpotLights, (void**)&info.spotLightVolumeMemory);
+        createUploadBuffer(info.pointLightData, sizeof(PointLightData) * kMaxPointLights, (void**)&info.pointLightMemory);
+        createUploadBuffer(info.spotLightData, sizeof(SpotLightData) * kMaxSpotLights, (void**)&info.spotLightMemory);
 
         return info;
     });

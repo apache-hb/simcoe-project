@@ -9,40 +9,38 @@
 namespace sm::draw {
     class Camera;
 
-    ///
-    /// forward+ pipeline
-    ///
+    static constexpr inline size_t kMaxViewports = 4;
+    static constexpr inline size_t kMaxObjects = 1024;
+    static constexpr inline size_t kMaxLights = MAX_LIGHTS;
+    static constexpr inline size_t kMaxPointLights = MAX_POINT_LIGHTS;
+    static constexpr inline size_t kMaxSpotLights = MAX_SPOT_LIGHTS;
 
-    namespace forward_plus {
-        enum class DepthBoundsMode {
-            eDisabled = 0,
-            eEnabled = 1,
-            eEnabledMSAA = 2,
-        };
-    }
+    class DrawData {
+        BitMapIndexAllocator mObjectAllocator{kMaxObjects};
+        BitMapIndexAllocator mViewportAllocator{kMaxViewports};
 
-    ///
-    /// forward pipeline
-    ///
+        render::BufferResource mObjectResource;
+        render::BufferResource mViewportResource;
 
-    /// @brief forward opaque rendering pass
-    ///
-    /// @param graph the render graph
-    /// @param[out] target the render target that will be rendered to
-    /// @param[out] depth the depth target that will be rendered to
-    /// @param camera the camera to render from
-    void opaque(
-        graph::FrameGraph& graph,
-        graph::Handle& target,
-        graph::Handle& depth,
-        const Camera& camera);
+        ViewportData *mViewportMemory;
+        ObjectData *mObjectMemory;
+
+    public:
+        DrawData(render::IDeviceContext& context);
+    };
 
     namespace ecs {
         using ObjectDeviceData = render::ConstBuffer<ObjectData>;
         using ViewportDeviceData = render::ConstBuffer<ViewportData>;
 
+        enum class DepthBoundsMode {
+            eDisabled = 0,
+            eEnabled = 1,
+            eEnabledMSAA = 2,
+        };
+
         struct DrawData {
-            forward_plus::DepthBoundsMode depthBoundsMode;
+            DepthBoundsMode depthBoundsMode;
             graph::FrameGraph& graph;
             flecs::world& world;
             flecs::entity camera;
@@ -54,7 +52,7 @@ namespace sm::draw {
             > objectDrawData;
 
             DrawData(
-                forward_plus::DepthBoundsMode depthBoundsMode,
+                DepthBoundsMode depthBoundsMode,
                 graph::FrameGraph& graph,
                 flecs::world& world,
                 flecs::entity camera
@@ -119,9 +117,18 @@ namespace sm::draw {
         );
     }
 
+    /// @brief forward opaque rendering pass
     ///
-    /// other passes
-    ///
+    /// @param graph the render graph
+    /// @param[out] target the render target that will be rendered to
+    /// @param[out] depth the depth target that will be rendered to
+    /// @param camera the camera to render from
+    void opaque(
+        graph::FrameGraph& graph,
+        graph::Handle& target,
+        graph::Handle& depth,
+        const Camera& camera
+    );
 
     /// @brief copy a texture to the render target
     ///
@@ -133,5 +140,6 @@ namespace sm::draw {
         graph::FrameGraph& graph,
         graph::Handle target,
         graph::Handle source,
-        const render::Viewport& viewport);
+        const render::Viewport& viewport
+    );
 }

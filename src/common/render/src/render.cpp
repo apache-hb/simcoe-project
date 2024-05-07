@@ -176,7 +176,7 @@ void IDeviceContext::create_device(Adapter& adapter) {
 
     enable_dred(mDebugFlags.test(DebugFlags::eDeviceRemovedInfo));
 
-    auto fl = get_feature_level();
+    FeatureLevel fl = getMinFeatureLevel();
 
     set_current_adapter(adapter);
     if (Result hr = D3D12CreateDevice(adapter.get(), fl.as_facade(), IID_PPV_ARGS(&mDevice)); !hr) {
@@ -297,7 +297,7 @@ void IDeviceContext::create_pipeline() {
     create_frame_allocators();
 
     for (uint i = 0; i < mSwapChainConfig.length; i++) {
-        mFrames[i].fence_value = 0;
+        mFrames[i].fenceValue = 0;
     }
 }
 
@@ -306,14 +306,14 @@ static const D3D12_HEAP_PROPERTIES kUploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_H
 
 void IDeviceContext::create_frame_rtvs() {
     for (auto& frame : mFrames) {
-        frame.rtv_index = mRtvPool.allocate();
+        frame.rtvIndex = mRtvPool.allocate();
     }
 }
 
 void IDeviceContext::destroy_frame_rtvs() {
     for (auto& frame : mFrames) {
-        mRtvPool.release(frame.rtv_index);
-        frame.rtv_index = RtvIndex::eInvalid;
+        mRtvPool.release(frame.rtvIndex);
+        frame.rtvIndex = RtvIndex::eInvalid;
     }
 }
 
@@ -322,7 +322,7 @@ void IDeviceContext::create_render_targets() {
 
     for (uint i = 0; i < mSwapChainConfig.length; i++) {
         auto& backbuffer = mFrames[i].target;
-        auto rtv = mRtvPool.cpu_handle(mFrames[i].rtv_index);
+        auto rtv = mRtvPool.cpu_handle(mFrames[i].rtvIndex);
         SM_ASSERT_HR(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&backbuffer)));
         mDevice->CreateRenderTargetView(*backbuffer, nullptr, rtv);
 
@@ -703,7 +703,7 @@ void IDeviceContext::create_assets() {
     SM_ASSERT_HR(mCommandList->Close());
 
     SM_ASSERT_HR(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
-    mFrames[mFrameIndex].fence_value += 1;
+    mFrames[mFrameIndex].fenceValue += 1;
 
     SM_ASSERT_WIN32(mFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr));
 }
@@ -903,7 +903,7 @@ void IDeviceContext::recreate_device() {
 void IDeviceContext::update_swapchain_length(uint length) {
     wait_for_gpu();
 
-    uint64 current = mFrames[mFrameIndex].fence_value;
+    uint64 current = mFrames[mFrameIndex].fenceValue;
 
     for (auto& frame : mFrames) {
         frame.target.reset();
@@ -919,7 +919,7 @@ void IDeviceContext::update_swapchain_length(uint length) {
 
     mFrames.resize(length);
     for (uint i = 0; i < length; i++) {
-        mFrames[i].fence_value = current;
+        mFrames[i].fenceValue = current;
     }
 
     create_frame_rtvs();
@@ -935,7 +935,7 @@ void IDeviceContext::resize_swapchain(math::uint2 size) {
 
     for (uint i = 0; i < mSwapChainConfig.length; i++) {
         mFrames[i].target.reset();
-        mFrames[i].fence_value = mFrames[mFrameIndex].fence_value;
+        mFrames[i].fenceValue = mFrames[mFrameIndex].fenceValue;
     }
 
     destroy_framegraph();
@@ -959,22 +959,22 @@ void IDeviceContext::update_framegraph() {
 }
 
 void IDeviceContext::move_to_next_frame() {
-    const uint64 current = mFrames[mFrameIndex].fence_value;
+    const uint64 current = mFrames[mFrameIndex].fenceValue;
     SM_ASSERT_HR(mDirectQueue->Signal(*mFence, current));
 
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
 
-    if (mFence->GetCompletedValue() < mFrames[mFrameIndex].fence_value) {
-        SM_ASSERT_HR(mFence->SetEventOnCompletion(mFrames[mFrameIndex].fence_value, mFenceEvent));
+    if (mFence->GetCompletedValue() < mFrames[mFrameIndex].fenceValue) {
+        SM_ASSERT_HR(mFence->SetEventOnCompletion(mFrames[mFrameIndex].fenceValue, mFenceEvent));
         PIXNotifyWakeFromFenceSignal(mFenceEvent);
         WaitForSingleObject(mFenceEvent, INFINITE);
     }
 
-    mFrames[mFrameIndex].fence_value = current + 1;
+    mFrames[mFrameIndex].fenceValue = current + 1;
 }
 
 void IDeviceContext::wait_for_gpu() {
-    const uint64 current = mFrames[mFrameIndex].fence_value++;
+    const uint64 current = mFrames[mFrameIndex].fenceValue++;
     SM_ASSERT_HR(mDirectQueue->Signal(*mFence, current));
 
     SM_ASSERT_HR(mFence->SetEventOnCompletion(current, mFenceEvent));

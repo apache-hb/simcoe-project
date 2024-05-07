@@ -1,6 +1,7 @@
+#include "stdafx.hpp"
+
 #include "core/map.hpp"
 #include "core/adt/vector.hpp"
-#include "stdafx.hpp"
 
 #include "archive/fs.hpp"
 

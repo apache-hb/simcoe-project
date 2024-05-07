@@ -5,7 +5,7 @@ using namespace sm::sys;
 
 // handling keyboard accuratley is more tricky than it first seems
 // https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input#keystroke-message-flags
-static DWORD remap_keycode(WPARAM wparam, LPARAM lparam) {
+static DWORD remapKeyCode(WPARAM wparam, LPARAM lparam) {
     WORD vk = LOWORD(wparam);
     WORD flags = HIWORD(lparam);
     WORD scancode = LOBYTE(flags);
@@ -24,7 +24,7 @@ static DWORD remap_keycode(WPARAM wparam, LPARAM lparam) {
 struct ButtonMap { unsigned key; input::Button button; };
 
 template<size_t N>
-static consteval auto make_table(const ButtonMap(&data)[N]) {
+static consteval auto makeTable(const ButtonMap(&data)[N]) {
     Array<input::Button, 256> table{};
     for (const auto& entry : data) {
         table[entry.key] = entry.button;
@@ -32,7 +32,7 @@ static consteval auto make_table(const ButtonMap(&data)[N]) {
     return table;
 }
 
-static constexpr auto kButtons = make_table({
+static constexpr auto kButtons = makeTable({
     { 'A', input::Button::eA },
     { 'B', input::Button::eB },
     { 'C', input::Button::eC },
@@ -105,13 +105,13 @@ static bool update(T& value, T next) {
     return bUpdated;
 }
 
-static math::int2 get_mouse_position(HWND hwnd) {
+static math::int2 getMousePosition(HWND hwnd) {
     POINT p;
     SM_ASSERT_WIN32(GetCursorPos(&p));
     return {p.x, p.y};
 }
 
-static math::int2 get_window_center(sys::Window& hwnd) {
+static math::int2 getWindowCenter(sys::Window& hwnd) {
     RECT rect;
     SM_ASSERT_WIN32(GetWindowRect(hwnd.get_handle(), &rect));
 
@@ -121,36 +121,36 @@ static math::int2 get_window_center(sys::Window& hwnd) {
     };
 }
 
-void DesktopInput::set_key(WORD key, size_t value) {
+void DesktopInput::setKeyValue(WORD key, size_t value) {
     if (auto button = kButtons[key]) {
         mButtons[button] = value;
     }
 }
 
-void DesktopInput::set_xbutton(WORD key, size_t value) {
+void DesktopInput::setXButtonValue(WORD key, size_t value) {
     switch (key) {
     case XBUTTON1:
-        set_key(VK_XBUTTON1, value);
+        setKeyValue(VK_XBUTTON1, value);
         break;
     case XBUTTON2:
-        set_key(VK_XBUTTON2, value);
+        setKeyValue(VK_XBUTTON2, value);
         break;
     default:
-        set_key(key, value);
+        setKeyValue(key, value);
         break;
     }
 }
 
-void DesktopInput::center_mouse() {
-    auto center = get_window_center(mWindow);
+void DesktopInput::centerMouse() {
+    auto center = getWindowCenter(mWindow);
     SetCursorPos(center.x, center.y);
 }
 
 static constexpr auto kMouseX = (size_t)input::Axis::eMouseX;
 static constexpr auto kMouseY = (size_t)input::Axis::eMouseY;
 
-bool DesktopInput::poll_mouse(input::InputState& state) {
-    auto pos = get_mouse_position(mWindow.get_handle());
+bool DesktopInput::pollMouseState(input::InputState& state) {
+    auto pos = getMousePosition(mWindow.get_handle());
 
     // TODO: maybe add this back in if the ecs system doesnt work out
     // if (pos == mMousePosition) return false;
@@ -158,7 +158,7 @@ bool DesktopInput::poll_mouse(input::InputState& state) {
     auto delta = pos - mMousePosition;
 
     if (mCaptureMouse) {
-        center_mouse();
+        centerMouse();
     } else {
         mMousePosition = pos;
     }
@@ -172,11 +172,11 @@ bool DesktopInput::poll_mouse(input::InputState& state) {
 DesktopInput::DesktopInput(sys::Window& window)
     : ISource(input::DeviceType::eDesktop)
     , mWindow(window)
-    , mMousePosition(get_mouse_position(window.get_handle()))
+    , mMousePosition(getMousePosition(window.get_handle()))
 { }
 
 bool DesktopInput::poll(input::InputState& state) {
-    bool dirty = poll_mouse(state);
+    bool dirty = pollMouseState(state);
 
     for (unsigned i = 0; i < kButtons.length(); ++i) {
         if (auto button = kButtons[i]; button.is_valid()) {
@@ -194,41 +194,41 @@ void DesktopInput::window_event(UINT msg, WPARAM wparam, LPARAM lparam) {
         // ignore key repeats
         if (HIWORD(lparam) & KF_REPEAT) { return; }
 
-        set_key(remap_keycode(wparam, lparam), mIndex++);
+        setKeyValue(remapKeyCode(wparam, lparam), mIndex++);
         break;
 
     case WM_SYSKEYUP:
     case WM_KEYUP:
-        set_key(remap_keycode(wparam, lparam), 0);
+        setKeyValue(remapKeyCode(wparam, lparam), 0);
         break;
 
     case WM_RBUTTONDOWN:
-        set_key(VK_RBUTTON, mIndex++);
+        setKeyValue(VK_RBUTTON, mIndex++);
         break;
     case WM_RBUTTONUP:
-        set_key(VK_RBUTTON, 0);
+        setKeyValue(VK_RBUTTON, 0);
         break;
 
     case WM_LBUTTONDOWN:
-        set_key(VK_LBUTTON, mIndex++);
+        setKeyValue(VK_LBUTTON, mIndex++);
         break;
     case WM_LBUTTONUP:
-        set_key(VK_LBUTTON, 0);
+        setKeyValue(VK_LBUTTON, 0);
         break;
 
     case WM_MBUTTONDOWN:
-        set_key(VK_MBUTTON, mIndex++);
+        setKeyValue(VK_MBUTTON, mIndex++);
         break;
     case WM_MBUTTONUP:
-        set_key(VK_MBUTTON, 0);
+        setKeyValue(VK_MBUTTON, 0);
         break;
 
     case WM_XBUTTONDOWN:
-        set_xbutton(GET_XBUTTON_WPARAM(wparam), mIndex++);
+        setXButtonValue(GET_XBUTTON_WPARAM(wparam), mIndex++);
         break;
 
     case WM_XBUTTONUP:
-        set_xbutton(GET_XBUTTON_WPARAM(wparam), 0);
+        setXButtonValue(GET_XBUTTON_WPARAM(wparam), 0);
         break;
 
     default:
@@ -239,8 +239,8 @@ void DesktopInput::window_event(UINT msg, WPARAM wparam, LPARAM lparam) {
 void DesktopInput::capture_cursor(bool capture) {
     mCaptureMouse = capture;
     if (mCaptureMouse) {
-        center_mouse();
-        mMousePosition = get_window_center(mWindow);
+        centerMouse();
+        mMousePosition = getWindowCenter(mWindow);
     }
 }
 

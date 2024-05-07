@@ -237,7 +237,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     const render::RenderConfig kRenderConfig = {
         .flags = flags,
         .preference = render::AdapterPreference::eMinimumPower,
-        .feature_level = render::FeatureLevel::eLevel_11_0,
+        .minFeatureLevel = render::FeatureLevel::eLevel_11_0,
 
         .swapchain = {
             .size = uint2(client),
@@ -245,9 +245,9 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
             .format = DXGI_FORMAT_R8G8B8A8_UNORM,
         },
 
-        .rtv_heap_size = 64,
-        .dsv_heap_size = 64,
-        .srv_heap_size = 1024,
+        .rtvHeapSize = 64,
+        .dsvHeapSize = 64,
+        .srvHeapSize = 1024,
 
         .bundle = bundle,
         .window = window,
@@ -378,7 +378,7 @@ static int editor_main(sys::ShowWindow show) {
     };
     threads::Scheduler scheduler{thread_config, geometry};
 
-    if (!store.is_valid()) {
+    if (!store.isValid()) {
         store.reset();
     }
 

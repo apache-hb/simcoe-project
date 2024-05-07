@@ -16,12 +16,12 @@ namespace sm::sys {
         math::int2 mMousePosition;
         bool mCaptureMouse = false;
 
-        void set_key(WORD key, size_t value);
-        void set_xbutton(WORD key, size_t value);
+        void setKeyValue(WORD key, size_t value);
+        void setXButtonValue(WORD key, size_t value);
 
-        bool poll_mouse(input::InputState& state);
+        bool pollMouseState(input::InputState& state);
 
-        void center_mouse();
+        void centerMouse();
 
     public:
         DesktopInput(sys::Window& window);

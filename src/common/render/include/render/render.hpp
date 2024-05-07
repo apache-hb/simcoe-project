@@ -38,16 +38,14 @@ namespace sm::render {
     struct RenderConfig {
         DebugFlags flags;
         AdapterPreference preference;
-        FeatureLevel feature_level;
-        LUID adapter_luid = { 0, 0 };
+        FeatureLevel minFeatureLevel;
+        AdapterLUID adapter;
 
         SwapChainConfig swapchain;
 
-        uint rtv_heap_size;
-        uint dsv_heap_size;
-        uint srv_heap_size;
-
-        uint max_lights = 4096;
+        uint rtvHeapSize;
+        uint dsvHeapSize;
+        uint srvHeapSize;
 
         Bundle& bundle;
         sys::Window &window;
@@ -56,8 +54,8 @@ namespace sm::render {
     struct FrameData {
         Object<ID3D12Resource> target;
         Object<ID3D12CommandAllocator> allocator;
-        RtvIndex rtv_index;
-        uint64 fence_value;
+        RtvIndex rtvIndex;
+        uint64 fenceValue;
     };
 
     struct Viewport {
@@ -70,6 +68,9 @@ namespace sm::render {
             : mViewport(viewport)
             , mScissorRect(scissor)
         { }
+
+        const D3D12_VIEWPORT *viewport() const { return &mViewport; }
+        const D3D12_RECT *scissor() const { return &mScissorRect; }
 
         static Viewport letterbox(math::uint2 display, math::uint2 render);
     };
@@ -126,8 +127,8 @@ namespace sm::render {
         DeviceHandle mDevice;
     public:
         CD3DX12FeatureSupport mFeatureSupport;
-        RootSignatureVersion mRootSignatureVersion;
     private:
+        RootSignatureVersion mRootSignatureVersion;
         Object<ID3D12Debug1> mDebug;
         Object<ID3D12InfoQueue1> mInfoQueue;
         DWORD mCookie = ULONG_MAX;
@@ -147,7 +148,7 @@ namespace sm::render {
         Object<D3D12MA::Allocator> mAllocator;
         void create_allocator();
     public:
-        D3D12MA::Allocator *get_allocator() { return mAllocator.get(); }
+        D3D12MA::Allocator *getAllocator() { return mAllocator.get(); }
 
         Result createTextureResource(Resource& resource, D3D12_HEAP_TYPE heap, D3D12_RESOURCE_DESC desc, D3D12_RESOURCE_STATES state, const D3D12_CLEAR_VALUE *clear = nullptr);
 
@@ -190,9 +191,9 @@ namespace sm::render {
 
         void reset_direct_commands(ID3D12PipelineState *pso = nullptr);
 
-        uint min_rtv_heap_size() const { return DXGI_MAX_SWAP_CHAIN_BUFFERS + mConfig.rtv_heap_size; }
-        uint min_srv_heap_size() const { return mConfig.srv_heap_size; }
-        uint min_dsv_heap_size() const { return mConfig.dsv_heap_size; }
+        uint min_rtv_heap_size() const { return DXGI_MAX_SWAP_CHAIN_BUFFERS + mConfig.rtvHeapSize; }
+        uint min_srv_heap_size() const { return mConfig.srvHeapSize; }
+        uint min_dsv_heap_size() const { return mConfig.dsvHeapSize; }
 
         RtvPool mRtvPool;
         DsvPool mDsvPool;
@@ -343,7 +344,8 @@ namespace sm::render {
         void set_scene(world::IndexOf<world::Scene> scene);
 
         world::Scene& get_scene() { return mWorld.get(mCurrentScene); }
-        FeatureLevel get_feature_level() const { return mConfig.feature_level; }
+        FeatureLevel getMinFeatureLevel() const noexcept { return mConfig.minFeatureLevel; }
+        RootSignatureVersion getHighestRootSignatureVersion() const noexcept { return mRootSignatureVersion; }
 
         Adapter& get_current_adapter() { return *mCurrentAdapter; }
 

@@ -62,28 +62,19 @@ project('simcoe', [ 'c', 'cpp' ],
 cpp = meson.get_compiler('cpp')
 cc = meson.get_compiler('c')
 
-add_project_arguments('-DNOMINMAX', language : [ 'c', 'cpp' ])
-add_global_arguments(cc.get_supported_arguments('/GS-', '/wd4127', '/wd4324', '/wd4200', '/wd4505'), language : [ 'c', 'cpp' ])
 add_global_arguments('-D_HAS_EXCEPTIONS=0', language : 'cpp')
 
-build_type = get_option('buildtype')
-is_debug = build_type.contains('debug')
-library_type = get_option('default_library')
-
-package_type = get_option('package_type')
-trace_time = get_option('trace_time')
-tracy_enable = get_option('tracy_enable')
-
-if tracy_enable
+if get_option('tracy_enable')
     add_global_arguments('-DTRACY_ENABLE', language : [ 'c', 'cpp' ])
 endif
 
-is_devel = package_type == 'devel'
-is_private = package_type == 'private'
-is_release = package_type == 'release'
+add_project_arguments('-DNOMINMAX', language : [ 'c', 'cpp' ])
+add_project_arguments(cc.get_supported_arguments('/GS-', '/wd4127', '/wd4324', '/wd4200', '/wd4505'), language : [ 'c', 'cpp' ])
 
-pix_enable = get_option('pix_enable').disable_auto_if(not is_devel)
-warp_enable = get_option('warp_enable').disable_auto_if(is_release)
+build_type = get_option('buildtype')
+is_debug = build_type.contains('debug')
+is_release = build_type.contains('release')
+library_type = get_option('default_library')
 
 # the perfect library
 cthulhu = subproject('cthulhu')
@@ -94,12 +85,7 @@ compressonator = find_program('compressonatorcli')
 artery = dependency('artery-font')
 fastgltf = dependency('fastgltf')
 
-dxgi = cpp.find_library('dxgi')
-dxguid = cpp.find_library('dxguid')
-
 d3d12 = dependency('d3d12')
-dstorage = dependency('dstorage')
-pix = dependency('winpixruntime')
 d3dx12 = dependency('directx-headers')
 tracy = dependency('tracy')
 
@@ -125,13 +111,12 @@ args = cpp.get_supported_arguments(
 cpp_args = cpp.get_supported_arguments(
     '/wd4251',
     '/wd4201',
-    '/wd4100',
     '/wd4244', # weird narrowing stuff i cant be bothered to figure out
     '/wd4702', # unreachable code in fmtlib
     '-fforce-emit-vtables'
 )
 
-if trace_time.enabled()
+if get_option('trace_time')
     args += cpp.get_supported_arguments('-ftime-trace')
 
     ninjatracing = find_program('scripts/ninjatracing/ninjatracing')
@@ -195,19 +180,11 @@ simcoe_cdata.set('SMC_VERSION_MAJOR', parts[0].to_int())
 simcoe_cdata.set_quoted('SMC_VERSION', version)
 simcoe_cdata.set_quoted('SMC_SOURCE_DIR', meson.project_source_root().replace('\\', '\\\\'))
 
-simcoe_cdata.set_quoted('SMC_PACKAGE_TYPE', package_type)
-simcoe_cdata.set10('SMC_BUILD_DEVEL', package_type == 'devel')
-simcoe_cdata.set10('SMC_BUILD_PRIVATE', package_type == 'private')
-simcoe_cdata.set10('SMC_BUILD_RELEASE', package_type == 'release')
-
 simcoe_cdata.set10('SMC_DEBUG', build_type.contains('debug'))
 simcoe_cdata.set10('SMC_RELEASE', build_type.contains('release'))
 
 simcoe_cdata.set10('SMC_BUILD_SHARED', library_type == 'shared')
 simcoe_cdata.set10('SMC_BUILD_STATIC', library_type == 'static')
-
-simcoe_cdata.set10('SMC_PIX_ENABLE', pix_enable.allowed())
-simcoe_cdata.set10('SMC_WARP_ENABLE', warp_enable.allowed())
 
 simcoe_config = configure_file(
     output : 'simcoe_config.h',
@@ -344,8 +321,6 @@ game_bundle = custom_target('game_bundle',
     ]
 )
 
-win_subsystem = not is_devel ? 'windows' : 'console'
-
 link_args = [
     '/DELAYLOAD:dxcompiler.dll',
     '/DELAYLOAD:dxil.dll',
@@ -362,7 +337,7 @@ client = executable('client', src, game_bundle,
     cpp_pch : pch,
     install : true,
     export_dynamic : true,
-    win_subsystem : win_subsystem,
+    win_subsystem : get_option('client_win_subsystem'),
     link_depends : [ manifest, res ],
     link_args : link_args + [
         # embed the resource file
@@ -381,7 +356,7 @@ editor = executable('editor', src, game_bundle,
     include_directories : inc,
     install : true,
     export_dynamic : true,
-    win_subsystem : win_subsystem,
+    win_subsystem : get_option('editor_win_subsystem'),
     link_depends : [ manifest, res ],
     link_args : link_args,
     dependencies : deps

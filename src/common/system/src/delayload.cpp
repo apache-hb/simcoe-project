@@ -14,7 +14,7 @@
 
 using namespace sm;
 
-static FARPROC WINAPI delay_hook(unsigned notify, PDelayLoadInfo info) {
+static FARPROC WINAPI dllDelayLoadHook(unsigned notify, PDelayLoadInfo info) {
     delayload::LoadNotify it{notify};
 
     if (it == delayload::LoadNotify::eFailLoadLibrary) {
@@ -33,5 +33,5 @@ static FARPROC WINAPI delay_hook(unsigned notify, PDelayLoadInfo info) {
     return nullptr;
 }
 
-ExternC const PfnDliHook __pfnDliNotifyHook2 = delay_hook;
-ExternC const PfnDliHook __pfnDliFailureHook2 = delay_hook;
+ExternC const PfnDliHook __pfnDliNotifyHook2 = dllDelayLoadHook;
+ExternC const PfnDliHook __pfnDliFailureHook2 = dllDelayLoadHook;

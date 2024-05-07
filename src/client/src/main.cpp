@@ -225,7 +225,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     const render::RenderConfig render_config = {
         .flags = flags,
         .preference = render::AdapterPreference::eMinimumPower,
-        .feature_level = render::FeatureLevel::eLevel_11_0,
+        .minFeatureLevel = render::FeatureLevel::eLevel_11_0,
 
         .swapchain = {
             .size = uint2(client),
@@ -233,9 +233,9 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
             .format = DXGI_FORMAT_R8G8B8A8_UNORM,
         },
 
-        .rtv_heap_size = 64,
-        .dsv_heap_size = 64,
-        .srv_heap_size = 1024,
+        .rtvHeapSize = 64,
+        .dsvHeapSize = 64,
+        .srvHeapSize = 1024,
 
         .bundle = bundle,
         .window = window,

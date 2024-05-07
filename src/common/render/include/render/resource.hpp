@@ -6,6 +6,39 @@
 #include <D3D12MemAlloc.h>
 
 namespace sm::render {
+    struct IDeviceContext;
+
+    class BufferResource {
+        Object<D3D12MA::Allocation> mAllocation;
+        D3D12_GPU_VIRTUAL_ADDRESS mDeviceAddress = 0;
+
+    public:
+        BufferResource() = default;
+
+        BufferResource(
+            IDeviceContext& context,
+            const D3D12_RESOURCE_DESC& desc,
+            D3D12_RESOURCE_STATES state,
+            const D3D12MA::ALLOCATION_DESC& alloc
+        ) noexcept;
+
+        void reset() noexcept;
+        void rename(std::string_view name) noexcept;
+
+        D3D12_GPU_VIRTUAL_ADDRESS getDeviceAddress() const noexcept { return mDeviceAddress; }
+        ID3D12Resource *getResource() const noexcept { return mAllocation->GetResource(); }
+        D3D12MA::Allocation *getAllocation() const noexcept { return mAllocation.get(); }
+
+        void *mapWriteOnly() noexcept;
+        void unmap(D3D12_RANGE written) noexcept;
+        void unmap() noexcept;
+
+        template<StandardLayout T>
+        T *mapWriteOnly() noexcept {
+            return static_cast<T*>(mapWriteOnly());
+        }
+    };
+
     struct Resource {
         Object<ID3D12Resource> mResource;
         Object<D3D12MA::Allocation> mAllocation;

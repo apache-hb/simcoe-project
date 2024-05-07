@@ -36,3 +36,12 @@ bool DescriptorPoolBase::tryRelease(size_t index) noexcept {
 
     return ok;
 }
+
+HostDescriptorHandle DescriptorPoolBase::getHostDescriptorHandle(size_t index) const noexcept {
+    return CD3DX12_CPU_DESCRIPTOR_HANDLE(getBaseHostHandle(), index, mDescriptorSize);
+}
+
+DeviceDescriptorHandle DescriptorPoolBase::getDeviceDescriptorHandle(size_t index) const noexcept {
+    CTASSERT(isShaderVisible());
+    return CD3DX12_GPU_DESCRIPTOR_HANDLE(getBaseDeviceHandle(), index, mDescriptorSize);
+}

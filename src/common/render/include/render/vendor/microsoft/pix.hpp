@@ -5,7 +5,7 @@
 #include "core/win32.hpp" // IWYU pragma: export
 #include "core/compiler.h"
 
-#if SMC_PIX_ENABLE
+#if SMC_RENDER_ENABLE_WINPIXRUNTIME
 #   define USE_PIX 1
 #endif
 

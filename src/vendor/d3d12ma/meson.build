@@ -10,7 +10,7 @@ args = cpp.get_supported_arguments(
 libd3d12ma = library('d3d12ma', 'src/D3D12MemAlloc.cpp',
     cpp_args : args,
     include_directories : 'include',
-    dependencies : [ d3d12, d3dx12, dxgi, core ]
+    dependencies : [ d3d12, d3dx12, core ]
 )
 
 d3d12ma = declare_dependency(
