@@ -41,8 +41,8 @@ void BufferResource::unmap() noexcept {
 BufferResource::BufferResource(
     IDeviceContext& context,
     const D3D12_RESOURCE_DESC& desc,
-    D3D12_RESOURCE_STATES state,
-    const D3D12MA::ALLOCATION_DESC& alloc
+    const D3D12MA::ALLOCATION_DESC& alloc,
+    D3D12_RESOURCE_STATES state
 ) noexcept {
     D3D12MA::Allocator *allocator = context.getAllocator();
     SM_ASSERT_HR(allocator->CreateResource(&alloc, &desc, state, nullptr, &mAllocation,  __uuidof(ID3D12Resource), nullptr));

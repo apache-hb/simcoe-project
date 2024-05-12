@@ -179,8 +179,8 @@ void ecs::forwardPlusOpaque(
         commands->SetGraphicsRootSignature(*data.pipeline.signature);
         commands->SetPipelineState(*data.pipeline.pso);
 
-        commands->RSSetViewports(1, &viewport.mViewport);
-        commands->RSSetScissorRects(1, &viewport.mScissorRect);
+        commands->RSSetViewports(1, viewport.viewport());
+        commands->RSSetScissorRects(1, viewport.scissor());
 
         commands->OMSetRenderTargets(1, &rtvHostHandle, false, &dsvHostHandle);
         commands->ClearRenderTargetView(rtvHostHandle, render::kClearColour.data(), 0, nullptr);

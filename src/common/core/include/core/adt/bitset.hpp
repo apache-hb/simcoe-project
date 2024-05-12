@@ -258,4 +258,15 @@ namespace sm {
             getWord(first).fetch_and(~(mask << (first % kBitsPerWord)));
         }
     };
+
+    template<typename T>
+    size_t findNextSetBit(const T& bitset, size_t start) noexcept {
+        for (size_t i = start; i < bitset.getBitCapacity(); i++) {
+            if (bitset.test(i)) {
+                return i;
+            }
+        }
+
+        return bitset.getBitCapacity();
+    }
 }

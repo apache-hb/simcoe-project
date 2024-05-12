@@ -93,7 +93,7 @@ static void display_mem_budget(const D3D12MA::Budget &budget) {
 }
 
 void RenderConfig::draw_allocator_info() const {
-    D3D12MA::Allocator *allocator = mContext.get_allocator();
+    D3D12MA::Allocator *allocator = mContext.getAllocator();
 
     {
         sm::Memory local = allocator->GetMemoryCapacity(DXGI_MEMORY_SEGMENT_GROUP_LOCAL);

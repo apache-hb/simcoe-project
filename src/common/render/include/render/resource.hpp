@@ -18,8 +18,8 @@ namespace sm::render {
         BufferResource(
             IDeviceContext& context,
             const D3D12_RESOURCE_DESC& desc,
-            D3D12_RESOURCE_STATES state,
-            const D3D12MA::ALLOCATION_DESC& alloc
+            const D3D12MA::ALLOCATION_DESC& alloc,
+            D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_COMMON
         ) noexcept;
 
         void reset() noexcept;

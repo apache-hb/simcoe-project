@@ -141,8 +141,8 @@ void draw::blit(graph::FrameGraph& graph, graph::Handle target, graph::Handle so
         cmd->SetGraphicsRootSignature(*data.pipeline.signature);
         cmd->SetPipelineState(*data.pipeline.pso);
 
-        cmd->RSSetViewports(1, &viewport.mViewport);
-        cmd->RSSetScissorRects(1, &viewport.mScissorRect);
+        cmd->RSSetViewports(1, viewport.viewport());
+        cmd->RSSetScissorRects(1, viewport.scissor());
 
         cmd->OMSetRenderTargets(1, &rtv_cpu, false, nullptr);
 

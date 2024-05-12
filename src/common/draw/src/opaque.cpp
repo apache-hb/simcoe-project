@@ -162,8 +162,8 @@ void draw::opaque(graph::FrameGraph& graph, graph::Handle& target, graph::Handle
         cmd->SetGraphicsRootSignature(*data.pipeline.signature);
         cmd->SetPipelineState(*data.pipeline.pso);
 
-        cmd->RSSetViewports(1, &viewport.mViewport);
-        cmd->RSSetScissorRects(1, &viewport.mScissorRect);
+        cmd->RSSetViewports(1, viewport.viewport());
+        cmd->RSSetScissorRects(1, viewport.scissor());
 
         cmd->OMSetRenderTargets(1, &rtv_cpu, false, &dsv_cpu);
         cmd->ClearRenderTargetView(rtv_cpu, render::kClearColour.data(), 0, nullptr);

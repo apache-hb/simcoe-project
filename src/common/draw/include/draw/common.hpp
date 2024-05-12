@@ -1,32 +1,33 @@
 #pragma once
 
-#ifndef __HLSL_VERSION
-#   include "math/math.hpp"
-#   define row_major
-#   define column_major
-namespace sm::draw {
-using namespace sm::math;
-#endif
+#include "hlsl-prelude.hpp"
 
-#ifdef __HLSL_VERSION
-#   define CXX(...)
-#else
-#   define CXX(...) __VA_ARGS__
-#endif
+INTEROP_BEGIN(sm::draw)
 
-#define TILE_SIZE 16
-
+// render configuration
+#define MAX_OBJECTS 2048
+#define MAX_VIEWPORTS 16
 #define MAX_LIGHTS 0x1000
 
 #define MAX_POINT_LIGHTS (MAX_LIGHTS / 2)
 #define MAX_SPOT_LIGHTS  (MAX_LIGHTS / 2)
 
-#ifndef MAX_LIGHTS_PER_TILE
-#   define MAX_LIGHTS_PER_TILE 512
-#endif
+#define POINT_LIGHT_FIRST_INDEX (0)
+#define SPOT_LIGHT_FIRST_INDEX  (MAX_POINT_LIGHTS)
+
+// forward+ rendering configuration
+#define TILE_SIZE 16
+#define MAX_LIGHTS_PER_TILE 512
 
 #define MAX_POINT_LIGHTS_PER_TILE (MAX_LIGHTS_PER_TILE / 2)
 #define MAX_SPOT_LIGHTS_PER_TILE  (MAX_LIGHTS_PER_TILE / 2)
+
+#define DEPTH_BOUNDS_DISABLED 0
+#define DEPTH_BOUNDS_ENABLED 1
+#define DEPTH_BOUNDS_MSAA 2
+
+#define ALPHA_TEST_DISABLED 0
+#define ALPHA_TEST_ENABLED 1
 
 // struct PointLightData {
 //   uint pointLightCount;
@@ -35,9 +36,11 @@ using namespace sm::math;
 //   uint spotLightIndices[MAX_SPOT_LIGHTS_PER_TILE];
 // };
 #define LIGHT_INDEX_BUFFER_HEADER (1 + 1)
-#define LIGHT_INDEX_BUFFER_STRIDE (LIGHT_INDEX_BUFFER_HEADER + MAX_POINT_LIGHTS_PER_TILE + MAX_SPOT_LIGHTS_PER_TILE)
+#define LIGHT_INDEX_BUFFER_STRIDE (LIGHT_INDEX_BUFFER_HEADER + MAX_LIGHTS_PER_TILE)
 
-CXX(constexpr) int cxxCeil(float x) {
+typedef uint light_index_t;
+
+constexpr int cxxCeil(float x) noexcept {
 #ifdef __cplusplus
     const int i = static_cast<int>(x);
     return (x > i) ? i + 1 : i;
@@ -46,7 +49,7 @@ CXX(constexpr) int cxxCeil(float x) {
 #endif
 }
 
-CXX(constexpr) int cxxFloor(float x) {
+constexpr int cxxFloor(float x) noexcept {
 #ifdef __cplusplus
     const int i = static_cast<int>(x);
     return (x < i) ? i - 1 : i;
@@ -55,7 +58,7 @@ CXX(constexpr) int cxxFloor(float x) {
 #endif
 }
 
-CXX(constexpr) uint2 computeGridSize(uint2 windowSize, uint tileSize) {
+constexpr uint2 computeGridSize(uint2 windowSize, uint tileSize) noexcept {
     CXX(CTASSERTF(sm::isPowerOf2(tileSize), "tile size must be a power of 2"));
 
     uint x = (uint)((windowSize.x + tileSize - 1) / (float)(tileSize));
@@ -65,17 +68,17 @@ CXX(constexpr) uint2 computeGridSize(uint2 windowSize, uint tileSize) {
 }
 
 // gets the size of the window rounded up to the next multiple of the tile size
-CXX(constexpr) uint2 computeWindowTiledSize(uint2 windowSize, uint tileSize) {
+constexpr uint2 computeWindowTiledSize(uint2 windowSize, uint tileSize) noexcept {
     uint2 gridSize = computeGridSize(windowSize, tileSize);
     return gridSize * tileSize;
 }
 
-CXX(constexpr) uint computeTileCount(uint2 windowSize, uint tileSize) {
+constexpr uint computeTileCount(uint2 windowSize, uint tileSize) noexcept {
     uint2 grid = computeGridSize(windowSize, tileSize);
     return grid.x * grid.y;
 }
 
-CXX(constexpr) uint computePixelTileIndex(uint2 windowSize, float2 position, uint tileSize) {
+constexpr uint computePixelTileIndex(uint2 windowSize, float2 position, uint tileSize) noexcept {
     uint2 grid = computeGridSize(windowSize, tileSize);
 
     uint row = cxxFloor(position.x / float(tileSize));
@@ -85,7 +88,7 @@ CXX(constexpr) uint computePixelTileIndex(uint2 windowSize, float2 position, uin
     return index;
 }
 
-CXX(constexpr) uint computeGroupTileIndex(uint3 groupId, uint2 windowSize, uint tileSize) {
+constexpr uint computeGroupTileIndex(uint3 groupId, uint2 windowSize, uint tileSize) noexcept {
     uint2 grid = computeGridSize(windowSize, tileSize);
 
     uint row = groupId.x;
@@ -94,8 +97,6 @@ CXX(constexpr) uint computeGroupTileIndex(uint3 groupId, uint2 windowSize, uint 
 
     return groupIndex;
 }
-
-typedef uint light_index_t;
 
 struct ObjectData {
     float4x4 model;
@@ -115,31 +116,31 @@ struct CXX(alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT)) ViewportData
     uint pointLightCount;
     uint spotLightCount;
 
-    CXX(constexpr) uint2 getWindowSize() CXX(const) { return windowSize; }
-    CXX(constexpr) uint getWindowWidth() CXX(const) { return windowSize.x; }
-    CXX(constexpr) uint getWindowHeight() CXX(const) { return windowSize.y; }
+    constexpr uint2 getWindowSize() CXX(const) noexcept { return windowSize; }
+    constexpr uint getWindowWidth() CXX(const) noexcept { return windowSize.x; }
+    constexpr uint getWindowHeight() CXX(const) noexcept { return windowSize.y; }
 
-    CXX(constexpr) uint2 getDepthBufferSize() CXX(const) { return depthBufferSize; }
-    CXX(constexpr) uint getDepthBufferWidth() CXX(const) { return depthBufferSize.x; }
-    CXX(constexpr) uint getDepthBufferHeight() CXX(const) { return depthBufferSize.y; }
+    constexpr uint2 getDepthBufferSize() CXX(const) noexcept { return depthBufferSize; }
+    constexpr uint getDepthBufferWidth() CXX(const) noexcept { return depthBufferSize.x; }
+    constexpr uint getDepthBufferHeight() CXX(const) noexcept { return depthBufferSize.y; }
 
-    CXX(constexpr) uint2 getGridSize(uint tileSize) CXX(const) {
+    constexpr uint2 getGridSize(uint tileSize) CXX(const) noexcept {
         return computeGridSize(getWindowSize(), tileSize);
     }
 
-    CXX(constexpr) uint getTileCount(uint tileSize) CXX(const) {
+    constexpr uint getTileCount(uint tileSize) CXX(const) noexcept {
         return computeTileCount(getWindowSize(), tileSize);
     }
 
-    CXX(constexpr) uint getPixelTileIndex(float2 position, uint tileSize) CXX(const) {
+    constexpr uint getPixelTileIndex(float2 position, uint tileSize) CXX(const) noexcept {
         return computePixelTileIndex(getWindowSize(), position, tileSize);
     }
 
-    CXX(constexpr) uint getGroupTileIndex(uint3 groupThreadIndex, uint tileSize) CXX(const) {
+    constexpr uint getGroupTileIndex(uint3 groupThreadIndex, uint tileSize) CXX(const) noexcept {
         return computeGroupTileIndex(groupThreadIndex, getWindowSize(), tileSize);
     }
 
-    CXX(constexpr) uint2 getWindowTiledSize(uint tileSize) CXX(const) {
+    constexpr uint2 getWindowTiledSize(uint tileSize) CXX(const) noexcept {
         return computeWindowTiledSize(getWindowSize(), tileSize);
     }
 };
@@ -254,6 +255,6 @@ struct TestCase2 {
 };
 #endif
 
-#ifndef __HLSL_VERSION
-} // namespace sm::draw
-#endif
+INTEROP_END(sm::draw)
+
+#include "hlsl-epilog.hpp"

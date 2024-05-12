@@ -742,8 +742,8 @@ void game::physics_debug(
             cmd->SetGraphicsRootSignature(*data.lines.signature);
             cmd->SetPipelineState(*data.lines.pso);
 
-            cmd->RSSetViewports(1, &vp.mViewport);
-            cmd->RSSetScissorRects(1, &vp.mScissorRect);
+            cmd->RSSetViewports(1, vp.viewport());
+            cmd->RSSetScissorRects(1, vp.scissor());
 
             cmd->OMSetRenderTargets(1, &rtv_cpu, false, &dsv_cpu);
 
@@ -764,8 +764,8 @@ void game::physics_debug(
             cmd->SetGraphicsRootSignature(*data.triangles.signature);
             cmd->SetPipelineState(*data.triangles.pso);
 
-            cmd->RSSetViewports(1, &vp.mViewport);
-            cmd->RSSetScissorRects(1, &vp.mScissorRect);
+            cmd->RSSetViewports(1, vp.viewport());
+            cmd->RSSetScissorRects(1, vp.scissor());
 
             cmd->OMSetRenderTargets(1, &rtv_cpu, false, &dsv_cpu);
 

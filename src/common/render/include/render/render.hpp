@@ -58,10 +58,11 @@ namespace sm::render {
         uint64 fenceValue;
     };
 
-    struct Viewport {
+    class Viewport {
         D3D12_VIEWPORT mViewport;
         D3D12_RECT mScissorRect;
 
+    public:
         Viewport() = default;
         Viewport(math::uint2 size);
         Viewport(D3D12_VIEWPORT viewport, D3D12_RECT scissor)

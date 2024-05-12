@@ -3,7 +3,28 @@
 #include "core/adt/bitset.hpp"
 
 namespace sm {
+    class BitMapIndexAllocator;
+
+    class BitMapIndexIterator {
+        const BitMapIndexAllocator& mAllocator;
+        size_t mIndex;
+
+    public:
+        BitMapIndexIterator(const BitMapIndexAllocator& allocator, size_t index) noexcept
+            : mAllocator(allocator)
+            , mIndex(index)
+        { }
+
+        size_t operator*() const noexcept { return mIndex; }
+
+        BitMapIndexIterator& operator++() noexcept;
+
+        bool operator==(const BitMapIndexIterator& other) const noexcept;
+    };
+
     class BitMapIndexAllocator {
+        friend BitMapIndexIterator;
+
         BitSet mBitSet;
 
         size_t acquireFirstFreeIndex() noexcept;
@@ -33,6 +54,9 @@ namespace sm {
         void deallocateRange(size_t index, size_t count) noexcept;
 
         void setRange(size_t first, size_t last) noexcept;
+
+        BitMapIndexIterator begin() const noexcept { return { *this, 0 }; }
+        BitMapIndexIterator end() const noexcept { return { *this, mBitSet.getBitCapacity() }; }
     };
 
     template<typename T>
@@ -63,7 +87,7 @@ namespace sm {
         }
 
         constexpr auto *getElement(this auto& self, size_t index) noexcept {
-            return self.mBitSet.test(index) ? &self.mStorage[index] : nullptr;
+            return self.test(index) ? &self.mStorage[index] : nullptr;
         }
     };
 }

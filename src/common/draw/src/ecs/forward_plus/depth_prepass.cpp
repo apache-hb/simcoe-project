@@ -121,8 +121,8 @@ void draw::ecs::depthPrePass(
         commands->SetGraphicsRootSignature(data.pipeline.signature.get());
         commands->SetPipelineState(data.pipeline.pso.get());
 
-        commands->RSSetViewports(1, &vp.mViewport);
-        commands->RSSetScissorRects(1, &vp.mScissorRect);
+        commands->RSSetViewports(1, vp.viewport());
+        commands->RSSetScissorRects(1, vp.scissor());
 
         commands->OMSetRenderTargets(0, nullptr, false, &dsvHostHandle);
         commands->ClearDepthStencilView(dsvHostHandle, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
