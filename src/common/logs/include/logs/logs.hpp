@@ -34,6 +34,7 @@ namespace sm::logs {
     class LogCategory final {
         sm::String mName;
 
+        void logString(Severity severity, sm::StringView msg) const noexcept;
         void vlog(Severity severity, fmt::string_view format, fmt::format_args args) const noexcept;
 
     public:
@@ -84,6 +85,13 @@ namespace sm::logs {
         void panic(fmt::format_string<A...> msg, A&&... args) const noexcept {
             vlog(Severity::ePanic, msg, fmt::make_format_args(args...));
         }
+
+        void traceString(sm::StringView msg) const noexcept { logString(Severity::eTrace, msg); }
+        void infoString(sm::StringView msg) const noexcept { logString(Severity::eInfo, msg); }
+        void warnString(sm::StringView msg) const noexcept { logString(Severity::eWarning, msg); }
+        void errorString(sm::StringView msg) const noexcept { logString(Severity::eError, msg); }
+        void fatalString(sm::StringView msg) const noexcept { logString(Severity::eFatal, msg); }
+        void panicString(sm::StringView msg) const noexcept { logString(Severity::ePanic, msg); }
 
         constexpr auto operator<=>(const LogCategory&) const = default;
     };

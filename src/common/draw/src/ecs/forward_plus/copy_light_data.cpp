@@ -3,6 +3,7 @@
 #include "world/ecs.hpp"
 
 #include "draw/draw.hpp"
+#include "draw/forward_plus.hpp"
 
 using namespace sm;
 using namespace sm::draw;

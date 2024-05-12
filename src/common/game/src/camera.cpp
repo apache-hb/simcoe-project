@@ -36,22 +36,6 @@ static constexpr math::float3 makeDirectionVector(math::degf pitch, math::degf y
 }
 
 void ecs::initCameraSystems(flecs::world& world) {
-    world.component<world::ecs::Position>().member<math::float3>("position");
-    world.component<world::ecs::Rotation>().member<math::quatf>("rotation");
-    world.component<world::ecs::Direction>().member<math::float3>("direction");
-    world.component<world::ecs::Scale>().member<math::float3>("scale");
-
-    world.component<world::ecs::AABB>()
-        .member<math::float3>("min")
-        .member<math::float3>("max");
-
-    world.component<CameraController>()
-        .member<float>("speed")
-        .member<float>("mouseSensitivity")
-        .member<math::degf>("lookPitch")
-        .member<math::degf>("lookYaw")
-        .member<input::DeltaAxis<math::float2>>("mouseDelta");
-
     world.observer()
         .with<world::ecs::Camera>()
         .event(flecs::OnAdd)

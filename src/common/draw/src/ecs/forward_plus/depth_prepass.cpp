@@ -27,7 +27,8 @@ enum {
 static void createDepthPassPipeline(
     render::Pipeline& pipeline,
     render::IDeviceContext& context,
-    DXGI_FORMAT depth)
+    DXGI_FORMAT depth
+)
 {
     {
         CD3DX12_ROOT_PARAMETER1 params[eBindingCount];

@@ -101,6 +101,13 @@ void Logger::shutdown() noexcept {
     }
 }
 
+void LogCategory::logString(Severity severity, sm::StringView msg) const noexcept {
+    Logger& logger = getGlobalLogger();
+    if (!logger.willAcceptMessage(severity)) return;
+
+    logger.log(*this, severity, msg);
+}
+
 void LogCategory::vlog(Severity severity, fmt::string_view format, fmt::format_args args) const noexcept {
     Logger& logger = getGlobalLogger();
     if (!logger.willAcceptMessage(severity)) return;

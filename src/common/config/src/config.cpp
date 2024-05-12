@@ -48,15 +48,17 @@ std::optional<LUID> sm::override_adapter_luid() {
 }
 
 static void print() {
-    logs::gGlobal.info("Usage: <app> [options]");
-    logs::gGlobal.info("Options:");
-    logs::gGlobal.info("  --help    print this message");
-    logs::gGlobal.info("  --pix     enable PIX");
-    logs::gGlobal.info("  --warp    enable WARP");
-    logs::gGlobal.info("  --dred    enable DRED");
-    logs::gGlobal.info("  --debug   enable debug");
-    logs::gGlobal.info("  --appdir  set application directory");
-    logs::gGlobal.info("  --adapter <high>:<low> set adapter LUID");
+    logs::gGlobal.infoString(trimIndent(R"(
+    |Usage: <app> [options]
+    |Options:
+    |    --help    : print this message
+    |    --pix     : enable PIX
+    |    --warp    : enable WARP
+    |    --dred    : enable DRED
+    |    --debug   : enable debug
+    |    --appdir  : set application directory
+    |    --adapter : <high>:<low> set adapter LUID
+    )"));
 }
 
 static void parse(sm::Span<const char*> args) {

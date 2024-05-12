@@ -29,16 +29,20 @@ INTEROP_BEGIN(sm::draw)
 #define ALPHA_TEST_DISABLED 0
 #define ALPHA_TEST_ENABLED 1
 
-// struct PointLightData {
-//   uint pointLightCount;
-//   uint spotLightCount;
-//   uint pointLightIndices[MAX_POINT_LIGHTS_PER_TILE];
-//   uint spotLightIndices[MAX_SPOT_LIGHTS_PER_TILE];
-// };
-#define LIGHT_INDEX_BUFFER_HEADER (1 + 1)
-#define LIGHT_INDEX_BUFFER_STRIDE (LIGHT_INDEX_BUFFER_HEADER + MAX_LIGHTS_PER_TILE)
-
 typedef uint light_index_t;
+typedef uint texture_index_t;
+
+struct LightIndexData {
+    light_index_t pointLightCount;
+    light_index_t spotLightCount;
+    light_index_t pointLightIndices[MAX_POINT_LIGHTS_PER_TILE];
+    light_index_t spotLightIndices[MAX_SPOT_LIGHTS_PER_TILE];
+};
+
+#define LIGHT_INDEX_BUFFER_HEADER (1 + 1)
+#define LIGHT_INDEX_BUFFER_STRIDE (LIGHT_INDEX_BUFFER_HEADER + MAX_POINT_LIGHTS_PER_TILE + MAX_SPOT_LIGHTS_PER_TILE)
+
+CXX(static_assert(sizeof(LightIndexData) == LIGHT_INDEX_BUFFER_STRIDE * sizeof(light_index_t)));
 
 constexpr int cxxCeil(float x) noexcept {
 #ifdef __cplusplus
@@ -162,18 +166,16 @@ struct SpotLightData {
 
 struct MaterialData {
     float3 albedo;
-    uint albedo_texture;
 
     float metallic;
-    uint metallic_texture;
-
     float specular;
-    uint specular_texture;
-
     float roughness;
-    uint roughness_texture;
 
-    uint normal_texture;
+    texture_index_t albedTextureIndex;
+    texture_index_t metallicTextureIndex;
+    texture_index_t specularTextureIndex;
+    texture_index_t roughnessTextureIndex;
+    texture_index_t normalTextureIndex;
 };
 
 #ifdef __cplusplus
@@ -257,4 +259,4 @@ struct TestCase2 {
 
 INTEROP_END(sm::draw)
 
-#include "hlsl-epilog.hpp"
+#include "hlsl-epilog.hpp" // IWYU pragma: keep

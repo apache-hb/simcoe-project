@@ -1,7 +1,6 @@
 #include "stdafx.hpp"
 
 #include "draw/draw.hpp"
-#include "draw/shared.hpp"
 
 #include "world/ecs.hpp"
 

@@ -25,16 +25,16 @@ render_config = configure_file(
 src = [
     render_config,
 
+    # utils
+    'src/result.cpp',
+    'src/object.cpp',
+
     # base render classes
     'src/instance.cpp',
     'src/dstorage.cpp',
 
     # core render context
     'src/render.cpp',
-
-    # utils
-    'src/result.cpp',
-    'src/object.cpp',
 
     'src/descriptor_heap.cpp',
     'src/resource.cpp',

@@ -22,4 +22,6 @@ namespace sm {
 
     String narrow(std::wstring_view str);
     WideString widen(std::string_view str);
+
+    String trimIndent(StringView str);
 }

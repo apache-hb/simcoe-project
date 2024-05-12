@@ -65,3 +65,51 @@ sm::WideString sm::widen(std::string_view str) {
     result.resize(size - 1);
     return result;
 }
+
+String sm::trimIndent(StringView str) {
+    // trim leading and trailing whitespace
+    // also trim leading whitespace before a | character on each line
+    size_t start = 0;
+    size_t end = str.size();
+
+    while (start < end && isspace(str[start])) {
+        ++start;
+    }
+
+    while (end > start && isspace(str[end - 1])) {
+        --end;
+    }
+
+    if (start == end) {
+        return "";
+    }
+
+    size_t len = end - start;
+    String result(len, '\0');
+
+    size_t i = 0;
+    size_t j = start;
+    bool trim = true;
+
+    while (j < end) {
+        if (trim && str[j] == '|') {
+            ++j;
+            trim = false;
+        }
+
+        if (j < end) {
+            if (!trim && str[j] == '\n') {
+                trim = true;
+            } else if (trim && isspace(str[j])) {
+                ++j;
+                continue;
+            }
+
+            result[i++] = str[j++];
+        }
+    }
+
+    result.resize(i);
+
+    return result;
+}

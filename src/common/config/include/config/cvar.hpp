@@ -12,126 +12,158 @@ namespace sm {
 
 namespace sm::config {
     class ConsoleVariableBase;
-    class ConsoleVariableGroup;
 
     class Context {
         friend ConsoleVariableBase;
 
         sm::Vector<ConsoleVariableBase*> mVariables;
-        sm::Vector<ConsoleVariableGroup> mGroups;
 
-        void add(ConsoleVariableBase* cvar);
+        void add(ConsoleVariableBase* cvar) noexcept;
     };
 
-    Context& cvars();
+    Context& cvars() noexcept;
 
-    class ConsoleVariableGroup {
-
-    };
-
+    struct Name { sm::StringView value; };
     struct Description { sm::StringView value; };
     struct ReadOnly { bool readonly = true; };
+    struct Hidden { bool hidden = true; };
 
     class ConsoleVariableBase {
         enum Flags : unsigned {
             eNone = 0,
             eReadOnly = 1 << 0,
+            eHidden = 1 << 1
         };
 
         sm::StringView mName;
         sm::StringView mDescription;
         unsigned mFlags = eNone;
 
-        virtual bool parse(sm::StringView value) = 0;
+        void setDescription(sm::StringView desc) noexcept;
+        void setName(sm::StringView name) noexcept;
 
     protected:
-        ConsoleVariableBase(sm::StringView name);
+        ConsoleVariableBase(sm::StringView name) noexcept;
 
-        void set_description(sm::StringView desc);
-
-        void init(Description desc);
-        void init(ReadOnly ro);
+        void init(Name name) noexcept { setName(name.value); }
+        void init(Description desc) noexcept { setDescription(desc.value); }
+        void init(ReadOnly ro) noexcept;
+        void init(Hidden hidden) noexcept;
 
     public:
-        sm::StringView name() const { return mName; }
-        sm::StringView description() const { return mDescription; }
+        sm::StringView name() const noexcept { return mName; }
+        sm::StringView description() const noexcept { return mDescription; }
+
+        bool isReadOnly() const noexcept { return mFlags & eReadOnly; }
+        bool isHidden() const noexcept { return mFlags & eHidden; }
     };
 
     template<typename T>
     struct InitialValue { T value; };
 
+    struct InitWrapper {
+        template<typename T>
+        InitialValue<T> operator=(T value) const {
+            return InitialValue<T>{value};
+        }
+
+        template<typename T>
+        InitialValue<T> operator()(T value) const {
+            return InitialValue<T>{value};
+        }
+    };
+
     template<typename T>
     struct Range { T min; T max; };
 
+    struct RangeWrapper {
+        template<typename T>
+        Range<T> operator=(std::pair<T, T> value) const {
+            return Range<T>{value.first, value.second};
+        }
+
+        template<typename T>
+        Range<T> operator()(std::pair<T, T> value) const {
+            return Range<T>{value.first, value.second};
+        }
+    };
+
+    template<typename T, typename V>
+    struct ConfigWrapper {
+        T operator=(V value) const {
+            return T{value};
+        }
+
+        T operator()(V value) const {
+            return T{value};
+        }
+    };
+
     template<typename T>
     class ConsoleVariable : public ConsoleVariableBase {
+        using ConsoleVariableBase::init;
+
         T mValue{};
 
-        void init(InitialValue<T> init) { mValue = init.value; }
-        void init(Description desc) { set_description(desc.value); }
+        void init(InitialValue<T> init) noexcept { mValue = init.value; }
 
     public:
-        ConsoleVariable(sm::StringView name, auto&&... args)
+        ConsoleVariable(sm::StringView name, auto&&... args) noexcept
             : ConsoleVariableBase(name)
         {
-            (init(args), ...);
+            (this->init(args), ...);
         }
     };
 
     template<sm::numeric T>
     class ConsoleVariable<T> : public ConsoleVariableBase {
+        using ConsoleVariableBase::init;
+
         T mValue{};
         Range<T> mRange{};
 
-        void init(InitialValue<T> init) { mValue = init.value; }
-        void init(Range<T> range) { mRange = range; }
-        void init(Description desc) { set_description(desc.value); }
+        void init(InitialValue<T> init) noexcept { mValue = init.value; }
+        void init(Range<T> range) noexcept { mRange = range; }
 
     public:
-        ConsoleVariable(sm::StringView name, auto&&... args)
+        ConsoleVariable(sm::StringView name, auto&&... args) noexcept
             : ConsoleVariableBase(name)
         {
-            (init(args), ...);
+            (this->init(args), ...);
+        }
+    };
+
+    template<typename T> requires (std::is_enum_v<T>)
+    class ConsoleVariable<T> : public ConsoleVariableBase {
+        using ConsoleVariableBase::init;
+
+        struct Option {
+            T value;
+            sm::StringView name;
+        };
+
+        T mValue{};
+        sm::Vector<Option> mOptions;
+
+        void init(InitialValue<T> init) noexcept { mValue = init.value; }
+
+    public:
+        ConsoleVariable(sm::StringView name, auto&&... args) noexcept
+            : ConsoleVariableBase(name)
+        {
+            (this->init(args), ...);
         }
     };
 }
 
 namespace sm {
-    template<typename T>
-    using init = config::InitialValue<T>; // NOLINT
+    constinit config::InitWrapper init{}; // NOLINT
+    constinit config::RangeWrapper range{}; // NOLINT
 
-    template<typename T>
-    using range = config::Range<T>; // NOLINT
-
-    constinit auto readonly = [] { // NOLINT
-        struct Wrapper : config::ReadOnly {
-            constexpr config::ReadOnly operator=(bool value) const {
-                return config::ReadOnly{value};
-            }
-
-            constexpr config::ReadOnly operator()(bool value) const {
-                return config::ReadOnly{value};
-            }
-        };
-
-        return Wrapper{};
-    }();
-
-    constinit auto desc = [] { // NOLINT
-        struct Wrapper {
-            constexpr config::Description operator=(sm::StringView value) const {
-                return config::Description{value};
-            }
-
-            constexpr config::Description operator()(sm::StringView value) const {
-                return config::Description{value};
-            }
-        };
-
-        return Wrapper{};
-    }();
-
-    using group = config::ConsoleVariableGroup; // NOLINT
+    constinit config::ConfigWrapper<config::ReadOnly,    bool> readonly{}; // NOLINT
+    constinit config::ConfigWrapper<config::Hidden,      bool> hidden{}; // NOLINT
+    constinit config::ConfigWrapper<config::Name,        sm::StringView> name{}; // NOLINT
+    constinit config::ConfigWrapper<config::Description, sm::StringView> desc{}; // NOLINT
 
     template<typename T>
     using cvar = config::ConsoleVariable<T>; // NOLINT
