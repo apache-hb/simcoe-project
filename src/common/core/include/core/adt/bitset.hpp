@@ -5,6 +5,7 @@
 #include <atomic>
 #include <bit>
 #include <algorithm>
+#include <memory>
 
 namespace sm {
     namespace detail {
@@ -268,5 +269,13 @@ namespace sm {
         }
 
         return bitset.getBitCapacity();
+    }
+
+    template<typename T>
+    void setMask(T& bits, size_t mask, bool value) noexcept {
+        if (value)
+            bits |= mask;
+        else
+            bits &= ~mask;
     }
 }

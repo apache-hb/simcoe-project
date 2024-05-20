@@ -1,170 +1,282 @@
 #pragma once
 
-#include <concepts>
+#include <map>
+#include <span>
+#include <string_view>
+#include <unordered_map>
 
-#include "core/string.hpp"
+#include "core/macros.hpp"
 #include "core/adt/vector.hpp"
 
-namespace sm {
-    template<typename T>
-    concept numeric = std::integral<T> || std::floating_point<T>;
-}
+#include "config/init.hpp"
 
 namespace sm::config {
-    class ConsoleVariableBase;
+    class OptionBase;
+    class Group;
+
+    enum class OptionType {
+#define OPTION_TYPE(ID, STR) ID,
+#include "config.inc"
+    };
+
+    class Group {
+        std::string_view mName;
+        sm::Vector<OptionBase*> mVariables;
+
+    public:
+        Group(std::string_view name) noexcept
+            : mName(name)
+        { }
+
+        void add(OptionBase* cvar) noexcept;
+
+        std::string_view getName() const noexcept { return mName; }
+
+        auto getVariables(this auto& self) noexcept { return std::span(self.mVariables); }
+    };
+
+    Group& getCommonGroup() noexcept;
+
+    namespace detail {
+        template<typename T>
+        constexpr inline OptionType kOptionType = OptionType::eUnknown;
+
+        template<std::integral T>
+        constexpr inline OptionType kOptionType<T> = OptionType::eInteger;
+
+        template<std::floating_point T>
+        constexpr inline OptionType kOptionType<T> = OptionType::eReal;
+
+        template<>
+        constexpr inline OptionType kOptionType<bool> = OptionType::eBoolean;
+
+        template<>
+        constexpr inline OptionType kOptionType<std::string> = OptionType::eString;
+
+        template<typename T> requires (std::is_enum_v<T> || std::is_scoped_enum_v<T>)
+        constexpr inline OptionType kOptionType<T> = OptionType::eEnum;
+
+        struct OptionBuilder {
+            std::string_view name;
+            std::string_view description = "no description";
+            bool readonly = false;
+            bool hidden = false;
+
+            Group* group = &getCommonGroup();
+            OptionType type;
+
+            void init(Name it) noexcept { name = it.value; }
+            void init(Description it) noexcept { description = it.value; }
+            void init(ReadOnly it) noexcept { readonly = it.readonly; }
+            void init(Hidden it) noexcept { hidden = it.hidden; }
+            void init(Category it) noexcept { group = &it.group; }
+
+            OptionBuilder() noexcept = default;
+        };
+
+        template<std::derived_from<OptionBuilder> T, typename V> requires (kOptionType<V> != OptionType::eUnknown)
+        constexpr T buildOptionKwargs(auto&&... args) {
+            T builder{};
+            builder.type = kOptionType<V>;
+
+            (builder.init(std::forward<decltype(args)>(args)), ...);
+            return builder;
+        }
+    }
 
     class Context {
-        friend ConsoleVariableBase;
+    public:
+        std::map<std::string_view, OptionBase*> mVariables;
+        std::map<std::string_view, Group*> mGroups;
 
-        sm::Vector<ConsoleVariableBase*> mVariables;
+        std::unordered_map<std::string_view, OptionBase*> mNameLookup;
 
-        void add(ConsoleVariableBase* cvar) noexcept;
+        void addToGroup(OptionBase* cvar, Group* group) noexcept;
+        void addStaticVariable(OptionBase *cvar, Group* group) noexcept;
+
+        void updateFromCommandLine(int argc, const char** argv) noexcept;
+        void updateFromConfigFile(std::istream& is) noexcept;
+        void updateFromEnvironment() noexcept;
     };
 
     Context& cvars() noexcept;
 
-    struct Name { sm::StringView value; };
-    struct Description { sm::StringView value; };
-    struct ReadOnly { bool readonly = true; };
-    struct Hidden { bool hidden = true; };
-
-    class ConsoleVariableBase {
+    class OptionBase {
         enum Flags : unsigned {
-            eNone = 0,
-            eReadOnly = 1 << 0,
-            eHidden = 1 << 1
+            eNone = 0u,
+
+            // flag is readonly at runtime, can only be modified at startup or by code
+            eReadOnly = 1u << 0,
+
+            // flag is hidden in help messages by default
+            eHidden = 1u << 1,
+
+            // flag has been set by a configuration source
+            eIsSet = 1u << 2
         };
 
-        sm::StringView mName;
-        sm::StringView mDescription;
+        std::string_view mName;
+        std::string_view mDescription;
         unsigned mFlags = eNone;
+        OptionType mType;
 
-        void setDescription(sm::StringView desc) noexcept;
-        void setName(sm::StringView name) noexcept;
+        void verifyType(OptionType type) const noexcept;
 
     protected:
-        ConsoleVariableBase(sm::StringView name) noexcept;
-
-        void init(Name name) noexcept { setName(name.value); }
-        void init(Description desc) noexcept { setDescription(desc.value); }
-        void init(ReadOnly ro) noexcept;
-        void init(Hidden hidden) noexcept;
+        OptionBase(detail::OptionBuilder config, OptionType type) noexcept;
 
     public:
-        sm::StringView name() const noexcept { return mName; }
-        sm::StringView description() const noexcept { return mDescription; }
+        std::string_view getName() const noexcept { return mName; }
+        std::string_view getDescription() const noexcept { return mDescription; }
+        OptionType getType() const noexcept { return mType; }
 
         bool isReadOnly() const noexcept { return mFlags & eReadOnly; }
         bool isHidden() const noexcept { return mFlags & eHidden; }
+
+        bool isSet() const noexcept { return mFlags & eIsSet; }
+
+        SM_NOCOPY(OptionBase);
+        SM_NOMOVE(OptionBase);
     };
 
-    template<typename T>
-    struct InitialValue { T value; };
+    template<typename T> requires (detail::kOptionType<T> != OptionType::eUnknown)
+    class OptionWithValue : public OptionBase {
+        T mValue;
+        T mInitialValue;
 
-    struct InitWrapper {
-        template<typename T>
-        InitialValue<T> operator=(T value) const {
-            return InitialValue<T>{value};
-        }
+    protected:
+        struct Builder : detail::OptionBuilder {
+            using detail::OptionBuilder::init;
 
-        template<typename T>
-        InitialValue<T> operator()(T value) const {
-            return InitialValue<T>{value};
-        }
-    };
+            T initial{};
 
-    template<typename T>
-    struct Range { T min; T max; };
+            template<typename O>
+            void init(InitialValue<O> it) noexcept {
+                initial = T{it.value};
+            }
+        };
 
-    struct RangeWrapper {
-        template<typename T>
-        Range<T> operator=(std::pair<T, T> value) const {
-            return Range<T>{value.first, value.second};
-        }
-
-        template<typename T>
-        Range<T> operator()(std::pair<T, T> value) const {
-            return Range<T>{value.first, value.second};
-        }
-    };
-
-    template<typename T, typename V>
-    struct ConfigWrapper {
-        T operator=(V value) const {
-            return T{value};
-        }
-
-        T operator()(V value) const {
-            return T{value};
-        }
-    };
-
-    template<typename T>
-    class ConsoleVariable : public ConsoleVariableBase {
-        using ConsoleVariableBase::init;
-
-        T mValue{};
-
-        void init(InitialValue<T> init) noexcept { mValue = init.value; }
+        OptionWithValue(Builder config) noexcept
+            : OptionBase(config, config.type)
+            , mValue(config.initial)
+            , mInitialValue(config.initial)
+        { }
 
     public:
-        ConsoleVariable(sm::StringView name, auto&&... args) noexcept
-            : ConsoleVariableBase(name)
-        {
-            (this->init(args), ...);
-        }
+        OptionWithValue(auto&&... args) noexcept
+            : OptionWithValue(detail::buildOptionKwargs<Builder, T>(args...))
+        { }
+
+        T getValue() const noexcept { return mValue; }
+        T getInitialValue() const noexcept { return mInitialValue; }
+    };
+
+    template<typename T>
+    class Option : public OptionWithValue<T> {
+        using Super = OptionWithValue<T>;
+
+    public:
+        using Super::Super;
     };
 
     template<sm::numeric T>
-    class ConsoleVariable<T> : public ConsoleVariableBase {
-        using ConsoleVariableBase::init;
+    class Option<T> : public OptionWithValue<T> {
+        using Super = OptionWithValue<T>;
 
-        T mValue{};
-        Range<T> mRange{};
+        Range<T> mRange;
 
-        void init(InitialValue<T> init) noexcept { mValue = init.value; }
-        void init(Range<T> range) noexcept { mRange = range; }
+    protected:
+        struct Builder : Super::Builder {
+            using Super::Builder::init;
 
-    public:
-        ConsoleVariable(sm::StringView name, auto&&... args) noexcept
-            : ConsoleVariableBase(name)
-        {
-            (this->init(args), ...);
-        }
-    };
+            Range<T> range {
+                .min = std::numeric_limits<T>::min(),
+                .max = std::numeric_limits<T>::max()
+            };
 
-    template<typename T> requires (std::is_enum_v<T>)
-    class ConsoleVariable<T> : public ConsoleVariableBase {
-        using ConsoleVariableBase::init;
-
-        struct Option {
-            T value;
-            sm::StringView name;
+            void init(Range<T> it) noexcept { range = it; }
         };
 
-        T mValue{};
-        sm::Vector<Option> mOptions;
+    public:
+        Option(auto&&... args) noexcept
+            : Option(detail::buildOptionKwargs<Builder, T>(args...))
+        { }
 
-        void init(InitialValue<T> init) noexcept { mValue = init.value; }
+        Option(Builder config) noexcept
+            : Super((typename Super::Builder)config)
+            , mRange(config.range)
+        { }
+
+        Range<T> getRange() const noexcept { return mRange; }
+    };
+
+    template<typename T> requires (std::is_enum_v<T> || std::is_scoped_enum_v<T>)
+    class Option<T> : public OptionWithValue<T> {
+        using Super = OptionWithValue<T>;
+
+        OptionList<T> mOptions;
+
+    protected:
+        struct Builder : Super::Builder {
+            using Super::Builder::init;
+
+            OptionList<T> options;
+
+            void init(EnumOptions<T> it) noexcept {
+                Super::Builder::type = OptionType::eEnum;
+                options = it.options;
+            }
+
+            void init(EnumFlags<T> it) noexcept {
+                Super::Builder::type = OptionType::eFlags;
+                options = it.options;
+            }
+        };
+
+        Option(Builder config) noexcept
+            : Super((typename Super::Builder)config)
+            , mOptions(config.options)
+        { }
 
     public:
-        ConsoleVariable(sm::StringView name, auto&&... args) noexcept
-            : ConsoleVariableBase(name)
+        Option(auto&&... args) noexcept
+            : Option(detail::buildOptionKwargs<Builder, T>(args...))
+        { }
+
+        std::span<const EnumValue<T>> getOptions() const noexcept { return mOptions; }
+    };
+
+    template<typename T>
+    struct ConsoleVariable : public config::Option<T> {
+        using Super = config::Option<T>;
+        using Builder = Super::Builder;
+
+        ConsoleVariable(Builder config) noexcept
+            : Super(config)
         {
-            (this->init(args), ...);
+            cvars().addToGroup(this, config.group);
         }
+
+        ConsoleVariable(auto&&... args) noexcept
+            : ConsoleVariable(detail::buildOptionKwargs<Builder, T>(args...))
+        { }
     };
 }
 
+// NOLINTBEGIN
 namespace sm {
-    constinit config::InitWrapper init{}; // NOLINT
-    constinit config::RangeWrapper range{}; // NOLINT
+    constinit inline config::ValueWrapper<config::InitialValue> init{};
+    constinit inline config::ValueWrapper<config::Range>        range{};
+    constinit inline config::OptionWrapper  options{};
+    constinit inline config::ValueWrapper<config::EnumFlags>    flags{};
 
-    constinit config::ConfigWrapper<config::ReadOnly,    bool> readonly{}; // NOLINT
-    constinit config::ConfigWrapper<config::Hidden,      bool> hidden{}; // NOLINT
-    constinit config::ConfigWrapper<config::Name,        sm::StringView> name{}; // NOLINT
-    constinit config::ConfigWrapper<config::Description, sm::StringView> desc{}; // NOLINT
+    constinit inline config::ConfigWrapper<config::ReadOnly,    bool>             readonly{};
+    constinit inline config::ConfigWrapper<config::Hidden,      bool>             hidden{};
+    constinit inline config::ConfigWrapper<config::Name,        std::string_view> name{};
+    constinit inline config::ConfigWrapper<config::Description, std::string_view> desc{};
+    constinit inline config::ConfigWrapper<config::Category,    config::Group&>   group{};
 
     template<typename T>
-    using cvar = config::ConsoleVariable<T>; // NOLINT
+    using opt = config::ConsoleVariable<T>;
 }
+// NOLINTEND

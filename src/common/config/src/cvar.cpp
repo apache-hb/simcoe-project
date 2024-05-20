@@ -3,40 +3,80 @@
 using namespace sm;
 using namespace sm::config;
 
-void Context::add(ConsoleVariableBase* cvar) noexcept {
-    mVariables.push_back(cvar);
+static sm::opt<bool> gOptionHelp {
+    name = "help",
+    desc = "print this message"
+};
+
+static sm::opt<bool> gOptionVersion {
+    name = "version",
+    desc = "print version information"
+};
+
+enum class Choice {
+    eFirst, eSecond, eThird
+};
+
+static sm::opt<Choice> gChoiceFlag {
+    name = "choice of flags",
+    desc = "choose one of the flags",
+    options = {
+        val(Choice::eFirst) = "first",
+        val(Choice::eSecond) = "second",
+        val(Choice::eThird) = "third"
+    }
+};
+
+static Group gCommonGroup { "general" };
+
+Group& config::getCommonGroup() noexcept {
+    return gCommonGroup;
 }
 
-config::Context& config::cvars() noexcept {
+constexpr std::string_view getOptionTypeName(OptionType type) noexcept {
+    switch (type) {
+#define OPTION_TYPE(ID, STR) case OptionType::ID: return STR;
+#include "config/config.inc"
+    default: return "unknown";
+    }
+}
+
+void Context::addToGroup(OptionBase *cvar, Group* group) noexcept {
+    CTASSERT(cvar != nullptr);
+    CTASSERT(group != nullptr);
+
+    mVariables[cvar->getName()] = cvar;
+    mGroups[group->getName()] = group;
+}
+
+void Context::addStaticVariable(OptionBase *cvar, Group* group) noexcept {
+    CTASSERTF(isStaticStorage(group), "group %s does not have static storage duration", group->getName().data());
+    CTASSERTF(isStaticStorage(cvar), "cvar %s does not have static storage duration", cvar->getName().data());
+    addToGroup(cvar, group);
+}
+
+Context& config::cvars() noexcept {
     static Context instance{};
     return instance;
 }
 
-ConsoleVariableBase::ConsoleVariableBase(sm::StringView name) noexcept
-    : mName(name)
+void OptionBase::verifyType(OptionType type) const noexcept {
+    CTASSERTF(mType == type, "this (%s of %s) is not of type %s", mName.data(), getOptionTypeName(mType).data(), getOptionTypeName(type).data());
+}
+
+OptionBase::OptionBase(detail::OptionBuilder config, OptionType type) noexcept
+    : mName(config.name)
+    , mDescription(config.description)
+    , mType(type)
 {
-    // promise that these will always have static storage duration
-    cvars().add(this);
-}
+    CTASSERT(type != OptionType::eUnknown);
+    CTASSERT(!mName.empty());
 
-void ConsoleVariableBase::setDescription(sm::StringView description) noexcept {
-    mDescription = description;
-}
-
-void ConsoleVariableBase::setName(sm::StringView name) noexcept {
-    mName = name;
-}
-
-void ConsoleVariableBase::init(ReadOnly ro) noexcept {
-    if (ro.readonly)
-        mFlags |= eReadOnly;
-    else
-        mFlags &= ~eReadOnly;
-}
-
-void ConsoleVariableBase::init(Hidden hidden) noexcept {
-    if (hidden.hidden)
+    if (config.hidden)
         mFlags |= eHidden;
-    else
-        mFlags &= ~eHidden;
+
+    if (config.readonly)
+        mFlags |= eReadOnly;
+
+    cvars().addToGroup(this, config.group);
 }

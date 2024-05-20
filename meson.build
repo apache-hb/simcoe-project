@@ -35,6 +35,9 @@ project('simcoe', [ 'c', 'cpp' ],
         'libarchive:warning_level=0',
         'google-brotli:warning_level=0',
         'brotli_g_sdk:warning_level=0',
+        'catch2:warning_level=0',
+
+        'catch2:tests=false',
 
         # disable everything in cthulhu by default
         'cthulhu:auto_features=disabled',

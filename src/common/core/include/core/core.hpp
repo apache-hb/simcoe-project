@@ -4,6 +4,8 @@
 
 #include <stdint.h>
 
+#include <concepts>
+
 namespace sm {
     using uint8 = uint8_t; // NOLINT
     using uint16 = uint16_t; // NOLINT
@@ -40,6 +42,15 @@ namespace sm {
     template<typename T>
     constexpr bool isMultipleOf(T value, T multiple) {
         return value % multiple == 0;
+    }
+
+    template<typename T>
+    concept numeric = std::integral<T> || std::floating_point<T>;
+
+    bool isInStaticStorage(const void *ptr) noexcept;
+
+    bool isStaticStorage(const auto *ptr) noexcept {
+        return isInStaticStorage((const void *)ptr);
     }
 }
 

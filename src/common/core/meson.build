@@ -20,6 +20,7 @@ src = [
     'src/library.cpp',
     'src/timer.cpp',
     'src/typeindex.cpp',
+    'src/core.cpp',
 
     'src/adt/small_string.cpp',
 
