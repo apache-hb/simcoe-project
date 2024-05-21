@@ -253,6 +253,24 @@ TEST_CASE("parsing a command line") {
             }
         });
 
+        checkContext("the value overflows in base10", [](auto& ctx, auto& opt) {
+            testCommandLine(ctx, { "test", "--uint-opt", "4294967296" });
+
+            THEN("the option is not set") {
+                CHECK(opt.getValue() == 0);
+                CHECK(!opt.isSet());
+            }
+        });
+
+        checkContext("the value overflows in base10 using dos flags", [](auto& ctx, auto& opt) {
+            testCommandLine(ctx, { "test", "/uint-opt:4294967296" });
+
+            THEN("the option is not set") {
+                CHECK(opt.getValue() == 0);
+                CHECK(!opt.isSet());
+            }
+        });
+
         checkContext("the value is negative", [](auto& ctx, auto& opt) {
             testCommandLine(ctx, { "test", "--uint-opt", "-42" });
 
@@ -333,6 +351,24 @@ TEST_CASE("parsing a command line") {
 
         checkContext("the value is out of range", [](auto& ctx, auto& opt) {
             testCommandLine(ctx, { "test", "--int-opt", "1e1000" });
+
+            THEN("the option is not set") {
+                CHECK(opt.getValue() == 0);
+                CHECK(!opt.isSet());
+            }
+        });
+
+        checkContext("the value is out of range in base 10", [](auto& ctx, auto& opt) {
+            testCommandLine(ctx, { "test", "--int-opt", "2147483648" });
+
+            THEN("the option is not set") {
+                CHECK(opt.getValue() == 0);
+                CHECK(!opt.isSet());
+            }
+        });
+
+        checkContext("value underflows in base 10", [](auto& ctx, auto& opt) {
+            testCommandLine(ctx, { "test", "--int-opt", "-2147483649" });
 
             THEN("the option is not set") {
                 CHECK(opt.getValue() == 0);

@@ -147,9 +147,12 @@ UpdateResult Context::updateFromCommandLine(int argc, const char *const *argv) n
 
         void updateReal(UpdateResult& errors, RealOption *option, std::string_view arg, bool shouldSkip) noexcept {
             double value = 0.0;
+            auto [min, max] = option->getCommonRange();
             auto [ptr, ec] = std::from_chars(arg.data(), arg.data() + arg.size(), value);
             if (ec != std::errc() || (ptr != arg.data() + arg.size())) {
                 errors.errors.emplace_back(UpdateError{ UpdateStatus::eInvalidValue, fmt::format("invalid value {} for {}", arg, option->name) });
+            } else if (value < min || value > max) {
+                errors.errors.emplace_back(UpdateError{ UpdateStatus::eOutOfRange, fmt::format("value {} for {} is out of range [{}, {}]", value, option->name, min, max) });
             } else {
                 option->setCommonValue(value);
             }
@@ -189,11 +192,16 @@ UpdateResult Context::updateFromCommandLine(int argc, const char *const *argv) n
 
             getBaseAndSign(arg, base, sign);
 
+            auto [min, max] = option->getCommonRange();
             auto [ptr, ec] = std::from_chars(arg.data(), arg.data() + arg.size(), value);
+
+            value *= sign;
             if (ec != std::errc() || (ptr != arg.data() + arg.size())) {
                 errors.errors.emplace_back(UpdateError{ UpdateStatus::eInvalidValue, fmt::format("invalid value {} for {}", arg, option->name) });
+            } else if (value < min || value > max) {
+                errors.errors.emplace_back(UpdateError{ UpdateStatus::eOutOfRange, fmt::format("value {} for {} is out of range [{}, {}]", value, option->name, min, max) });
             } else {
-                option->setCommonValue(value * sign);
+                option->setCommonValue(value);
             }
 
             if (shouldSkip)
@@ -206,9 +214,12 @@ UpdateResult Context::updateFromCommandLine(int argc, const char *const *argv) n
 
             getBase(arg, base);
 
+            auto [min, max] = option->getCommonRange();
             auto [ptr, ec] = std::from_chars(arg.data(), arg.data() + arg.size(), value, base);
             if (ec != std::errc() || (ptr != arg.data() + arg.size())) {
                 errors.errors.emplace_back(UpdateError{ UpdateStatus::eInvalidValue, fmt::format("invalid value {} for {}", arg, option->name) });
+            } else if (value < min || value > max) {
+                errors.errors.emplace_back(UpdateError{ UpdateStatus::eOutOfRange, fmt::format("value {} for {} is out of range [{}, {}]", value, option->name, min, max) });
             } else {
                 option->setCommonValue(value);
             }
