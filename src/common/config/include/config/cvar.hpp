@@ -1,6 +1,7 @@
 #pragma once
 
 #include <map>
+#include <mutex>
 #include <span>
 #include <string_view>
 #include <unordered_map>
@@ -41,8 +42,11 @@ namespace sm::config {
         template<typename T>
         constexpr inline OptionType kOptionType = OptionType::eUnknown;
 
-        template<std::integral T>
-        constexpr inline OptionType kOptionType<T> = OptionType::eInteger;
+        template<std::signed_integral T>
+        constexpr inline OptionType kOptionType<T> = OptionType::eSigned;
+
+        template<std::unsigned_integral T>
+        constexpr inline OptionType kOptionType<T> = OptionType::eUnsigned;
 
         template<std::floating_point T>
         constexpr inline OptionType kOptionType<T> = OptionType::eReal;
@@ -55,6 +59,21 @@ namespace sm::config {
 
         template<typename T> requires (std::is_enum_v<T> || std::is_scoped_enum_v<T>)
         constexpr inline OptionType kOptionType<T> = OptionType::eEnum;
+
+        template<typename T>
+        constexpr inline OptionType kOptionType<std::atomic<T>> = kOptionType<T>;
+
+        template<typename T>
+        struct RemapNumericType { using Type = void; };
+
+        template<std::signed_integral T>
+        struct RemapNumericType<T> { using Type = int64_t; };
+
+        template<std::unsigned_integral T>
+        struct RemapNumericType<T> { using Type = uint64_t; };
+
+        template<std::floating_point T>
+        struct RemapNumericType<T> { using Type = double; };
 
         struct OptionBuilder {
             std::string_view name;
@@ -75,11 +94,11 @@ namespace sm::config {
         };
 
         template<std::derived_from<OptionBuilder> T, typename V> requires (kOptionType<V> != OptionType::eUnknown)
-        constexpr T buildOptionKwargs(auto&&... args) {
+        constexpr T buildOptionKwargs(auto&&... args) noexcept {
             T builder{};
             builder.type = kOptionType<V>;
 
-            (builder.init(std::forward<decltype(args)>(args)), ...);
+            (builder.init(args), ...);
             return builder;
         }
     }
@@ -91,7 +110,13 @@ namespace sm::config {
 
         std::unordered_map<std::string_view, OptionBase*> mNameLookup;
 
+        /// @brief add a runtime generated variable to the context
+        /// @warning this is a dangerous operation, the lifetime of the variable must be greater
+        /// than the lifetime of the context
+        /// @warning this is not thread safe
         void addToGroup(OptionBase* cvar, Group* group) noexcept;
+
+        /// @brief add a static variable to the context
         void addStaticVariable(OptionBase *cvar, Group* group) noexcept;
 
         void updateFromCommandLine(int argc, const char** argv) noexcept;
@@ -139,111 +164,213 @@ namespace sm::config {
         SM_NOMOVE(OptionBase);
     };
 
-    template<typename T> requires (detail::kOptionType<T> != OptionType::eUnknown)
-    class OptionWithValue : public OptionBase {
-        T mValue;
-        T mInitialValue;
+    namespace detail {
+        template<typename T>
+        class NumericOptionValue : public OptionBase {
+            std::atomic<T> mValue;
+            const T mInitialValue;
+            Range<T> mRange;
+
+        protected:
+            struct Builder : detail::OptionBuilder {
+                using detail::OptionBuilder::init;
+
+                T initial = T{};
+                Range<T> range {
+                    .min = std::numeric_limits<T>::min(),
+                    .max = std::numeric_limits<T>::max()
+                };
+
+                template<std::convertible_to<T> O>
+                void init(InitialValue<O> it) noexcept { initial = it.value; }
+
+                template<std::convertible_to<T> O>
+                void init(Range<O> it) noexcept {
+                    range.min = it.min;
+                    range.max = it.max;
+                }
+            };
+
+            NumericOptionValue(Builder config) noexcept
+                : OptionBase(config, kOptionType<T>)
+                , mValue(config.initial)
+                , mInitialValue(config.initial)
+                , mRange(config.range)
+            { }
+
+        public:
+            NumericOptionValue(auto&&... args) noexcept
+                : NumericOptionValue(detail::buildOptionKwargs<Builder, T>(args...))
+            { }
+
+            T getCommonValue() const noexcept { return mValue.load(); }
+            T getCommonInitialValue() const noexcept { return mInitialValue; }
+
+            Range<T> getCommonRange() const noexcept { return mRange; }
+        };
+    }
+
+    class BoolOption : public OptionBase {
+        std::atomic<bool> mValue;
+        const bool mInitialValue;
 
     protected:
         struct Builder : detail::OptionBuilder {
             using detail::OptionBuilder::init;
 
-            T initial{};
+            bool initial = false;
 
-            template<typename O>
-            void init(InitialValue<O> it) noexcept {
-                initial = T{it.value};
-            }
+            void init(InitialValue<bool> it) noexcept { initial = it.value; }
         };
 
-        OptionWithValue(Builder config) noexcept
-            : OptionBase(config, config.type)
+        BoolOption(Builder config) noexcept
+            : OptionBase(config, OptionType::eBoolean)
             , mValue(config.initial)
             , mInitialValue(config.initial)
         { }
 
     public:
-        OptionWithValue(auto&&... args) noexcept
-            : OptionWithValue(detail::buildOptionKwargs<Builder, T>(args...))
+        BoolOption(auto&&... args) noexcept
+            : BoolOption(detail::buildOptionKwargs<Builder, bool>(args...))
         { }
 
-        T getValue() const noexcept { return mValue; }
-        T getInitialValue() const noexcept { return mInitialValue; }
+        bool getValue() const noexcept { return mValue.load(); }
+        bool getInitialValue() const noexcept { return mInitialValue; }
     };
 
-    template<typename T>
-    class Option : public OptionWithValue<T> {
-        using Super = OptionWithValue<T>;
+    class StringOption : public OptionBase {
+        const std::string_view mInitialValue;
+
+        mutable std::mutex mMutex;
+        std::string mValue;
+
+    protected:
+        struct Builder : detail::OptionBuilder {
+            using detail::OptionBuilder::init;
+
+            std::string_view initial;
+
+            template<typename O>
+            void init(InitialValue<O> it) noexcept { initial = it.value; }
+        };
+
+        StringOption(Builder config) noexcept
+            : OptionBase(config, OptionType::eString)
+            , mInitialValue(config.initial)
+            , mValue(config.initial)
+        { }
+
+    public:
+        StringOption(auto&&... args) noexcept
+            : StringOption(detail::buildOptionKwargs<Builder, std::string>(args...))
+        { }
+
+        // has to copy for now
+        std::string getValue() const noexcept {
+            std::lock_guard lock{mMutex};
+            return mValue;
+        }
+
+        std::string_view getInitialValue() const noexcept { return mInitialValue; }
+    };
+
+    class RealOption : public detail::NumericOptionValue<double> {
+        using Super = detail::NumericOptionValue<double>;
+
+    protected:
+        using Builder = Super::Builder;
 
     public:
         using Super::Super;
     };
 
-    template<sm::numeric T>
-    class Option<T> : public OptionWithValue<T> {
-        using Super = OptionWithValue<T>;
-
-        Range<T> mRange;
+    class SignedOption : public detail::NumericOptionValue<int64_t> {
+        using Super = detail::NumericOptionValue<int64_t>;
 
     protected:
-        struct Builder : Super::Builder {
-            using Super::Builder::init;
-
-            Range<T> range {
-                .min = std::numeric_limits<T>::min(),
-                .max = std::numeric_limits<T>::max()
-            };
-
-            void init(Range<T> it) noexcept { range = it; }
-        };
+        using Builder = Super::Builder;
 
     public:
-        Option(auto&&... args) noexcept
-            : Option(detail::buildOptionKwargs<Builder, T>(args...))
-        { }
-
-        Option(Builder config) noexcept
-            : Super((typename Super::Builder)config)
-            , mRange(config.range)
-        { }
-
-        Range<T> getRange() const noexcept { return mRange; }
+        using Super::Super;
     };
 
-    template<typename T> requires (std::is_enum_v<T> || std::is_scoped_enum_v<T>)
-    class Option<T> : public OptionWithValue<T> {
-        using Super = OptionWithValue<T>;
-
-        OptionList<T> mOptions;
+    class UnsignedOption : public detail::NumericOptionValue<uint64_t> {
+        using Super = detail::NumericOptionValue<uint64_t>;
 
     protected:
-        struct Builder : Super::Builder {
-            using Super::Builder::init;
-
-            OptionList<T> options;
-
-            void init(EnumOptions<T> it) noexcept {
-                Super::Builder::type = OptionType::eEnum;
-                options = it.options;
-            }
-
-            void init(EnumFlags<T> it) noexcept {
-                Super::Builder::type = OptionType::eFlags;
-                options = it.options;
-            }
-        };
-
-        Option(Builder config) noexcept
-            : Super((typename Super::Builder)config)
-            , mOptions(config.options)
-        { }
+        using Builder = Super::Builder;
 
     public:
-        Option(auto&&... args) noexcept
-            : Option(detail::buildOptionKwargs<Builder, T>(args...))
-        { }
+        using Super::Super;
+    };
 
-        std::span<const EnumValue<T>> getOptions() const noexcept { return mOptions; }
+    template<typename T>
+    class Option {
+        static_assert(!sizeof(T*), "unsupported type");
+    };
+
+    template<>
+    class Option<bool> : public BoolOption {
+        using Super = BoolOption;
+
+    public:
+        using Super::Super;
+    };
+
+    namespace detail {
+        template<typename T, typename S>
+        class NumericOption : public S {
+            using Super = S;
+            using Builder = typename Super::Builder;
+
+        public:
+            using Super::Super;
+
+            NumericOption(auto&&... args) noexcept
+                : S(detail::buildOptionKwargs<Builder, T>(Range<T>{}, args...))
+            { }
+
+            T getValue() const noexcept { return static_cast<T>(Super::getCommonValue()); }
+            T getInitialValue() const noexcept { return static_cast<T>(Super::getCommonInitialValue()); }
+
+            Range<T> getRange() const noexcept {
+                auto [min, max] = Super::getCommonRange();
+
+                return Range<T>{static_cast<T>(min), static_cast<T>(max)};
+            }
+        };
+    }
+
+    template<std::signed_integral T>
+    class Option<T> : public detail::NumericOption<T, SignedOption> {
+        using Super = detail::NumericOption<T, SignedOption>;
+
+    public:
+        using Super::Super;
+    };
+
+    template<std::unsigned_integral T>
+    class Option<T> : public detail::NumericOption<T, UnsignedOption> {
+        using Super = detail::NumericOption<T, UnsignedOption>;
+
+    public:
+        using Super::Super;
+    };
+
+    template<std::floating_point T>
+    class Option<T> : public detail::NumericOption<T, RealOption> {
+        using Super = detail::NumericOption<T, RealOption>;
+
+    public:
+        using Super::Super;
+    };
+
+    template<>
+    class Option<std::string> : public StringOption {
+        using Super = StringOption;
+
+    public:
+        using Super::Super;
     };
 
     template<typename T>
@@ -254,20 +381,27 @@ namespace sm::config {
         ConsoleVariable(Builder config) noexcept
             : Super(config)
         {
-            cvars().addToGroup(this, config.group);
+            cvars().addStaticVariable(this, config.group);
         }
 
         ConsoleVariable(auto&&... args) noexcept
             : ConsoleVariable(detail::buildOptionKwargs<Builder, T>(args...))
         { }
     };
+
+    extern template class Option<bool>;
+    extern template class Option<int>;
+    extern template class Option<unsigned>;
+    extern template class Option<float>;
+    extern template class Option<double>;
+    extern template class Option<std::string>;
 }
 
 // NOLINTBEGIN
 namespace sm {
     constinit inline config::ValueWrapper<config::InitialValue> init{};
     constinit inline config::ValueWrapper<config::Range>        range{};
-    constinit inline config::OptionWrapper  options{};
+    constinit inline config::OptionWrapper                      options{};
     constinit inline config::ValueWrapper<config::EnumFlags>    flags{};
 
     constinit inline config::ConfigWrapper<config::ReadOnly,    bool>             readonly{};

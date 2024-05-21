@@ -1,7 +1,5 @@
 #pragma once
 
-#include <span>
-#include <array>
 #include <string_view>
 
 namespace sm::config {
@@ -45,7 +43,10 @@ namespace sm::config {
     struct InitialValue { T value; };
 
     template<typename T>
-    struct Range { T min; T max; };
+    struct Range {
+        T min = std::numeric_limits<T>::min();
+        T max = std::numeric_limits<T>::max();
+    };
 
     consteval auto val(auto value) {
         using T = decltype(value);
@@ -80,6 +81,16 @@ namespace sm::config {
 
     template<template<typename> typename T>
     struct ValueWrapper {
+        template<typename V>
+        consteval T<V> operator=(T<V> value) const {
+            return value;
+        }
+
+        template<typename V>
+        consteval T<V> operator()(T<V> value) const {
+            return value;
+        }
+
         template<typename V>
         consteval T<V> operator=(V value) const {
             return T<V>{value};

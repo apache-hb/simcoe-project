@@ -13,6 +13,7 @@ static sm::opt<bool> gOptionVersion {
     desc = "print version information"
 };
 
+#if 0
 enum class Choice {
     eFirst, eSecond, eThird
 };
@@ -26,6 +27,7 @@ static sm::opt<Choice> gChoiceFlag {
         val(Choice::eThird) = "third"
     }
 };
+#endif
 
 static Group gCommonGroup { "general" };
 
