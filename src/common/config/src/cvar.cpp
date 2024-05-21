@@ -147,8 +147,15 @@ UpdateResult Context::updateFromCommandLine(int argc, const char *const *argv) n
 
         void updateReal(UpdateResult& errors, RealOption *option, std::string_view arg, bool shouldSkip) noexcept {
             double value = 0.0;
+            int sign = 1;
+
+            getSign(arg, sign);
+
             auto [min, max] = option->getCommonRange();
             auto [ptr, ec] = std::from_chars(arg.data(), arg.data() + arg.size(), value);
+
+            value *= sign;
+
             if (ec != std::errc() || (ptr != arg.data() + arg.size())) {
                 errors.errors.emplace_back(UpdateError{ UpdateStatus::eInvalidValue, fmt::format("invalid value {} for {}", arg, option->name) });
             } else if (value < min || value > max) {
@@ -170,17 +177,21 @@ UpdateResult Context::updateFromCommandLine(int argc, const char *const *argv) n
             } else if (arg.starts_with("0b") || arg.starts_with("0B")) {
                 base = 2;
                 arg.remove_prefix(2);
-            } else if (arg.starts_with("0") && arg.size() > 1) {
+            } else if (arg.starts_with("0") && arg.size() > 1 && std::isdigit(arg[2])) {
                 base = 8;
                 arg.remove_prefix(1);
             }
         }
 
-        static void getBaseAndSign(std::string_view& arg, int& base, int& sign) noexcept {
+        static void getSign(std::string_view& arg, int& sign) noexcept {
             if (arg.starts_with('-')) {
                 sign = -1;
                 arg.remove_prefix(1);
             }
+        }
+
+        static void getBaseAndSign(std::string_view& arg, int& base, int& sign) noexcept {
+            getSign(arg, sign);
 
             getBase(arg, base);
         }

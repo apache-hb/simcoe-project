@@ -5,10 +5,65 @@
 using namespace sm;
 using namespace sm::config;
 
-static void testCommandLine(config::Context& ctx, std::initializer_list<const char*> args) {
+static UpdateResult testCommandLine(config::Context& ctx, std::initializer_list<const char*> args) {
     int argc = args.size();
     const char* const* argv = args.begin();
-    ctx.updateFromCommandLine(argc, argv);
+    return ctx.updateFromCommandLine(argc, argv);
+}
+
+static void testVariants(config::Context& ctx, const char *optName, const char *optValue, bool shouldPass, auto cb) {
+    auto testErrorResult = [&](const UpdateResult& err) {
+        bool printErrs = false;
+        if (shouldPass) {
+            CHECK(err.errors.empty());
+            if (!err.errors.empty()) {
+                printErrs = true;
+            }
+        } else {
+            CHECK(!err.errors.empty());
+            if (err.errors.empty()) {
+                printErrs = true;
+            }
+        }
+
+        if (printErrs) {
+            for (const auto& err : err.errors) {
+                fmt::print("Error: {}\n", err.message);
+            }
+        }
+    };
+
+    GIVEN("a unix flag") {
+        std::string opt = fmt::format("--{}", optName);
+        auto err = testCommandLine(ctx, { "test", opt.c_str(), optValue });
+        cb();
+
+        testErrorResult(err);
+    }
+
+    GIVEN("a unix flag assigned value") {
+        std::string opt = fmt::format("--{}={}", optName, optValue);
+        auto err = testCommandLine(ctx, { "test", opt.c_str() });
+        cb();
+
+        testErrorResult(err);
+    }
+
+    GIVEN("a dos flag") {
+        std::string opt = fmt::format("/{}", optName);
+        auto err = testCommandLine(ctx, { "test", opt.c_str(), optValue });
+        cb();
+
+        testErrorResult(err);
+    }
+
+    GIVEN("a dos flag assigned value") {
+        std::string opt = fmt::format("/{}:{}", optName, optValue);
+        auto err = testCommandLine(ctx, { "test", opt.c_str() });
+        cb();
+
+        testErrorResult(err);
+    }
 }
 
 TEST_CASE("parsing a command line") {
@@ -105,39 +160,30 @@ TEST_CASE("parsing a command line") {
         }
 
         WHEN("the option is set") {
-            testCommandLine(ctx, { "test", "--str-opt", "value" });
-
-            THEN("the option is set") {
-                CHECK(strOpt.getValue() == "value");
-                CHECK(strOpt.isSet());
-            }
+            testVariants(ctx, "str-opt", "value", true, [&] {
+                THEN("the option is set") {
+                    CHECK(strOpt.getValue() == "value");
+                    CHECK(strOpt.isSet());
+                }
+            });
         }
 
-        WHEN("using dos flags") {
-            testCommandLine(ctx, { "test", "/str-opt:value" });
-
-            THEN("the option is set") {
-                CHECK(strOpt.getValue() == "value");
-                CHECK(strOpt.isSet());
-            }
+        WHEN("the option contains spaces") {
+            testVariants(ctx, "str-opt", "value with spaces", true, [&] {
+                THEN("the option is set") {
+                    CHECK(strOpt.getValue() == "value with spaces");
+                    CHECK(strOpt.isSet());
+                }
+            });
         }
 
-        WHEN("set to a value with spaces") {
-            testCommandLine(ctx, { "test", "--str-opt", "value with spaces" });
-
-            THEN("the option is set") {
-                CHECK(strOpt.getValue() == "value with spaces");
-                CHECK(strOpt.isSet());
-            }
-        }
-
-        WHEN("set to a value with spaces using dos flags") {
-            testCommandLine(ctx, { "test", "/str-opt:value with spaces" });
-
-            THEN("the option is set") {
-                CHECK(strOpt.getValue() == "value with spaces");
-                CHECK(strOpt.isSet());
-            }
+        WHEN("the option is set to an empty string") {
+            testVariants(ctx, "str-opt", "", true, [&] {
+                THEN("the option is set") {
+                    CHECK(strOpt.getValue().empty());
+                    CHECK(strOpt.isSet());
+                }
+            });
         }
     }
 
@@ -158,48 +204,57 @@ TEST_CASE("parsing a command line") {
         }
 
         WHEN("the option is set") {
-            testCommandLine(ctx, { "test", "--float-opt", "3.14" });
-
-            THEN("the option is set") {
-                CHECK(floatOpt.getValue() == 3.14f);
-                CHECK(floatOpt.isSet());
-            }
+            testVariants(ctx, "float-opt", "3.14", true, [&] {
+                THEN("the option is set") {
+                    CHECK(floatOpt.getValue() == 3.14f);
+                    CHECK(floatOpt.isSet());
+                }
+            });
         }
 
-        WHEN("using dos flags") {
-            testCommandLine(ctx, { "test", "/float-opt:3.14" });
-
-            THEN("the option is set") {
-                CHECK(floatOpt.getValue() == 3.14f);
-                CHECK(floatOpt.isSet());
-            }
+        WHEN("the option is out of range") {
+            testVariants(ctx, "float-opt", "1e1000", false, [&] {
+                THEN("the option is not set") {
+                    CHECK(floatOpt.getValue() == 0.0f);
+                    CHECK(!floatOpt.isSet());
+                }
+            });
         }
 
-        WHEN("set to a value with spaces") {
-            testCommandLine(ctx, { "test", "--float-opt", "3.14" });
-
-            THEN("the option is set") {
-                CHECK(floatOpt.getValue() == 3.14f);
-                CHECK(floatOpt.isSet());
-            }
+        WHEN("the option overflows") {
+            testVariants(ctx, "float-opt", "3.4028235e38", false, [&] {
+                THEN("the option is set") {
+                    CHECK(floatOpt.getValue() == 0.0f);
+                    CHECK(!floatOpt.isSet());
+                }
+            });
         }
 
-        WHEN("set to a value with spaces using dos flags") {
-            testCommandLine(ctx, { "test", "/float-opt:3.14" });
-
-            THEN("the option is set") {
-                CHECK(floatOpt.getValue() == 3.14f);
-                CHECK(floatOpt.isSet());
-            }
+        WHEN("the option underflows") {
+            testVariants(ctx, "float-opt", "-3.4028235e38", false, [&] {
+                THEN("the option is set") {
+                    CHECK(floatOpt.getValue() == 0.0f);
+                    CHECK(!floatOpt.isSet());
+                }
+            });
         }
 
-        WHEN("the value is out of range") {
-            testCommandLine(ctx, { "test", "--float-opt", "1e1000" });
+        WHEN("the option is negative zero") {
+            testVariants(ctx, "float-opt", "-0.0", true, [&] {
+                THEN("the option is set") {
+                    CHECK(floatOpt.getValue() == -0.0f);
+                    CHECK(floatOpt.isSet());
+                }
+            });
+        }
 
-            THEN("the option is not set") {
-                CHECK(floatOpt.getValue() == 0.0f);
-                CHECK(!floatOpt.isSet());
-            }
+        WHEN("the option is positive zero") {
+            testVariants(ctx, "float-opt", "0.0", true, [&] {
+                THEN("the option is set") {
+                    CHECK(floatOpt.getValue() == 0.0f);
+                    CHECK(floatOpt.isSet());
+                }
+            });
         }
     }
 
@@ -227,84 +282,84 @@ TEST_CASE("parsing a command line") {
         });
 
         checkContext("the option is set", [](auto& ctx, auto& opt) {
-            testCommandLine(ctx, { "test", "--uint-opt", "42" });
-
-            THEN("the option is set") {
-                CHECK(opt.getValue() == 42);
-                CHECK(opt.isSet());
-            }
-        });
-
-        checkContext("using dos flags", [](auto& ctx, auto& opt) {
-            testCommandLine(ctx, { "test", "/uint-opt:42" });
-
-            THEN("the option is set") {
-                CHECK(opt.getValue() == 42);
-                CHECK(opt.isSet());
-            }
+            testVariants(ctx, "uint-opt", "42", true, [&] {
+                THEN("the option is set") {
+                    CHECK(opt.getValue() == 42);
+                    CHECK(opt.isSet());
+                }
+            });
         });
 
         checkContext("the value is out of range", [](auto& ctx, auto& opt) {
-            testCommandLine(ctx, { "test", "--uint-opt", "1e1000" });
-
-            THEN("the option is not set") {
-                CHECK(opt.getValue() == 0);
-                CHECK(!opt.isSet());
-            }
+            testVariants(ctx, "uint-opt", "1e1000", false, [&] {
+                THEN("the option is not set") {
+                    CHECK(opt.getValue() == 0);
+                    CHECK(!opt.isSet());
+                }
+            });
         });
 
         checkContext("the value overflows in base10", [](auto& ctx, auto& opt) {
-            testCommandLine(ctx, { "test", "--uint-opt", "4294967296" });
-
-            THEN("the option is not set") {
-                CHECK(opt.getValue() == 0);
-                CHECK(!opt.isSet());
-            }
+            testVariants(ctx, "uint-opt", "4294967296", false, [&] {
+                THEN("the option is not set") {
+                    CHECK(opt.getValue() == 0);
+                    CHECK(!opt.isSet());
+                }
+            });
         });
 
-        checkContext("the value overflows in base10 using dos flags", [](auto& ctx, auto& opt) {
-            testCommandLine(ctx, { "test", "/uint-opt:4294967296" });
-
-            THEN("the option is not set") {
-                CHECK(opt.getValue() == 0);
-                CHECK(!opt.isSet());
-            }
+        checkContext("the value underflows in base10", [](auto& ctx, auto& opt) {
+            testVariants(ctx, "uint-opt", "-1", false, [&] {
+                THEN("the option is not set") {
+                    CHECK(opt.getValue() == 0);
+                    CHECK(!opt.isSet());
+                }
+            });
         });
 
         checkContext("the value is negative", [](auto& ctx, auto& opt) {
-            testCommandLine(ctx, { "test", "--uint-opt", "-42" });
-
-            THEN("the option is not set") {
-                CHECK(opt.getValue() == 0);
-                CHECK(!opt.isSet());
-            }
+            testVariants(ctx, "uint-opt", "-42", false, [&] {
+                THEN("the option is not set") {
+                    CHECK(opt.getValue() == 0);
+                    CHECK(!opt.isSet());
+                }
+            });
         });
 
         checkContext("the value is zero", [](auto& ctx, auto& opt) {
-            testCommandLine(ctx, { "test", "--uint-opt", "0" });
-
-            THEN("the option is set") {
-                CHECK(opt.getValue() == 0);
-                CHECK(opt.isSet());
-            }
+            testVariants(ctx, "uint-opt", "0", true, [&] {
+                THEN("the option is set") {
+                    CHECK(opt.getValue() == 0);
+                    CHECK(opt.isSet());
+                }
+            });
         });
 
         checkContext("the value is the maximum", [](auto& ctx, auto& opt) {
-            testCommandLine(ctx, { "test", "--uint-opt", "4294967295" });
-
-            THEN("the option is set") {
-                CHECK(opt.getValue() == 4294967295);
-                CHECK(opt.isSet());
-            }
+            testVariants(ctx, "uint-opt", "4294967295", true, [&] {
+                THEN("the option is set") {
+                    CHECK(opt.getValue() == 4294967295);
+                    CHECK(opt.isSet());
+                }
+            });
         });
 
-        checkContext("the value is the maximum using dos flags", [](auto& ctx, auto& opt) {
-            testCommandLine(ctx, { "test", "/uint-opt:4294967295" });
+        checkContext("the value is negative zero", [](auto& ctx, auto& opt) {
+            testVariants(ctx, "uint-opt", "-0", false, [&] {
+                THEN("the option is not set") {
+                    CHECK(opt.getValue() == 0);
+                    CHECK(!opt.isSet());
+                }
+            });
+        });
 
-            THEN("the option is set") {
-                CHECK(opt.getValue() == 4294967295);
-                CHECK(opt.isSet());
-            }
+        checkContext("the value is positive zero", [](auto& ctx, auto& opt) {
+            testVariants(ctx, "uint-opt", "0", true, [&] {
+                THEN("the option is set") {
+                    CHECK(opt.getValue() == 0);
+                    CHECK(opt.isSet());
+                }
+            });
         });
     }
 
