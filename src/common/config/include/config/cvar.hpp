@@ -21,17 +21,16 @@ namespace sm::config {
     };
 
     class Group {
-        std::string_view mName;
         sm::Vector<OptionBase*> mVariables;
 
     public:
         Group(std::string_view name) noexcept
-            : mName(name)
+            : name(name)
         { }
 
-        void add(OptionBase* cvar) noexcept;
+        const std::string_view name;
 
-        std::string_view getName() const noexcept { return mName; }
+        void add(OptionBase* cvar) noexcept;
 
         auto getVariables(this auto& self) noexcept { return std::span(self.mVariables); }
     };
@@ -59,21 +58,6 @@ namespace sm::config {
 
         template<typename T> requires (std::is_enum_v<T> || std::is_scoped_enum_v<T>)
         constexpr inline OptionType kOptionType<T> = OptionType::eEnum;
-
-        template<typename T>
-        constexpr inline OptionType kOptionType<std::atomic<T>> = kOptionType<T>;
-
-        template<typename T>
-        struct RemapNumericType { using Type = void; };
-
-        template<std::signed_integral T>
-        struct RemapNumericType<T> { using Type = int64_t; };
-
-        template<std::unsigned_integral T>
-        struct RemapNumericType<T> { using Type = uint64_t; };
-
-        template<std::floating_point T>
-        struct RemapNumericType<T> { using Type = double; };
 
         struct OptionBuilder {
             std::string_view name;
@@ -103,6 +87,28 @@ namespace sm::config {
         }
     }
 
+    enum class UpdateStatus {
+#define UPDATE_ERROR(ID, STR) ID,
+#include "config.inc"
+    };
+
+    constexpr std::string_view toString(UpdateStatus error) noexcept {
+        switch (error) {
+#define UPDATE_ERROR(ID, STR) case UpdateStatus::ID: return STR;
+#include "config.inc"
+        default: return "unknown";
+        }
+    }
+
+    struct UpdateError {
+        UpdateStatus error = UpdateStatus::eNone;
+        std::string message;
+    };
+
+    struct UpdateResult {
+        std::vector<UpdateError> errors;
+    };
+
     class Context {
     public:
         std::map<std::string_view, OptionBase*> mVariables;
@@ -119,7 +125,7 @@ namespace sm::config {
         /// @brief add a static variable to the context
         void addStaticVariable(OptionBase *cvar, Group* group) noexcept;
 
-        void updateFromCommandLine(int argc, const char** argv) noexcept;
+        UpdateResult updateFromCommandLine(int argc, const char *const *argv) noexcept;
         void updateFromConfigFile(std::istream& is) noexcept;
         void updateFromEnvironment() noexcept;
     };
@@ -140,28 +146,27 @@ namespace sm::config {
             eIsSet = 1u << 2
         };
 
-        std::string_view mName;
-        std::string_view mDescription;
         unsigned mFlags = eNone;
-        OptionType mType;
 
         void verifyType(OptionType type) const noexcept;
 
     protected:
         OptionBase(detail::OptionBuilder config, OptionType type) noexcept;
 
+        void notifySet() noexcept { mFlags |= eIsSet; }
+
     public:
-        std::string_view getName() const noexcept { return mName; }
-        std::string_view getDescription() const noexcept { return mDescription; }
-        OptionType getType() const noexcept { return mType; }
+        SM_NOCOPY(OptionBase);
+        SM_NOMOVE(OptionBase);
+
+        const std::string_view name;
+        const std::string_view description;
+        const OptionType type;
 
         bool isReadOnly() const noexcept { return mFlags & eReadOnly; }
         bool isHidden() const noexcept { return mFlags & eHidden; }
 
         bool isSet() const noexcept { return mFlags & eIsSet; }
-
-        SM_NOCOPY(OptionBase);
-        SM_NOMOVE(OptionBase);
     };
 
     namespace detail {
@@ -169,7 +174,7 @@ namespace sm::config {
         class NumericOptionValue : public OptionBase {
             std::atomic<T> mValue;
             const T mInitialValue;
-            Range<T> mRange;
+            const Range<T> mRange;
 
         protected:
             struct Builder : detail::OptionBuilder {
@@ -207,6 +212,11 @@ namespace sm::config {
             T getCommonInitialValue() const noexcept { return mInitialValue; }
 
             Range<T> getCommonRange() const noexcept { return mRange; }
+
+            void setCommonValue(T value) noexcept {
+                mValue.store(value);
+                notifySet();
+            }
         };
     }
 
@@ -236,6 +246,11 @@ namespace sm::config {
 
         bool getValue() const noexcept { return mValue.load(); }
         bool getInitialValue() const noexcept { return mInitialValue; }
+
+        void setValue(bool value) noexcept {
+            mValue.store(value);
+            notifySet();
+        }
     };
 
     class StringOption : public OptionBase {
@@ -272,6 +287,12 @@ namespace sm::config {
         }
 
         std::string_view getInitialValue() const noexcept { return mInitialValue; }
+
+        void setValue(std::string_view value) noexcept {
+            std::lock_guard lock{mMutex};
+            mValue = value;
+            notifySet();
+        }
     };
 
     class RealOption : public detail::NumericOptionValue<double> {
@@ -313,6 +334,9 @@ namespace sm::config {
     class Option<bool> : public BoolOption {
         using Super = BoolOption;
 
+    protected:
+        using Builder = Super::Builder;
+
     public:
         using Super::Super;
     };
@@ -321,7 +345,9 @@ namespace sm::config {
         template<typename T, typename S>
         class NumericOption : public S {
             using Super = S;
-            using Builder = typename Super::Builder;
+
+        protected:
+            using Builder = Super::Builder;
 
         public:
             using Super::Super;
@@ -345,6 +371,9 @@ namespace sm::config {
     class Option<T> : public detail::NumericOption<T, SignedOption> {
         using Super = detail::NumericOption<T, SignedOption>;
 
+    protected:
+        using Builder = Super::Builder;
+
     public:
         using Super::Super;
     };
@@ -352,6 +381,9 @@ namespace sm::config {
     template<std::unsigned_integral T>
     class Option<T> : public detail::NumericOption<T, UnsignedOption> {
         using Super = detail::NumericOption<T, UnsignedOption>;
+
+    protected:
+        using Builder = Super::Builder;
 
     public:
         using Super::Super;
@@ -361,6 +393,9 @@ namespace sm::config {
     class Option<T> : public detail::NumericOption<T, RealOption> {
         using Super = detail::NumericOption<T, RealOption>;
 
+    protected:
+        using Builder = Super::Builder;
+
     public:
         using Super::Super;
     };
@@ -368,6 +403,9 @@ namespace sm::config {
     template<>
     class Option<std::string> : public StringOption {
         using Super = StringOption;
+
+    protected:
+        using Builder = Super::Builder;
 
     public:
         using Super::Super;
@@ -389,12 +427,12 @@ namespace sm::config {
         { }
     };
 
-    extern template class Option<bool>;
-    extern template class Option<int>;
-    extern template class Option<unsigned>;
-    extern template class Option<float>;
-    extern template class Option<double>;
-    extern template class Option<std::string>;
+    extern template struct ConsoleVariable<bool>;
+    extern template struct ConsoleVariable<int>;
+    extern template struct ConsoleVariable<unsigned>;
+    extern template struct ConsoleVariable<float>;
+    extern template struct ConsoleVariable<double>;
+    extern template struct ConsoleVariable<std::string>;
 }
 
 // NOLINTBEGIN

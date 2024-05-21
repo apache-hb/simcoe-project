@@ -28,11 +28,20 @@ testdeps = [
     cthulhu.get_variable('io'),
 ]
 
-test('config cvar tests',
-    executable('config-cvar-test', 'test/cvar.cpp',
+test('options',
+    executable('config-cvar-test', 'test/options.cpp',
         include_directories : inc,
         dependencies : testdeps
-    )
+    ),
+    suite : 'config'
+)
+
+test('command line parsing',
+    executable('config-command-line-test', 'test/command_line.cpp',
+        include_directories : inc,
+        dependencies : testdeps
+    ),
+    suite : 'config'
 )
 
 # test('loading config from file',

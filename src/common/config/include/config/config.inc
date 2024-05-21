@@ -12,3 +12,15 @@ OPTION_TYPE(eEnum, "enum")
 OPTION_TYPE(eFlags, "flags")
 
 #undef OPTION_TYPE
+
+#ifndef UPDATE_ERROR
+#   define UPDATE_ERROR(ID, STR)
+#endif
+
+UPDATE_ERROR(eNone, "no error")
+UPDATE_ERROR(eUnknownOption, "unknown option")
+UPDATE_ERROR(eMissingValue, "missing argument")
+UPDATE_ERROR(eInvalidValue, "invalid value")
+UPDATE_ERROR(eOutOfRange, "value out of range")
+
+#undef UPDATE_ERROR

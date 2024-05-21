@@ -21,7 +21,7 @@ namespace sm::config {
     struct EnumValueBuilder {
         T value;
 
-        consteval EnumValue<T> operator=(std::string_view name) const {
+        constexpr EnumValue<T> operator=(std::string_view name) const {
             return EnumValue<T>{ name, value };
         }
     };
@@ -48,7 +48,7 @@ namespace sm::config {
         T max = std::numeric_limits<T>::max();
     };
 
-    consteval auto val(auto value) {
+    constexpr auto val(auto value) {
         using T = decltype(value);
         using Builder = EnumValueBuilder<T>;
 
@@ -82,33 +82,33 @@ namespace sm::config {
     template<template<typename> typename T>
     struct ValueWrapper {
         template<typename V>
-        consteval T<V> operator=(T<V> value) const {
+        constexpr T<V> operator=(T<V> value) const {
             return value;
         }
 
         template<typename V>
-        consteval T<V> operator()(T<V> value) const {
+        constexpr T<V> operator()(T<V> value) const {
             return value;
         }
 
         template<typename V>
-        consteval T<V> operator=(V value) const {
+        constexpr T<V> operator=(V value) const {
             return T<V>{value};
         }
 
         template<typename V>
-        consteval T<V> operator()(V value) const {
+        constexpr T<V> operator()(V value) const {
             return T<V>{value};
         }
     };
 
     template<typename T, typename V>
     struct ConfigWrapper {
-        consteval T operator=(V value) const {
+        constexpr T operator=(V value) const {
             return T{value};
         }
 
-        consteval T operator()(V value) const {
+        constexpr T operator()(V value) const {
             return T{value};
         }
     };

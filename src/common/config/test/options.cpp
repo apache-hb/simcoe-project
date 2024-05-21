@@ -14,9 +14,9 @@ TEST_CASE("config cvar initializes correctly") {
             };
 
             THEN("it initializes correctly") {
-                CHECK(boolOpt.getName() == "bool-opt");
-                CHECK(boolOpt.getDescription() == "test description");
-                CHECK(boolOpt.getType() == OptionType::eBoolean);
+                CHECK(boolOpt.name == "bool-opt");
+                CHECK(boolOpt.description == "test description");
+                CHECK(boolOpt.type == OptionType::eBoolean);
                 CHECK(boolOpt.getInitialValue() == false);
                 CHECK(boolOpt.getValue() == false);
             }
@@ -30,9 +30,9 @@ TEST_CASE("config cvar initializes correctly") {
             };
 
             THEN("it initializes correctly") {
-                CHECK(boolOpt.getName() == "bool-opt");
-                CHECK(boolOpt.getDescription() == "test description");
-                CHECK(boolOpt.getType() == OptionType::eBoolean);
+                CHECK(boolOpt.name == "bool-opt");
+                CHECK(boolOpt.description == "test description");
+                CHECK(boolOpt.type == OptionType::eBoolean);
                 CHECK(boolOpt.getInitialValue() == true);
                 CHECK(boolOpt.getValue() == true);
             }
@@ -47,9 +47,9 @@ TEST_CASE("config cvar initializes correctly") {
             };
 
             THEN("it initializes correctly") {
-                CHECK(intOpt.getName() == "int-opt");
-                CHECK(intOpt.getDescription() == "test description");
-                CHECK(intOpt.getType() == OptionType::eSigned);
+                CHECK(intOpt.name == "int-opt");
+                CHECK(intOpt.description == "test description");
+                CHECK(intOpt.type == OptionType::eSigned);
                 CHECK(intOpt.getInitialValue() == 0);
                 CHECK(intOpt.getValue() == 0);
             }
@@ -63,9 +63,9 @@ TEST_CASE("config cvar initializes correctly") {
             };
 
             THEN("it initializes correctly") {
-                CHECK(intOpt.getName() == "int-opt");
-                CHECK(intOpt.getDescription() == "test description");
-                CHECK(intOpt.getType() == OptionType::eSigned);
+                CHECK(intOpt.name == "int-opt");
+                CHECK(intOpt.description == "test description");
+                CHECK(intOpt.type == OptionType::eSigned);
                 CHECK(intOpt.getInitialValue() == 42);
                 CHECK(intOpt.getValue() == 42);
             }
@@ -80,9 +80,9 @@ TEST_CASE("config cvar initializes correctly") {
             };
 
             THEN("it initializes correctly") {
-                CHECK(uintOpt.getName() == "uint-opt");
-                CHECK(uintOpt.getDescription() == "test description");
-                CHECK(uintOpt.getType() == OptionType::eUnsigned);
+                CHECK(uintOpt.name == "uint-opt");
+                CHECK(uintOpt.description == "test description");
+                CHECK(uintOpt.type == OptionType::eUnsigned);
                 CHECK(uintOpt.getInitialValue() == 0);
                 CHECK(uintOpt.getValue() == 0);
             }
@@ -96,9 +96,9 @@ TEST_CASE("config cvar initializes correctly") {
             };
 
             THEN("it initializes correctly") {
-                CHECK(uintOpt.getName() == "uint-opt");
-                CHECK(uintOpt.getDescription() == "test description");
-                CHECK(uintOpt.getType() == OptionType::eUnsigned);
+                CHECK(uintOpt.name == "uint-opt");
+                CHECK(uintOpt.description == "test description");
+                CHECK(uintOpt.type == OptionType::eUnsigned);
                 CHECK(uintOpt.getInitialValue() == 42);
                 CHECK(uintOpt.getValue() == 42);
             }
@@ -113,9 +113,9 @@ TEST_CASE("config cvar initializes correctly") {
             };
 
             THEN("it initializes correctly") {
-                CHECK(floatOpt.getName() == "float-opt");
-                CHECK(floatOpt.getDescription() == "test description");
-                CHECK(floatOpt.getType() == OptionType::eReal);
+                CHECK(floatOpt.name == "float-opt");
+                CHECK(floatOpt.description == "test description");
+                CHECK(floatOpt.type == OptionType::eReal);
                 CHECK(floatOpt.getInitialValue() == 0.0f);
                 CHECK(floatOpt.getValue() == 0.0f);
             }
@@ -129,9 +129,9 @@ TEST_CASE("config cvar initializes correctly") {
             };
 
             THEN("it initializes correctly") {
-                CHECK(floatOpt.getName() == "float-opt");
-                CHECK(floatOpt.getDescription() == "test description");
-                CHECK(floatOpt.getType() == OptionType::eReal);
+                CHECK(floatOpt.name == "float-opt");
+                CHECK(floatOpt.description == "test description");
+                CHECK(floatOpt.type == OptionType::eReal);
                 CHECK(floatOpt.getInitialValue() == 3.14f);
                 CHECK(floatOpt.getValue() == 3.14f);
             }
@@ -159,9 +159,9 @@ TEST_CASE("config cvar initializes correctly") {
             };
 
             THEN("it initializes correctly") {
-                CHECK(stringOpt.getName() == "string-opt");
-                CHECK(stringOpt.getDescription() == "test description");
-                CHECK(stringOpt.getType() == OptionType::eString);
+                CHECK(stringOpt.name == "string-opt");
+                CHECK(stringOpt.description == "test description");
+                CHECK(stringOpt.type == OptionType::eString);
                 CHECK(stringOpt.getInitialValue() == "");
                 CHECK(stringOpt.getValue() == "");
             }
@@ -175,9 +175,9 @@ TEST_CASE("config cvar initializes correctly") {
             };
 
             THEN("it initializes correctly") {
-                CHECK(stringOpt.getName() == "string-opt");
-                CHECK(stringOpt.getDescription() == "test description");
-                CHECK(stringOpt.getType() == OptionType::eString);
+                CHECK(stringOpt.name == "string-opt");
+                CHECK(stringOpt.description == "test description");
+                CHECK(stringOpt.type == OptionType::eString);
                 CHECK(stringOpt.getInitialValue() == "initial value");
                 CHECK(stringOpt.getValue() == "initial value");
             }
@@ -211,43 +211,26 @@ TEST_CASE("cvar meta flags initialize correctly") {
     }
 }
 
+template<typename T>
+void checkRangeOption(const char *testName) {
+    GIVEN(testName) {
+        sm::config::Option<T> opt {
+            name = testName,
+            desc = "test description"
+        };
+
+        THEN("it initializes correctly") {
+            auto [min, max] = opt.getRange();
+            CHECK(min == std::numeric_limits<T>::min());
+            CHECK(max == std::numeric_limits<T>::max());
+        }
+    }
+}
+
 TEST_CASE("cvar numeric ranges are within their values bounds") {
-    GIVEN("a float option") {
-        sm::config::Option<float> floatOpt {
-            name = "float-opt",
-            desc = "test description"
-        };
-
-        THEN("it initializes correctly") {
-            auto [min, max] = floatOpt.getRange();
-            CHECK(min == std::numeric_limits<float>::min());
-            CHECK(max == std::numeric_limits<float>::max());
-        }
-    }
-
-    GIVEN("an integer option") {
-        sm::config::Option<int> intOpt {
-            name = "int-opt",
-            desc = "test description"
-        };
-
-        THEN("it initializes correctly") {
-            auto [min, max] = intOpt.getRange();
-            CHECK(min == std::numeric_limits<int>::min());
-            CHECK(max == std::numeric_limits<int>::max());
-        }
-    }
-
-    GIVEN("an unsigned integer option") {
-        sm::config::Option<unsigned int> uintOpt {
-            name = "uint-opt",
-            desc = "test description"
-        };
-
-        THEN("it initializes correctly") {
-            auto [min, max] = uintOpt.getRange();
-            CHECK(min == std::numeric_limits<unsigned int>::min());
-            CHECK(max == std::numeric_limits<unsigned int>::max());
-        }
-    }
+    checkRangeOption<float>("a float option");
+    checkRangeOption<int>("an integer option");
+    checkRangeOption<unsigned int>("an unsigned integer option");
+    checkRangeOption<unsigned short>("an unsigned short option");
+    checkRangeOption<short>("a short option");
 }
