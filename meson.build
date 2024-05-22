@@ -36,8 +36,10 @@ project('simcoe', [ 'c', 'cpp' ],
         'google-brotli:warning_level=0',
         'brotli_g_sdk:warning_level=0',
         'catch2:warning_level=0',
+        'tomlplusplus:warning_level=0',
 
         'catch2:tests=false',
+        'tomlplusplus:build_lib=true',
 
         # disable everything in cthulhu by default
         'cthulhu:auto_features=disabled',
@@ -65,7 +67,7 @@ project('simcoe', [ 'c', 'cpp' ],
 cpp = meson.get_compiler('cpp')
 cc = meson.get_compiler('c')
 
-add_global_arguments('-D_HAS_EXCEPTIONS=0', language : 'cpp')
+add_project_arguments('-D_HAS_EXCEPTIONS=0', language : 'cpp')
 
 if get_option('tracy_enable')
     add_global_arguments('-DTRACY_ENABLE', language : [ 'c', 'cpp' ])

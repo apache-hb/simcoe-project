@@ -114,7 +114,7 @@ namespace sm::config {
         std::map<std::string_view, OptionBase*> mVariables;
         std::map<std::string_view, Group*> mGroups;
 
-        std::unordered_map<std::string_view, OptionBase*> mNameLookup;
+        std::unordered_map<std::string_view, OptionBase*> mArgLookup;
 
         /// @brief add a runtime generated variable to the context
         /// @warning this is a dangerous operation, the lifetime of the variable must be greater
@@ -126,8 +126,7 @@ namespace sm::config {
         void addStaticVariable(OptionBase *cvar, Group* group) noexcept;
 
         UpdateResult updateFromCommandLine(int argc, const char *const *argv) noexcept;
-        void updateFromConfigFile(std::istream& is) noexcept;
-        void updateFromEnvironment() noexcept;
+        UpdateResult updateFromConfigFile(std::istream& is) noexcept;
     };
 
     Context& cvars() noexcept;

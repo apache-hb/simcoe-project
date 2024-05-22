@@ -1,6 +1,6 @@
 #include "test_common.hpp"
 
-#include "config/cvar.hpp"
+#include "config/option.hpp"
 
 using namespace sm;
 using namespace sm::config;
@@ -212,7 +212,7 @@ TEST_CASE("cvar meta flags initialize correctly") {
 }
 
 template<typename T>
-void checkRangeOption(const char *testName) {
+void checkRangeOption(const char *testName, T min, T max) {
     GIVEN(testName) {
         sm::config::Option<T> opt {
             name = testName,
@@ -221,16 +221,16 @@ void checkRangeOption(const char *testName) {
 
         THEN("it initializes correctly") {
             auto [min, max] = opt.getRange();
-            CHECK(min == std::numeric_limits<T>::min());
-            CHECK(max == std::numeric_limits<T>::max());
+            CHECK(min == min);
+            CHECK(max == max);
         }
     }
 }
 
 TEST_CASE("cvar numeric ranges are within their values bounds") {
-    checkRangeOption<float>("a float option");
-    checkRangeOption<int>("an integer option");
-    checkRangeOption<unsigned int>("an unsigned integer option");
-    checkRangeOption<unsigned short>("an unsigned short option");
-    checkRangeOption<short>("a short option");
+    checkRangeOption<float>("a float option", -std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
+    checkRangeOption<int>("an integer option", std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
+    checkRangeOption<unsigned int>("an unsigned integer option", 0, std::numeric_limits<unsigned int>::max());
+    checkRangeOption<unsigned short>("an unsigned short option", 0, std::numeric_limits<unsigned short>::max());
+    checkRangeOption<short>("a short option", std::numeric_limits<short>::min(), std::numeric_limits<short>::max());
 }

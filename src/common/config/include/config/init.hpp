@@ -42,10 +42,21 @@ namespace sm::config {
     template<typename T>
     struct InitialValue { T value; };
 
+    namespace detail {
+        template<typename T>
+        constexpr inline T kMinRange = std::numeric_limits<T>::min();
+
+        template<std::floating_point T>
+        constexpr inline T kMinRange<T> = -std::numeric_limits<T>::max();
+
+        template<typename T>
+        constexpr inline T kMaxRange = std::numeric_limits<T>::max();
+    }
+
     template<typename T>
     struct Range {
-        T min = std::numeric_limits<T>::min();
-        T max = std::numeric_limits<T>::max();
+        T min = detail::kMinRange<T>;
+        T max = detail::kMaxRange<T>;
     };
 
     constexpr auto val(auto value) {

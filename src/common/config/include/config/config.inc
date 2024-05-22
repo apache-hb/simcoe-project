@@ -22,5 +22,6 @@ UPDATE_ERROR(eUnknownOption, "unknown option")
 UPDATE_ERROR(eMissingValue, "missing argument")
 UPDATE_ERROR(eInvalidValue, "invalid value")
 UPDATE_ERROR(eOutOfRange, "value out of range")
+UPDATE_ERROR(eSyntaxError, "syntax error")
 
 #undef UPDATE_ERROR
