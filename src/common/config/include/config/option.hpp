@@ -20,21 +20,6 @@ namespace sm::config {
 #include "config.inc"
     };
 
-    class Group {
-        sm::Vector<OptionBase*> mVariables;
-
-    public:
-        Group(std::string_view name) noexcept
-            : name(name)
-        { }
-
-        const std::string_view name;
-
-        void add(OptionBase* cvar) noexcept;
-
-        auto getVariables(this auto& self) noexcept { return std::span(self.mVariables); }
-    };
-
     Group& getCommonGroup() noexcept;
 
     namespace detail {
@@ -59,29 +44,40 @@ namespace sm::config {
         template<typename T> requires (std::is_enum_v<T> || std::is_scoped_enum_v<T>)
         constexpr inline OptionType kOptionType<T> = OptionType::eEnum;
 
-        struct OptionBuilder {
+        struct ConfigBuilder {
             std::string_view name;
             std::string_view description = "no description";
-            bool readonly = false;
-            bool hidden = false;
 
             Group* group = &getCommonGroup();
-            OptionType type;
 
             void init(Name it) noexcept { name = it.value; }
             void init(Description it) noexcept { description = it.value; }
+            void init(Category it) noexcept { group = &it.group; }
+        };
+
+        struct OptionBuilder : ConfigBuilder {
+            using ConfigBuilder::init;
+
+            bool readonly = false;
+            bool hidden = false;
+
+            OptionType type;
+
             void init(ReadOnly it) noexcept { readonly = it.readonly; }
             void init(Hidden it) noexcept { hidden = it.hidden; }
-            void init(Category it) noexcept { group = &it.group; }
-
-            OptionBuilder() noexcept = default;
         };
+
+        template<std::derived_from<ConfigBuilder> T>
+        constexpr T buildGroupKwargs(auto&&... args) noexcept {
+            T builder{};
+            (builder.init(args), ...);
+            return builder;
+        }
 
         template<std::derived_from<OptionBuilder> T, typename V> requires (kOptionType<V> != OptionType::eUnknown)
         constexpr T buildOptionKwargs(auto&&... args) noexcept {
             T builder{};
             builder.type = kOptionType<V>;
-
             (builder.init(args), ...);
             return builder;
         }
@@ -110,11 +106,17 @@ namespace sm::config {
     };
 
     class Context {
-    public:
-        std::map<std::string_view, OptionBase*> mVariables;
-        std::map<std::string_view, Group*> mGroups;
+        struct GroupInfo {
+            std::map<std::string_view, OptionBase*> options;
+            std::map<std::string_view, Group*> groups;
+        };
 
         std::unordered_map<std::string_view, OptionBase*> mArgLookup;
+        std::unordered_map<Group*, GroupInfo> mGroupInfo;
+
+        std::map<std::string_view, OptionBase*> mVariables;
+        std::map<std::string_view, Group*> mGroups;
+    public:
 
         /// @brief add a runtime generated variable to the context
         /// @warning this is a dangerous operation, the lifetime of the variable must be greater
@@ -130,6 +132,24 @@ namespace sm::config {
     };
 
     Context& cvars() noexcept;
+
+    // all static groups must be constinit
+    class Group {
+    public:
+        constexpr Group(detail::ConfigBuilder config) noexcept
+            : name(config.name)
+            , description(config.description)
+            , parent(*config.group)
+        { }
+
+        constexpr Group(auto&&... args) noexcept
+            : Group(detail::buildGroupKwargs<detail::ConfigBuilder>(args...))
+        { }
+
+        const std::string_view name;
+        const std::string_view description;
+        const Group &parent;
+    };
 
     class OptionBase {
         enum Flags : unsigned {

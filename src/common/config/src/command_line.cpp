@@ -1,4 +1,6 @@
-#include "common.hpp"
+#include "stdafx.hpp"
+
+#include "config/option.hpp"
 
 using namespace sm;
 using namespace sm::config;
@@ -69,7 +71,7 @@ UpdateResult Context::updateFromCommandLine(int argc, const char *const *argv) n
 
             if (ec != std::errc() || (ptr != arg.data() + arg.size())) {
                 errors.errors.emplace_back(UpdateError{ UpdateStatus::eInvalidValue, fmt::format("invalid value {} for {}", arg, option->name) });
-            } else if (!inRange(range, value)) {
+            } else if (!range.contains(value)) {
                 errors.errors.emplace_back(UpdateError{ UpdateStatus::eOutOfRange, fmt::format("value {} for {} is out of range [{}, {}]", value, option->name, range.min, range.max) });
             } else {
                 option->setCommonValue(value);
@@ -120,7 +122,7 @@ UpdateResult Context::updateFromCommandLine(int argc, const char *const *argv) n
             value *= sign;
             if (ec != std::errc() || (ptr != arg.data() + arg.size())) {
                 errors.errors.emplace_back(UpdateError{ UpdateStatus::eInvalidValue, fmt::format("invalid value {} for {}", arg, option->name) });
-            } else if (!inRange(range, value)) {
+            } else if (!range.contains(value)) {
                 errors.errors.emplace_back(UpdateError{ UpdateStatus::eOutOfRange, fmt::format("value {} for {} is out of range [{}, {}]", value, option->name, range.min, range.max) });
             } else {
                 option->setCommonValue(value);
@@ -140,7 +142,7 @@ UpdateResult Context::updateFromCommandLine(int argc, const char *const *argv) n
             auto [ptr, ec] = std::from_chars(arg.data(), arg.data() + arg.size(), value, base);
             if (ec != std::errc() || (ptr != arg.data() + arg.size())) {
                 errors.errors.emplace_back(UpdateError{ UpdateStatus::eInvalidValue, fmt::format("invalid value {} for {}", arg, option->name) });
-            } else if (!inRange(range, value)) {
+            } else if (!range.contains(value)) {
                 errors.errors.emplace_back(UpdateError{ UpdateStatus::eOutOfRange, fmt::format("value {} for {} is out of range [{}, {}]", value, option->name, range.min, range.max) });
             } else {
                 option->setCommonValue(value);

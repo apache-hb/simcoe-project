@@ -57,6 +57,10 @@ namespace sm::config {
     struct Range {
         T min = detail::kMinRange<T>;
         T max = detail::kMaxRange<T>;
+
+        constexpr bool contains(T value) const noexcept {
+            return value >= min && value <= max;
+        }
     };
 
     constexpr auto val(auto value) {

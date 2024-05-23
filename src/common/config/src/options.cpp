@@ -1,6 +1,6 @@
-#include "config/option.hpp"
+#include "stdafx.hpp"
 
-#include <fmtlib/format.h>
+#include "config/option.hpp"
 
 using namespace sm;
 using namespace sm::config;
@@ -31,10 +31,10 @@ static sm::opt<Choice> gChoiceFlag {
 };
 #endif
 
-static Group gCommonGroup { "general" };
 
 Group& config::getCommonGroup() noexcept {
-    return gCommonGroup;
+    static Group instance { name = "general" };
+    return instance;
 }
 
 constexpr std::string_view getOptionTypeName(OptionType type) noexcept {
