@@ -39,7 +39,6 @@ project('simcoe', [ 'c', 'cpp' ],
         'tomlplusplus:warning_level=0',
 
         'catch2:tests=false',
-        'tomlplusplus:build_lib=true',
 
         # disable everything in cthulhu by default
         'cthulhu:auto_features=disabled',

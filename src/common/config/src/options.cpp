@@ -1,4 +1,5 @@
 #include "stdafx.hpp"
+#include "core/core.hpp"
 
 #include "config/option.hpp"
 
@@ -49,16 +50,20 @@ void Context::addToGroup(OptionBase *cvar, Group* group) noexcept {
     CTASSERT(cvar != nullptr);
     CTASSERT(group != nullptr);
 
-    mVariables[cvar->name] = cvar;
-    mGroups[group->name] = group;
+    // be very careful to not use group->parent aside from taking its address
+    // its lifetime may not have started yet
+
+    mGroups[group].options.emplace(cvar->name, cvar);
+    mGroups[&group->parent].children.emplace(group->name, group);
 
     mArgLookup[cvar->name] = cvar;
+    mGroupLookup[group->name] = group;
 }
 
-void Context::addStaticVariable(OptionBase *cvar, Group* group) noexcept {
+void config::addStaticVariable(Context& context, OptionBase *cvar, Group* group) noexcept {
     CTASSERTF(isStaticStorage(group), "group %s does not have static storage duration", group->name.data());
     CTASSERTF(isStaticStorage(cvar), "cvar %s does not have static storage duration", cvar->name.data());
-    addToGroup(cvar, group);
+    context.addToGroup(cvar, group);
 }
 
 Context& config::cvars() noexcept {
@@ -66,13 +71,14 @@ Context& config::cvars() noexcept {
     return instance;
 }
 
-void OptionBase::verifyType(OptionType other) const noexcept {
-    CTASSERTF(type == other, "this (%s of %s) is not of type %s", name.data(), getOptionTypeName(type).data(), getOptionTypeName(other).data());
+void OptionBase::verifyType(OptionType otherType) const noexcept {
+    CTASSERTF(type == otherType, "this (%s of %s) is not of type %s", name.data(), getOptionTypeName(type).data(), getOptionTypeName(otherType).data());
 }
 
 OptionBase::OptionBase(detail::OptionBuilder config, OptionType type) noexcept
     : name(config.name)
     , description(config.description)
+    , parent(*config.group)
     , type(type)
 {
     CTASSERT(type != OptionType::eUnknown);
@@ -83,8 +89,6 @@ OptionBase::OptionBase(detail::OptionBuilder config, OptionType type) noexcept
 
     if (config.readonly)
         mFlags |= eReadOnly;
-
-    cvars().addToGroup(this, config.group);
 }
 
 template struct sm::config::ConsoleVariable<bool>;

@@ -1,13 +1,11 @@
 #pragma once
 
-#include <map>
 #include <mutex>
-#include <span>
 #include <string_view>
+#include <map>
 #include <unordered_map>
 
 #include "core/macros.hpp"
-#include "core/adt/vector.hpp"
 
 #include "config/init.hpp"
 
@@ -76,9 +74,8 @@ namespace sm::config {
 
         template<std::derived_from<OptionBuilder> T, typename V> requires (kOptionType<V> != OptionType::eUnknown)
         constexpr T buildOptionKwargs(auto&&... args) noexcept {
-            T builder{};
+            T builder = buildGroupKwargs<T>(args...);
             builder.type = kOptionType<V>;
-            (builder.init(args), ...);
             return builder;
         }
     }
@@ -108,14 +105,12 @@ namespace sm::config {
     class Context {
         struct GroupInfo {
             std::map<std::string_view, OptionBase*> options;
-            std::map<std::string_view, Group*> groups;
+            std::map<std::string_view, Group*> children;
         };
 
         std::unordered_map<std::string_view, OptionBase*> mArgLookup;
-        std::unordered_map<Group*, GroupInfo> mGroupInfo;
-
-        std::map<std::string_view, OptionBase*> mVariables;
-        std::map<std::string_view, Group*> mGroups;
+        std::unordered_map<std::string_view, Group*> mGroupLookup;
+        std::unordered_map<const Group*, GroupInfo> mGroups;
     public:
 
         /// @brief add a runtime generated variable to the context
@@ -124,16 +119,14 @@ namespace sm::config {
         /// @warning this is not thread safe
         void addToGroup(OptionBase* cvar, Group* group) noexcept;
 
-        /// @brief add a static variable to the context
-        void addStaticVariable(OptionBase *cvar, Group* group) noexcept;
-
         UpdateResult updateFromCommandLine(int argc, const char *const *argv) noexcept;
         UpdateResult updateFromConfigFile(std::istream& is) noexcept;
     };
 
+    void addStaticVariable(Context& context, OptionBase *cvar, Group* group) noexcept;
+
     Context& cvars() noexcept;
 
-    // all static groups must be constinit
     class Group {
     public:
         constexpr Group(detail::ConfigBuilder config) noexcept
@@ -180,6 +173,7 @@ namespace sm::config {
 
         const std::string_view name;
         const std::string_view description;
+        const Group& parent;
         const OptionType type;
 
         bool isReadOnly() const noexcept { return mFlags & eReadOnly; }
@@ -438,7 +432,7 @@ namespace sm::config {
         ConsoleVariable(Builder config) noexcept
             : Super(config)
         {
-            cvars().addStaticVariable(this, config.group);
+            config::addStaticVariable(cvars(), this, config.group);
         }
 
         ConsoleVariable(auto&&... args) noexcept

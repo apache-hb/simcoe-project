@@ -49,9 +49,10 @@ test('command line parsing',
     suite : 'config'
 )
 
-# test('loading config from file',
-#     executable('config-from-file-test', 'tests/config_from_file.cpp',
-#         include_directories : inc,
-#         dependencies : [ config, catch2 ]
-#     )
-# )
+test('loading config from file',
+    executable('config-from-file-test', 'test/config.cpp',
+        include_directories : inc,
+        dependencies : testdeps
+    ),
+    suite : 'config'
+)
