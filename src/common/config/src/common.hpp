@@ -3,21 +3,29 @@
 #include "config/option.hpp"
 
 namespace sm::config::detail {
-    template<typename O, typename T>
-        requires (std::derived_from<O, NumericOptionValue<T>>)
-    bool updateNumericOption(UpdateResult& errs, O& option, T value) {
+    bool verifyWriteAccess(UpdateResult& errs, const OptionBase& option) {
         if (option.isReadOnly()) {
             errs.errors.push_back(UpdateError{
                 UpdateStatus::eReadOnly,
-                std::string{option.name}
+                fmt::format("option {} is read only", option.name)
             });
             return false;
         }
 
-        if (!option.getCommonRange().contains(value)) {
+        return true;
+    }
+
+    template<typename O, typename T>
+        requires (std::derived_from<O, NumericOptionValue<T>>)
+    bool updateNumericOption(UpdateResult& errs, O& option, T value) {
+        if (!verifyWriteAccess(errs, option))
+            return false;
+
+        auto range = option.getCommonRange();
+        if (!range.contains(value)) {
             errs.errors.push_back(UpdateError{
                 UpdateStatus::eOutOfRange,
-                std::string{option.name}
+                fmt::format("value {} for {} is out of range [{}, {}]", value, option.name, range.min, range.max)
             });
             return false;
         }
@@ -29,13 +37,8 @@ namespace sm::config::detail {
 
     template<std::derived_from<OptionBase> O, typename T>
     bool updateOption(UpdateResult& errs, O& option, T value) {
-        if (option.isReadOnly()) {
-            errs.errors.push_back(UpdateError{
-                UpdateStatus::eReadOnly,
-                std::string{option.name}
-            });
+        if (!verifyWriteAccess(errs, option))
             return false;
-        }
 
         option.setValue(value);
 

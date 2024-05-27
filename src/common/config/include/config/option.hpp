@@ -1,8 +1,9 @@
 #pragma once
 
+#include <simcoe_config.h>
+
 #include <mutex>
 #include <string_view>
-#include <map>
 #include <unordered_map>
 
 #include "core/macros.hpp"
@@ -102,31 +103,6 @@ namespace sm::config {
         std::vector<UpdateError> errors;
     };
 
-    class Context {
-        struct GroupInfo {
-            std::map<std::string_view, OptionBase*> options;
-            std::map<std::string_view, Group*> children;
-        };
-
-        std::unordered_map<std::string_view, OptionBase*> mArgLookup;
-        std::unordered_map<std::string_view, Group*> mGroupLookup;
-        std::unordered_map<const Group*, GroupInfo> mGroups;
-    public:
-
-        /// @brief add a runtime generated variable to the context
-        /// @warning this is a dangerous operation, the lifetime of the variable must be greater
-        /// than the lifetime of the context
-        /// @warning this is not thread safe
-        void addToGroup(OptionBase* cvar, Group* group) noexcept;
-
-        UpdateResult updateFromCommandLine(int argc, const char *const *argv) noexcept;
-        UpdateResult updateFromConfigFile(std::istream& is) noexcept;
-    };
-
-    void addStaticVariable(Context& context, OptionBase *cvar, Group* group) noexcept;
-
-    Context& cvars() noexcept;
-
     class Group {
     public:
         constexpr Group(detail::ConfigBuilder config) noexcept
@@ -181,6 +157,31 @@ namespace sm::config {
 
         bool isSet() const noexcept { return mFlags & eIsSet; }
     };
+
+    class Context {
+        struct GroupInfo {
+            std::vector<OptionBase*> options;
+            std::vector<Group*> children;
+        };
+
+        std::unordered_map<std::string_view, OptionBase*> mArgLookup;
+        std::unordered_map<std::string_view, Group*> mGroupLookup;
+        std::unordered_map<const Group*, GroupInfo> mGroups;
+    public:
+
+        /// @brief add a runtime generated variable to the context
+        /// @warning this is a dangerous operation, the lifetime of the variable must be greater
+        /// than the lifetime of the context
+        /// @warning this is not thread safe
+        void addToGroup(OptionBase* cvar, Group* group) noexcept;
+
+        UpdateResult updateFromCommandLine(int argc, const char *const *argv) noexcept;
+        UpdateResult updateFromConfigFile(std::istream& is) noexcept;
+    };
+
+    void addStaticVariable(Context& context, OptionBase *cvar, Group* group) noexcept;
+
+    Context& cvars() noexcept;
 
     namespace detail {
         template<typename T>

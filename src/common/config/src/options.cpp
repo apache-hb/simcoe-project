@@ -53,8 +53,14 @@ void Context::addToGroup(OptionBase *cvar, Group* group) noexcept {
     // be very careful to not use group->parent aside from taking its address
     // its lifetime may not have started yet
 
-    mGroups[group].options.emplace(cvar->name, cvar);
-    mGroups[&group->parent].children.emplace(group->name, group);
+#if SMC_DEBUG
+    if (mArgLookup.find(cvar->name) != mArgLookup.end()) {
+        CT_NEVER("cvar %s already exists", cvar->name.data());
+    }
+#endif
+
+    mGroups[group].options.push_back(cvar);
+    mGroups[&group->parent].children.push_back(group);
 
     mArgLookup[cvar->name] = cvar;
     mGroupLookup[group->name] = group;

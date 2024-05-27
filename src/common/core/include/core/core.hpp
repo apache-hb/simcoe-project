@@ -7,24 +7,26 @@
 #include <concepts>
 
 namespace sm {
-    using uint8 = uint8_t; // NOLINT
-    using uint16 = uint16_t; // NOLINT
-    using uint32 = uint32_t; // NOLINT
-    using uint64 = uint64_t; // NOLINT
+    // NOLINTBEGIN
+    using uint8 = uint8_t;
+    using uint16 = uint16_t;
+    using uint32 = uint32_t;
+    using uint64 = uint64_t;
 
-    using int8 = int8_t; // NOLINT
-    using int16 = int16_t; // NOLINT
-    using int32 = int32_t; // NOLINT
-    using int64 = int64_t; // NOLINT
+    using int8 = int8_t;
+    using int16 = int16_t;
+    using int32 = int32_t;
+    using int64 = int64_t;
 
-    using uint = uint32_t; // NOLINT
-    using byte = uint8_t; // NOLINT
+    using uint = uint32_t;
+    using byte = uint8_t;
 
-    using char8 = char8_t; // NOLINT
-    using char16 = char16_t; // NOLINT
-    using char32 = char32_t; // NOLINT
+    using char8 = char8_t;
+    using char16 = char16_t;
+    using char32 = char32_t;
 
-    using ssize_t = ptrdiff_t; // NOLINT
+    using ssize_t = ptrdiff_t;
+    // NOLINTEND
 
     template<typename T>
     struct Empty {

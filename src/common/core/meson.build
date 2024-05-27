@@ -23,6 +23,7 @@ src = [
     'src/core.cpp',
 
     'src/adt/small_string.cpp',
+    'src/adt/zstring_view.cpp',
 
     'src/allocators/bitmap_allocator.cpp'
 ]
@@ -38,4 +39,30 @@ core = declare_dependency(
     link_with : libcore,
     include_directories : [ core_include, config_include ],
     dependencies : core_dependencies
+)
+
+catch2 = dependency('catch2-with-main')
+
+coretest = declare_dependency(
+    include_directories : '.',
+    dependencies : [
+        catch2,
+        cthulhu.get_variable('backtrace'),
+        cthulhu.get_variable('format_core'),
+        cthulhu.get_variable('io'),
+    ]
+)
+
+test('zstring view',
+    executable('zstring-view-test', 'test/adt/zstring_view.cpp',
+        dependencies : [ core, coretest ]
+    ),
+    suite : 'core'
+)
+
+test('vector',
+    executable('vector-test', 'test/adt/vector.cpp',
+        dependencies : [ core, coretest ]
+    ),
+    suite : 'core'
 )

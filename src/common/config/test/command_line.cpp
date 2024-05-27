@@ -1,4 +1,4 @@
-#include "test_common.hpp"
+#include "test/common.hpp"
 
 #include "config/option.hpp"
 
