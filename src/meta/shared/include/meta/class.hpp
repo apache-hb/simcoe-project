@@ -10,9 +10,10 @@ namespace sm::meta {
 
     enum class TypeId : uint32_t {
         eInvalid = 0,
-        eClass,
-        eInterface,
-        eEnum,
+
+        eBool,
+        eString,
+        eArray,
 
         eInt8,
         eInt16,
@@ -27,8 +28,9 @@ namespace sm::meta {
         eFloat,
         eDouble,
 
-        eBool,
-        eString,
+        eClass,
+        eInterface,
+        eEnum,
 
         eUserTypeId = 1024,
     };

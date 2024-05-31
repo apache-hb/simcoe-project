@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/adt/range.hpp"
-#include "core/error.hpp"
+#include "core/adt/small_string.hpp"
 
 namespace sm {
     template<std::integral T>
@@ -50,13 +50,20 @@ namespace sm {
             : ZStringViewBase(front, front + zstrlen(front))
         { }
 
+        constexpr ZStringViewBase(const std::basic_string<T> &str) noexcept
+            : ZStringViewBase(str.c_str(), str.c_str() + str.size())
+        { }
+
+        template<size_t N>
+        constexpr ZStringViewBase(const SmallString<N>& str) noexcept
+            : ZStringViewBase(str.data(), str.data() + str.size())
+        { }
+
         constexpr auto *c_str(this auto& self) noexcept { return self.getFront(); }
         constexpr size_t length() const noexcept { return Super::size(); }
 
         constexpr std::strong_ordering operator<=>(const ZStringViewBase& other) const noexcept {
-            auto result = std::lexicographical_compare_three_way(this->cbegin(), this->cend(), other.cbegin(), other.cend());
-
-            return result;
+            return std::lexicographical_compare_three_way(this->cbegin(), this->cend(), other.cbegin(), other.cend());
         }
 
         constexpr bool operator==(const ZStringViewBase& other) const noexcept {

@@ -27,21 +27,21 @@ config = declare_dependency(
 testdeps = [ config, coretest ]
 
 test('options',
-    executable('config-cvar-test', 'test/options.cpp',
+    executable('config-cvar', 'test/options.cpp',
         dependencies : testdeps
     ),
     suite : 'config'
 )
 
 test('command line parsing',
-    executable('config-command-line-test', 'test/command_line.cpp',
+    executable('config-command-line', 'test/command_line.cpp',
         dependencies : testdeps
     ),
     suite : 'config'
 )
 
 test('loading config from file',
-    executable('config-from-file-test', 'test/config.cpp',
+    executable('config-file', 'test/config.cpp',
         dependencies : testdeps
     ),
     suite : 'config'

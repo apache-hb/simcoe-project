@@ -135,6 +135,11 @@ namespace sm {
             }
         }
 
+        constexpr VectorBase(T *front, T *back, T *capacity) noexcept
+            : Super(front, back)
+            , mCapacity(capacity)
+        { }
+
         constexpr VectorBase(SizeType initial, SizeType used)
             : Super(nullptr, nullptr)
         {
@@ -161,7 +166,8 @@ namespace sm {
         }
 
         constexpr VectorBase(VectorBase &&other) noexcept
-            : VectorBase()
+            : Super(nullptr, nullptr)
+            , mCapacity(nullptr)
         {
             swap(*this, other);
         }
@@ -169,6 +175,14 @@ namespace sm {
         constexpr VectorBase(std::initializer_list<T> init) noexcept
             : VectorBase(init.begin(), init.end())
         { }
+
+        static constexpr VectorBase consume(T *data, SizeType size, SizeType capacity) noexcept {
+            return VectorBase{data, data + size, data + capacity};
+        }
+
+        static constexpr VectorBase consume(T *data, SizeType size) noexcept {
+            return consume(data, size, size);
+        }
 
         // delete the copy assignment operator since it cant be made
         // explicit. use clone() instead.

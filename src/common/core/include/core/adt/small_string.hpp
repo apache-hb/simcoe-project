@@ -6,57 +6,53 @@
 #include "base/panic.h"
 
 namespace sm {
-    class SmallStringBase {
-    protected:
-        int16 mLength; // length not including null terminator
-
-        void init(char *buffer, const char *str, int16 length);
-        void init(char *buffer, const char *str);
-    };
-
     template<size_t N> requires (N > 0)
-    class SmallString : private SmallStringBase {
+    class SmallString {
         // round up to next multiple of 2 for better alignment
         static constexpr size_t kAlignedSize = (N + 1 + 1) & ~1;
 
         char mBuffer[kAlignedSize];
+        uint16 mLength;
 
     public:
-        SmallString() = default;
+        constexpr SmallString() noexcept = default;
 
-        SmallString(const char *str) {
-            SmallStringBase::init(mBuffer, str);
+        constexpr SmallString(const char *first, const char *last) noexcept {
+            mLength = last - first;
+            CTASSERTF(mLength <= N, "String too long (%hu > %zu)", mLength, N);
+
+            std::uninitialized_copy(first, last, mBuffer);
+            mBuffer[mLength] = '\0';
         }
 
-        SmallString(const char *str, int16 length) {
-            SmallStringBase::init(mBuffer, str, length);
-        }
+        constexpr SmallString(const char *str) noexcept
+            : SmallString(str, str + strlen(str))
+        { }
+
+        constexpr SmallString(const char *str, int16 length) noexcept
+            : SmallString(str, str + length)
+        { }
+
+        template<size_t M> requires (M <= N)
+        constexpr SmallString(const SmallString<M> &other) noexcept
+            : SmallString(other.data(), other.size())
+        { }
 
         template<size_t M>
-        SmallString(const SmallString<M> &other) {
-            static_assert(N >= M);
+        constexpr SmallString(const char (&str)[M]) noexcept
+            : SmallString(str, M - 1)
+        { }
 
-            SmallStringBase::init(mBuffer, other.data(), other.size());
-        }
+        constexpr SmallString(sm::StringView str) noexcept
+            : SmallString(str.data(), str.size())
+        { }
 
-        template<size_t M>
-        SmallString(const char (&str)[M]) {
-            static_assert(N >= M);
+        constexpr SmallString(const sm::String &str) noexcept
+            : SmallString(str.data(), str.size())
+        { }
 
-            SmallStringBase::init(mBuffer, str, M - 1);
-        }
-
-        SmallString(sm::StringView str) {
-            SmallStringBase::init(mBuffer, str.data(), str.size());
-        }
-
-        SmallString(const sm::String &str) {
-            CTASSERTF(str.size() <= N, "String too long (%zu > %zu)", str.size(), N);
-            SmallStringBase::init(mBuffer, str.data(), str.size());
-        }
-
-        const char *data() const { return mBuffer; }
-        int16 size() const { return mLength; }
-        const char *c_str() const { return mBuffer; }
+        constexpr const char *data() const noexcept { return mBuffer; }
+        constexpr int16 size() const noexcept { return mLength; }
+        constexpr const char *c_str() const noexcept { return mBuffer; }
     };
 }

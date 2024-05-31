@@ -22,7 +22,6 @@ src = [
     'src/typeindex.cpp',
     'src/core.cpp',
 
-    'src/adt/small_string.cpp',
     'src/adt/zstring_view.cpp',
 
     'src/allocators/bitmap_allocator.cpp'
@@ -54,14 +53,28 @@ coretest = declare_dependency(
 )
 
 test('zstring view',
-    executable('zstring-view-test', 'test/adt/zstring_view.cpp',
+    executable('core-adt-zstring-view', 'test/adt/zstring_view.cpp',
         dependencies : [ core, coretest ]
     ),
     suite : 'core'
 )
 
 test('vector',
-    executable('vector-test', 'test/adt/vector.cpp',
+    executable('core-adt-vector', 'test/adt/vector.cpp',
+        dependencies : [ core, coretest ]
+    ),
+    suite : 'core'
+)
+
+test('bitset',
+    executable('core-adt-bitset', 'test/adt/bitset.cpp',
+        dependencies : [ core, coretest ]
+    ),
+    suite : 'core'
+)
+
+test('priority queue',
+    executable('core-adt-priority-queue', 'test/adt/priority_queue.cpp',
         dependencies : [ core, coretest ]
     ),
     suite : 'core'

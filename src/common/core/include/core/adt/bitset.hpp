@@ -153,6 +153,15 @@ namespace sm {
             constexpr size_t freecount() const noexcept {
                 return getBitCapacity() - popcount();
             }
+
+            constexpr bool any() const noexcept {
+                for (size_t i = 0; i < getWordCapacity(); i++) {
+                    if (mStorage[i]) {
+                        return true;
+                    }
+                }
+                return false;
+            }
         };
     }
 

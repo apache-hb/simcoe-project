@@ -37,20 +37,16 @@ namespace sm {
             return mStorage.size();
         }
 
-        constexpr ConstIterator begin() const noexcept {
-            return mStorage.begin();
-        }
-
-        constexpr ConstIterator end() const noexcept {
-            return mStorage.end();
-        }
-
         constexpr T& operator[](size_t index) noexcept {
             return mStorage[index];
         }
 
         constexpr const T& operator[](size_t index) const noexcept {
             return mStorage[index];
+        }
+
+        constexpr void clear() noexcept {
+            mStorage.clear();
         }
     };
 }
