@@ -1,12 +1,9 @@
 [submodule "subprojects/cthulhu"]
 	path = subprojects/cthulhu
 	url = https://github.com/apache-hb/cthulhu.git
-	branch = master
 [submodule "scripts/ninjatracing"]
 	path = scripts/ninjatracing
 	url = https://github.com/nico/ninjatracing
 [submodule "subprojects/flecs"]
 	path = subprojects/flecs
 	url = https://github.com/SanderMertens/flecs
-[submodule "subprojects\\flecs"]
-	url = https://github.com/SanderMertens/flecs.git

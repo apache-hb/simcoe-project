@@ -3,7 +3,7 @@ project('simcoe', [ 'c', 'cpp' ],
     license : 'UNLICENSED',
     version : '1.1.0',
     default_options : [
-        'cpp_std=c++latest,c++23',
+        'cpp_std=c++latest,gnu++23',
 
         'cpp_rtti=false',
         'cpp_eh=none',
@@ -79,7 +79,14 @@ endif
 dxc_id = is_windows ? 'dxc-windows' : 'dxc-linux'
 dxcompiler_id = is_windows ? 'dxcompiler-windows' : 'dxcompiler-linux'
 
-add_project_arguments(cc.get_supported_arguments('/GS-', '/wd4127', '/wd4324', '/wd4200', '/wd4505'), language : [ 'c', 'cpp' ])
+add_project_arguments(
+    cc.get_supported_arguments(
+        '/GS-', '/wd4127', '/wd4324',
+        '/wd4200', '/wd4505',
+        '-Wno-gnu-anonymous-struct', '-Wno-nested-anon-types'
+    ),
+    language : [ 'c', 'cpp' ]
+)
 
 build_type = get_option('buildtype')
 is_debug = build_type.contains('debug')
@@ -226,8 +233,6 @@ subdir('src/vendor/fmtlib')
 subdir('src/vendor/reflect')
 
 subdir('src/common/core')
-# also hook asserts into d3d12ma
-subdir('src/vendor/d3d12ma')
 
 # patch dds_texture_loader to use d3d12ma
 # subdir('src/vendor/dds_texture_loader')
@@ -244,6 +249,8 @@ subdir('src/common/threads')
 if not is_windows
     subdir_done()
 endif
+
+subdir('src/vendor/d3d12ma')
 
 subdir('src/common/render')
 subdir('src/common/draw')

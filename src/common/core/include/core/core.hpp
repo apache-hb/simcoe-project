@@ -25,7 +25,7 @@ namespace sm {
     using char16 = char16_t;
     using char32 = char32_t;
 
-    using ssize_t = ptrdiff_t;
+    using ssize_t = std::ptrdiff_t;
     // NOLINTEND
 
     template<typename T>

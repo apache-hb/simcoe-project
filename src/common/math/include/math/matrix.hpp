@@ -4,8 +4,6 @@
 #include "math/units.hpp"
 #include "math/vector.hpp"
 
-#include <DirectXMath.h>
-
 namespace sm::math {
     template<typename T>
     struct alignas(sizeof(T) * 16) Mat4x4 {

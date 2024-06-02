@@ -1,8 +1,10 @@
 #pragma once
 
 #include "core/core.hpp"
+
 #include <cmath>
 #include <numbers>
+#include <iterator>
 
 namespace sm::math {
     ///

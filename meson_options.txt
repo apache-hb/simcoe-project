@@ -1,6 +1,6 @@
 option('trace_time', type : 'boolean',
     description : 'Trace compile time',
-    value : 'false'
+    value : false
 )
 
 option('client_win_subsystem', type : 'combo',
@@ -21,7 +21,7 @@ option('editor_win_subsystem', type : 'combo',
 
 option('freetype_logging', type : 'boolean',
     description : 'Enable freetype logging',
-    value : 'false'
+    value : false
 )
 
 ###
@@ -49,14 +49,14 @@ option('framegraph_trace', type : 'feature',
 
 option('nvapi_enable', type : 'boolean',
     description : 'Enable NVAPI support',
-    value : 'true'
+    value : true
 )
 
 option('amd_ags_enable', type : 'boolean',
     description : 'Enable AMD AGS support',
-    value : 'true'
+    value : true
 )
 
 option('tracy_enable', type : 'boolean',
-    value : 'false'
+    value : false
 )

@@ -5,6 +5,8 @@
 
 #include "base/panic.h"
 
+#include <cstring>
+
 namespace sm {
     template<size_t N> requires (N > 0)
     class SmallString {
@@ -26,7 +28,7 @@ namespace sm {
         }
 
         constexpr SmallString(const char *str) noexcept
-            : SmallString(str, str + strlen(str))
+            : SmallString(str, str + std::strlen(str))
         { }
 
         constexpr SmallString(const char *str, int16 length) noexcept

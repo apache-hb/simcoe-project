@@ -2,6 +2,7 @@
 
 #include <simcoe_config.h>
 
+#include <atomic>
 #include <mutex>
 #include <string_view>
 #include <unordered_map>

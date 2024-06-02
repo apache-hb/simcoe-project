@@ -2,6 +2,8 @@
 
 #include "config/option.hpp"
 
+#include <sstream>
+
 using namespace sm;
 using namespace sm::config;
 
