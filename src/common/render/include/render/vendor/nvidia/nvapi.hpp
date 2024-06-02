@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/adt/small_string.hpp"
+#include <expected>
 
 namespace sm::render {
     using NvString = SmallString<64>;
@@ -21,21 +22,11 @@ namespace sm::render {
     };
 
     template<typename T>
-    class NvResult {
-        NvStatus mStatus;
-        T mValue;
+    struct NvResult {
+        NvStatus status;
+        T value;
 
-    public:
-        NvResult(NvStatus status, T value)
-            : mStatus(status)
-            , mValue(value)
-        { }
-
-        constexpr bool success() const { return mStatus.success(); }
-        NvStatus status() const { return mStatus; }
-
-        T& value() { return mValue; }
-        const T& value() const { return mValue; }
+        bool success() const { return status.success(); }
     };
 
     struct NvVersion {

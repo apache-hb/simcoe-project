@@ -28,10 +28,16 @@ icon = files('icon.png')
 
 # use an absolute path to d3dconfig to avoid finding
 # the system d3dconfig
-d3dconfig = find_program(bindir / 'd3dconfig')
+d3dconfig = find_program(bindir / 'd3dconfig.exe')
+
+libd3d12 = cpp.find_library('d3d12', dirs : [ '/usr/lib/wsl/lib' ])
 
 d3d12 = declare_dependency(
-    dependencies : [ cpp.find_library('d3d12'), cpp.find_library('dxgi'), cpp.find_library('dxguid') ]
+    dependencies : [
+        libd3d12,
+        cpp.find_library('dxgi', required : false),
+        cpp.find_library('dxguid', required : false)
+    ]
 )
 
 meson.override_find_program('d3dconfig', d3dconfig)

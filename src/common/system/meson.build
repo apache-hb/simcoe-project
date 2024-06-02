@@ -20,9 +20,7 @@ src = [
     reflect.process('data/system.ct'),
 ]
 
-delayimp = cc.find_library('delayimp')
-
-deps = [ core, logs, math, cthulhu.get_variable('os'), input, delayimp, config ]
+deps = [ core, logs, math, cthulhu.get_variable('os'), input, config ]
 
 libsystem = library('system', src,
     cpp_args : [ '-DSM_SYSTEM_BUILD=1' ],
@@ -37,19 +35,26 @@ system_core = declare_dependency(
     dependencies : deps
 )
 
-src = [
-    'src/delayload.cpp',
-    reflect.process('data/delayload.ct')
-]
+if is_windows
+    delayimp = cc.find_library('delayimp')
+    src = [
+        'src/delayload.cpp',
+        reflect.process('data/delayload.ct')
+    ]
 
-libdelayload = shared_module('delayload', src,
-    dependencies : [ system_core, delayimp ],
-    include_directories : [ system_include ]
-)
+    libdelayload = shared_module('delayload', src,
+        dependencies : [ system_core, delayimp ],
+        include_directories : [ system_include ]
+    )
+
+    objs = libdelayload.extract_all_objects(recursive : true)
+else
+    objs = []
+endif
 
 system = declare_dependency(
     link_with : libsystem,
     include_directories : [ system_include, libsystem.private_dir_include() ],
-    objects : libdelayload.extract_all_objects(recursive : true),
+    objects : objs,
     dependencies : deps
 )

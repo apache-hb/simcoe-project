@@ -26,31 +26,19 @@ namespace sm {
 
     public:
         constexpr OsError(os_error_t error)
-            : mError(error) {}
+            : mError(error)
+        { }
 
-        constexpr os_error_t error() const {
-            return mError;
-        }
-        constexpr operator bool() const {
-            return mError != 0;
-        }
-        constexpr bool success() const {
-            return mError == 0;
-        }
-        constexpr bool failed() const {
-            return mError != 0;
-        }
+        constexpr os_error_t error() const { return mError; }
+        constexpr operator bool() const { return mError != 0; }
+        constexpr bool success() const { return mError == 0; }
+        constexpr bool failed() const { return mError != 0; }
 
-        constexpr bool operator==(const OsError &other) const {
-            return mError == other.mError;
-        }
-
-        constexpr bool operator!=(const OsError &other) const {
-            return mError != other.mError;
-        }
+        constexpr bool operator==(const OsError &) const = default;
+        constexpr bool operator!=(const OsError &) const = default;
 
         template<size_t N = 512>
-        SmallString<N> to_string() const {
+        SmallString<N> toString() const {
             char buffer[N];
             if (os_error_get_string(mError, buffer, N) >= N) {
                 buffer[N - 1] = '\0';
@@ -81,8 +69,8 @@ struct fmt::formatter<sm::OsError> {
         return ctx.begin();
     }
 
-    auto format(const sm::OsError &error, fmt::format_context &ctx) const {
-        return format_to(ctx.out(), "{}", error.to_string<512>().c_str());
+    auto format(sm::OsError error, fmt::format_context &ctx) const {
+        return format_to(ctx.out(), "{}", error.toString<512>().c_str());
     }
 };
 

@@ -3,7 +3,7 @@ project('simcoe', [ 'c', 'cpp' ],
     license : 'UNLICENSED',
     version : '1.1.0',
     default_options : [
-        'cpp_std=c++latest',
+        'cpp_std=c++latest,c++23',
 
         'cpp_rtti=false',
         'cpp_eh=none',
@@ -65,14 +65,20 @@ project('simcoe', [ 'c', 'cpp' ],
 
 cpp = meson.get_compiler('cpp')
 cc = meson.get_compiler('c')
+is_windows = host_machine.system() == 'windows'
 
-add_project_arguments('-D_HAS_EXCEPTIONS=0', language : 'cpp')
+if is_windows
+    add_project_arguments('-D_HAS_EXCEPTIONS=0', language : 'cpp')
+    add_project_arguments('-DNOMINMAX', language : [ 'c', 'cpp' ])
+endif
 
 if get_option('tracy_enable')
     add_global_arguments('-DTRACY_ENABLE', language : [ 'c', 'cpp' ])
 endif
 
-add_project_arguments('-DNOMINMAX', language : [ 'c', 'cpp' ])
+dxc_id = is_windows ? 'dxc-windows' : 'dxc-linux'
+dxcompiler_id = is_windows ? 'dxcompiler-windows' : 'dxcompiler-linux'
+
 add_project_arguments(cc.get_supported_arguments('/GS-', '/wd4127', '/wd4324', '/wd4200', '/wd4505'), language : [ 'c', 'cpp' ])
 
 build_type = get_option('buildtype')
@@ -83,7 +89,7 @@ library_type = get_option('default_library')
 # the perfect library
 cthulhu = subproject('cthulhu')
 
-dxc = find_program('dxc', version : '>=1.8')
+dxc = find_program('dxc', dxc_id, version : '>=1.8', native : true)
 msdf_atlas_gen = find_program('msdf-atlas-gen')
 compressonator = find_program('compressonatorcli')
 artery = dependency('artery-font')
@@ -93,7 +99,7 @@ d3d12 = dependency('d3d12')
 d3dx12 = dependency('directx-headers')
 tracy = dependency('tracy')
 
-magick = find_program('magick')
+magick = find_program(['magick', 'convert'])
 convert_utf16 = find_program('scripts/convert_utf16.py')
 
 args = cpp.get_supported_arguments(
@@ -235,6 +241,10 @@ subdir('src/common/system')
 subdir('src/common/world')
 subdir('src/common/threads')
 
+if not is_windows
+    subdir_done()
+endif
+
 subdir('src/common/render')
 subdir('src/common/draw')
 
@@ -251,7 +261,7 @@ subdir('src/common/game')
 # windows specific dependencies
 agility = subproject('d3d12')
 warp = subproject('d3dwarp')
-dxcompiler = subproject('dxc')
+dxcompiler = subproject(dxc_id)
 winpixruntime = subproject('winpixruntime')
 dstorage = subproject('dstorage')
 windows = import('windows')

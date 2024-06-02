@@ -42,7 +42,7 @@ class DefaultSystemError final : public ISystemError {
     void error_begin(OsError error) override {
         mReport = bt_report_new(get_default_arena());
         io_t *io = io_stderr();
-        io_printf(io, "System error detected: (%s)\n", error.to_string().c_str());
+        io_printf(io, "System error detected: (%s)\n", error.toString().c_str());
     }
 
     void error_frame(bt_address_t it) override {
@@ -95,11 +95,11 @@ public:
         : mStore(store)
     { }
 
-    void attach_render(render::IDeviceContext *context) {
+    void attachRenderContext(render::IDeviceContext *context) {
         mContext = context;
     }
 
-    void attach_input(sys::DesktopInput *input) {
+    void attachInput(sys::DesktopInput *input) {
         mInput = input;
     }
 };
@@ -184,7 +184,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     sys::DesktopInput desktop_input{window};
 
     input::InputService input;
-    events.attach_input(&desktop_input);
+    events.attachInput(&desktop_input);
     input.add_source(&desktop_input);
 
     window.show_window(show);
@@ -243,7 +243,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     ClientContext context{render_config};
 
-    events.attach_render(&context);
+    events.attachRenderContext(&context);
     input.add_client(&context.camera);
 
     context.create();

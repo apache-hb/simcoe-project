@@ -13,8 +13,6 @@ src = [
     parse.process('src/ref.y')
 ]
 
-gmp = dependency('gmp', fallback : [ 'mini_gmp', 'gmp' ])
-
 deps = [
     cthulhu.get_variable('interop'),
     cthulhu.get_variable('gmp'),

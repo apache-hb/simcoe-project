@@ -4,7 +4,6 @@
 
 #include "core/adt/vector.hpp"
 #include "core/memory.hpp"
-#include "core/library.hpp"
 
 #include "render.reflect.h"
 

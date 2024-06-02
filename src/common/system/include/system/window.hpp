@@ -67,8 +67,6 @@ namespace sm::sys {
         WindowCoords get_coords() const;
         WindowCoords get_client_coords() const;
 
-        HWND get_handle() const {
-            return mWindow;
-        }
+        HWND get_handle() const { return mWindow; }
     };
 }

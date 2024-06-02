@@ -1,0 +1,13 @@
+[wrap-file]
+directory = linux_dxc_2024_05_24
+
+source_url = https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2405/linux_dxc_2024_05_24.x86_64.tar.gz
+source_filename = linux_dxc_2024_05_24.x86_64.tar.gz
+source_hash = 85d74a5f7e0ad339cae875b5baab04c38218d6ac33960b75f8780fd9d8447ee9
+lead_directory_missing = true
+
+patch_directory = dxc-linux
+
+[provide]
+program_names = dxc-linux
+dependency_names = dxcompiler-linux
