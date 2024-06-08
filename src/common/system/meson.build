@@ -48,6 +48,7 @@ if is_windows
     )
 
     objs = libdelayload.extract_all_objects(recursive : true)
+    deps += [ delayimp ]
 else
     objs = []
 endif

@@ -10,6 +10,7 @@ project('d3d12-agility', 'cpp',
 cpu = host_machine.cpu_family()
 cpp = meson.get_compiler('cpp')
 root = meson.current_source_dir() / 'build/native'
+os = host_machine.system()
 
 if cpu == 'x86_64'
     archdir = 'x64'
@@ -30,13 +31,18 @@ icon = files('icon.png')
 # the system d3dconfig
 d3dconfig = find_program(bindir / 'd3dconfig.exe')
 
-libd3d12 = cpp.find_library('d3d12', dirs : [ '/usr/lib/wsl/lib' ])
+kwargs = { }
+if os == 'linux'
+    kwargs += { 'dirs' : [ '/usr/lib/wsl/lib' ] }
+endif
+
+libd3d12 = cpp.find_library('d3d12', kwargs : kwargs)
 
 d3d12 = declare_dependency(
     dependencies : [
         libd3d12,
-        cpp.find_library('dxgi', required : false),
-        cpp.find_library('dxguid', required : false)
+        cpp.find_library('dxgi', required : os == 'windows'),
+        cpp.find_library('dxguid', required : os == 'windows')
     ]
 )
 

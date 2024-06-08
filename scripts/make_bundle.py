@@ -231,7 +231,8 @@ def copy_redist_files():
 
     copy_redist(redist_dir, 'dxcompiler',
         [ 'dxcompiler.dll', 'dxil.dll' ],
-        [ 'dxcompiler.pdb', 'dxil.pdb' ]
+        [ ] # TODO: its a bit of a pain to get the pdb files now that they're a seperate package
+        #[ 'dxcompiler.pdb', 'dxil.pdb' ]
     )
 
     copy_redist(redist_dir, 'warp',

@@ -2,7 +2,7 @@
 
 // IWYU pragma: begin_exports
 
-#include "core/win32.hpp"
+#include "core/os/console.hpp"
 
 #include "format/colour.h"
 

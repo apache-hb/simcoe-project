@@ -27,7 +27,13 @@ src = [
     'src/allocators/bitmap_allocator.cpp'
 ]
 
-libcore = library('core', src,
+if is_windows
+    src += [ 'src/windows/console.cpp' ]
+else
+    src += [ 'src/linux/console.cpp' ]
+endif
+
+libcore = library('core', src, simcoe_config,
     cpp_args : [ '-DSM_CORE_BUILD=1' ],
     cpp_pch : 'src/stdafx.hpp',
     include_directories : [ 'src', core_include, config_include, reflect_include ],

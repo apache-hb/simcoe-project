@@ -9,7 +9,7 @@ using namespace sm::logs;
 
 class ConsoleChannel final : public logs::ILogChannel {
     char mBuffer[2048];
-    HANDLE mConsoleHandle;
+    os::Console mConsole = os::Console::get();
 
     void acceptMessage(const logs::Message &message) noexcept override {
         size_t length = logs::buildMessageHeaderWithColour(mBuffer, message, kColourDefault);
@@ -18,8 +18,7 @@ class ConsoleChannel final : public logs::ILogChannel {
 
         for (sm::StringView line : logs::splitMessage(message.message)) {
             auto [_, extra] = fmt::format_to_n(start, remaining, " {}\n", line);
-            DWORD written;
-            WriteConsoleA(mConsoleHandle, mBuffer, static_cast<DWORD>(length + extra), &written, nullptr);
+            mConsole.print(std::string_view { start, static_cast<size_t>(length + extra) });
         }
     }
 
@@ -28,12 +27,10 @@ class ConsoleChannel final : public logs::ILogChannel {
     }
 
 public:
-    ConsoleChannel() noexcept {
-        mConsoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
-    }
+    ConsoleChannel() noexcept = default;
 
     constexpr bool isHandleValid() const noexcept {
-        return mConsoleHandle != INVALID_HANDLE_VALUE;
+        return mConsole.valid();
     }
 };
 

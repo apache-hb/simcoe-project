@@ -1,5 +1,6 @@
 project('simcoe', [ 'c', 'cpp' ],
-    # UNLICENSED does not mean public domain, this is my code do not use it
+    # UNLICENSED does not mean public domain, this is my code. please ask me
+    # if you want to make a commercial product with it
     license : 'UNLICENSED',
     version : '1.1.0',
     default_options : [
@@ -14,41 +15,6 @@ project('simcoe', [ 'c', 'cpp' ],
         'unity=subprojects',
         'default_library=static',
         'b_vscrt=static_from_buildtype',
-
-        # prevent system dxc from being used
-        'force_fallback_for=dxc', # TODO: this doesnt seem to actually work. meson bug?
-
-        'tracy:no_frame_image=true',
-        'tracy:callstack=true',
-        'tracy:only_localhost=true',
-
-        'jolt:default_library=static',
-
-        # nobody builds with clean warnings, so disable them per subproject
-        'fmt:warning_level=0',
-        # 'harfbuzz:warning_level=0',
-        # 'freetype2:warning_level=0',
-        'simdjson:warning_level=0',
-        'fastgltf:warning_level=0',
-        'tracy:warning_level=0',
-        'lz4:warning_level=0',
-        'libarchive:warning_level=0',
-        'google-brotli:warning_level=0',
-        'brotli_g_sdk:warning_level=0',
-        'catch2:warning_level=0',
-        'tomlplusplus:warning_level=0',
-
-        'catch2:tests=false',
-
-        # disable everything in cthulhu by default
-        'cthulhu:auto_features=disabled',
-
-        # configure fastgltf
-        'fastgltf:custom_small_vector=true',
-
-        'flecs:default_library=static',
-
-        'libarchive:progs=[]',
 
         # configure freetype before harfbuzz to pick up configuration
         # 'freetype2:auto_features=disabled',
@@ -96,22 +62,11 @@ library_type = get_option('default_library')
 # the perfect library
 cthulhu = subproject('cthulhu')
 
-dxc = find_program('dxc', dxc_id, version : '>=1.8', native : true)
-msdf_atlas_gen = find_program('msdf-atlas-gen')
-compressonator = find_program('compressonatorcli')
-artery = dependency('artery-font')
-fastgltf = dependency('fastgltf')
-
-d3d12 = dependency('d3d12')
-d3dx12 = dependency('directx-headers')
-tracy = dependency('tracy')
-
 magick = find_program(['magick', 'convert'])
 convert_utf16 = find_program('scripts/convert_utf16.py')
 
 args = cpp.get_supported_arguments(
     '-fstrict-aliasing',
-    '-fno-threadsafe-statics',
     '-fno-keep-static-consts',
     '-fmerge-all-constants',
     '/Zc:threadSafeInit-',
@@ -130,7 +85,10 @@ cpp_args = cpp.get_supported_arguments(
     '/wd4201',
     '/wd4244', # weird narrowing stuff i cant be bothered to figure out
     '/wd4702', # unreachable code in fmtlib
-    '-fforce-emit-vtables'
+    '-fforce-emit-vtables',
+    '-fno-threadsafe-statics',
+    '-Wno-pedantic',
+    '-Wno-missing-field-initializers'
 )
 
 if get_option('trace_time')
@@ -213,42 +171,33 @@ config_include = include_directories('.')
 # we vendor fmtlib via a small shim header to hook FMT_THROW(x) into cthulhu's error handling
 subdir('src/vendor/fmtlib')
 
-# reflection tool
-# subdir('src/meta')
-
-# extra_args must contain the name of the target, idk how to get it otherwise
-# meta_tool = generator(find_program('scripts/meta_tool.py'),
-#     output : [ '@BASENAME@.meta.h', '@BASENAME@.meta.cpp' ],
-#     depends : meta_tooling,
-#     arguments : [
-#         '--builddir', meson.global_build_root(),
-#         '--metatool', meta_tooling.full_path(),
-#         '--reflect', '@INPUT@',
-#         '--header', '@OUTPUT0@',
-#         '--source', '@OUTPUT1@',
-#         '--target', '@EXTRA_ARGS@'
-#     ]
-# )
-
 subdir('src/vendor/reflect')
 
 subdir('src/common/core')
 
-# patch dds_texture_loader to use d3d12ma
-# subdir('src/vendor/dds_texture_loader')
-
 subdir('src/common/math')
 subdir('src/common/logs')
 subdir('src/common/config')
-subdir('src/common/archive')
-subdir('src/common/input')
-subdir('src/common/system')
-subdir('src/common/world')
-subdir('src/common/threads')
 
 if not is_windows
     subdir_done()
 endif
+
+subdir('src/common/archive')
+
+dxc = find_program(dxc_id, native : true)
+msdf_atlas_gen = find_program('msdf-atlas-gen')
+compressonator = find_program('compressonatorcli')
+fastgltf = dependency('fastgltf')
+
+d3d12 = dependency('d3d12')
+d3dx12 = dependency('directx-headers')
+tracy = dependency('tracy')
+
+subdir('src/common/input')
+subdir('src/common/system')
+subdir('src/common/world')
+subdir('src/common/threads')
 
 subdir('src/vendor/d3d12ma')
 
@@ -354,7 +303,7 @@ subdir('src/client')
 
 manifest = meson.current_source_dir() / 'data/win32/client.exe.manifest'
 
-client = executable('client', src, game_bundle,
+executable('client', src, game_bundle,
     cpp_pch : pch,
     install : true,
     export_dynamic : true,
@@ -372,7 +321,7 @@ client = executable('client', src, game_bundle,
 
 subdir('src/editor')
 
-editor = executable('editor', src, game_bundle,
+executable('editor', src, game_bundle,
     cpp_pch : pch,
     include_directories : inc,
     install : true,

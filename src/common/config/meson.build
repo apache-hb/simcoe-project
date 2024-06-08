@@ -1,7 +1,7 @@
 inc = include_directories('include')
 tomlplusplus = dependency('tomlplusplus')
 
-deps = [ core, logs ]
+deps = [ core ]
 
 src = [
     'src/legacy_config.cpp',
@@ -15,7 +15,7 @@ libconfig = library('config', src,
     include_directories : inc,
     cpp_args : [ '-DSM_CONFIG_BUILD=1' ],
     cpp_pch : 'src/stdafx.hpp',
-    dependencies : [ deps, tomlplusplus ]
+    dependencies : [ deps, logs, tomlplusplus ]
 )
 
 config = declare_dependency(

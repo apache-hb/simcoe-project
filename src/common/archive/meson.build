@@ -19,14 +19,14 @@ deps = [
     dependency('stb_image'),
     dependency('liblz4'),
     dependency('libarchive'),
-    dependency('brotli_g_sdk')
+    dependency('artery-font')
 ]
 
 libarchive = library('archive', src,
     cpp_args : [ '-DSM_BUNDLE_BUILD=1' ],
     cpp_pch : 'src/stdafx.hpp',
     include_directories : [ archive_include, reflect_include ],
-    dependencies : deps + [ artery ]
+    dependencies : deps
 )
 
 archive = declare_dependency(

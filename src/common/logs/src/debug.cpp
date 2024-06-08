@@ -17,7 +17,7 @@ class DebugChannel final : public logs::ILogChannel {
 
         for (sm::StringView line : logs::splitMessage(message.message)) {
             fmt::format_to_n(start, remaining, " {}\n", line);
-            OutputDebugStringA(mBuffer);
+            os::printDebugMessage(mBuffer);
         }
     }
 
@@ -27,7 +27,7 @@ class DebugChannel final : public logs::ILogChannel {
 };
 
 bool logs::isDebugConsoleAvailable() noexcept {
-    return IsDebuggerPresent();
+    return os::isDebuggerAttached();
 }
 
 ILogChannel& logs::getDebugConsole() noexcept {

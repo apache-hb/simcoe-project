@@ -19,6 +19,8 @@
 !*.build
 !*.txt
 !*.ps1
+!setup.bat
+!setup.sh
 
 # config files
 !*.ini
