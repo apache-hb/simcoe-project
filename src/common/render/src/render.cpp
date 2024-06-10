@@ -1,9 +1,46 @@
 #include "stdafx.hpp"
 
+#include "config/option.hpp"
 #include "render/render.hpp"
 
 using namespace sm;
 using namespace sm::render;
+
+static sm::config::Group gRenderGroup = {
+    name = "render",
+    desc = "Render configuration options",
+};
+
+static sm::opt<std::string> gOverrideLUID = {
+    name = "adapter",
+    desc = "Override the default adapter LUID",
+    group = gRenderGroup
+};
+
+static LUID getOverrideLUID() {
+    CTASSERTF(gOverrideLUID.isSet(), "adapter LUID is not set");
+
+    auto [high, low] = sm::split(gOverrideLUID.getValue(), ':');
+    LUID result { };
+
+    {
+        auto [ptr, ec] = std::from_chars(high.data(), high.data() + high.size(), result.HighPart, 16);
+        if (ec != std::errc()) {
+            gGpuLog.error("failed to parse high part of adapter LUID: {}", high);
+            return { 0, 0 };
+        }
+    }
+
+    {
+        auto [ptr, ec] = std::from_chars(low.data(), low.data() + low.size(), result.LowPart, 16);
+        if (ec != std::errc()) {
+            gGpuLog.error("failed to parse low part of adapter LUID: {}", low);
+            return { 0, 0 };
+        }
+    }
+
+    return result;
+}
 
 #pragma region Storage queue creation and lifetime
 
@@ -184,7 +221,7 @@ void IDeviceContext::create_device(Adapter& adapter) {
         gGpuLog.error("| hresult: {}", hr);
         gGpuLog.error("falling back to warp adapter...");
 
-        auto& warp = mInstance.get_warp_adapter();
+        Adapter& warp = mInstance.getWarpAdapter();
         set_current_adapter(warp);
         SM_ASSERT_HR(D3D12CreateDevice(warp.get(), fl.as_facade(), IID_PPV_ARGS(&mDevice)));
     }
@@ -803,25 +840,23 @@ IDeviceContext::IDeviceContext(const RenderConfig& config)
 { }
 
 void IDeviceContext::create() {
-    if (!mInstance.has_viable_adapter()) {
+    if (!mInstance.hasViableAdapter()) {
         gGpuLog.error("no viable adapter found, exiting...");
         return;
     }
 
     Adapter& adapter = [&] -> Adapter& {
-        if (auto luid = sm::override_adapter_luid(); luid.has_value()) {
-            auto& v = luid.value();
-            if (Adapter *adapter = mInstance.get_adapter_by_luid(v)) {
+        if (gOverrideLUID.isSet()) {
+            LUID luid = getOverrideLUID();
+            if (Adapter *adapter = mInstance.getAdapterByLUID(luid)) {
                 return *adapter;
             }
-
-            gGpuLog.warn("adapter with luid {:x}:{:x} not found, falling back to default adapter", v.HighPart, v.LowPart);
-            return mInstance.get_default_adapter();
+            gGpuLog.warn("adapter with luid {:x}:{:x} not found, falling back to default adapter", luid.HighPart, luid.LowPart);
         } else if (mDebugFlags.test(DebugFlags::eWarpAdapter)) {
-            return mInstance.get_warp_adapter();
-        } else {
-            return mInstance.get_default_adapter();
+            return mInstance.getWarpAdapter();
         }
+
+        return mInstance.getDefaultAdapter();
     }();
 
     PIXSetTargetWindow(mConfig.window.get_handle());

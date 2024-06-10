@@ -57,15 +57,15 @@ static bool draw_adapter_info(render::IDeviceContext& context, const render::Ada
 
 void RenderConfig::draw_adapters() const {
     auto& instance = mContext.mInstance;
-    auto& warp = instance.get_warp_adapter();
+    auto& warp = instance.getWarpAdapter();
 
     if (draw_adapter_info(mContext, warp)) {
         mContext.markDeviceDirty();
         mContext.set_current_adapter(warp);
     }
 
-    for (auto& adapter : instance.get_adapters()) {
-        if (adapter == instance.get_warp_adapter()) continue;
+    for (auto& adapter : instance.adapters()) {
+        if (adapter == instance.getWarpAdapter()) continue;
 
         if (draw_adapter_info(mContext, adapter)) {
             mContext.markDeviceDirty();

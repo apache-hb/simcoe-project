@@ -23,7 +23,8 @@ static void logAdapterInfo(const Adapter &adapter) {
 }
 
 Adapter::Adapter(IDXGIAdapter1 *adapter)
-    : Object(adapter) {
+    : Object(adapter)
+{
     DXGI_ADAPTER_DESC1 desc;
     SM_ASSERT_HR(adapter->GetDesc1(&desc));
 
@@ -42,7 +43,7 @@ Adapter::Adapter(IDXGIAdapter1 *adapter)
     };
 }
 
-bool Instance::enum_by_preference() {
+bool Instance::enumAdaptersByPreference() {
     Object<IDXGIFactory6> factory6;
     if (Result hr = mFactory.query(&factory6); !hr) {
         gGpuLog.warn("failed to query factory6: {}", hr);
@@ -63,7 +64,7 @@ bool Instance::enum_by_preference() {
     return true;
 }
 
-void Instance::enum_adapters() {
+void Instance::enumAdapters() {
     IDXGIAdapter1 *adapter;
     for (UINT i = 0; mFactory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; ++i) {
         auto &it = mAdapters.emplace_back(adapter);
@@ -72,7 +73,7 @@ void Instance::enum_adapters() {
     }
 }
 
-void Instance::enum_warp_adapter() {
+void Instance::findWarpAdapter() {
     IDXGIAdapter1 *adapter;
     if (Result hr = mFactory->EnumWarpAdapter(IID_PPV_ARGS(&adapter)); !hr) {
         gGpuLog.warn("failed to enum warp adapter: {}", hr);
@@ -84,7 +85,7 @@ void Instance::enum_warp_adapter() {
     logAdapterInfo(mWarpAdapter);
 }
 
-void Instance::enable_leak_tracking() {
+void Instance::enableDebugLeakTracking() {
     if (Result hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&mDebug))) {
         mDebug->EnableLeakTrackingForThread();
     } else {
@@ -92,7 +93,7 @@ void Instance::enable_leak_tracking() {
     }
 }
 
-void Instance::query_tearing_support() {
+void Instance::queryTearingSupport() {
     Object<IDXGIFactory5> factory;
     if (Result hr = mFactory.query(&factory); !hr) {
         gGpuLog.warn("failed to query factory5: {}", hr);
@@ -108,7 +109,7 @@ void Instance::query_tearing_support() {
     mTearingSupport = tearing;
 }
 
-void Instance::load_warp_redist() {
+void Instance::loadWarpRedist() {
 #if SMC_WARP_ENABLE
     mWarpLibrary = sm::get_redist("d3d10warp.dll");
     if (OsError err = mWarpLibrary.get_error()) {
@@ -119,7 +120,7 @@ void Instance::load_warp_redist() {
 #endif
 }
 
-void Instance::load_pix_runtime() {
+void Instance::loadPIXRuntime() {
 #if SMC_PIX_ENABLE
     if (PIXLoadLatestWinPixGpuCapturerLibrary()) {
         gGpuLog.info("loaded pix runtime");
@@ -137,25 +138,25 @@ Instance::Instance(InstanceConfig config)
     const UINT flags = debug ? DXGI_CREATE_FACTORY_DEBUG : 0;
     SM_ASSERT_HR(CreateDXGIFactory2(flags, IID_PPV_ARGS(&mFactory)));
 
-    query_tearing_support();
+    queryTearingSupport();
     gGpuLog.info("tearing support: {}", mTearingSupport);
 
     if (debug)
-        enable_leak_tracking();
+        enableDebugLeakTracking();
 
     gGpuLog.info("instance config");
     gGpuLog.info("| flags: {}", mFlags);
 
-    load_warp_redist();
+    loadWarpRedist();
 
     if (mFlags.test(DebugFlags::eWinPixEventRuntime)) {
-        load_pix_runtime();
+        loadPIXRuntime();
     }
 
-    enum_warp_adapter();
+    findWarpAdapter();
 
-    if (!enum_by_preference())
-        enum_adapters();
+    if (!enumAdaptersByPreference())
+        enumAdapters();
 }
 
 Instance::~Instance() {
@@ -165,15 +166,15 @@ Instance::~Instance() {
     }
 }
 
-sm::Vector<Adapter> &Instance::get_adapters() {
+std::span<Adapter> Instance::adapters() noexcept {
     return mAdapters;
 }
 
-bool Instance::has_viable_adapter() const {
+bool Instance::hasViableAdapter() const noexcept {
     return mWarpAdapter.isValid() || !mAdapters.empty();
 }
 
-Adapter *Instance::get_adapter_by_luid(LUID luid) {
+Adapter *Instance::getAdapterByLUID(LUID luid) noexcept {
     for (auto &adapter : mAdapters) {
         if (adapter.luid() == luid)
             return std::addressof(adapter);
@@ -181,26 +182,26 @@ Adapter *Instance::get_adapter_by_luid(LUID luid) {
     return nullptr;
 }
 
-Adapter& Instance::get_warp_adapter() {
+Adapter& Instance::getWarpAdapter() noexcept {
     return mWarpAdapter;
 }
 
-Adapter& Instance::get_default_adapter() {
-    return mAdapters.empty() ? get_warp_adapter() : mAdapters.front();
+Adapter& Instance::getDefaultAdapter() noexcept {
+    return mAdapters.empty() ? getWarpAdapter() : mAdapters.front();
 }
 
-Object<IDXGIFactory4> &Instance::factory() {
+Object<IDXGIFactory4> &Instance::factory() noexcept {
     return mFactory;
 }
 
-const DebugFlags &Instance::flags() const {
+const DebugFlags &Instance::flags() const noexcept {
     return mFlags;
 }
 
-bool Instance::isTearingSupported() const {
+bool Instance::isTearingSupported() const noexcept {
     return mTearingSupport;
 }
 
-bool Instance::debug_support() const {
+bool Instance::isDebugEnabled() const noexcept {
     return mFlags.test(DebugFlags::eFactoryDebug);
 }

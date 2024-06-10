@@ -234,3 +234,42 @@ TEST_CASE("cvar numeric ranges are within their values bounds") {
     checkRangeOption<unsigned short>("an unsigned short option", 0, std::numeric_limits<unsigned short>::max());
     checkRangeOption<short>("a short option", std::numeric_limits<short>::min(), std::numeric_limits<short>::max());
 }
+
+TEST_CASE("enum options") {
+    GIVEN("an enum option") {
+        enum class TestEnum {
+            eValue1,
+            eValue2,
+            eValue3
+        };
+
+        sm::config::Option<TestEnum> enumOpt {
+            name = "enum-opt",
+            desc = "test description",
+            init = TestEnum::eValue2,
+            options = {
+                val(TestEnum::eValue1) = "value1",
+                val(TestEnum::eValue2) = "value2",
+                val(TestEnum::eValue3) = "value3"
+            }
+        };
+
+        THEN("it initializes correctly") {
+            CHECK(enumOpt.name == "enum-opt");
+            CHECK(enumOpt.description == "test description");
+            CHECK(enumOpt.getInitialValue() == TestEnum::eValue2);
+            CHECK(enumOpt.getValue() == TestEnum::eValue2);
+        }
+
+        THEN("the values it contains are correct") {
+            auto values = enumOpt.getCommonOptions();
+            CHECK(values.size() == 3);
+            CHECK(values[0].name == "value1");
+            CHECK(values[0].value == std::to_underlying(TestEnum::eValue1));
+            CHECK(values[1].name == "value2");
+            CHECK(values[1].value == std::to_underlying(TestEnum::eValue2));
+            CHECK(values[2].name == "value3");
+            CHECK(values[2].value == std::to_underlying(TestEnum::eValue3));
+        }
+    }
+}

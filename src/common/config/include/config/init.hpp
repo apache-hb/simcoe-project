@@ -63,13 +63,6 @@ namespace sm::config {
         }
     };
 
-    constexpr auto val(auto value) {
-        using T = decltype(value);
-        using Builder = EnumValueBuilder<T>;
-
-        return Builder{value};
-    }
-
     struct OptionWrapper {
         template<typename T>
         constexpr auto operator=(std::initializer_list<EnumValue<T>> values) const {

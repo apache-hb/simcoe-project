@@ -15,6 +15,8 @@
 #include "draw/draw.hpp"
 #include "render/render.hpp"
 
+#include "config/option.hpp"
+
 using namespace sm;
 using namespace math;
 
@@ -330,6 +332,11 @@ int main(int argc, const char **argv) {
 
     if (!sm::parse_command_line(argc, argv, sys::get_appdir())) {
         return 0;
+    }
+
+    auto& ctx = sm::config::cvars();
+    if (auto result = ctx.updateFromCommandLine(argc, argv); result.hasErrors()) {
+
     }
 
     return common_main(sys::ShowWindow::eShow);

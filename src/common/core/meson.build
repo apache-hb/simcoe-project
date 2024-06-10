@@ -58,6 +58,13 @@ coretest = declare_dependency(
     ]
 )
 
+test('string utils',
+    executable('core-string', 'test/string.cpp',
+        dependencies : [ core, coretest ]
+    ),
+    suite : 'core'
+)
+
 test('zstring view',
     executable('core-adt-zstring-view', 'test/adt/zstring_view.cpp',
         dependencies : [ core, coretest ]

@@ -83,3 +83,41 @@ TEST_CASE("config files update options") {
         }
     }
 }
+
+#if 0
+enum TestEnum {
+    eFirst, eSecond, eThird
+};
+
+TEST_CASE("config file and enum options") {
+    Option<TestEnum> opt1 {
+        name = "opt1",
+        desc = "test description",
+        options = {
+            val(TestEnum::eFirst) = "first",
+            val(TestEnum::eSecond) = "second",
+            val(TestEnum::eThird) = "third"
+        }
+    };
+
+    Context ctx;
+
+    GIVEN("a config file with valid values") {
+        std::istringstream is {
+            R"(
+            [general]
+            opt1 = "second"
+            )"
+        };
+
+        ctx.addToGroup(&opt1, &getCommonGroup());
+
+        auto result = ctx.updateFromConfigFile(is);
+
+        THEN("it updates the option correctly") {
+            CHECK(result.errors.empty());
+            CHECK(opt1.getValue() == TestEnum::eSecond);
+        }
+    }
+}
+#endif

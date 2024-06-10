@@ -6,4 +6,7 @@
 #include <toml++/toml.hpp>
 #include <fmtlib/format.h>
 
+#include <ranges>
+#include <string_view>
+
 // IWYU pragma: end_exports

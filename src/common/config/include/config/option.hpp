@@ -4,6 +4,7 @@
 
 #include <atomic>
 #include <mutex>
+#include <span>
 #include <string_view>
 #include <unordered_map>
 
@@ -24,6 +25,12 @@ namespace sm::config {
 
     namespace detail {
         template<typename T>
+        concept SignedEnum = std::is_enum_v<T> && std::is_signed_v<__underlying_type(T)>;
+
+        template<typename T>
+        concept UnsignedEnum = std::is_enum_v<T> && std::is_unsigned_v<__underlying_type(T)>;
+
+        template<typename T>
         constexpr inline OptionType kOptionType = OptionType::eUnknown;
 
         template<std::signed_integral T>
@@ -41,8 +48,32 @@ namespace sm::config {
         template<>
         constexpr inline OptionType kOptionType<std::string> = OptionType::eString;
 
-        template<typename T> requires (std::is_enum_v<T> || std::is_scoped_enum_v<T>)
-        constexpr inline OptionType kOptionType<T> = OptionType::eEnum;
+        template<SignedEnum T>
+        constexpr inline OptionType kOptionType<T> = OptionType::eSignedEnum;
+
+        template<UnsignedEnum T>
+        constexpr inline OptionType kOptionType<T> = OptionType::eUnsignedEnum;
+
+        template<typename T>
+        constexpr inline OptionType kEnumOptionType = OptionType::eUnknown;
+
+        template<std::signed_integral T>
+        constexpr inline OptionType kEnumOptionType<T> = OptionType::eSignedEnum;
+
+        template<std::unsigned_integral T>
+        constexpr inline OptionType kEnumOptionType<T> = OptionType::eUnsignedEnum;
+
+        template<typename T>
+        struct EnumInnerType { using Type = void; };
+
+        template<SignedEnum T>
+        struct EnumInnerType<T> { using Type = int64_t; };
+
+        template<UnsignedEnum T>
+        struct EnumInnerType<T> { using Type = uint64_t; };
+
+        template<typename T>
+        concept IsValidEnum = std::is_enum_v<T> && !std::is_same_v<EnumInnerType<T>, void>;
 
         struct ConfigBuilder {
             std::string_view name;
@@ -102,6 +133,12 @@ namespace sm::config {
 
     struct UpdateResult {
         std::vector<UpdateError> errors;
+
+        bool hasErrors() const noexcept { return !errors.empty(); }
+
+        void addError(UpdateStatus status, std::string message) noexcept {
+            errors.emplace_back(UpdateError{status, std::move(message)});
+        }
     };
 
     class Group {
@@ -132,7 +169,10 @@ namespace sm::config {
             eHidden = 1u << 1,
 
             // flag has been set by a configuration source
-            eIsSet = 1u << 2
+            eIsSet = 1u << 2,
+
+            // this is an enum bitflags
+            eIsEnumFlags = 1u << 3
         };
 
         unsigned mFlags = eNone;
@@ -143,6 +183,7 @@ namespace sm::config {
         OptionBase(detail::OptionBuilder config, OptionType type) noexcept;
 
         void notifySet() noexcept { mFlags |= eIsSet; }
+        void notifyEnumFlags() noexcept { mFlags |= eIsEnumFlags; }
 
     public:
         SM_NOCOPY(OptionBase);
@@ -157,6 +198,8 @@ namespace sm::config {
         bool isHidden() const noexcept { return mFlags & eHidden; }
 
         bool isSet() const noexcept { return mFlags & eIsSet; }
+
+        bool isEnumFlags() const noexcept { return mFlags & eIsEnumFlags; }
     };
 
     class Context {
@@ -185,7 +228,15 @@ namespace sm::config {
     Context& cvars() noexcept;
 
     namespace detail {
+        // NumericOptionValue and EnumOptionValue can only contain these types
+        // this simplifies the implementation significantly.
         template<typename T>
+        concept ValidNumericType
+            =  std::is_same_v<T, int64_t>
+            || std::is_same_v<T, uint64_t>
+            || std::is_same_v<T, double>;
+
+        template<ValidNumericType T>
         class NumericOptionValue : public OptionBase {
             std::atomic<T> mValue;
             const T mInitialValue;
@@ -227,6 +278,63 @@ namespace sm::config {
             T getCommonInitialValue() const noexcept { return mInitialValue; }
 
             Range<T> getCommonRange() const noexcept { return mRange; }
+
+            void setCommonValue(T value) noexcept {
+                mValue.store(value);
+                notifySet();
+            }
+        };
+
+        template<ValidNumericType T>
+        class EnumOptionValue : public OptionBase {
+            using Options = OptionList<T>;
+
+            std::atomic<T> mValue;
+
+            const T mInitialValue;
+            const Options mValues;
+
+        protected:
+            struct Builder : public detail::OptionBuilder {
+                using detail::OptionBuilder::init;
+
+                T initial{};
+
+                Options options;
+                bool bitflags = false;
+
+                void init(EnumOptions<T> it) noexcept {
+                    options = it.options;
+                    bitflags = false;
+                }
+
+                void init(EnumFlags<T> it) noexcept {
+                    options = it.options;
+                    bitflags = true;
+                }
+            };
+
+            EnumOptionValue(Builder builder) noexcept
+                : OptionBase(builder, kEnumOptionType<T>)
+                , mValue(builder.initial)
+                , mInitialValue(builder.initial)
+                , mValues(builder.options)
+            {
+                notifyEnumFlags();
+            }
+        public:
+            using UnderlyingType = T;
+
+            EnumOptionValue(auto&&... args) noexcept
+                : EnumOptionValue(detail::buildOptionKwargs<Builder, T>(args...))
+            { }
+
+            T getCommonValue() const noexcept { return mValue.load(); }
+            T getCommonInitialValue() const noexcept { return mInitialValue; }
+
+            std::span<const EnumValue<T>> getCommonOptions() const noexcept {
+                return mValues;
+            }
 
             void setCommonValue(T value) noexcept {
                 mValue.store(value);
@@ -340,6 +448,26 @@ namespace sm::config {
         using Super::Super;
     };
 
+    class SignedEnumOption : public detail::EnumOptionValue<int64_t> {
+        using Super = detail::EnumOptionValue<int64_t>;
+
+    protected:
+        using Builder = Super::Builder;
+
+    public:
+        using Super::Super;
+    };
+
+    class UnsignedEnumOption : public detail::EnumOptionValue<uint64_t> {
+        using Super = detail::EnumOptionValue<uint64_t>;
+
+    protected:
+        using Builder = Super::Builder;
+
+    public:
+        using Super::Super;
+    };
+
     template<typename T>
     class Option {
         static_assert(!sizeof(T*), "unsupported type");
@@ -368,7 +496,7 @@ namespace sm::config {
             using Super::Super;
 
             NumericOption(auto&&... args) noexcept
-                : S(detail::buildOptionKwargs<Builder, T>(Range<T>{}, args...))
+                : Super(detail::buildOptionKwargs<Builder, T>(Range<T>{}, args...))
             { }
 
             T getValue() const noexcept { return static_cast<T>(Super::getCommonValue()); }
@@ -379,6 +507,38 @@ namespace sm::config {
 
                 return Range<T>{static_cast<T>(min), static_cast<T>(max)};
             }
+        };
+
+        template<typename T, typename S>
+        class EnumOption : public S {
+            using Super = S;
+
+        protected:
+            struct Builder : public Super::Builder {
+                using Super::Builder::init;
+
+                void init(InitialValue<T> it) noexcept {
+                    using UnderlyingType = typename Super::UnderlyingType;
+                    this->initial = static_cast<UnderlyingType>(it.value);
+                }
+            };
+
+            // Builder cannot implicitly convert to Super::Builder in a way
+            // that prevents overload resolution picking auto&&... instead.
+            // so this explicitly casts the builder to its superclass.
+            EnumOption(Builder builder) noexcept
+                : Super((typename Super::Builder)builder)
+            { }
+
+        public:
+            using Super::Super;
+
+            EnumOption(auto&&... args) noexcept
+                : EnumOption(detail::buildOptionKwargs<Builder, T>(args...))
+            { }
+
+            T getValue() const noexcept { return static_cast<T>(Super::getCommonValue()); }
+            T getInitialValue() const noexcept { return static_cast<T>(Super::getCommonInitialValue()); }
         };
     }
 
@@ -426,6 +586,28 @@ namespace sm::config {
         using Super::Super;
     };
 
+    template<detail::SignedEnum T>
+    class Option<T> : public detail::EnumOption<T, SignedEnumOption> {
+        using Super = detail::EnumOption<T, SignedEnumOption>;
+
+    protected:
+        using Builder = Super::Builder;
+
+    public:
+        using Super::Super;
+    };
+
+    template<detail::UnsignedEnum T>
+    class Option<T> : public detail::EnumOption<T, UnsignedEnumOption> {
+        using Super = detail::EnumOption<T, UnsignedEnumOption>;
+
+    protected:
+        using Builder = Super::Builder;
+
+    public:
+        using Super::Super;
+    };
+
     template<typename T>
     struct ConsoleVariable : public config::Option<T> {
         using Super = config::Option<T>;
@@ -443,8 +625,6 @@ namespace sm::config {
     };
 
     extern template struct ConsoleVariable<bool>;
-    extern template struct ConsoleVariable<int>;
-    extern template struct ConsoleVariable<unsigned>;
     extern template struct ConsoleVariable<float>;
     extern template struct ConsoleVariable<double>;
     extern template struct ConsoleVariable<std::string>;
@@ -455,13 +635,21 @@ namespace sm {
     constinit inline config::ValueWrapper<config::InitialValue> init{};
     constinit inline config::ValueWrapper<config::Range>        range{};
     constinit inline config::OptionWrapper                      options{};
-    constinit inline config::ValueWrapper<config::EnumFlags>    flags{};
+    constinit inline config::FlagsWrapper                       flags{};
 
     constinit inline config::ConfigWrapper<config::ReadOnly,    bool>             readonly{};
     constinit inline config::ConfigWrapper<config::Hidden,      bool>             hidden{};
     constinit inline config::ConfigWrapper<config::Name,        std::string_view> name{};
     constinit inline config::ConfigWrapper<config::Description, std::string_view> desc{};
     constinit inline config::ConfigWrapper<config::Category,    config::Group&>   group{};
+
+    template<config::detail::IsValidEnum T> requires (__is_enum(T))
+    constexpr auto val(T value) {
+        using Inner = typename config::detail::EnumInnerType<T>::Type;
+        using Builder = config::EnumValueBuilder<Inner>;
+
+        return Builder{static_cast<Inner>(value)};
+    }
 
     template<typename T>
     using opt = config::ConsoleVariable<T>;

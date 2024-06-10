@@ -11,34 +11,27 @@ static UpdateResult testCommandLine(config::Context& ctx, std::initializer_list<
     return ctx.updateFromCommandLine(argc, argv);
 }
 
+static void reportContextErrors(const UpdateResult& err, bool shouldPass) {
+    if (shouldPass) {
+        CHECK(err.errors.empty());
+    } else {
+        CHECK(!err.errors.empty());
+    }
+
+    if (shouldPass) {
+        for (const auto& err : err.errors) {
+            fmt::print("Error: {}\n", err.message);
+        }
+    }
+}
+
 static void testVariants(config::Context& ctx, const char *optName, const char *optValue, bool shouldPass, auto cb) {
-    auto testErrorResult = [&](const UpdateResult& err) {
-        bool printErrs = false;
-        if (shouldPass) {
-            CHECK(err.errors.empty());
-            if (!err.errors.empty()) {
-                printErrs = true;
-            }
-        } else {
-            CHECK(!err.errors.empty());
-            if (err.errors.empty()) {
-                printErrs = true;
-            }
-        }
-
-        if (printErrs) {
-            for (const auto& err : err.errors) {
-                fmt::print("Error: {}\n", err.message);
-            }
-        }
-    };
-
     GIVEN("a unix flag") {
         std::string opt = fmt::format("--{}", optName);
         auto err = testCommandLine(ctx, { "test", opt.c_str(), optValue });
         cb();
 
-        testErrorResult(err);
+        reportContextErrors(err, shouldPass);
     }
 
     GIVEN("a unix flag assigned value") {
@@ -46,7 +39,7 @@ static void testVariants(config::Context& ctx, const char *optName, const char *
         auto err = testCommandLine(ctx, { "test", opt.c_str() });
         cb();
 
-        testErrorResult(err);
+        reportContextErrors(err, shouldPass);
     }
 
     GIVEN("a dos flag") {
@@ -54,7 +47,7 @@ static void testVariants(config::Context& ctx, const char *optName, const char *
         auto err = testCommandLine(ctx, { "test", opt.c_str(), optValue });
         cb();
 
-        testErrorResult(err);
+        reportContextErrors(err, shouldPass);
     }
 
     GIVEN("a dos flag assigned value") {
@@ -62,7 +55,7 @@ static void testVariants(config::Context& ctx, const char *optName, const char *
         auto err = testCommandLine(ctx, { "test", opt.c_str() });
         cb();
 
-        testErrorResult(err);
+        reportContextErrors(err, shouldPass);
     }
 }
 
@@ -457,5 +450,135 @@ TEST_CASE("parsing a command line") {
                 CHECK(opt.isSet());
             }
         });
+    }
+}
+
+enum TestEnum {
+    eFirst, eSecond, eThird
+};
+
+TEST_CASE("command line and enum options") {
+
+    GIVEN("a valid value") {
+        Option<TestEnum> opt1 {
+            name = "opt1",
+            desc = "test description",
+            options = {
+                val(TestEnum::eFirst) = "first",
+                val(TestEnum::eSecond) = "second",
+                val(TestEnum::eThird) = "third"
+            },
+            init = TestEnum::eFirst
+        };
+
+        Context ctx;
+        ctx.addToGroup(&opt1, &getCommonGroup());
+
+        reportContextErrors(testCommandLine(ctx, { "test", "--opt1=second" }), true);
+
+        THEN("it updates the option correctly") {
+            CHECK(opt1.getValue() == TestEnum::eSecond);
+            CHECK(opt1.isSet());
+        }
+    }
+
+    GIVEN("an invalid value") {
+        Option<TestEnum> opt1 {
+            name = "opt1",
+            desc = "test description",
+            options = {
+                val(TestEnum::eFirst) = "first",
+                val(TestEnum::eSecond) = "second",
+                val(TestEnum::eThird) = "third"
+            }
+        };
+
+        Context ctx;
+
+        ctx.addToGroup(&opt1, &getCommonGroup());
+
+        reportContextErrors(testCommandLine(ctx, { "test", "--opt1=invalid" }), false);
+
+        THEN("it does not update the option") {
+            CHECK(opt1.getValue() == TestEnum::eFirst);
+            CHECK(!opt1.isSet());
+        }
+    }
+
+    enum TestFlags {
+        eEmpty = 0,
+        eFlag1 = 1 << 0,
+        eFlag2 = 1 << 1,
+        eFlag3 = 1 << 2
+    };
+
+    GIVEN("a bitflag option") {
+        Option<TestFlags> opt1 {
+            name = "opt1",
+            desc = "test description",
+            flags = {
+                val(TestFlags::eFlag1) = "first",
+                val(TestFlags::eFlag2) = "second",
+                val(TestFlags::eFlag3) = "third"
+            },
+            init = TestFlags::eEmpty
+        };
+
+        Context ctx;
+        ctx.addToGroup(&opt1, &getCommonGroup());
+
+        reportContextErrors(testCommandLine(ctx, { "test", "--opt1=second,third" }), true);
+
+        THEN("it updates the option correctly") {
+            CHECK(opt1.getValue() == (TestFlags::eFlag2 | TestFlags::eFlag3));
+            CHECK(opt1.isSet());
+        }
+    }
+
+    GIVEN("negating bitflag option") {
+        Option<TestFlags> opt1 {
+            name = "opt1",
+            desc = "test description",
+            flags = {
+                val(TestFlags::eFlag1) = "first",
+                val(TestFlags::eFlag2) = "second",
+                val(TestFlags::eFlag3) = "third"
+            },
+            init = TestFlags::eFlag2
+        };
+
+        Context ctx;
+        ctx.addToGroup(&opt1, &getCommonGroup());
+
+        reportContextErrors(testCommandLine(ctx, { "test", "--opt1=third,-second" }), true);
+
+        THEN("it updates the option correctly") {
+            CHECK(opt1.getValue() == TestFlags::eFlag3);
+            CHECK(opt1.isSet());
+        }
+    }
+
+    GIVEN("multiple bitflag usages") {
+        Option<TestFlags> opt1 {
+            name = "opt1",
+            desc = "test description",
+            flags = {
+                val(TestFlags::eFlag1) = "first",
+                val(TestFlags::eFlag2) = "second",
+                val(TestFlags::eFlag3) = "third"
+            },
+            init = TestFlags::eFlag2
+        };
+
+        Context ctx;
+        ctx.addToGroup(&opt1, &getCommonGroup());
+
+        // TODO: is this the behaviour we want?
+        reportContextErrors(testCommandLine(ctx, { "test", "--opt1=third", "--opt1=-second" }), true);
+
+        THEN("it updates the option correctly") {
+            CHECK(opt1.getValue() == TestFlags::eFlag3);
+            CHECK(opt1.isSet());
+        }
     }
 }

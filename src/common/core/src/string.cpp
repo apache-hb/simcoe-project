@@ -113,3 +113,12 @@ String sm::trimIndent(StringView str) {
 
     return result;
 }
+
+StringPair sm::split(StringView str, char delim) {
+    size_t index = str.find(delim);
+    if (index == StringView::npos) {
+        return {str, {}};
+    }
+
+    return {str.substr(0, index), str.substr(index + 1)};
+}

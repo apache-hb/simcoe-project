@@ -94,29 +94,30 @@ namespace sm::render {
         Library mWarpLibrary;
 #endif
 
-        void enable_leak_tracking();
-        void query_tearing_support();
+        void enableDebugLeakTracking();
+        void queryTearingSupport();
 
-        bool enum_by_preference();
-        void enum_warp_adapter();
-        void enum_adapters();
+        bool enumAdaptersByPreference();
+        void findWarpAdapter();
+        void enumAdapters();
 
-        void load_warp_redist();
-        void load_pix_runtime();
+        void loadWarpRedist();
+        void loadPIXRuntime();
 
     public:
         Instance(InstanceConfig config);
         ~Instance();
 
-        sm::Vector<Adapter> &get_adapters();
-        Object<IDXGIFactory4> &factory();
-        const DebugFlags &flags() const;
-        bool isTearingSupported() const;
-        bool debug_support() const;
-        bool has_viable_adapter() const;
+        std::span<Adapter> adapters() noexcept;
+        Object<IDXGIFactory4> &factory() noexcept;
+        const DebugFlags &flags() const noexcept;
 
-        Adapter *get_adapter_by_luid(LUID luid);
-        Adapter& get_warp_adapter();
-        Adapter& get_default_adapter();
+        bool isTearingSupported() const noexcept;
+        bool isDebugEnabled() const noexcept;
+        bool hasViableAdapter() const noexcept;
+
+        Adapter *getAdapterByLUID(LUID luid) noexcept;
+        Adapter& getWarpAdapter() noexcept;
+        Adapter& getDefaultAdapter() noexcept;
     };
 } // namespace sm::render

@@ -24,4 +24,11 @@ namespace sm {
     WideString widen(std::string_view str);
 
     String trimIndent(StringView str);
+
+    struct StringPair {
+        std::string_view left;
+        std::string_view right;
+    };
+
+    StringPair split(StringView str, char delim);
 }

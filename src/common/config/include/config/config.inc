@@ -8,8 +8,8 @@ OPTION_TYPE(eSigned, "signed")
 OPTION_TYPE(eUnsigned, "unsigned")
 OPTION_TYPE(eReal, "real")
 OPTION_TYPE(eString, "string")
-OPTION_TYPE(eEnum, "enum")
-OPTION_TYPE(eFlags, "flags")
+OPTION_TYPE(eSignedEnum, "enum")
+OPTION_TYPE(eUnsignedEnum, "enum")
 
 #undef OPTION_TYPE
 

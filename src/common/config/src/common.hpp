@@ -44,4 +44,17 @@ namespace sm::config::detail {
 
         return true;
     }
+
+    template<typename T>
+    const T *getEnumValue(std::span<const EnumValue<T>> options, std::string_view name) {
+        fmt::println("options.size: {}", options.size());
+        for (const auto& option : options) {
+            fmt::println("option.name: {} search: {}", option.name, name);
+            if (option.name == name) {
+                return &option.value;
+            }
+        }
+
+        return nullptr;
+    }
 }
