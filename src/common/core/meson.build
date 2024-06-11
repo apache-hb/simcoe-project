@@ -92,3 +92,10 @@ test('priority queue',
     ),
     suite : 'core'
 )
+
+test('symbol names',
+    executable('core-symbol-names', 'test/symbols.cpp',
+        dependencies : [ core, coretest ]
+    ),
+    suite : 'core'
+)

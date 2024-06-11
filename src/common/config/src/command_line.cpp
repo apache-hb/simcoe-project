@@ -151,18 +151,20 @@ struct CommandLineParser {
         if (option->isEnumFlags()) {
             for (const auto part : std::views::split(arg, ","sv)) {
                 std::string_view word{part.begin(), part.end()};
-                bool set = true;
+                bool shouldSetFlag = [&] {
+                    if (word.starts_with('-')) {
+                        word.remove_prefix(1);
+                        return false;
+                    } else if (word.starts_with('+')) {
+                        word.remove_prefix(1);
+                    }
 
-                if (word.starts_with('-')) {
-                    set = false;
-                    word.remove_prefix(1);
-                } else if (word.starts_with('+')) {
-                    word.remove_prefix(1);
-                }
+                    return true;
+                }();
 
                 if (const auto *enumValue = config::detail::getEnumValue(options, word)) {
                     auto value = option->getCommonValue();
-                    if (set)
+                    if (shouldSetFlag)
                         value |= *enumValue;
                     else
                         value &= ~(*enumValue);
