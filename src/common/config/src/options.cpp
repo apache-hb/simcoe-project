@@ -1,5 +1,6 @@
 #include "stdafx.hpp"
 #include "core/core.hpp"
+#include "core/error.hpp"
 
 #include "config/option.hpp"
 
@@ -21,6 +22,14 @@ Group& config::getCommonGroup() noexcept {
     return instance;
 }
 
+void UpdateResult::vfmtError(UpdateStatus status, fmt::string_view fmt, fmt::format_args args) noexcept {
+    addError(status, fmt::vformat(fmt, args));
+}
+
+void UpdateResult::addError(UpdateStatus status, std::string message) noexcept {
+    mErrors.emplace_back(UpdateError{status, std::move(message)});
+}
+
 constexpr std::string_view getOptionTypeName(OptionType type) noexcept {
     switch (type) {
 #define OPTION_TYPE(ID, STR) case OptionType::ID: return STR;
@@ -37,9 +46,7 @@ void Context::addToGroup(OptionBase *cvar, Group* group) noexcept {
     // its lifetime may not have started yet
 
 #if SMC_DEBUG
-    if (mArgLookup.find(cvar->name) != mArgLookup.end()) {
-        CT_NEVER("cvar %s already exists", cvar->name.data());
-    }
+    SM_ASSERTF(mArgLookup.find(cvar->name) == mArgLookup.end(), "cvar {} already exists", cvar->name);
 #endif
 
     mGroups[group].options.push_back(cvar);
@@ -61,7 +68,7 @@ Context& config::cvars() noexcept {
 }
 
 void OptionBase::verifyType(OptionType otherType) const noexcept {
-    CTASSERTF(type == otherType, "this (%s of %s) is not of type %s", name.data(), getOptionTypeName(type).data(), getOptionTypeName(otherType).data());
+    SM_ASSERTF(type == otherType, "this ({} of {}) is not of type {}", name, getOptionTypeName(type), getOptionTypeName(otherType));
 }
 
 OptionBase::OptionBase(detail::OptionBuilder config, OptionType type) noexcept

@@ -35,7 +35,7 @@ TEST_CASE("config files update options") {
         auto result = ctx.updateFromConfigFile(is);
 
         THEN("it updates the options correctly") {
-            CHECK(result.errors.empty());
+            CHECK(result.isSuccess());
             CHECK(opt1.getValue() == true);
             CHECK(opt2.getValue() == 42);
             CHECK(opt3.getValue() == 3.14f);
@@ -75,7 +75,7 @@ TEST_CASE("config files update options") {
         auto result = ctx.updateFromConfigFile(is);
 
         THEN("it updates the options correctly") {
-            CHECK(result.errors.empty());
+            CHECK(result.isSuccess());
             CHECK(opt1.getValue() == true);
             CHECK(opt2.getValue() == 42);
             CHECK(opt3.getValue() == 3.14f);

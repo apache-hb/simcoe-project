@@ -8,5 +8,12 @@
 
 #include <ranges>
 #include <string_view>
+#include <atomic>
+#include <mutex>
+#include <span>
+#include <unordered_map>
+
+#include "core/adt/bitset.hpp"
+#include "core/core.hpp"
 
 // IWYU pragma: end_exports

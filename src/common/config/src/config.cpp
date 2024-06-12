@@ -24,21 +24,18 @@ static std::string_view getNodeTypeString(toml::node_type type) noexcept {
 }
 
 struct ConfigFileSource {
-    UpdateResult result;
+    UpdateResult& result;
     std::unordered_map<std::string_view, OptionBase*> *argLookup;
     std::unordered_map<std::string_view, Group*> *groupLookup;
 
     void reportInvalidType(std::string_view key, std::string_view expected, toml::node_type found) {
-        result.addError(
-            UpdateStatus::eInvalidValue,
-            fmt::format("invalid value for {}. expected {} found {}", key, expected, getNodeTypeString(found))
-        );
+        result.fmtError(UpdateStatus::eInvalidValue, "invalid value for {}. expected {} found {}", key, expected, getNodeTypeString(found));
     }
 
     template<typename T, typename O>
     void checkedOptionUpdate(const toml::node& node, O& option, std::string_view key, toml::node_type expected) {
         if (const toml::value<T> *v = node.as<T>()) {
-            detail::updateOption(result, option, v->get());
+            config::detail::updateOption(result, option, v->get());
         } else {
             reportInvalidType(key, getNodeTypeString(expected), node.type());
         }
@@ -46,21 +43,20 @@ struct ConfigFileSource {
 
     void updateFromTable(Group *group, std::string_view key, const toml::table& table) noexcept {
         if (group == nullptr) {
-            result.addError(UpdateStatus::eMissingValue, fmt::format("no group named {}", key));
+            result.fmtError(UpdateStatus::eMissingValue, "no group named {}", key);
             return;
         }
 
         for (const auto& [key, value] : table) {
             if (value.is_table()) {
+                // TODO: if this is a flags enum then the table is handled differently
+                // `bitflags = { flag1 = true, flag2 = false }`
                 updateFromTable((*groupLookup)[key], key, *value.as_table());
             }
             else if (value.is_value()) {
                 auto it = argLookup->find(key);
                 if (it == argLookup->end()) {
-                    result.addError(
-                        UpdateStatus::eMissingValue,
-                        fmt::format("no option named {}", key.str())
-                    );
+                    result.fmtError(UpdateStatus::eMissingValue, "no option named {}", key.str());
                     continue;
                 }
 
@@ -80,15 +76,15 @@ struct ConfigFileSource {
                     break;
 
                 case OptionType::eSigned:
-                case OptionType::eUnsigned:
                     checkedOptionUpdate<int64_t>(value, (SignedOption&)option, key.str(), toml::node_type::integer);
                     break;
 
+                case OptionType::eUnsigned:
+                    checkedOptionUpdate<int64_t>(value, (UnsignedOption&)option, key.str(), toml::node_type::integer);
+                    break;
+
                 default:
-                    result.addError(
-                        UpdateStatus::eSyntaxError,
-                        fmt::format("unexpected value for option {}", key.str())
-                    );
+                    result.fmtError(UpdateStatus::eSyntaxError, "unexpected value for option {}", key.str());
                     break;
                 }
             }
@@ -97,15 +93,18 @@ struct ConfigFileSource {
 };
 
 UpdateResult Context::updateFromConfigFile(std::istream& is) noexcept {
-    toml::parse_result parsed = toml::parse(is);
+    UpdateResult result;
     ConfigFileSource source {
+        .result = result,
         .argLookup = &mArgLookup,
         .groupLookup = &mGroupLookup
     };
 
+    toml::parse_result parsed = toml::parse(is);
+
     if (parsed.failed()) {
-        source.result.addError(UpdateStatus::eSyntaxError, std::string{parsed.error().description()});
-        return source.result;
+        result.addError(UpdateStatus::eSyntaxError, std::string{parsed.error().description()});
+        return result;
     }
 
     const toml::table& root = parsed.table();
@@ -114,12 +113,9 @@ UpdateResult Context::updateFromConfigFile(std::istream& is) noexcept {
         if (value.is_table()) {
             source.updateFromTable(mGroupLookup[key], key, *value.as_table());
         } else {
-            source.result.addError(
-                UpdateStatus::eSyntaxError,
-                fmt::format("only expected toplevel tables {}", key.str())
-            );
+            result.fmtError(UpdateStatus::eSyntaxError, "only expected toplevel tables {}", key.str());
         }
     }
 
-    return source.result;
+    return result;
 }

@@ -335,7 +335,7 @@ int main(int argc, const char **argv) {
     }
 
     auto& ctx = sm::config::cvars();
-    if (auto result = ctx.updateFromCommandLine(argc, argv); result.hasErrors()) {
+    if (auto result = ctx.updateFromCommandLine(argc, argv); result.isFailure()) {
 
     }
 

@@ -11,15 +11,15 @@ static UpdateResult testCommandLine(config::Context& ctx, std::initializer_list<
     return ctx.updateFromCommandLine(argc, argv);
 }
 
-static void reportContextErrors(const UpdateResult& err, bool shouldPass) {
+static void reportContextErrors(const UpdateResult& errors, bool shouldPass) {
     if (shouldPass) {
-        CHECK(err.errors.empty());
+        CHECK(errors.isSuccess());
     } else {
-        CHECK(!err.errors.empty());
+        CHECK(errors.isFailure());
     }
 
     if (shouldPass) {
-        for (const auto& err : err.errors) {
+        for (const auto& err : errors) {
             fmt::print("Error: {}\n", err.message);
         }
     }
