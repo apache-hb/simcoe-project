@@ -3,7 +3,7 @@
 #include "core/macros.hpp"
 
 namespace com::apache::simcoe {
-    class GameObject {
+    class Thing {
 
     };
 }
@@ -19,7 +19,7 @@ TEST_CASE("symbol names") {
 
     GIVEN("a type in a namespace") {
         THEN("it is formatted properly") {
-            REQUIRE(sm::getTypeName<com::apache::simcoe::GameObject>() == "com.apache.simcoe.GameObject");
+            REQUIRE(sm::getTypeName<com::apache::simcoe::Thing>() == "com.apache.simcoe.Thing");
         }
     }
 }

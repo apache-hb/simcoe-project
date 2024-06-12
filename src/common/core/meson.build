@@ -28,9 +28,9 @@ src = [
 ]
 
 if is_windows
-    src += [ 'src/windows/console.cpp' ]
+    src += [ 'src/windows/console.cpp', 'src/windows/core.cpp' ]
 else
-    src += [ 'src/linux/console.cpp' ]
+    src += [ 'src/linux/console.cpp', 'src/linux/core.cpp' ]
 endif
 
 libcore = library('core', src, simcoe_config,

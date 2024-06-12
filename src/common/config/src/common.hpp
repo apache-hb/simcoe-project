@@ -5,10 +5,7 @@
 namespace sm::config::detail {
     bool verifyWriteAccess(UpdateResult& errs, const OptionBase& option) {
         if (option.isReadOnly()) {
-            errs.errors.push_back(UpdateError{
-                UpdateStatus::eReadOnly,
-                fmt::format("option {} is read only", option.name)
-            });
+            errs.addError(UpdateStatus::eReadOnly, fmt::format("option {} is read only", option.name));
             return false;
         }
 
@@ -23,10 +20,7 @@ namespace sm::config::detail {
 
         auto range = option.getCommonRange();
         if (!range.contains(value)) {
-            errs.errors.push_back(UpdateError{
-                UpdateStatus::eOutOfRange,
-                fmt::format("value {} for {} is out of range [{}, {}]", value, option.name, range.min, range.max)
-            });
+            errs.addError(UpdateStatus::eOutOfRange, fmt::format("value {} for {} is out of range [{}, {}]", value, option.name, range.min, range.max));
             return false;
         }
 
@@ -47,9 +41,7 @@ namespace sm::config::detail {
 
     template<typename T>
     const T *getEnumValue(std::span<const EnumValue<T>> options, std::string_view name) {
-        fmt::println("options.size: {}", options.size());
         for (const auto& option : options) {
-            fmt::println("option.name: {} search: {}", option.name, name);
             if (option.name == name) {
                 return &option.value;
             }

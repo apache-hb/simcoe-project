@@ -25,10 +25,10 @@ namespace sm::config {
 
     namespace detail {
         template<typename T>
-        concept SignedEnum = std::is_enum_v<T> && std::is_signed_v<__underlying_type(T)>;
+        concept SignedEnum = std::is_enum_v<T> && std::is_signed_v<std::underlying_type_t<T>>;
 
         template<typename T>
-        concept UnsignedEnum = std::is_enum_v<T> && std::is_unsigned_v<__underlying_type(T)>;
+        concept UnsignedEnum = std::is_enum_v<T> && std::is_unsigned_v<std::underlying_type_t<T>>;
 
         template<typename T>
         constexpr inline OptionType kOptionType = OptionType::eUnknown;
@@ -64,13 +64,16 @@ namespace sm::config {
         constexpr inline OptionType kEnumOptionType<T> = OptionType::eUnsignedEnum;
 
         template<typename T>
-        struct EnumInnerType { using Type = void; };
+        struct EnumInner { using Type = void; };
 
         template<SignedEnum T>
-        struct EnumInnerType<T> { using Type = int64_t; };
+        struct EnumInner<T> { using Type = int64_t; };
 
         template<UnsignedEnum T>
-        struct EnumInnerType<T> { using Type = uint64_t; };
+        struct EnumInner<T> { using Type = uint64_t; };
+
+        template<typename T>
+        using EnumInnerType = typename EnumInner<T>::Type;
 
         template<typename T>
         concept IsValidEnum = std::is_enum_v<T> && !std::is_same_v<EnumInnerType<T>, void>;
@@ -283,6 +286,10 @@ namespace sm::config {
                 mValue.store(value);
                 notifySet();
             }
+
+            void setValue(T value) noexcept {
+                setCommonValue(value);
+            }
         };
 
         template<ValidNumericType T>
@@ -339,6 +346,10 @@ namespace sm::config {
             void setCommonValue(T value) noexcept {
                 mValue.store(value);
                 notifySet();
+            }
+
+            void setValue(T value) noexcept {
+                setCommonValue(value);
             }
         };
     }
@@ -643,9 +654,9 @@ namespace sm {
     constinit inline config::ConfigWrapper<config::Description, std::string_view> desc{};
     constinit inline config::ConfigWrapper<config::Category,    config::Group&>   group{};
 
-    template<config::detail::IsValidEnum T> requires (__is_enum(T))
+    template<config::detail::IsValidEnum T>
     constexpr auto val(T value) {
-        using Inner = typename config::detail::EnumInnerType<T>::Type;
+        using Inner = config::detail::EnumInnerType<T>;
         using Builder = config::EnumValueBuilder<Inner>;
 
         return Builder{static_cast<Inner>(value)};

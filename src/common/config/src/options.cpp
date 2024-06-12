@@ -16,36 +16,6 @@ static sm::opt<bool> gOptionVersion {
     desc = "print version information"
 };
 
-enum class Choice {
-    eFirst, eSecond, eThird
-};
-
-static sm::opt<Choice> gChoiceOptions {
-    name = "choice of flags",
-    desc = "choose one of the flags",
-    options = {
-        val(Choice::eFirst) = "first",
-        val(Choice::eSecond) = "second",
-        val(Choice::eThird) = "third"
-    }
-};
-
-enum class Flags {
-    eMakeEggs = 1 << 0,
-    eMakeToast = 1 << 1,
-    eMakeHam = 1 << 2
-};
-
-static sm::opt<Flags> gFlagOptions {
-    name = "flags",
-    desc = "choose one or more flags",
-    flags = {
-        val(Flags::eMakeEggs) = "eggs",
-        val(Flags::eMakeToast) = "toast",
-        val(Flags::eMakeHam) = "ham"
-    }
-};
-
 Group& config::getCommonGroup() noexcept {
     static Group instance { name = "general" };
     return instance;

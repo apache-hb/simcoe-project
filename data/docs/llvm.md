@@ -31,8 +31,7 @@ cmake -S . -B build -G Ninja -DCMAKE_LINKER="lld-link" -DCMAKE_C_COMPILER="clang
 ```
 
 ```sh
-# building llvm as a shared library
-cmake -S llvm -B build -G Ninja -DLLVM_ENABLE_PROJECTS="clang" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX="K:\llvm\shared"  -DLLVM_TARGETS_TO_BUILD=X86 "-DCMAKE_TOOLCHAIN_FILE=K:/vcpkg/scripts/buildsystems/vcpkg.cmake" -DBUILD_SHARED_LIBS=ON -DLLVM_ENABLE_DIA_SDK=OFF -DCMAKE_LINKER="lld-link" -DCMAKE_C_COMPILER="clang-cl" -DCMAKE_CXX_COMPILER="clang-cl"
+cmake -S llvm -B build-debug -G Ninja -DLLVM_ENABLE_PROJECTS="llvm;clang;clang-tools-extra" -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX="K:\llvm-debug" -DLLVM_TARGETS_TO_BUILD=X86 "-DCMAKE_TOOLCHAIN_FILE=K:/vcpkg/scripts/buildsystems/vcpkg.cmake" -DCMAKE_LINKER="lld-link" -DCMAKE_C_COMPILER="clang-cl" -DCMAKE_CXX_COMPILER="clang-cl" -DLLVM_TARGETS_TO_BUILD="X86" -DCMAKE_RC_COMPILER="llvm-rc.exe"
 
 # build llvm for local use
 cmake -S llvm -B build -G Ninja -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;lld;lldb" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="K:\llvm" -DLLVM_TARGETS_TO_BUILD="X86" -DCMAKE_TOOLCHAIN_FILE="K:/vcpkg/scripts/buildsystems/vcpkg.cmake" -DCMAKE_LINKER="lld-link" -DCMAKE_C_COMPILER="clang-cl" -DCMAKE_CXX_COMPILER="clang-cl" -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DLLVM_INCLUDE_TOOLS=ON -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD="DirectX" -DCMAKE_CXX_FLAGS="-march=native -mtune=native" -DCMAKE_C_FLAGS="-march=native -mtune=native" -DCLANG_ENABLE_HLSL=ON -DCMAKE_RC_COMPILER="llvm-rc.exe" -DLLVM_ENABLE_LTO=Thin

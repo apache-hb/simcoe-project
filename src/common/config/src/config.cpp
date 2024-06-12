@@ -23,39 +23,40 @@ static std::string_view getNodeTypeString(toml::node_type type) noexcept {
     }
 }
 
-UpdateResult Context::updateFromConfigFile(std::istream& is) noexcept {
-    toml::parse_result parsed = toml::parse(is);
+struct ConfigFileSource {
     UpdateResult result;
-    if (parsed.failed()) {
-        result.addError(UpdateStatus::eSyntaxError, std::string{parsed.error().description()});
-        return result;
-    }
+    std::unordered_map<std::string_view, OptionBase*> *argLookup;
+    std::unordered_map<std::string_view, Group*> *groupLookup;
 
-    auto reportInvalidType = [&](std::string_view key, std::string_view expected, toml::node_type found) {
+    void reportInvalidType(std::string_view key, std::string_view expected, toml::node_type found) {
         result.addError(
             UpdateStatus::eInvalidValue,
             fmt::format("invalid value for {}. expected {} found {}", key, expected, getNodeTypeString(found))
         );
-    };
+    }
 
-    const toml::table& root = parsed.table();
+    template<typename T, typename O>
+    void checkedOptionUpdate(const toml::node& node, O& option, std::string_view key, toml::node_type expected) {
+        if (const toml::value<T> *v = node.as<T>()) {
+            detail::updateOption(result, option, v->get());
+        } else {
+            reportInvalidType(key, getNodeTypeString(expected), node.type());
+        }
+    }
 
-    auto acceptTable = [&](this auto& self, Group *group, std::string_view key, const toml::table& table) {
+    void updateFromTable(Group *group, std::string_view key, const toml::table& table) noexcept {
         if (group == nullptr) {
-            result.addError(
-                UpdateStatus::eMissingValue,
-                fmt::format("no group named {}", key)
-            );
+            result.addError(UpdateStatus::eMissingValue, fmt::format("no group named {}", key));
             return;
         }
 
         for (const auto& [key, value] : table) {
             if (value.is_table()) {
-                self(mGroupLookup[key], key, *value.as_table());
+                updateFromTable((*groupLookup)[key], key, *value.as_table());
             }
             else if (value.is_value()) {
-                auto it = mArgLookup.find(key);
-                if (it == mArgLookup.end()) {
+                auto it = argLookup->find(key);
+                if (it == argLookup->end()) {
                     result.addError(
                         UpdateStatus::eMissingValue,
                         fmt::format("no option named {}", key.str())
@@ -64,61 +65,61 @@ UpdateResult Context::updateFromConfigFile(std::istream& is) noexcept {
                 }
 
                 auto& option = *it->second;
-                if (option.type == OptionType::eBoolean) {
-                    if (const toml::value<bool> *v = value.as_boolean()) {
-                        detail::updateOption(result, (BoolOption&)option, v->get());
-                    } else {
-                        reportInvalidType(key.str(), "boolean", value.type());
-                    }
-                }
-                else if (option.type == OptionType::eString) {
-                    if (const toml::value<std::string> *v = value.as_string()) {
-                        detail::updateOption(result, (StringOption&)option, v->get());
-                    } else {
-                        reportInvalidType(key.str(), "string", value.type());
-                    }
-                }
-                else if (option.type == OptionType::eReal) {
-                    if (const toml::value<double> *v = value.as_floating_point()) {
-                        detail::updateNumericOption(result, (RealOption&)option, v->get());
-                    } else {
-                        reportInvalidType(key.str(), "real", value.type());
-                    }
-                }
-                else if (option.type == OptionType::eSigned) {
-                    if (const toml::value<int64_t> *v = value.as_integer()) {
-                        detail::updateNumericOption(result, (SignedOption&)option, v->get());
-                    } else {
-                        reportInvalidType(key.str(), "integer", value.type());
-                    }
-                }
-                else if (option.type == OptionType::eUnsigned) {
-                    if (const toml::value<int64_t> *v = value.as_integer()) {
-                        detail::updateNumericOption(result, (UnsignedOption&)option, (uint64_t)v->get());
-                    } else {
-                        reportInvalidType(key.str(), "integer", value.type());
-                    }
-                }
-                else {
+
+                switch (option.type) {
+                case OptionType::eBoolean:
+                    checkedOptionUpdate<bool>(value, (BoolOption&)option, key.str(), toml::node_type::boolean);
+                    break;
+
+                case OptionType::eString:
+                    checkedOptionUpdate<std::string>(value, (StringOption&)option, key.str(), toml::node_type::string);
+                    break;
+
+                case OptionType::eReal:
+                    checkedOptionUpdate<double>(value, (RealOption&)option, key.str(), toml::node_type::floating_point);
+                    break;
+
+                case OptionType::eSigned:
+                case OptionType::eUnsigned:
+                    checkedOptionUpdate<int64_t>(value, (SignedOption&)option, key.str(), toml::node_type::integer);
+                    break;
+
+                default:
                     result.addError(
                         UpdateStatus::eSyntaxError,
                         fmt::format("unexpected value for option {}", key.str())
                     );
+                    break;
                 }
             }
         }
+    }
+};
+
+UpdateResult Context::updateFromConfigFile(std::istream& is) noexcept {
+    toml::parse_result parsed = toml::parse(is);
+    ConfigFileSource source {
+        .argLookup = &mArgLookup,
+        .groupLookup = &mGroupLookup
     };
+
+    if (parsed.failed()) {
+        source.result.addError(UpdateStatus::eSyntaxError, std::string{parsed.error().description()});
+        return source.result;
+    }
+
+    const toml::table& root = parsed.table();
 
     for (const auto& [key, value] : root) {
         if (value.is_table()) {
-            acceptTable(mGroupLookup[key], key, *value.as_table());
+            source.updateFromTable(mGroupLookup[key], key, *value.as_table());
         } else {
-            result.addError(
+            source.result.addError(
                 UpdateStatus::eSyntaxError,
                 fmt::format("only expected toplevel tables {}", key.str())
             );
         }
     }
 
-    return UpdateResult{};
+    return source.result;
 }
