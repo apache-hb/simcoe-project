@@ -1,3 +1,4 @@
+#include "core/error.hpp"
 #include "stdafx.hpp"
 #include "common.hpp"
 
@@ -41,6 +42,25 @@ struct ConfigFileSource {
         }
     }
 
+    template<typename O>
+    void updateEnumFlagOption(O &option, std::string_view key, const toml::table& table) {
+        for (const auto& [key, value] : table) {
+            if (const toml::value<bool> *asBool = value.as_boolean()) {
+                const auto *it = config::detail::getEnumValue(option.getCommonOptions(), key);
+                if (it == nullptr) {
+                    result.fmtError(UpdateStatus::eInvalidValue, "invalid flag `{}` for `{}`", key.str(), option.name);
+                    continue;
+                }
+
+                auto optionValue = option.getCommonValue();
+                sm::setMask(optionValue, *it, asBool->get());
+                option.setCommonValue(optionValue);
+            } else {
+                reportInvalidType(key, "boolean", value.type());
+            }
+        }
+    }
+
     void updateFromTable(Group *group, std::string_view key, const toml::table& table) noexcept {
         if (group == nullptr) {
             result.fmtError(UpdateStatus::eMissingValue, "no group named {}", key);
@@ -49,9 +69,30 @@ struct ConfigFileSource {
 
         for (const auto& [key, value] : table) {
             if (value.is_table()) {
-                // TODO: if this is a flags enum then the table is handled differently
-                // `bitflags = { flag1 = true, flag2 = false }`
-                updateFromTable((*groupLookup)[key], key, *value.as_table());
+                auto it = argLookup->find(key);
+                if (it == argLookup->end()) {
+                    updateFromTable((*groupLookup)[key], key, *value.as_table());
+                    continue;
+                }
+
+                auto& option = *it->second;
+
+                if (!option.isEnumFlags()) {
+                    result.fmtError(UpdateStatus::eSyntaxError, "unexpected table for option {}", key.str());
+                    continue;
+                }
+
+                switch (option.type) {
+                case OptionType::eSignedEnum:
+                    updateEnumFlagOption((SignedEnumOption&)option, key, *value.as_table());
+                    break;
+                case OptionType::eUnsignedEnum:
+                    updateEnumFlagOption((UnsignedEnumOption&)option, key, *value.as_table());
+                    break;
+                default:
+                    SM_NEVER("unexpected enum flag option type {}", key.str());
+                    break;
+                }
             }
             else if (value.is_value()) {
                 auto it = argLookup->find(key);

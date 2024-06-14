@@ -7,6 +7,25 @@
 using namespace sm;
 using namespace sm::config;
 
+static void reportContextErrors(const UpdateResult& errors, bool shouldPass) {
+    if (shouldPass) {
+        CHECK(errors.isSuccess());
+    } else {
+        CHECK(errors.isFailure());
+    }
+
+    if (shouldPass) {
+        for (const auto& err : errors) {
+            fmt::print("Error: {}\n", err.message);
+        }
+    }
+}
+enum BitFlags {
+    eFlag1 = 1,
+    eFlag2 = 2,
+    eFlag3 = 4,
+};
+
 TEST_CASE("config files update options") {
     GIVEN("a simple config") {
         Group core { name = "core", group = getCommonGroup() };
@@ -80,6 +99,41 @@ TEST_CASE("config files update options") {
             CHECK(opt2.getValue() == 42);
             CHECK(opt3.getValue() == 3.14f);
             CHECK(opt4.getValue() == "hello");
+        }
+    }
+
+    GIVEN("bitflag options") {
+        Group core { name = "core", group = getCommonGroup() };
+
+        Option<BitFlags> opt1 {
+            name = "opt1",
+            desc = "test description",
+            group = core,
+            init = BitFlags::eFlag3,
+            flags = {
+                val(BitFlags::eFlag1) = "flag1",
+                val(BitFlags::eFlag2) = "flag2",
+                val(BitFlags::eFlag3) = "flag3",
+            }
+        };
+
+        Context ctx;
+        ctx.addToGroup(&opt1, &core);
+
+        std::istringstream is {
+            R"(
+            [core]
+            opt1 = { flag1 = true, flag2 = true, flag3 = false }
+            )"
+        };
+
+        auto result = ctx.updateFromConfigFile(is);
+
+        THEN("it updates the options correctly") {
+            CHECK(result.isSuccess());
+            CHECK(opt1.getValue() == (BitFlags::eFlag1 | BitFlags::eFlag2));
+
+            reportContextErrors(result, true);
         }
     }
 }

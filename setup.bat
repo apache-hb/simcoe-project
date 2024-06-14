@@ -7,8 +7,4 @@ SET buildtype=%2
 for /f "tokens=2,* delims= " %%a in ("%*") do set options=%%b
 @echo on
 
-meson setup %builddir% ^
-    --native-file %cfgdir%\base.ini        ^
-    --native-file %cfgdir%\clang-cl.ini    ^
-    --native-file %cfgdir%\%buildtype%.ini ^
-    %options%
+meson setup %builddir% --native-file %cfgdir%\base.ini --native-file %cfgdir%\clang-cl.ini --native-file %cfgdir%\%buildtype%.ini %options%
