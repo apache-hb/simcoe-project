@@ -29,12 +29,12 @@ struct ConfigFileSource {
     std::unordered_map<std::string_view, OptionBase*> *argLookup;
     std::unordered_map<std::string_view, Group*> *groupLookup;
 
-    void reportInvalidType(std::string_view key, std::string_view expected, toml::node_type found) {
+    void reportInvalidType(std::string_view key, std::string_view expected, toml::node_type found) noexcept {
         result.fmtError(UpdateStatus::eInvalidValue, "invalid value for {}. expected {} found {}", key, expected, getNodeTypeString(found));
     }
 
     template<typename T, typename O>
-    void checkedOptionUpdate(const toml::node& node, O& option, std::string_view key, toml::node_type expected) {
+    void checkedOptionUpdate(const toml::node& node, O& option, std::string_view key, toml::node_type expected) noexcept {
         if (const toml::value<T> *v = node.as<T>()) {
             config::detail::updateOption(result, option, v->get());
         } else {
@@ -43,7 +43,7 @@ struct ConfigFileSource {
     }
 
     template<typename O>
-    void updateEnumFlagOption(O &option, std::string_view key, const toml::table& table) {
+    void updateEnumFlagOption(O &option, std::string_view key, const toml::table& table) noexcept {
         for (const auto& [key, value] : table) {
             if (const toml::value<bool> *asBool = value.as_boolean()) {
                 const auto *it = config::detail::getEnumValue(option.getCommonOptions(), key);
@@ -61,6 +61,101 @@ struct ConfigFileSource {
         }
     }
 
+    template<typename O>
+    void updateEnumOption(O &option, std::string_view key, const toml::node& node) noexcept {
+        if (const toml::value<std::string> *asString = node.as_string()) {
+            const auto *it = config::detail::getEnumValue(option.getCommonOptions(), asString->get());
+            if (it == nullptr) {
+                result.fmtError(UpdateStatus::eInvalidValue, "invalid choice `{}` for `{}`", asString->get(), option.name);
+                return;
+            }
+
+            option.setCommonValue(*it);
+        } else {
+            reportInvalidType(key, "string", node.type());
+        }
+    }
+
+    bool tryUpdateFlags(std::string_view key, const toml::table& table) noexcept {
+        auto it = argLookup->find(key);
+        if (it == argLookup->end()) {
+            return false;
+        }
+
+        auto& option = *it->second;
+
+        if (!option.isEnumFlags()) {
+            result.fmtError(UpdateStatus::eSyntaxError, "unexpected table for option {}", key);
+            return true;
+        }
+
+        switch (option.type) {
+        case OptionType::eSignedEnum:
+            updateEnumFlagOption((SignedEnumOption&)option, key, table);
+            break;
+        case OptionType::eUnsignedEnum:
+            updateEnumFlagOption((UnsignedEnumOption&)option, key, table);
+            break;
+        default:
+            SM_NEVER("unexpected enum flag option type {}", key);
+            break;
+        }
+
+        return true;
+    }
+
+    void updateValue(Group *group, std::string_view key, const toml::node& node) noexcept {
+        if (node.is_table()) {
+            const toml::table& table = *node.as_table();
+            if (!tryUpdateFlags(key, table)) {
+                updateFromTable((*groupLookup)[key], key, table);
+            }
+        }
+        else if (node.is_value()) {
+            auto it = argLookup->find(key);
+            if (it == argLookup->end()) {
+                result.fmtError(UpdateStatus::eMissingValue, "no option named {}", key);
+                return;
+            }
+
+            auto& option = *it->second;
+
+            switch (option.type) {
+            case OptionType::eBoolean:
+                checkedOptionUpdate<bool>(node, (BoolOption&)option, key, toml::node_type::boolean);
+                break;
+
+            case OptionType::eString:
+                checkedOptionUpdate<std::string>(node, (StringOption&)option, key, toml::node_type::string);
+                break;
+
+            case OptionType::eReal:
+                checkedOptionUpdate<double>(node, (RealOption&)option, key, toml::node_type::floating_point);
+                break;
+
+            case OptionType::eSigned:
+                checkedOptionUpdate<int64_t>(node, (SignedOption&)option, key, toml::node_type::integer);
+                break;
+
+            case OptionType::eUnsigned:
+                checkedOptionUpdate<int64_t>(node, (UnsignedOption&)option, key, toml::node_type::integer);
+                break;
+
+            case OptionType::eSignedEnum:
+                updateEnumOption((SignedEnumOption&)option, key, node);
+                break;
+
+            case OptionType::eUnsignedEnum:
+                updateEnumOption((UnsignedEnumOption&)option, key, node);
+                break;
+
+            default:
+                result.fmtError(UpdateStatus::eSyntaxError, "unexpected value for option {}", key);
+                break;
+            }
+        }
+    }
+
     void updateFromTable(Group *group, std::string_view key, const toml::table& table) noexcept {
         if (group == nullptr) {
             result.fmtError(UpdateStatus::eMissingValue, "no group named {}", key);
@@ -68,67 +163,7 @@ struct ConfigFileSource {
         }
 
         for (const auto& [key, value] : table) {
-            if (value.is_table()) {
-                auto it = argLookup->find(key);
-                if (it == argLookup->end()) {
-                    updateFromTable((*groupLookup)[key], key, *value.as_table());
-                    continue;
-                }
-
-                auto& option = *it->second;
-
-                if (!option.isEnumFlags()) {
-                    result.fmtError(UpdateStatus::eSyntaxError, "unexpected table for option {}", key.str());
-                    continue;
-                }
-
-                switch (option.type) {
-                case OptionType::eSignedEnum:
-                    updateEnumFlagOption((SignedEnumOption&)option, key, *value.as_table());
-                    break;
-                case OptionType::eUnsignedEnum:
-                    updateEnumFlagOption((UnsignedEnumOption&)option, key, *value.as_table());
-                    break;
-                default:
-                    SM_NEVER("unexpected enum flag option type {}", key.str());
-                    break;
-                }
-            }
-            else if (value.is_value()) {
-                auto it = argLookup->find(key);
-                if (it == argLookup->end()) {
-                    result.fmtError(UpdateStatus::eMissingValue, "no option named {}", key.str());
-                    continue;
-                }
-
-                auto& option = *it->second;
-
-                switch (option.type) {
-                case OptionType::eBoolean:
-                    checkedOptionUpdate<bool>(value, (BoolOption&)option, key.str(), toml::node_type::boolean);
-                    break;
-
-                case OptionType::eString:
-                    checkedOptionUpdate<std::string>(value, (StringOption&)option, key.str(), toml::node_type::string);
-                    break;
-
-                case OptionType::eReal:
-                    checkedOptionUpdate<double>(value, (RealOption&)option, key.str(), toml::node_type::floating_point);
-                    break;
-
-                case OptionType::eSigned:
-                    checkedOptionUpdate<int64_t>(value, (SignedOption&)option, key.str(), toml::node_type::integer);
-                    break;
-
-                case OptionType::eUnsigned:
-                    checkedOptionUpdate<int64_t>(value, (UnsignedOption&)option, key.str(), toml::node_type::integer);
-                    break;
-
-                default:
-                    result.fmtError(UpdateStatus::eSyntaxError, "unexpected value for option {}", key.str());
-                    break;
-                }
-            }
+            updateValue(group, key, value);
         }
     }
 };
@@ -152,9 +187,12 @@ UpdateResult Context::updateFromConfigFile(std::istream& is) noexcept {
 
     for (const auto& [key, value] : root) {
         if (value.is_table()) {
-            source.updateFromTable(mGroupLookup[key], key, *value.as_table());
+            // if this is a flag option then we update the option rather than treating it as a group
+            if (!source.tryUpdateFlags(key, *value.as_table())) {
+                source.updateFromTable(mGroupLookup[key], key, *value.as_table());
+            }
         } else {
-            result.fmtError(UpdateStatus::eSyntaxError, "only expected toplevel tables {}", key.str());
+            source.updateValue(&getCommonGroup(), key, value);
         }
     }
 

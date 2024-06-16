@@ -46,7 +46,7 @@
 #   error "Unsupported compiler"
 #endif
 
-#define SM_FN_NAME_LENGTH(type, name, str)\
+#define SM_FN_NAME_LENGTH(type, name, str) \
     (sizeof(str) - (SM_FN_NAME_PREFIX(type, name) + SM_FN_NAME_SUFFIX))
 
 namespace sm {

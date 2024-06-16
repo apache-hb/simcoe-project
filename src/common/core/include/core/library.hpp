@@ -1,5 +1,6 @@
 #pragma once
 
+#ifdef _WIN32
 #include "core/error.hpp"
 #include "core/unique.hpp"
 #include "core/fs.hpp"
@@ -11,7 +12,10 @@ constexpr bool operator!=(const os_library_t& lhs, const os_library_t& rhs) {
 }
 
 namespace sm {
-    using LibraryHandle = sm::UniqueHandle<os_library_t, decltype([](os_library_t& it) { os_library_close(&it); })>;
+    using LibraryHandle = sm::UniqueHandle<
+        os_library_t,
+        decltype([](os_library_t& it) { os_library_close(&it); })
+    >;
 
     class Library {
         LibraryHandle mHandle;
@@ -37,3 +41,4 @@ namespace sm {
         }
     };
 }
+#endif

@@ -8,8 +8,9 @@ namespace com::apache::simcoe {
     };
 }
 
+struct SomeType;
+
 TEST_CASE("symbol names") {
-    struct SomeType;
 
     GIVEN("a type") {
         THEN("it is formatted properly") {

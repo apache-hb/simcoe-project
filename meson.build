@@ -62,9 +62,6 @@ library_type = get_option('default_library')
 # the perfect library
 cthulhu = subproject('cthulhu')
 
-magick = find_program(['magick', 'convert'])
-convert_utf16 = find_program('scripts/convert_utf16.py')
-
 args = cpp.get_supported_arguments(
     '-fstrict-aliasing',
     '-fno-keep-static-consts',
@@ -94,7 +91,7 @@ cpp_args = cpp.get_supported_arguments(
 if get_option('trace_time')
     args += cpp.get_supported_arguments('-ftime-trace')
 
-    ninjatracing = find_program('scripts/ninjatracing/ninjatracing')
+    ninjatracing = find_program('scripts/ninjatracing/ninjatracing', native : true)
 
     custom_target('gather_time_trace',
         output : 'trace.json',
@@ -175,7 +172,6 @@ subdir('src/vendor/reflect')
 
 subdir('src/common/core')
 
-subdir('src/common/math')
 subdir('src/common/logs')
 subdir('src/common/config')
 
@@ -183,11 +179,12 @@ if not is_windows
     subdir_done()
 endif
 
+subdir('src/common/math')
 subdir('src/common/archive')
 
 dxc = find_program(dxc_id, native : true)
-msdf_atlas_gen = find_program('msdf-atlas-gen')
-compressonator = find_program('compressonatorcli')
+msdf_atlas_gen = find_program('msdf-atlas-gen', native : true)
+compressonator = find_program('compressonatorcli', native : true)
 fastgltf = dependency('fastgltf')
 
 d3d12 = dependency('d3d12')
@@ -221,6 +218,9 @@ dxcompiler = subproject(dxc_id)
 winpixruntime = subproject('winpixruntime')
 dstorage = subproject('dstorage')
 windows = import('windows')
+
+magick = find_program(['magick', 'convert'], native : true)
+convert_utf16 = find_program('scripts/convert_utf16.py', native : true)
 
 default_ico = custom_target('default_icon',
     input : [ 'data/assets/icon/icon_circle.png' ],

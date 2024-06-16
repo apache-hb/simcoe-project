@@ -1,5 +1,6 @@
 #include "stdafx.hpp"
 
+#ifdef _WIN32
 #include "core/library.hpp"
 
 using namespace sm;
@@ -27,3 +28,4 @@ void *Library::get_symbol(const char *name) {
 OsError Library::get_error() const {
     return mError;
 }
+#endif

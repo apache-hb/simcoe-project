@@ -4,18 +4,20 @@
 
 #include "base/panic.h"
 
+#include <filesystem>
+
 using namespace sm;
 
 // NOLINTNEXTLINE
-sm::String sm::format(const char *fmt, ...) {
+std::string sm::format(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    sm::String result = vformat(fmt, args);
+    std::string result = vformat(fmt, args);
     va_end(args);
     return result;
 }
 
-sm::String sm::vformat(const char *fmt, va_list args) {
+std::string sm::vformat(const char *fmt, va_list args) {
     va_list args_copy;
     va_copy(args_copy, args);
 
@@ -24,7 +26,7 @@ sm::String sm::vformat(const char *fmt, va_list args) {
 
     CTASSERTF(size > 0, "vsnprintf returned %d", size);
 
-    sm::String result;
+    std::string result;
     result.resize(size);
 
     int res = vsnprintf(result.data(), result.size() + 1, fmt, args);
@@ -33,40 +35,24 @@ sm::String sm::vformat(const char *fmt, va_list args) {
     return result;
 }
 
-sm::String sm::narrow(std::wstring_view wstr) {
-    sm::String result(wstr.size() + 1, '\0');
-    size_t size = result.size();
-
-    errno_t err = wcstombs_s(&size, result.data(), result.size(), wstr.data(), wstr.size());
-    if (err != 0) {
-        return "";
+template<typename T>
+constexpr std::basic_string<T> convertString(const std::filesystem::path& path) {
+    if constexpr (std::is_same_v<T, char>) {
+        return path.string();
+    } else if constexpr (std::is_same_v<T, wchar_t>) {
+        return path.wstring();
     }
-
-    result.resize(size - 1);
-    return result;
 }
 
-sm::WideString sm::widen(std::string_view str) {
-    // use mbstowcs_s to get the size of the buffer
-    size_t size = 0;
-    errno_t err = mbstowcs_s(&size, nullptr, 0, str.data(), str.size());
-
-    if (err != 0) {
-        return L"";
-    }
-
-    sm::WideString result(size, '\0');
-    err = mbstowcs_s(&size, result.data(), result.size(), str.data(), str.size());
-
-    if (err != 0) {
-        return L"";
-    }
-
-    result.resize(size - 1);
-    return result;
+std::string sm::narrow(std::wstring_view wstr) {
+    return convertString<char>(wstr);
 }
 
-String sm::trimIndent(StringView str) {
+std::wstring sm::widen(std::string_view str) {
+    return convertString<wchar_t>(str);
+}
+
+std::string sm::trimIndent(StringView str) {
     // trim leading and trailing whitespace
     // also trim leading whitespace before a | character on each line
     size_t start = 0;
@@ -85,7 +71,7 @@ String sm::trimIndent(StringView str) {
     }
 
     size_t len = end - start;
-    String result(len, '\0');
+    std::string result(len, '\0');
 
     size_t i = 0;
     size_t j = start;
@@ -114,9 +100,9 @@ String sm::trimIndent(StringView str) {
     return result;
 }
 
-StringPair sm::split(StringView str, char delim) {
+StringPair sm::split(std::string_view str, char delim) {
     size_t index = str.find(delim);
-    if (index == StringView::npos) {
+    if (index == std::string_view::npos) {
         return {str, {}};
     }
 

@@ -15,10 +15,10 @@ class DebugChannel final : public logs::ILogChannel {
         char *start = mBuffer + length;
         size_t remaining = sizeof(mBuffer) - length;
 
-        for (sm::StringView line : logs::splitMessage(message.message)) {
+        logs::splitMessage(message.message, [&](auto line) {
             fmt::format_to_n(start, remaining, " {}\n", line);
             os::printDebugMessage(mBuffer);
-        }
+        });
     }
 
     void closeChannel() noexcept override {

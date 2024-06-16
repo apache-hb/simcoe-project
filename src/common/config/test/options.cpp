@@ -247,7 +247,7 @@ TEST_CASE("enum options") {
             name = "enum-opt",
             desc = "test description",
             init = TestEnum::eValue2,
-            options = {
+            choices = {
                 val(TestEnum::eValue1) = "value1",
                 val(TestEnum::eValue2) = "value2",
                 val(TestEnum::eValue3) = "value3"

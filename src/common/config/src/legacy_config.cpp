@@ -13,7 +13,10 @@ static bool gOptionWarp = false;
 static bool gOptionDred = false;
 static bool gOptionDebug = false;
 static fs::path gOptionAppdir;
+
+#ifdef _WIN32
 static LUID gOptionAdapterLuid = {0, 0};
+#endif
 
 bool sm::pix_enabled() {
     return gOptionPix;
@@ -39,6 +42,7 @@ fs::path sm::get_redist(const fs::path& path) {
     return gOptionAppdir / "redist" / path;
 }
 
+#ifdef _WIN32
 std::optional<LUID> sm::override_adapter_luid() {
     if (gOptionAdapterLuid.LowPart == 0 && gOptionAdapterLuid.HighPart == 0) {
         return std::nullopt;
@@ -46,6 +50,7 @@ std::optional<LUID> sm::override_adapter_luid() {
 
     return gOptionAdapterLuid;
 }
+#endif
 
 static void print() {
     logs::gGlobal.infoString(trimIndent(R"(
@@ -81,7 +86,9 @@ static void parse(sm::Span<const char*> args) {
             } else {
                 logs::gGlobal.error("missing argument for --appdir");
             }
-        } else if (view == "--adapter") {
+        }
+#ifdef _WIN32
+        else if (view == "--adapter") {
             if (i + 1 < args.size()) {
                 sm::StringView arg = args[i + 1];
                 size_t index = arg.find(':');
@@ -97,7 +104,9 @@ static void parse(sm::Span<const char*> args) {
             } else {
                 logs::gGlobal.error("missing argument for --adapter");
             }
-        } else {
+        }
+#endif
+        else {
             logs::gGlobal.error("unknown argument: {}", view);
         }
     }

@@ -33,7 +33,7 @@ std::string_view sm::trimTypeName(std::string_view name) {
 
 size_t sm::cleanTypeName(char *dst, std::string_view name) {
     size_t i = 0;
-    for (size_t j = 0; j < name.length() - 1; ++j) {
+    for (size_t j = 0; j < name.length(); ++j) {
         if (name[j] == ':') {
             dst[i++] = '.';
             ++j;

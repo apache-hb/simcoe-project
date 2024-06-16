@@ -16,10 +16,10 @@ class ConsoleChannel final : public logs::ILogChannel {
         char *start = mBuffer + length;
         size_t remaining = sizeof(mBuffer) - length;
 
-        for (sm::StringView line : logs::splitMessage(message.message)) {
+        logs::splitMessage(message.message, [&](auto line) {
             auto [_, extra] = fmt::format_to_n(start, remaining, " {}\n", line);
             mConsole.print(std::string_view { start, static_cast<size_t>(length + extra) });
-        }
+        });
     }
 
     void closeChannel() noexcept override {

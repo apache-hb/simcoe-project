@@ -17,18 +17,18 @@ namespace sm {
     using StringView = CoreStringView<char>;
     using WideStringView = CoreStringView<wchar_t>;
 
-    String format(const char *fmt, ...);
-    String vformat(const char *fmt, va_list args);
+    std::string format(const char *fmt, ...);
+    std::string vformat(const char *fmt, va_list args);
 
-    String narrow(std::wstring_view str);
-    WideString widen(std::string_view str);
+    std::string narrow(std::wstring_view str);
+    std::wstring widen(std::string_view str);
 
-    String trimIndent(StringView str);
+    std::string trimIndent(std::string_view str);
 
     struct StringPair {
         std::string_view left;
         std::string_view right;
     };
 
-    StringPair split(StringView str, char delim);
+    StringPair split(std::string_view str, char delim);
 }

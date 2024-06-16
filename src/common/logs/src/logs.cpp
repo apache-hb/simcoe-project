@@ -55,22 +55,6 @@ size_t logs::buildMessageHeaderWithColour(sm::Span<char> buffer, const Message& 
     return buildMessageInner(buffer, message, colour, reset);
 }
 
-std::experimental::generator<sm::StringView> logs::splitMessage(sm::StringView message) {
-    size_t start = 0;
-    size_t end = 0;
-    while (end < message.size()) {
-        if (message[end] == '\n') {
-            co_yield message.substr(start, end - start);
-            start = end + 1;
-        }
-        end++;
-    }
-
-    if (start < end) {
-        co_yield message.substr(start, end - start);
-    }
-}
-
 void Logger::log(const Message &message) noexcept {
     if (!willAcceptMessage(message.severity)) return;
 

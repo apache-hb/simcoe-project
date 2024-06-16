@@ -463,7 +463,7 @@ TEST_CASE("command line and enum options") {
         Option<TestEnum> opt1 {
             name = "opt1",
             desc = "test description",
-            options = {
+            choices = {
                 val(TestEnum::eFirst) = "first",
                 val(TestEnum::eSecond) = "second",
                 val(TestEnum::eThird) = "third"
@@ -486,7 +486,7 @@ TEST_CASE("command line and enum options") {
         Option<TestEnum> opt1 {
             name = "opt1",
             desc = "test description",
-            options = {
+            choices = {
                 val(TestEnum::eFirst) = "first",
                 val(TestEnum::eSecond) = "second",
                 val(TestEnum::eThird) = "third"

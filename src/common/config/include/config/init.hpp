@@ -63,7 +63,7 @@ namespace sm::config {
         }
     };
 
-    struct OptionWrapper {
+    struct ChoiceWrapper {
         template<typename T>
         constexpr auto operator=(std::initializer_list<EnumValue<T>> values) const {
             return EnumOptions<T>{values};

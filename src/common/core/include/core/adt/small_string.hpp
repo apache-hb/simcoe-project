@@ -6,6 +6,7 @@
 #include "base/panic.h"
 
 #include <cstring>
+#include <memory>
 
 namespace sm {
     template<size_t N> requires (N > 0)

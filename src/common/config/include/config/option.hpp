@@ -553,7 +553,7 @@ namespace sm::config {
 namespace sm {
     constinit inline config::ValueWrapper<config::InitialValue> init{};
     constinit inline config::ValueWrapper<config::Range>        range{};
-    constinit inline config::OptionWrapper                      options{};
+    constinit inline config::ChoiceWrapper                      choices{};
     constinit inline config::FlagsWrapper                       flags{};
 
     constinit inline config::ConfigWrapper<config::ReadOnly,    bool>             readonly{};

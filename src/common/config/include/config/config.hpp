@@ -1,6 +1,9 @@
 #pragma once
 
-#include "core/win32.hpp" // IWYU pragma: export
+#ifdef _WIN32
+#   include "core/win32.hpp" // IWYU pragma: export
+#endif
+
 #include "core/fs.hpp"
 
 namespace sm {
@@ -11,7 +14,9 @@ namespace sm {
     fs::path get_appdir();
     fs::path get_redist(const fs::path& path);
 
+#ifdef _WIN32
     std::optional<LUID> override_adapter_luid();
+#endif
 
     bool parse_command_line(int argc, const char **argv, const fs::path& appdir);
 }

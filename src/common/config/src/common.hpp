@@ -5,7 +5,7 @@
 namespace sm::config::detail {
     bool verifyWriteAccess(UpdateResult& errs, const OptionBase& option) {
         if (option.isReadOnly()) {
-            errs.addError(UpdateStatus::eReadOnly, fmt::format("option {} is read only", option.name));
+            errs.fmtError(UpdateStatus::eReadOnly, "option {} is read only", option.name);
             return false;
         }
 
@@ -20,7 +20,7 @@ namespace sm::config::detail {
 
         auto range = option.getCommonRange();
         if (!range.contains(value)) {
-            errs.addError(UpdateStatus::eOutOfRange, fmt::format("value {} for {} is out of range [{}, {}]", value, option.name, range.min, range.max));
+            errs.fmtError(UpdateStatus::eOutOfRange, "value {} for {} is out of range [{}, {}]", value, option.name, range.min, range.max);
             return false;
         }
 

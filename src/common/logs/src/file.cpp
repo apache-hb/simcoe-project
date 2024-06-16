@@ -2,7 +2,6 @@
 
 #include "common.hpp"
 
-#include "core/error.hpp"
 #include "logs/file.hpp"
 
 using namespace sm;
@@ -13,10 +12,10 @@ void FileChannel::acceptMessage(const Message &message) noexcept {
     char *start = mBuffer + length;
     size_t remaining = sizeof(mBuffer) - length;
 
-    for (sm::StringView line : logs::splitMessage(message.message)) {
+    logs::splitMessage(message.message, [&](auto line) {
         auto [_, extra] = fmt::format_to_n(start, remaining, " {}\n", line);
         io_write(mStream.data(), mBuffer, length + extra);
-    }
+    });
 }
 
 void FileChannel::closeChannel() noexcept {
