@@ -42,5 +42,5 @@ size_t sm::cleanTypeName(char *dst, std::string_view name) {
         }
     }
 
-    return i;
+    return i - 1;
 }

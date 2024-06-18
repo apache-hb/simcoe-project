@@ -57,7 +57,7 @@ namespace sm::config {
         constexpr Group(detail::ConfigBuilder config) noexcept
             : name(config.name)
             , description(config.description)
-            , parent(*config.group)
+            , parent(config.group)
         { }
 
         constexpr Group(auto&&... args) noexcept
@@ -66,7 +66,7 @@ namespace sm::config {
 
         const std::string_view name;
         const std::string_view description;
-        const Group &parent;
+        const Group *parent;
     };
 
     class OptionBase {

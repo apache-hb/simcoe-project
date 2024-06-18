@@ -9,5 +9,5 @@ extern "C" {
 }
 
 bool sm::isInStaticStorage(const void *ptr) noexcept {
-    return ptr >= etext && ptr < edata;
+    return ptr >= etext && ptr < end;
 }

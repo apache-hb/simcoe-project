@@ -38,7 +38,7 @@
 #   define SM_FN_NAME_PREFIX(type, name) ((sizeof(#type) + sizeof(" sm::() [with T = ") + sizeof(#name)) - 3u)
 #   define SM_FN_NAME_SUFFIX (sizeof("]") - 1u)
 #   define SM_FN_NAME __PRETTY_FUNCTION__
-#elif defined(_WIN32)
+#elif defined(_MSC_VER)
 #   define SM_FN_NAME_PREFIX(type, name) ((sizeof(#type) + sizeof(" __cdecl sm::<") + sizeof(#name)) - 3u)
 #   define SM_FN_NAME_SUFFIX (sizeof(">(void)") - 1u)
 #   define SM_FN_NAME __FUNCSIG__
@@ -53,13 +53,16 @@ namespace sm {
     std::string_view trimTypeName(std::string_view name);
     size_t cleanTypeName(char *dst, std::string_view name);
 
+    // need to be explicit about std::basic_string_view<char> to prevent
+    // gcc adding `std::string_view = std::basic_string_view<char>`
+    // to the mangled symbol name
     template<typename T>
-    std::string_view computeTypeName() {
-        static constexpr std::string_view kName = SM_FN_NAME;
-        static constexpr size_t kLength = SM_FN_NAME_LENGTH(std::string_view, computeTypeName, SM_FN_NAME);
-        static constexpr size_t kPrefixLength = SM_FN_NAME_PREFIX(std::string_view, computeTypeName);
-        static const std::string_view kTrimmed = trimTypeName(kName.substr(kPrefixLength, kLength - kPrefixLength - SM_FN_NAME_SUFFIX));
-        static char name[kLength + 1] = {0};
+    std::basic_string_view<char> computeTypeName() {
+        constexpr std::string_view kName = SM_FN_NAME;
+        constexpr size_t kLength = SM_FN_NAME_LENGTH(std::basic_string_view<char>, computeTypeName, SM_FN_NAME);
+        constexpr size_t kPrefixLength = SM_FN_NAME_PREFIX(std::basic_string_view<char>, computeTypeName);
+        const std::string_view kTrimmed = trimTypeName(kName.substr(kPrefixLength, kLength));
+        static char name[kLength + 1];
 
         size_t used = cleanTypeName(name, kTrimmed);
 

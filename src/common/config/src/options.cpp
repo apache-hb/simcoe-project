@@ -18,7 +18,14 @@ static sm::opt<bool> gOptionVersion {
 };
 
 Group& config::getCommonGroup() noexcept {
-    static Group instance { name = "general" };
+    static Group instance = [] {
+        detail::ConfigBuilder config {
+            .name = "common",
+            .group = nullptr,
+        };
+        return Group{config};
+    }();
+
     return instance;
 }
 
@@ -50,7 +57,7 @@ void Context::addToGroup(OptionBase *cvar, Group* group) noexcept {
 #endif
 
     mGroups[group].options.push_back(cvar);
-    mGroups[&group->parent].children.push_back(group);
+    mGroups[group->parent].children.push_back(group);
 
     mArgLookup[cvar->name] = cvar;
     mGroupLookup[group->name] = group;
