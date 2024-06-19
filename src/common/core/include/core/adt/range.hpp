@@ -5,12 +5,12 @@
 
 namespace sm::detail {
     template<typename T>
-    class PointerRange {
+    class Collection {
     protected:
         T *mFront;
         T *mBack;
 
-        constexpr PointerRange(T *begin, T *end) noexcept
+        constexpr Collection(T *begin, T *end) noexcept
             : mFront(begin)
             , mBack(end)
         { }
@@ -38,6 +38,7 @@ namespace sm::detail {
         constexpr ssize_t ssizeInBytes() const noexcept { return ssize() * sizeof(T); }
 
         constexpr bool empty() const noexcept { return mFront == mBack; }
+        constexpr bool isEmpty() const noexcept { return mFront == mBack; }
 
         constexpr T *begin() noexcept requires (!std::is_const_v<T>) { return mFront; }
         constexpr T *end() noexcept requires (!std::is_const_v<T>) { return mBack; }

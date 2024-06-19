@@ -17,8 +17,8 @@ namespace sm {
     using SmallVector = Vector<T>; // TODO: make a small vector
 
     template<typename T> requires (std::is_object_v<T> && std::is_move_constructible_v<T>)
-    class VectorBase final : public detail::PointerRange<T> {
-        using Super = detail::PointerRange<T>;
+    class VectorBase final : public detail::Collection<T> {
+        using Super = detail::Collection<T>;
 
         using SizeType = ssize_t;
         using Self = VectorBase;
@@ -306,8 +306,8 @@ namespace sm {
     };
 
     template<typename T>
-    class SmallVectorBase : public detail::PointerRange<T> {
-        using Super = detail::PointerRange<T>;
+    class SmallVectorBase : public detail::Collection<T> {
+        using Super = detail::Collection<T>;
         T *mCapacity;
 
     protected:
@@ -315,9 +315,16 @@ namespace sm {
             : Super(front, back)
             , mCapacity(capacity)
         { }
+
+        constexpr void ensureGrowth(ssize_t size) noexcept {
+            CTASSERTF(size <= capacity(), "Cannot add new element to SmallVector: %zd <= %zd", size, capacity());
+        }
+
+        constexpr void ensureExtra(ssize_t extra) noexcept {
+            ensureGrowth(this->ssize() + extra);
+        }
     public:
         constexpr ssize_t capacity() const noexcept { return mCapacity - this->mFront; }
-
     };
 
     template<typename T, size_t N>
@@ -350,6 +357,26 @@ namespace sm {
         {
             CTASSERTF(M <= N, "Array size must be less than or equal to N: %zu <= %zu", M, N);
             std::uninitialized_copy(array, array + M, this->mFront);
+        }
+
+        constexpr void emplace_back(auto&&... args) noexcept {
+            this->ensureExtra(1);
+            new (this->mBack++) T(std::forward<decltype(args)>(args)...);
+        }
+
+        constexpr void emplace_back(T &&value) noexcept requires (std::is_move_constructible_v<T>) {
+            this->ensureExtra(1);
+            new (this->mBack++) T(std::move(value));
+        }
+
+        constexpr void push_back(const T &value) noexcept {
+            this->ensureExtra(1);
+            new (this->mBack++) T{value};
+        }
+
+        constexpr void push_back(T &&value) noexcept requires (std::is_move_constructible_v<T>) {
+            this->ensureExtra(1);
+            new (this->mBack++) T{std::move(value)};
         }
     };
 }

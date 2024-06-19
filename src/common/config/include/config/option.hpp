@@ -8,6 +8,7 @@
 #include <string_view>
 #include <unordered_map>
 
+#include "core/adt/vector.hpp"
 #include "core/macros.hpp"
 
 #include "config/init.hpp"
@@ -202,12 +203,10 @@ namespace sm::config {
 
         template<ValidNumericType T>
         class EnumOptionValue : public OptionBase {
-            using Options = OptionList<T>;
-
             std::atomic<T> mValue;
 
             const T mInitialValue;
-            const Options mValues;
+            const VectorBase<EnumValue<T>> mValues;
 
         protected:
             struct Builder : public detail::OptionBuilder {
@@ -215,7 +214,7 @@ namespace sm::config {
 
                 T initial{};
 
-                Options options;
+                OptionList<T> options;
                 bool bitflags = false;
 
                 void init(EnumOptions<T> it) noexcept {

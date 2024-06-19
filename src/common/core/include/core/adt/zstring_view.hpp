@@ -13,8 +13,8 @@ namespace sm {
     }
 
     template<std::integral T>
-    class ZStringViewBase final : public detail::PointerRange<const T> {
-        using Super = detail::PointerRange<const T>;
+    class ZStringViewBase final : public detail::Collection<const T> {
+        using Super = detail::Collection<const T>;
 
         static constexpr inline T kEmptyString[] = { T(0) };
 
