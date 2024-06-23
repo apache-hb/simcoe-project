@@ -31,6 +31,11 @@ cmake -S . -B build -G Ninja -DCMAKE_LINKER="lld-link" -DCMAKE_C_COMPILER="clang
 ```
 
 ```sh
+# dxc
+cmake -S . -B build -G Ninja -DCMAKE_INSTALL_PREFIX="K:\dxc" -DCMAKE_LINKER="lld-link" -DCMAKE_C_COMPILER="clang-cl" -DCMAKE_CXX_COMPILER="clang-cl" -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded"   -DCMAKE_CXX_FLAGS="-march=native -mtune=native" -DCMAKE_C_FLAGS="-march=native -mtune=native" -DCMAKE_RC_COMPILER="llvm-rc.exe" -DLLVM_ENABLE_LTO=Thin -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+```
+
+```sh
 cmake -S llvm -B build-debug -G Ninja -DLLVM_ENABLE_PROJECTS="llvm;clang;clang-tools-extra" -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX="K:\llvm-debug" -DLLVM_TARGETS_TO_BUILD=X86 "-DCMAKE_TOOLCHAIN_FILE=K:/vcpkg/scripts/buildsystems/vcpkg.cmake" -DCMAKE_LINKER="lld-link" -DCMAKE_C_COMPILER="clang-cl" -DCMAKE_CXX_COMPILER="clang-cl" -DLLVM_TARGETS_TO_BUILD="X86" -DCMAKE_RC_COMPILER="llvm-rc.exe"
 
 # build llvm for local use

@@ -9,6 +9,18 @@ LOG_CATEGORY_IMPL(logs::gGlobal, "global");
 LOG_CATEGORY_IMPL(logs::gDebug, "debug");
 LOG_CATEGORY_IMPL(logs::gAssets, "assets");
 
+static constexpr colour_t getSeverityColour(Severity severity) {
+    using enum logs::Severity;
+    switch (severity) {
+    case eTrace: return eColourWhite;
+    case eInfo: return eColourGreen;
+    case eWarning: return eColourYellow;
+    case eError: return eColourRed;
+    case ePanic: return eColourMagenta;
+    default: return eColourDefault;
+    }
+}
+
 struct TimeUnits {
     uint32_t hours;
     uint32_t minutes;
@@ -23,18 +35,6 @@ static constexpr TimeUnits getTimeUnits(uint32_t timestamp) {
         .seconds = (timestamp / 1000) % 60,
         .milliseconds = timestamp % 1000,
     };
-}
-
-static constexpr colour_t getSeverityColour(Severity severity) {
-    using enum logs::Severity;
-    switch (severity) {
-    case eTrace: return eColourWhite;
-    case eInfo: return eColourGreen;
-    case eWarning: return eColourYellow;
-    case eError: return eColourRed;
-    case ePanic: return eColourMagenta;
-    default: return eColourDefault;
-    }
 }
 
 static size_t buildMessageInner(sm::Span<char> buffer, const Message& message, const char *colour, const char *reset) {

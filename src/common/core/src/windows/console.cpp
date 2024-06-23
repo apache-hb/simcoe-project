@@ -17,7 +17,10 @@ os::Console os::Console::get() noexcept {
 }
 
 void os::Console::print(std::string_view message) noexcept {
-    WriteConsoleA(mHandle, message.data(), static_cast<DWORD>(message.size()), nullptr, nullptr);
+    DWORD written;
+    WriteConsoleA(mHandle, message.data(), static_cast<DWORD>(message.size()), &written, nullptr);
+
+    CTASSERTF(written == message.size(), "Failed to write all bytes to console (%lu/%zu)", written, message.size());
 }
 
 bool os::Console::valid() const noexcept {
