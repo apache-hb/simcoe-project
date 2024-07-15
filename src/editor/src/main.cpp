@@ -1,3 +1,4 @@
+#include "config/option.hpp"
 #include "editor/panels/viewport.hpp"
 #include "input/toggle.hpp"
 #include "stdafx.hpp"
@@ -27,6 +28,24 @@ using namespace sm::math;
 using namespace sm::math::literals;
 
 using sm::world::IndexOf;
+
+static sm::opt<std::string> gAppDir {
+    name = "appdir",
+    desc = "The application directory",
+    init = "./"
+};
+
+static sm::opt<std::string> gBundlePath {
+    name = "bundle",
+    desc = "Path to the bundle file or directory",
+    init = "./bundle.tar"
+};
+
+static sm::opt<bool> gBundlePacked {
+    name = "packed",
+    desc = "Is the bundled packed in a tar file?",
+    init = true
+};
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
                                                              LPARAM lParam);
@@ -186,6 +205,14 @@ static void destroy_imgui() {
     ImGui::DestroyContext();
 }
 
+static sm::IFileSystem *mountArchive(bool isPacked, const fs::path &path) {
+    if (isPacked) {
+        return sm::mountArchive(path);
+    } else {
+        return sm::mountFileSystem(path);
+    }
+}
+
 static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     sys::WindowConfig window_config = {
         .mode = sys::WindowMode::eWindowed,
@@ -204,7 +231,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     auto client = window.get_client_coords().size();
 
-    sm::Bundle bundle{sm::mountArchive(sm::get_appdir() / "bundle.tar")};
+    sm::Bundle bundle{mountArchive(gBundlePacked.getValue(), gBundlePath.getValue())};
 
     render::DebugFlags flags = render::DebugFlags::none();
 
@@ -421,6 +448,8 @@ int main(int argc, const char **argv) {
 
     int result = [&] {
         System sys{GetModuleHandleA(nullptr)};
+
+        sm::config::cvars().updateFromCommandLine(argc, argv);
 
         if (!sm::parse_command_line(argc, argv, sys::get_appdir())) {
             return 0;

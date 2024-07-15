@@ -26,6 +26,9 @@ namespace sm {
         ShaderIr get_shader_bytecode(const char *name);
         TextureData get_texture(const char *name);
 
+        ShaderIr getShaderBytecode(const char *name) { return get_shader_bytecode(name); }
+        TextureData getTexture(const char *name) { return get_texture(name); }
+
         // font::FontInfo get_font(const char *name);
     };
 }

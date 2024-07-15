@@ -7,35 +7,32 @@ using namespace sm;
 using namespace sm::ed;
 
 world::IndexOf<world::Image> ed::loadImageInfo(world::World& world, const fs::path& path) {
-    ImageData image = sm::open_image(path);
-    if (!image.is_valid()) {
+    auto maybeImage = sm::openImage(path);
+    if (!maybeImage.has_value()) {
+        logs::gAssets.warn("Failed to load image {}. {}", path.string(), maybeImage.error());
         return world::kInvalidIndex;
     }
 
-    size_t len = image.data.size();
+    auto& image = maybeImage.value();
 
-    world::Buffer buffer = {
+    size_t len = image.sizeInBytes();
+
+    auto idx = world.add(world::Buffer {
         .name = path.filename().string(),
         .data = std::move(image.data),
-    };
+    });
 
-    auto idx = world.add(std::move(buffer));
-
-    world::BufferView view = {
-        .source = idx,
-        .offset = 0,
-        .source_size = uint32(len),
-    };
-
-    world::Image info = {
+    return world.add(world::Image {
         .name = path.filename().string(),
-        .source = view,
+        .source = world::BufferView {
+            .source = idx,
+            .offset = 0,
+            .source_size = uint32(len),
+        },
         .format = DXGI_FORMAT_R8G8B8A8_UNORM,
-        .size = image.size,
+        .size = image.size2d(),
         .mips = 1,
-    };
-
-    return world.add(std::move(info));
+    });
 }
 
 void Editor::importImage(const fs::path& path) {

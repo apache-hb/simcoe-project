@@ -56,8 +56,5 @@ namespace sm {
             data.resize(count);
             return read_bytes(data.data(), size) == size;
         }
-
-        static Archive load(sm::StringView path);
-        static Archive save(sm::StringView path);
     };
 }

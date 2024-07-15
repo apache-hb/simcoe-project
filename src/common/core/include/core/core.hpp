@@ -26,6 +26,8 @@ namespace sm {
     using char32 = char32_t;
 
     using ssize_t = std::ptrdiff_t;
+
+    struct noinit { };
     // NOLINTEND
 
     template<typename T>

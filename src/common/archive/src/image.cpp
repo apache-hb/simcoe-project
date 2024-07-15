@@ -9,7 +9,7 @@
 
 using namespace sm;
 
-static constexpr Format get_channel_format(int channels) {
+static constexpr Format getChannelFormat(int channels) {
     switch (channels) {
     case 1: return Format::eR8_BYTE;
     case 2: return Format::eRG8_BYTE;
@@ -19,16 +19,14 @@ static constexpr Format get_channel_format(int channels) {
     }
 }
 
-ImageData sm::load_image(sm::Span<const uint8> data) {
+std::expected<ImageData, std::string> sm::loadImage(std::span<const byte> data) {
     int width, height;
-    stbi_uc *pixels = stbi_load_from_memory(data.data(), int_cast<int>(data.size()), &width, &height, nullptr, 4);
-    if (!pixels) {
-        logs::gAssets.warn("Failed to parse image data: {}", stbi_failure_reason());
-        return {};
-    }
+    stbi_uc *pixels = stbi_load_from_memory((const stbi_uc*)data.data(), int_cast<int>(data.size()), &width, &height, nullptr, 4);
+    if (pixels == nullptr)
+        return std::unexpected(fmt::format("stbi failed to load image {}", stbi_failure_reason()));
 
-    const ImageData image = {
-        .pxformat = get_channel_format(4),
+    ImageData image = {
+        .pxformat = getChannelFormat(4),
         .size = { int_cast<uint32_t>(width), int_cast<uint32_t>(height) },
         // TODO: this is a full copy, maybe theres a way to use a single buffer
         .data = sm::Vector<uint8>(pixels, pixels + int_cast<ptrdiff_t>(width * height * 4)),
@@ -39,29 +37,21 @@ ImageData sm::load_image(sm::Span<const uint8> data) {
     return image;
 }
 
-ImageData sm::open_image(const fs::path& path) {
-    if (!fs::exists(path)) {
-        logs::gAssets.error("Image file `{}` does not exist", path);
-        return {};
-    }
+std::expected<ImageData, std::string> sm::openImage(const fs::path& path) {
+    if (!fs::exists(path))
+        return std::unexpected(fmt::format("Image file `{}` does not exist", path));
 
     auto file = Io::file(path.string().c_str(), eOsAccessRead);
-    if (!file.isValid()) {
-        logs::gAssets.error("Failed to open image file `{}`: {}", path, file.error());
-        return {};
-    }
+    if (!file.isValid())
+        return std::unexpected(fmt::format("Failed to open image file `{}`: {}", path, file.error()));
 
     auto size = file.size();
-    if (size == 0) {
-        logs::gAssets.error("Image file `{}` is empty", path);
-        return {};
-    }
+    if (size == 0)
+        return std::unexpected(fmt::format("Image file `{}` is empty", path));
 
     void *data = io_map(*file, eOsProtectRead);
-    if (!data) {
-        logs::gAssets.error("Failed to map image file `{}`: {}", path, file.error());
-        return {};
-    }
+    if (data == nullptr)
+        return std::unexpected(fmt::format("Failed to map image file `{}`: {}", path, file.error()));
 
-    return load_image({ reinterpret_cast<const uint8 *>(data), size });
+    return loadImage({ reinterpret_cast<const byte*>(data), size });
 }

@@ -1,8 +1,10 @@
 #pragma once
 
-#include "core/span.hpp"
 #include "core/adt/vector.hpp"
 #include "core/fs.hpp"
+
+#include <expected>
+#include <span>
 
 #include "math/math.hpp"
 
@@ -14,9 +16,15 @@ namespace sm {
         math::uint2 size;
         sm::Vector<byte> data;
 
-        bool is_valid() const { return !data.empty(); }
+        size_t sizeInBytes() const {
+            return data.size();
+        }
+
+        math::uint2 size2d() const {
+            return size;
+        }
     };
 
-    ImageData load_image(sm::Span<const uint8> data);
-    ImageData open_image(const fs::path& path);
+    std::expected<ImageData, std::string> loadImage(std::span<const byte> data);
+    std::expected<ImageData, std::string> openImage(const fs::path& path);
 }

@@ -27,7 +27,7 @@ struct DiskFileSystem final : sm::IFileSystem {
         auto size = file.tellg();
         file.seekg(0, std::ios::beg);
 
-        sm::VectorBase<byte> data(size);
+        sm::VectorBase<byte> data{size, noinit{}};
         file.read(reinterpret_cast<char *>(data.data()), size);
 
         auto [result, _] = cache.emplace(path, std::move(data));
@@ -47,10 +47,10 @@ IFileSystem *sm::mountFileSystem(fs::path path) {
 struct ArchiveFileSystem final : sm::IFileSystem {
     struct archive *archive;
 
-    sm::HashMap<fs::path, sm::VectorBase<byte>> cache;
+    sm::HashMap<std::string, sm::VectorBase<byte>> cache;
 
     sm::View<byte> readFileData(const fs::path& path) override {
-        auto it = cache.find(path);
+        auto it = cache.find(path.string());
         if (it == cache.end())
             return {};
 
@@ -69,12 +69,16 @@ struct ArchiveFileSystem final : sm::IFileSystem {
                 continue;
             }
 
-            fs::path path(archive_entry_pathname(entry));
+            std::string path{archive_entry_pathname(entry)};
             if (archive_entry_filetype(entry) != AE_IFREG)
                 continue;
 
-            sm::VectorBase<byte> data(archive_entry_size(entry));
+            la_int64_t size = archive_entry_size(entry);
+
+            sm::VectorBase<byte> data{size, noinit{}};
+            CTASSERTF(data.sizeInBytes() == size_t(size), "size mismatch %zu != %zu", data.sizeInBytes(), size_t(size));
             archive_read_data(archive, data.data(), data.size());
+            logs::gAssets.info("reading archive entry: {} {} {}", path, size, data.sizeInBytes());
 
             cache.emplace(path, std::move(data));
 

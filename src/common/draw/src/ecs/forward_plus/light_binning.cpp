@@ -86,8 +86,6 @@ void ecs::lightBinning(
     uint tileCount = draw::computeTileCount(info->window, TILE_SIZE);
     uint tileIndexCount = tileCount * LIGHT_INDEX_BUFFER_STRIDE;
 
-    gDrawLog.info("Light Binning: Window Size: {}, Tile Count: {}, Tile Index Count: {}", info->window, tileCount, tileIndexCount);
-
     const graph::ResourceInfo lightIndexInfo = graph::ResourceInfo::arrayOf<light_index_t>(tileIndexCount);
 
     graph::PassBuilder pass = dd.graph.compute("Light Binning");
@@ -144,8 +142,6 @@ void ecs::lightBinning(
         commands->SetComputeRootDescriptorTable(eLightIndexBuffer, lightIndicesHandle);
 
         uint2 gridSize = computeGridSize(info->window, TILE_SIZE);
-        gDrawLog.info("Light Binning: Dispatching {} x {} x 1", gridSize.x, gridSize.y);
-
         commands->Dispatch(gridSize.x, gridSize.y, 1);
     });
 }

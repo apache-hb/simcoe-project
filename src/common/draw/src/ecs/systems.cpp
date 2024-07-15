@@ -136,8 +136,6 @@ void draw::ecs::initSystems(flecs::world& world, render::IDeviceContext &context
                     .pointLightCount = (uint)gAllPointLights.count(),
                     .spotLightCount = (uint)gAllSpotLights.count(),
                 });
-
-                gDrawLog.info("Window Size[{}]: {}", i, camera[i].window);
             }
         });
 }

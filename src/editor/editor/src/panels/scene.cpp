@@ -294,7 +294,7 @@ void ScenePanel::draw_content() {
 }
 #endif
 
-static int unique_id(world::AnyIndex index) {
+static int getUniqueId(world::AnyIndex index) {
     return index.index() | std::visit<uint16>([](auto index) -> uint16 { return index.get(); }, index) << 16;
 }
 
@@ -314,7 +314,7 @@ bool ScenePanel::begin_tree_item(world::AnyIndex index, ImGuiTreeNodeFlags flags
         flags |= ImGuiTreeNodeFlags_Selected;
     }
 
-    const bool open = ImGui::TreeNodeEx((void*)(intptr_t)unique_id(index), flags, "%s", get_name(world, index));
+    const bool open = ImGui::TreeNodeEx((void*)(intptr_t)getUniqueId(index), flags, "%s", get_name(world, index));
     if (ImGui::IsItemClicked()) {
         mContext.selected = index;
     }

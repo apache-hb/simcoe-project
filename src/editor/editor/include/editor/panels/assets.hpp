@@ -5,7 +5,7 @@
 #include "imfilebrowser.h"
 
 namespace sm::ed {
-    struct AssetBrowser {
+    struct AssetBrowser final {
         ed::EditorContext &ctx;
 
         float thumbnailSize = 64.0f;

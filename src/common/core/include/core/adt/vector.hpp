@@ -140,10 +140,10 @@ namespace sm {
             , mCapacity(capacity)
         { }
 
-        constexpr VectorBase(SizeType initial, SizeType used)
+        constexpr VectorBase(SizeType initialSize, SizeType used)
             : Super(nullptr, nullptr)
         {
-            init(initial, used);
+            init(initialSize, used);
         }
 
     public:
@@ -151,12 +151,12 @@ namespace sm {
             delete[] this->mFront;
         }
 
-        constexpr VectorBase(SizeType initial) noexcept
-            : VectorBase(initial, 0)
+        constexpr VectorBase(SizeType initialSize, noinit) noexcept
+            : VectorBase(initialSize, initialSize)
         { }
 
         constexpr VectorBase() noexcept
-            : VectorBase(4)
+            : VectorBase(4, 0)
         { }
 
         explicit constexpr VectorBase(const VectorBase &other) noexcept
