@@ -1,0 +1,54 @@
+option('disable_dqs', type : 'boolean', value : true,
+    description : 'https://sqlite.org/compile.html#dqs'
+)
+
+option('threadsafe', type : 'combo', value : 'multithreaded',
+    choices : ['singlethreaded', 'multithreaded', 'serialized'],
+    description : 'https://sqlite.org/compile.html#threadsafe'
+)
+
+option('memstatus', type : 'boolean', value : true,
+    description : 'https://sqlite.org/compile.html#default_memstatus'
+)
+
+option('synchronous_wal', type : 'boolean', value : true,
+    description : 'https://sqlite.org/compile.html#default_wal_synchronous'
+)
+
+option('like_doesnt_match_blob', type : 'boolean', value : true,
+    description : 'https://sqlite.org/compile.html#like_doesnt_match_blobs'
+)
+
+option('max_expr_depth', type : 'integer', value : 0,
+    description : 'https://sqlite.org/limits.html#max_expr_depth'
+)
+
+option('omit_decltype', type : 'boolean', value : true,
+    description : 'https://sqlite.org/compile.html#omit_decltype'
+)
+
+option('omit_deprecated', type : 'boolean', value : true,
+    description : 'https://sqlite.org/compile.html#omit_deprecated'
+)
+
+option('omit_progress_callback', type : 'boolean', value : true,
+    description : 'https://sqlite.org/compile.html#omit_progress_callback'
+)
+
+option('omit_shared_cache', type : 'boolean', value : true,
+    description : 'https://sqlite.org/compile.html#omit_shared_cache'
+)
+
+option('use_alloca', type : 'boolean', value : true,
+    description : 'https://sqlite.org/compile.html#use_alloca'
+)
+
+option('omit_autoinit', type : 'boolean', value : false,
+    description : 'https://sqlite.org/compile.html#omit_autoinit'
+)
+
+option('strict_subtype', type : 'boolean', value : true,
+    description : 'https://sqlite.org/compile.html#strict_subtype'
+)
+
+option('api_armor', type : 'feature', value : 'auto')

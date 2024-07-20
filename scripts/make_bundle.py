@@ -122,7 +122,6 @@ def run_command(cmd):
     # flatten the command list and convert everything to strings
     # makes this function more ergenomic to use
     command = [ str(each) for each in flatten(cmd) ]
-    log.info(f'executing: {" ".join(command)}')
 
     result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if result.returncode != 0:

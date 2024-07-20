@@ -1,12 +1,12 @@
 archive_include = include_directories('.', 'include')
 
 src = [
-    'src/archive.cpp',
     'src/io.cpp',
     'src/record.cpp',
     'src/bundle.cpp',
     'src/image.cpp',
     'src/fs.cpp',
+    'src/connection.cpp',
 
     reflect.process('data/format.ct'),
     reflect.process('data/io.ct'),
@@ -15,18 +15,21 @@ src = [
 
 deps = [
     core, logs, math,
-    cthulhu.get_variable('io'),
-    dependency('stb_image'),
-    dependency('liblz4'),
-    dependency('libarchive'),
-    dependency('artery-font')
+    cthulhu.get_variable('io')
 ]
 
 libarchive = library('archive', src,
     cpp_args : [ '-DSM_BUNDLE_BUILD=1' ],
     cpp_pch : 'src/stdafx.hpp',
     include_directories : [ archive_include, reflect_include ],
-    dependencies : deps
+    dependencies : [
+        deps,
+        dependency('sqlite3'),
+        dependency('stb_image'),
+        dependency('liblz4'),
+        dependency('libarchive'),
+        dependency('artery-font')
+    ]
 )
 
 archive = declare_dependency(

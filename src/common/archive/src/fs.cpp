@@ -47,7 +47,7 @@ IFileSystem *sm::mountFileSystem(fs::path path) {
 struct ArchiveFileSystem final : sm::IFileSystem {
     struct archive *archive;
 
-    sm::HashMap<std::string, sm::VectorBase<byte>> cache;
+    sm::HashMap<fs::path, sm::VectorBase<byte>> cache;
 
     sm::View<byte> readFileData(const fs::path& path) override {
         auto it = cache.find(path.string());
@@ -69,7 +69,7 @@ struct ArchiveFileSystem final : sm::IFileSystem {
                 continue;
             }
 
-            std::string path{archive_entry_pathname(entry)};
+            fs::path path{archive_entry_pathname(entry)};
             if (archive_entry_filetype(entry) != AE_IFREG)
                 continue;
 
@@ -77,8 +77,8 @@ struct ArchiveFileSystem final : sm::IFileSystem {
 
             sm::VectorBase<byte> data{size, noinit{}};
             CTASSERTF(data.sizeInBytes() == size_t(size), "size mismatch %zu != %zu", data.sizeInBytes(), size_t(size));
+
             archive_read_data(archive, data.data(), data.size());
-            logs::gAssets.info("reading archive entry: {} {} {}", path, size, data.sizeInBytes());
 
             cache.emplace(path, std::move(data));
 

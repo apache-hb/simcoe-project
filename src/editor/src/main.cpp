@@ -23,6 +23,8 @@
 #include "world/ecs.hpp"
 #include "game/ecs.hpp"
 
+#include "archive/connection.hpp"
+
 using namespace sm;
 using namespace sm::math;
 using namespace sm::math::literals;
@@ -394,6 +396,21 @@ static int editor_main(sys::ShowWindow show) {
         .size = {1, Memory::eMegabytes},
         .record_count = 256,
     };
+
+    sm::db::Connection connection = sm::db::Connection::open("editor.db").value();
+
+    std::string_view sql = R"(
+        CREATE TABLE IF NOT EXISTS test (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL
+        );
+    )";
+
+    if (auto result = connection.execute(sql); !result.has_value()) {
+        logs::gGlobal.error("failed to execute query: {}", sm::db::toString(result.error()));
+    }
+
+    connection.close();
 
     archive::RecordStore store{store_config};
 

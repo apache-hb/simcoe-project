@@ -15,4 +15,6 @@
 #include <iostream>
 #include <fstream>
 
+#include <sqlite3.h>
+
 // IWYU pragma: end_exports
