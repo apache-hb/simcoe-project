@@ -29,7 +29,7 @@
 !*.natvis
 
 # assets
-!data/**/*
+!data/*
 !*.md
 
 # dependencies
@@ -44,3 +44,4 @@ subprojects/*
 !README
 
 *[bB]uild*/
+orm/
