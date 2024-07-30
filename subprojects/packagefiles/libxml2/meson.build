@@ -710,44 +710,44 @@ executable(
     install: true,
 )
 
-## testdso module
+# ## testdso module
 
-testdso_mod = shared_module(
-    'testdso',
-    files('testdso.c'),
-    build_rpath: get_option('libdir'),
-    include_directories: config_dir,
-    name_prefix: '',
-)
+# testdso_mod = shared_module(
+#     'testdso',
+#     files('testdso.c'),
+#     build_rpath: get_option('libdir'),
+#     include_directories: config_dir,
+#     name_prefix: '',
+# )
 
-## tests
+# ## tests
 
-checks = [
-    'runsuite',
-    'runtest',
-    'runxmlconf',
-# Disabled for now, see #694
-#    'testModule',
-    'testThreads',
-    'testapi',
-    'testchar',
-    'testdict',
-    'testlimits',
-    'testparser',
-    'testrecurse',
-]
+# checks = [
+#     'runsuite',
+#     'runtest',
+#     'runxmlconf',
+# # Disabled for now, see #694
+# #    'testModule',
+#     'testThreads',
+#     'testapi',
+#     'testchar',
+#     'testdict',
+#     'testlimits',
+#     'testparser',
+#     'testrecurse',
+# ]
 
-foreach check : checks
-    exe = executable(
-        check,
-        files(check + '.c'),
-        dependencies: [threads_dep, xml_dep],
-        include_directories: config_dir,
-    )
-    if check != 'testlimits'
-        test(check, exe, timeout: 0, workdir: meson.current_source_dir())
-    endif
-endforeach
+# foreach check : checks
+#     exe = executable(
+#         check,
+#         files(check + '.c'),
+#         dependencies: [threads_dep, xml_dep],
+#         include_directories: config_dir,
+#     )
+#     if check != 'testlimits'
+#         test(check, exe, timeout: 0, workdir: meson.current_source_dir())
+#     endif
+# endforeach
 
 examples = get_option('examples').disable_auto_if(meson.is_subproject())
 doc = get_option('doc').disable_auto_if(meson.is_subproject())

@@ -16,8 +16,8 @@ class DebugChannel final : public logs::ILogChannel {
         size_t remaining = sizeof(mBuffer) - length;
 
         logs::splitMessage(message.message, [&](auto line) {
-            fmt::format_to_n(start, remaining, " {}\n", line);
-            os::printDebugMessage(mBuffer);
+            auto [_, extra] = fmt::format_to_n(start, remaining, " {}\n", line);
+            os::printDebugMessage({ mBuffer, size_t(remaining - extra) });
         });
     }
 

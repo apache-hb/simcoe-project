@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/win32.hpp" // IWYU pragma: export
-#include "core/unique.hpp"
+#include "core/memory/unique.hpp"
 #include "core/error.hpp"
 #include "os/os.h"
 #include "io/io.h"

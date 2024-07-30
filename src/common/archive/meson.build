@@ -6,7 +6,6 @@ src = [
     'src/bundle.cpp',
     'src/image.cpp',
     'src/fs.cpp',
-    'src/connection.cpp',
 
     reflect.process('data/format.ct'),
     reflect.process('data/io.ct'),
@@ -21,10 +20,9 @@ deps = [
 libarchive = library('archive', src,
     cpp_args : [ '-DSM_BUNDLE_BUILD=1' ],
     cpp_pch : 'src/stdafx.hpp',
-    include_directories : [ archive_include, reflect_include ],
+    include_directories : [ archive_include, reflect_include, 'src' ],
     dependencies : [
         deps,
-        dependency('sqlite3'),
         dependency('stb_image'),
         dependency('liblz4'),
         dependency('libarchive'),

@@ -170,7 +170,9 @@ subdir('src/vendor/fmtlib')
 
 subdir('src/vendor/reflect')
 subdir('src/common/core')
+
 subdir('src/meta/dao')
+subdir('src/common/orm')
 
 subdir('src/common/logs')
 subdir('src/common/config')

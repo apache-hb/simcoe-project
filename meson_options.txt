@@ -60,3 +60,32 @@ option('amd_ags_enable', type : 'boolean',
 option('tracy_enable', type : 'boolean',
     value : false
 )
+
+###
+### extra orm features
+###
+
+option('psql_orm', type : 'feature',
+    description : 'Enable postgresql support',
+    value : 'auto'
+)
+
+option('mysql_orm', type : 'feature',
+    description : 'Enable mysql support',
+    value : 'auto'
+)
+
+option('orcl_orm', type : 'feature',
+    description : 'Enable OracleDB support',
+    value : 'auto'
+)
+
+option('mssql_orm', type : 'feature',
+    description : 'Enable Microsoft SQL Server support',
+    value : 'auto'
+)
+
+option('db2_orm', type : 'feature',
+    description : 'Enable IBM DB2 support',
+    value : 'auto'
+)

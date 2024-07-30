@@ -1,6 +1,6 @@
 #include "ui/atlas.hpp"
 
-#include "core/unique.hpp"
+#include "core/memory/unique.hpp"
 #include "stb/stb_rectpack.h"
 
 using namespace sm;

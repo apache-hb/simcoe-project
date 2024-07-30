@@ -1,0 +1,3 @@
+option('db2_home', type : 'string',
+    description : 'IBM DB2 home directory'
+)

@@ -108,7 +108,8 @@ struct Unique {
 struct Column {
     std::string name;
     Type type;
-    bool optional;
+    bool optional:1;
+    bool autoIncrement:1;
 };
 
 struct Table {
@@ -202,19 +203,82 @@ static Type buildType(const Properties &props) {
     };
 }
 
-static Column buildDaoColumn(xmlNodePtr node) {
+static std::vector<std::string> splitString(std::string_view text, char sep) {
+    std::vector<std::string> result;
+    size_t start = 0;
+    for (size_t i = 0; i < text.size(); i++) {
+        if (text[i] == sep) {
+            result.push_back(std::string{text.substr(start, i - start)});
+            start = i + 1;
+        }
+    }
+
+    result.push_back(std::string{text.substr(start)});
+    return result;
+}
+
+static void buildDaoConstraint(Table& parent, Column& column, xmlNodePtr node) {
+    if (!expectNode(node, "constraint")) {
+        return;
+    }
+
+    auto props = getNodeProperties(node);
+
+    auto references = getOrDefault(props, "references", "");
+    if (!references.empty()) {
+        auto split = splitString(references, '.');
+
+        if (split.size() != 2) {
+            fmt::println("Invalid references: {}", references);
+            gError = 1;
+            return;
+        }
+
+        ForeignKey foreign = {
+            .column = column.name,
+            .foreignTable = split[0],
+            .foreignColumn = split[1]
+        };
+
+        parent.foregin.push_back(foreign);
+        return;
+    }
+
+    auto unique = getOrDefault(props, "unique", "");
+    if (unique == "true") {
+        Unique u = {
+            .name = column.name,
+            .columns = {column.name}
+        };
+
+        parent.unique.push_back(u);
+        return;
+    }
+}
+
+static Column buildDaoColumn(Table& parent, xmlNodePtr node) {
     if (!expectNode(node, "column")) {
         return {};
     }
 
     auto props = getNodeProperties(node);
     auto name = expectProperty(props, "name", "");
+    Column column = {
+        .name = name,
+        .type = buildType(props),
+        .optional = getOrDefault(props, "nullable", "false") == "true",
+        .autoIncrement = getOrDefault(props, "autoIncrement", "false") == "true"
+    };
+
     fmt::println("    Column: {}", name);
 
-    return Column {
-        .name = name,
-        .type = buildType(props)
-    };
+    for (xmlNodePtr cur = node->children; cur; cur = cur->next) {
+        if (cur->type == XML_ELEMENT_NODE) {
+            buildDaoConstraint(parent, column, cur);
+        }
+    }
+
+    return column;
 }
 
 static Table buildDaoTable(xmlNodePtr node) {
@@ -233,7 +297,7 @@ static Table buildDaoTable(xmlNodePtr node) {
 
     for (xmlNodePtr cur = node->children; cur; cur = cur->next) {
         if (cur->type == XML_ELEMENT_NODE) {
-            auto column = buildDaoColumn(cur);
+            auto column = buildDaoColumn(table, cur);
             table.columns.push_back(column);
         }
     }
@@ -324,34 +388,44 @@ int main(int argc, const char **argv) {
 
         header.writeln("/// CREATE TABLE {} (", table.name);
         for (size_t j = 0; j < table.columns.size(); j++) {
-            const auto& [name, type, optional] = table.columns[j];
+            const auto& column = table.columns[j];
 
-            auto sqlType = makeSqlType(type);
-            header.write("/// \t{} {}", name, sqlType);
+            auto sqlType = makeSqlType(column.type);
+            header.write("///     {} {}", column.name, sqlType);
 
-            if (table.isPrimaryKey(table.columns[j])) {
-                header.print(" PRIMARY KEY");
-            }
-
-            if (!optional) {
+            if (!column.optional) {
                 header.print(" NOT NULL");
             }
 
-            if (type.isString()) {
-                header.print(" CHECK(NOT IS_BLANK_STRING({}))", name);
+            if (table.isPrimaryKey(column)) {
+                header.print(" PRIMARY KEY");
+
+                if (column.autoIncrement) {
+                    header.print(" AUTOINCREMENT");
+                }
             }
 
-            header.print("{}", j + 1 < table.columns.size() ? "," : "");
-            header.print("\n");
+            if (column.type.isString()) {
+                header.print(" CHECK(NOT IS_BLANK_STRING({}))", column.name);
+            }
+
+            header.print("{}\n", j + 1 < table.columns.size() ? "," : "");
         }
-        header.writeln("/// )");
+
+        for (size_t j = 0; j < table.foregin.size(); j++) {
+            const auto& foreign = table.foregin[j];
+            auto tail = j + 1 < table.foregin.size() ? "," : "";
+            header.write("///     FOREIGN KEY ({}) REFERENCES {}({}){}\n", foreign.column, foreign.foreignTable, foreign.foreignColumn, tail);
+        }
+
+        header.writeln("/// ) STRICT;");
 
         header.writeln("class {} {{", tableName);
         header.indent();
 
-        for (const auto& [name, type, optional] : table.columns) {
-            auto cxxType = makeCxxType(type, optional);
-            header.writeln("{} m{};", cxxType, pascalCase(name));
+        for (const auto& column : table.columns) {
+            auto cxxType = makeCxxType(column.type, column.optional);
+            header.writeln("{} m{};", cxxType, pascalCase(column.name));
         }
 
         header.writeln();
@@ -362,19 +436,19 @@ int main(int argc, const char **argv) {
 
         header.write("{}(", tableName);
         for (size_t i = 0; i < table.columns.size(); i++) {
-            const auto& [name, type, optional] = table.columns[i];
-            auto cxxType = makeCxxType(type, optional);
-            header.print("{} {}{}", cxxType, camelCase(name), i + 1 < table.columns.size() ? ", " : "");
+            const auto& column = table.columns[i];
+            auto cxxType = makeCxxType(column.type, column.optional);
+            header.print("{} {}{}", cxxType, camelCase(column.name), i + 1 < table.columns.size() ? ", " : "");
         }
         header.print(") noexcept\n");
         header.indent();
 
         for (size_t j = 0; j < table.columns.size(); j++) {
-            const auto& [name, type, optional] = table.columns[j];
-            auto fieldName = pascalCase(name);
-            auto paramName = camelCase(name);
+            const auto& column = table.columns[j];
+            auto fieldName = pascalCase(column.name);
+            auto paramName = camelCase(column.name);
             char sep = (j == 0) ? ':' : ',';
-            if (type.isMoveConstructed()) {
+            if (column.type.isMoveConstructed()) {
                 header.writeln("{} m{}(std::move({}))", sep, fieldName, paramName);
             } else {
                 header.writeln("{} m{}({})", sep, fieldName, paramName);
@@ -385,10 +459,10 @@ int main(int argc, const char **argv) {
         header.writeln("{{ }}");
         header.writeln();
 
-        for (const auto& [name, type, optional] : table.columns) {
-            auto fieldName = pascalCase(name);
-            auto paramName = camelCase(name);
-            header.writeln("{} {}() const noexcept {{ return m{}; }}", makeCxxType(type, optional), name, fieldName);
+        for (const auto& column : table.columns) {
+            auto fieldName = pascalCase(column.name);
+            auto paramName = camelCase(column.name);
+            header.writeln("{} {}() const noexcept {{ return m{}; }}", makeCxxType(column.type, column.optional), column.name, fieldName);
         }
 
         header.dedent();

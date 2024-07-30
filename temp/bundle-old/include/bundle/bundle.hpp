@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/unique.hpp"
+#include "core/memory/unique.hpp"
 #include "core/vector.hpp"
 
 #include "logs/logs.hpp"

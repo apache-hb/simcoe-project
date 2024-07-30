@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/unique.hpp"
+#include "core/memory/unique.hpp"
 
 namespace sm {
     template<typename T, size_t N>

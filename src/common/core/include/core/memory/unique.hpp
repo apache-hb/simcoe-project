@@ -67,9 +67,9 @@ namespace sm {
         constexpr explicit operator bool() const noexcept { return isValid(); }
 
         constexpr void reset(T handle = TEmpty) noexcept {
-            if (mHandle != TEmpty) {
+            if (mHandle != TEmpty)
                 mDelete(mHandle);
-            }
+
             mHandle = handle;
         }
 
@@ -181,7 +181,7 @@ namespace sm {
 
     DBG_STATIC_ASSERT(sizeof(sm::UniquePtr<int>) == sizeof(int*),
         "UniquePtr<T> should be the same size as T* in release"
-        "a compiler that supports [[no_unique_address]] or [[msvc::no_unique_address]] is required");
+        "a compiler that supports (and implements) [[no_unique_address]] or [[msvc::no_unique_address]] is required");
 }
 
 // NOLINTBEGIN

@@ -1,6 +1,6 @@
 #include "threads/threads.hpp"
 
-#include "core/unique.hpp"
+#include "core/memory/unique.hpp"
 #include "core/span.hpp"
 
 #include "system/system.hpp"

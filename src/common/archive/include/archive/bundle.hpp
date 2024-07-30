@@ -4,7 +4,7 @@
 
 #include "core/span.hpp"
 #include "core/string.hpp"
-#include "core/unique.hpp"
+#include "core/memory/unique.hpp"
 
 #include "archive/fs.hpp"
 

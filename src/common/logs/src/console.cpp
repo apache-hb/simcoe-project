@@ -18,7 +18,7 @@ class ConsoleChannel final : public logs::ILogChannel {
 
         logs::splitMessage(message.message, [&](std::string_view line) {
             auto [_, extra] = fmt::format_to_n(start, remaining, " {}\n", line);
-            mConsole.print(std::string_view { mBuffer, static_cast<size_t>(length + extra) });
+            mConsole.print({ mBuffer, size_t(length + extra) });
         });
     }
 

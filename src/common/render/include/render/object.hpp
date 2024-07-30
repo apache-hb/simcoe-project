@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/unique.hpp"
+#include "core/memory/unique.hpp"
 
 #include "render/result.hpp"
 

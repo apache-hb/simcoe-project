@@ -37,11 +37,12 @@ subprojects/*
 !subprojects/*.wrap
 !subprojects/packagefiles
 !subprojects/packagefiles/**
+!subprojects/oradb-oci
+!subprojects/db2cli
 !subprojects/.clang-tidy
-!subprojects/directx-strings
 
 !LICENSE
 !README
 
 *[bB]uild*/
-orm/
+/orm/

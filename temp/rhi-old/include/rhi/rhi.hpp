@@ -8,7 +8,7 @@
 #include "core/macros.hpp"
 #include "core/vector.hpp"
 
-#include "core/unique.hpp"
+#include "core/memory/unique.hpp"
 
 #include "math/math.hpp"
 

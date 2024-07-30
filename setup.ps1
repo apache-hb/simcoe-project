@@ -3,7 +3,7 @@ $meson_url = "https://elliot-static-site.s3.amazonaws.com/data/meson.zip"
 
 $cwd = Get-Location
 
-# cachedir is out root directory, everything we do happens in here
+# cachedir is our root directory, everything we do happens in here
 $cachedir = "$cwd/.buildcache"
 
 # packagecache is the directory where we store downloaded zip files

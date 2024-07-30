@@ -1,0 +1,7 @@
+option('oracle_home', type : 'string',
+    description : 'Oracle Instant Client home directory'
+)
+
+option('oracle_base', type : 'string',
+    description : 'Oracle Instant Client base directory'
+)

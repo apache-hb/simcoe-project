@@ -23,7 +23,7 @@
 #include "world/ecs.hpp"
 #include "game/ecs.hpp"
 
-#include "archive/connection.hpp"
+#include "orm/connection.hpp"
 
 using namespace sm;
 using namespace sm::math;
@@ -156,7 +156,7 @@ static void common_init(void) {
 
         auto message = sm::vformat(msg, args);
 
-        logs::gGlobal.panic("{}", message);
+        fmt::println(stderr, "{}", message);
 
         bt_report_t *report = bt_report_collect(arena);
         fmt_backtrace(kPrintOptions, report);
@@ -390,6 +390,89 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     // game.shutdown();
 }
 
+static db::DbError sqliteTest() {
+    auto env = TRY(db::Environment::create(db::DbType::eSqlite3), (const auto& error) {
+        logs::gGlobal.error("failed to create environment: {}", error.message());
+    });
+
+    auto conn = TRY(env.connect({ .host = "test.db" }), (const auto& error) {
+        logs::gGlobal.error("failed to connect to database: {}", error.message());
+    });
+
+    std::string_view sql = R"(
+        CREATE TABLE IF NOT EXISTS test (
+            id   INTEGER      NOT NULL PRIMARY KEY,
+            name VARCHAR(255) NOT NULL
+        ) STRICT;
+
+        INSERT INTO test VALUES (1, 'hello'), (2, 'world');
+    )";
+
+    auto result = TRY(conn.prepare(sql), (const auto& error) {
+        logs::gGlobal.error("failed to prepare query: {}", error.message());
+    });
+
+    TRY(result.update(), (const auto& error) {
+        logs::gGlobal.error("failed to execute update: {}", error.message());
+    });
+
+    logs::gGlobal.info("executed query");
+
+    return db::DbError::ok();
+}
+
+static db::DbError oradbTest() {
+    auto env = TRY(db::Environment::create(db::DbType::eOracleDB), (const auto& error) {
+        logs::gGlobal.error("failed to create environment: {}", error.message());
+    });
+
+    db::ConnectionConfig config = {
+        .port = 1521,
+        .host = "localhost",
+        .user = "elliothb",
+        .password = "elliothb",
+        .database = "orclpdb"
+    };
+
+    auto conn = TRY(env.connect(config), (const auto& error) {
+        logs::gGlobal.error("failed to connect to database: {}", error.message());
+    });
+
+    auto doUpdate = [&](std::string_view sql) {
+        auto result = TRY(conn.prepare(sql), (const auto& error) {
+            logs::gGlobal.error("failed to prepare query: {}", error.message());
+        });
+
+        TRY(result.update(), (const auto& error) {
+            logs::gGlobal.error("failed to execute update: {}", error.message());
+        });
+
+        if (db::DbError err = conn.commit()) {
+            logs::gGlobal.error("failed to commit transaction: {}", err.message());
+        }
+
+        logs::gGlobal.info("executed query");
+
+        return db::DbError::ok();
+    };
+
+    doUpdate(R"(
+        CREATE TABLE people (
+            id   INTEGER      NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            CONSTRAINT people_pk PRIMARY KEY (id)
+        )
+    )");
+
+    doUpdate("INSERT INTO people VALUES (1, 'hello')");
+    doUpdate("INSERT INTO people VALUES (2, 'world')");
+
+    if (db::DbError err = conn.commit())
+        logs::gGlobal.error("failed to commit transaction: {}", err.message());
+
+    return db::DbError::ok();
+}
+
 static int editor_main(sys::ShowWindow show) {
     archive::RecordStoreConfig store_config = {
         .path = "client.bin",
@@ -397,20 +480,8 @@ static int editor_main(sys::ShowWindow show) {
         .record_count = 256,
     };
 
-    sm::db::Connection connection = sm::db::Connection::open("editor.db").value();
-
-    std::string_view sql = R"(
-        CREATE TABLE IF NOT EXISTS test (
-            id INTEGER PRIMARY KEY,
-            name TEXT NOT NULL
-        );
-    )";
-
-    if (auto result = connection.execute(sql); !result.has_value()) {
-        logs::gGlobal.error("failed to execute query: {}", sm::db::toString(result.error()));
-    }
-
-    connection.close();
+    sqliteTest();
+    oradbTest();
 
     archive::RecordStore store{store_config};
 

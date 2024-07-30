@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/macros.hpp"
-#include "core/unique.hpp"
+#include "core/memory/unique.hpp"
 #include "core/utf8.hpp"
 
 #include "bundle/bundle.hpp"

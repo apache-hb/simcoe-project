@@ -1,0 +1,11 @@
+[wrap-file]
+directory = postgres-6f6b0f193db4f850a94aeabf363bf03bd0642e60
+
+source_url = https://github.com/postgres/postgres/archive/6f6b0f193db4f850a94aeabf363bf03bd0642e60.zip
+source_filename = postgres-6f6b0f193db4f850a94aeabf363bf03bd0642e60.zip
+source_hash = ac5931ab3e4642b4cd6e82402cf37f1a4a8bfc7691bc80712334ce8ee9c08641
+
+patch_directory = postgres
+
+[provide]
+dependency_names = libpq
