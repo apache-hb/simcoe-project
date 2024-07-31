@@ -83,41 +83,81 @@ Blob ResultSet::getBlob(int index) noexcept {
 }
 
 ///
-/// bindpoint
+/// named bindpoint
 ///
 
-void BindPoint::to(int64 value) noexcept {
-    if (DbError error = mImpl->bindInt(mIndex, value)) {
+void NamedBindPoint::to(int64 value) noexcept {
+    if (DbError error = impl().bindInt(mName, value)) {
         CT_NEVER("Failed to bind int64 value %lld: %s", value, error.message().data());
     }
 }
 
-void BindPoint::to(bool value) noexcept {
-    if (DbError error = mImpl->bindBoolean(mIndex, value)) {
+void NamedBindPoint::to(bool value) noexcept {
+    if (DbError error = impl().bindBoolean(mName, value)) {
         CT_NEVER("Failed to bind boolean value %s: %s", (value ? "true" : "false"), error.message().data());
     }
 }
 
-void BindPoint::to(std::string_view value) noexcept {
-    if (DbError error = mImpl->bindString(mIndex, value)) {
+void NamedBindPoint::to(std::string_view value) noexcept {
+    if (DbError error = impl().bindString(mName, value)) {
         CT_NEVER("Failed to bind string value %s: %s", value.data(), error.message().data());
     }
 }
 
-void BindPoint::to(double value) noexcept {
-    if (DbError error = mImpl->bindDouble(mIndex, value)) {
+void NamedBindPoint::to(double value) noexcept {
+    if (DbError error = impl().bindDouble(mName, value)) {
         CT_NEVER("Failed to bind double value %f: %s", value, error.message().data());
     }
 }
 
-void BindPoint::to(Blob value) noexcept {
-    if (DbError error = mImpl->bindBlob(mIndex, value)) {
+void NamedBindPoint::to(Blob value) noexcept {
+    if (DbError error = impl().bindBlob(mName, value)) {
         CT_NEVER("Failed to bind blob value (length %zu): %s", value.size_bytes(), error.message().data());
     }
 }
 
-void BindPoint::to(std::nullptr_t) noexcept {
-    if (DbError error = mImpl->bindNull(mIndex)) {
+void NamedBindPoint::to(std::nullptr_t) noexcept {
+    if (DbError error = impl().bindNull(mName)) {
+        CT_NEVER("Failed to bind null value: %s", error.message().data());
+    }
+}
+
+///
+/// positional bindpoint
+///
+
+void PositionalBindPoint::to(int64 value) noexcept {
+    if (DbError error = impl().bindInt(mIndex, value)) {
+        CT_NEVER("Failed to bind int64 value %lld: %s", value, error.message().data());
+    }
+}
+
+void PositionalBindPoint::to(bool value) noexcept {
+    if (DbError error = impl().bindBoolean(mIndex, value)) {
+        CT_NEVER("Failed to bind boolean value %s: %s", (value ? "true" : "false"), error.message().data());
+    }
+}
+
+void PositionalBindPoint::to(std::string_view value) noexcept {
+    if (DbError error = impl().bindString(mIndex, value)) {
+        CT_NEVER("Failed to bind string value %s: %s", value.data(), error.message().data());
+    }
+}
+
+void PositionalBindPoint::to(double value) noexcept {
+    if (DbError error = impl().bindDouble(mIndex, value)) {
+        CT_NEVER("Failed to bind double value %f: %s", value, error.message().data());
+    }
+}
+
+void PositionalBindPoint::to(Blob value) noexcept {
+    if (DbError error = impl().bindBlob(mIndex, value)) {
+        CT_NEVER("Failed to bind blob value (length %zu): %s", value.size_bytes(), error.message().data());
+    }
+}
+
+void PositionalBindPoint::to(std::nullptr_t) noexcept {
+    if (DbError error = impl().bindNull(mIndex)) {
         CT_NEVER("Failed to bind null value: %s", error.message().data());
     }
 }
@@ -138,14 +178,14 @@ std::expected<ResultSet, DbError> PreparedStatement::select() noexcept {
     if (DbError error = mImpl->select())
         return std::unexpected(error);
 
-    return ResultSet{mImpl, mEnv};
+    return ResultSet{mImpl};
 }
 
 std::expected<ResultSet, DbError> PreparedStatement::update() noexcept {
-    if (DbError error = mImpl->update())
+    if (DbError error = mImpl->update(mConnection->autoCommit()))
         return std::unexpected(error);
 
-    return ResultSet{mImpl, mEnv};
+    return ResultSet{mImpl};
 }
 
 ///
@@ -165,7 +205,7 @@ std::expected<PreparedStatement, DbError> Connection::prepare(std::string_view s
     if (DbError error = mImpl->prepare(sql, &statement))
         return std::unexpected(error);
 
-    return PreparedStatement{statement, mEnv};
+    return PreparedStatement{statement, this};
 }
 
 std::expected<ResultSet, DbError> Connection::select(std::string_view sql) noexcept {
@@ -250,5 +290,5 @@ std::expected<Connection, DbError> Environment::connect(const ConnectionConfig& 
     if (DbError error = mImpl->connect(config, &connection))
         return std::unexpected(error);
 
-    return Connection{connection, mImpl.get()};
+    return Connection{connection, config};
 }

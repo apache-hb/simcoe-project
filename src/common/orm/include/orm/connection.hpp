@@ -1,73 +1,13 @@
 #pragma once
 
-#include "core/memory/unique.hpp"
+#include "orm/bind.hpp"
+#include "orm/core.hpp"
 #include "orm/error.hpp"
 
 #include "core/core.hpp"
 #include "core/macros.hpp"
 
-#include <expected>
-#include <span>
-
 namespace sm::db {
-    class ResultSet;
-    class QueryIterator;
-    class Query;
-    class PreparedStatement;
-    class Connection;
-    class Environment;
-
-    using Blob = std::span<const uint8>;
-    using Date = std::chrono::time_point<std::chrono::system_clock>;
-
-    namespace detail {
-        struct IStatement;
-        struct IConnection;
-        struct IEnvironment;
-
-        void destroyStatement(detail::IStatement *impl) noexcept;
-        void destroyConnection(detail::IConnection *impl) noexcept;
-        void destroyEnvironment(detail::IEnvironment *impl) noexcept;
-
-        using StmtHandle = std::shared_ptr<IStatement>;
-        using ConnectionHandle = FnUniquePtr<detail::IConnection, &destroyConnection>;
-        using EnvHandle = FnUniquePtr<detail::IEnvironment, &destroyEnvironment>;
-    }
-
-    enum class DbType {
-        eSqlite3,
-        ePostgreSQL,
-        eMySQL,
-        eOracleDB,
-        eMSSQL,
-        eDB2
-    };
-
-    enum class DataType {
-        eInteger,
-        eBoolean,
-        eString,
-        eDouble,
-        eBlob,
-        eNull,
-        eRowId
-    };
-
-    struct ConnectionConfig {
-        uint16 port;
-        std::string_view host;
-        std::string_view user;
-        std::string_view password;
-        std::string_view database;
-
-        int timeout = 5;
-    };
-
-    struct Column {
-        std::string_view name;
-        DataType type;
-    };
-
     /// @brief Represents a result set of a query.
     ///
     /// @note Not internally synchronized.
@@ -77,11 +17,9 @@ namespace sm::db {
         friend PreparedStatement;
 
         detail::StmtHandle mImpl;
-        detail::IEnvironment *mEnv = nullptr;
 
-        ResultSet(detail::StmtHandle impl, detail::IEnvironment *env) noexcept
+        ResultSet(detail::StmtHandle impl) noexcept
             : mImpl(std::move(impl))
-            , mEnv(env)
         { }
 
     public:
@@ -105,54 +43,27 @@ namespace sm::db {
         Blob getBlob(std::string_view column) noexcept { return getBlob(columnIndex(column)); }
     };
 
-    class BindPoint {
-        friend PreparedStatement;
-
-        detail::IStatement *mImpl = nullptr;
-        int mIndex = 0;
-
-        BindPoint(detail::IStatement *impl, int index) noexcept
-            : mImpl(impl)
-            , mIndex(index)
-        { }
-
-    public:
-        void to(int64 value) noexcept;
-        void to(bool value) noexcept;
-        void to(std::string_view value) noexcept;
-        void to(double value) noexcept;
-        void to(Blob value) noexcept;
-        void to(std::nullptr_t) noexcept;
-
-        BindPoint& operator=(int64 value) noexcept { to(value); return *this; }
-        BindPoint& operator=(bool value) noexcept { to(value); return *this; }
-        BindPoint& operator=(std::string_view value) noexcept { to(value); return *this; }
-        BindPoint& operator=(double value) noexcept { to(value); return *this; }
-        BindPoint& operator=(Blob value) noexcept { to(value); return *this; }
-        BindPoint& operator=(std::nullptr_t) noexcept { to(nullptr); return *this; }
-    };
-
     class PreparedStatement {
         friend Connection;
 
         detail::StmtHandle mImpl;
-        detail::IEnvironment *mEnv = nullptr;
+        Connection *mConnection;
 
-        PreparedStatement(detail::IStatement *impl, detail::IEnvironment *env) noexcept
+        PreparedStatement(detail::IStatement *impl, Connection *connection) noexcept
             : mImpl({impl, &detail::destroyStatement})
-            , mEnv(env)
+            , mConnection(connection)
         { }
 
     public:
         SM_MOVE(PreparedStatement, default);
 
-        BindPoint bind(int index) noexcept { return BindPoint{mImpl.get(), index}; }
+        PositionalBindPoint bind(int index) noexcept { return PositionalBindPoint{mImpl.get(), index}; }
         void bind(int index, int64 value) noexcept { bind(index) = value; }
         void bind(int index, std::string_view value) noexcept { bind(index) = value; }
         void bind(int index, double value) noexcept { bind(index) = value; }
         void bind(int index, std::nullptr_t) noexcept { bind(index) = nullptr; }
 
-        BindPoint bind(std::string_view name) noexcept;
+        NamedBindPoint bind(std::string_view name) noexcept;
         void bind(std::string_view name, int64 value) noexcept { bind(name) = value; }
         void bind(std::string_view name, std::string_view value) noexcept { bind(name) = value; }
         void bind(std::string_view name, double value) noexcept { bind(name) = value; }
@@ -169,11 +80,12 @@ namespace sm::db {
         friend Environment;
 
         detail::ConnectionHandle mImpl;
-        detail::IEnvironment *mEnv = nullptr;
 
-        Connection(detail::IConnection *impl, detail::IEnvironment *env) noexcept
+        bool mAutoCommit;
+
+        Connection(detail::IConnection *impl, const ConnectionConfig& config) noexcept
             : mImpl(impl)
-            , mEnv(env)
+            , mAutoCommit(config.autoCommit)
         { }
 
     public:
@@ -182,6 +94,9 @@ namespace sm::db {
         DbError begin() noexcept;
         DbError rollback() noexcept;
         DbError commit() noexcept;
+
+        void setAutoCommit(bool enabled) noexcept { mAutoCommit = enabled; }
+        bool autoCommit() const noexcept { return mAutoCommit; }
 
         std::expected<PreparedStatement, DbError> prepare(std::string_view sql) noexcept;
 
@@ -192,11 +107,15 @@ namespace sm::db {
     };
 
     class Environment {
+        friend Connection;
+
         detail::EnvHandle mImpl;
 
         Environment(detail::IEnvironment *impl) noexcept
             : mImpl(impl)
         { }
+
+        detail::IEnvironment *impl() noexcept { return mImpl.get(); }
 
     public:
         SM_MOVE(Environment, default);

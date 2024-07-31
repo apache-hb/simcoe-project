@@ -345,8 +345,9 @@ class OraStatement final : public detail::IStatement {
         return executeSelect(OCI_DEFAULT);
     }
 
-    DbError update() noexcept override {
-        return executeUpdate(OCI_DEFAULT);
+    DbError update(bool autoCommit) noexcept override {
+        ub4 flags = autoCommit ? OCI_COMMIT_ON_SUCCESS : OCI_DEFAULT;
+        return executeUpdate(flags);
     }
 
     DbError reset() noexcept override {

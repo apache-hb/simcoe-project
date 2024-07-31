@@ -17,8 +17,6 @@ TEST_CASE("updates") {
     if (conn.tableExists("test"))
         getValue(conn.update("DROP TABLE test"));
 
-    checkError(conn.commit());
-
     getValue(conn.update("CREATE TABLE test (id NUMBER, name CHARACTER VARYING(100))"));
 
     GIVEN("a connection") {

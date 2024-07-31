@@ -129,7 +129,8 @@ public:
     }
 
     std::expected<int, DbError> getBindIndex(std::string_view name) const noexcept {
-        int index = sqlite3_bind_parameter_index(mStatement, name.data());
+        std::string id = fmt::format(":{}", name);
+        int index = sqlite3_bind_parameter_index(mStatement, id.c_str());
         if (index == 0)
             return std::unexpected(getStmtError(SQLITE_ERROR));
 
@@ -141,9 +142,29 @@ public:
         return bindInt(index - 1, value);
     }
 
+    DbError bindBoolean(std::string_view name, bool value) noexcept override {
+        int index = TRY_UNWRAP(getBindIndex(name));
+        return bindBoolean(index - 1, value);
+    }
+
     DbError bindString(std::string_view name, std::string_view value) noexcept override {
         int index = TRY_UNWRAP(getBindIndex(name));
         return bindString(index - 1, value);
+    }
+
+    DbError bindDouble(std::string_view name, double value) noexcept override {
+        int index = TRY_UNWRAP(getBindIndex(name));
+        return bindDouble(index - 1, value);
+    }
+
+    DbError bindBlob(std::string_view name, Blob value) noexcept override {
+        int index = TRY_UNWRAP(getBindIndex(name));
+        return bindBlob(index - 1, value);
+    }
+
+    DbError bindNull(std::string_view name) noexcept override {
+        int index = TRY_UNWRAP(getBindIndex(name));
+        return bindNull(index - 1);
     }
 
     DbError select() noexcept override {
@@ -151,7 +172,7 @@ public:
         return DbError::ok();
     }
 
-    DbError update() noexcept override {
+    DbError update(bool autoCommit) noexcept override {
         int err = execSteps(mStatement);
         return getStmtError(err);
     }
@@ -266,7 +287,7 @@ class SqliteConnection final : public detail::IConnection {
 
         SqliteStatement ps{stmt};
 
-        if (DbError err = ps.bindString(":name", table))
+        if (DbError err = ps.bindString("name", table))
             return err;
 
         int64 count = 0;

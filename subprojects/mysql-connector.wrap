@@ -1,0 +1,12 @@
+[wrap-file]
+
+directory = mysql-connector-c++-9.0.0-src
+
+source_url = https://cdn.mysql.com//Downloads/Connector-C++/mysql-connector-c++-9.0.0-src.zip
+source_filename = mysql-connector-c++-9.0.0-src.zip
+source_hash = 673f2ceb9d6782c5bde37fa479473a7ebcc84b474ed5de8487636e8ba2cd2cea
+
+patch_directory = mysql-connector
+
+[provide]
+dependency_names = mysql-connector

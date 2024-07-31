@@ -64,7 +64,7 @@ namespace sm::db::detail {
         /** Execution */
 
         virtual DbError select() noexcept = 0;
-        virtual DbError update() noexcept = 0;
+        virtual DbError update(bool autoCommit) noexcept = 0;
 
         /** Fetch results */
 
