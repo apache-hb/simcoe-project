@@ -129,21 +129,23 @@ namespace {
 
     union CellValue {
         oratext *text;
-        OCINumber number;
+        char num[21];
         OCIDate date;
         int64 integer;
         double real;
     };
 
     struct ColumnInfo {
-        ub2 dataType;
         std::string_view name;
         ub4 charSemantics;
         ub4 columnWidth;
         OraDefine define;
 
         CellValue value;
+        ub2 type;
         ub2 valueLength;
+        sb2 precision;
+        sb1 scale;
     };
 
     struct CellInfo {
@@ -155,15 +157,19 @@ namespace {
         return type == SQLT_STR || type == SQLT_AFC || type == SQLT_CHR;
     }
 
-    CellInfo initCellValue(ColumnInfo& column) noexcept {
-        if (isStringType(column.dataType)) {
+    bool isNumberType(ub2 type) noexcept {
+        return type == SQLT_NUM || type == SQLT_INT || type == SQLT_FLT;
+    }
+
+    CellInfo initCellValue(OraError error, ColumnInfo& column) noexcept {
+        if (isStringType(column.type)) {
             column.value.text = (oratext*)std::malloc(column.columnWidth + 1);
             return CellInfo { column.value.text, column.columnWidth + 1 };
         }
 
-        switch (column.dataType) {
+        switch (column.type) {
         case SQLT_NUM:
-            return CellInfo { &column.value.number, sizeof(column.value.number) };
+            return CellInfo { &column.value.num, sizeof(column.value.num) };
 
         case SQLT_DAT:
             return CellInfo { &column.value.date, sizeof(column.value.date) };
@@ -175,7 +181,7 @@ namespace {
             return CellInfo { &column.value.real, sizeof(column.value.real) };
 
         default:
-            CT_NEVER("Unsupported data type %d", column.dataType);
+            CT_NEVER("Unsupported data type %d", column.type);
         }
     }
 
@@ -189,18 +195,20 @@ namespace {
 
     std::expected<std::vector<ColumnInfo>, DbError> defineColumns(OraError error, OraStmt stmt) noexcept {
         OraParam param;
+        std::vector<ColumnInfo> columns;
         ub4 counter = 1;
         sword result = OCIParamGet(stmt, OCI_HTYPE_STMT, error, param.voidpp(), counter);
-        fmt::println("Result {}", result);
         if (result != OCI_SUCCESS)
-            return std::unexpected(oraGetError(error, result));
+            return columns;
 
-        std::vector<ColumnInfo> columns;
         columns.reserve(16);
 
         while (result == OCI_SUCCESS) {
-            fmt::println("Column {}", counter);
             ub2 dataType = TRY_RESULT(param.getAttribute<ub2>(error, OCI_ATTR_DATA_TYPE));
+
+            // TODO: this is definetly going to bite me in the future
+            if (dataType == SQLT_NUM)
+                dataType = SQLT_INT;
 
             ub4 columnNameLength = 0;
             text *columnName = nullptr;
@@ -212,13 +220,18 @@ namespace {
             ub4 columnWidth = TRY_RESULT(getColumnSize(error, param, charSemantics));
 
             auto& info = columns.emplace_back(ColumnInfo {
-                .dataType = dataType,
                 .name = {(const char*)columnName, columnNameLength},
                 .charSemantics = charSemantics,
-                .columnWidth = columnWidth
+                .columnWidth = columnWidth,
+                .type = dataType,
             });
 
-            auto [value, size] = initCellValue(info);
+            if (isNumberType(dataType)) {
+                info.precision = TRY_RESULT(param.getAttribute<sb2>(error, OCI_ATTR_PRECISION));
+                info.scale = TRY_RESULT(param.getAttribute<sb1>(error, OCI_ATTR_SCALE));
+            }
+
+            auto [value, size] = initCellValue(error, info);
 
             sword status = OCIDefineByPos(
                 stmt, &info.define, error, counter,
@@ -230,7 +243,7 @@ namespace {
             if (status != OCI_SUCCESS)
                 return std::unexpected(oraGetError(error, status));
 
-            result = OCIParamGet(stmt, OCI_DTYPE_PARAM, error, param.voidpp(), ++counter);
+            result = OCIParamGet(stmt, OCI_HTYPE_STMT, error, param.voidpp(), ++counter);
         }
 
         return columns;
@@ -247,7 +260,7 @@ class OraStatement final : public detail::IStatement {
 
     DbError closeColumns() noexcept {
         for (ColumnInfo& column : mColumnInfo) {
-            if (isStringType(column.dataType))
+            if (isStringType(column.type))
                 std::free(column.value.text);
         }
 
@@ -255,19 +268,13 @@ class OraStatement final : public detail::IStatement {
         return DbError::ok();
     }
 
-    DbError execute(ub4 flags) noexcept {
+    DbError execute(ub4 flags, int iters) noexcept {
         if (DbError error = closeColumns())
             return error;
 
-        ///
-        /// TODO: this doesnt work for updates, only selects
-        ///       oracle requires an iteration count for updates (usually 1)
-        ///       but for selects 0 is a valid first iteration count to fetch
-        ///       implicit describe data before defining.
-        ///
-        mStatus = OCIStmtExecute(mService, mStmt, mError, 0, 0, nullptr, nullptr, flags);
+        mStatus = OCIStmtExecute(mService, mStmt, mError, iters, 0, nullptr, nullptr, flags);
 
-        bool shouldDefine = mStatus == OCI_SUCCESS || mStatus == OCI_SUCCESS_WITH_INFO;
+        bool shouldDefine = isSuccess(mStatus);
         if (mStatus == OCI_NO_DATA)
             mStatus = OCI_SUCCESS;
 
@@ -278,6 +285,14 @@ class OraStatement final : public detail::IStatement {
             mColumnInfo = TRY_UNWRAP(defineColumns(mError, mStmt));
 
         return DbError::ok();
+    }
+
+    DbError executeUpdate(ub4 flags) noexcept {
+        return execute(flags, 1);
+    }
+
+    DbError executeSelect(ub4 flags) noexcept {
+        return execute(flags, 0);
     }
 
     DbError close() noexcept override {
@@ -326,17 +341,12 @@ class OraStatement final : public detail::IStatement {
         return DbError::todo();
     }
 
-    DbError getBindIndex(std::string_view name, int& index) noexcept override {
-        return DbError::todo();
-    }
-
     DbError select() noexcept override {
-        return execute(OCI_DEFAULT);
+        return executeSelect(OCI_DEFAULT);
     }
 
-    DbError update(bool commit) noexcept override {
-        ub4 flags = commit ? OCI_COMMIT_ON_SUCCESS : OCI_DEFAULT;
-        return execute(flags);
+    DbError update() noexcept override {
+        return executeUpdate(OCI_DEFAULT);
     }
 
     DbError reset() noexcept override {
@@ -354,7 +364,22 @@ class OraStatement final : public detail::IStatement {
     }
 
     DbError getInt(int index, int64& value) noexcept override {
-        value = mColumnInfo[index].value.integer;
+        const ColumnInfo& column = mColumnInfo[index];
+        const CellValue& cell = column.value;
+
+        if (column.type == SQLT_NUM) {
+            if ((column.scale == 0) || (column.precision == 0)) {
+                auto [_, ec] = std::from_chars(cell.num, cell.num + column.valueLength, value);
+                if (ec != std::errc{}) {
+                    return DbError::error((int)ec, "Failed to parse integer value");
+                }
+            } else {
+                return DbError::error(OCI_ERROR, "Column is not an integer");
+            }
+        } else {
+            value = cell.integer;
+        }
+
         return DbError::ok();
     }
 

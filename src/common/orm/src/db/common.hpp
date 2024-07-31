@@ -54,16 +54,22 @@ namespace sm::db::detail {
         virtual DbError bindBlob(int index, Blob value) noexcept = 0;
         virtual DbError bindNull(int index) noexcept = 0;
 
-        virtual DbError getBindIndex(std::string_view name, int& index) noexcept = 0;
+        virtual DbError bindInt(std::string_view name, int64 value) noexcept { return DbError::todo(); }
+        virtual DbError bindBoolean(std::string_view name, bool value) noexcept { return DbError::todo(); }
+        virtual DbError bindString(std::string_view name, std::string_view value) noexcept { return DbError::todo(); }
+        virtual DbError bindDouble(std::string_view name, double value) noexcept { return DbError::todo(); }
+        virtual DbError bindBlob(std::string_view name, Blob value) noexcept { return DbError::todo(); }
+        virtual DbError bindNull(std::string_view name) noexcept { return DbError::todo(); }
 
         /** Execution */
 
         virtual DbError select() noexcept = 0;
-        virtual DbError update(bool commit) noexcept = 0;
+        virtual DbError update() noexcept = 0;
 
         /** Fetch results */
 
         virtual int columnCount() const noexcept = 0;
+        virtual Column column(int index) const noexcept { return Column{}; }
         virtual DbError next() noexcept = 0;
 
         virtual DbError getInt(int index, int64& value) noexcept = 0;

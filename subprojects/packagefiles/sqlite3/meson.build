@@ -106,7 +106,6 @@ src = [
 ]
 
 features = {
-    'disable_dqs': 'SQLITE_DISABLE_DQS',
     'memstatus': 'SQLITE_DEFAULT_MEMSTATUS',
     'synchronous_wal': 'SQLITE_DEFAULT_WAL_SYNCHRONOUS',
     'like_doesnt_match_blob': 'SQLITE_LIKE_DOESNT_MATCH_BLOBS',
@@ -133,7 +132,6 @@ args = [
     '-DSQLITE_DEFAULT_FOREIGN_KEYS=1',
     '-DSQLITE_ENABLE_MATH_FUNCTIONS=1',
     '-DSQLITE_HAVE_ISNAN=1',
-    '-DSQLITE_PERFORMANCE_TRACE=1',
     '-DSQLITE_UNTESTABLE=1',
 
     '-DSQLITE_MAX_EXPR_DEPTH=@0@'.format(get_option('max_expr_depth')),
@@ -148,6 +146,10 @@ elif threadsafe == 'multithreaded'
     args += '-DSQLITE_THREADSAFE=1'
 elif threadsafe == 'serialized'
     args += '-DSQLITE_THREADSAFE=2'
+endif
+
+if get_option('disable_dqs')
+    args += '-DSQLITE_DQS=0'
 endif
 
 foreach option, define : features

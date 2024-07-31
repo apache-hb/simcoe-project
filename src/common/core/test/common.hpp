@@ -67,8 +67,6 @@ struct RunListener : public Catch::EventListenerBase {
 
             FAIL(sm::vformat(msg, args));
         };
-
-        std::printf("Starting test run\n");
     }
 };
 

@@ -17,10 +17,15 @@ TEST_CASE("updates") {
     if (conn.tableExists("test"))
         getValue(conn.update("DROP TABLE test"));
 
+    checkError(conn.commit());
+
+    getValue(conn.update("CREATE TABLE test (id NUMBER, name CHARACTER VARYING(100))"));
+
     GIVEN("a connection") {
-        getValue(conn.update("CREATE TABLE test (id NUMBER, name VARCHAR2(100))"));
 
         getValue(conn.update("INSERT INTO test (id, name) VALUES (1, 'test')"));
+
+        checkError(conn.commit());
 
         Transaction tx(&conn);
 
@@ -28,7 +33,19 @@ TEST_CASE("updates") {
 
         checkError(tx.rollback());
 
-        auto results = getValue(conn.select("SELECT * FROM test where id = 2"));
-        REQUIRE(results.next());
+        auto results = getValue(conn.select("SELECT * FROM test ORDER BY id ASC"));
+        int count = 0;
+
+        while (results.next().isSuccess()) {
+            int64 id = results.getInt(0);
+            std::string_view name = results.getString(1);
+
+            REQUIRE(id == 1);
+            REQUIRE(name == "test");
+
+            count++;
+        }
+
+        REQUIRE(count == 1);
     }
 }

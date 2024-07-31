@@ -17,11 +17,7 @@ namespace sm::db {
             eNoMoreData = 3,
         };
 
-        DbError(int code, int status, std::string message) noexcept
-            : mCode(code)
-            , mStatus(status)
-            , mMessage(std::move(message))
-        { }
+        DbError(int code, int status, std::string message) noexcept;
 
         int code() const noexcept { return mCode; }
         int status() const noexcept { return mStatus; }

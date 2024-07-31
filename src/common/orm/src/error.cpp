@@ -5,6 +5,12 @@
 using namespace sm;
 using namespace sm::db;
 
+DbError::DbError(int code, int status, std::string message) noexcept
+    : mCode(code)
+    , mStatus(status)
+    , mMessage(std::move(message))
+{ }
+
 DbError DbError::ok() noexcept {
     return DbError{0, eOk, "OK"};
 }

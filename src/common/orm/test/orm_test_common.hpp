@@ -9,7 +9,9 @@ using namespace sm;
 using namespace sm::db;
 
 void checkError(const DbError& err) {
-    CTASSERTF(err.isSuccess(), "Failed to get value: %s", err.message().data());
+    if (!err.isSuccess()) {
+        FAIL(err.message() << " (" << err.code() << ")");
+    }
 }
 
 template<typename T>
@@ -17,5 +19,6 @@ auto getValue(std::expected<T, DbError> result) {
     if (result.has_value())
         return std::move(result.value());
 
-    CT_NEVER("Failed to get value: %s", result.error().message().data());
+    checkError(result.error());
+    std::unreachable();
 }

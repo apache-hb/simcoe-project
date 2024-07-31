@@ -5,40 +5,66 @@
 using namespace sm;
 using namespace sm::db;
 
+static DataType getColumnType(int type) noexcept {
+    switch (type) {
+    case SQLITE_INTEGER: return DataType::eInteger;
+    case SQLITE_FLOAT: return DataType::eDouble;
+    case SQLITE_TEXT: return DataType::eString;
+    case SQLITE_BLOB: return DataType::eBlob;
+    case SQLITE_NULL: return DataType::eNull;
+    default: return DataType::eNull;
+    }
+}
+
 static void checkError(const char *expr, int err) noexcept {
     CTASSERTF(err == SQLITE_OK, "%s = %d (%s)", expr, err, sqlite3_errstr(err));
 }
 
 #define CHECK_ERROR(expr) checkError(#expr, expr)
 
+static int getStatusType(int err) {
+    switch (err) {
+    case SQLITE_OK:
+    case SQLITE_ROW:
+        return DbError::eOk;
+
+    case SQLITE_DONE:
+        return DbError::eNoMoreData;
+
+    default:
+        return DbError::eError;
+    }
+}
+
 static DbError getError(int err) noexcept {
-    int status = [&] {
-        switch (err) {
-        case SQLITE_OK:
-        case SQLITE_ROW:
-            return DbError::eOk;
-
-        case SQLITE_DONE:
-            return DbError::eNoMoreData;
-
-        default:
-            return DbError::eError;
-        }
-    }();
+    int status = getStatusType(err);
 
     return DbError{err, status, sqlite3_errstr(err)};
 }
 
+static DbError getError(int err, sqlite3 *db) noexcept {
+    if (err == SQLITE_OK || err == SQLITE_ROW)
+        return DbError::ok();
+
+    if (err == SQLITE_DONE)
+        return DbError::noMoreData(err);
+
+    int status = getStatusType(err);
+    return DbError{err, status, sqlite3_errmsg(db)};
+}
+
 static int execSteps(sqlite3_stmt *stmt) noexcept {
     int err = 0;
-    while ((err = sqlite3_step(stmt))) {
+    while (true) {
+        err = sqlite3_step(stmt);
+
         if (err == SQLITE_ROW)
             continue;
 
         if (err == SQLITE_DONE)
             break;
 
-        CT_NEVER("sqlite3_step = %d (%s)", err, sqlite3_errstr(err));
+        return err;
     }
 
     if (err == SQLITE_DONE)
@@ -49,57 +75,75 @@ static int execSteps(sqlite3_stmt *stmt) noexcept {
 
 static int execStatement(sqlite3_stmt *stmt) noexcept {
     execSteps(stmt);
-    return sqlite3_reset(stmt);
+    int err = sqlite3_reset(stmt);
+    return err;
 }
 
 class SqliteStatement final : public detail::IStatement {
     sqlite3_stmt *mStatement = nullptr;
 
+    DbError getStmtError(int err) const noexcept {
+        return getError(err, sqlite3_db_handle(mStatement));
+    }
+
+public:
     DbError close() noexcept override {
+        sqlite3 *db = sqlite3_db_handle(mStatement);
         int err = sqlite3_finalize(mStatement);
-        return getError(err);
+        return getError(err, db);
     }
 
     DbError reset() noexcept override {
         int err = sqlite3_reset(mStatement);
-        return getError(err);
+        return getStmtError(err);
     }
 
     DbError bindInt(int index, int64 value) noexcept override {
-        int err = sqlite3_bind_int64(mStatement, index, value);
-        return getError(err);
+        int err = sqlite3_bind_int64(mStatement, index + 1, value);
+        return getStmtError(err);
     }
 
     DbError bindBoolean(int index, bool value) noexcept override {
-        int err = sqlite3_bind_int(mStatement, index, value ? 1 : 0);
-        return getError(err);
+        int err = sqlite3_bind_int(mStatement, index + 1, value ? 1 : 0);
+        return getStmtError(err);
     }
 
     DbError bindString(int index, std::string_view value) noexcept override {
-        int err = sqlite3_bind_text(mStatement, index, value.data(), value.size(), SQLITE_STATIC);
-        return getError(err);
+        int err = sqlite3_bind_text(mStatement, index + 1, value.data(), value.size(), SQLITE_STATIC);
+        return getStmtError(err);
     }
 
     DbError bindDouble(int index, double value) noexcept override {
-        int err = sqlite3_bind_double(mStatement, index, value);
-        return getError(err);
+        int err = sqlite3_bind_double(mStatement, index + 1, value);
+        return getStmtError(err);
     }
 
     DbError bindBlob(int index, Blob value) noexcept override {
-        int err = sqlite3_bind_blob(mStatement, index, value.data(), value.size_bytes(), SQLITE_STATIC);
-        return getError(err);
+        int err = sqlite3_bind_blob(mStatement, index + 1, value.data(), value.size_bytes(), SQLITE_STATIC);
+        return getStmtError(err);
     }
 
     DbError bindNull(int index) noexcept override {
-        int err = sqlite3_bind_null(mStatement, index);
-        return getError(err);
+        int err = sqlite3_bind_null(mStatement, index + 1);
+        return getStmtError(err);
     }
 
-    DbError getBindIndex(std::string_view name, int& index) noexcept override {
-        int result = sqlite3_bind_parameter_index(mStatement, name.data());
-        index = result;
+    std::expected<int, DbError> getBindIndex(std::string_view name) const noexcept {
+        int index = sqlite3_bind_parameter_index(mStatement, name.data());
+        if (index == 0)
+            return std::unexpected(getStmtError(SQLITE_ERROR));
 
-        return getError((result == 0) ? SQLITE_ERROR : SQLITE_OK);
+        return index;
+    }
+
+    DbError bindInt(std::string_view name, int64 value) noexcept override {
+        int index = TRY_UNWRAP(getBindIndex(name));
+        return bindInt(index - 1, value);
+    }
+
+    DbError bindString(std::string_view name, std::string_view value) noexcept override {
+        int index = TRY_UNWRAP(getBindIndex(name));
+        return bindString(index - 1, value);
     }
 
     DbError select() noexcept override {
@@ -107,18 +151,25 @@ class SqliteStatement final : public detail::IStatement {
         return DbError::ok();
     }
 
-    DbError update(bool commit) noexcept override {
+    DbError update() noexcept override {
         int err = execSteps(mStatement);
-        return getError(err);
+        return getStmtError(err);
     }
 
     int columnCount() const noexcept override {
         return sqlite3_column_count(mStatement);
     }
 
+    Column column(int index) const noexcept override {
+        const char *name = sqlite3_column_name(mStatement, index);
+        int type = sqlite3_column_type(mStatement, index);
+
+        return Column{name, getColumnType(type)};
+    }
+
     DbError next() noexcept override {
         int err = sqlite3_step(mStatement);
-        return getError(err);
+        return getStmtError(err);
     }
 
     DbError getInt(int index, int64& value) noexcept override {
@@ -150,10 +201,11 @@ class SqliteStatement final : public detail::IStatement {
         return DbError::ok();
     }
 
-public:
     SqliteStatement(sqlite3_stmt *stmt) noexcept
         : mStatement(stmt)
-    { }
+    {
+        CTASSERT(stmt != nullptr);
+    }
 };
 
 class SqliteConnection final : public detail::IConnection {
@@ -163,6 +215,13 @@ class SqliteConnection final : public detail::IConnection {
     sqlite3_stmt *mCommitStmt = nullptr;
     sqlite3_stmt *mRollbackStmt = nullptr;
 
+    DbError prepare(std::string_view sql, sqlite3_stmt **stmt) noexcept {
+        if (int err = sqlite3_prepare_v2(mConnection, sql.data(), sql.size(), stmt, nullptr))
+            return getError(err, mConnection);
+
+        return DbError::ok();
+    }
+
     DbError close() noexcept override {
         CHECK_ERROR(sqlite3_finalize(mBeginStmt));
         CHECK_ERROR(sqlite3_finalize(mCommitStmt));
@@ -170,7 +229,7 @@ class SqliteConnection final : public detail::IConnection {
 
         int err = sqlite3_close(mConnection);
         if (err != SQLITE_OK)
-            return getError(err);
+            return getError(err, mConnection);
 
         mConnection = nullptr;
         return DbError::ok();
@@ -178,8 +237,8 @@ class SqliteConnection final : public detail::IConnection {
 
     DbError prepare(std::string_view sql, detail::IStatement **statement) noexcept override {
         sqlite3_stmt *stmt = nullptr;
-        if (int err = sqlite3_prepare_v2(mConnection, sql.data(), sql.size(), &stmt, nullptr))
-            return getError(err);
+        if (DbError err = prepare(sql, &stmt))
+            return err;
 
         *statement = new SqliteStatement{stmt};
         return DbError::ok();
@@ -187,12 +246,12 @@ class SqliteConnection final : public detail::IConnection {
 
     DbError begin() noexcept override {
         int err = execStatement(mBeginStmt);
-        return getError(err);
+        return getError(err, mConnection);
     }
 
     DbError commit() noexcept override {
         int err = execStatement(mCommitStmt);
-        return getError(err);
+        return getError(err, mConnection);
     }
 
     DbError rollback() noexcept override {
@@ -201,26 +260,25 @@ class SqliteConnection final : public detail::IConnection {
     }
 
     DbError tableExists(std::string_view table, bool& exists) noexcept override {
-        detail::IStatement *stmt = nullptr;
-        if (DbError err = prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?;", &stmt))
+        sqlite3_stmt *stmt = nullptr;
+        if (DbError err = prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=:name", &stmt))
             return err;
 
-        stmt->bindString(0, table);
+        SqliteStatement ps{stmt};
 
-        if (DbError err = stmt->select())
+        if (DbError err = ps.bindString(":name", table))
             return err;
 
         int64 count = 0;
+        while (ps.next().isSuccess()) {
+            if (DbError err = ps.getInt(0, count))
+                return err;
+        }
 
-        if (DbError err = stmt->getInt(0, count))
+        if (DbError err = ps.close())
             return err;
 
         exists = count > 0;
-
-        if (DbError err = stmt->close())
-            return err;
-
-        delete stmt;
 
         return DbError::ok();
     }

@@ -86,15 +86,6 @@ Blob ResultSet::getBlob(int index) noexcept {
 /// bindpoint
 ///
 
-BindPoint PreparedStatement::bind(std::string_view name) noexcept {
-    int index = -1;
-    if (DbError error = mImpl->getBindIndex(name, index)) {
-        CT_NEVER("Failed to get bind index for parameter %s: %s", name.data(), error.message().data());
-    }
-
-    return BindPoint{mImpl.get(), index};
-}
-
 void BindPoint::to(int64 value) noexcept {
     if (DbError error = mImpl->bindInt(mIndex, value)) {
         CT_NEVER("Failed to bind int64 value %lld: %s", value, error.message().data());
@@ -150,8 +141,8 @@ std::expected<ResultSet, DbError> PreparedStatement::select() noexcept {
     return ResultSet{mImpl, mEnv};
 }
 
-std::expected<ResultSet, DbError> PreparedStatement::update(bool commit) noexcept {
-    if (DbError error = mImpl->update(commit))
+std::expected<ResultSet, DbError> PreparedStatement::update() noexcept {
+    if (DbError error = mImpl->update())
         return std::unexpected(error);
 
     return ResultSet{mImpl, mEnv};
@@ -223,6 +214,7 @@ std::expected<Environment, DbError> Environment::create(DbType type) noexcept {
     DbError error = [&] {
         switch (type) {
         case DbType::eSqlite3: return detail::sqlite(&env);
+
 #if HAS_POSTGRES
         case DbType::ePostgreSQL: return detail::postgres(&env);
 #endif

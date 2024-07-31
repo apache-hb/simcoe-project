@@ -399,24 +399,36 @@ static db::DbError sqliteTest() {
         logs::gGlobal.error("failed to connect to database: {}", error.message());
     });
 
-    std::string_view sql = R"(
-        CREATE TABLE IF NOT EXISTS test (
-            id   INTEGER      NOT NULL PRIMARY KEY,
-            name VARCHAR(255) NOT NULL
-        ) STRICT;
+    if (conn.tableExists("test")) {
+        TRY(conn.update("DROP TABLE test"), (const auto& error) {
+            logs::gGlobal.error("failed to drop table: {}", error.message());
+        });
+    }
 
-        INSERT INTO test VALUES (1, 'hello'), (2, 'world');
-    )";
+    CTASSERT(!conn.tableExists("test"));
 
-    auto result = TRY(conn.prepare(sql), (const auto& error) {
-        logs::gGlobal.error("failed to prepare query: {}", error.message());
+    TRY(conn.update("CREATE TABLE test (id INTEGER, name VARCHAR(100))"), (const auto& error) {
+        logs::gGlobal.error("failed to create table: {}", error.message());
     });
 
-    TRY(result.update(), (const auto& error) {
-        logs::gGlobal.error("failed to execute update: {}", error.message());
-    });
+    // std::string_view sql = R"(
+    //     CREATE TABLE IF NOT EXISTS test (
+    //         id   INTEGER      NOT NULL PRIMARY KEY,
+    //         name VARCHAR(255) NOT NULL
+    //     ) STRICT;
 
-    logs::gGlobal.info("executed query");
+    //     INSERT INTO test VALUES (1, 'hello'), (2, 'world');
+    // )";
+
+    // auto result = TRY(conn.prepare(sql), (const auto& error) {
+    //     logs::gGlobal.error("failed to prepare query: {}", error.message());
+    // });
+
+    // TRY(result.update(), (const auto& error) {
+    //     logs::gGlobal.error("failed to execute update: {}", error.message());
+    // });
+
+    // logs::gGlobal.info("executed query");
 
     return db::DbError::ok();
 }

@@ -63,6 +63,11 @@ namespace sm::db {
         int timeout = 5;
     };
 
+    struct Column {
+        std::string_view name;
+        DataType type;
+    };
+
     /// @brief Represents a result set of a query.
     ///
     /// @note Not internally synchronized.
@@ -85,7 +90,7 @@ namespace sm::db {
         int columnCount() const noexcept;
         int columnIndex(std::string_view name) const noexcept;
 
-        DataType columnType(int index) const noexcept;
+        Column column(int index) const noexcept;
 
         double getDouble(int index) noexcept;
         int64 getInt(int index) noexcept;
@@ -154,7 +159,7 @@ namespace sm::db {
         void bind(std::string_view name, std::nullptr_t) noexcept { bind(name) = nullptr; }
 
         std::expected<ResultSet, DbError> select() noexcept;
-        std::expected<ResultSet, DbError> update(bool commit = true) noexcept;
+        std::expected<ResultSet, DbError> update() noexcept;
 
         DbError close() noexcept;
         DbError reset() noexcept;
