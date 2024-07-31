@@ -39,8 +39,8 @@ namespace {
             }
         }();
 
-        if (result.ends_with('\n'))
-            result.pop_back();
+        result.erase(std::remove(result.begin(), result.end(), '\r'), result.end());
+        std::replace(result.begin(), result.end(), '\n', ' ');
 
         return result;
     }

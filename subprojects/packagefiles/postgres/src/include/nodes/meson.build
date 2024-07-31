@@ -55,7 +55,7 @@ generated_nodes = custom_target('nodetags.h',
     perl, files('../../backend/nodes/gen_node_support.pl'),
     '-o', '@OUTDIR@',
     '@INPUT@'],
-  install: true,
+  build_by_default: false,
   install_dir: node_support_install,
 )
 generated_headers += generated_nodes[0]

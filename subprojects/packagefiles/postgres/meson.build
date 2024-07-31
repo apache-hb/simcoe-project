@@ -14,7 +14,7 @@ project('postgresql',
   # We want < 0.56 for python 3.5 compatibility on old platforms. EPEL for
   # RHEL 7 has 0.55. < 0.54 would require replacing some uses of the fs
   # module, < 0.53 all uses of fs. So far there's no need to go to >=0.56.
-  meson_version: '>=0.56',
+  meson_version: '>=1.1.0',
   default_options: [
     'warning_level=1', #-Wall equivalent
     'b_pch=false',
@@ -23,7 +23,6 @@ project('postgresql',
     # works even on windows, where it's a drive-relative path (i.e. when on
     # d:/somepath it'll install to d:/usr/local/pgsql)
     'prefix=/usr/local/pgsql',
-
     'c_std=c11,c99'
   ]
 )
@@ -343,10 +342,10 @@ perl = find_program(get_option('PERL'), required: true, native: true)
 python = find_program(get_option('PYTHON'), required: true, native: true)
 flex = find_program(get_option('FLEX'), native: true, version: '>= 2.5.35')
 bison = find_program(get_option('BISON'), native: true, version: '>= 2.3')
-#sed = find_program(get_option('SED'), 'sed', native: true)
+sed = find_program(get_option('SED'), 'sed', native: true)
 prove = find_program(get_option('PROVE'), native: true, required: false)
 tar = find_program(get_option('TAR'), native: true)
-#gzip = find_program(get_option('GZIP'), native: true)
+gzip = find_program(get_option('GZIP'), native: true)
 program_lz4 = find_program(get_option('LZ4'), native: true, required: false)
 openssl = find_program(get_option('OPENSSL'), native: true, required: false)
 program_zstd = find_program(get_option('ZSTD'), native: true, required: false)
@@ -375,8 +374,8 @@ bison_kw = {
 flex_flags = []
 flex_wrapper = files('src/tools/pgflex')
 flex_cmd = [python, flex_wrapper,
-  '--builddir', '@BUILD_ROOT@',
-  '--srcdir', '@SOURCE_ROOT@',
+  '--builddir', meson.project_build_root(),
+  '--srcdir', meson.project_source_root(),
   '--privatedir', '@PRIVATE_DIR@',
   '--flex', flex, '--perl', perl,
   '-i', '@INPUT@', '-o', '@OUTPUT0@',
@@ -622,66 +621,31 @@ gssapiopt = get_option('gssapi')
 krb_srvtab = ''
 have_gssapi = false
 if not gssapiopt.disabled()
-  gssapi = dependency('krb5-gssapi', required: false)
+  gssapi = dependency('krb5-gssapi', required: gssapiopt)
   have_gssapi = gssapi.found()
 
-  if have_gssapi
-      gssapi_deps = [gssapi]
-  elif not have_gssapi
-    # Hardcoded lookup for gssapi. This is necessary as gssapi on windows does
-    # not install neither pkg-config nor cmake dependency information.
-    if host_system == 'windows'
-      is_64  = cc.sizeof('void *', args: test_c_args) == 8
-      if is_64
-        gssapi_search_libs = ['gssapi64', 'krb5_64', 'comerr64']
-      else
-        gssapi_search_libs = ['gssapi32', 'krb5_32', 'comerr32']
-      endif
-    else
-      gssapi_search_libs = ['gssapi_krb5']
-    endif
-
-    gssapi_deps = []
-    foreach libname : gssapi_search_libs
-      lib = cc.find_library(libname, dirs: test_lib_d, required: false)
-      if lib.found()
-        have_gssapi = true
-        gssapi_deps += lib
-      endif
-    endforeach
-
-    if have_gssapi
-      # Meson before 0.57.0 did not support using check_header() etc with
-      # declare_dependency(). Thus the tests below use the library looked up
-      # above.  Once we require a newer meson version, we can simplify.
-      gssapi = declare_dependency(dependencies: gssapi_deps)
-    endif
-  endif
-
   if not have_gssapi
-  elif cc.check_header('gssapi/gssapi.h', dependencies: gssapi_deps, required: false,
+  elif cc.check_header('gssapi/gssapi.h', dependencies: gssapi, required: false,
       args: test_c_args, include_directories: postgres_inc)
     cdata.set('HAVE_GSSAPI_GSSAPI_H', 1)
-  elif cc.check_header('gssapi.h', dependencies: gssapi_deps, required: gssapiopt,
-      args: test_c_args, include_directories: postgres_inc)
+  elif cc.check_header('gssapi.h', args: test_c_args, dependencies: gssapi, required: gssapiopt)
     cdata.set('HAVE_GSSAPI_H', 1)
   else
     have_gssapi = false
   endif
 
   if not have_gssapi
-  elif cc.check_header('gssapi/gssapi_ext.h', dependencies: gssapi_deps, required: false,
+  elif cc.check_header('gssapi/gssapi_ext.h', dependencies: gssapi, required: false,
       args: test_c_args, include_directories: postgres_inc)
     cdata.set('HAVE_GSSAPI_GSSAPI_EXT_H', 1)
-  elif cc.check_header('gssapi_ext.h', dependencies: gssapi_deps, required: gssapiopt,
-      args: test_c_args, include_directories: postgres_inc)
+  elif cc.check_header('gssapi_ext.h', args: test_c_args, dependencies: gssapi, required: gssapiopt)
     cdata.set('HAVE_GSSAPI_EXT_H', 1)
   else
     have_gssapi = false
   endif
 
   if not have_gssapi
-  elif cc.has_function('gss_store_cred_into', dependencies: gssapi_deps,
+  elif cc.has_function('gss_store_cred_into', dependencies: gssapi,
       args: test_c_args, include_directories: postgres_inc)
     cdata.set('ENABLE_GSS', 1)
 
@@ -692,11 +656,6 @@ if not gssapiopt.disabled()
   else
     have_gssapi = false
   endif
-
-  if not have_gssapi and gssapiopt.enabled()
-    error('dependency lookup for gssapi failed')
-  endif
-
 endif
 if not have_gssapi
   gssapi = not_found_dep
@@ -807,10 +766,7 @@ if add_languages('cpp', required: llvmopt, native: false)
     llvm_binpath = llvm.get_variable(configtool: 'bindir')
 
     ccache = find_program('ccache', native: true, required: false)
-
-    # Some distros put LLVM and clang in different paths, so fallback to
-    # find via PATH, too.
-    clang = find_program(llvm_binpath / 'clang', 'clang', required: true)
+    clang = find_program(llvm_binpath / 'clang', required: true)
   endif
 elif llvmopt.auto()
   message('llvm requires a C++ compiler')
@@ -824,25 +780,11 @@ endif
 
 icuopt = get_option('icu')
 if not icuopt.disabled()
-  icu = dependency('icu-uc', required: false)
-  if icu.found()
-    icu_i18n = dependency('icu-i18n', required: true)
-  endif
-
-  # Unfortunately the dependency is named differently with cmake
-  if not icu.found() # combine with above once meson 0.60.0 is required
-    icu = dependency('ICU', required: icuopt,
-                     components: ['uc'], modules: ['ICU::uc'], method: 'cmake')
-    if icu.found()
-      icu_i18n = dependency('ICU', required: true,
-                            components: ['i18n'], modules: ['ICU::i18n'])
-    endif
-  endif
+  icu = dependency('icu-uc', required: icuopt)
+  icu_i18n = dependency('icu-i18n', required: icuopt)
 
   if icu.found()
     cdata.set('USE_ICU', 1)
-  else
-    icu_i18n = not_found_dep
   endif
 
 else
@@ -858,12 +800,7 @@ endif
 
 libxmlopt = get_option('libxml')
 if not libxmlopt.disabled()
-  libxml = dependency('libxml-2.0', required: false, version: '>= 2.6.23')
-  # Unfortunately the dependency is named differently with cmake
-  if not libxml.found() # combine with above once meson 0.60.0 is required
-    libxml = dependency('LibXml2', required: libxmlopt, version: '>= 2.6.23',
-      method: 'cmake')
-  endif
+  libxml = dependency('libxml-2.0', required: libxmlopt, version: '>= 2.6.23')
 
   if libxml.found()
     cdata.set('USE_LIBXML', 1)
@@ -880,11 +817,7 @@ endif
 
 libxsltopt = get_option('libxslt')
 if not libxsltopt.disabled()
-  libxslt = dependency('libxslt', required: false)
-  # Unfortunately the dependency is named differently with cmake
-  if not libxslt.found() # combine with above once meson 0.60.0 is required
-    libxslt = dependency('LibXslt', required: libxsltopt, method: 'cmake')
-  endif
+  libxslt = dependency('libxslt', required: libxsltopt)
 
   if libxslt.found()
     cdata.set('USE_LIBXSLT', 1)
@@ -901,13 +834,7 @@ endif
 
 lz4opt = get_option('lz4')
 if not lz4opt.disabled()
-  lz4 = dependency('liblz4', required: false)
-  # Unfortunately the dependency is named differently with cmake
-  if not lz4.found() # combine with above once meson 0.60.0 is required
-    lz4 = dependency('lz4', required: lz4opt,
-                     method: 'cmake', modules: ['LZ4::lz4_shared'],
-                    )
-  endif
+  lz4 = dependency('liblz4', required: lz4opt)
 
   if lz4.found()
     cdata.set('USE_LZ4', 1)
@@ -1143,7 +1070,7 @@ if not pyopt.disabled()
   if python3_inst.found()
     python3_dep = python3_inst.dependency(embed: true, required: pyopt)
     # Remove this check after we depend on Meson >= 1.1.0
-    if not cc.check_header('Python.h', dependencies: python3_dep, required: pyopt, include_directories: postgres_inc)
+    if not cc.check_header('Python.h', dependencies: python3_dep, required: pyopt)
       python3_dep = not_found_dep
     endif
   endif
@@ -1157,26 +1084,15 @@ endif
 
 if not get_option('readline').disabled()
   libedit_preferred = get_option('libedit_preferred')
-  # Set the order of readline dependencies.
-  # cc.find_library breaks and throws on the first dependency which
-  # is marked as required=true and can't be found. Thus, we only mark
-  # the last dependency to look up as required, to not throw too early.
-  check_readline_deps = [
-    {
-      'name': libedit_preferred ? 'libedit' : 'readline',
-      'required': false
-    },
-    {
-      'name': libedit_preferred ? 'readline' : 'libedit',
-      'required': get_option('readline')
-    }
-  ]
+  # Set the order of readline dependencies
+  check_readline_deps = libedit_preferred ? \
+    ['libedit', 'readline'] : ['readline', 'libedit']
 
   foreach readline_dep : check_readline_deps
-    readline = dependency(readline_dep['name'], required: false)
+    readline = dependency(readline_dep, required: false)
     if not readline.found()
-      readline = cc.find_library(readline_dep['name'],
-        required: readline_dep['required'],
+      readline = cc.find_library(readline_dep,
+        required: get_option('readline'),
         dirs: test_lib_d)
     endif
     if readline.found()
@@ -1385,7 +1301,6 @@ if sslopt in ['auto', 'openssl']
 
       # Function introduced in OpenSSL 1.1.1
       ['X509_get_signature_info'],
-      ['SSL_CTX_set_num_tickets'],
     ]
 
     are_openssl_funcs_complete = true
@@ -1439,26 +1354,9 @@ if uuidopt != 'none'
     uuidfunc = 'uuid_to_string'
     uuidheader = 'uuid.h'
   elif uuidopt == 'ossp'
-    # In upstream, the package and library is called just 'uuid', but many
-    # distros change it to 'ossp-uuid'.
-    uuid = dependency('ossp-uuid', 'uuid', required: false)
+    uuid = dependency('ossp-uuid', required: true)
     uuidfunc = 'uuid_export'
     uuidheader = 'uuid.h'
-
-    # Hardcoded lookup for ossp-uuid. This is necessary as ossp-uuid on
-    # windows installs neither a pkg-config nor a cmake dependency
-    # information. Nor is there another supported uuid implementation
-    # available on windows.
-    if not uuid.found()
-      uuid = cc.find_library('ossp-uuid',
-        required: false, dirs: test_lib_d,
-        has_headers: uuidheader, header_include_directories: postgres_inc)
-    endif
-    if not uuid.found()
-      uuid = cc.find_library('uuid',
-        required: true, dirs: test_lib_d,
-        has_headers: uuidheader, header_include_directories: postgres_inc)
-    endif
   else
     error('unknown uuid build option value: @0@'.format(uuidopt))
   endif
@@ -1544,12 +1442,7 @@ endif
 
 zstdopt = get_option('zstd')
 if not zstdopt.disabled()
-  zstd = dependency('libzstd', required: false, version: '>=1.4.0')
-  # Unfortunately the dependency is named differently with cmake
-  if not zstd.found() # combine with above once meson 0.60.0 is required
-    zstd = dependency('zstd', required: zstdopt, version: '>=1.4.0',
-                      method: 'cmake', modules: ['zstd::libzstd_shared'])
-  endif
+  zstd = dependency('libzstd', required: zstdopt, version: '>=1.4.0')
 
   if zstd.found()
     cdata.set('USE_ZSTD', 1)
@@ -2704,15 +2597,16 @@ endif
 
 default_target_args = {
   'implicit_include_directories': false,
-  'install': true,
+  'install': not meson.is_subproject(),
 }
 
 default_lib_args = default_target_args + {
+  'build_by_default': false,
   'name_prefix': '',
+  'override_options': [ 'unity=off' ]
 }
 
 internal_lib_args = default_lib_args + {
-  'build_by_default': false,
   'install': false,
 }
 
@@ -2722,7 +2616,9 @@ default_mod_args = default_lib_args + {
 }
 
 default_bin_args = default_target_args + {
+  'build_by_default': false,
   'install_dir': dir_bin,
+  'override_options': [ 'unity=off' ]
 }
 
 if get_option('rpath')
@@ -2761,7 +2657,7 @@ catalog_pm = files('src/backend/catalog/Catalog.pm')
 perfect_hash_pm = files('src/tools/PerfectHash.pm')
 gen_kwlist_deps = [perfect_hash_pm]
 gen_kwlist_cmd = [
-  perl, '-I', '@SOURCE_ROOT@/src/tools',
+  perl, '-I', meson.project_source_root() / 'src/tools',
   files('src/tools/gen_keywordlist.pl'),
   '--output', '@OUTDIR@', '@INPUT@']
 
@@ -2964,21 +2860,21 @@ test_install_libs = []
 # main sources. Note that this explicitly doesn't enter src/test, right now a
 # few regression tests depend on contrib files.
 
-# subdir('src')
+subdir('src')
 
-# subdir('contrib')
+subdir('contrib')
 
 # subdir('src/test')
 # subdir('src/interfaces/libpq/test')
 # subdir('src/interfaces/ecpg/test')
 
-# subdir('doc/src/sgml')
+subdir('doc/src/sgml')
 
 generated_sources_ac += {'': ['GNUmakefile']}
 
 # After processing src/test, add test_install_libs to the testprep_targets
 # to build them
-testprep_targets += test_install_libs
+# testprep_targets += test_install_libs
 
 
 # If there are any files in the source directory that we also generate in the
@@ -2990,7 +2886,7 @@ conflicting_files = []
 potentially_conflicting_files_t = []
 potentially_conflicting_files_t += generated_headers
 potentially_conflicting_files_t += generated_backend_headers
-# potentially_conflicting_files_t += generated_backend_sources
+potentially_conflicting_files_t += generated_backend_sources
 potentially_conflicting_files_t += generated_sources
 
 potentially_conflicting_files = []
@@ -3044,23 +2940,342 @@ endif
 ###############################################################
 
 
-# We want to define additional install targets beyond what meson provides. For
-# that we need to define targets depending on nearly everything. We collected
-# the results of i18n.gettext() invocations into nls_targets, that also
-# includes maintainer targets though. Collect the ones we want as a dependency.
-#
-# i18n.gettext() doesn't return the dependencies before 0.60 - but the gettext
-# generation happens during install, so that's not a real issue.
-nls_mo_targets = []
-if libintl.found() and meson.version().version_compare('>=0.60')
-  # use range() to avoid the flattening of the list that foreach() would do
-  foreach off : range(0, nls_targets.length())
-    # i18n.gettext() list containing 1) list of built .mo files 2) maintainer
-    # -pot target 3) maintainer -pot target
-    nls_mo_targets += nls_targets[off][0]
-  endforeach
-  alias_target('nls', nls_mo_targets)
-endif
+# # We want to define additional install targets beyond what meson provides. For
+# # that we need to define targets depending on nearly everything. We collected
+# # the results of i18n.gettext() invocations into nls_targets, that also
+# # includes maintainer targets though. Collect the ones we want as a dependency.
+# #
+# # i18n.gettext() doesn't return the dependencies before 0.60 - but the gettext
+# # generation happens during install, so that's not a real issue.
+# nls_mo_targets = []
+# if libintl.found() and meson.version().version_compare('>=0.60')
+#   # use range() to avoid the flattening of the list that foreach() would do
+#   foreach off : range(0, nls_targets.length())
+#     # i18n.gettext() list containing 1) list of built .mo files 2) maintainer
+#     # -pot target 3) maintainer -pot target
+#     nls_mo_targets += nls_targets[off][0]
+#   endforeach
+#   alias_target('nls', nls_mo_targets)
+# endif
+
+
+# all_built = [
+#   backend_targets,
+#   bin_targets,
+#   libpq_st,
+#   pl_targets,
+#   contrib_targets,
+#   nls_mo_targets,
+#   testprep_targets,
+#   ecpg_targets,
+# ]
+
+# # Meson's default install target is quite verbose. Provide one that is quiet.
+# install_quiet = custom_target('install-quiet',
+#   output: 'install-quiet',
+#   build_by_default: false,
+#   command: [meson_bin, meson_args, 'install', '--quiet', '--no-rebuild'],
+#   depends: all_built,
+# )
+
+# # Target to install files used for tests, which aren't installed by default
+# install_test_files_args = [
+#   install_files,
+#   '--prefix', dir_prefix,
+#   '--install', contrib_data_dir, test_install_data,
+#   '--install', dir_lib_pkg, test_install_libs,
+# ]
+# run_target('install-test-files',
+#   command: [python] + install_test_files_args,
+#   depends: testprep_targets,
+# )
+
+
+
+###############################################################
+# Test prep
+###############################################################
+
+# # DESTDIR for the installation we'll run tests in
+# test_install_destdir = meson.project_build_root() / 'tmp_install/'
+
+# # DESTDIR + prefix appropriately munged
+# if build_system != 'windows'
+#   # On unixoid systems this is trivial, we just prepend the destdir
+#   assert(dir_prefix.startswith('/')) # enforced by meson
+#   test_install_location = '@0@@1@'.format(test_install_destdir, dir_prefix)
+# else
+#   # drives, drive-relative paths, etc make this complicated on windows, call
+#   # into a copy of meson's logic for it
+#   command = [
+#     python, '-c',
+#     'import sys; from pathlib import PurePath; d1=sys.argv[1]; d2=sys.argv[2]; print(str(PurePath(d1, *PurePath(d2).parts[1:])))',
+#     test_install_destdir, dir_prefix]
+#   test_install_location = run_command(command, check: true).stdout().strip()
+# endif
+
+# meson_install_args = meson_args + ['install'] + {
+#     'meson': ['--quiet', '--only-changed', '--no-rebuild'],
+#     'muon': []
+# }[meson_impl]
+
+# setup tests should be run first,
+# so define priority for these
+# setup_tests_priority = 100
+# test('tmp_install',
+#     meson_bin, args: meson_install_args ,
+#     env: {'DESTDIR':test_install_destdir},
+#     priority: setup_tests_priority,
+#     timeout: 300,
+#     is_parallel: false,
+#     suite: ['setup'])
+
+# test('install_test_files',
+#     python,
+#     args: install_test_files_args + ['--destdir', test_install_destdir],
+#     priority: setup_tests_priority,
+#     is_parallel: false,
+#     suite: ['setup'])
+
+# test_result_dir = meson.project_build_root() / 'testrun'
+
+
+# # XXX: pg_regress doesn't assign unique ports on windows. To avoid the
+# # inevitable conflicts from running tests in parallel, hackishly assign
+# # different ports for different tests.
+
+# testport = 40000
+
+# test_env = environment()
+
+# temp_install_bindir = test_install_location / get_option('bindir')
+# test_env.set('PG_REGRESS', pg_regress.full_path())
+# test_env.set('REGRESS_SHLIB', regress_module.full_path())
+
+# # Test suites that are not safe by default but can be run if selected
+# # by the user via the whitespace-separated list in variable PG_TEST_EXTRA.
+# # Export PG_TEST_EXTRA so it can be checked in individual tap tests.
+# test_env.set('PG_TEST_EXTRA', get_option('PG_TEST_EXTRA'))
+
+# # Add the temporary installation to the library search path on platforms where
+# # that works (everything but windows, basically). On windows everything
+# # library-like gets installed into bindir, solving that issue.
+# if library_path_var != ''
+#   test_env.prepend(library_path_var, test_install_location / get_option('libdir'))
+# endif
+
+
+
+###############################################################
+# Test Generation
+###############################################################
+
+# When using a meson version understanding exclude_suites, define a
+# 'tmp_install' test setup (the default) that excludes tests running against a
+# pre-existing install and a 'running' setup that conflicts with creation of
+# the temporary installation and tap tests (which don't support running
+# against a running server).
+
+# running_suites = []
+# install_suites = []
+# if meson.version().version_compare('>=0.57')
+#   runningcheck = true
+# else
+#   runningcheck = false
+# endif
+
+# testwrap = files('src/tools/testwrap')
+
+# foreach test_dir : tests
+#   testwrap_base = [
+#     testwrap,
+#     '--basedir', meson.project_build_root(),
+#     '--srcdir', test_dir['sd'],
+#   ]
+
+#   foreach kind, v : test_dir
+#     if kind in ['sd', 'bd', 'name']
+#       continue
+#     endif
+
+#     t = test_dir[kind]
+
+#     if kind in ['regress', 'isolation', 'ecpg']
+#       if kind == 'regress'
+#         runner = pg_regress
+#         fallback_dbname = 'regression_@0@'
+#       elif kind == 'isolation'
+#         runner = pg_isolation_regress
+#         fallback_dbname = 'isolation_regression_@0@'
+#       elif kind == 'ecpg'
+#         runner = pg_regress_ecpg
+#         fallback_dbname = 'ecpg_regression_@0@'
+#       endif
+
+#       test_group = test_dir['name']
+#       test_group_running = test_dir['name'] + '-running'
+
+#       test_output = test_result_dir / test_group / kind
+#       test_output_running = test_result_dir / test_group_running/ kind
+
+#       # Unless specified by the test, choose a non-conflicting database name,
+#       # to avoid conflicts when running against existing server.
+#       dbname = t.get('dbname',
+#         fallback_dbname.format(test_dir['name']))
+
+#       test_command_base = [
+#         runner.full_path(),
+#         '--inputdir', t.get('inputdir', test_dir['sd']),
+#         '--expecteddir', t.get('expecteddir', test_dir['sd']),
+#         '--bindir', '',
+#         '--dlpath', test_dir['bd'],
+#         '--max-concurrent-tests=20',
+#         '--dbname', dbname,
+#       ] + t.get('regress_args', [])
+
+#       test_selection = []
+#       if t.has_key('schedule')
+#         test_selection += ['--schedule', t['schedule'],]
+#       endif
+
+#       if kind == 'isolation'
+#         test_selection += t.get('specs', [])
+#       else
+#         test_selection += t.get('sql', [])
+#       endif
+
+#       env = test_env
+#       env.prepend('PATH', temp_install_bindir, test_dir['bd'])
+
+#       test_kwargs = {
+#         'protocol': 'tap',
+#         'priority': 10,
+#         'timeout': 1000,
+#         'depends': test_deps + t.get('deps', []),
+#         'env': env,
+#       } + t.get('test_kwargs', {})
+
+#       test(test_group / kind,
+#         python,
+#         args: [
+#           testwrap_base,
+#           '--testgroup', test_group,
+#           '--testname', kind,
+#           '--',
+#           test_command_base,
+#           '--outputdir', test_output,
+#           '--temp-instance', test_output / 'tmp_check',
+#           '--port', testport.to_string(),
+#           test_selection,
+#         ],
+#         suite: test_group,
+#         kwargs: test_kwargs,
+#       )
+#       install_suites += test_group
+
+#       # some tests can't support running against running DB
+#       if runningcheck and t.get('runningcheck', true)
+#         test(test_group_running / kind,
+#           python,
+#           args: [
+#             testwrap_base,
+#             '--testgroup', test_group_running,
+#             '--testname', kind,
+#             '--',
+#             test_command_base,
+#             '--outputdir', test_output_running,
+#             test_selection,
+#           ],
+#           is_parallel: t.get('runningcheck-parallel', true),
+#           suite: test_group_running,
+#           kwargs: test_kwargs,
+#         )
+#         running_suites += test_group_running
+#       endif
+
+#       testport += 1
+#     elif kind == 'tap'
+#       if not tap_tests_enabled
+#         continue
+#       endif
+
+#       test_command = [
+#         perl.full_path(),
+#         '-I', meson.project_source_root() / 'src/test/perl',
+#         '-I', test_dir['sd'],
+#       ]
+
+#       # Add temporary install, the build directory for non-installed binaries and
+#       # also test/ for non-installed test binaries built separately.
+#       env = test_env
+#       env.prepend('PATH', temp_install_bindir, test_dir['bd'], test_dir['bd'] / 'test')
+
+#       foreach name, value : t.get('env', {})
+#         env.set(name, value)
+#       endforeach
+
+#       test_group = test_dir['name']
+#       test_kwargs = {
+#         'protocol': 'tap',
+#         'suite': test_group,
+#         'timeout': 1000,
+#         'depends': test_deps + t.get('deps', []),
+#         'env': env,
+#       } + t.get('test_kwargs', {})
+
+#       foreach onetap : t['tests']
+#         # Make tap test names prettier, remove t/ and .pl
+#         onetap_p = onetap
+#         if onetap_p.startswith('t/')
+#           onetap_p = onetap.split('t/')[1]
+#         endif
+#         if onetap_p.endswith('.pl')
+#           onetap_p = fs.stem(onetap_p)
+#         endif
+
+#         test(test_dir['name'] / onetap_p,
+#           python,
+#           kwargs: test_kwargs,
+#           args: testwrap_base + [
+#             '--testgroup', test_dir['name'],
+#             '--testname', onetap_p,
+#             '--', test_command,
+#             test_dir['sd'] / onetap,
+#           ],
+#         )
+#       endforeach
+#       install_suites += test_group
+#     else
+#       error('unknown kind @0@ of test in @1@'.format(kind, test_dir['sd']))
+#     endif
+
+#   endforeach # kinds of tests
+
+# endforeach # directories with tests
+
+# # repeat condition so meson realizes version dependency
+# if meson.version().version_compare('>=0.57')
+#   add_test_setup('tmp_install',
+#     is_default: true,
+#     exclude_suites: running_suites)
+#   add_test_setup('running',
+#     exclude_suites: ['setup'] + install_suites)
+# endif
+
+
+
+###############################################################
+# Pseudo targets
+###############################################################
+
+# alias_target('backend', backend_targets)
+# alias_target('bin', bin_targets + [libpq_st])
+# alias_target('pl', pl_targets)
+# alias_target('contrib', contrib_targets)
+# alias_target('testprep', testprep_targets)
+# alias_target('install-world', install_quiet, installdocs)
+
+
 
 ###############################################################
 # The End, The End, My Friend

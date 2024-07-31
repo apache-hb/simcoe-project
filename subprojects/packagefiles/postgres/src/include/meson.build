@@ -67,6 +67,13 @@ var_ldflags_ex = '' # FIXME
 # executables, although those are probably less common.
 var_libs = ''
 
+common_deps = []
+if cc.get_id() == 'clang-cl'
+  dep = declare_dependency(
+    include_directories: 'coverup'
+  )
+  common_deps += [ dep.as_system() ]
+endif
 
 pg_config_paths = configure_file(
   output: 'pg_config_paths.h',
@@ -121,8 +128,8 @@ install_headers(
   install_dir: dir_include_server,
 )
 
-# subdir('catalog')
-# subdir('nodes')
+subdir('catalog')
+subdir('nodes')
 subdir('pch')
 subdir('storage')
 subdir('utils')
@@ -171,18 +178,18 @@ foreach d : header_subdirs
                  exclude_files: ['.gitignore', 'meson.build'])
 endforeach
 
-# install_subdir('catalog',
-#   install_dir: dir_include_server,
-#   exclude_files: [
-#     '.gitignore',
-#     'Makefile',
-#     'duplicate_oids',
-#     'meson.build',
-#     'reformat_dat_file.pl',
-#     'renumber_oids.pl',
-#     'unused_oids',
-#   ] + bki_data,
-# )
+install_subdir('catalog',
+  install_dir: dir_include_server,
+  exclude_files: [
+    '.gitignore',
+    'Makefile',
+    'duplicate_oids',
+    'meson.build',
+    'reformat_dat_file.pl',
+    'renumber_oids.pl',
+    'unused_oids',
+  ] + bki_data,
+)
 
 # autoconf generates the file there, ensure we get a conflict
 generated_sources_ac += {'src/include': ['stamp-h', 'stamp-ext-h']}

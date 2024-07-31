@@ -39,8 +39,10 @@ else
     orm_args += [ '-DHAS_POSTGRES=0' ]
 endif
 
-if get_option('mysql_orm').allowed() and false
+devapi = dependency('devapi', required : get_option('mysql_orm'))
+if devapi.found()
     src += 'src/db/mysql.cpp'
+    deps += [ devapi ]
     orm_args += [ '-DHAS_MYSQL=1' ]
 else
     orm_args += [ '-DHAS_MYSQL=0' ]
@@ -74,5 +76,11 @@ test('sqlite3 ORM',
 if oradb_oci.found()
     test('OracleDB ORM',
         executable('orm-orcl', 'test/orcl.cpp', dependencies : [ orm, coretest ])
+    )
+endif
+
+if postgres.found()
+    test('PostgreSQL ORM',
+        executable('orm-psql', 'test/psql.cpp', dependencies : [ orm, coretest ])
     )
 endif

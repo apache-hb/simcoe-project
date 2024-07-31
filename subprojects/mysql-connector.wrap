@@ -1,12 +1,12 @@
 [wrap-file]
 
-directory = mysql-connector-c++-9.0.0-src
+directory = mysql-connector-cpp-9.0.0
 
-source_url = https://cdn.mysql.com//Downloads/Connector-C++/mysql-connector-c++-9.0.0-src.zip
-source_filename = mysql-connector-c++-9.0.0-src.zip
-source_hash = 673f2ceb9d6782c5bde37fa479473a7ebcc84b474ed5de8487636e8ba2cd2cea
+source_url = https://github.com/mysql/mysql-connector-cpp/archive/refs/tags/9.0.0.zip
+source_filename = mysql-connector-cpp-9.0.0.zip
+source_hash = 9d4b90a4efe8861e821136fb3024074d14875749d8b69d1821361b2f2b8bfe55
 
 patch_directory = mysql-connector
 
 [provide]
-dependency_names = mysql-connector
+dependency_names = devapi

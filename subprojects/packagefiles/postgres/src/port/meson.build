@@ -51,7 +51,7 @@ elif host_system == 'cygwin'
   )
 endif
 
-if cc.get_id() == 'msvc'
+if cc.get_id() == 'msvc' or cc.get_id() == 'clang-cl'
   pgport_sources += files(
     'dirent.c',
     'win32gettimeofday.c',
@@ -129,7 +129,7 @@ endforeach
 
 
 if (host_system == 'windows' or host_system == 'cygwin') and \
-  (cc.get_id() != 'msvc' or cc.version().version_compare('<14.0'))
+  ((cc.get_id() != 'msvc' and cc.get_id() != 'clang-cl') or cc.version().version_compare('<14.0'))
 
   # Cygwin and (apparently, based on test results) Mingw both
   # have a broken strtof(), so substitute its implementation.
@@ -140,21 +140,19 @@ if (host_system == 'windows' or host_system == 'cygwin') and \
     host_system, cc.get_id(), cc.version()))
 endif
 
-
-
 # Build pgport once for backend, once for use in frontend binaries, and once
 # for use in shared libraries
 pgport = {}
 pgport_variants = {
   '_srv': internal_lib_args + {
-    'dependencies': [backend_port_code],
+    'dependencies': [backend_port_code, common_deps],
   },
   '': default_lib_args + {
-    'dependencies': [frontend_port_code],
+    'dependencies': [frontend_port_code, common_deps],
   },
   '_shlib': default_lib_args + {
     'pic': true,
-    'dependencies': [frontend_port_code],
+    'dependencies': [frontend_port_code, common_deps],
   },
 }
 
@@ -170,7 +168,6 @@ foreach name, opts : pgport_variants
     c_args = opts.get('c_args', []) + pgport_cflags[cflagname]
     cflag_libs += static_library('libpgport@0@_@1@'.format(name, cflagname),
       sources,
-      override_options : [ 'unity=off' ],
       c_pch: pch_c_h,
       kwargs: opts + {
         'c_args': c_args,
@@ -184,10 +181,9 @@ foreach name, opts : pgport_variants
       pgport_sources,
       link_with: cflag_libs,
       c_pch: pch_c_h,
-      override_options : [ 'unity=off' ],
       kwargs: opts + {
         'dependencies': opts['dependencies'] + [ssl],
-      }
+      },
     )
   pgport += {name: lib}
 endforeach

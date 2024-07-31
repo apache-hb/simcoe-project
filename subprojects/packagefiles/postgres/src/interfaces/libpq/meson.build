@@ -61,7 +61,7 @@ libpq_st = static_library('libpq',
   include_directories: [libpq_inc],
   c_args: libpq_c_args,
   c_pch: pch_postgres_fe_h,
-  dependencies: [frontend_stlib_code, libpq_deps],
+  dependencies: [frontend_stlib_code, libpq_deps, common_deps],
   kwargs: default_lib_args,
 )
 
@@ -73,26 +73,26 @@ libpq_so = shared_library('libpq',
   version: '5.' + pg_version_major.to_string(),
   soversion: host_system != 'windows' ? '5' : '',
   darwin_versions: ['5', '5.' + pg_version_major.to_string()],
-  dependencies: [frontend_shlib_code, libpq_deps],
+  dependencies: [frontend_shlib_code, libpq_deps, common_deps],
   link_depends: export_file,
   link_args: export_fmt.format(export_file.full_path()),
   kwargs: default_lib_args,
 )
 
 libpq = declare_dependency(
-  link_with: [libpq_so],
-  include_directories: [include_directories('.')]
+  link_with: [libpq_st],
+  include_directories: [include_directories('.', '../../include')]
 )
 
 meson.override_dependency('libpq', libpq)
 
-pkgconfig.generate(
-  name: 'libpq',
-  description: 'PostgreSQL libpq library',
-  url: pg_url,
-  libraries: libpq,
-  libraries_private: [frontend_stlib_code, libpq_deps],
-)
+# pkgconfig.generate(
+#   name: 'libpq',
+#   description: 'PostgreSQL libpq library',
+#   url: pg_url,
+#   libraries: libpq,
+#   libraries_private: [frontend_stlib_code, libpq_deps],
+# )
 
 install_headers(
   'libpq-fe.h',
@@ -108,7 +108,6 @@ install_headers(
 install_data('pg_service.conf.sample',
   install_dir: dir_data,
 )
-
 
 tests += {
   'name': 'libpq',
