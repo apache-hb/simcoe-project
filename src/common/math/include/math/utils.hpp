@@ -83,8 +83,8 @@ namespace sm::math {
     concept IsAngle = requires (T it) {
         typename T::Type;
 
-        { it.to_degrees() } -> std::convertible_to<typename T::Degrees>;
-        { it.to_radians() } -> std::convertible_to<typename T::Radians>;
+        { it.to_degrees() } -> std::same_as<Degrees<typename T::Type>>;
+        { it.to_radians() } -> std::same_as<Radians<typename T::Type>>;
         { it.get_degrees() } -> std::convertible_to<typename T::Type>;
         { it.get_radians() } -> std::convertible_to<typename T::Type>;
         { it.get() } -> std::convertible_to<typename T::Type>;

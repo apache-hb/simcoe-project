@@ -85,6 +85,12 @@ namespace sm::math {
         constexpr const auto& operator[](size_t index) const requires (IsVector<T>) { return value[index]; }
     };
 
+    static_assert(IsAngle<Radians<float>>);
+    static_assert(IsAngle<Radians<double>>);
+
+    static_assert(IsAngle<Degrees<float>>);
+    static_assert(IsAngle<Degrees<double>>);
+
     template<IsAngle T>
     constexpr auto sin(T angle) -> T::Type { return std::sin(angle.get_radians()); }
 
