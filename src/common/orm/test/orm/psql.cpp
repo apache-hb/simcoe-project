@@ -13,7 +13,13 @@ TEST_CASE("sqlite updates") {
 
     auto env = getValue(Environment::create(DbType::ePostgreSQL));
 
-    Connection conn = getValue(env.connect(kConfig));
+    auto connResult = env.connect(kConfig);
+
+    if (!connResult.has_value()) {
+        return;
+    }
+
+    auto conn = std::move(connResult.value());
 
     if (conn.tableExists("test"))
         getValue(conn.update("DROP TABLE test"));

@@ -72,11 +72,8 @@ namespace sm::config {
             std::string_view name;
             std::string_view description = "no description";
 
-            Group* group = &getCommonGroup();
-
             void init(Name it) noexcept { name = it.value; }
             void init(Description it) noexcept { description = it.value; }
-            void init(Category it) noexcept { group = &it.group; }
         };
 
         struct OptionBuilder : ConfigBuilder {
@@ -86,9 +83,11 @@ namespace sm::config {
             bool hidden = false;
 
             OptionType type;
+            Group* group = &getCommonGroup();
 
             void init(ReadOnly it) noexcept { readonly = it.readonly; }
             void init(Hidden it) noexcept { hidden = it.hidden; }
+            void init(Category it) noexcept { group = &it.group; }
         };
 
         template<std::derived_from<ConfigBuilder> T>

@@ -8,6 +8,8 @@
 #include <string_view>
 #include <unordered_map>
 
+#include <fmtlib/format.h>
+
 #include "core/adt/vector.hpp"
 #include "core/macros.hpp"
 
@@ -58,7 +60,6 @@ namespace sm::config {
         constexpr Group(detail::ConfigBuilder config) noexcept
             : name(config.name)
             , description(config.description)
-            , parent(config.group)
         { }
 
         constexpr Group(auto&&... args) noexcept
@@ -67,7 +68,6 @@ namespace sm::config {
 
         const std::string_view name;
         const std::string_view description;
-        const Group *parent;
     };
 
     class OptionBase {
@@ -117,13 +117,13 @@ namespace sm::config {
     class Context {
         struct GroupInfo {
             std::vector<OptionBase*> options;
-            std::vector<Group*> children;
         };
 
         std::unordered_map<std::string_view, OptionBase*> mArgLookup;
         std::unordered_map<std::string_view, Group*> mGroupLookup;
         std::unordered_map<const Group*, GroupInfo> mGroups;
     public:
+        const auto& groups() const noexcept { return mGroups; }
 
         /// @brief add a runtime generated variable to the context
         /// @warning this is a dangerous operation, the lifetime of the variable must be greater

@@ -25,6 +25,8 @@
 
 #include "orm/connection.hpp"
 
+#include "core/defer.hpp"
+
 using namespace sm;
 using namespace sm::math;
 using namespace sm::math::literals;
@@ -47,6 +49,30 @@ static sm::opt<bool> gBundlePacked {
     name = "packed",
     desc = "Is the bundled packed in a tar file?",
     init = true
+};
+
+static sm::opt<bool> gPixEnabled {
+    name = "pix",
+    desc = "Enable PIX debugging",
+    init = false
+};
+
+static sm::opt<bool> gWarpEnabled {
+    name = "warp",
+    desc = "Enable WARP adapter",
+    init = false
+};
+
+static sm::opt<bool> gDredEnabled {
+    name = "dred",
+    desc = "Enable DRED debugging",
+    init = false
+};
+
+static sm::opt<bool> gDebugEnabled {
+    name = "debug",
+    desc = "Enable debug mode",
+    init = false
 };
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
@@ -237,11 +263,11 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     render::DebugFlags flags = render::DebugFlags::none();
 
-    if (sm::warp_enabled()) {
+    if (gWarpEnabled.getValue()) {
         flags |= render::DebugFlags::eWarpAdapter;
     }
 
-    if (sm::debug_enabled()) {
+    if (gDebugEnabled.getValue()) {
         flags |= render::DebugFlags::eDeviceDebugLayer;
         flags |= render::DebugFlags::eFactoryDebug;
         flags |= render::DebugFlags::eInfoQueue;
@@ -250,16 +276,16 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
         // enabling gpu based validation on the warp adapter
         // tanks performance
-        if (!sm::warp_enabled()) {
+        if (!gWarpEnabled.getValue()) {
             flags |= render::DebugFlags::eGpuValidation;
         }
     }
 
-    if (sm::pix_enabled()) {
+    if (gPixEnabled.getValue()) {
         flags |= render::DebugFlags::eWinPixEventRuntime;
     }
 
-    if (sm::dred_enabled()) {
+    if (gDredEnabled.getValue()) {
         flags |= render::DebugFlags::eDeviceRemovedInfo;
     }
 
@@ -532,31 +558,17 @@ static int common_main(sys::ShowWindow show) {
     return result;
 }
 
-struct System {
-    System(HINSTANCE hInstance) {
-        sys::create(hInstance);
-    }
-    ~System() {
-        sys::destroy();
-    }
-};
-
 int main(int argc, const char **argv) {
     common_init();
     sm::Span<const char*> args{argv, size_t(argc)};
     logs::gGlobal.info("args = [{}]", fmt::join(args, ", "));
 
     int result = [&] {
-        System sys{GetModuleHandleA(nullptr)};
-
-        sm::config::cvars().updateFromCommandLine(argc, argv);
+        sys::create(GetModuleHandleA(nullptr));
+        defer { sys::destroy(); };
 
         if (int err = sm::parseCommandLine(argc, argv, sys::get_appdir())) {
             return (err == -1) ? 0 : err; // TODO: this is a little silly, should wrap in a type
-        }
-
-        if (!sm::parse_command_line(argc, argv, sys::get_appdir())) {
-            return 0;
         }
 
         return common_main(sys::ShowWindow::eShow);
@@ -577,7 +589,8 @@ int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdL
     // TODO: parse lpCmdLine
 
     int result = [&] {
-        System sys{hInstance};
+        sys::create(hInstance);
+        defer { sys::destroy(); };
 
         return common_main(sys::ShowWindow{nShowCmd});
     }();

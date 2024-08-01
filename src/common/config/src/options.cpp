@@ -23,7 +23,6 @@ Group& config::getCommonGroup() noexcept {
     static Group instance = [] {
         detail::ConfigBuilder config {
             .name = "common",
-            .group = nullptr,
         };
         return Group{config};
     }();
@@ -59,7 +58,6 @@ void Context::addToGroup(OptionBase *cvar, Group* group) noexcept {
 #endif
 
     mGroups[group].options.push_back(cvar);
-    mGroups[group->parent].children.push_back(group);
 
     mArgLookup[cvar->name] = cvar;
     mGroupLookup[group->name] = group;
@@ -101,8 +99,19 @@ template struct sm::config::ConsoleVariable<float>;
 template struct sm::config::ConsoleVariable<double>;
 template struct sm::config::ConsoleVariable<std::string>;
 
+static void printOption(const OptionBase& option) noexcept {
+    if (option.isReadOnly())
+        return;
+
+    if (option.isHidden())
+        return;
+
+    logs::gGlobal.info("  --{}: {}", option.name, option.description);
+}
+
 int sm::parseCommandLine(int argc, const char **argv, const fs::path& appdir) {
-    auto result = sm::config::cvars().updateFromCommandLine(argc, argv);
+    auto& ctx = sm::config::cvars();
+    auto result = ctx.updateFromCommandLine(argc, argv);
     for (const auto& msg : result.getErrors()) {
         logs::gGlobal.warn("{}: {}", toString(msg.error), msg.message);
     }
@@ -111,9 +120,31 @@ int sm::parseCommandLine(int argc, const char **argv, const fs::path& appdir) {
         return 1;
 
     if (gOptionHelp.getValue()) {
-        // TODO: print help
-        return 0;
+        const auto& allGroups = ctx.groups();
+        auto groups = [&] {
+            std::vector<const Group*> result;
+            result.reserve(allGroups.size());
+
+            for (const auto& [group, data] : allGroups) {
+                result.push_back(group);
+            }
+
+            std::sort(result.begin(), result.end(), [](const auto& a, const auto& b) {
+                return a->name < b->name;
+            });
+
+            return result;
+        }();
+
+        for (const Group *group : groups) {
+            logs::gGlobal.info("{} - {}", group->name, group->description);
+            for (const auto& option : allGroups.at(group).options) {
+                printOption(*option);
+            }
+        }
+
+        return -1;
     }
 
-    return -1;
+    return 0;
 }

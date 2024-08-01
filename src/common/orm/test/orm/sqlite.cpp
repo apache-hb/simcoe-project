@@ -9,7 +9,7 @@ TEST_CASE("sqlite updates") {
 
     auto env = getValue(Environment::create(DbType::eSqlite3));
 
-    Connection conn = getValue(env.connect(kConfig));
+    auto conn = getValue(env.connect(kConfig));
 
     if (conn.tableExists("test"))
         getValue(conn.update("DROP TABLE test"));
