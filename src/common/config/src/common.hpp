@@ -3,14 +3,7 @@
 #include "config/option.hpp"
 
 namespace sm::config::detail {
-    bool verifyWriteAccess(UpdateResult& errs, const OptionBase& option) {
-        if (option.isReadOnly()) {
-            errs.fmtError(UpdateStatus::eReadOnly, "option {} is read only", option.name);
-            return false;
-        }
-
-        return true;
-    }
+    bool verifyWriteAccess(UpdateResult& errs, const OptionBase& option);
 
     template<typename O, typename T>
         requires (std::derived_from<O, NumericOptionValue<T>>)

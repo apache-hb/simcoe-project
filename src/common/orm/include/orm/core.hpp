@@ -8,6 +8,7 @@
 
 #include <expected>
 #include <span>
+#include <chrono>
 
 namespace sm::db {
     class ResultSet;

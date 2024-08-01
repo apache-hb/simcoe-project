@@ -385,7 +385,7 @@ class OraStatement final : public detail::IStatement {
     }
 
     DbError getBoolean(int index, bool& value) noexcept override {
-        value = mColumnInfo[index].value.text[0] == '1';
+        value = mColumnInfo[index].value.text[0] != '0';
         return DbError::ok();
     }
 

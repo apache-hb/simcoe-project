@@ -27,6 +27,18 @@ class PgStatement : public detail::IStatement {
 class PgConnection final : public detail::IConnection {
     PGconn *mConnection = nullptr;
 
+    DbError execute(std::string_view sql) noexcept {
+        PGresult *result = PQexec(mConnection, sql.data());
+        if (PQresultStatus(result) != PGRES_COMMAND_OK) {
+            DbError err = getConnectionError(mConnection);
+            PQclear(result);
+            return err;
+        }
+
+        PQclear(result);
+        return DbError::ok();
+    }
+
     DbError close() noexcept override {
         PQfinish(mConnection);
         return DbError::ok();
@@ -41,15 +53,15 @@ class PgConnection final : public detail::IConnection {
     }
 
     DbError begin() noexcept override {
-        return DbError::todo();
+        return execute("BEGIN TRANSACTION");
     }
 
     DbError commit() noexcept override {
-        return DbError::todo();
+        return execute("COMMIT TRANSACTION");
     }
 
     DbError rollback() noexcept override {
-        return DbError::todo();
+        return execute("ROLLBACK TRANSACTION");
     }
 
     DbError tableExists(std::string_view table, bool& exists) noexcept override {

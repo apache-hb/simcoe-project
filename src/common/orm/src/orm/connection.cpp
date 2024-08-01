@@ -86,78 +86,38 @@ Blob ResultSet::getBlob(int index) noexcept {
 /// named bindpoint
 ///
 
-void NamedBindPoint::to(int64 value) noexcept {
-    if (DbError error = impl().bindInt(mName, value)) {
+void BindPoint::to(int64 value) noexcept {
+    if (DbError error = mImpl->bindInt(mName, value)) {
         CT_NEVER("Failed to bind int64 value %lld: %s", value, error.message().data());
     }
 }
 
-void NamedBindPoint::to(bool value) noexcept {
-    if (DbError error = impl().bindBoolean(mName, value)) {
+void BindPoint::to(bool value) noexcept {
+    if (DbError error = mImpl->bindBoolean(mName, value)) {
         CT_NEVER("Failed to bind boolean value %s: %s", (value ? "true" : "false"), error.message().data());
     }
 }
 
-void NamedBindPoint::to(std::string_view value) noexcept {
-    if (DbError error = impl().bindString(mName, value)) {
+void BindPoint::to(std::string_view value) noexcept {
+    if (DbError error = mImpl->bindString(mName, value)) {
         CT_NEVER("Failed to bind string value %s: %s", value.data(), error.message().data());
     }
 }
 
-void NamedBindPoint::to(double value) noexcept {
-    if (DbError error = impl().bindDouble(mName, value)) {
+void BindPoint::to(double value) noexcept {
+    if (DbError error = mImpl->bindDouble(mName, value)) {
         CT_NEVER("Failed to bind double value %f: %s", value, error.message().data());
     }
 }
 
-void NamedBindPoint::to(Blob value) noexcept {
-    if (DbError error = impl().bindBlob(mName, value)) {
+void BindPoint::to(Blob value) noexcept {
+    if (DbError error = mImpl->bindBlob(mName, value)) {
         CT_NEVER("Failed to bind blob value (length %zu): %s", value.size_bytes(), error.message().data());
     }
 }
 
-void NamedBindPoint::to(std::nullptr_t) noexcept {
-    if (DbError error = impl().bindNull(mName)) {
-        CT_NEVER("Failed to bind null value: %s", error.message().data());
-    }
-}
-
-///
-/// positional bindpoint
-///
-
-void PositionalBindPoint::to(int64 value) noexcept {
-    if (DbError error = impl().bindInt(mIndex, value)) {
-        CT_NEVER("Failed to bind int64 value %lld: %s", value, error.message().data());
-    }
-}
-
-void PositionalBindPoint::to(bool value) noexcept {
-    if (DbError error = impl().bindBoolean(mIndex, value)) {
-        CT_NEVER("Failed to bind boolean value %s: %s", (value ? "true" : "false"), error.message().data());
-    }
-}
-
-void PositionalBindPoint::to(std::string_view value) noexcept {
-    if (DbError error = impl().bindString(mIndex, value)) {
-        CT_NEVER("Failed to bind string value %s: %s", value.data(), error.message().data());
-    }
-}
-
-void PositionalBindPoint::to(double value) noexcept {
-    if (DbError error = impl().bindDouble(mIndex, value)) {
-        CT_NEVER("Failed to bind double value %f: %s", value, error.message().data());
-    }
-}
-
-void PositionalBindPoint::to(Blob value) noexcept {
-    if (DbError error = impl().bindBlob(mIndex, value)) {
-        CT_NEVER("Failed to bind blob value (length %zu): %s", value.size_bytes(), error.message().data());
-    }
-}
-
-void PositionalBindPoint::to(std::nullptr_t) noexcept {
-    if (DbError error = impl().bindNull(mIndex)) {
+void BindPoint::to(std::nullptr_t) noexcept {
+    if (DbError error = mImpl->bindNull(mName)) {
         CT_NEVER("Failed to bind null value: %s", error.message().data());
     }
 }

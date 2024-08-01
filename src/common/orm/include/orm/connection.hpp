@@ -57,13 +57,7 @@ namespace sm::db {
     public:
         SM_MOVE(PreparedStatement, default);
 
-        PositionalBindPoint bind(int index) noexcept { return PositionalBindPoint{mImpl.get(), index}; }
-        void bind(int index, int64 value) noexcept { bind(index) = value; }
-        void bind(int index, std::string_view value) noexcept { bind(index) = value; }
-        void bind(int index, double value) noexcept { bind(index) = value; }
-        void bind(int index, std::nullptr_t) noexcept { bind(index) = nullptr; }
-
-        NamedBindPoint bind(std::string_view name) noexcept;
+        BindPoint bind(std::string_view name) noexcept;
         void bind(std::string_view name, int64 value) noexcept { bind(name) = value; }
         void bind(std::string_view name, std::string_view value) noexcept { bind(name) = value; }
         void bind(std::string_view name, double value) noexcept { bind(name) = value; }

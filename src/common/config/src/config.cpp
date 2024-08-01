@@ -1,11 +1,20 @@
-#include "core/error.hpp"
 #include "stdafx.hpp"
 #include "common.hpp"
 
+#include "core/error.hpp"
 #include "config/option.hpp"
 
 using namespace sm;
 using namespace sm::config;
+
+bool config::detail::verifyWriteAccess(UpdateResult& errs, const OptionBase& option) {
+    if (option.isReadOnly()) {
+        errs.fmtError(UpdateStatus::eReadOnly, "option {} is read only", option.name);
+        return false;
+    }
+
+    return true;
+}
 
 static std::string_view getNodeTypeString(toml::node_type type) noexcept {
     using enum toml::node_type;
