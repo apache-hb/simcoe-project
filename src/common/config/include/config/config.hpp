@@ -19,4 +19,6 @@ namespace sm {
 #endif
 
     bool parse_command_line(int argc, const char **argv, const fs::path& appdir);
+
+    int parseCommandLine(int argc, const char **argv, const fs::path& appdir);
 }

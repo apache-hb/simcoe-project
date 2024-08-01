@@ -1,8 +1,10 @@
 #include "stdafx.hpp"
 #include "core/core.hpp"
 #include "core/error.hpp"
-
 #include "config/option.hpp"
+
+#include "logs/logs.hpp"
+#include "config/config.hpp"
 
 using namespace sm;
 using namespace sm::config;
@@ -98,3 +100,20 @@ template struct sm::config::ConsoleVariable<bool>;
 template struct sm::config::ConsoleVariable<float>;
 template struct sm::config::ConsoleVariable<double>;
 template struct sm::config::ConsoleVariable<std::string>;
+
+int sm::parseCommandLine(int argc, const char **argv, const fs::path& appdir) {
+    auto result = sm::config::cvars().updateFromCommandLine(argc, argv);
+    for (const auto& msg : result.getErrors()) {
+        logs::gGlobal.warn("{}: {}", toString(msg.error), msg.message);
+    }
+
+    if (result.isFailure())
+        return 1;
+
+    if (gOptionHelp.getValue()) {
+        // TODO: print help
+        return 0;
+    }
+
+    return -1;
+}

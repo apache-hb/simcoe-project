@@ -394,11 +394,11 @@ namespace sm::math {
             auto r0 = Vec3::cross(up, r2).normalized();
             auto r1 = Vec3::cross(r2, r0);
 
-            auto negEye = eye.negate();
+            auto neg = eye.negate();
 
-            auto d0 = Vec3::dot(r0, negEye);
-            auto d1 = Vec3::dot(r1, negEye);
-            auto d2 = Vec3::dot(r2, negEye);
+            auto d0 = Vec3::dot(r0, neg);
+            auto d1 = Vec3::dot(r1, neg);
+            auto d2 = Vec3::dot(r2, neg);
 
             Vec4 s0 = { r0, d0 };
             Vec4 s1 = { r1, d1 };

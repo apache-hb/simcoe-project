@@ -1,5 +1,7 @@
 #include "config/config.hpp"
 
+#include "config/option.hpp"
+
 #include "core/span.hpp"
 #include "core/string.hpp"
 

@@ -551,6 +551,10 @@ int main(int argc, const char **argv) {
 
         sm::config::cvars().updateFromCommandLine(argc, argv);
 
+        if (int err = sm::parseCommandLine(argc, argv, sys::get_appdir())) {
+            return (err == -1) ? 0 : err; // TODO: this is a little silly, should wrap in a type
+        }
+
         if (!sm::parse_command_line(argc, argv, sys::get_appdir())) {
             return 0;
         }
