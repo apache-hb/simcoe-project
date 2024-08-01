@@ -67,8 +67,6 @@ namespace sm::math {
         constexpr Vec2 operator*=(const Vec2& other) { return *this = *this * other; }
         constexpr Vec2 operator/=(const Vec2& other) { return *this = *this / other; }
 
-        bool isinf() const { return std::isinf(x) || std::isinf(y); }
-
         constexpr bool is_uniform() const { return x == y; }
 
         constexpr Vec2 neg() const { return Vec2(-x, -y); }
@@ -187,8 +185,6 @@ namespace sm::math {
         constexpr Vec2 xy() const { return Vec2(x, y); }
         constexpr Vec2 xz() const { return Vec2(x, z); }
         constexpr Vec2 yz() const { return Vec2(y, z); }
-
-        bool isinf() const { return std::isinf(x) || std::isinf(y) || std::isinf(z); }
 
         constexpr bool is_uniform() const { return x == y && y == z; }
 
@@ -319,7 +315,6 @@ namespace sm::math {
 
         constexpr Vec3 xyz() const { return Vec3(x, y, z); }
 
-        bool isinf() const { return std::isinf(x) || std::isinf(y) || std::isinf(z) || std::isinf(w); }
         constexpr bool is_uniform() const { return x == y && y == z && z == w; }
 
         constexpr T length() const { return std::sqrt(x * x + y * y + z * z + w * w); }
@@ -395,6 +390,16 @@ namespace sm::math {
 
     constexpr uint8 swizzle_set(uint8 mask, Channel channel, Channel value) {
         return (mask & ~(0x3 << (channel * 2))) | (value << (channel * 2));
+    }
+
+    template<IsVector T>
+    constexpr bool isinf(T v) {
+        for (size_t i = 0; i < T::kSize; i++) {
+            if (std::isinf(v.fields[i])) {
+                return true;
+            }
+        }
+        return false;
     }
 
     template<IsVector T>

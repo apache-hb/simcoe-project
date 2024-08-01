@@ -387,8 +387,8 @@ namespace sm::math {
             CTASSERT(eye != Vec3::zero());
             CTASSERT(up != Vec3::zero());
 
-            CTASSERT(!eye.isinf());
-            CTASSERT(!up.isinf());
+            CTASSERT(!isinf(eye));
+            CTASSERT(!isinf(up));
 
             auto r2 = dir.normalized();
             auto r0 = Vec3::cross(up, r2).normalized();
