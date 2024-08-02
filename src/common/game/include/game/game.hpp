@@ -5,7 +5,7 @@
 
 #include "world/world.hpp"
 
-#include "render/graph.hpp"
+#include "render/core/graph.hpp"
 
 #include <flecs.h>
 

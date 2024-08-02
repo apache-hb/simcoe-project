@@ -1,6 +1,6 @@
 #pragma once
 
-#include "render/render.hpp"
+#include "render/core/render.hpp"
 
 namespace sm::render {
     struct IDeviceContext;

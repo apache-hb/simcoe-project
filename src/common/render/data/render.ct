@@ -2,7 +2,7 @@ module sm::render;
 
 import "system/window.hpp";
 import "logs/logs.hpp";
-import "render/object.hpp";
+import "render/core/object.hpp";
 
 using Window = opaque("sm::sys::Window")
 using ILogger = opaque("sm::logs::ILogger")

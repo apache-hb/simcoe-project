@@ -4,8 +4,6 @@
 #include "core/format.hpp" // IWYU pragma: export
 #include "system/system.hpp"
 
-#include "config/config.hpp"
-
 #include "fmt/std.h" // IWYU pragma: export
 
 #include "delayimp.h"
@@ -18,7 +16,7 @@ static FARPROC WINAPI dllDelayLoadHook(unsigned notify, PDelayLoadInfo info) {
     delayload::LoadNotify it{notify};
 
     if (it == delayload::LoadNotify::eFailLoadLibrary) {
-        auto path = sm::get_redist(info->szDll);
+        auto path = sm::sys::getProgramFolder() / "redist" / info->szDll;
 
         auto library = LoadLibrary(path.string().c_str());
 

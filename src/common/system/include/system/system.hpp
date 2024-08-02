@@ -16,8 +16,8 @@ namespace sm::sys {
 
     OsError getLastError();
 
-    fs::path get_app_path();
-    fs::path get_appdir();
+    fs::path getProgramFolder();
+    fs::path getProgramPath();
 
     void create(HINSTANCE hInstance);
     void destroy(void);

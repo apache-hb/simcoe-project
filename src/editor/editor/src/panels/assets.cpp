@@ -3,7 +3,7 @@
 #include "editor/panels/panel.hpp"
 #include "editor/panels/assets.hpp"
 
-#include "render/render.hpp"
+#include "render/core/render.hpp"
 
 using namespace sm;
 using namespace sm::ed;

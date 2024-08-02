@@ -2,7 +2,7 @@
 
 #include "editor/panels/inspector.hpp"
 
-#include "render/render.hpp"
+#include "render/core/render.hpp"
 
 using namespace sm;
 using namespace sm::ed;

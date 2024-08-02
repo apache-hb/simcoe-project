@@ -4,8 +4,6 @@ tomlplusplus = dependency('tomlplusplus')
 deps = [ core ]
 
 src = [
-    'src/legacy_config.cpp',
-
     'src/options.cpp',
     'src/command_line.cpp',
     'src/config.cpp'

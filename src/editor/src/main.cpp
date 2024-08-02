@@ -18,7 +18,7 @@
 #include "config/config.hpp"
 
 #include "editor/draw.hpp"
-#include "render/render.hpp"
+#include "render/core/render.hpp"
 
 #include "world/ecs.hpp"
 #include "game/ecs.hpp"
@@ -437,24 +437,22 @@ static db::DbError sqliteTest() {
         logs::gGlobal.error("failed to create table: {}", error.message());
     });
 
-    // std::string_view sql = R"(
-    //     CREATE TABLE IF NOT EXISTS test (
-    //         id   INTEGER      NOT NULL PRIMARY KEY,
-    //         name VARCHAR(255) NOT NULL
-    //     ) STRICT;
+    std::string_view sql = R"(
+        CREATE TABLE IF NOT EXISTS test (
+            id   INTEGER      NOT NULL PRIMARY KEY,
+            name VARCHAR(255) NOT NULL
+        ) STRICT;
+    )";
 
-    //     INSERT INTO test VALUES (1, 'hello'), (2, 'world');
-    // )";
+    auto result = TRY(conn.prepare(sql), (const auto& error) {
+        logs::gGlobal.error("failed to prepare query: {}", error.message());
+    });
 
-    // auto result = TRY(conn.prepare(sql), (const auto& error) {
-    //     logs::gGlobal.error("failed to prepare query: {}", error.message());
-    // });
+    TRY(result.update(), (const auto& error) {
+        logs::gGlobal.error("failed to execute update: {}", error.message());
+    });
 
-    // TRY(result.update(), (const auto& error) {
-    //     logs::gGlobal.error("failed to execute update: {}", error.message());
-    // });
-
-    // logs::gGlobal.info("executed query");
+    logs::gGlobal.info("executed query");
 
     return db::DbError::ok();
 }
@@ -567,7 +565,7 @@ int main(int argc, const char **argv) {
         sys::create(GetModuleHandleA(nullptr));
         defer { sys::destroy(); };
 
-        if (int err = sm::parseCommandLine(argc, argv, sys::get_appdir())) {
+        if (int err = sm::parseCommandLine(argc, argv)) {
             return (err == -1) ? 0 : err; // TODO: this is a little silly, should wrap in a type
         }
 

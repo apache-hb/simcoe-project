@@ -13,12 +13,12 @@ static constexpr const char *kClassName = "simcoe";
 static fs::path gProgramPath;
 static fs::path gProgramDir;
 
-fs::path sys::get_app_path() {
-    return gProgramPath;
+fs::path sys::getProgramFolder() {
+    return gProgramDir;
 }
 
-fs::path sys::get_appdir() {
-    return gProgramDir;
+fs::path sys::getProgramPath() {
+    return gProgramPath;
 }
 
 void sys::create(HINSTANCE hInstance) {
@@ -60,7 +60,7 @@ void sys::create(HINSTANCE hInstance) {
         gWindowClass = MAKEINTATOM(atom);
     }
 
-    static constexpr size_t kPathMax = 2048;
+    static constexpr size_t kPathMax = 0x1000;
     TCHAR gExecutablePath[kPathMax];
     DWORD gExecutablePathLength = 0;
 

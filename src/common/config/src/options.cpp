@@ -23,6 +23,7 @@ Group& config::getCommonGroup() noexcept {
     static Group instance = [] {
         detail::ConfigBuilder config {
             .name = "common",
+            .description = "common options",
         };
         return Group{config};
     }();
@@ -106,14 +107,14 @@ static void printOption(const OptionBase& option) noexcept {
     if (option.isHidden())
         return;
 
-    logs::gGlobal.info("  --{}: {}", option.name, option.description);
+    fmt::println("  --{}: {}", option.name, option.description);
 }
 
-int sm::parseCommandLine(int argc, const char **argv, const fs::path& appdir) {
+int sm::parseCommandLine(int argc, const char **argv) noexcept {
     auto& ctx = sm::config::cvars();
     auto result = ctx.updateFromCommandLine(argc, argv);
     for (const auto& msg : result.getErrors()) {
-        logs::gGlobal.warn("{}: {}", toString(msg.error), msg.message);
+        fmt::println("{}: {}", toString(msg.error), msg.message);
     }
 
     if (result.isFailure())
@@ -137,7 +138,7 @@ int sm::parseCommandLine(int argc, const char **argv, const fs::path& appdir) {
         }();
 
         for (const Group *group : groups) {
-            logs::gGlobal.info("{} - {}", group->name, group->description);
+            fmt::println("{} - {}", group->name, group->description);
             for (const auto& option : allGroups.at(group).options) {
                 printOption(*option);
             }

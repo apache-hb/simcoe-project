@@ -1,6 +1,7 @@
+#include "stdafx.hpp"
+
 #include "draw/camera.hpp"
 #include "logs/file.hpp"
-#include "stdafx.hpp"
 
 #include "system/input.hpp"
 #include "system/system.hpp"
@@ -13,12 +14,56 @@
 #include "config/config.hpp"
 
 #include "draw/draw.hpp"
-#include "render/render.hpp"
+#include "render/core/render.hpp"
 
 #include "config/option.hpp"
 
+#include "core/defer.hpp"
+
 using namespace sm;
 using namespace math;
+
+static sm::opt<std::string> gAppDir {
+    name = "appdir",
+    desc = "The application directory",
+    init = "./"
+};
+
+static sm::opt<std::string> gBundlePath {
+    name = "bundle",
+    desc = "Path to the bundle file or directory",
+    init = "./bundle.tar"
+};
+
+static sm::opt<bool> gBundlePacked {
+    name = "packed",
+    desc = "Is the bundled packed in a tar file?",
+    init = true
+};
+
+static sm::opt<bool> gPixEnabled {
+    name = "pix",
+    desc = "Enable PIX debugging",
+    init = false
+};
+
+static sm::opt<bool> gWarpEnabled {
+    name = "warp",
+    desc = "Enable WARP adapter",
+    init = false
+};
+
+static sm::opt<bool> gDredEnabled {
+    name = "dred",
+    desc = "Enable DRED debugging",
+    init = false
+};
+
+static sm::opt<bool> gDebugEnabled {
+    name = "debug",
+    desc = "Enable debug mode",
+    init = false
+};
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
                                                              LPARAM lParam);
@@ -172,6 +217,14 @@ struct ClientContext final : public render::IDeviceContext {
     }
 };
 
+static sm::IFileSystem *mountArchive(bool isPacked, const fs::path &path) {
+    if (isPacked) {
+        return sm::mountArchive(path);
+    } else {
+        return sm::mountFileSystem(path);
+    }
+}
+
 static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     sys::WindowConfig window_config = {
         .mode = sys::WindowMode::eWindowed,
@@ -193,34 +246,35 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     auto client = window.get_client_coords().size();
 
-    // fs::path bundle_path = sm::get_appdir() / "bundle.tar";
+    // fs::path bundle_path = sys::getProgramFolder() / "bundle.tar";
     // IoHandle tar = io_file(bundle_path.string().c_str(), eOsAccessRead, get_default_arena());
-    sm::Bundle bundle{sm::mountFileSystem(sm::get_appdir() / "bundle")};
+    sm::Bundle bundle{mountArchive(gBundlePacked.getValue(), gBundlePath.getValue())};
 
     render::DebugFlags flags = render::DebugFlags::none();
 
-    if (sm::warp_enabled()) {
+    if (gWarpEnabled.getValue()) {
         flags |= render::DebugFlags::eWarpAdapter;
     }
 
-    if (sm::debug_enabled()) {
+    if (gDebugEnabled.getValue()) {
         flags |= render::DebugFlags::eDeviceDebugLayer;
         flags |= render::DebugFlags::eFactoryDebug;
         flags |= render::DebugFlags::eInfoQueue;
         flags |= render::DebugFlags::eAutoName;
+        flags |= render::DebugFlags::eDirectStorageDebug;
 
         // enabling gpu based validation on the warp adapter
-        // absolutely tanks performance
-        if (!sm::warp_enabled()) {
+        // tanks performance
+        if (!gWarpEnabled.getValue()) {
             flags |= render::DebugFlags::eGpuValidation;
         }
     }
 
-    if (sm::pix_enabled()) {
+    if (gPixEnabled.getValue()) {
         flags |= render::DebugFlags::eWinPixEventRuntime;
     }
 
-    if (sm::dred_enabled()) {
+    if (gDredEnabled.getValue()) {
         flags |= render::DebugFlags::eDeviceRemovedInfo;
     }
 
@@ -313,30 +367,17 @@ static int common_main(sys::ShowWindow show) {
     return result;
 }
 
-struct System {
-    System(HINSTANCE hInstance) {
-        sys::create(hInstance);
-    }
-    ~System() {
-        sys::destroy();
-    }
-};
-
 int main(int argc, const char **argv) {
     common_init();
 
     sm::Span<const char*> args{argv, size_t(argc)};
     logs::gGlobal.info("args = [{}]", fmt::join(args, ", "));
 
-    System sys{GetModuleHandleA(nullptr)};
+    sys::create(GetModuleHandleA(nullptr));
+    defer { sys::destroy(); };
 
-    if (!sm::parse_command_line(argc, argv, sys::get_appdir())) {
-        return 0;
-    }
-
-    auto& ctx = sm::config::cvars();
-    if (auto result = ctx.updateFromCommandLine(argc, argv); result.isFailure()) {
-
+    if (int err = sm::parseCommandLine(argc, argv)) {
+        return (err == -1) ? 0 : err; // TODO: this is a little silly, should wrap in a type
     }
 
     return common_main(sys::ShowWindow::eShow);
@@ -350,7 +391,8 @@ int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdL
 
     // TODO: parse lpCmdLine
 
-    System sys{hInstance};
+    sys::create(GetModuleHandleA(nullptr));
+    defer { sys::destroy(); };
 
     return common_main(sys::ShowWindow{nShowCmd});
 }

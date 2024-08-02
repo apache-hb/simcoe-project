@@ -18,6 +18,8 @@ namespace sm {
         uint16 mLength;
 
     public:
+        static constexpr size_t kCapacity = N;
+
         constexpr SmallString() noexcept = default;
 
         constexpr SmallString(const char *first, const char *last) noexcept {

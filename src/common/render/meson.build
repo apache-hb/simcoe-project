@@ -1,4 +1,3 @@
-
 render_include = include_directories('.', 'include')
 
 dstorage = dependency('dstorage')
@@ -26,29 +25,29 @@ src = [
     render_config,
 
     # utils
-    'src/result.cpp',
-    'src/object.cpp',
+    'src/core/result.cpp',
+    'src/core/object.cpp',
 
     # base render classes
-    'src/instance.cpp',
-    'src/dstorage.cpp',
+    'src/core/instance.cpp',
+    'src/core/dstorage.cpp',
 
     # core render context
-    'src/render.cpp',
+    'src/core/render.cpp',
 
-    'src/descriptor_heap.cpp',
-    'src/resource.cpp',
+    'src/core/descriptor_heap.cpp',
+    'src/core/resource.cpp',
 
-    'src/viewport.cpp',
-    'src/format.cpp',
+    'src/core/viewport.cpp',
+    'src/core/format.cpp',
 
     # render graph
-    'src/graph/render_pass.cpp',
-    'src/graph.cpp',
+    'src/core/graph/render_pass.cpp',
+    'src/core/graph.cpp',
 
     # vendor
-    'src/vendor/nvidia/nvapi.cpp',
-    'src/vendor/amd/ags.cpp',
+    'src/core/vendor/nvidia/nvapi.cpp',
+    'src/core/vendor/amd/ags.cpp',
 
     reflect.process('data/render.ct'),
     reflect.process('data/graph.ct')
@@ -74,18 +73,17 @@ if pix_feature.allowed()
     deps += [ winpixruntime ]
 endif
 
-librender = library('render', src,
-    cpp_args : [ '-DSM_RENDER_BUILD=1' ],
-    cpp_pch : 'src/stdafx.hpp',
-    include_directories : [ render_include, reflect_include, 'src' ],
+librender_core = library('render-core', src,
+    cpp_pch : 'src/core/stdafx.hpp',
+    include_directories : [ render_include, reflect_include, 'src/core' ],
     dependencies : deps
 )
 
-libvendor = shared_module('vendor', 'src/vendor.cpp', dependencies : core)
+libvendor = shared_module('vendor', 'src/core/vendor.cpp', dependencies : core)
 
-render = declare_dependency(
-    link_with : librender,
+render_core = declare_dependency(
+    link_with : librender_core,
     objects : libvendor.extract_all_objects(recursive : true),
-    include_directories : [ render_include, librender.private_dir_include() ],
+    include_directories : [ render_include, librender_core.private_dir_include() ],
     dependencies : deps
 )
