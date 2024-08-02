@@ -1,6 +1,6 @@
 #pragma once
 
-#include "render/core/graph/handle.hpp"
+#include "render/graph/handle.hpp"
 
 #include <variant>
 

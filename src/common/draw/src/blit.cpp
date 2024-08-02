@@ -2,7 +2,7 @@
 
 #include "draw/draw.hpp"
 
-#include "render/core/render.hpp"
+#include "render/render.hpp"
 
 #include <directx/d3dx12_core.h>
 #include <directx/d3dx12_root_signature.h>

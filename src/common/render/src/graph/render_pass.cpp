@@ -1,10 +1,10 @@
 #include "stdafx.hpp"
 
-#include "render/core/graph/events.hpp"
-#include "render/core/graph/render_pass.hpp"
+#include "render/graph/events.hpp"
+#include "render/graph/render_pass.hpp"
 
-#include "render/core/graph.hpp"
-#include "render/core/format.hpp"
+#include "render/graph.hpp"
+#include "render/format.hpp"
 
 using namespace sm;
 using namespace sm::graph;

@@ -42,6 +42,11 @@ int ResultSet::columnCount() const noexcept {
     return mImpl->columnCount();
 }
 
+int ResultSet::columnIndex(std::string_view name) const noexcept {
+    CT_NEVER("Not implemented");
+    return -1;
+}
+
 double ResultSet::getDouble(int index) noexcept {
     double value = 0.0;
     if (DbError error = mImpl->getDouble(index, value))
@@ -125,6 +130,10 @@ void BindPoint::to(std::nullptr_t) noexcept {
 ///
 /// statement
 ///
+
+BindPoint PreparedStatement::bind(std::string_view name) noexcept {
+    return BindPoint{mImpl.get(), name};
+}
 
 DbError PreparedStatement::close() noexcept {
     return mImpl->close();

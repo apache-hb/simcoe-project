@@ -4,7 +4,7 @@
 
 #include "input/input.hpp"
 
-#include "render/core/render.hpp"
+#include "render/render.hpp"
 
 #include <flecs.h>
 

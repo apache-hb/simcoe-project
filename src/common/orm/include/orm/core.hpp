@@ -1,10 +1,8 @@
 #pragma once
 
 #include "core/memory/unique.hpp"
-#include "orm/error.hpp"
 
 #include "core/core.hpp"
-#include "core/macros.hpp"
 
 #include <expected>
 #include <span>
@@ -61,7 +59,7 @@ namespace sm::db {
         std::string_view password;
         std::string_view database;
 
-        int timeout = 5;
+        std::chrono::seconds timeout{5};
 
         bool autoCommit = true;
     };

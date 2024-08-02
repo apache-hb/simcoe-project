@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "render/core/vendor/amd/ags.hpp"
+#include "render/vendor/amd/ags.hpp"
 
 #if defined(__clang__)
 #   pragma clang diagnostic push

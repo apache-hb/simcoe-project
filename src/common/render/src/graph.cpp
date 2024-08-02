@@ -1,9 +1,9 @@
 #include "stdafx.hpp"
 
-#include "render/core/graph.hpp"
+#include "render/graph.hpp"
 
-#include "render/core/render.hpp"
-#include "render/core/format.hpp"
+#include "render/render.hpp"
+#include "render/format.hpp"
 
 using namespace sm;
 using namespace sm::graph;

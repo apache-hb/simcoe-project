@@ -14,7 +14,7 @@
 #include "config/config.hpp"
 
 #include "draw/draw.hpp"
-#include "render/core/render.hpp"
+#include "render/render.hpp"
 
 #include "config/option.hpp"
 
@@ -39,30 +39,6 @@ static sm::opt<bool> gBundlePacked {
     name = "packed",
     desc = "Is the bundled packed in a tar file?",
     init = true
-};
-
-static sm::opt<bool> gPixEnabled {
-    name = "pix",
-    desc = "Enable PIX debugging",
-    init = false
-};
-
-static sm::opt<bool> gWarpEnabled {
-    name = "warp",
-    desc = "Enable WARP adapter",
-    init = false
-};
-
-static sm::opt<bool> gDredEnabled {
-    name = "dred",
-    desc = "Enable DRED debugging",
-    init = false
-};
-
-static sm::opt<bool> gDebugEnabled {
-    name = "debug",
-    desc = "Enable debug mode",
-    init = false
 };
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
@@ -250,36 +226,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     // IoHandle tar = io_file(bundle_path.string().c_str(), eOsAccessRead, get_default_arena());
     sm::Bundle bundle{mountArchive(gBundlePacked.getValue(), gBundlePath.getValue())};
 
-    render::DebugFlags flags = render::DebugFlags::none();
-
-    if (gWarpEnabled.getValue()) {
-        flags |= render::DebugFlags::eWarpAdapter;
-    }
-
-    if (gDebugEnabled.getValue()) {
-        flags |= render::DebugFlags::eDeviceDebugLayer;
-        flags |= render::DebugFlags::eFactoryDebug;
-        flags |= render::DebugFlags::eInfoQueue;
-        flags |= render::DebugFlags::eAutoName;
-        flags |= render::DebugFlags::eDirectStorageDebug;
-
-        // enabling gpu based validation on the warp adapter
-        // tanks performance
-        if (!gWarpEnabled.getValue()) {
-            flags |= render::DebugFlags::eGpuValidation;
-        }
-    }
-
-    if (gPixEnabled.getValue()) {
-        flags |= render::DebugFlags::eWinPixEventRuntime;
-    }
-
-    if (gDredEnabled.getValue()) {
-        flags |= render::DebugFlags::eDeviceRemovedInfo;
-    }
-
-    const render::RenderConfig render_config = {
-        .flags = flags,
+    const render::RenderConfig renderConfig = {
         .preference = render::AdapterPreference::eMinimumPower,
         .minFeatureLevel = render::FeatureLevel::eLevel_11_0,
 
@@ -297,7 +244,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .window = window,
     };
 
-    ClientContext context{render_config};
+    ClientContext context{renderConfig};
 
     events.attachRenderContext(&context);
     input.add_client(&context.camera);

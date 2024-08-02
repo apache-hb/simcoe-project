@@ -4,7 +4,7 @@
 
 #include "draw/forward_plus.hpp"
 
-#include "render/core/resource.hpp"
+#include "render/resource.hpp"
 
 namespace sm::draw {
     constexpr inline D3D12MA::ALLOCATION_DESC kMemoryInfo = {

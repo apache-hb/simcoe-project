@@ -2,7 +2,7 @@
 
 #include "editor/panels/pix.hpp"
 
-#include "render/core/render.hpp"
+#include "render/render.hpp"
 
 using namespace sm;
 using namespace sm::ed;

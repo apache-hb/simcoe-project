@@ -1,6 +1,6 @@
 #pragma once
 
-#include "render/core/vendor/microsoft/pix.hpp"
+#include "render/vendor/microsoft/pix.hpp"
 
 namespace sm::render {
     struct IDeviceContext;

@@ -2,7 +2,7 @@
 
 #include "core/allocators/bitmap_allocator.hpp"
 
-#include "render/core/object.hpp"
+#include "render/object.hpp"
 
 namespace sm::render {
     using HostDescriptorHandle = D3D12_CPU_DESCRIPTOR_HANDLE;

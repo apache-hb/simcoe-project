@@ -22,7 +22,7 @@ src = [
 ]
 
 deps = [
-    core, system, logs, threads, imgui, render_core,
+    core, system, logs, threads, imgui, render,
     input, archive, config, draw, game,
     project, fastgltf,
 

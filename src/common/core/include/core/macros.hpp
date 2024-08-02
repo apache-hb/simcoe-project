@@ -22,6 +22,7 @@
 #define TRY(expr, ...) ({ auto innerResult = (expr); if (!innerResult) { [&] __VA_ARGS__ (innerResult.error()); return innerResult.error(); } std::move(innerResult.value()); })
 #define TRY_RESULT(expr) ({ auto innerResult = (expr); if (!innerResult) return std::unexpected(innerResult.error()); std::move(innerResult.value()); })
 #define TRY_UNWRAP(expr) ({ auto innerResult = (expr); if (!innerResult) return innerResult.error(); std::move(innerResult.value()); })
+#define TRY_RETURN(expr, ...) ({ auto innerResult = (expr); if (!innerResult) { return [&] __VA_ARGS__ (innerResult.error()); } std::move(innerResult.value()); })
 
 #if defined(_MSC_VER)
 #   if defined(__clang__)

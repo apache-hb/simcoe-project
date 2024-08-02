@@ -4,6 +4,8 @@
 
 namespace sm::db {
     class BindPoint {
+        friend PreparedStatement;
+
         detail::IStatement *mImpl = nullptr;
         std::string_view mName;
 

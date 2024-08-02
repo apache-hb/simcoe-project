@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "render/core/descriptor_heap.hpp"
+#include "render/descriptor_heap.hpp"
 
 using namespace sm;
 using namespace sm::render;

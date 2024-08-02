@@ -1,6 +1,7 @@
 #include "config/option.hpp"
 #include "editor/panels/viewport.hpp"
 #include "input/toggle.hpp"
+#include "orm/transaction.hpp"
 #include "stdafx.hpp"
 
 #include "system/input.hpp"
@@ -18,7 +19,7 @@
 #include "config/config.hpp"
 
 #include "editor/draw.hpp"
-#include "render/core/render.hpp"
+#include "render/render.hpp"
 
 #include "world/ecs.hpp"
 #include "game/ecs.hpp"
@@ -49,30 +50,6 @@ static sm::opt<bool> gBundlePacked {
     name = "packed",
     desc = "Is the bundled packed in a tar file?",
     init = true
-};
-
-static sm::opt<bool> gPixEnabled {
-    name = "pix",
-    desc = "Enable PIX debugging",
-    init = false
-};
-
-static sm::opt<bool> gWarpEnabled {
-    name = "warp",
-    desc = "Enable WARP adapter",
-    init = false
-};
-
-static sm::opt<bool> gDredEnabled {
-    name = "dred",
-    desc = "Enable DRED debugging",
-    init = false
-};
-
-static sm::opt<bool> gDebugEnabled {
-    name = "debug",
-    desc = "Enable debug mode",
-    init = false
 };
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
@@ -116,10 +93,95 @@ class DefaultSystemError final : public ISystemError {
 };
 
 class DefaultWindowEvents final : public sys::IWindowEvents {
-    archive::RecordStore &mStore;
+    db::Connection& mConnection;
 
-    sys::WindowPlacement *mWindowPlacement = nullptr;
-    archive::RecordLookup mPlacementLookup;
+    void saveWindowPlacement(const WINDOWPLACEMENT& placement) noexcept {
+        auto result = mConnection.prepare(R"(
+            INSERT INTO windowplacement (
+                length, flags, show_cmd,
+                min_position_x, min_position_y,
+                max_position_x, max_position_y,
+                normal_position_left, normal_position_top,
+                normal_position_right, normal_position_bottom
+            ) VALUES (
+                :length, :flags, :show_cmd,
+                :min_position_x, :min_position_y,
+                :max_position_x, :max_position_y,
+                :normal_position_left, :normal_position_top,
+                :normal_position_right, :normal_position_bottom
+            );
+        )");
+
+        if (!result) {
+            logs::gGlobal.error("failed to prepare update: {}", result.error().message());
+            return;
+        }
+
+        auto stmt = std::move(result.value());
+
+        db::Transaction tx(&mConnection);
+
+        stmt.bind("length") = (int64)placement.length;
+        stmt.bind("flags") = (int64)placement.flags;
+        stmt.bind("show_cmd") = (int64)placement.showCmd;
+        stmt.bind("min_position_x") = (int64)placement.ptMinPosition.x;
+        stmt.bind("min_position_y") = (int64)placement.ptMinPosition.y;
+        stmt.bind("max_position_x") = (int64)placement.ptMaxPosition.x;
+        stmt.bind("max_position_y") = (int64)placement.ptMaxPosition.y;
+        stmt.bind("normal_position_left") = (int64)placement.rcNormalPosition.left;
+        stmt.bind("normal_position_top") = (int64)placement.rcNormalPosition.top;
+        stmt.bind("normal_position_right") = (int64)placement.rcNormalPosition.right;
+        stmt.bind("normal_position_bottom") = (int64)placement.rcNormalPosition.bottom;
+
+        if (auto update = stmt.update()) {
+            logs::gGlobal.error("failed to execute update: {}", update.error().message());
+            return;
+        }
+    }
+
+    std::optional<WINDOWPLACEMENT> loadWindowPlacement() noexcept {
+        auto result = mConnection.prepare(R"(
+            SELECT
+                length, flags, show_cmd,
+                min_position_x, min_position_y,
+                max_position_x, max_position_y,
+                normal_position_left, normal_position_top,
+                normal_position_right, normal_position_bottom
+            FROM windowplacement;
+        )");
+
+        if (!result) {
+            logs::gGlobal.error("failed to prepare query: {}", result.error().message());
+            return std::nullopt;
+        }
+
+        auto stmt = std::move(result.value());
+
+        auto select = TRY_RETURN(stmt.select(), (const auto& error) {
+            logs::gGlobal.error("failed to execute select: {}", error.message());
+            return std::nullopt;
+        });
+
+        if (db::DbError row = select.next()) {
+            logs::gGlobal.error("failed to fetch row: {}", row.message());
+            return std::nullopt;
+        }
+
+        WINDOWPLACEMENT placement = {};
+        placement.length = (UINT)select.getInt("length");
+        placement.flags = (UINT)select.getInt("flags");
+        placement.showCmd = (UINT)select.getInt("show_cmd");
+        placement.ptMinPosition.x = (LONG)select.getInt("min_position_x");
+        placement.ptMinPosition.y = (LONG)select.getInt("min_position_y");
+        placement.ptMaxPosition.x = (LONG)select.getInt("max_position_x");
+        placement.ptMaxPosition.y = (LONG)select.getInt("max_position_y");
+        placement.rcNormalPosition.left = (LONG)select.getInt("normal_position_left");
+        placement.rcNormalPosition.top = (LONG)select.getInt("normal_position_top");
+        placement.rcNormalPosition.right = (LONG)select.getInt("normal_position_right");
+        placement.rcNormalPosition.bottom = (LONG)select.getInt("normal_position_bottom");
+
+        return placement;
+    }
 
     render::IDeviceContext *mContext = nullptr;
     sys::DesktopInput *mInput = nullptr;
@@ -137,22 +199,44 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
 
     void create(sys::Window &window) override {
         logs::gGlobal.info("create window");
-        if (mPlacementLookup = mStore.getRecord(&mWindowPlacement); mPlacementLookup == archive::RecordLookup::eOpened) {
-            window.set_placement(*mWindowPlacement);
+        if (auto placement = loadWindowPlacement()) {
+            window.set_placement(*placement);
         } else {
             window.center_window(sys::MultiMonitor::ePrimary);
         }
     }
 
     bool close(sys::Window &window) override {
-        if (mPlacementLookup.has_valid_data()) *mWindowPlacement = window.get_placement();
+        saveWindowPlacement(window.get_placement());
         return true;
     }
 
 public:
-    DefaultWindowEvents(archive::RecordStore &store)
-        : mStore(store)
-    { }
+    DefaultWindowEvents(db::Connection& connection)
+        : mConnection(connection)
+    {
+        if (!mConnection.tableExists("WINDOWPLACEMENT")) {
+            auto result = mConnection.update(R"(
+                CREATE TABLE WINDOWPLACEMENT (
+                    length INTEGER NOT NULL,
+                    flags INTEGER NOT NULL,
+                    show_cmd INTEGER NOT NULL,
+                    min_position_x INTEGER NOT NULL,
+                    min_position_y INTEGER NOT NULL,
+                    max_position_x INTEGER NOT NULL,
+                    max_position_y INTEGER NOT NULL,
+                    normal_position_left INTEGER NOT NULL,
+                    normal_position_top INTEGER NOT NULL,
+                    normal_position_right INTEGER NOT NULL,
+                    normal_position_bottom INTEGER NOT NULL
+                );
+            )");
+
+            if (!result.has_value()) {
+                logs::gAssets.warn("failed to create WINDOWPLACEMENT table: {}", result.error().message());
+            }
+        }
+    }
 
     void attachRenderContext(render::IDeviceContext *context) {
         mContext = context;
@@ -249,7 +333,15 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .title = "Priority Zero",
     };
 
-    DefaultWindowEvents events{store};
+    db::Environment sqlite = TRY_RETURN(db::Environment::create(db::DbType::eSqlite3), (const auto& error) {
+        logs::gGlobal.error("failed to create environment: {}", error.message());
+    });
+
+    db::Connection connection = TRY_RETURN(sqlite.connect({ .host = "editor.db" }), (const auto& error) {
+        logs::gGlobal.error("failed to connect to database: {}", error.message());
+    });
+
+    DefaultWindowEvents events{connection};
 
     sys::Window window{window_config, events};
     sys::DesktopInput desktop_input{window};
@@ -261,36 +353,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 
     sm::Bundle bundle{mountArchive(gBundlePacked.getValue(), gBundlePath.getValue())};
 
-    render::DebugFlags flags = render::DebugFlags::none();
-
-    if (gWarpEnabled.getValue()) {
-        flags |= render::DebugFlags::eWarpAdapter;
-    }
-
-    if (gDebugEnabled.getValue()) {
-        flags |= render::DebugFlags::eDeviceDebugLayer;
-        flags |= render::DebugFlags::eFactoryDebug;
-        flags |= render::DebugFlags::eInfoQueue;
-        flags |= render::DebugFlags::eAutoName;
-        flags |= render::DebugFlags::eDirectStorageDebug;
-
-        // enabling gpu based validation on the warp adapter
-        // tanks performance
-        if (!gWarpEnabled.getValue()) {
-            flags |= render::DebugFlags::eGpuValidation;
-        }
-    }
-
-    if (gPixEnabled.getValue()) {
-        flags |= render::DebugFlags::eWinPixEventRuntime;
-    }
-
-    if (gDredEnabled.getValue()) {
-        flags |= render::DebugFlags::eDeviceRemovedInfo;
-    }
-
-    const render::RenderConfig kRenderConfig = {
-        .flags = flags,
+    const render::RenderConfig renderConfig = {
         .preference = render::AdapterPreference::eMinimumPower,
         .minFeatureLevel = render::FeatureLevel::eLevel_11_0,
 
@@ -308,7 +371,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .window = window,
     };
 
-    ed::EditorContext context{kRenderConfig};
+    ed::EditorContext context{renderConfig};
 
     context.input.add_source(&desktop_input);
 

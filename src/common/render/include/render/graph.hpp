@@ -8,13 +8,13 @@
 
 #include "math/math.hpp"
 
-#include "render/core/descriptor_heap.hpp"
-#include "render/core/resource.hpp"
-#include "render/core/format.hpp"
+#include "render/descriptor_heap.hpp"
+#include "render/resource.hpp"
+#include "render/format.hpp"
 
-#include "render/core/graph/handle.hpp"
-#include "render/core/graph/events.hpp"
-#include "render/core/graph/render_pass.hpp"
+#include "render/graph/handle.hpp"
+#include "render/graph/events.hpp"
+#include "render/graph/render_pass.hpp"
 
 #include "render.reflect.h"
 #include "graph.reflect.h"

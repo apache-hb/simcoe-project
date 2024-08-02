@@ -2,7 +2,7 @@
 
 // IWYU pragma: begin_exports
 
-#include "render/core/render.hpp"
+#include "render/render.hpp"
 
 #include "draw/camera.hpp"
 

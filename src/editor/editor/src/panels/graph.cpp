@@ -2,8 +2,8 @@
 
 #include "editor/panels/graph.hpp"
 
-#include "render/core/graph.hpp"
-#include "render/core/render.hpp"
+#include "render/graph.hpp"
+#include "render/render.hpp"
 
 using namespace sm;
 using namespace sm::ed;

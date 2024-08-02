@@ -1,6 +1,6 @@
 #pragma once
 
-#include "render/core/object.hpp"
+#include "render/object.hpp"
 
 #include "render.reflect.h"
 

@@ -25,29 +25,29 @@ src = [
     render_config,
 
     # utils
-    'src/core/result.cpp',
-    'src/core/object.cpp',
+    'src/result.cpp',
+    'src/object.cpp',
 
     # base render classes
-    'src/core/instance.cpp',
-    'src/core/dstorage.cpp',
+    'src/instance.cpp',
+    'src/dstorage.cpp',
 
     # core render context
-    'src/core/render.cpp',
+    'src/render.cpp',
 
-    'src/core/descriptor_heap.cpp',
-    'src/core/resource.cpp',
+    'src/descriptor_heap.cpp',
+    'src/resource.cpp',
 
-    'src/core/viewport.cpp',
-    'src/core/format.cpp',
+    'src/viewport.cpp',
+    'src/format.cpp',
 
     # render graph
-    'src/core/graph/render_pass.cpp',
-    'src/core/graph.cpp',
+    'src/graph/render_pass.cpp',
+    'src/graph.cpp',
 
     # vendor
-    'src/core/vendor/nvidia/nvapi.cpp',
-    'src/core/vendor/amd/ags.cpp',
+    'src/vendor/nvidia/nvapi.cpp',
+    'src/vendor/amd/ags.cpp',
 
     reflect.process('data/render.ct'),
     reflect.process('data/graph.ct')
@@ -73,17 +73,17 @@ if pix_feature.allowed()
     deps += [ winpixruntime ]
 endif
 
-librender_core = library('render-core', src,
-    cpp_pch : 'src/core/stdafx.hpp',
-    include_directories : [ render_include, reflect_include, 'src/core' ],
+librender = library('render', src,
+    cpp_pch : 'src/stdafx.hpp',
+    include_directories : [ render_include, reflect_include, 'src' ],
     dependencies : deps
 )
 
-libvendor = shared_module('vendor', 'src/core/vendor.cpp', dependencies : core)
+libvendor = shared_module('vendor', 'src/vendor.cpp', dependencies : core)
 
-render_core = declare_dependency(
-    link_with : librender_core,
+render = declare_dependency(
+    link_with : librender,
     objects : libvendor.extract_all_objects(recursive : true),
-    include_directories : [ render_include, librender_core.private_dir_include() ],
+    include_directories : [ render_include, librender.private_dir_include() ],
     dependencies : deps
 )

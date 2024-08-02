@@ -34,7 +34,7 @@
 #include "tracy/Tracy.hpp"
 #include "tracy/TracyD3D12.hpp"
 
-#include "render/core/vendor/microsoft/pix.hpp"
+#include "render/vendor/microsoft/pix.hpp"
 
 #include "config/config.hpp"
 

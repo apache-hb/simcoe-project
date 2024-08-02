@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "render/core/vendor/nvidia/nvapi.hpp"
+#include "render/vendor/nvidia/nvapi.hpp"
 
 #include <nvapi.h>
 

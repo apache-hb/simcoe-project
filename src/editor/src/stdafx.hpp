@@ -38,7 +38,7 @@
 #include "math/hash.hpp"
 #include "math/colour.hpp"
 
-#include "render/core/vendor/microsoft/pix.hpp"
+#include "render/vendor/microsoft/pix.hpp"
 
 #include <flecs.h>
 

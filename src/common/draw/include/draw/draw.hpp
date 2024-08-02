@@ -2,8 +2,8 @@
 
 #include "draw/forward_plus.hpp"
 
-#include "render/core/graph.hpp"
-#include "render/core/render.hpp"
+#include "render/graph.hpp"
+#include "render/render.hpp"
 #include "world/ecs.hpp"
 
 namespace sm::draw {

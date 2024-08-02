@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "render/core/dstorage.hpp"
+#include "render/dstorage.hpp"
 
 using namespace sm;
 using namespace sm::render;

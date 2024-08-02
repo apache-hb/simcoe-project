@@ -76,7 +76,8 @@ public:
 
 class PgEnvironment final : public detail::IEnvironment {
     DbError connect(const ConnectionConfig& config, detail::IConnection **connection) noexcept override {
-        std::string conn = fmt::format("postgresql://{}:{}@{}:{}/{}", config.user, config.password, config.host, config.port, config.database);
+        auto seconds = std::chrono::duration_cast<std::chrono::seconds>(config.timeout).count();
+        std::string conn = fmt::format("postgresql://{}:{}@{}:{}/{}?connect_timeout={}", config.user, config.password, config.host, config.port, config.database, seconds);
         PGconn *pgconn = PQconnectdb(conn.c_str());
         if (PQstatus(pgconn) != CONNECTION_OK) {
             DbError err = getConnectionError(pgconn);

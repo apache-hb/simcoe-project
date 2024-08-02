@@ -1,11 +1,14 @@
 #include "orm_test_common.hpp"
 
+using namespace std::chrono_literals;
+
 static constexpr ConnectionConfig kConfig = {
     .port = 5432,
     .host = "localhost",
     .user = "TEST_USER",
     .password = "TEST_USER",
     .database = "TESTDB",
+    .timeout = 1s
 };
 
 TEST_CASE("sqlite updates") {

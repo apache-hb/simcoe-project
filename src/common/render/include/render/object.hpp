@@ -2,7 +2,7 @@
 
 #include "core/memory/unique.hpp"
 
-#include "render/core/result.hpp"
+#include "render/result.hpp"
 
 #include "core/win32.hpp" // IWYU pragma: export
 

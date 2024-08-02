@@ -541,7 +541,7 @@ class OraEnvironment final : public detail::IEnvironment {
         if (sword result = session.setAttribute(error, OCI_ATTR_PASSWORD, config.password))
             return oraGetError(error, result);
 
-        if (sword result = OCISessionBegin(service, error, session, OCI_CRED_RDBMS, OCI_DEFAULT | OCI_STMT_CACHE))
+        if (sword result = OCISessionBegin(service, error, session, OCI_CRED_RDBMS, OCI_STMT_CACHE))
             return oraGetError(error, result);
 
         service.setAttribute(error, OCI_ATTR_SESSION, session);
