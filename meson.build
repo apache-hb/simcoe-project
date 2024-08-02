@@ -200,7 +200,7 @@ subdir('src/common/threads')
 
 subdir('src/vendor/d3d12ma')
 
-subdir('src/common/render')
+subdir('src/common/render-core')
 subdir('src/common/draw')
 
 # vendor imgui here to have access to our own math library
