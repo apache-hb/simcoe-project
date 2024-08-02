@@ -2,6 +2,8 @@
 
 #include "common.hpp"
 
+#include "core/defer.hpp"
+
 using namespace sm;
 using namespace sm::db;
 
@@ -18,6 +20,10 @@ static DataType getColumnType(int type) noexcept {
 
 static void checkError(const char *expr, int err) noexcept {
     CTASSERTF(err == SQLITE_OK, "%s = %d (%s)", expr, err, sqlite3_errstr(err));
+}
+
+static void checkError(const DbError& err) noexcept {
+    CTASSERTF(err.isSuccess(), "Error: %d (%s)", err.code(), err.message().data());
 }
 
 #define CHECK_ERROR(expr) checkError(#expr, expr)
@@ -75,8 +81,7 @@ static int execSteps(sqlite3_stmt *stmt) noexcept {
 
 static int execStatement(sqlite3_stmt *stmt) noexcept {
     execSteps(stmt);
-    int err = sqlite3_reset(stmt);
-    return err;
+    return sqlite3_reset(stmt);
 }
 
 class SqliteStatement final : public detail::IStatement {
@@ -286,6 +291,7 @@ class SqliteConnection final : public detail::IConnection {
             return err;
 
         SqliteStatement ps{stmt};
+        defer { checkError(ps.close()); };
 
         if (DbError err = ps.bindString("name", table))
             return err;
@@ -295,9 +301,6 @@ class SqliteConnection final : public detail::IConnection {
             if (DbError err = ps.getInt(0, count))
                 return err;
         }
-
-        if (DbError err = ps.close())
-            return err;
 
         exists = count > 0;
 
@@ -309,13 +312,13 @@ public:
         : mConnection(connection)
     {
         if (int err = sqlite3_prepare_v2(mConnection, "BEGIN;", -1, &mBeginStmt, nullptr))
-            CT_NEVER("Failed to prepare BEGIN statement: %s", sqlite3_errstr(err));
+            CT_NEVER("Failed to prepare BEGIN statement: %s (%d)", sqlite3_errmsg(connection), err);
 
         if (int err = sqlite3_prepare_v2(mConnection, "COMMIT;", -1, &mCommitStmt, nullptr))
-            CT_NEVER("Failed to prepare COMMIT statement: %s", sqlite3_errstr(err));
+            CT_NEVER("Failed to prepare COMMIT statement: %s (%d)", sqlite3_errmsg(connection), err);
 
         if (int err = sqlite3_prepare_v2(mConnection, "ROLLBACK;", -1, &mRollbackStmt, nullptr))
-            CT_NEVER("Failed to prepare ROLLBACK statement: %s", sqlite3_errstr(err));
+            CT_NEVER("Failed to prepare ROLLBACK statement: %s (%d)", sqlite3_errmsg(connection), err);
     }
 };
 

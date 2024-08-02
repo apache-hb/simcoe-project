@@ -9,9 +9,8 @@ using namespace sm::db;
 
 static DbError getConnectionError(const PGconn *conn) noexcept {
     char *err = PQerrorMessage(conn);
-    if (err == nullptr) {
+    if (err == nullptr)
         return DbError::ok();
-    }
 
     std::string result{err};
     result.erase(std::remove(result.begin(), result.end(), '\r'), result.end());

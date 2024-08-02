@@ -42,11 +42,6 @@ int ResultSet::columnCount() const noexcept {
     return mImpl->columnCount();
 }
 
-int ResultSet::columnIndex(std::string_view name) const noexcept {
-    CT_NEVER("Not implemented");
-    return -1;
-}
-
 double ResultSet::getDouble(int index) noexcept {
     double value = 0.0;
     if (DbError error = mImpl->getDouble(index, value))
@@ -82,6 +77,46 @@ std::string_view ResultSet::getString(int index) noexcept {
 Blob ResultSet::getBlob(int index) noexcept {
     Blob value;
     if (DbError error = mImpl->getBlob(index, value))
+        CT_NEVER("Failed to get blob value: %s", error.message().data());
+
+    return value;
+}
+
+double ResultSet::getDouble(std::string_view column) noexcept {
+    double value = 0.0;
+    if (DbError error = mImpl->getDouble(column, value))
+        CT_NEVER("Failed to get double value: %s", error.message().data());
+
+    return value;
+}
+
+int64 ResultSet::getInt(std::string_view column) noexcept {
+    int64 value = 0;
+    if (DbError error = mImpl->getInt(column, value))
+        CT_NEVER("Failed to get int64 value: %s", error.message().data());
+
+    return value;
+}
+
+bool ResultSet::getBool(std::string_view column) noexcept {
+    bool value = false;
+    if (DbError error = mImpl->getBoolean(column, value))
+        CT_NEVER("Failed to get boolean value: %s", error.message().data());
+
+    return value;
+}
+
+std::string_view ResultSet::getString(std::string_view column) noexcept {
+    std::string_view value;
+    if (DbError error = mImpl->getString(column, value))
+        CT_NEVER("Failed to get string value: %s", error.message().data());
+
+    return value;
+}
+
+Blob ResultSet::getBlob(std::string_view column) noexcept {
+    Blob value;
+    if (DbError error = mImpl->getBlob(column, value))
         CT_NEVER("Failed to get blob value: %s", error.message().data());
 
     return value;

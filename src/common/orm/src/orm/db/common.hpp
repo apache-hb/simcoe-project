@@ -77,6 +77,12 @@ namespace sm::db::detail {
         virtual DbError getString(int index, std::string_view& value) noexcept = 0;
         virtual DbError getDouble(int index, double& value) noexcept = 0;
         virtual DbError getBlob(int index, Blob& value) noexcept = 0;
+
+        virtual DbError getInt(std::string_view column, int64& value) noexcept { return DbError::todo(); }
+        virtual DbError getBoolean(std::string_view column, bool& value) noexcept { return DbError::todo(); }
+        virtual DbError getString(std::string_view column, std::string_view& value) noexcept { return DbError::todo(); }
+        virtual DbError getDouble(std::string_view column, double& value) noexcept { return DbError::todo(); }
+        virtual DbError getBlob(std::string_view column, Blob& value) noexcept { return DbError::todo(); }
     };
 
     DbError sqlite(IEnvironment **env) noexcept;

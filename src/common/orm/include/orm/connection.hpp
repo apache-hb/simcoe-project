@@ -26,8 +26,6 @@ namespace sm::db {
         DbError next() noexcept;
 
         int columnCount() const noexcept;
-        int columnIndex(std::string_view name) const noexcept;
-
         Column column(int index) const noexcept;
 
         double getDouble(int index) noexcept;
@@ -36,11 +34,39 @@ namespace sm::db {
         std::string_view getString(int index) noexcept;
         Blob getBlob(int index) noexcept;
 
-        double getDouble(std::string_view column) noexcept { return getDouble(columnIndex(column)); }
-        int64 getInt(std::string_view column) noexcept { return getInt(columnIndex(column)); }
-        bool getBool(std::string_view column) noexcept { return getBool(columnIndex(column)); }
-        std::string_view getString(std::string_view column) noexcept { return getString(columnIndex(column)); }
-        Blob getBlob(std::string_view column) noexcept { return getBlob(columnIndex(column)); }
+        double getDouble(std::string_view column) noexcept;
+        int64 getInt(std::string_view column) noexcept;
+        bool getBool(std::string_view column) noexcept;
+        std::string_view getString(std::string_view column) noexcept;
+        Blob getBlob(std::string_view column) noexcept;
+
+
+        template<typename T>
+        T get(std::string_view column) noexcept;
+
+        template<std::integral T>
+        T get(std::string_view column) noexcept { return static_cast<T>(getInt(column)); }
+        template<std::floating_point T>
+
+        T get(std::string_view column) noexcept { return static_cast<T>(getDouble(column)); }
+
+        template<> std::string_view get<std::string_view>(std::string_view column) noexcept { return getString(column); }
+        template<> Blob get<Blob>(std::string_view column) noexcept { return getBlob(column); }
+        template<> bool get<bool>(std::string_view column) noexcept { return getBool(column); }
+
+
+        template<typename T>
+        T get(int index) noexcept;
+
+        template<std::integral T>
+        T get(int index) noexcept { return static_cast<T>(getInt(index)); }
+
+        template<std::floating_point T>
+        T get(int index) noexcept { return static_cast<T>(getDouble(index)); }
+
+        template<> std::string_view get<std::string_view>(int index) noexcept { return getString(index); }
+        template<> Blob get<Blob>(int index) noexcept { return getBlob(index); }
+        template<> bool get<bool>(int index) noexcept { return getBool(index); }
     };
 
     class PreparedStatement {

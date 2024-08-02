@@ -30,12 +30,12 @@ namespace {
             ERRCASE(OCI_STILL_EXECUTING);
             case OCI_ERROR:
                 if (sword err = OCIErrorGet(handle, 1, nullptr, &error, buffer, sizeof(buffer), type)) {
-                    CT_NEVER("OCIErrorGet failed: %d", err);
+                    return fmt::format("Failed to get error text: {}", err);
                 }
-                return std::string{reinterpret_cast<const char*>(buffer)};
+                return std::string{(const char*)(buffer)};
 
             default:
-                return "UNKNOWN"s;
+                return fmt::format("Unknown: {}", status);
             }
         }();
 
