@@ -15,6 +15,8 @@
 #define SM_NOCOPY(CLS) SM_COPY(CLS, delete)
 #define SM_NOMOVE(CLS) SM_MOVE(CLS, delete)
 
+#define SM_CONCAT(a, b) a ## b
+
 #define SM_SWAP_MOVE(CLS) \
     CLS(CLS &&other) noexcept { swap(*this, other); } \
     CLS &operator=(CLS &&other) noexcept { swap(*this, other); return *this; }

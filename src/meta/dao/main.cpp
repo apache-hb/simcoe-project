@@ -85,7 +85,7 @@ static std::string makeSqlType(const Type& type) {
     switch (type.kind) {
         case Type::eInt:
         case Type::eBool: return "INTEGER";
-        case Type::eString: return fmt::format("VARCHAR({})", type.size);
+        case Type::eString: return fmt::format("CHARACTER VARYING({})", type.size);
         case Type::eFloat: return "REAL";
         case Type::eBlob: return "BLOB";
     }

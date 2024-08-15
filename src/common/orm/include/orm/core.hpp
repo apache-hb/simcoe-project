@@ -34,12 +34,8 @@ namespace sm::db {
     }
 
     enum class DbType {
-        eSqlite3,
-        ePostgreSQL,
-        eMySQL,
-        eOracleDB,
-        eMSSQL,
-        eDB2
+#define DB_TYPE(id, str, enabled) id,
+#include "orm/orm.inc"
     };
 
     enum class DataType {

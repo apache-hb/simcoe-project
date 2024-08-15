@@ -56,6 +56,8 @@ namespace sm::sys {
         ~Window();
 
         WindowPlacement get_placement() const;
+        WindowPlacement getPlacement() const { return get_placement(); }
+
         void set_placement(const WindowPlacement &placement);
 
         void show_window(ShowWindow show);

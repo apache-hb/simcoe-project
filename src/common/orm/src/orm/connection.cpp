@@ -1,3 +1,4 @@
+#include "orm/error.hpp"
 #include "stdafx.hpp"
 
 #include "db/common.hpp"
@@ -196,15 +197,15 @@ std::expected<ResultSet, DbError> PreparedStatement::update() noexcept {
 /// connection
 ///
 
-bool Connection::tableExists(std::string_view name) noexcept {
+bool Connection::tableExists(std::string_view name) {
     bool exists = false;
-    if (DbError err = mImpl->tableExists(name, exists))
-        CT_NEVER("Failed to check if table %s exists: %s", name.data(), err.message().data());
+    if (DbError error = mImpl->tableExists(name, exists))
+        error.raise();
 
     return exists;
 }
 
-std::expected<PreparedStatement, DbError> Connection::prepare(std::string_view sql) noexcept {
+std::expected<PreparedStatement, DbError> Connection::prepare(std::string_view sql) {
     detail::IStatement *statement = nullptr;
     if (DbError error = mImpl->prepare(sql, &statement))
         return std::unexpected(error);
@@ -212,46 +213,50 @@ std::expected<PreparedStatement, DbError> Connection::prepare(std::string_view s
     return PreparedStatement{statement, this};
 }
 
-std::expected<ResultSet, DbError> Connection::select(std::string_view sql) noexcept {
+std::expected<ResultSet, DbError> Connection::select(std::string_view sql) {
     PreparedStatement stmt = TRY_RESULT(prepare(sql));
 
     return stmt.select();
 }
 
-std::expected<ResultSet, DbError> Connection::update(std::string_view sql) noexcept {
+std::expected<ResultSet, DbError> Connection::update(std::string_view sql) {
     PreparedStatement stmt = TRY_RESULT(prepare(sql));
 
     return stmt.update();
 }
 
-DbError Connection::begin() noexcept {
-    return mImpl->begin();
+void Connection::begin() {
+    if (DbError error = mImpl->begin())
+        error.raise();
 }
 
-DbError Connection::commit() noexcept {
-    return mImpl->commit();
+void Connection::commit() {
+    if (DbError error = mImpl->commit())
+        error.raise();
 }
 
-DbError Connection::rollback() noexcept {
-    return mImpl->rollback();
+void Connection::rollback() {
+    if (DbError error = mImpl->rollback())
+        error.raise();
 }
 
 ///
 /// environment
 ///
 
-// NOLINTBEGIN
 bool Environment::isSupported(DbType type) noexcept {
     switch (type) {
-    case DbType::eSqlite3: return true;
-    case DbType::ePostgreSQL: return HAS_POSTGRES;
-    case DbType::eMySQL: return HAS_MYSQL;
-    case DbType::eOracleDB: return HAS_ORACLEDB;
-    case DbType::eMSSQL: return HAS_MSSQL;
-    case DbType::eDB2: return HAS_DB2;
+#define DB_TYPE(id, str, enabled) case DbType::id: return enabled;
+#include "orm/orm.inc"
     }
 }
-// NOLINTEND
+
+std::string_view db::toString(DbType type) noexcept {
+    switch (type) {
+#define DB_TYPE(id, str, enabled) case DbType::id: return str;
+#include "orm/orm.inc"
+    }
+}
 
 std::expected<Environment, DbError> Environment::create(DbType type) noexcept {
     detail::IEnvironment *env = nullptr;
@@ -267,7 +272,7 @@ std::expected<Environment, DbError> Environment::create(DbType type) noexcept {
         case DbType::eMySQL: return detail::mysql(&env);
 #endif
 
-#if HAS_ORACLEDB
+#if HAS_ORCL
         case DbType::eOracleDB: return detail::oracledb(&env);
 #endif
 
@@ -277,6 +282,10 @@ std::expected<Environment, DbError> Environment::create(DbType type) noexcept {
 
 #if HAS_DB2
         case DbType::eDB2: return detail::db2(&env);
+#endif
+
+#if HAS_ODBC
+        case DbType::eODBC: return detail::odbc(&env);
 #endif
 
         default: return DbError::unsupported("environment");

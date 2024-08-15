@@ -18,10 +18,6 @@ static DataType getColumnType(int type) noexcept {
     }
 }
 
-static void checkError(const char *expr, int err) noexcept {
-    CTASSERTF(err == SQLITE_OK, "%s = %d (%s)", expr, err, sqlite3_errstr(err));
-}
-
 static void checkError(const DbError& err) noexcept {
     CTASSERTF(err.isSuccess(), "Error: %d (%s)", err.code(), err.message().data());
 }
@@ -93,9 +89,8 @@ class SqliteStatement final : public detail::IStatement {
 
 public:
     DbError close() noexcept override {
-        sqlite3 *db = sqlite3_db_handle(mStatement);
-        int err = sqlite3_finalize(mStatement);
-        return getError(err, db);
+        sqlite3_finalize(mStatement);
+        return DbError::ok();
     }
 
     DbError reset() noexcept override {
@@ -249,9 +244,9 @@ class SqliteConnection final : public detail::IConnection {
     }
 
     DbError close() noexcept override {
-        CHECK_ERROR(sqlite3_finalize(mBeginStmt));
-        CHECK_ERROR(sqlite3_finalize(mCommitStmt));
-        CHECK_ERROR(sqlite3_finalize(mRollbackStmt));
+        sqlite3_finalize(mBeginStmt);
+        sqlite3_finalize(mCommitStmt);
+        sqlite3_finalize(mRollbackStmt);
 
         int err = sqlite3_close(mConnection);
         if (err != SQLITE_OK)

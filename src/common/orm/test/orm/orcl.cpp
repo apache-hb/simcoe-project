@@ -5,17 +5,19 @@ static constexpr ConnectionConfig kConfig = {
     .host = "localhost",
     .user = "TEST_USER",
     .password = "TEST_USER",
-    .database = "orclpdb"
+    .database = "FREEPDB1"
 };
 
 TEST_CASE("updates") {
-    REQUIRE(Environment::isSupported(DbType::eOracleDB));
+    if (!Environment::isSupported(DbType::eOracleDB)) {
+        SKIP("OracleDB not supported");
+    }
 
     auto env = getValue(Environment::create(DbType::eOracleDB));
 
     auto connResult = env.connect(kConfig);
     if (!connResult.has_value()) {
-        return;
+        SKIP("Failed to connect to database " << connResult.error().message());
     }
 
     auto conn = std::move(connResult.value());
@@ -26,16 +28,15 @@ TEST_CASE("updates") {
     getValue(conn.update("CREATE TABLE test (id NUMBER, name CHARACTER VARYING(100))"));
 
     GIVEN("a connection") {
-
         getValue(conn.update("INSERT INTO test (id, name) VALUES (1, 'test')"));
 
-        checkError(conn.commit());
+        conn.commit();
 
         Transaction tx(&conn);
 
         getValue(conn.update("INSERT INTO test (id, name) VALUES (2, 'test')"));
 
-        checkError(tx.rollback());
+        tx.rollback();
 
         auto results = getValue(conn.select("SELECT * FROM test ORDER BY id ASC"));
         int count = 0;

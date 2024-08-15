@@ -19,6 +19,7 @@
 !*.build
 !*.txt
 !*.ps1
+!*.sql
 !setup.bat
 !setup.sh
 
@@ -37,7 +38,7 @@ subprojects/*
 !subprojects/*.wrap
 !subprojects/packagefiles
 !subprojects/packagefiles/**
-!subprojects/oradb-oci
+!subprojects/orcl-oci
 !subprojects/db2cli
 !subprojects/.clang-tidy
 

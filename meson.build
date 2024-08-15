@@ -7,7 +7,7 @@ project('simcoe', [ 'c', 'cpp' ],
         'cpp_std=c++latest,gnu++23',
 
         'cpp_rtti=false',
-        'cpp_eh=none',
+        'cpp_eh=default',
 
         'warning_level=3',
         'werror=true',
@@ -104,7 +104,9 @@ xclang_args = [
     '-funsafe-math-optimizations',
     '-mglobal-merge',
     '-ffast-math',
-    '-fno-math-errno'
+    '-fno-math-errno',
+    '-fnew-infallible',
+    '-fassume-nothrow-exception-dtor'
 ]
 
 xclang_cpp_args = [

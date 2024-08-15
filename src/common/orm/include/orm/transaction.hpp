@@ -8,14 +8,13 @@ namespace sm::db {
         short mState = ePending;
 
     public:
-        Transaction(Connection *conn) noexcept;
-
-        ~Transaction() noexcept;
+        Transaction(Connection *conn) noexcept(false); // throws (DbException)
+        ~Transaction();
 
         SM_NOCOPY(Transaction);
         SM_SWAP_MOVE(Transaction);
 
-        DbError rollback() noexcept;
+        void rollback();
 
         enum : short { ePending, eCommit, eRollback };
 

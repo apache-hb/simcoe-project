@@ -1,6 +1,7 @@
 #include "config/option.hpp"
 #include "editor/panels/viewport.hpp"
 #include "input/toggle.hpp"
+#include "logs/logs.hpp"
 #include "orm/transaction.hpp"
 #include "stdafx.hpp"
 
@@ -97,19 +98,19 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
 
     void saveWindowPlacement(const WINDOWPLACEMENT& placement) noexcept {
         auto result = mConnection.prepare(R"(
-            INSERT INTO windowplacement (
-                length, flags, show_cmd,
-                min_position_x, min_position_y,
-                max_position_x, max_position_y,
-                normal_position_left, normal_position_top,
-                normal_position_right, normal_position_bottom
-            ) VALUES (
-                :length, :flags, :show_cmd,
-                :min_position_x, :min_position_y,
-                :max_position_x, :max_position_y,
-                :normal_position_left, :normal_position_top,
-                :normal_position_right, :normal_position_bottom
-            );
+            UPDATE windowplacement SET
+                length = :length,
+                flags = :flags,
+                show_cmd = :show_cmd,
+                min_position_x = :min_position_x,
+                min_position_y = :min_position_y,
+                max_position_x = :max_position_x,
+                max_position_y = :max_position_y,
+                normal_position_left = :normal_position_left,
+                normal_position_top = :normal_position_top,
+                normal_position_right = :normal_position_right,
+                normal_position_bottom = :normal_position_bottom
+            WHERE rowid = rowid;
         )");
 
         if (!result) {
@@ -133,7 +134,7 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
         stmt.bind("normal_position_right") = (int64)placement.rcNormalPosition.right;
         stmt.bind("normal_position_bottom") = (int64)placement.rcNormalPosition.bottom;
 
-        if (auto update = stmt.update()) {
+        if (auto update = stmt.update(); !update.has_value()) {
             logs::gGlobal.error("failed to execute update: {}", update.error().message());
             return;
         }
@@ -142,11 +143,17 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     std::optional<WINDOWPLACEMENT> loadWindowPlacement() noexcept {
         auto result = mConnection.prepare(R"(
             SELECT
-                length, flags, show_cmd,
-                min_position_x, min_position_y,
-                max_position_x, max_position_y,
-                normal_position_left, normal_position_top,
-                normal_position_right, normal_position_bottom
+                length,                -- 0
+                flags,                 -- 1
+                show_cmd,              -- 2
+                min_position_x,        -- 3
+                min_position_y,        -- 4
+                max_position_x,        -- 5
+                max_position_y,        -- 6
+                normal_position_left,  -- 7
+                normal_position_top,   -- 8
+                normal_position_right, -- 9
+                normal_position_bottom -- 10
             FROM windowplacement;
         )");
 
@@ -167,18 +174,29 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
             return std::nullopt;
         }
 
-        WINDOWPLACEMENT placement = {};
-        placement.length = (UINT)select.getInt("length");
-        placement.flags = (UINT)select.getInt("flags");
-        placement.showCmd = (UINT)select.getInt("show_cmd");
-        placement.ptMinPosition.x = (LONG)select.getInt("min_position_x");
-        placement.ptMinPosition.y = (LONG)select.getInt("min_position_y");
-        placement.ptMaxPosition.x = (LONG)select.getInt("max_position_x");
-        placement.ptMaxPosition.y = (LONG)select.getInt("max_position_y");
-        placement.rcNormalPosition.left = (LONG)select.getInt("normal_position_left");
-        placement.rcNormalPosition.top = (LONG)select.getInt("normal_position_top");
-        placement.rcNormalPosition.right = (LONG)select.getInt("normal_position_right");
-        placement.rcNormalPosition.bottom = (LONG)select.getInt("normal_position_bottom");
+        UINT length = select.get<UINT>(0);
+        if (length == 0)
+            return std::nullopt;
+
+        WINDOWPLACEMENT placement = {
+            .length = length,
+            .flags = select.get<UINT>(1),
+            .showCmd = select.get<UINT>(2),
+            .ptMinPosition = {
+                .x = select.get<LONG>(3),
+                .y = select.get<LONG>(4),
+            },
+            .ptMaxPosition = {
+                .x = select.get<LONG>(5),
+                .y = select.get<LONG>(6),
+            },
+            .rcNormalPosition = {
+                .left = select.get<LONG>(7),
+                .top = select.get<LONG>(8),
+                .right = select.get<LONG>(9),
+                .bottom = select.get<LONG>(10),
+            },
+        };
 
         return placement;
     }
@@ -191,10 +209,12 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
         return ImGui_ImplWin32_WndProcHandler(window.get_handle(), message, wparam, lparam);
     }
 
-    void resize(sys::Window &, math::int2 size) override {
+    void resize(sys::Window &window, math::int2 size) override {
         if (mContext != nullptr) {
             mContext->resize_swapchain(uint2(size));
         }
+
+        saveWindowPlacement(window.getPlacement());
     }
 
     void create(sys::Window &window) override {
@@ -207,7 +227,7 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     }
 
     bool close(sys::Window &window) override {
-        saveWindowPlacement(window.get_placement());
+        saveWindowPlacement(window.getPlacement());
         return true;
     }
 
@@ -215,27 +235,38 @@ public:
     DefaultWindowEvents(db::Connection& connection)
         : mConnection(connection)
     {
-        if (!mConnection.tableExists("WINDOWPLACEMENT")) {
-            auto result = mConnection.update(R"(
-                CREATE TABLE WINDOWPLACEMENT (
-                    length INTEGER NOT NULL,
-                    flags INTEGER NOT NULL,
-                    show_cmd INTEGER NOT NULL,
-                    min_position_x INTEGER NOT NULL,
-                    min_position_y INTEGER NOT NULL,
-                    max_position_x INTEGER NOT NULL,
-                    max_position_y INTEGER NOT NULL,
-                    normal_position_left INTEGER NOT NULL,
-                    normal_position_top INTEGER NOT NULL,
-                    normal_position_right INTEGER NOT NULL,
-                    normal_position_bottom INTEGER NOT NULL
-                );
-            )");
-
+        auto doUpdate = [&](std::string_view sql) {
+            auto result = mConnection.update(sql);
             if (!result.has_value()) {
-                logs::gAssets.warn("failed to create WINDOWPLACEMENT table: {}", result.error().message());
+                logs::gAssets.warn("update failed: {}", result.error().message());
             }
-        }
+        };
+
+        doUpdate(R"(
+            CREATE TABLE IF NOT EXISTS windowplacement (
+                length INTEGER NOT NULL,
+                flags INTEGER NOT NULL,
+                show_cmd INTEGER NOT NULL,
+                min_position_x INTEGER NOT NULL,
+                min_position_y INTEGER NOT NULL,
+                max_position_x INTEGER NOT NULL,
+                max_position_y INTEGER NOT NULL,
+                normal_position_left INTEGER NOT NULL,
+                normal_position_top INTEGER NOT NULL,
+                normal_position_right INTEGER NOT NULL,
+                normal_position_bottom INTEGER NOT NULL
+            );
+        )");
+
+        doUpdate(R"(
+            CREATE TRIGGER IF NOT EXISTS windowplacement_insert
+                BEFORE INSERT ON windowplacement
+                BEGIN
+                    IF (SELECT COUNT(*) FROM windowplacement) > 0 THEN
+                        SELECT RAISE(FAIL, 'windowplacement table is a singleton');
+                    END;
+                END;
+        )");
     }
 
     void attachRenderContext(render::IDeviceContext *context) {
@@ -325,7 +356,7 @@ static sm::IFileSystem *mountArchive(bool isPacked, const fs::path &path) {
     }
 }
 
-static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
+static void message_loop(sys::ShowWindow show) {
     sys::WindowConfig window_config = {
         .mode = sys::WindowMode::eWindowed,
         .width = 1280,
@@ -334,7 +365,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     };
 
     db::Environment sqlite = TRY_RETURN(db::Environment::create(db::DbType::eSqlite3), (const auto& error) {
-        logs::gGlobal.error("failed to create environment: {}", error.message());
+        logs::gGlobal.error("failed to create sqlite3 environment: {}", error.message());
     });
 
     db::Connection connection = TRY_RETURN(sqlite.connect({ .host = "editor.db" }), (const auto& error) {
@@ -479,9 +510,10 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     // game.shutdown();
 }
 
+#if 0
 static db::DbError sqliteTest() {
     auto env = TRY(db::Environment::create(db::DbType::eSqlite3), (const auto& error) {
-        logs::gGlobal.error("failed to create environment: {}", error.message());
+        logs::gGlobal.error("failed to create sqlite3 environment: {}", error.message());
     });
 
     auto conn = TRY(env.connect({ .host = "test.db" }), (const auto& error) {
@@ -522,7 +554,7 @@ static db::DbError sqliteTest() {
 
 static db::DbError oradbTest() {
     auto env = TRY(db::Environment::create(db::DbType::eOracleDB), (const auto& error) {
-        logs::gGlobal.error("failed to create environment: {}", error.message());
+        logs::gGlobal.error("failed to create oracledb environment: {}", error.message());
     });
 
     db::ConnectionConfig config = {
@@ -571,19 +603,11 @@ static db::DbError oradbTest() {
 
     return db::DbError::ok();
 }
+#endif
 
 static int editor_main(sys::ShowWindow show) {
-    archive::RecordStoreConfig store_config = {
-        .path = "client.bin",
-        .size = {1, Memory::eMegabytes},
-        .record_count = 256,
-    };
-
-    sqliteTest();
-    oradbTest();
-
-    archive::RecordStore store{store_config};
-
+    // sqliteTest();
+    // oradbTest();
     const threads::CpuGeometry& geometry = threads::getCpuGeometry();
 
     threads::SchedulerConfig thread_config = {
@@ -591,10 +615,6 @@ static int editor_main(sys::ShowWindow show) {
         .priority = threads::PriorityClass::eNormal,
     };
     threads::Scheduler scheduler{thread_config, geometry};
-
-    if (!store.isValid()) {
-        store.reset();
-    }
 
     ecs_os_set_api_defaults();
     ecs_os_api_t api = ecs_os_get_api();
@@ -604,7 +624,7 @@ static int editor_main(sys::ShowWindow show) {
     ecs_os_set_api(&api);
 
     init_imgui();
-    message_loop(show, store);
+    message_loop(show);
     destroy_imgui();
 
     return 0;

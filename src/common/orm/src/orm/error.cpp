@@ -11,6 +11,10 @@ DbError::DbError(int code, int status, std::string message) noexcept
     , mMessage(std::move(message))
 { }
 
+void DbError::raise() const {
+    throw DbException{mCode, mMessage};
+}
+
 DbError DbError::ok() noexcept {
     return DbError{0, eOk, "OK"};
 }

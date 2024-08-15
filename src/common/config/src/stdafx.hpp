@@ -2,7 +2,9 @@
 
 // IWYU pragma: begin_exports
 
+#define TOML_HEADER_ONLY 1
 #define TOML_EXCEPTIONS 0
+
 #include <toml++/toml.hpp>
 #include <fmtlib/format.h>
 

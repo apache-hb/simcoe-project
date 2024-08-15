@@ -361,9 +361,6 @@ namespace sm::world {
     Transform computeNodeTransform(world::World& world, IndexOf<Node> node);
 
     World default_world(sm::String name);
-
-    // bool load_world(World& info, Archive& archive);
-    // void save_world(Archive& archive, const World& world);
 }
 
 template<typename T>

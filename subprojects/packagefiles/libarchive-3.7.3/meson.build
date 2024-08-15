@@ -2,7 +2,7 @@ project(
   'libarchive',
   'c',
   version: '3.7.3',
-  meson_version: '>=0.57.0',
+  meson_version: '>=1.1.0',
   license: 'BSD',
   license_files: [ 'COPYING' ],
 )

@@ -4,6 +4,20 @@
 #include <string_view>
 
 namespace sm::db {
+    class DbException {
+        int mCode = 0;
+        std::string mMessage;
+
+    public:
+        DbException(int code, std::string message) noexcept
+            : mCode(code)
+            , mMessage(std::move(message))
+        { }
+
+        int code() const noexcept { return mCode; }
+        std::string_view message() const noexcept { return mMessage; }
+    };
+
     class DbError {
         int mCode = 0;
         int mStatus = eOk;
@@ -22,6 +36,9 @@ namespace sm::db {
         int code() const noexcept { return mCode; }
         int status() const noexcept { return mStatus; }
         std::string_view message() const noexcept { return mMessage; }
+
+        [[noreturn]]
+        void raise() const;
 
         operator bool() const noexcept {
             return mStatus != eOk;

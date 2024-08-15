@@ -12,14 +12,15 @@ static constexpr ConnectionConfig kConfig = {
 };
 
 TEST_CASE("sqlite updates") {
-    REQUIRE(Environment::isSupported(DbType::ePostgreSQL));
+    if (!Environment::isSupported(DbType::ePostgreSQL)) {
+        SKIP("PostgreSQL not supported");
+    }
 
     auto env = getValue(Environment::create(DbType::ePostgreSQL));
 
     auto connResult = env.connect(kConfig);
-
     if (!connResult.has_value()) {
-        return;
+        FAIL("Failed to connect to database " << connResult.error().message());
     }
 
     auto conn = std::move(connResult.value());
@@ -41,7 +42,7 @@ TEST_CASE("sqlite updates") {
         getValue(conn.update("INSERT INTO test (id, name) VALUES (2, 'test')"));
         getValue(conn.update("INSERT INTO test (id, name) VALUES (3, 'test')"));
 
-        checkError(tx.rollback());
+        tx.rollback();
 
         auto results = getValue(conn.select("SELECT * FROM test where id = 2"));
         REQUIRE(results.next().isDone());

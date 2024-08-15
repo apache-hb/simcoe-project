@@ -9,7 +9,6 @@ buildtype = sys.argv[2]
 basedir = 'data/meson'
 
 oracle_home = os.environ.get('ORACLE_HOME')
-oracle_base = os.environ.get('ORACLE_BASE')
 
 if __name__ == '__main__':
     args = [
@@ -19,13 +18,9 @@ if __name__ == '__main__':
         '--native-file', f'{basedir}/{buildtype}.ini'
     ]
 
-    if oracle_home and oracle_base:
+    if oracle_home:
         oracle_home = oracle_home.replace('\\', '/')
-        oracle_base = oracle_base.replace('\\', '/')
-        args.extend([
-            f'-Doradb-oci:oracle_home={oracle_home}',
-            f'-Doradb-oci:oracle_base={oracle_base}'
-        ])
+        args.append(f'-Dorcl-oci:home={oracle_home}')
 
     args.extend(sys.argv[3:])
 

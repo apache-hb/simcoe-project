@@ -28,7 +28,7 @@ TEST_CASE("sqlite updates") {
         getValue(conn.update("INSERT INTO test (id, name) VALUES (2, 'test')"));
         getValue(conn.update("INSERT INTO test (id, name) VALUES (3, 'test')"));
 
-        checkError(tx.rollback());
+        tx.rollback();
 
         auto results = getValue(conn.select("SELECT * FROM test where id = 2"));
         REQUIRE(results.next().isDone());
