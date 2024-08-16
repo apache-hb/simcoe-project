@@ -426,6 +426,21 @@ class OraConnection final : public detail::IConnection {
     OraService mService;
     OraSession mSession;
 
+    std::expected<OraStatement, DbError> newStatement(std::string_view sql) noexcept {
+        OraStmt statement;
+        OraError error;
+        if (DbError result = oraNewHandle(mEnv, error))
+            return std::unexpected(result);
+
+        if (DbError result = oraNewHandle(mEnv, statement))
+            return std::unexpected(result);
+
+        if (sword result = OCIStmtPrepare2(mService, &statement, error, (text*)sql.data(), sql.size(), nullptr, 0, OCI_NTV_SYNTAX, OCI_DEFAULT))
+            return std::unexpected(oraGetError(error, result));
+
+        return OraStatement{mService, statement, error};
+    }
+
     DbError close() noexcept override {
         if (sword result = OCISessionEnd(mService, mError, mSession, OCI_DEFAULT))
             return oraGetError(mError, result);
@@ -449,18 +464,9 @@ class OraConnection final : public detail::IConnection {
     }
 
     DbError prepare(std::string_view sql, detail::IStatement **stmt) noexcept override {
-        OraStmt statement;
-        OraError error;
-        if (DbError result = oraNewHandle(mEnv, error))
-            return result;
+        OraStatement statement = TRY_UNWRAP(newStatement(sql));
 
-        if (DbError result = oraNewHandle(mEnv, statement))
-            return result;
-
-        if (sword result = OCIStmtPrepare2(mService, &statement, error, (text*)sql.data(), sql.size(), nullptr, 0, OCI_NTV_SYNTAX, OCI_DEFAULT))
-            return oraGetError(error, result);
-
-        *stmt = new OraStatement{mService, statement, error};
+        *stmt = new OraStatement{statement};
 
         return DbError::ok();
     }
@@ -481,26 +487,25 @@ class OraConnection final : public detail::IConnection {
     }
 
     DbError tableExists(std::string_view name, bool& exists) noexcept override {
-        detail::IStatement *stmt = nullptr;
-        if (DbError result = prepare("SELECT COUNT(*) FROM user_tables WHERE table_name = UPPER(:1)", &stmt))
+        OraStatement stmt = TRY_UNWRAP(newStatement("SELECT COUNT(*) FROM user_tables WHERE table_name = UPPER(:1)"));
+        defer { (void)stmt.close(); };
+
+        if (DbError error = stmt.bindString(0, name))
+            return error;
+
+        if (DbError result = stmt.select())
             return result;
 
-        defer { delete stmt; };
-        (void)stmt->bindString(0, name);
-
-        if (DbError result = stmt->select())
-            return result;
-
-        if (DbError result = stmt->next())
+        if (DbError result = stmt.next())
             return result;
 
         int64 count;
-        if (DbError result = stmt->getInt(0, count))
+        if (DbError result = stmt.getInt(0, count))
             return result;
 
         exists = count > 0;
 
-        return stmt->close();
+        return stmt.close();
     }
 
     DbError dbVersion(Version& version) const noexcept override {
