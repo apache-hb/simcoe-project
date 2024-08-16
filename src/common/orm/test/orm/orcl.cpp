@@ -1,11 +1,14 @@
 #include "orm_test_common.hpp"
 
+using namespace std::chrono_literals;
+
 static constexpr ConnectionConfig kConfig = {
     .port = 1521,
     .host = "localhost",
     .user = "TEST_USER",
     .password = "TEST_USER",
-    .database = "FREEPDB1"
+    .database = "FREEPDB1",
+    .timeout = 1s
 };
 
 TEST_CASE("updates") {
@@ -28,29 +31,37 @@ TEST_CASE("updates") {
     getValue(conn.update("CREATE TABLE test (id NUMBER, name CHARACTER VARYING(100))"));
 
     GIVEN("a connection") {
-        getValue(conn.update("INSERT INTO test (id, name) VALUES (1, 'test')"));
+        THEN("simple sql operations work") {
+            getValue(conn.update("INSERT INTO test (id, name) VALUES (1, 'test')"));
 
-        conn.commit();
+            conn.commit();
 
-        Transaction tx(&conn);
+            Transaction tx(&conn);
 
-        getValue(conn.update("INSERT INTO test (id, name) VALUES (2, 'test')"));
+            getValue(conn.update("INSERT INTO test (id, name) VALUES (2, 'test')"));
 
-        tx.rollback();
+            tx.rollback();
 
-        auto results = getValue(conn.select("SELECT * FROM test ORDER BY id ASC"));
-        int count = 0;
+            auto results = getValue(conn.select("SELECT * FROM test ORDER BY id ASC"));
+            int count = 0;
 
-        while (results.next().isSuccess()) {
-            int64 id = results.getInt(0);
-            std::string_view name = results.getString(1);
+            while (results.next().isSuccess()) {
+                int64 id = results.getInt(0);
+                std::string_view name = results.getString(1);
 
-            REQUIRE(id == 1);
-            REQUIRE(name == "test");
+                REQUIRE(id == 1);
+                REQUIRE(name == "test");
 
-            count++;
+                count++;
+            }
+
+            REQUIRE(count == 1);
         }
 
-        REQUIRE(count == 1);
+        THEN("it has a version") {
+            auto version = getValue(conn.dbVersion());
+
+            fmt::println(stderr, "{}", version.name);
+        }
     }
 }

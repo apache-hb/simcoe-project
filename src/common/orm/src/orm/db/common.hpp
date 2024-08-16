@@ -35,6 +35,11 @@ namespace sm::db::detail {
         /* misc */
 
         virtual DbError tableExists(std::string_view name, bool& exists) noexcept = 0;
+
+        virtual DbError dbVersion(Version& version) const noexcept {
+            version = Version { "unknown", 0, 0, 0 };
+            return DbError::ok();
+        }
     };
 
     struct IStatement {

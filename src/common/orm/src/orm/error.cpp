@@ -9,7 +9,11 @@ DbError::DbError(int code, int status, std::string message) noexcept
     : mCode(code)
     , mStatus(status)
     , mMessage(std::move(message))
-{ }
+{
+    if (!isSuccess()) {
+        mStacktrace = std::stacktrace::current();
+    }
+}
 
 void DbError::raise() const {
     throw DbException{mCode, mMessage};

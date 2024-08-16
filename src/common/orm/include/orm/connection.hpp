@@ -111,19 +111,24 @@ namespace sm::db {
     public:
         SM_MOVE(Connection, default);
 
-        void begin();
-        void rollback();
-        void commit();
+        void begin() throws(DbException);
+        void rollback() throws(DbException);
+        void commit() throws(DbException);
 
         void setAutoCommit(bool enabled) noexcept { mAutoCommit = enabled; }
+
+        [[nodiscard]]
         bool autoCommit() const noexcept { return mAutoCommit; }
 
-        std::expected<PreparedStatement, DbError> prepare(std::string_view sql);
+        std::expected<PreparedStatement, DbError> prepare(std::string_view sql) noexcept;
 
-        std::expected<ResultSet, DbError> select(std::string_view sql);
-        std::expected<ResultSet, DbError> update(std::string_view sql);
+        std::expected<ResultSet, DbError> select(std::string_view sql) noexcept;
+        std::expected<ResultSet, DbError> update(std::string_view sql) noexcept;
 
-        bool tableExists(std::string_view name);
+        [[nodiscard]]
+        bool tableExists(std::string_view name) throws(DbException);
+
+        std::expected<Version, DbError> dbVersion() const noexcept;
     };
 
     class Environment {
@@ -140,6 +145,7 @@ namespace sm::db {
     public:
         SM_MOVE(Environment, default);
 
+        [[nodiscard]]
         static bool isSupported(DbType type) noexcept;
         static std::expected<Environment, DbError> create(DbType type) noexcept;
 

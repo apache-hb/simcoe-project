@@ -10,7 +10,7 @@ Transaction::Transaction(Connection *conn)
     conn->setAutoCommit(false);
 }
 
-Transaction::~Transaction() {
+Transaction::~Transaction() noexcept(false) {
     if (mState != ePending)
         return;
 

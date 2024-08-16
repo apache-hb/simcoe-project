@@ -48,7 +48,17 @@ namespace sm::db {
         eRowId
     };
 
+    struct Version {
+        std::string name;
+        int major;
+        int minor;
+        int patch;
+    };
+
     struct ConnectionConfig {
+        // connection string, if set will override other connection parameters
+        std::string_view connection;
+
         uint16 port;
         std::string_view host;
         std::string_view user;

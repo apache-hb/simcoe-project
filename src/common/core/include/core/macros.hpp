@@ -5,12 +5,12 @@
 #define SM_UNUSED [[maybe_unused]]
 
 #define SM_COPY(CLS, IS) \
-    CLS(const CLS &other) = IS; \
-    CLS &operator=(const CLS &other) = IS;
+    CLS(const CLS &other) noexcept = IS; \
+    CLS &operator=(const CLS &other) noexcept = IS;
 
 #define SM_MOVE(CLS, IS) \
-    CLS(CLS &&other) = IS; \
-    CLS &operator=(CLS &&other) = IS;
+    CLS(CLS &&other) noexcept = IS; \
+    CLS &operator=(CLS &&other) noexcept = IS;
 
 #define SM_NOCOPY(CLS) SM_COPY(CLS, delete)
 #define SM_NOMOVE(CLS) SM_MOVE(CLS, delete)

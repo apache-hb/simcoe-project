@@ -62,50 +62,22 @@ coretest = declare_dependency(
     ]
 )
 
-test('string utils',
-    executable('core-string', 'test/string.cpp',
-        dependencies : [ core, coretest ]
-    ),
-    suite : 'core',
-    kwargs : testkwargs
-)
+testcases = {
+    'string' : 'test/string.cpp',
+    'zstring view' : 'test/adt/zstring_view.cpp',
+    'vector' : 'test/adt/vector.cpp',
+    'bitset' : 'test/adt/bitset.cpp',
+    'priority queue' : 'test/adt/priority_queue.cpp',
+    'symbol names' : 'test/symbols.cpp',
+}
 
-test('zstring view',
-    executable('core-adt-zstring-view', 'test/adt/zstring_view.cpp',
+foreach name, source : testcases
+    exe = executable('test-core-' + name.to_lower().replace(' ', '-'), source,
         dependencies : [ core, coretest ]
-    ),
-    suite : 'core',
-    kwargs : testkwargs
-)
+    )
 
-test('vector',
-    executable('core-adt-vector', 'test/adt/vector.cpp',
-        dependencies : [ core, coretest ]
-    ),
-    suite : 'core',
-    kwargs : testkwargs
-)
-
-test('bitset',
-    executable('core-adt-bitset', 'test/adt/bitset.cpp',
-        dependencies : [ core, coretest ]
-    ),
-    suite : 'core',
-    kwargs : testkwargs
-)
-
-test('priority queue',
-    executable('core-adt-priority-queue', 'test/adt/priority_queue.cpp',
-        dependencies : [ core, coretest ]
-    ),
-    suite : 'core',
-    kwargs : testkwargs
-)
-
-test('symbol names',
-    executable('core-symbol-names', 'test/symbols.cpp',
-        dependencies : [ core, coretest ]
-    ),
-    suite : 'core',
-    kwargs : testkwargs
-)
+    test(name, exe,
+        suite : 'core',
+        kwargs : testkwargs
+    )
+endforeach

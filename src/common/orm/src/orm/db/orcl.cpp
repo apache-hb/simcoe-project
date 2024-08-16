@@ -185,12 +185,21 @@ namespace {
         }
     }
 
-    std::expected<ub4, DbError> getColumnSize(OraError error, OraParam param, bool charSemantics) noexcept {
+    std::expected<ub2, DbError> getColumnSize(OraError error, OraParam param, bool charSemantics) noexcept {
         if (charSemantics) {
-            return param.getAttribute<ub4>(error, OCI_ATTR_CHAR_SIZE);
+            return param.getAttribute<ub2>(error, OCI_ATTR_CHAR_SIZE);
         } else {
-            return param.getAttribute<ub4>(error, OCI_ATTR_DATA_SIZE);
+            return param.getAttribute<ub2>(error, OCI_ATTR_DATA_SIZE);
         }
+    }
+
+    std::expected<std::string_view, DbError> getColumnName(OraError error, OraParam param) noexcept {
+        ub4 columnNameLength = 0;
+        text *columnNameBuffer = nullptr;
+        if (sword status = param.getAttribute(error, OCI_ATTR_NAME, &columnNameBuffer, &columnNameLength))
+            return std::unexpected(oraGetError(error, status));
+
+        return std::string_view{(const char*)columnNameBuffer, columnNameLength};
     }
 
     std::expected<std::vector<ColumnInfo>, DbError> defineColumns(OraError error, OraStmt stmt) noexcept {
@@ -210,17 +219,14 @@ namespace {
             if (dataType == SQLT_NUM)
                 dataType = SQLT_INT;
 
-            ub4 columnNameLength = 0;
-            text *columnName = nullptr;
-            if (sword status = param.getAttribute(error, OCI_ATTR_NAME, &columnName, &columnNameLength))
-                return std::unexpected(oraGetError(error, status));
+            std::string_view columnName = TRY_RESULT(getColumnName(error, param));
 
-            ub4 charSemantics = TRY_RESULT(param.getAttribute<ub4>(error, OCI_ATTR_CHAR_USED));
+            ub1 charSemantics = TRY_RESULT(param.getAttribute<ub1>(error, OCI_ATTR_CHAR_USED));
 
-            ub4 columnWidth = TRY_RESULT(getColumnSize(error, param, charSemantics));
+            ub2 columnWidth = TRY_RESULT(getColumnSize(error, param, charSemantics));
 
             auto& info = columns.emplace_back(ColumnInfo {
-                .name = {(const char*)columnName, columnNameLength},
+                .name = columnName,
                 .charSemantics = charSemantics,
                 .columnWidth = columnWidth,
                 .type = dataType,
@@ -495,6 +501,21 @@ class OraConnection final : public detail::IConnection {
         return stmt->close();
     }
 
+    DbError dbVersion(Version& version) const noexcept override {
+        text buffer[512];
+        ub4 release;
+        if (sword error = OCIServerRelease2(mServer, mError, buffer, sizeof(buffer), OCI_HTYPE_SERVER, &release, OCI_DEFAULT))
+            return oraGetError(mError, error);
+
+        int major = OCI_SERVER_RELEASE_REL(release);
+        int minor = OCI_SERVER_RELEASE_REL_UPD(release);
+        int patch = OCI_SERVER_RELEASE_REL_UPD_REV(release);
+
+        version = Version{(const char*)buffer, major, minor, patch};
+
+        return DbError::ok();
+    }
+
 public:
     OraConnection(OraEnv& env, OraError error, OraServer server, OraService service, OraSession session) noexcept
         : mEnv(env)
@@ -504,6 +525,14 @@ public:
         , mSession(session)
     { }
 };
+
+static constexpr std::string_view kConnectionString = R"(
+    (DESCRIPTION=
+        (CONNECT_TIMEOUT={})
+        (ADDRESS=(PROTOCOL=TCP)(HOST={})(PORT={}))
+        (CONNECT_DATA=(SERVICE_NAME={}))
+    )
+)";
 
 class OraEnvironment final : public detail::IEnvironment {
     OraEnv mEnv;
@@ -520,10 +549,9 @@ class OraEnvironment final : public detail::IEnvironment {
         if (DbError result = oraNewHandle(mEnv, server))
             return result;
 
-        /** Attach the server */
-
-        std::string database = fmt::format("{}:{}/{}", config.host, config.port, config.database);
-        if (sword result = OCIServerAttach(server, error, (text*)database.data(), database.size(), OCI_DEFAULT))
+        /** Attach to the server */
+        std::string conn = fmt::format(kConnectionString, config.timeout.count(), config.host, config.port, config.database);
+        if (sword result = OCIServerAttach(server, error, (text*)conn.data(), conn.size(), OCI_DEFAULT))
             return oraGetError(error, result);
 
         if (DbError result = oraNewHandle(mEnv, service))
@@ -544,7 +572,8 @@ class OraEnvironment final : public detail::IEnvironment {
         if (sword result = OCISessionBegin(service, error, session, OCI_CRED_RDBMS, OCI_STMT_CACHE))
             return oraGetError(error, result);
 
-        service.setAttribute(error, OCI_ATTR_SESSION, session);
+        if (sword result = service.setAttribute(error, OCI_ATTR_SESSION, session))
+            return oraGetError(error, result);
 
         *connection = new OraConnection{mEnv, error, server, service, session};
 
@@ -552,11 +581,13 @@ class OraEnvironment final : public detail::IEnvironment {
     }
 
     void *malloc(size_t size) noexcept {
-        return std::malloc(size);
+        void *ptr = std::malloc(size);
+        return ptr;
     }
 
     void *realloc(void *ptr, size_t size) noexcept {
-        return std::realloc(ptr, size);
+        void *result = std::realloc(ptr, size);
+        return result;
     }
 
     void free(void *ptr) noexcept {

@@ -1,5 +1,8 @@
 #pragma once
 
+#include "core/throws.hpp"
+
+#include <stacktrace>
 #include <string>
 #include <string_view>
 
@@ -22,6 +25,7 @@ namespace sm::db {
         int mCode = 0;
         int mStatus = eOk;
         std::string mMessage;
+        std::stacktrace mStacktrace;
 
     public:
         enum : int {
@@ -36,9 +40,10 @@ namespace sm::db {
         int code() const noexcept { return mCode; }
         int status() const noexcept { return mStatus; }
         std::string_view message() const noexcept { return mMessage; }
+        const std::stacktrace& stacktrace() const noexcept { return mStacktrace; }
 
         [[noreturn]]
-        void raise() const;
+        void raise() const throws(DbException);
 
         operator bool() const noexcept {
             return mStatus != eOk;

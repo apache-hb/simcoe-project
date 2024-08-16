@@ -46,7 +46,7 @@ int ResultSet::columnCount() const noexcept {
 double ResultSet::getDouble(int index) noexcept {
     double value = 0.0;
     if (DbError error = mImpl->getDouble(index, value))
-        CT_NEVER("Failed to get double value: %s", error.message().data());
+        error.raise();
 
     return value;
 }
@@ -54,7 +54,7 @@ double ResultSet::getDouble(int index) noexcept {
 int64 ResultSet::getInt(int index) noexcept {
     int64 value = 0;
     if (DbError error = mImpl->getInt(index, value))
-        CT_NEVER("Failed to get int64 value: %s", error.message().data());
+        error.raise();
 
     return value;
 }
@@ -62,7 +62,7 @@ int64 ResultSet::getInt(int index) noexcept {
 bool ResultSet::getBool(int index) noexcept {
     bool value = false;
     if (DbError error = mImpl->getBoolean(index, value))
-        CT_NEVER("Failed to get boolean value: %s", error.message().data());
+        error.raise();
 
     return value;
 }
@@ -70,7 +70,7 @@ bool ResultSet::getBool(int index) noexcept {
 std::string_view ResultSet::getString(int index) noexcept {
     std::string_view value;
     if (DbError error = mImpl->getString(index, value))
-        CT_NEVER("Failed to get string value: %s", error.message().data());
+        error.raise();
 
     return value;
 }
@@ -78,7 +78,7 @@ std::string_view ResultSet::getString(int index) noexcept {
 Blob ResultSet::getBlob(int index) noexcept {
     Blob value;
     if (DbError error = mImpl->getBlob(index, value))
-        CT_NEVER("Failed to get blob value: %s", error.message().data());
+        error.raise();
 
     return value;
 }
@@ -86,7 +86,7 @@ Blob ResultSet::getBlob(int index) noexcept {
 double ResultSet::getDouble(std::string_view column) noexcept {
     double value = 0.0;
     if (DbError error = mImpl->getDouble(column, value))
-        CT_NEVER("Failed to get double value: %s", error.message().data());
+        error.raise();
 
     return value;
 }
@@ -94,7 +94,7 @@ double ResultSet::getDouble(std::string_view column) noexcept {
 int64 ResultSet::getInt(std::string_view column) noexcept {
     int64 value = 0;
     if (DbError error = mImpl->getInt(column, value))
-        CT_NEVER("Failed to get int64 value: %s", error.message().data());
+        error.raise();
 
     return value;
 }
@@ -102,7 +102,7 @@ int64 ResultSet::getInt(std::string_view column) noexcept {
 bool ResultSet::getBool(std::string_view column) noexcept {
     bool value = false;
     if (DbError error = mImpl->getBoolean(column, value))
-        CT_NEVER("Failed to get boolean value: %s", error.message().data());
+        error.raise();
 
     return value;
 }
@@ -110,7 +110,7 @@ bool ResultSet::getBool(std::string_view column) noexcept {
 std::string_view ResultSet::getString(std::string_view column) noexcept {
     std::string_view value;
     if (DbError error = mImpl->getString(column, value))
-        CT_NEVER("Failed to get string value: %s", error.message().data());
+        error.raise();
 
     return value;
 }
@@ -118,7 +118,7 @@ std::string_view ResultSet::getString(std::string_view column) noexcept {
 Blob ResultSet::getBlob(std::string_view column) noexcept {
     Blob value;
     if (DbError error = mImpl->getBlob(column, value))
-        CT_NEVER("Failed to get blob value: %s", error.message().data());
+        error.raise();
 
     return value;
 }
@@ -128,39 +128,34 @@ Blob ResultSet::getBlob(std::string_view column) noexcept {
 ///
 
 void BindPoint::to(int64 value) noexcept {
-    if (DbError error = mImpl->bindInt(mName, value)) {
-        CT_NEVER("Failed to bind int64 value %lld: %s", value, error.message().data());
-    }
+    if (DbError error = mImpl->bindInt(mName, value))
+        error.raise();
 }
 
 void BindPoint::to(bool value) noexcept {
-    if (DbError error = mImpl->bindBoolean(mName, value)) {
-        CT_NEVER("Failed to bind boolean value %s: %s", (value ? "true" : "false"), error.message().data());
-    }
+    if (DbError error = mImpl->bindBoolean(mName, value))
+        error.raise();
+
 }
 
 void BindPoint::to(std::string_view value) noexcept {
-    if (DbError error = mImpl->bindString(mName, value)) {
-        CT_NEVER("Failed to bind string value %s: %s", value.data(), error.message().data());
-    }
+    if (DbError error = mImpl->bindString(mName, value))
+        error.raise();
 }
 
 void BindPoint::to(double value) noexcept {
-    if (DbError error = mImpl->bindDouble(mName, value)) {
-        CT_NEVER("Failed to bind double value %f: %s", value, error.message().data());
-    }
+    if (DbError error = mImpl->bindDouble(mName, value))
+        error.raise();
 }
 
 void BindPoint::to(Blob value) noexcept {
-    if (DbError error = mImpl->bindBlob(mName, value)) {
-        CT_NEVER("Failed to bind blob value (length %zu): %s", value.size_bytes(), error.message().data());
-    }
+    if (DbError error = mImpl->bindBlob(mName, value))
+        error.raise();
 }
 
 void BindPoint::to(std::nullptr_t) noexcept {
-    if (DbError error = mImpl->bindNull(mName)) {
-        CT_NEVER("Failed to bind null value: %s", error.message().data());
-    }
+    if (DbError error = mImpl->bindNull(mName))
+        error.raise();
 }
 
 ///
@@ -205,7 +200,15 @@ bool Connection::tableExists(std::string_view name) {
     return exists;
 }
 
-std::expected<PreparedStatement, DbError> Connection::prepare(std::string_view sql) {
+std::expected<Version, DbError> Connection::dbVersion() const noexcept {
+    Version version;
+    if (DbError error = mImpl->dbVersion(version))
+        return std::unexpected(error);
+
+    return version;
+}
+
+std::expected<PreparedStatement, DbError> Connection::prepare(std::string_view sql) noexcept {
     detail::IStatement *statement = nullptr;
     if (DbError error = mImpl->prepare(sql, &statement))
         return std::unexpected(error);
@@ -213,13 +216,13 @@ std::expected<PreparedStatement, DbError> Connection::prepare(std::string_view s
     return PreparedStatement{statement, this};
 }
 
-std::expected<ResultSet, DbError> Connection::select(std::string_view sql) {
+std::expected<ResultSet, DbError> Connection::select(std::string_view sql) noexcept {
     PreparedStatement stmt = TRY_RESULT(prepare(sql));
 
     return stmt.select();
 }
 
-std::expected<ResultSet, DbError> Connection::update(std::string_view sql) {
+std::expected<ResultSet, DbError> Connection::update(std::string_view sql) noexcept {
     PreparedStatement stmt = TRY_RESULT(prepare(sql));
 
     return stmt.update();

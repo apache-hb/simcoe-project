@@ -18,6 +18,8 @@
     <table name="maps" primaryKey="id">
         <column name="id"   type="int" autoIncrement="true" />
         <column name="name" type="text" length="255" />
+
+        <list of="objects" from="objects.id" to="this.id" />
     </table>
 
     <table name="objects" primaryKey="id">

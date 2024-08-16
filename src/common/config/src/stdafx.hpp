@@ -2,6 +2,12 @@
 
 // IWYU pragma: begin_exports
 
+// tomlplusplus has a bug in its build script
+// need to work around it here
+#ifdef TOML_HEADER_ONLY
+#   undef TOML_HEADER_ONLY
+#endif
+
 #define TOML_HEADER_ONLY 1
 #define TOML_EXCEPTIONS 0
 

@@ -75,24 +75,64 @@ orm = declare_dependency(
     dependencies : [ core ]
 )
 
-test('sqlite3 ORM',
-    executable('orm-sqlite', 'test/orm/sqlite.cpp', dependencies : [ orm, coretest ]),
-    suite : 'orm',
-    kwargs : testkwargs
+tests = {
+    'sqlite3': 'test/orm/sqlite.cpp',
+    'Oracle DB': 'test/orm/orcl.cpp',
+    'PostgreSQL': 'test/orm/psql.cpp',
+}
+
+foreach name, source : tests
+    exe = executable('test-orm-' + name.to_lower().replace(' ', '-'), source,
+        dependencies : [ orm, coretest ]
+    )
+
+    test(name + ' ORM', exe,
+        suite : 'orm',
+        kwargs : testkwargs
+    )
+endforeach
+
+llvm = dependency('llvm', components : ['core'], method : 'config-tool', static : true)
+libxml = dependency('libxml-2.0')
+llvm_libdir = llvm.get_variable(configtool: 'libdir')
+
+deps = [
+    fmtlib,
+    cpp.find_library('clangBasic', dirs : llvm_libdir),
+    cpp.find_library('clangDriver', dirs : llvm_libdir),
+    cpp.find_library('clangLex', dirs : llvm_libdir),
+    cpp.find_library('clangParse', dirs : llvm_libdir),
+    cpp.find_library('clangSema', dirs : llvm_libdir),
+    cpp.find_library('clangAST', dirs : llvm_libdir),
+    cpp.find_library('clangASTMatchers', dirs : llvm_libdir),
+    cpp.find_library('clangAnalysis', dirs : llvm_libdir),
+    cpp.find_library('clangAPINotes', dirs : llvm_libdir),
+    cpp.find_library('clangFrontend', dirs : llvm_libdir),
+    cpp.find_library('clangFrontendTool', dirs : llvm_libdir),
+    cpp.find_library('clangSerialization', dirs : llvm_libdir),
+    cpp.find_library('clangToolingCore', dirs : llvm_libdir),
+    cpp.find_library('clangTooling', dirs : llvm_libdir),
+    cpp.find_library('clangEdit', dirs : llvm_libdir),
+    cpp.find_library('clangSupport', dirs : llvm_libdir),
+    cpp.find_library('version'),
+    llvm,
+
+    libxml,
+    fmtlib
+]
+
+src = [ 'src/daocc/main.cpp' ]
+
+daoexe = executable('daocc', src,
+    include_directories : 'include',
+    cpp_pch : 'src/daocc/stdafx.hpp',
+    cpp_args : [ '-D_SILENCE_CXX23_ALIGNED_UNION_DEPRECATION_WARNING=1', '-D_ITERATOR_DEBUG_LEVEL=0' ],
+    dependencies : deps,
+    override_options : [ 'b_vscrt=mt' ]
 )
 
-if oradb_oci.found()
-    test('OracleDB ORM',
-        executable('orm-orcl', 'test/orm/orcl.cpp', dependencies : [ orm, coretest ]),
-        suite : 'orm',
-        kwargs : testkwargs
-    )
-endif
-
-if postgres.found()
-    test('PostgreSQL ORM',
-        executable('orm-psql', 'test/orm/psql.cpp', dependencies : [ orm, coretest ]),
-        suite : 'orm',
-        kwargs : testkwargs
-    )
-endif
+daocc = generator(daoexe,
+    arguments : [ '@INPUT@', '--header', '@OUTPUT0@', '--source', '@OUTPUT1@', '-d', '@DEPFILE@' ],
+    depfile : '@BASENAME@.d',
+    output : [ '@BASENAME@.dao.h', '@BASENAME@.dao.cpp' ],
+)

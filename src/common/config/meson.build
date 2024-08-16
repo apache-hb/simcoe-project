@@ -25,26 +25,19 @@ config = declare_dependency(
 
 testdeps = [ config, coretest ]
 
-test('options',
-    executable('config-cvar', 'test/options.cpp',
-        dependencies : testdeps
-    ),
-    suite : 'config',
-    kwargs : testkwargs
-)
+testcases = {
+    'cvar' : 'test/options.cpp',
+    'command line parsing' : 'test/command_line.cpp',
+    'loading config from file' : 'test/config.cpp',
+}
 
-test('command line parsing',
-    executable('config-command-line', 'test/command_line.cpp',
+foreach name, source : testcases
+    exe = executable('test-config-' + name.to_lower().replace(' ', '-'), source,
         dependencies : testdeps
-    ),
-    suite : 'config',
-    kwargs : testkwargs
-)
+    )
 
-test('loading config from file',
-    executable('config-file', 'test/config.cpp',
-        dependencies : testdeps
-    ),
-    suite : 'config',
-    kwargs : testkwargs
-)
+    test(name, exe,
+        suite : 'config',
+        kwargs : testkwargs
+    )
+endforeach
