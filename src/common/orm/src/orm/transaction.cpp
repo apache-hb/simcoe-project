@@ -3,7 +3,7 @@
 using namespace sm;
 using namespace sm::db;
 
-Transaction::Transaction(Connection *conn)
+Transaction::Transaction(Connection *conn) noexcept(false)
     : mConnection(conn)
 {
     conn->begin();
@@ -18,12 +18,12 @@ Transaction::~Transaction() noexcept(false) {
     mConnection->setAutoCommit(true);
 }
 
-void Transaction::rollback() {
+void Transaction::rollback() noexcept(false) {
     if (mState != ePending)
         return; // already committed or rolled back
 
-    mConnection->setAutoCommit(true);
-
     mState = eRollback;
     mConnection->rollback();
+
+    mConnection->setAutoCommit(true);
 }

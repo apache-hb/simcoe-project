@@ -21,7 +21,8 @@ namespace sm::db {
         std::string_view message() const noexcept { return mMessage; }
     };
 
-    class DbError {
+
+    class [[nodiscard("Possibly ignoring error")]] DbError {
         int mCode = 0;
         int mStatus = eOk;
         std::string mMessage;

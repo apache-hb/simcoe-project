@@ -1,8 +1,9 @@
 #include "stdafx.hpp"
 
-#include "core/memory/unique.hpp"
-
 #include "common.hpp"
+
+#include "core/memory/unique.hpp"
+#include "core/defer.hpp"
 
 #include <oci.h>
 
@@ -258,7 +259,7 @@ namespace {
 
 class OraStatement final : public detail::IStatement {
     OraService& mService;
-    OraStmt mStmt;
+    OraStmt mStatement;
     OraError mError;
 
     std::vector<ColumnInfo> mColumnInfo;
@@ -278,7 +279,7 @@ class OraStatement final : public detail::IStatement {
         if (DbError error = closeColumns())
             return error;
 
-        mStatus = OCIStmtExecute(mService, mStmt, mError, iters, 0, nullptr, nullptr, flags);
+        mStatus = OCIStmtExecute(mService, mStatement, mError, iters, 0, nullptr, nullptr, flags);
 
         bool shouldDefine = isSuccess(mStatus);
         if (mStatus == OCI_NO_DATA)
@@ -288,7 +289,7 @@ class OraStatement final : public detail::IStatement {
             return oraGetError(mError, mStatus);
 
         if (shouldDefine)
-            mColumnInfo = TRY_UNWRAP(defineColumns(mError, mStmt));
+            mColumnInfo = TRY_UNWRAP(defineColumns(mError, mStatement));
 
         return DbError::ok();
     }
@@ -301,11 +302,12 @@ class OraStatement final : public detail::IStatement {
         return execute(flags, 0);
     }
 
+public:
     DbError close() noexcept override {
         if (DbError error = closeColumns())
             return error;
 
-        if (sword result = OCIStmtRelease(mStmt, mError, nullptr, 0, OCI_DEFAULT))
+        if (sword result = OCIStmtRelease(mStatement, mError, nullptr, 0, OCI_DEFAULT))
             return oraGetError(mError, result);
 
         DbError result = mError.close(nullptr);
@@ -323,7 +325,7 @@ class OraStatement final : public detail::IStatement {
     DbError bindString(int index, std::string_view value) noexcept override {
         OraBind bind;
         sword status = OCIBindByPos(
-            mStmt, &bind, mError, index + 1,
+            mStatement, &bind, mError, index + 1,
             (void*)value.data(), value.size(), SQLT_CHR,
             nullptr, nullptr, nullptr,
             0, nullptr, OCI_DEFAULT
@@ -366,7 +368,7 @@ class OraStatement final : public detail::IStatement {
     }
 
     DbError next() noexcept override {
-        sword result = OCIStmtFetch2(mStmt, mError, 1, OCI_FETCH_NEXT, 0, OCI_DEFAULT);
+        sword result = OCIStmtFetch2(mStatement, mError, 1, OCI_FETCH_NEXT, 0, OCI_DEFAULT);
         return oraGetError(mError, result);
     }
 
@@ -410,10 +412,9 @@ class OraStatement final : public detail::IStatement {
         return DbError::todo();
     }
 
-public:
     OraStatement(OraService& service, OraStmt stmt, OraError error) noexcept
         : mService(service)
-        , mStmt(stmt)
+        , mStatement(stmt)
         , mError(error)
     { }
 };
@@ -484,7 +485,8 @@ class OraConnection final : public detail::IConnection {
         if (DbError result = prepare("SELECT COUNT(*) FROM user_tables WHERE table_name = UPPER(:1)", &stmt))
             return result;
 
-        stmt->bindString(0, name);
+        defer { delete stmt; };
+        (void)stmt->bindString(0, name);
 
         if (DbError result = stmt->select())
             return result;

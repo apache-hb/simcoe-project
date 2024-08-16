@@ -43,7 +43,7 @@ int ResultSet::columnCount() const noexcept {
     return mImpl->columnCount();
 }
 
-double ResultSet::getDouble(int index) noexcept {
+double ResultSet::getDouble(int index) noexcept(false) {
     double value = 0.0;
     if (DbError error = mImpl->getDouble(index, value))
         error.raise();
@@ -51,7 +51,7 @@ double ResultSet::getDouble(int index) noexcept {
     return value;
 }
 
-int64 ResultSet::getInt(int index) noexcept {
+int64 ResultSet::getInt(int index) noexcept(false) {
     int64 value = 0;
     if (DbError error = mImpl->getInt(index, value))
         error.raise();
@@ -59,7 +59,7 @@ int64 ResultSet::getInt(int index) noexcept {
     return value;
 }
 
-bool ResultSet::getBool(int index) noexcept {
+bool ResultSet::getBool(int index) noexcept(false) {
     bool value = false;
     if (DbError error = mImpl->getBoolean(index, value))
         error.raise();
@@ -67,7 +67,7 @@ bool ResultSet::getBool(int index) noexcept {
     return value;
 }
 
-std::string_view ResultSet::getString(int index) noexcept {
+std::string_view ResultSet::getString(int index) noexcept(false) {
     std::string_view value;
     if (DbError error = mImpl->getString(index, value))
         error.raise();
@@ -75,7 +75,7 @@ std::string_view ResultSet::getString(int index) noexcept {
     return value;
 }
 
-Blob ResultSet::getBlob(int index) noexcept {
+Blob ResultSet::getBlob(int index) noexcept(false) {
     Blob value;
     if (DbError error = mImpl->getBlob(index, value))
         error.raise();
@@ -83,7 +83,7 @@ Blob ResultSet::getBlob(int index) noexcept {
     return value;
 }
 
-double ResultSet::getDouble(std::string_view column) noexcept {
+double ResultSet::getDouble(std::string_view column) noexcept(false) {
     double value = 0.0;
     if (DbError error = mImpl->getDouble(column, value))
         error.raise();
@@ -91,7 +91,7 @@ double ResultSet::getDouble(std::string_view column) noexcept {
     return value;
 }
 
-int64 ResultSet::getInt(std::string_view column) noexcept {
+int64 ResultSet::getInt(std::string_view column) noexcept(false) {
     int64 value = 0;
     if (DbError error = mImpl->getInt(column, value))
         error.raise();
@@ -99,7 +99,7 @@ int64 ResultSet::getInt(std::string_view column) noexcept {
     return value;
 }
 
-bool ResultSet::getBool(std::string_view column) noexcept {
+bool ResultSet::getBool(std::string_view column) noexcept(false) {
     bool value = false;
     if (DbError error = mImpl->getBoolean(column, value))
         error.raise();
@@ -107,7 +107,7 @@ bool ResultSet::getBool(std::string_view column) noexcept {
     return value;
 }
 
-std::string_view ResultSet::getString(std::string_view column) noexcept {
+std::string_view ResultSet::getString(std::string_view column) noexcept(false) {
     std::string_view value;
     if (DbError error = mImpl->getString(column, value))
         error.raise();
@@ -115,7 +115,7 @@ std::string_view ResultSet::getString(std::string_view column) noexcept {
     return value;
 }
 
-Blob ResultSet::getBlob(std::string_view column) noexcept {
+Blob ResultSet::getBlob(std::string_view column) noexcept(false) {
     Blob value;
     if (DbError error = mImpl->getBlob(column, value))
         error.raise();
@@ -127,33 +127,33 @@ Blob ResultSet::getBlob(std::string_view column) noexcept {
 /// named bindpoint
 ///
 
-void BindPoint::to(int64 value) noexcept {
+void BindPoint::to(int64 value) noexcept(false) {
     if (DbError error = mImpl->bindInt(mName, value))
         error.raise();
 }
 
-void BindPoint::to(bool value) noexcept {
+void BindPoint::to(bool value) noexcept(false) {
     if (DbError error = mImpl->bindBoolean(mName, value))
         error.raise();
 
 }
 
-void BindPoint::to(std::string_view value) noexcept {
+void BindPoint::to(std::string_view value) noexcept(false) {
     if (DbError error = mImpl->bindString(mName, value))
         error.raise();
 }
 
-void BindPoint::to(double value) noexcept {
+void BindPoint::to(double value) noexcept(false) {
     if (DbError error = mImpl->bindDouble(mName, value))
         error.raise();
 }
 
-void BindPoint::to(Blob value) noexcept {
+void BindPoint::to(Blob value) noexcept(false) {
     if (DbError error = mImpl->bindBlob(mName, value))
         error.raise();
 }
 
-void BindPoint::to(std::nullptr_t) noexcept {
+void BindPoint::to(std::nullptr_t) noexcept(false) {
     if (DbError error = mImpl->bindNull(mName))
         error.raise();
 }
@@ -162,7 +162,7 @@ void BindPoint::to(std::nullptr_t) noexcept {
 /// statement
 ///
 
-BindPoint PreparedStatement::bind(std::string_view name) noexcept {
+BindPoint PreparedStatement::bind(std::string_view name) noexcept(false) {
     return BindPoint{mImpl.get(), name};
 }
 
@@ -192,7 +192,7 @@ std::expected<ResultSet, DbError> PreparedStatement::update() noexcept {
 /// connection
 ///
 
-bool Connection::tableExists(std::string_view name) {
+bool Connection::tableExists(std::string_view name) noexcept(false) {
     bool exists = false;
     if (DbError error = mImpl->tableExists(name, exists))
         error.raise();
@@ -228,17 +228,17 @@ std::expected<ResultSet, DbError> Connection::update(std::string_view sql) noexc
     return stmt.update();
 }
 
-void Connection::begin() {
+void Connection::begin() noexcept(false) {
     if (DbError error = mImpl->begin())
         error.raise();
 }
 
-void Connection::commit() {
+void Connection::commit() noexcept(false) {
     if (DbError error = mImpl->commit())
         error.raise();
 }
 
-void Connection::rollback() {
+void Connection::rollback() noexcept(false) {
     if (DbError error = mImpl->rollback())
         error.raise();
 }

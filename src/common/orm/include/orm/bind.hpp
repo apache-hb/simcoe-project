@@ -1,6 +1,7 @@
 #pragma once
 
 #include "orm/core.hpp"
+#include "core/throws.hpp"
 
 namespace sm::db {
     class BindPoint {
@@ -15,18 +16,18 @@ namespace sm::db {
         { }
 
     public:
-        void to(int64 value) noexcept;
-        void to(bool value) noexcept;
-        void to(std::string_view value) noexcept;
-        void to(double value) noexcept;
-        void to(Blob value) noexcept;
-        void to(std::nullptr_t) noexcept;
+        void to(int64 value) throws(DbException);
+        void to(bool value) throws(DbException);
+        void to(std::string_view value) throws(DbException);
+        void to(double value) throws(DbException);
+        void to(Blob value) throws(DbException);
+        void to(std::nullptr_t) throws(DbException);
 
-        void operator=(int64 value) noexcept { to(value); }
-        void operator=(bool value) noexcept { to(value); }
-        void operator=(std::string_view value) noexcept { to(value); }
-        void operator=(double value) noexcept { to(value); }
-        void operator=(Blob value) noexcept { to(value); }
-        void operator=(std::nullptr_t) noexcept { to(nullptr); }
+        void operator=(int64 value) throws(DbException) { to(value); }
+        void operator=(bool value) throws(DbException) { to(value); }
+        void operator=(std::string_view value) throws(DbException) { to(value); }
+        void operator=(double value) throws(DbException) { to(value); }
+        void operator=(Blob value) throws(DbException) { to(value); }
+        void operator=(std::nullptr_t) throws(DbException) { to(nullptr); }
     };
 }

@@ -15,7 +15,11 @@ DbError::DbError(int code, int status, std::string message) noexcept
     }
 }
 
-void DbError::raise() const {
+void DbError::raise() const noexcept(false) {
+    fmt::println(stderr, "DbError: {} ({})", mMessage, mCode);
+    for (const auto &frame : mStacktrace) {
+        fmt::println(stderr, "[{}:{}] {}", frame.source_file(), frame.source_line(), frame.description());
+    }
     throw DbException{mCode, mMessage};
 }
 

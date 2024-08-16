@@ -28,46 +28,52 @@ namespace sm::db {
         int columnCount() const noexcept;
         Column column(int index) const noexcept;
 
-        double getDouble(int index) noexcept;
-        int64 getInt(int index) noexcept;
-        bool getBool(int index) noexcept;
-        std::string_view getString(int index) noexcept;
-        Blob getBlob(int index) noexcept;
+        double getDouble(int index) throws(DbException);
+        int64 getInt(int index) throws(DbException);
+        bool getBool(int index) throws(DbException);
+        std::string_view getString(int index) throws(DbException);
+        Blob getBlob(int index) throws(DbException);
 
-        double getDouble(std::string_view column) noexcept;
-        int64 getInt(std::string_view column) noexcept;
-        bool getBool(std::string_view column) noexcept;
-        std::string_view getString(std::string_view column) noexcept;
-        Blob getBlob(std::string_view column) noexcept;
-
-
-        template<typename T>
-        T get(std::string_view column) noexcept;
-
-        template<std::integral T>
-        T get(std::string_view column) noexcept { return static_cast<T>(getInt(column)); }
-        template<std::floating_point T>
-
-        T get(std::string_view column) noexcept { return static_cast<T>(getDouble(column)); }
-
-        template<> std::string_view get<std::string_view>(std::string_view column) noexcept { return getString(column); }
-        template<> Blob get<Blob>(std::string_view column) noexcept { return getBlob(column); }
-        template<> bool get<bool>(std::string_view column) noexcept { return getBool(column); }
-
+        double getDouble(std::string_view column) throws(DbException);
+        int64 getInt(std::string_view column) throws(DbException);
+        bool getBool(std::string_view column) throws(DbException);
+        std::string_view getString(std::string_view column) throws(DbException);
+        Blob getBlob(std::string_view column) throws(DbException);
 
         template<typename T>
-        T get(int index) noexcept;
+        T get(std::string_view column) throws(DbException);
+
+        template<typename T>
+        T get(int index) throws(DbException);
 
         template<std::integral T>
-        T get(int index) noexcept { return static_cast<T>(getInt(index)); }
+        T get(int column) throws(DbException) { return static_cast<T>(getInt(column)); }
 
         template<std::floating_point T>
-        T get(int index) noexcept { return static_cast<T>(getDouble(index)); }
+        T get(int column) throws(DbException) { return static_cast<T>(getDouble(column)); }
 
-        template<> std::string_view get<std::string_view>(int index) noexcept { return getString(index); }
-        template<> Blob get<Blob>(int index) noexcept { return getBlob(index); }
-        template<> bool get<bool>(int index) noexcept { return getBool(index); }
+        template<std::integral T>
+        T get(std::string_view column) throws(DbException) { return static_cast<T>(getInt(column)); }
+
+        template<std::floating_point T>
+        T get(std::string_view column) throws(DbException) { return static_cast<T>(getDouble(column)); }
     };
+
+#define RESULT_SET_GET_IMPL(type, method) \
+    template<> \
+    inline type ResultSet::get<type>(std::string_view column) throws(DbException) { \
+        return method(column); \
+    } \
+    template<> \
+    inline type ResultSet::get<type>(int index) throws(DbException) { \
+        return method(index); \
+    }
+
+    RESULT_SET_GET_IMPL(bool, getBool);
+    RESULT_SET_GET_IMPL(std::string_view, getString);
+    RESULT_SET_GET_IMPL(Blob, getBlob);
+
+#undef RESULT_SET_GET_IMPL
 
     class PreparedStatement {
         friend Connection;
@@ -83,11 +89,11 @@ namespace sm::db {
     public:
         SM_MOVE(PreparedStatement, default);
 
-        BindPoint bind(std::string_view name) noexcept;
-        void bind(std::string_view name, int64 value) noexcept { bind(name) = value; }
-        void bind(std::string_view name, std::string_view value) noexcept { bind(name) = value; }
-        void bind(std::string_view name, double value) noexcept { bind(name) = value; }
-        void bind(std::string_view name, std::nullptr_t) noexcept { bind(name) = nullptr; }
+        BindPoint bind(std::string_view name) throws(DbException);
+        void bind(std::string_view name, int64 value) throws(DbException) { bind(name) = value; }
+        void bind(std::string_view name, std::string_view value) throws(DbException) { bind(name) = value; }
+        void bind(std::string_view name, double value) throws(DbException) { bind(name) = value; }
+        void bind(std::string_view name, std::nullptr_t) throws(DbException) { bind(name) = nullptr; }
 
         std::expected<ResultSet, DbError> select() noexcept;
         std::expected<ResultSet, DbError> update() noexcept;
