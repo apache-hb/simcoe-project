@@ -1,3 +1,4 @@
+#include "orm/core.hpp"
 #include "orm/error.hpp"
 #include "stdafx.hpp"
 
@@ -39,13 +40,22 @@ DbError ResultSet::next() noexcept {
     return mImpl->next();
 }
 
-int ResultSet::columnCount() const noexcept {
-    return mImpl->columnCount();
+int ResultSet::getColumnCount() const noexcept {
+    return mImpl->getColumnCount();
 }
+
+std::expected<ColumnInfo, DbError> ResultSet::getColumnInfo(int index) const noexcept {
+    ColumnInfo column;
+    if (DbError error = mImpl->getColumnInfo(index, column))
+        return std::unexpected(error);
+
+    return column;
+}
+
 
 double ResultSet::getDouble(int index) noexcept(false) {
     double value = 0.0;
-    if (DbError error = mImpl->getDouble(index, value))
+    if (DbError error = mImpl->getDoubleByIndex(index, value))
         error.raise();
 
     return value;
@@ -53,7 +63,7 @@ double ResultSet::getDouble(int index) noexcept(false) {
 
 int64 ResultSet::getInt(int index) noexcept(false) {
     int64 value = 0;
-    if (DbError error = mImpl->getInt(index, value))
+    if (DbError error = mImpl->getIntByIndex(index, value))
         error.raise();
 
     return value;
@@ -61,7 +71,7 @@ int64 ResultSet::getInt(int index) noexcept(false) {
 
 bool ResultSet::getBool(int index) noexcept(false) {
     bool value = false;
-    if (DbError error = mImpl->getBoolean(index, value))
+    if (DbError error = mImpl->getBooleanByIndex(index, value))
         error.raise();
 
     return value;
@@ -69,7 +79,7 @@ bool ResultSet::getBool(int index) noexcept(false) {
 
 std::string_view ResultSet::getString(int index) noexcept(false) {
     std::string_view value;
-    if (DbError error = mImpl->getString(index, value))
+    if (DbError error = mImpl->getStringByIndex(index, value))
         error.raise();
 
     return value;
@@ -77,7 +87,7 @@ std::string_view ResultSet::getString(int index) noexcept(false) {
 
 Blob ResultSet::getBlob(int index) noexcept(false) {
     Blob value;
-    if (DbError error = mImpl->getBlob(index, value))
+    if (DbError error = mImpl->getBlobByIndex(index, value))
         error.raise();
 
     return value;
@@ -85,7 +95,7 @@ Blob ResultSet::getBlob(int index) noexcept(false) {
 
 double ResultSet::getDouble(std::string_view column) noexcept(false) {
     double value = 0.0;
-    if (DbError error = mImpl->getDouble(column, value))
+    if (DbError error = mImpl->getDoubleByName(column, value))
         error.raise();
 
     return value;
@@ -93,7 +103,7 @@ double ResultSet::getDouble(std::string_view column) noexcept(false) {
 
 int64 ResultSet::getInt(std::string_view column) noexcept(false) {
     int64 value = 0;
-    if (DbError error = mImpl->getInt(column, value))
+    if (DbError error = mImpl->getIntByName(column, value))
         error.raise();
 
     return value;
@@ -101,7 +111,7 @@ int64 ResultSet::getInt(std::string_view column) noexcept(false) {
 
 bool ResultSet::getBool(std::string_view column) noexcept(false) {
     bool value = false;
-    if (DbError error = mImpl->getBoolean(column, value))
+    if (DbError error = mImpl->getBooleanByName(column, value))
         error.raise();
 
     return value;
@@ -109,7 +119,7 @@ bool ResultSet::getBool(std::string_view column) noexcept(false) {
 
 std::string_view ResultSet::getString(std::string_view column) noexcept(false) {
     std::string_view value;
-    if (DbError error = mImpl->getString(column, value))
+    if (DbError error = mImpl->getStringByName(column, value))
         error.raise();
 
     return value;
@@ -117,7 +127,7 @@ std::string_view ResultSet::getString(std::string_view column) noexcept(false) {
 
 Blob ResultSet::getBlob(std::string_view column) noexcept(false) {
     Blob value;
-    if (DbError error = mImpl->getBlob(column, value))
+    if (DbError error = mImpl->getBlobByName(column, value))
         error.raise();
 
     return value;
@@ -128,33 +138,33 @@ Blob ResultSet::getBlob(std::string_view column) noexcept(false) {
 ///
 
 void BindPoint::to(int64 value) noexcept(false) {
-    if (DbError error = mImpl->bindInt(mName, value))
+    if (DbError error = mImpl->bindIntByName(mName, value))
         error.raise();
 }
 
 void BindPoint::to(bool value) noexcept(false) {
-    if (DbError error = mImpl->bindBoolean(mName, value))
+    if (DbError error = mImpl->bindBooleanByName(mName, value))
         error.raise();
 
 }
 
 void BindPoint::to(std::string_view value) noexcept(false) {
-    if (DbError error = mImpl->bindString(mName, value))
+    if (DbError error = mImpl->bindStringByName(mName, value))
         error.raise();
 }
 
 void BindPoint::to(double value) noexcept(false) {
-    if (DbError error = mImpl->bindDouble(mName, value))
+    if (DbError error = mImpl->bindDoubleByName(mName, value))
         error.raise();
 }
 
 void BindPoint::to(Blob value) noexcept(false) {
-    if (DbError error = mImpl->bindBlob(mName, value))
+    if (DbError error = mImpl->bindBlobByName(mName, value))
         error.raise();
 }
 
 void BindPoint::to(std::nullptr_t) noexcept(false) {
-    if (DbError error = mImpl->bindNull(mName))
+    if (DbError error = mImpl->bindNullByName(mName))
         error.raise();
 }
 
@@ -208,22 +218,38 @@ std::expected<Version, DbError> Connection::dbVersion() const noexcept {
     return version;
 }
 
-std::expected<PreparedStatement, DbError> Connection::prepare(std::string_view sql) noexcept {
+std::expected<PreparedStatement, DbError> Connection::sqlPrepare(std::string_view sql, StatementType type) noexcept {
     detail::IStatement *statement = nullptr;
     if (DbError error = mImpl->prepare(sql, &statement))
         return std::unexpected(error);
 
-    return PreparedStatement{statement, this};
+    return PreparedStatement{statement, this, type};
+}
+
+std::expected<PreparedStatement, DbError> Connection::dqlPrepare(std::string_view sql) noexcept {
+    return sqlPrepare(sql, StatementType::eQuery);
+}
+
+std::expected<PreparedStatement, DbError> Connection::dmlPrepare(std::string_view sql) noexcept {
+    return sqlPrepare(sql, StatementType::eModify);
+}
+
+std::expected<PreparedStatement, DbError> Connection::ddlPrepare(std::string_view sql) noexcept {
+    return sqlPrepare(sql, StatementType::eDefine);
+}
+
+std::expected<PreparedStatement, DbError> Connection::dclPrepare(std::string_view sql) noexcept {
+    return sqlPrepare(sql, StatementType::eControl);
 }
 
 std::expected<ResultSet, DbError> Connection::select(std::string_view sql) noexcept {
-    PreparedStatement stmt = TRY_RESULT(prepare(sql));
+    PreparedStatement stmt = TRY_RESULT(dqlPrepare(sql));
 
     return stmt.select();
 }
 
 std::expected<ResultSet, DbError> Connection::update(std::string_view sql) noexcept {
-    PreparedStatement stmt = TRY_RESULT(prepare(sql));
+    PreparedStatement stmt = TRY_RESULT(dmlPrepare(sql));
 
     return stmt.update();
 }
@@ -267,27 +293,27 @@ std::expected<Environment, DbError> Environment::create(DbType type) noexcept {
         switch (type) {
         case DbType::eSqlite3: return detail::sqlite(&env);
 
-#if HAS_POSTGRES
+#if ORM_HAS_POSTGRES
         case DbType::ePostgreSQL: return detail::postgres(&env);
 #endif
 
-#if HAS_MYSQL
+#if ORM_HAS_MYSQL
         case DbType::eMySQL: return detail::mysql(&env);
 #endif
 
-#if HAS_ORCL
+#if ORM_HAS_ORCL
         case DbType::eOracleDB: return detail::oracledb(&env);
 #endif
 
-#if HAS_MSSQL
+#if ORM_HAS_MSSQL
         case DbType::eMSSQL: return detail::mssql(&env);
 #endif
 
-#if HAS_DB2
+#if ORM_HAS_DB2
         case DbType::eDB2: return detail::db2(&env);
 #endif
 
-#if HAS_ODBC
+#if ORM_HAS_ODBC
         case DbType::eODBC: return detail::odbc(&env);
 #endif
 

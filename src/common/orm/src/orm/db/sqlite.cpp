@@ -1,3 +1,4 @@
+#include "sqliteInt.h"
 #include "stdafx.hpp"
 
 #include "common.hpp"
@@ -98,73 +99,49 @@ public:
         return getStmtError(err);
     }
 
-    DbError bindInt(int index, int64 value) noexcept override {
+    int getBindCount() const noexcept override {
+        return sqlite3_bind_parameter_count(mStatement);
+    }
+
+    DbError getBindIndex(std::string_view name, int& index) const noexcept override {
+        std::string id = fmt::format(":{}", name);
+        int param = sqlite3_bind_parameter_index(mStatement, id.c_str());
+        if (param == 0)
+            return getStmtError(SQLITE_ERROR);
+
+        index = param - 1;
+
+        return DbError::ok();
+    }
+
+    DbError bindIntByIndex(int index, int64 value) noexcept override {
         int err = sqlite3_bind_int64(mStatement, index + 1, value);
         return getStmtError(err);
     }
 
-    DbError bindBoolean(int index, bool value) noexcept override {
+    DbError bindBooleanByIndex(int index, bool value) noexcept override {
         int err = sqlite3_bind_int(mStatement, index + 1, value ? 1 : 0);
         return getStmtError(err);
     }
 
-    DbError bindString(int index, std::string_view value) noexcept override {
+    DbError bindStringByIndex(int index, std::string_view value) noexcept override {
         int err = sqlite3_bind_text(mStatement, index + 1, value.data(), value.size(), SQLITE_STATIC);
         return getStmtError(err);
     }
 
-    DbError bindDouble(int index, double value) noexcept override {
+    DbError bindDoubleByIndex(int index, double value) noexcept override {
         int err = sqlite3_bind_double(mStatement, index + 1, value);
         return getStmtError(err);
     }
 
-    DbError bindBlob(int index, Blob value) noexcept override {
+    DbError bindBlobByIndex(int index, Blob value) noexcept override {
         int err = sqlite3_bind_blob(mStatement, index + 1, value.data(), value.size_bytes(), SQLITE_STATIC);
         return getStmtError(err);
     }
 
-    DbError bindNull(int index) noexcept override {
+    DbError bindNullByIndex(int index) noexcept override {
         int err = sqlite3_bind_null(mStatement, index + 1);
         return getStmtError(err);
-    }
-
-    std::expected<int, DbError> getBindIndex(std::string_view name) const noexcept {
-        std::string id = fmt::format(":{}", name);
-        int index = sqlite3_bind_parameter_index(mStatement, id.c_str());
-        if (index == 0)
-            return std::unexpected(getStmtError(SQLITE_ERROR));
-
-        return index;
-    }
-
-    DbError bindInt(std::string_view name, int64 value) noexcept override {
-        int index = TRY_UNWRAP(getBindIndex(name));
-        return bindInt(index - 1, value);
-    }
-
-    DbError bindBoolean(std::string_view name, bool value) noexcept override {
-        int index = TRY_UNWRAP(getBindIndex(name));
-        return bindBoolean(index - 1, value);
-    }
-
-    DbError bindString(std::string_view name, std::string_view value) noexcept override {
-        int index = TRY_UNWRAP(getBindIndex(name));
-        return bindString(index - 1, value);
-    }
-
-    DbError bindDouble(std::string_view name, double value) noexcept override {
-        int index = TRY_UNWRAP(getBindIndex(name));
-        return bindDouble(index - 1, value);
-    }
-
-    DbError bindBlob(std::string_view name, Blob value) noexcept override {
-        int index = TRY_UNWRAP(getBindIndex(name));
-        return bindBlob(index - 1, value);
-    }
-
-    DbError bindNull(std::string_view name) noexcept override {
-        int index = TRY_UNWRAP(getBindIndex(name));
-        return bindNull(index - 1);
     }
 
     DbError select() noexcept override {
@@ -177,15 +154,25 @@ public:
         return getStmtError(err);
     }
 
-    int columnCount() const noexcept override {
+    int getColumnCount() const noexcept override {
         return sqlite3_column_count(mStatement);
     }
 
-    Column column(int index) const noexcept override {
+    DbError getColumnInfo(int index, ColumnInfo& info) const noexcept override {
         const char *name = sqlite3_column_name(mStatement, index);
         int type = sqlite3_column_type(mStatement, index);
 
-        return Column{name, getColumnType(type)};
+        if (name == nullptr)
+            return DbError::columnNotFound(std::to_string(index));
+
+        ColumnInfo column = {
+            .name = name,
+            .type = getColumnType(type),
+        };
+
+        info = column;
+
+        return DbError::ok();
     }
 
     DbError next() noexcept override {
@@ -193,27 +180,27 @@ public:
         return getStmtError(err);
     }
 
-    DbError getInt(int index, int64& value) noexcept override {
+    DbError getIntByIndex(int index, int64& value) noexcept override {
         value = sqlite3_column_int64(mStatement, index);
         return DbError::ok();
     }
 
-    DbError getBoolean(int index, bool& value) noexcept override {
+    DbError getBooleanByIndex(int index, bool& value) noexcept override {
         value = sqlite3_column_int(mStatement, index) != 0;
         return DbError::ok();
     }
 
-    DbError getString(int index, std::string_view& value) noexcept override {
+    DbError getStringByIndex(int index, std::string_view& value) noexcept override {
         value = (const char*)sqlite3_column_text(mStatement, index);
         return DbError::ok();
     }
 
-    DbError getDouble(int index, double& value) noexcept override {
+    DbError getDoubleByIndex(int index, double& value) noexcept override {
         value = sqlite3_column_double(mStatement, index);
         return DbError::ok();
     }
 
-    DbError getBlob(int index, Blob& value) noexcept override {
+    DbError getBlobByIndex(int index, Blob& value) noexcept override {
         const uint8 *bytes = (const uint8*)sqlite3_column_blob(mStatement, index);
         int length = sqlite3_column_bytes(mStatement, index);
 
@@ -288,16 +275,29 @@ class SqliteConnection final : public detail::IConnection {
         SqliteStatement ps{stmt};
         defer { checkError(ps.close()); };
 
-        if (DbError err = ps.bindString("name", table))
+        if (DbError err = ps.bindStringByName("name", table))
             return err;
 
         int64 count = 0;
         while (ps.next().isSuccess()) {
-            if (DbError err = ps.getInt(0, count))
+            if (DbError err = ps.getIntByIndex(0, count))
                 return err;
         }
 
         exists = count > 0;
+
+        return DbError::ok();
+    }
+
+    DbError dbVersion(Version& version) const noexcept override {
+        const char *name = sqlite3_libversion();
+        int num = sqlite3_libversion_number();
+
+        int major = (num >> 16) & 0xFF;
+        int minor = (num >> 8) & 0xFF;
+        int patch = num & 0xFF;
+
+        version = Version{name, major, minor, patch};
 
         return DbError::ok();
     }

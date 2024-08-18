@@ -10,16 +10,14 @@ DbError::DbError(int code, int status, std::string message) noexcept
     , mStatus(status)
     , mMessage(std::move(message))
 {
-    if (!isSuccess()) {
+    if (!isSuccess())
         mStacktrace = std::stacktrace::current();
-    }
 }
 
 void DbError::raise() const noexcept(false) {
-    fmt::println(stderr, "DbError: {} ({})", mMessage, mCode);
-    for (const auto &frame : mStacktrace) {
-        fmt::println(stderr, "[{}:{}] {}", frame.source_file(), frame.source_line(), frame.description());
-    }
+    if (mStatus == eConnectionError)
+        throw DbConnectionException{mCode, mMessage};
+
     throw DbException{mCode, mMessage};
 }
 
@@ -28,7 +26,7 @@ DbError DbError::ok() noexcept {
 }
 
 DbError DbError::todo() noexcept {
-    return DbError{1, eUnimplemented, "Not implemented"};
+    return DbError{-1, eUnimplemented, "Not implemented"};
 }
 
 DbError DbError::error(int code, std::string message) noexcept {
@@ -40,5 +38,17 @@ DbError DbError::noMoreData(int code) noexcept {
 }
 
 DbError DbError::unsupported(std::string_view subject) noexcept {
-    return DbError{2, eError, fmt::format("Unsupported {}", subject)};
+    return DbError{-1, eError, fmt::format("Unsupported {}", subject)};
+}
+
+DbError DbError::columnNotFound(std::string_view column) noexcept {
+    return DbError{-1, eError, fmt::format("Column not found: {}", column)};
+}
+
+DbError DbError::bindNotFound(std::string_view bind) noexcept {
+    return DbError{-1, eError, fmt::format("Bind not found: {}", bind)};
+}
+
+DbError DbError::connectionError(std::string_view message) noexcept {
+    return DbError{-1, eConnectionError, std::string{message}};
 }

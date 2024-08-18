@@ -10,11 +10,19 @@ Transaction::Transaction(Connection *conn) noexcept(false)
     conn->setAutoCommit(false);
 }
 
-Transaction::~Transaction() noexcept(false) {
+Transaction::~Transaction() noexcept {
     if (mState != ePending)
         return;
 
-    mConnection->commit();
+    try {
+        mConnection->commit();
+    } catch (const std::exception& err) {
+        // TODO: use proper logging
+        fmt::println(stderr, "Transaction::~Transaction() failed to commit: {}", err.what());
+    } catch (...) {
+        fmt::println(stderr, "Transaction::~Transaction() failed to commit *unknown*");
+    }
+
     mConnection->setAutoCommit(true);
 }
 

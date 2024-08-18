@@ -1,6 +1,7 @@
 #pragma once
 
-#include "orm/connection.hpp"
+#include "orm/core.hpp"
+#include "orm/error.hpp"
 
 namespace sm::db::detail {
     struct IEnvironment {
@@ -50,22 +51,6 @@ namespace sm::db::detail {
         virtual DbError close() noexcept = 0;
         virtual DbError reset() noexcept = 0;
 
-        /** Binding */
-
-        virtual DbError bindInt(int index, int64 value) noexcept = 0;
-        virtual DbError bindBoolean(int index, bool value) noexcept = 0;
-        virtual DbError bindString(int index, std::string_view value) noexcept = 0;
-        virtual DbError bindDouble(int index, double value) noexcept = 0;
-        virtual DbError bindBlob(int index, Blob value) noexcept = 0;
-        virtual DbError bindNull(int index) noexcept = 0;
-
-        virtual DbError bindInt(std::string_view name, int64 value) noexcept { return DbError::todo(); }
-        virtual DbError bindBoolean(std::string_view name, bool value) noexcept { return DbError::todo(); }
-        virtual DbError bindString(std::string_view name, std::string_view value) noexcept { return DbError::todo(); }
-        virtual DbError bindDouble(std::string_view name, double value) noexcept { return DbError::todo(); }
-        virtual DbError bindBlob(std::string_view name, Blob value) noexcept { return DbError::todo(); }
-        virtual DbError bindNull(std::string_view name) noexcept { return DbError::todo(); }
-
         /** Execution */
 
         virtual DbError select() noexcept = 0;
@@ -73,21 +58,74 @@ namespace sm::db::detail {
 
         /** Fetch results */
 
-        virtual int columnCount() const noexcept = 0;
-        virtual Column column(int index) const noexcept { return Column{}; }
+        virtual int getColumnCount() const noexcept = 0;
+
+        virtual DbError getColumnIndex(std::string_view name, int& index) const noexcept {
+            return DbError::todo();
+        }
+
+        virtual DbError getColumnInfo(int index, ColumnInfo& info) const noexcept {
+            return DbError::todo();
+        }
+
         virtual DbError next() noexcept = 0;
 
-        virtual DbError getInt(int index, int64& value) noexcept = 0;
-        virtual DbError getBoolean(int index, bool& value) noexcept = 0;
-        virtual DbError getString(int index, std::string_view& value) noexcept = 0;
-        virtual DbError getDouble(int index, double& value) noexcept = 0;
-        virtual DbError getBlob(int index, Blob& value) noexcept = 0;
+        virtual DbError getIntByIndex(int index, int64& value) noexcept = 0;
+        virtual DbError getBooleanByIndex(int index, bool& value) noexcept = 0;
+        virtual DbError getStringByIndex(int index, std::string_view& value) noexcept = 0;
+        virtual DbError getDoubleByIndex(int index, double& value) noexcept = 0;
+        virtual DbError getBlobByIndex(int index, Blob& value) noexcept = 0;
 
-        virtual DbError getInt(std::string_view column, int64& value) noexcept { return DbError::todo(); }
-        virtual DbError getBoolean(std::string_view column, bool& value) noexcept { return DbError::todo(); }
-        virtual DbError getString(std::string_view column, std::string_view& value) noexcept { return DbError::todo(); }
-        virtual DbError getDouble(std::string_view column, double& value) noexcept { return DbError::todo(); }
-        virtual DbError getBlob(std::string_view column, Blob& value) noexcept { return DbError::todo(); }
+        virtual DbError getIntByName(std::string_view column, int64& value) noexcept;
+        virtual DbError getBooleanByName(std::string_view column, bool& value) noexcept;
+        virtual DbError getStringByName(std::string_view column, std::string_view& value) noexcept;
+        virtual DbError getDoubleByName(std::string_view column, double& value) noexcept;
+        virtual DbError getBlobByName(std::string_view column, Blob& value) noexcept;
+
+
+        /** Binding */
+
+        virtual int getBindCount() const noexcept = 0;
+
+        virtual DbError getBindIndex(std::string_view name, int& index) const noexcept {
+            return DbError::todo();
+        }
+
+        virtual DbError getBindInfo(int index, BindInfo& info) const noexcept {
+            return DbError::todo();
+        }
+
+
+        virtual DbError bindIntByIndex(int index, int64 value) noexcept = 0;
+        virtual DbError bindBooleanByIndex(int index, bool value) noexcept = 0;
+        virtual DbError bindStringByIndex(int index, std::string_view value) noexcept = 0;
+        virtual DbError bindDoubleByIndex(int index, double value) noexcept = 0;
+        virtual DbError bindBlobByIndex(int index, Blob value) noexcept = 0;
+        virtual DbError bindNullByIndex(int index) noexcept = 0;
+
+        virtual DbError bindIntByName(std::string_view name, int64 value) noexcept;
+        virtual DbError bindBooleanByName(std::string_view name, bool value) noexcept;
+        virtual DbError bindStringByName(std::string_view name, std::string_view value) noexcept;
+        virtual DbError bindDoubleByName(std::string_view name, double value) noexcept;
+        virtual DbError bindBlobByName(std::string_view name, Blob value) noexcept;
+        virtual DbError bindNullByName(std::string_view name) noexcept;
+
+
+        std::expected<int, DbError> findColumnIndex(std::string_view name) const noexcept;
+        std::expected<int, DbError> findBindIndex(std::string_view name) const noexcept;
+
+    private:
+        template<typename T>
+        DbError bindValue(std::string_view name, T value, DbError (IStatement::*func)(int, T)) noexcept {
+            int index = TRY_UNWRAP(findBindIndex(name));
+            return (this->*func)(index, value);
+        }
+
+        template<typename T>
+        DbError getValue(std::string_view name, T& value, DbError (IStatement::*func)(int, T&)) noexcept {
+            int index = TRY_UNWRAP(findColumnIndex(name));
+            return (this->*func)(index, value);
+        }
     };
 
     DbError sqlite(IEnvironment **env) noexcept;

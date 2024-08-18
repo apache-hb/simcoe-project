@@ -3,6 +3,7 @@
 #include "daocc/writer.hpp"
 
 namespace fs = std::filesystem;
+
 using namespace std::string_view_literals;
 
 struct Type {
@@ -105,6 +106,13 @@ struct Unique {
     std::vector<std::string> columns;
 };
 
+struct List {
+    std::string name;
+    std::string of;
+    std::string from;
+    std::string to;
+};
+
 struct Column {
     std::string name;
     Type type;
@@ -116,11 +124,27 @@ struct Table {
     std::string name;
     std::string primaryKey;
     std::vector<Column> columns;
+    std::vector<List> lists;
     std::vector<Unique> unique;
     std::vector<ForeignKey> foregin;
+    bool imported = false;
 
     bool isPrimaryKey(const Column& column) const {
         return primaryKey == column.name;
+    }
+
+    std::optional<Column> getPrimaryKey() const {
+        for (const auto& column : columns) {
+            if (column.name == primaryKey) {
+                return column;
+            }
+        }
+
+        return std::nullopt;
+    }
+
+    bool hasPrimaryKey() const {
+        return !primaryKey.empty();
     }
 };
 
@@ -150,9 +174,13 @@ static Properties getNodeProperties(xmlNodePtr node) {
     return properties;
 }
 
+static bool nodeIs(xmlNodePtr node, std::string_view name) {
+    return name == (const char*)node->name;
+}
+
 static bool expectNode(xmlNodePtr node, std::string_view name) {
-    if (name != (const char*)node->name) {
-        fmt::println("Unexpected element: {}, expected {}", (char*)node->name, name);
+    if (!nodeIs(node, name)) {
+        fmt::println(stderr, "Unexpected element: {}, expected {}", (char*)node->name, name);
         gError = 1;
         return false;
     }
@@ -174,7 +202,7 @@ static std::string expectProperty(const Properties &props, std::string_view key,
     }
 
     gError = 1;
-    fmt::println("Missing property: {}", key);
+    fmt::println(stderr, "Missing property: {}", key);
     return std::string{def};
 }
 
@@ -192,7 +220,7 @@ static Type buildType(const Properties &props) {
     }
 
     if (auto it = kTypeMap.find(type); it == kTypeMap.end()) {
-        fmt::println("Unknown type: {}", type);
+        fmt::println(stderr, "Unknown type: {}", type);
         return {};
     }
 
@@ -229,7 +257,7 @@ static void buildDaoConstraint(Table& parent, Column& column, xmlNodePtr node) {
         auto split = splitString(references, '.');
 
         if (split.size() != 2) {
-            fmt::println("Invalid references: {}", references);
+            fmt::println(stderr, "Invalid references: {}", references);
             gError = 1;
             return;
         }
@@ -270,8 +298,6 @@ static Column buildDaoColumn(Table& parent, xmlNodePtr node) {
         .autoIncrement = getOrDefault(props, "autoIncrement", "false") == "true"
     };
 
-    fmt::println("    Column: {}", name);
-
     for (xmlNodePtr cur = node->children; cur; cur = cur->next) {
         if (cur->type == XML_ELEMENT_NODE) {
             buildDaoConstraint(parent, column, cur);
@@ -279,6 +305,37 @@ static Column buildDaoColumn(Table& parent, xmlNodePtr node) {
     }
 
     return column;
+}
+
+static List buildDaoList(Table& parent, xmlNodePtr node) {
+    if (!expectNode(node, "list")) {
+        return {};
+    }
+
+    auto props = getNodeProperties(node);
+    auto name = expectProperty(props, "name", "");
+
+    List list = {
+        .name = name,
+        .of = expectProperty(props, "of", ""),
+        .from = expectProperty(props, "from", ""),
+        .to = expectProperty(props, "to", "")
+    };
+
+    return list;
+}
+
+static void buildTableEntry(Table& parent, xmlNodePtr node) {
+    if (nodeIs(node, "column")) {
+        auto column = buildDaoColumn(parent, node);
+        parent.columns.push_back(column);
+    } else if (nodeIs(node, "list")) {
+        auto list = buildDaoList(parent, node);
+        parent.lists.push_back(list);
+    } else {
+        fmt::println(stderr, "Unexpected element: {}", (char*)node->name);
+        gError = 1;
+    }
 }
 
 static Table buildDaoTable(xmlNodePtr node) {
@@ -293,16 +350,33 @@ static Table buildDaoTable(xmlNodePtr node) {
         .primaryKey = getOrDefault(props, "primaryKey", ""),
     };
 
-    fmt::println("  Table: {}", table.name);
-
     for (xmlNodePtr cur = node->children; cur; cur = cur->next) {
         if (cur->type == XML_ELEMENT_NODE) {
-            auto column = buildDaoColumn(table, cur);
-            table.columns.push_back(column);
+            buildTableEntry(table, cur);
         }
     }
 
     return table;
+}
+
+static std::vector<Table> buildRootElement(xmlNodePtr node) {
+    if (nodeIs(node, "root")) {
+        // this is an imported root node
+        std::vector<Table> tables;
+        for (xmlNodePtr cur = node->children; cur; cur = cur->next) {
+            if (cur->type == XML_ELEMENT_NODE) {
+                auto inner = buildRootElement(cur);
+                tables.insert(tables.end(), inner.begin(), inner.end());
+            }
+        }
+
+        for (auto& table : tables)
+            table.imported = true;
+
+        return tables;
+    }
+
+    return { buildDaoTable(node) };
 }
 
 static Root buildDaoRoot(xmlNodePtr node) {
@@ -316,21 +390,61 @@ static Root buildDaoRoot(xmlNodePtr node) {
         .name = expectProperty(props, "name", "")
     };
 
-    fmt::println("Root: {}", ctx.name);
-
     for (xmlNodePtr cur = node->children; cur; cur = cur->next) {
         if (cur->type == XML_ELEMENT_NODE) {
-            auto table = buildDaoTable(cur);
-            ctx.tables.push_back(table);
+            auto tables = buildRootElement(cur);
+            ctx.tables.insert(ctx.tables.end(), tables.begin(), tables.end());
         }
     }
 
     return ctx;
 }
 
+static std::set<fs::path> gImportPaths;
+
+static std::vector<fs::path> gIncludePaths;
+
+static std::set<fs::path> gProcessedFiles;
+
+static std::optional<fs::path> findInclude(const fs::path& path) {
+    if (fs::exists(path)) {
+        return path;
+    }
+
+    for (const auto& include : gIncludePaths) {
+        fs::path inc = include / path;
+        if (fs::exists(inc)) {
+            return inc;
+        }
+    }
+
+    return {};
+}
+
+static int incMatch(const char *uri) {
+    return findInclude(uri).has_value();
+}
+
+static void *incOpen(const char *uri) {
+    fs::path path = findInclude(uri).value();
+    gProcessedFiles.emplace(path);
+    gImportPaths.insert(path);
+    return fopen(path.string().c_str(), "r");
+}
+
+static int incClose(void *context) {
+    return fclose((FILE*)context);
+}
+
+static int incRead(void *context, char *buffer, int size) {
+    return fread(buffer, 1, size, (FILE*)context);
+}
+
 int main(int argc, const char **argv) {
-    if (argc != 8) {
-        fmt::println("Usage: {} <input> --header <header> --source <source> -d <depfile>", argv[0]);
+    LIBXML_TEST_VERSION
+
+    if (argc < 8) {
+        fmt::println(stderr, "Usage: {} <input> --header <header> --source <source> -d <depfile> <includes...>", argv[0]);
         return 1;
     }
 
@@ -339,12 +453,30 @@ int main(int argc, const char **argv) {
     fs::path sourcePath = argv[5];
     fs::path depfile = argv[7];
 
-    xmlDocPtr doc = xmlReadFile(input.string().c_str(), nullptr, XML_PARSE_XINCLUDE);
+    gIncludePaths.push_back(input.parent_path());
 
-    if (doc == nullptr) {
-        fmt::println("Failed to parse {}", input);
+    for (int i = 8; i < argc; i++) {
+        gIncludePaths.push_back(argv[i]);
+    }
+
+    if (xmlRegisterInputCallbacks(incMatch, incOpen, incRead, incClose) < 0) {
+        fmt::println(stderr, "Failed to register input callbacks");
         return 1;
     }
+
+    xmlDocPtr doc = xmlReadFile(input.string().c_str(), nullptr, XML_PARSE_XINCLUDE | XML_PARSE_NONET);
+
+    if (doc == nullptr) {
+        fmt::println(stderr, "Failed to parse {}", input);
+        return 1;
+    }
+
+    if (xmlXIncludeProcess(doc) == -1) {
+        fmt::println(stderr, "Failed to process xinclude");
+        return 1;
+    }
+
+    xmlDocDump(stdout, doc);
 
     xmlNodePtr root = xmlDocGetRootElement(doc);
     Root dao = buildDaoRoot(root);
@@ -352,14 +484,19 @@ int main(int argc, const char **argv) {
     xmlFreeDoc(doc);
 
     if (gError != 0) {
-        fmt::println("Error parsing {}", input);
+        fmt::println(stderr, "Error parsing {}", input);
         return gError;
     }
 
     {
         std::ofstream depfileStream{depfile, std::ios::out | std::ios::trunc};
-        fmt::println(depfileStream, "{}: {}", headerPath, input);
-        fmt::println(depfileStream, "{}: {}", sourcePath, input);
+
+        gProcessedFiles.insert(input);
+
+        for (const auto& file : gProcessedFiles) {
+            fmt::println(depfileStream, "{}: {}", headerPath, file);
+            fmt::println(depfileStream, "{}: {}", sourcePath, file);
+        }
     }
 
     std::ofstream headerStream{headerPath, std::ios::out | std::ios::trunc};
@@ -375,16 +512,25 @@ int main(int argc, const char **argv) {
     header.writeln("#include <vector>");
     header.writeln("#include <optional>");
     header.writeln();
+    for (auto path : gImportPaths) {
+        if (path.filename() == input.filename())
+            continue;
+        header.writeln("#include \"{}\"", path.replace_extension(".dao.hpp").filename());
+    }
+    header.writeln();
     header.writeln("namespace {}::dao {{", dao.name);
     header.indent();
 
     for (size_t i = 0; i < dao.tables.size(); i++) {
-        if (i != 0) {
-            header.writeln();
-        }
-
         const auto& table = dao.tables[i];
+        if (table.imported)
+            continue;
+
+        header.writeln();
+
         auto tableName = singular(pascalCase(table.name));
+
+        bool hasConstraints = table.foregin.size() > 0 || table.unique.size() > 0 || table.hasPrimaryKey();
 
         header.writeln("/// CREATE TABLE {} (", table.name);
         for (size_t j = 0; j < table.columns.size(); j++) {
@@ -398,8 +544,6 @@ int main(int argc, const char **argv) {
             }
 
             if (table.isPrimaryKey(column)) {
-                header.print(" PRIMARY KEY");
-
                 if (column.autoIncrement) {
                     header.print(" AUTOINCREMENT");
                 }
@@ -409,16 +553,24 @@ int main(int argc, const char **argv) {
                 header.print(" CHECK(NOT IS_BLANK_STRING({}))", column.name);
             }
 
-            header.print("{}\n", j + 1 < table.columns.size() ? "," : "");
+            const char *tail = j + 1 < table.columns.size() ? "," : "";
+            if (hasConstraints)
+                tail = ",";
+
+            header.print("{}\n", tail);
+        }
+
+        if (table.hasPrimaryKey()) {
+            header.write("///     CONSTRAINT pk_{} PRIMARY KEY ({})\n", table.name, table.primaryKey);
         }
 
         for (size_t j = 0; j < table.foregin.size(); j++) {
             const auto& foreign = table.foregin[j];
             auto tail = j + 1 < table.foregin.size() ? "," : "";
-            header.write("///     FOREIGN KEY ({}) REFERENCES {}({}){}\n", foreign.column, foreign.foreignTable, foreign.foreignColumn, tail);
+            header.write("///     CONSTRAINT fk_{0}_{1}_to_{2}_{3} FOREIGN KEY ({1}) REFERENCES {2}({3}){4}\n", table.name, foreign.column, foreign.foreignTable, foreign.foreignColumn, tail);
         }
 
-        header.writeln("/// ) STRICT;");
+        header.writeln("/// );");
 
         header.writeln("class {} {{", tableName);
         header.indent();

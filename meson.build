@@ -34,7 +34,6 @@ cc = meson.get_compiler('c')
 is_windows = host_machine.system() == 'windows'
 
 if is_windows
-    add_project_arguments('-D_HAS_EXCEPTIONS=0', language : 'cpp')
     add_project_arguments('-DNOMINMAX', language : [ 'c', 'cpp' ])
 endif
 

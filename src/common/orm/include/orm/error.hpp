@@ -7,13 +7,14 @@
 #include <string_view>
 
 namespace sm::db {
-    class DbException {
+    class DbException : public std::exception {
         int mCode = 0;
         std::string mMessage;
 
     public:
         DbException(int code, std::string message) noexcept
-            : mCode(code)
+            : std::exception(message.c_str())
+            , mCode(code)
             , mMessage(std::move(message))
         { }
 
@@ -21,6 +22,10 @@ namespace sm::db {
         std::string_view message() const noexcept { return mMessage; }
     };
 
+    class DbConnectionException : public DbException {
+    public:
+        using DbException::DbException;
+    };
 
     class [[nodiscard("Possibly ignoring error")]] DbError {
         int mCode = 0;
@@ -34,6 +39,7 @@ namespace sm::db {
             eError = 1,
             eUnimplemented = 2,
             eNoMoreData = 3,
+            eConnectionError = 4,
         };
 
         DbError(int code, int status, std::string message) noexcept;
@@ -63,5 +69,8 @@ namespace sm::db {
         static DbError error(int code, std::string message) noexcept;
         static DbError noMoreData(int code) noexcept;
         static DbError unsupported(std::string_view subject) noexcept;
+        static DbError columnNotFound(std::string_view column) noexcept;
+        static DbError bindNotFound(std::string_view bind) noexcept;
+        static DbError connectionError(std::string_view message) noexcept;
     };
 }

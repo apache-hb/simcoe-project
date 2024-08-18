@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root name="editor" xmlns:xi="http://www.w3.org/2001/XInclude">
+    <xi:include href="projects.xml" />
+
+    <table name="windows" primaryKey="id">
+        <column name="id"     type="int" autoIncrement="true" />
+        <column name="title"  type="text" length="255" />
+        <column name="x"      type="int" />
+        <column name="y"      type="int" />
+        <column name="width"  type="int" />
+        <column name="height" type="int" />
+    </table>
+
+    <table name="maps" primaryKey="id">
+        <column name="id"   type="int" autoIncrement="true" />
+        <column name="name" type="text" length="255" unique="true" />
+
+        <list name="objects" of="objects" from="id" to="objects.id" />
+    </table>
+
+    <table name="objects" primaryKey="id">
+        <column name="id"   type="int" autoIncrement="true" />
+        <column name="name" type="text" length="255" />
+        <column name="map"  type="int">
+            <constraint references="maps.id" />
+        </column>
+    </table>
+</root>

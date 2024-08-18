@@ -9,7 +9,7 @@ namespace sm::db {
 
     public:
         Transaction(Connection *conn) throws(DbException);
-        ~Transaction() throws(DbException);
+        ~Transaction() noexcept;
 
         SM_NOCOPY(Transaction);
         SM_SWAP_MOVE(Transaction);

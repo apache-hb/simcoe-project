@@ -1,5 +1,7 @@
 #pragma once
 
+#include <simcoe_orm_config.h>
+
 #include "orm/bind.hpp"
 #include "orm/core.hpp"
 #include "orm/error.hpp"
@@ -25,8 +27,8 @@ namespace sm::db {
     public:
         DbError next() noexcept;
 
-        int columnCount() const noexcept;
-        Column column(int index) const noexcept;
+        int getColumnCount() const noexcept;
+        std::expected<ColumnInfo, DbError> getColumnInfo(int index) const noexcept;
 
         double getDouble(int index) throws(DbException);
         int64 getInt(int index) throws(DbException);
@@ -80,10 +82,12 @@ namespace sm::db {
 
         detail::StmtHandle mImpl;
         Connection *mConnection;
+        StatementType mType;
 
-        PreparedStatement(detail::IStatement *impl, Connection *connection) noexcept
+        PreparedStatement(detail::IStatement *impl, Connection *connection, StatementType type) noexcept
             : mImpl({impl, &detail::destroyStatement})
             , mConnection(connection)
+            , mType(type)
         { }
 
     public:
@@ -100,6 +104,9 @@ namespace sm::db {
 
         DbError close() noexcept;
         DbError reset() noexcept;
+
+        [[nodiscard]]
+        StatementType type() const noexcept { return mType; }
     };
 
     class Connection {
@@ -108,6 +115,8 @@ namespace sm::db {
         detail::ConnectionHandle mImpl;
 
         bool mAutoCommit;
+
+        std::expected<PreparedStatement, DbError> sqlPrepare(std::string_view sql, StatementType type) noexcept;
 
         Connection(detail::IConnection *impl, const ConnectionConfig& config) noexcept
             : mImpl(impl)
@@ -126,10 +135,13 @@ namespace sm::db {
         [[nodiscard]]
         bool autoCommit() const noexcept { return mAutoCommit; }
 
-        std::expected<PreparedStatement, DbError> prepare(std::string_view sql) noexcept;
-
         std::expected<ResultSet, DbError> select(std::string_view sql) noexcept;
         std::expected<ResultSet, DbError> update(std::string_view sql) noexcept;
+
+        std::expected<PreparedStatement, DbError> dqlPrepare(std::string_view sql) noexcept;
+        std::expected<PreparedStatement, DbError> dmlPrepare(std::string_view sql) noexcept;
+        std::expected<PreparedStatement, DbError> ddlPrepare(std::string_view sql) noexcept;
+        std::expected<PreparedStatement, DbError> dclPrepare(std::string_view sql) noexcept;
 
         [[nodiscard]]
         bool tableExists(std::string_view name) throws(DbException);

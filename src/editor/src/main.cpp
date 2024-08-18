@@ -97,7 +97,7 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     db::Connection& mConnection;
 
     void saveWindowPlacement(const WINDOWPLACEMENT& placement) noexcept {
-        auto result = mConnection.prepare(R"(
+        auto result = mConnection.dmlPrepare(R"(
             UPDATE windowplacement SET
                 length = :length,
                 flags = :flags,
@@ -141,7 +141,7 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     }
 
     std::optional<WINDOWPLACEMENT> loadWindowPlacement() noexcept {
-        auto result = mConnection.prepare(R"(
+        auto result = mConnection.dqlPrepare(R"(
             SELECT
                 length,                -- 0
                 flags,                 -- 1

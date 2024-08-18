@@ -59,9 +59,7 @@ TEST_CASE("updates") {
         }
 
         THEN("it has a version") {
-            auto version = getValue(conn.dbVersion());
-
-            fmt::println(stderr, "{}", version.name);
+            getValue(conn.dbVersion());
         }
     }
 }

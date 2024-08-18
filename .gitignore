@@ -20,6 +20,7 @@
 !*.txt
 !*.ps1
 !*.sql
+!*.xml
 !setup.bat
 !setup.sh
 

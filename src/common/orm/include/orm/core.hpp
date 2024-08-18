@@ -48,6 +48,13 @@ namespace sm::db {
         eRowId
     };
 
+    enum class StatementType {
+        eQuery,
+        eModify,
+        eDefine,
+        eControl
+    };
+
     struct Version {
         std::string name;
         int major;
@@ -70,8 +77,12 @@ namespace sm::db {
         bool autoCommit = true;
     };
 
-    struct Column {
+    struct ColumnInfo {
         std::string_view name;
         DataType type;
+    };
+
+    struct BindInfo {
+        std::string_view name;
     };
 }
