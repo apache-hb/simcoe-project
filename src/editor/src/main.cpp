@@ -28,6 +28,7 @@
 #include "orm/connection.hpp"
 
 #include "core/defer.hpp"
+#include <exception>
 
 using namespace sm;
 using namespace sm::math;
@@ -630,13 +631,19 @@ static int editor_main(sys::ShowWindow show) {
     return 0;
 }
 
-static int common_main(sys::ShowWindow show) {
+static int common_main(sys::ShowWindow show) noexcept try {
     logs::gGlobal.info("SMC_DEBUG = {}", SMC_DEBUG);
     logs::gGlobal.info("CTU_DEBUG = {}", CTU_DEBUG);
 
     int result = editor_main(show);
 
     return result;
+} catch (const std::exception& err) {
+    logs::gGlobal.error("unhandled exception: {}", err.what());
+    return -1;
+} catch (...) {
+    logs::gGlobal.error("unknown unhandled exception");
+    return -1;
 }
 
 int main(int argc, const char **argv) {

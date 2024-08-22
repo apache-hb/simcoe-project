@@ -2,6 +2,7 @@ llvm = dependency('llvm', components : ['core'], method : 'config-tool', static 
 llvm_libdir = llvm.get_variable(configtool: 'libdir')
 
 deps = [
+    fmtlib,
     cpp.find_library('clangBasic', dirs : llvm_libdir),
     cpp.find_library('clangDriver', dirs : llvm_libdir),
     cpp.find_library('clangLex', dirs : llvm_libdir),
@@ -21,17 +22,18 @@ deps = [
     cpp.find_library('version'),
     llvm,
 
-    fmtlib,
+    meta
 ]
 
 src = [
-    'src/main.cpp'
+    'src/main.cpp',
+    'src/utils.cpp'
 ]
 
-meta_tool = executable('meta-tool', src,
+meta_tooling = executable('meta', src,
     include_directories : [ 'include' ],
     cpp_pch : 'src/stdafx.hpp',
     dependencies : deps,
     override_options : [ 'b_vscrt=mt' ],
-    cpp_args : [ '-D_ITERATOR_DEBUG_LEVEL=0', '-D_SILENCE_CXX23_ALIGNED_UNION_DEPRECATION_WARNING=1' ]
+    cpp_args : [ '-D_ITERATOR_DEBUG_LEVEL=0' ]
 )

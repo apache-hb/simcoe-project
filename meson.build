@@ -169,10 +169,12 @@ config_include = include_directories('.')
 # we vendor fmtlib via a small shim header to hook FMT_THROW(x) into cthulhu's error handling
 subdir('src/vendor/fmtlib')
 
+subdir('src/meta')
+
 subdir('src/vendor/reflect')
 subdir('src/common/core')
 
-subdir('src/meta/dao')
+# subdir('src/meta/dao')
 subdir('src/common/orm')
 
 subdir('src/common/logs')

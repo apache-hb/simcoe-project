@@ -123,6 +123,7 @@ struct Column {
 struct Table {
     std::string name;
     std::string primaryKey;
+    std::string schema;
     std::vector<Column> columns;
     std::vector<List> lists;
     std::vector<Unique> unique;
@@ -361,6 +362,7 @@ static Table buildDaoTable(xmlNodePtr node) {
 
 static std::vector<Table> buildRootElement(xmlNodePtr node) {
     if (nodeIs(node, "root")) {
+        auto name = expectProperty(getNodeProperties(node), "name", "");
         // this is an imported root node
         std::vector<Table> tables;
         for (xmlNodePtr cur = node->children; cur; cur = cur->next) {
@@ -370,8 +372,10 @@ static std::vector<Table> buildRootElement(xmlNodePtr node) {
             }
         }
 
-        for (auto& table : tables)
+        for (auto& table : tables) {
             table.imported = true;
+            table.schema = name;
+        }
 
         return tables;
     }
@@ -503,6 +507,13 @@ int main(int argc, const char **argv) {
     std::ofstream sourceStream{sourcePath, std::ios::out | std::ios::trunc};
     Writer header{headerStream};
     Writer source{sourceStream};
+
+    std::ostringstream sqliteStream;
+    std::ostringstream orclStream;
+    std::ostringstream pgsqlStream;
+    Writer sqlite{sqliteStream};
+    Writer orcl{orclStream};
+    Writer pgsql{pgsqlStream};
 
     source.writeln("#include \"{}\"", headerPath.filename());
 

@@ -29,15 +29,14 @@ void sys::create(HINSTANCE hInstance) {
 
     HICON hIcon = LoadIconA(
         /* hInst = */ hInstance,
-        /* name = */ MAKEINTRESOURCEA(IDI_DEFAULT_ICON));
+        /* name = */ MAKEINTRESOURCEA(IDI_DEFAULT_ICON)
+    );
 
     if (hIcon == nullptr) {
         gSystemLog.warn("failed to load icon {}", getLastError());
     }
 
-    HCURSOR hCursor = LoadCursorA(
-        /* hInst = */ nullptr,
-        /* name = */ IDC_ARROW);
+    HCURSOR hCursor = LoadCursorA(nullptr, IDC_ARROW);
 
     if (hCursor == nullptr) {
         gSystemLog.warn("failed to load cursor {}", getLastError());
@@ -55,7 +54,7 @@ void sys::create(HINSTANCE hInstance) {
     };
 
     if (ATOM atom = RegisterClassExA(&kClass); atom == 0) {
-        assert_last_error(CT_SOURCE_CURRENT, "RegisterClassExA");
+        assertLastError(CT_SOURCE_CURRENT, "RegisterClassExA");
     } else {
         gWindowClass = MAKEINTATOM(atom);
     }
@@ -64,13 +63,10 @@ void sys::create(HINSTANCE hInstance) {
     TCHAR gExecutablePath[kPathMax];
     DWORD gExecutablePathLength = 0;
 
-    gExecutablePathLength = GetModuleFileNameA(
-        /* hModule = */ nullptr,
-        /* lpFilename = */ gExecutablePath,
-        /* nSize = */ kPathMax);
+    gExecutablePathLength = GetModuleFileNameA(nullptr, gExecutablePath, kPathMax);
 
     if (gExecutablePathLength == 0) {
-        assert_last_error(CT_SOURCE_CURRENT, "GetModuleFileNameA");
+        assertLastError(CT_SOURCE_CURRENT, "GetModuleFileNameA");
     }
 
     if (gExecutablePathLength >= kPathMax) {

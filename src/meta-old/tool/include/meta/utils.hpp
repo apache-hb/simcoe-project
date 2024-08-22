@@ -9,6 +9,7 @@ namespace clang {
 }
 
 namespace sm::meta {
+    constexpr inline const char *kReflectTag = "meta";
     constexpr inline const char *kClassTag = "meta_class";
     constexpr inline const char *kInterfaceTag = "meta_interface";
     constexpr inline const char *kEnumTag = "meta_enum";

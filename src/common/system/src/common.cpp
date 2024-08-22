@@ -16,6 +16,6 @@ OsError sys::getLastError() {
 }
 
 CT_NORETURN
-sys::assert_last_error(source_info_t panic, const char *expr) {
+sys::assertLastError(source_info_t panic, const char *expr) {
     sm::vpanic(panic, "win32 {}: {}", getLastError(), expr);
 }
