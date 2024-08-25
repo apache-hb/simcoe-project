@@ -5,6 +5,7 @@
 #include <vector>
 #include <utility>
 #include <filesystem>
+#include <fstream>
 
 #include <fmtlib/format.h>
 

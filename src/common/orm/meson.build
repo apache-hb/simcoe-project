@@ -1,4 +1,4 @@
-orm_include = include_directories('.', 'include')
+orm_include = include_directories('include')
 
 src = [
     'src/orm/error.cpp',
@@ -8,7 +8,9 @@ src = [
     'src/orm/db/common.cpp',
 
     # sqlite3 is always enabled
-    'src/orm/db/sqlite.cpp'
+    'src/orm/db/sqlite.cpp',
+
+    metacc.process('include/orm/core.hpp')
 ]
 
 cfg = configuration_data()
@@ -29,7 +31,7 @@ cfg.set10('ORM_HAS_MYSQL', devapi.found())
 cfg.set10('ORM_HAS_MSSQL', has_mssql)
 cfg.set10('ORM_HAS_ODBC', has_odbc)
 
-deps = [ core, sqlite3 ]
+deps = [ core, sqlite3, meta ]
 
 if oradb_oci.found()
     src += [
@@ -77,8 +79,8 @@ liborm = library('orm', [ src, orm_config ],
 
 orm = declare_dependency(
     link_with : liborm,
-    include_directories : [ orm_include ],
-    dependencies : [ core ]
+    include_directories : [ '.', orm_include, liborm.private_dir_include() ],
+    dependencies : [ core, meta ]
 )
 
 tests = {
@@ -97,47 +99,3 @@ foreach name, source : tests
         kwargs : testkwargs
     )
 endforeach
-
-libxml = dependency('libxml-2.0')
-# llvm = dependency('llvm', components : ['core'], method : 'config-tool', static : true)
-# llvm_libdir = llvm.get_variable(configtool: 'libdir')
-
-deps = [
-    # cpp.find_library('clangBasic', dirs : llvm_libdir),
-    # cpp.find_library('clangDriver', dirs : llvm_libdir),
-    # cpp.find_library('clangLex', dirs : llvm_libdir),
-    # cpp.find_library('clangParse', dirs : llvm_libdir),
-    # cpp.find_library('clangSema', dirs : llvm_libdir),
-    # cpp.find_library('clangAST', dirs : llvm_libdir),
-    # cpp.find_library('clangASTMatchers', dirs : llvm_libdir),
-    # cpp.find_library('clangAnalysis', dirs : llvm_libdir),
-    # cpp.find_library('clangAPINotes', dirs : llvm_libdir),
-    # cpp.find_library('clangFrontend', dirs : llvm_libdir),
-    # cpp.find_library('clangFrontendTool', dirs : llvm_libdir),
-    # cpp.find_library('clangSerialization', dirs : llvm_libdir),
-    # cpp.find_library('clangToolingCore', dirs : llvm_libdir),
-    # cpp.find_library('clangTooling', dirs : llvm_libdir),
-    # cpp.find_library('clangEdit', dirs : llvm_libdir),
-    # cpp.find_library('clangSupport', dirs : llvm_libdir),
-    # cpp.find_library('version'),
-    # llvm,
-
-    libxml,
-    fmtlib,
-]
-
-src = [ 'src/daocc/main.cpp' ]
-
-daoexe = executable('daocc', src,
-    include_directories : 'include',
-    cpp_pch : 'src/daocc/stdafx.hpp',
-    cpp_args : [ '-D_SILENCE_CXX23_ALIGNED_UNION_DEPRECATION_WARNING=1', '-D_ITERATOR_DEBUG_LEVEL=0' ],
-    dependencies : deps,
-    override_options : [ 'b_vscrt=mt' ]
-)
-
-daocc = generator(daoexe,
-    arguments : [ '@INPUT@', '--header', '@OUTPUT0@', '--source', '@OUTPUT1@', '-d', '@DEPFILE@' ],
-    depfile : '@BASENAME@.d',
-    output : [ '@BASENAME@.dao.hpp', '@BASENAME@.dao.cpp' ],
-)

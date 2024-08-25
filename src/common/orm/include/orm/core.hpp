@@ -1,12 +1,15 @@
 #pragma once
 
-#include "core/memory/unique.hpp"
+// #include "meta/meta.hpp"
 
 #include "core/core.hpp"
+#include "core/memory/unique.hpp"
 
 #include <expected>
 #include <span>
 #include <chrono>
+
+#include "core.meta.hpp"
 
 namespace sm::db {
     class ResultSet;
@@ -33,11 +36,13 @@ namespace sm::db {
         using EnvHandle = FnUniquePtr<detail::IEnvironment, &destroyEnvironment>;
     }
 
+    REFLECT()
     enum class DbType {
 #define DB_TYPE(id, str, enabled) id,
 #include "orm/orm.inc"
     };
 
+    REFLECT()
     enum class DataType {
         eInteger,
         eBoolean,
@@ -48,6 +53,7 @@ namespace sm::db {
         eRowId
     };
 
+    REFLECT()
     enum class StatementType {
         eQuery,
         eModify,

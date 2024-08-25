@@ -16,11 +16,6 @@ public:
     }
 
     template<typename... A>
-    void print(fmt::format_string<A...> fmt, A&&... args) {
-        mStream << fmt::vformat(fmt, fmt::make_format_args(args...));
-    }
-
-    template<typename... A>
     void write(fmt::format_string<A...> fmt, A&&... args) {
         writeIndent();
         mStream << fmt::vformat(fmt, fmt::make_format_args(args...));
