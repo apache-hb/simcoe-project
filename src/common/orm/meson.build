@@ -99,3 +99,32 @@ foreach name, source : tests
         kwargs : testkwargs
     )
 endforeach
+
+src = [ 'src/dao/utils.cpp' ]
+
+libdao = library('dao', src,
+    include_directories : 'include',
+    dependencies : orm
+)
+
+dao = declare_dependency(
+    include_directories : 'include',
+    dependencies : orm,
+    link_with : libdao
+)
+
+src = [ 'src/daocc/main.cpp' ]
+
+libxml = dependency('libxml-2.0')
+
+daocc_exe = executable('daocc', src,
+    cpp_pch : 'src/daocc/stdafx.hpp',
+    include_directories : 'include',
+    dependencies : [ core, libxml ]
+)
+
+daocc = generator(daocc_exe,
+    arguments : [ '@INPUT@', '--header', '@OUTPUT0@', '--source', '@OUTPUT1@', '-d', '@DEPFILE@', '@EXTRA_ARGS@' ],
+    output : [ '@BASENAME@.dao.hpp', '@BASENAME@.dao.cpp' ],
+    depfile : '@BASENAME@.d'
+)

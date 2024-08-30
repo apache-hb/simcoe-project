@@ -52,3 +52,33 @@ TEST_CASE("string split") {
         }
     }
 }
+
+
+TEST_CASE("Split all string") {
+    struct SplitAllCase {
+        std::string_view desc;
+        std::string_view input;
+        char delim;
+        std::vector<std::string_view> expected;
+    };
+
+    SplitAllCase cases[] = {
+        { "a string with no seperator", "hello", ',', { "hello" } },
+        { "a string with one seperator", "hello,world", ',', { "hello", "world" } },
+        { "a string with a leading seperator", ",world", ',', { "", "world" } },
+        { "a string with a trailing seperator", "hello,", ',', { "hello", "" } },
+        { "a string with adjacent seperators", "hello,,world", ',', { "hello", "", "world" } }
+    };
+
+    for (const SplitAllCase& it : cases) {
+        GIVEN(it.desc) {
+            THEN("the correct result is generated") {
+                auto result = sm::splitAll(it.input, it.delim);
+                CHECK(result.size() == it.expected.size());
+                for (size_t i = 0; i < result.size(); i++) {
+                    REQUIRE(result[i] == it.expected[i]);
+                }
+            }
+        }
+    }
+}

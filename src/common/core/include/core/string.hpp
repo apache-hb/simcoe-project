@@ -3,6 +3,7 @@
 #include <string>
 
 #include <stdarg.h>
+#include <vector>
 
 namespace sm {
     template<typename T>
@@ -31,6 +32,8 @@ namespace sm {
     };
 
     StringPair split(std::string_view str, char delim);
+
+    std::vector<std::string_view> splitAll(std::string_view str, char delim);
 
     void replaceAll(std::string &str, std::string_view search, std::string_view replace);
 }

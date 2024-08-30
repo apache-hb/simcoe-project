@@ -1,26 +1,24 @@
+#include "core/string.hpp"
 #include "stdafx.hpp"
 
 #include "daocc/writer.hpp"
+#include "dao/dao.hpp"
 
 namespace fs = std::filesystem;
 
 using namespace std::string_view_literals;
 
-struct Type {
-    enum : int {
-        eInt,
-        eBool,
-        eString,
-        eFloat,
-        eBlob
-    };
+using sm::dao::ColumnType;
+using enum ColumnType;
 
-    int kind;
+struct Type {
+    ColumnType kind;
     bool nullable;
     size_t size;
 
     bool isString() const { return kind == eString; }
     bool isBlob() const { return kind == eBlob; }
+    bool isInteger() const { return kind == eInt || kind == eUint || kind == eLong || kind == eUlong; }
     bool isMoveConstructed() const { return isString() || isBlob(); }
 };
 
@@ -69,11 +67,15 @@ static std::string singular(std::string_view text) {
 static std::string makeCxxType(const Type& type, bool optional) {
     auto base = [&]() -> std::string {
         switch (type.kind) {
-            case Type::eInt: return "int";
-            case Type::eBool: return "bool";
-            case Type::eString: return "std::string";
-            case Type::eFloat: return "float";
-            case Type::eBlob: return "std::vector<uint8_t>";
+            case eInt: return "int32_t";
+            case eUint: return "uint32_t";
+            case eLong: return "int64_t";
+            case eUlong: return "uint64_t";
+            case eBool: return "bool";
+            case eString: return "std::string";
+            case eFloat: return "float";
+            case eDouble: return "double";
+            case eBlob: return "std::vector<uint8_t>";
         }
 
         CT_NEVER("Invalid type %d", (int)type.kind);
@@ -82,16 +84,42 @@ static std::string makeCxxType(const Type& type, bool optional) {
     return optional ? fmt::format("std::optional<{}>", base) : base;
 }
 
+#define STRCASE(id) case id: return #id
+
+static std::string makeColumnType(const Type& type) {
+    switch (type.kind) {
+    STRCASE(eInt);
+    STRCASE(eUint);
+    STRCASE(eLong);
+    STRCASE(eUlong);
+    STRCASE(eBool);
+    STRCASE(eString);
+    STRCASE(eFloat);
+    STRCASE(eDouble);
+    STRCASE(eBlob);
+    }
+}
+
 static std::string makeSqlType(const Type& type) {
     switch (type.kind) {
-        case Type::eInt:
-        case Type::eBool: return "INTEGER";
-        case Type::eString: return fmt::format("CHARACTER VARYING({})", type.size);
-        case Type::eFloat: return "REAL";
-        case Type::eBlob: return "BLOB";
+        case eInt:
+        case eUint:
+        case eLong:
+        case eUlong:
+        case eBool: return "INTEGER";
+        case eString:
+            return fmt::format("CHARACTER VARYING({})", type.size);
+        case eFloat:
+        case eDouble:
+            return "REAL";
+        case eBlob: return "BLOB";
     }
 
     CT_NEVER("Invalid type %d", (int)type.kind);
+}
+
+std::vector<std::string_view> lines(const std::string& text) {
+    return sm::splitAll(text, '\n');
 }
 
 struct ForeignKey {
@@ -158,12 +186,15 @@ using Properties = std::map<std::string, std::string>;
 
 static int gError = 0;
 
-static const std::map<std::string, int> kTypeMap = {
-    {"int", Type::eInt},
-    {"bool", Type::eBool},
-    {"text", Type::eString},
-    {"float", Type::eFloat},
-    {"blob", Type::eBlob}
+static const std::map<std::string, ColumnType> kTypeMap = {
+    {"int", eInt},
+    {"uint", eUint},
+    {"long", eLong},
+    {"ulong", eUlong},
+    {"bool", eBool},
+    {"text", eString},
+    {"float", eFloat},
+    {"blob", eBlob}
 };
 
 static Properties getNodeProperties(xmlNodePtr node) {
@@ -214,7 +245,7 @@ static Type buildType(const Properties &props) {
         auto len = expectProperty(props, "length", "0");
 
         return Type {
-            .kind = Type::eString,
+            .kind = ColumnType::eString,
             .nullable = nullable,
             .size = std::stoul(len)
         };
@@ -444,6 +475,179 @@ static int incRead(void *context, char *buffer, int size) {
     return fread(buffer, 1, size, (FILE*)context);
 }
 
+[[maybe_unused]]
+static void emitCreateTable(const Table& table, std::ostream& dst) {
+    Writer writer{dst};
+
+    bool hasConstraints = table.foregin.size() > 0 || table.unique.size() > 0 || table.hasPrimaryKey();
+
+    writer.writeln("CREATE TABLE {} (", table.name);
+
+    writer.indent();
+
+    for (size_t j = 0; j < table.columns.size(); j++) {
+        const auto& column = table.columns[j];
+
+        auto sqlType = makeSqlType(column.type);
+        writer.write("{} {}", column.name, sqlType);
+
+        if (!column.optional) {
+            writer.print(" NOT NULL");
+        }
+
+        if (table.isPrimaryKey(column)) {
+            if (column.autoIncrement) {
+                writer.print(" AUTOINCREMENT");
+            }
+        }
+
+        if (column.type.isString()) {
+            writer.print(" CHECK(NOT IS_BLANK_STRING({}))", column.name);
+        }
+
+        const char *tail = j + 1 < table.columns.size() ? "," : "";
+        if (hasConstraints)
+            tail = ",";
+
+        writer.print("{}\n", tail);
+    }
+
+    if (table.hasPrimaryKey()) {
+        writer.write("CONSTRAINT pk_{} PRIMARY KEY ({})\n", table.name, table.primaryKey);
+    }
+
+    for (size_t j = 0; j < table.foregin.size(); j++) {
+        const auto& foreign = table.foregin[j];
+        auto tail = j + 1 < table.foregin.size() ? "," : "";
+        writer.write("CONSTRAINT fk_{0}_{1}_to_{2}_{3} FOREIGN KEY ({1}) REFERENCES {2}({3}){4}\n", table.name, foreign.column, foreign.foreignTable, foreign.foreignColumn, tail);
+    }
+
+    writer.dedent();
+
+    writer.writeln(");");
+}
+
+static void emitCxxBody(
+    const Root& dao, const fs::path& inputPath,
+    std::ostream& headerStream, const fs::path& headerPath,
+    std::ostream& sourceStream
+) {
+    Writer header{headerStream};
+    Writer source{sourceStream};
+
+    source.writeln("#include \"{}\"", headerPath);
+
+    header.writeln("#pragma once");
+    header.writeln();
+    header.writeln("#include <string>");
+    header.writeln("#include <vector>");
+    header.writeln("#include <optional>");
+    header.writeln("#include \"dao/dao.hpp\"");
+    header.writeln();
+    for (auto path : gImportPaths) {
+        if (path.filename() == inputPath)
+            continue;
+        header.writeln("#include \"{}\"", path.replace_extension(".dao.hpp").filename());
+    }
+    header.writeln();
+    header.writeln("namespace {}::dao {{", dao.name);
+    header.indent();
+
+    for (size_t i = 0; i < dao.tables.size(); i++) {
+        const auto& table = dao.tables[i];
+        if (table.imported)
+            continue;
+
+        header.writeln();
+
+        auto className = singular(pascalCase(table.name));
+
+        header.writeln("struct {} {{", className);
+        header.indent();
+
+        header.writeln();
+        header.writeln("static const sm::dao::TableInfo& getTableInfo() noexcept;");
+        header.writeln("static constexpr std::string_view kSchemaName = \"{}\";", dao.name);
+        header.writeln("static constexpr std::string_view kTableName = \"{}\";", table.name);
+        header.writeln();
+
+        source.writeln("template<> struct sm::dao::detail::TableInfoImpl<{}::dao::{}> final {{", dao.name, className);
+        source.indent();
+        source.writeln("using ClassType = {}::dao::{};", dao.name, className);
+        source.writeln("using ColumnType = sm::dao::ColumnType;");
+        source.writeln("static constexpr ColumnInfo kColumns[] = {{");
+        source.indent();
+        for (const auto& column : table.columns) {
+            auto colType = makeColumnType(column.type);
+            source.writeln("ColumnInfo {{ \"{}\", offsetof(ClassType, {}), ColumnType::{} }},", column.name, camelCase(column.name), colType);
+        }
+        source.dedent();
+        source.writeln("}};");
+        source.writeln();
+
+        source.writeln("static constexpr TableInfo kTableInfo = {{ \"{}\", \"{}\", kColumns }};", dao.name, table.name);
+        source.dedent();
+        source.writeln("}};");
+
+        source.writeln("const sm::dao::TableInfo& {}::dao::{}::getTableInfo() noexcept {{", dao.name, className);
+        source.indent();
+        source.writeln("return sm::dao::detail::TableInfoImpl<{}::dao::{}>::kTableInfo;", dao.name, className);
+        source.dedent();
+        source.writeln("}}");
+
+        for (const auto& column : table.columns) {
+            auto cxxType = makeCxxType(column.type, column.optional);
+            header.writeln("{} {};", cxxType, camelCase(column.name));
+        }
+
+#if 0
+        header.writeln();
+
+        header.dedent();
+        header.writeln("public:");
+        header.indent();
+
+        header.write("{}(", tableName);
+        for (size_t i = 0; i < table.columns.size(); i++) {
+            const auto& column = table.columns[i];
+            auto cxxType = makeCxxType(column.type, column.optional);
+            header.print("{} {}{}", cxxType, camelCase(column.name), i + 1 < table.columns.size() ? ", " : "");
+        }
+        header.print(") noexcept\n");
+        header.indent();
+
+        for (size_t j = 0; j < table.columns.size(); j++) {
+            const auto& column = table.columns[j];
+            auto fieldName = pascalCase(column.name);
+            auto paramName = camelCase(column.name);
+            char sep = (j == 0) ? ':' : ',';
+            if (column.type.isMoveConstructed()) {
+                header.writeln("{} m{}(std::move({}))", sep, fieldName, paramName);
+            } else {
+                header.writeln("{} m{}({})", sep, fieldName, paramName);
+            }
+        }
+
+        header.dedent();
+        header.writeln("{{ }}");
+        header.writeln();
+
+        for (const auto& column : table.columns) {
+            auto fieldName = pascalCase(column.name);
+            auto methodName = pascalCase(column.name);
+            header.writeln("{} get{}() const noexcept {{ return m{}; }}", makeCxxType(column.type, column.optional), methodName, fieldName);
+        }
+#endif
+
+        header.dedent();
+        header.writeln("}};");
+    }
+
+    header.dedent();
+    header.writeln("}}");
+
+}
+
 int main(int argc, const char **argv) {
     LIBXML_TEST_VERSION
 
@@ -505,135 +709,8 @@ int main(int argc, const char **argv) {
 
     std::ofstream headerStream{headerPath, std::ios::out | std::ios::trunc};
     std::ofstream sourceStream{sourcePath, std::ios::out | std::ios::trunc};
-    Writer header{headerStream};
-    Writer source{sourceStream};
 
-    std::ostringstream sqliteStream;
-    std::ostringstream orclStream;
-    std::ostringstream pgsqlStream;
-    Writer sqlite{sqliteStream};
-    Writer orcl{orclStream};
-    Writer pgsql{pgsqlStream};
-
-    source.writeln("#include \"{}\"", headerPath.filename());
-
-    header.writeln("#pragma once");
-    header.writeln();
-    header.writeln("#include <string>");
-    header.writeln("#include <vector>");
-    header.writeln("#include <optional>");
-    header.writeln();
-    for (auto path : gImportPaths) {
-        if (path.filename() == input.filename())
-            continue;
-        header.writeln("#include \"{}\"", path.replace_extension(".dao.hpp").filename());
-    }
-    header.writeln();
-    header.writeln("namespace {}::dao {{", dao.name);
-    header.indent();
-
-    for (size_t i = 0; i < dao.tables.size(); i++) {
-        const auto& table = dao.tables[i];
-        if (table.imported)
-            continue;
-
-        header.writeln();
-
-        auto tableName = singular(pascalCase(table.name));
-
-        bool hasConstraints = table.foregin.size() > 0 || table.unique.size() > 0 || table.hasPrimaryKey();
-
-        header.writeln("/// CREATE TABLE {} (", table.name);
-        for (size_t j = 0; j < table.columns.size(); j++) {
-            const auto& column = table.columns[j];
-
-            auto sqlType = makeSqlType(column.type);
-            header.write("///     {} {}", column.name, sqlType);
-
-            if (!column.optional) {
-                header.print(" NOT NULL");
-            }
-
-            if (table.isPrimaryKey(column)) {
-                if (column.autoIncrement) {
-                    header.print(" AUTOINCREMENT");
-                }
-            }
-
-            if (column.type.isString()) {
-                header.print(" CHECK(NOT IS_BLANK_STRING({}))", column.name);
-            }
-
-            const char *tail = j + 1 < table.columns.size() ? "," : "";
-            if (hasConstraints)
-                tail = ",";
-
-            header.print("{}\n", tail);
-        }
-
-        if (table.hasPrimaryKey()) {
-            header.write("///     CONSTRAINT pk_{} PRIMARY KEY ({})\n", table.name, table.primaryKey);
-        }
-
-        for (size_t j = 0; j < table.foregin.size(); j++) {
-            const auto& foreign = table.foregin[j];
-            auto tail = j + 1 < table.foregin.size() ? "," : "";
-            header.write("///     CONSTRAINT fk_{0}_{1}_to_{2}_{3} FOREIGN KEY ({1}) REFERENCES {2}({3}){4}\n", table.name, foreign.column, foreign.foreignTable, foreign.foreignColumn, tail);
-        }
-
-        header.writeln("/// );");
-
-        header.writeln("class {} {{", tableName);
-        header.indent();
-
-        for (const auto& column : table.columns) {
-            auto cxxType = makeCxxType(column.type, column.optional);
-            header.writeln("{} m{};", cxxType, pascalCase(column.name));
-        }
-
-        header.writeln();
-
-        header.dedent();
-        header.writeln("public:");
-        header.indent();
-
-        header.write("{}(", tableName);
-        for (size_t i = 0; i < table.columns.size(); i++) {
-            const auto& column = table.columns[i];
-            auto cxxType = makeCxxType(column.type, column.optional);
-            header.print("{} {}{}", cxxType, camelCase(column.name), i + 1 < table.columns.size() ? ", " : "");
-        }
-        header.print(") noexcept\n");
-        header.indent();
-
-        for (size_t j = 0; j < table.columns.size(); j++) {
-            const auto& column = table.columns[j];
-            auto fieldName = pascalCase(column.name);
-            auto paramName = camelCase(column.name);
-            char sep = (j == 0) ? ':' : ',';
-            if (column.type.isMoveConstructed()) {
-                header.writeln("{} m{}(std::move({}))", sep, fieldName, paramName);
-            } else {
-                header.writeln("{} m{}({})", sep, fieldName, paramName);
-            }
-        }
-
-        header.dedent();
-        header.writeln("{{ }}");
-        header.writeln();
-
-        for (const auto& column : table.columns) {
-            auto fieldName = pascalCase(column.name);
-            auto paramName = camelCase(column.name);
-            header.writeln("{} {}() const noexcept {{ return m{}; }}", makeCxxType(column.type, column.optional), column.name, fieldName);
-        }
-
-        header.dedent();
-        header.writeln("}};");
-    }
-
-    header.dedent();
-    header.writeln("}}");
+    emitCxxBody(dao, input.filename(), headerStream, headerPath.filename(), sourceStream);
 
     return gError;
 }

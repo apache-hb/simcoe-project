@@ -20,6 +20,15 @@ static constexpr std::string_view kWarningComment = R"(
 /* Changes to this file will be lost. */
 )";
 
+static std::string getNamespaceAsString(const NamedDecl& decl) {
+    std::string name;
+    llvm::raw_string_ostream OS(name);
+    decl.printNestedNameSpecifier(OS);
+
+    // trim trailing ::
+    return OS.str().substr(0, name.size() - 2);
+}
+
 class StubFile final : public vfs::File {
     vfs::Status mStatus;
 
@@ -124,17 +133,22 @@ public:
 };
 
 class CmdAfterConsumer final : public ASTConsumer {
-    static bool shouldSkipDecl(const Decl& decl) {
+    static bool isMetaTarget(const Decl& decl) {
         if (!decl.getLocation().isFileID())
-            return true;
+            return false;
 
         const SourceManager &sm = decl.getASTContext().getSourceManager();
         if (const FileEntry *entry = sm.getFileEntryForID(sm.getFileID(decl.getLocation()))) {
             fs::path realpath{entry->tryGetRealPathName().str()};
-            return !fs::equivalent(realpath, gInputPath);
+            if (!fs::equivalent(realpath, gInputPath))
+                return false;
         }
 
-        return true;
+        if (const AnnotateAttr *attr = decl.getAttr<AnnotateAttr>()) {
+            return attr->getAnnotation() == kReflectTag;
+        }
+
+        return false;
     }
 
     DiagnosticsEngine &mDiag;
@@ -157,6 +171,37 @@ class CmdAfterConsumer final : public ASTConsumer {
 
         mHeader.writeln("#pragma once");
         mHeader.writeln("#include \"meta/meta.hpp\"");
+    }
+
+    void reflectEnum(const EnumDecl& decl) {
+        auto name = decl.getNameAsString();
+        auto ns = getNamespaceAsString(decl);
+        mHeader.writeln("namespace {} {{", ns);
+        mHeader.indent();
+
+        if (auto underlying = decl.getIntegerType(); underlying->isBuiltinType()) {
+            mHeader.writeln("enum class {};", name);
+        } else {
+            mHeader.writeln("enum class {} : {};", name, underlying->getTypeClassName());
+        }
+        mHeader.writeln("std::string_view toString({} it) noexcept;", name);
+
+        mSource.writeln("std::string_view {}::toString({} it) noexcept {{", ns, name);
+        mSource.indent();
+
+        mSource.writeln("switch (it) {{");
+        mSource.writeln("using enum {};", name);
+        for (auto *enumerator : decl.enumerators()) {
+            mSource.writeln("case {0}: return \"{0}\";", enumerator->getNameAsString());
+        }
+        mSource.writeln("default: return \"unknown\";");
+        mSource.writeln("}}");
+
+        mSource.dedent();
+        mSource.writeln("}}");
+
+        mHeader.dedent();
+        mHeader.writeln("}} // namespace {}", ns);
     }
 
 public:
@@ -186,7 +231,7 @@ public:
     }
 
     void HandleTagDeclDefinition(TagDecl *decl) override {
-        if (shouldSkipDecl(*decl))
+        if (!isMetaTarget(*decl))
             return;
 
         auto id = fmt::format("REFLECT_IMPL_{}", decl->getNameAsString());
@@ -194,7 +239,13 @@ public:
         mHeader.writeln("#if defined({})", id);
         mHeader.writeln("#   undef {}", id);
         mHeader.writeln("#endif");
+
         mHeader.writeln("#define {}", id);
+        if (decl->isEnum()) {
+            reflectEnum(*cast<EnumDecl>(decl));
+        } else {
+            decl->dump(llvm::outs());
+        }
     }
 };
 

@@ -1,4 +1,5 @@
 #include "config/option.hpp"
+#include "dao/utils.hpp"
 #include "editor/panels/viewport.hpp"
 #include "input/toggle.hpp"
 #include "logs/logs.hpp"
@@ -28,7 +29,8 @@
 #include "orm/connection.hpp"
 
 #include "core/defer.hpp"
-#include <exception>
+
+#include "editor.dao.hpp"
 
 using namespace sm;
 using namespace sm::math;
@@ -243,29 +245,19 @@ public:
             }
         };
 
-        doUpdate(R"(
-            CREATE TABLE IF NOT EXISTS windowplacement (
-                length INTEGER NOT NULL,
-                flags INTEGER NOT NULL,
-                show_cmd INTEGER NOT NULL,
-                min_position_x INTEGER NOT NULL,
-                min_position_y INTEGER NOT NULL,
-                max_position_x INTEGER NOT NULL,
-                max_position_y INTEGER NOT NULL,
-                normal_position_left INTEGER NOT NULL,
-                normal_position_top INTEGER NOT NULL,
-                normal_position_right INTEGER NOT NULL,
-                normal_position_bottom INTEGER NOT NULL
-            );
-        )");
+        if (!dao::tableExists<editor::dao::WindowPlacement>(connection)) {
+            if (db::DbError error = dao::createTable<editor::dao::WindowPlacement>(connection)) {
+                logs::gAssets.warn("update failed: {}", error.message());
+            }
+        }
 
         doUpdate(R"(
-            CREATE TRIGGER IF NOT EXISTS windowplacement_insert
-                BEFORE INSERT ON windowplacement
+            CREATE TRIGGER IF NOT EXISTS window_placement_insert
+                BEFORE INSERT ON window_placement
                 BEGIN
-                    IF (SELECT COUNT(*) FROM windowplacement) > 0 THEN
-                        SELECT RAISE(FAIL, 'windowplacement table is a singleton');
-                    END;
+                    IF (SELECT COUNT(*) FROM window_placement) > 0 THEN
+                        SELECT RAISE(FAIL, 'window_placement table is a singleton');
+                    END IF;
                 END;
         )");
     }

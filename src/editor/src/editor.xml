@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root name="editor">
+    <table name="window_placement" singleton="true">
+        <column name="length"            type="uint" />
+        <column name="flags"             type="uint" />
+        <column name="show_cmd"          type="uint" />
+        <column name="min_position_x"    type="long" />
+        <column name="min_position_y"    type="long" />
+        <column name="max_position_x"    type="long" />
+        <column name="max_position_y"    type="long" />
+        <column name="normal_pos_left"   type="long" />
+        <column name="normal_pos_top"    type="long" />
+        <column name="normal_pos_right"  type="long" />
+        <column name="normal_pos_bottom" type="long" />
+    </table>
+</root>

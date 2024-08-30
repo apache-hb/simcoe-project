@@ -527,7 +527,7 @@ namespace sm::config {
     };
 
     template<typename T>
-    struct ConsoleVariable : public config::Option<T> {
+    struct ConsoleVariable final : public config::Option<T> {
         using Super = config::Option<T>;
         using Builder = Super::Builder;
 
@@ -562,7 +562,7 @@ namespace sm {
     constinit inline config::ConfigWrapper<config::Category,    config::Group&>   group{};
 
     template<config::detail::IsValidEnum T>
-    constexpr auto val(T value) {
+    constexpr auto val(T value) noexcept {
         using Inner = config::detail::EnumInnerType<T>;
         using Builder = config::EnumValueBuilder<Inner>;
 

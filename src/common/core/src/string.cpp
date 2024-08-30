@@ -109,6 +109,21 @@ StringPair sm::split(std::string_view str, char delim) {
     return {str.substr(0, index), str.substr(index + 1)};
 }
 
+std::vector<std::string_view> sm::splitAll(std::string_view str, char delim) {
+    std::vector<std::string_view> result;
+    size_t start = 0;
+    size_t index = 0;
+
+    do {
+        index = str.find(delim, start);
+        result.push_back(str.substr(start, index - start));
+        start = index + 1;
+    } while (index != std::string_view::npos);
+
+    return result;
+}
+
+
 void sm::replaceAll(std::string &str, std::string_view search, std::string_view replace) {
     size_t pos = 0;
     while ((pos = str.find(search, pos)) != std::string::npos) {

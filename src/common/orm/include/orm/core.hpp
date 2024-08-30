@@ -36,33 +36,36 @@ namespace sm::db {
         using EnvHandle = FnUniquePtr<detail::IEnvironment, &destroyEnvironment>;
     }
 
-    REFLECT()
+    REFLECT_ENUM(DbType)
     enum class DbType {
 #define DB_TYPE(id, str, enabled) id,
 #include "orm/orm.inc"
     };
 
-    REFLECT()
+    REFLECT_ENUM(DataType)
     enum class DataType {
-        eInteger,
-        eBoolean,
-        eString,
-        eDouble,
-        eBlob,
-        eNull,
-        eRowId
+        eInteger, // int_least32_t
+        eBoolean, // bool
+        eString, // std::string
+        eDouble, // double
+        eBlob, // std::vector<std::byte>
+        eNull, // ???
+        eRowId // ???
+    };
+
+    REFLECT_ENUM(StatementType)
+    enum class StatementType {
+        eQuery, // select
+        eModify, // update
+        eDefine, // create
+        eControl // alter
     };
 
     REFLECT()
-    enum class StatementType {
-        eQuery,
-        eModify,
-        eDefine,
-        eControl
-    };
-
     struct Version {
-        std::string name;
+        REFLECT_BODY(Version)
+
+        std::string name; ///< user facing version string
         int major;
         int minor;
         int patch;

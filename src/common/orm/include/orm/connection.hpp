@@ -169,6 +169,4 @@ namespace sm::db {
 
         std::expected<Connection, DbError> connect(const ConnectionConfig& config) noexcept;
     };
-
-    std::string_view toString(DbType type) noexcept;
 }
