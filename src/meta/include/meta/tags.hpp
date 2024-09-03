@@ -1,6 +1,6 @@
 #pragma once
 
-namespace sm::meta::detail {
+namespace sm::reflect::detail {
     enum ReflectTagType {
         eNone = 0,
         eAnnotate = 1,

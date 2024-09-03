@@ -17,3 +17,4 @@
 #define METHOD(...) REFLECT(__VA_ARGS__)
 
 #include "tags.hpp"
+#include "class.hpp"

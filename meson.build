@@ -33,6 +33,8 @@ cpp = meson.get_compiler('cpp')
 cc = meson.get_compiler('c')
 is_windows = host_machine.system() == 'windows'
 
+add_global_arguments('-D_ITERATOR_DEBUG_LEVEL=0', language : 'cpp')
+
 if is_windows
     add_project_arguments('-DNOMINMAX', language : [ 'c', 'cpp' ])
 endif

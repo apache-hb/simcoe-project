@@ -1,8 +1,8 @@
 #include "stdafx.hpp"
 
 #include "writer.hpp"
-#include "clang/Basic/Diagnostic.h"
-#include <filesystem>
+
+#include "core/string.hpp"
 
 using namespace llvm;
 using namespace clang;
@@ -20,6 +20,14 @@ static constexpr std::string_view kWarningComment = R"(
 /* Changes to this file will be lost. */
 )";
 
+static void replaceAll(std::string &str, std::string_view search, std::string_view replace) {
+    size_t pos = 0;
+    while ((pos = str.find(search, pos)) != std::string::npos) {
+        str.replace(pos, search.length(), replace);
+        pos += replace.length();
+    }
+}
+
 static std::string getNamespaceAsString(const NamedDecl& decl) {
     std::string name;
     llvm::raw_string_ostream OS(name);
@@ -27,6 +35,12 @@ static std::string getNamespaceAsString(const NamedDecl& decl) {
 
     // trim trailing ::
     return OS.str().substr(0, name.size() - 2);
+}
+
+static std::string makePackageName(std::string_view name) {
+    std::string result{name};
+    replaceAll(result, "::", ".");
+    return result;
 }
 
 class StubFile final : public vfs::File {
@@ -173,7 +187,7 @@ class CmdAfterConsumer final : public ASTConsumer {
         mHeader.writeln("#include \"meta/meta.hpp\"");
     }
 
-    void reflectEnum(const EnumDecl& decl) {
+    void reflectEnum(const EnumDecl& decl, std::string_view id) {
         auto name = decl.getNameAsString();
         auto ns = getNamespaceAsString(decl);
         mHeader.writeln("namespace {} {{", ns);
@@ -202,6 +216,36 @@ class CmdAfterConsumer final : public ASTConsumer {
 
         mHeader.dedent();
         mHeader.writeln("}} // namespace {}", ns);
+
+        mHeader.writeln("#define {}", id);
+    }
+
+    void reflectRecord(const CXXRecordDecl& decl, std::string_view id) {
+        auto name = decl.getNameAsString();
+        auto ns = getNamespaceAsString(decl);
+        auto package = makePackageName(ns);
+
+        mHeader.writeln("namespace {} {{", ns);
+        mHeader.indent();
+
+        mHeader.dedent();
+        mHeader.writeln("}} // namespace {}", ns);
+
+        mHeader.writeln("#define {} \\", id);
+        mHeader.indent();
+        mHeader.writeln("public: \\");
+        mHeader.indent();
+        mHeader.writeln("static const sm::reflect::Class& getClass() noexcept; \\");
+        mHeader.dedent();
+        mHeader.writeln("{}", decl.isClass() ? "private:" : "public:");
+        mHeader.dedent();
+
+        mSource.writeln("template<> struct sm::reflect::detail::ClassImpl<{}::{}> {{", ns, name);
+        mSource.indent();
+        mSource.writeln("static constexpr std::string_view kName = \"{}\";", name);
+        mSource.writeln("static constexpr std::string_view kPackage = \"{}\";", package);
+        mSource.dedent();
+        mSource.writeln("}};");
     }
 
 public:
@@ -240,9 +284,10 @@ public:
         mHeader.writeln("#   undef {}", id);
         mHeader.writeln("#endif");
 
-        mHeader.writeln("#define {}", id);
         if (decl->isEnum()) {
-            reflectEnum(*cast<EnumDecl>(decl));
+            reflectEnum(*cast<EnumDecl>(decl), id);
+        } else if (decl->isRecord()) {
+            reflectRecord(*cast<CXXRecordDecl>(decl), id);
         } else {
             decl->dump(llvm::outs());
         }

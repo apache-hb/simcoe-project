@@ -35,4 +35,9 @@ namespace sm::reflect {
         bool hasSuperClass() const noexcept { return mSuperClass != nullptr; }
         const Class& getSuperClass() const noexcept { return *mSuperClass; }
     };
+
+    namespace detail {
+        template<typename T>
+        class ClassImpl;
+    }
 }

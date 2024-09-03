@@ -21,7 +21,7 @@ namespace sm::meta::detail {
 #   define PROPERTY(...) [[simcoe::meta_property(__VA_ARGS__)]]
 #   define METHOD(...) [[simcoe::meta_method(__VA_ARGS__)]]
 #   define CASE(...) [meta_case(__VA_ARGS__)]
-#   define REFLECT_BODY(ID) [[msvc::no_unique_address]] sm::meta::detail::Empty __reflect_body;
+#   define REFLECT_BODY(ID)
 #   include "tags.hpp"
 using namespace sm::meta::tags;
 #else

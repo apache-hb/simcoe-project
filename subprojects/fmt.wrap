@@ -1,13 +1,11 @@
-[wrap-git]
-directory = fmt-10.1.1
+[wrap-file]
+directory = fmt-11.0.2
 
-url = https://github.com/fmtlib/fmt.git
-revision = head
-depth = 1
+source_url = https://github.com/fmtlib/fmt/releases/download/11.0.2/fmt-11.0.2.zip
+source_filename = fmt-11.0.2.zip
+source_hash = 40fc58bebcf38c759e11a7bd8fdc163507d2423ef5058bba7f26280c5b9c5465
 
 patch_directory = fmt
-
-diff_files = fmt/noprint.patch
 
 [provide]
 fmt = fmt_dep

@@ -1,7 +1,8 @@
 #pragma once
 
 #include <span>
-namespace sm::meta {
+
+namespace sm::reflect {
     enum class TypeClass {
         eInteger,
         eReal,
