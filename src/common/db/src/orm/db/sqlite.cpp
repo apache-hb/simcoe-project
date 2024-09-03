@@ -1,4 +1,3 @@
-#include "sqliteInt.h"
 #include "stdafx.hpp"
 
 #include "common.hpp"
@@ -302,6 +301,25 @@ class SqliteConnection final : public detail::IConnection {
         return DbError::ok();
     }
 
+    static bool isBlankString(const char *text) noexcept {
+        while (*text)
+            if (!isspace(*text))
+                return false;
+
+        return true;
+    }
+
+    static void isBlankStringImpl(sqlite3_context *ctx, int argc, sqlite3_value **argv) {
+        if (argc != 1)
+            return;
+
+        const char *text = (const char*)sqlite3_value_text(argv[0]);
+        if (text == nullptr)
+            return;
+
+        sqlite3_result_int(ctx, isBlankString(text));
+    }
+
 public:
     SqliteConnection(sqlite3 *connection) noexcept
         : mConnection(connection)
@@ -314,6 +332,10 @@ public:
 
         if (int err = sqlite3_prepare_v2(mConnection, "ROLLBACK;", -1, &mRollbackStmt, nullptr))
             CT_NEVER("Failed to prepare ROLLBACK statement: %s (%d)", sqlite3_errmsg(connection), err);
+
+        int err = sqlite3_create_function(mConnection, "IS_BLANK_STRING", 1, SQLITE_UTF8 | SQLITE_DETERMINISTIC, nullptr, isBlankStringImpl, nullptr, nullptr);
+        if (err != SQLITE_OK)
+            CT_NEVER("Failed to create IS_BLANK_STRING function: %s (%d)", sqlite3_errmsg(connection), err);
     }
 };
 

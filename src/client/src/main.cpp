@@ -130,7 +130,7 @@ public:
 constinit static DefaultSystemError gDefaultError{};
 static logs::FileChannel gFileChannel{};
 
-static void common_init(void) {
+static void commonInit(void) {
     bt_init();
     os_init();
 
@@ -303,7 +303,7 @@ static int client_main(sys::ShowWindow show) {
     return 0;
 }
 
-static int common_main(sys::ShowWindow show) {
+static int commonMain(sys::ShowWindow show) {
     logs::gGlobal.info("SMC_DEBUG = {}", SMC_DEBUG);
     logs::gGlobal.info("CTU_DEBUG = {}", CTU_DEBUG);
 
@@ -315,7 +315,7 @@ static int common_main(sys::ShowWindow show) {
 }
 
 int main(int argc, const char **argv) {
-    common_init();
+    commonInit();
 
     sm::Span<const char*> args{argv, size_t(argc)};
     logs::gGlobal.info("args = [{}]", fmt::join(args, ", "));
@@ -327,11 +327,11 @@ int main(int argc, const char **argv) {
         return (err == -1) ? 0 : err; // TODO: this is a little silly, should wrap in a type
     }
 
-    return common_main(sys::ShowWindow::eShow);
+    return commonMain(sys::ShowWindow::eShow);
 }
 
 int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
-    common_init();
+    commonInit();
 
     logs::gGlobal.info("lpCmdLine = {}", lpCmdLine);
     logs::gGlobal.info("nShowCmd = {}", nShowCmd);
@@ -341,5 +341,5 @@ int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdL
     sys::create(GetModuleHandleA(nullptr));
     defer { sys::destroy(); };
 
-    return common_main(sys::ShowWindow{nShowCmd});
+    return commonMain(sys::ShowWindow{nShowCmd});
 }

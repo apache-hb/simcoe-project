@@ -1,4 +1,5 @@
 #include "core/string.hpp"
+#include "fmt/ranges.h"
 #include "stdafx.hpp"
 
 #include "daocc/writer.hpp"
@@ -10,6 +11,7 @@ using namespace std::string_view_literals;
 
 using sm::dao::ColumnType;
 using enum ColumnType;
+using sm::dao::OnConflict;
 
 struct Type {
     ColumnType kind;
@@ -64,6 +66,17 @@ static std::string singular(std::string_view text) {
     return std::string{text};
 }
 
+static std::string onConflictToString(OnConflict conflict) noexcept {
+    switch (conflict) {
+        case OnConflict::eRollback: return "OnConflict::eRollback";
+        case OnConflict::eIgnore: return "OnConflict::eIgnore";
+        case OnConflict::eReplace: return "OnConflict::eReplace";
+        case OnConflict::eAbort: return "OnConflict::eAbort";
+    }
+
+    CT_NEVER("Invalid on conflict value: %d", (int)conflict);
+}
+
 static std::string makeCxxType(const Type& type, bool optional) {
     auto base = [&]() -> std::string {
         switch (type.kind) {
@@ -100,29 +113,12 @@ static std::string makeColumnType(const Type& type) {
     }
 }
 
-static std::string makeSqlType(const Type& type) {
-    switch (type.kind) {
-        case eInt:
-        case eUint:
-        case eLong:
-        case eUlong:
-        case eBool: return "INTEGER";
-        case eString:
-            return fmt::format("CHARACTER VARYING({})", type.size);
-        case eFloat:
-        case eDouble:
-            return "REAL";
-        case eBlob: return "BLOB";
-    }
-
-    CT_NEVER("Invalid type %d", (int)type.kind);
-}
-
 std::vector<std::string_view> lines(const std::string& text) {
     return sm::splitAll(text, '\n');
 }
 
 struct ForeignKey {
+    std::string name;
     std::string column;
 
     std::string foreignTable;
@@ -131,6 +127,7 @@ struct ForeignKey {
 
 struct Unique {
     std::string name;
+    OnConflict onConflict = OnConflict::eRollback;
     std::vector<std::string> columns;
 };
 
@@ -151,30 +148,66 @@ struct Column {
 struct Table {
     std::string name;
     std::string primaryKey;
+    OnConflict onConflict = OnConflict::eRollback;
     std::string schema;
     std::vector<Column> columns;
     std::vector<List> lists;
     std::vector<Unique> unique;
     std::vector<ForeignKey> foregin;
     bool imported = false;
+    bool syntheticPrimaryKey = false;
+
+    std::vector<size_t> getColumnIndices(const Unique& unique) const noexcept {
+        std::vector<size_t> indices;
+        indices.reserve(unique.columns.size());
+        for (const auto& column : unique.columns) {
+            indices.push_back(getColumnIndex(column));
+        }
+
+        return indices;
+    }
 
     bool isPrimaryKey(const Column& column) const {
         return primaryKey == column.name;
     }
 
-    std::optional<Column> getPrimaryKey() const {
-        for (const auto& column : columns) {
-            if (column.name == primaryKey) {
-                return column;
+    size_t getPrimaryKeyIndex() const {
+        for (size_t i = 0; i < columns.size(); i++) {
+            if (columns[i].name == primaryKey) {
+                return i;
             }
         }
 
-        return std::nullopt;
+        return SIZE_MAX;
+    }
+
+    std::optional<Column> getPrimaryKey() const {
+        size_t idx = getPrimaryKeyIndex();
+        if (idx == SIZE_MAX) {
+            return std::nullopt;
+        }
+
+        return columns[idx];
     }
 
     bool hasPrimaryKey() const {
-        return !primaryKey.empty();
+        return getPrimaryKeyIndex() != SIZE_MAX;
     }
+
+    size_t getColumnIndex(std::string_view name) const {
+        for (size_t i = 0; i < columns.size(); i++) {
+            if (columns[i].name == name) {
+                return i;
+            }
+        }
+
+        return SIZE_MAX;
+    }
+
+    bool columnExists(std::string_view name) const {
+        return getColumnIndex(name) != SIZE_MAX;
+    }
+
 };
 
 struct Root {
@@ -186,6 +219,12 @@ using Properties = std::map<std::string, std::string>;
 
 static int gError = 0;
 
+template<typename... A>
+static void postError(fmt::format_string<A...> msg, A&&... args) {
+    fmt::println(stderr, msg, std::forward<A>(args)...);
+    gError = 1;
+}
+
 static const std::map<std::string, ColumnType> kTypeMap = {
     {"int", eInt},
     {"uint", eUint},
@@ -195,6 +234,13 @@ static const std::map<std::string, ColumnType> kTypeMap = {
     {"text", eString},
     {"float", eFloat},
     {"blob", eBlob}
+};
+
+static const std::map<std::string, OnConflict> kOnConflictMap = {
+    {"rollback", OnConflict::eRollback},
+    {"ignore", OnConflict::eIgnore},
+    {"replace", OnConflict::eReplace},
+    {"abort", OnConflict::eAbort}
 };
 
 static Properties getNodeProperties(xmlNodePtr node) {
@@ -212,8 +258,7 @@ static bool nodeIs(xmlNodePtr node, std::string_view name) {
 
 static bool expectNode(xmlNodePtr node, std::string_view name) {
     if (!nodeIs(node, name)) {
-        fmt::println(stderr, "Unexpected element: {}, expected {}", (char*)node->name, name);
-        gError = 1;
+        postError("Unexpected element: {}, expected {}", (char*)node->name, name);
         return false;
     }
 
@@ -233,9 +278,16 @@ static std::string expectProperty(const Properties &props, std::string_view key,
         return it->second;
     }
 
-    gError = 1;
-    fmt::println(stderr, "Missing property: {}", key);
+    postError("Missing property: {}", key);
     return std::string{def};
+}
+
+static std::optional<ColumnType> findType(const std::string& name) {
+    if (auto it = kTypeMap.find(name); it != kTypeMap.end()) {
+        return it->second;
+    }
+
+    return std::nullopt;
 }
 
 static Type buildType(const Properties &props) {
@@ -251,13 +303,14 @@ static Type buildType(const Properties &props) {
         };
     }
 
-    if (auto it = kTypeMap.find(type); it == kTypeMap.end()) {
-        fmt::println(stderr, "Unknown type: {}", type);
+    auto it = findType(type);
+    if (!it.has_value()) {
+        postError("Unknown type: {}", type);
         return {};
     }
 
     return Type {
-        .kind = kTypeMap.at(type),
+        .kind = it.value(),
         .nullable = nullable,
         .size = 0
     };
@@ -289,12 +342,15 @@ static void buildDaoConstraint(Table& parent, Column& column, xmlNodePtr node) {
         auto split = splitString(references, '.');
 
         if (split.size() != 2) {
-            fmt::println(stderr, "Invalid references: {}", references);
-            gError = 1;
+            postError("Invalid references: {}", references);
             return;
         }
 
+        auto id = fmt::format("fk_{}_{}_to_{}_{}", parent.name, column.name, split[0], split[1]);
+        auto fkName = getOrDefault(props, "name", id);
+
         ForeignKey foreign = {
+            .name = fkName,
             .column = column.name,
             .foreignTable = split[0],
             .foreignColumn = split[1]
@@ -303,17 +359,15 @@ static void buildDaoConstraint(Table& parent, Column& column, xmlNodePtr node) {
         parent.foregin.push_back(foreign);
         return;
     }
+}
 
-    auto unique = getOrDefault(props, "unique", "");
-    if (unique == "true") {
-        Unique u = {
-            .name = column.name,
-            .columns = {column.name}
-        };
-
-        parent.unique.push_back(u);
-        return;
+static OnConflict getConflict(const std::string& name) {
+    if (auto it = kOnConflictMap.find(name); it != kOnConflictMap.end()) {
+        return it->second;
     }
+
+    postError("Invalid on conflict: {}", name);
+    return OnConflict::eRollback;
 }
 
 static Column buildDaoColumn(Table& parent, xmlNodePtr node) {
@@ -332,7 +386,18 @@ static Column buildDaoColumn(Table& parent, xmlNodePtr node) {
 
     for (xmlNodePtr cur = node->children; cur; cur = cur->next) {
         if (cur->type == XML_ELEMENT_NODE) {
-            buildDaoConstraint(parent, column, cur);
+            if (nodeIs(cur, "unique")) {
+                auto props = getNodeProperties(cur);
+                auto id = fmt::format("unique_{}_over_{}", parent.name, name);
+                Unique u = {
+                    .name = getOrDefault(props, "name", id),
+                    .onConflict = getConflict(getOrDefault(props, "onConflict", "rollback")),
+                    .columns = {name},
+                };
+                parent.unique.push_back(u);
+            } else {
+                buildDaoConstraint(parent, column, cur);
+            }
         }
     }
 
@@ -357,6 +422,42 @@ static List buildDaoList(Table& parent, xmlNodePtr node) {
     return list;
 }
 
+static void buildUniqueConstraint(Table& parent, xmlNodePtr node) {
+    auto props = getNodeProperties(node);
+
+    std::vector<std::string> columns;
+
+    for (xmlNodePtr cur = node->children; cur; cur = cur->next) {
+        if (cur->type == XML_ELEMENT_NODE) {
+            if (!nodeIs(cur, "column")) {
+                postError("Unexpected element: {}", (char*)cur->name);
+                continue;
+            }
+
+            std::string name = (char*)cur->children->content;
+            if (!parent.columnExists(name)) {
+                postError("Table `{}` does not contain column: `{}`", parent.name, name);
+                continue;
+            }
+
+            columns.push_back(name);
+        }
+    }
+
+    if (columns.empty()) {
+        postError("Unique constraint must contain at least one column");
+        return;
+    }
+
+    auto id = fmt::format("unique_{}_over_{}", parent.name, fmt::join(columns, "_"));
+    Unique unique {
+        .name = getOrDefault(props, "name", id),
+        .columns = columns
+    };
+
+    parent.unique.push_back(unique);
+}
+
 static void buildTableEntry(Table& parent, xmlNodePtr node) {
     if (nodeIs(node, "column")) {
         auto column = buildDaoColumn(parent, node);
@@ -364,9 +465,10 @@ static void buildTableEntry(Table& parent, xmlNodePtr node) {
     } else if (nodeIs(node, "list")) {
         auto list = buildDaoList(parent, node);
         parent.lists.push_back(list);
+    } else if (nodeIs(node, "unique")) {
+        buildUniqueConstraint(parent, node);
     } else {
-        fmt::println(stderr, "Unexpected element: {}", (char*)node->name);
-        gError = 1;
+        postError("Unexpected element: `{}`", (char*)node->name);
     }
 }
 
@@ -377,15 +479,44 @@ static Table buildDaoTable(xmlNodePtr node) {
 
     auto props = getNodeProperties(node);
 
+    auto onConflict = getConflict(getOrDefault(props, "onConflict", "rollback"));
+
     Table table = {
         .name = expectProperty(props, "name", ""),
         .primaryKey = getOrDefault(props, "primaryKey", ""),
+        .onConflict = onConflict
     };
+
+    auto syntheticPrimaryKey = getOrDefault(props, "syntheticPrimaryKey", "");
+    if (!syntheticPrimaryKey.empty()) {
+        if (table.hasPrimaryKey()) {
+            postError("Table `{}` already contains primary key: `{}`", table.name, table.primaryKey);
+        }
+
+        auto type = findType(syntheticPrimaryKey);
+        if (!type.has_value()) {
+            postError("Invalid syntheticPrimaryKey type: `{}`", syntheticPrimaryKey);
+            type = eUlong;
+        }
+
+        table.primaryKey = "id";
+        table.columns.push_back({
+            .name = "id",
+            .type = {eUlong, false, 0},
+            .optional = false,
+            .autoIncrement = true
+        });
+        table.syntheticPrimaryKey = true;
+    }
 
     for (xmlNodePtr cur = node->children; cur; cur = cur->next) {
         if (cur->type == XML_ELEMENT_NODE) {
             buildTableEntry(table, cur);
         }
+    }
+
+    if (table.hasPrimaryKey() && !table.columnExists(table.primaryKey)) {
+        postError("Table `{}` does not contain primary key: `{}`", table.name, table.primaryKey);
     }
 
     return table;
@@ -475,56 +606,14 @@ static int incRead(void *context, char *buffer, int size) {
     return fread(buffer, 1, size, (FILE*)context);
 }
 
-[[maybe_unused]]
-static void emitCreateTable(const Table& table, std::ostream& dst) {
-    Writer writer{dst};
-
-    bool hasConstraints = table.foregin.size() > 0 || table.unique.size() > 0 || table.hasPrimaryKey();
-
-    writer.writeln("CREATE TABLE {} (", table.name);
-
+static void beginArray(Writer& writer, std::string_view name, std::string_view kind, size_t size) {
+    writer.writeln("static constexpr std::array<{}, {}> {} = {{", kind, size, name);
     writer.indent();
+}
 
-    for (size_t j = 0; j < table.columns.size(); j++) {
-        const auto& column = table.columns[j];
-
-        auto sqlType = makeSqlType(column.type);
-        writer.write("{} {}", column.name, sqlType);
-
-        if (!column.optional) {
-            writer.print(" NOT NULL");
-        }
-
-        if (table.isPrimaryKey(column)) {
-            if (column.autoIncrement) {
-                writer.print(" AUTOINCREMENT");
-            }
-        }
-
-        if (column.type.isString()) {
-            writer.print(" CHECK(NOT IS_BLANK_STRING({}))", column.name);
-        }
-
-        const char *tail = j + 1 < table.columns.size() ? "," : "";
-        if (hasConstraints)
-            tail = ",";
-
-        writer.print("{}\n", tail);
-    }
-
-    if (table.hasPrimaryKey()) {
-        writer.write("CONSTRAINT pk_{} PRIMARY KEY ({})\n", table.name, table.primaryKey);
-    }
-
-    for (size_t j = 0; j < table.foregin.size(); j++) {
-        const auto& foreign = table.foregin[j];
-        auto tail = j + 1 < table.foregin.size() ? "," : "";
-        writer.write("CONSTRAINT fk_{0}_{1}_to_{2}_{3} FOREIGN KEY ({1}) REFERENCES {2}({3}){4}\n", table.name, foreign.column, foreign.foreignTable, foreign.foreignColumn, tail);
-    }
-
+static void endArray(Writer& writer) {
     writer.dedent();
-
-    writer.writeln(");");
+    writer.writeln("}};");
 }
 
 static void emitCxxBody(
@@ -542,6 +631,8 @@ static void emitCxxBody(
     header.writeln("#include <string>");
     header.writeln("#include <vector>");
     header.writeln("#include <optional>");
+    header.writeln("#include <array>");
+    header.writeln();
     header.writeln("#include \"dao/dao.hpp\"");
     header.writeln();
     for (auto path : gImportPaths) {
@@ -553,91 +644,120 @@ static void emitCxxBody(
     header.writeln("namespace {}::dao {{", dao.name);
     header.indent();
 
+    bool first = true;
+
     for (size_t i = 0; i < dao.tables.size(); i++) {
         const auto& table = dao.tables[i];
         if (table.imported)
             continue;
 
-        header.writeln();
+        if (!first) {
+            header.writeln();
+        }
+
+        first = false;
 
         auto className = singular(pascalCase(table.name));
-
-        header.writeln("struct {} {{", className);
-        header.indent();
-
-        header.writeln();
-        header.writeln("static const sm::dao::TableInfo& getTableInfo() noexcept;");
-        header.writeln("static constexpr std::string_view kSchemaName = \"{}\";", dao.name);
-        header.writeln("static constexpr std::string_view kTableName = \"{}\";", table.name);
-        header.writeln();
 
         source.writeln("template<> struct sm::dao::detail::TableInfoImpl<{}::dao::{}> final {{", dao.name, className);
         source.indent();
         source.writeln("using ClassType = {}::dao::{};", dao.name, className);
         source.writeln("using ColumnType = sm::dao::ColumnType;");
-        source.writeln("static constexpr ColumnInfo kColumns[] = {{");
-        source.indent();
+
+        ///
+        /// column info
+        ///
+
+        beginArray(source, "kColumns", "ColumnInfo", table.columns.size());
         for (const auto& column : table.columns) {
             auto colType = makeColumnType(column.type);
-            source.writeln("ColumnInfo {{ \"{}\", offsetof(ClassType, {}), ColumnType::{} }},", column.name, camelCase(column.name), colType);
+            source.writeln("ColumnInfo {{");
+            source.indent();
+            source.writeln(".name = \"{}\",", column.name);
+            source.writeln(".offset = offsetof(ClassType, {}),", camelCase(column.name));
+            source.writeln(".type = ColumnType::{},", colType);
+            source.writeln(".length = {},", column.type.size);
+            source.writeln(".autoIncrement = {},", column.autoIncrement ? "true" : "false");
+            source.dedent();
+            source.writeln("}},");
         }
+        endArray(source);
+        source.writeln();
+
+        ///
+        /// foreign keys
+        ///
+
+        beginArray(source, "kForeignKeys", "ForeignKey", table.foregin.size());
+        for (const auto& fk : table.foregin) {
+            source.writeln("ForeignKey {{");
+            source.indent();
+            source.writeln("/* name =          */ \"{}\",", fk.name);
+            source.writeln("/* column =        */ \"{}\",", fk.column);
+            source.writeln("/* foreignTable =  */ \"{}\",", fk.foreignTable);
+            source.writeln("/* foreignColumn = */ \"{}\",", fk.foreignColumn);
+            source.dedent();
+            source.writeln("}},");
+        }
+        endArray(source);
+        source.writeln();
+
+        ///
+        /// unique keys
+        ///
+
+        beginArray(source, "kUniqueKeys", "UniqueKey", table.unique.size());
+        for (const auto& unique : table.unique) {
+            auto indices = table.getColumnIndices(unique);
+            source.writeln("UniqueKey::ofColumns<{}>(\"{}\", {}),", fmt::join(indices, ", "), unique.name, onConflictToString(unique.onConflict));
+        }
+        endArray(source);
+        source.writeln();
+
+
+        ///
+        /// table info
+        ///
+
+        source.writeln("static constexpr TableInfo kTableInfo = {{");
+        source.indent();
+        source.writeln(".schema      = \"{}\",", dao.name);
+        source.writeln(".name        = \"{}\",", table.name);
+        source.writeln(".primaryKey  = {}ull,", table.getPrimaryKeyIndex());
+        source.writeln(".onConflict  = {},", onConflictToString(table.onConflict));
+        source.writeln(".columns     = kColumns,");
+        source.writeln(".uniqueKeys  = kUniqueKeys,");
+        source.writeln(".foreignKeys = kForeignKeys,");
+        source.dedent();
+        source.writeln("}};");
+
         source.dedent();
         source.writeln("}};");
         source.writeln();
-
-        source.writeln("static constexpr TableInfo kTableInfo = {{ \"{}\", \"{}\", kColumns }};", dao.name, table.name);
-        source.dedent();
-        source.writeln("}};");
 
         source.writeln("const sm::dao::TableInfo& {}::dao::{}::getTableInfo() noexcept {{", dao.name, className);
         source.indent();
         source.writeln("return sm::dao::detail::TableInfoImpl<{}::dao::{}>::kTableInfo;", dao.name, className);
         source.dedent();
         source.writeln("}}");
+        source.writeln();
+
+        header.writeln("struct {} {{", className);
+        header.indent();
+
+        if (table.hasPrimaryKey()) {
+            auto pk = table.getPrimaryKey().value();
+            auto cxxType = makeCxxType(pk.type, pk.optional);
+            header.writeln("using Id = {};", cxxType);
+        }
+
+        header.writeln("static const sm::dao::TableInfo& getTableInfo() noexcept;");
+        header.writeln();
 
         for (const auto& column : table.columns) {
             auto cxxType = makeCxxType(column.type, column.optional);
             header.writeln("{} {};", cxxType, camelCase(column.name));
         }
-
-#if 0
-        header.writeln();
-
-        header.dedent();
-        header.writeln("public:");
-        header.indent();
-
-        header.write("{}(", tableName);
-        for (size_t i = 0; i < table.columns.size(); i++) {
-            const auto& column = table.columns[i];
-            auto cxxType = makeCxxType(column.type, column.optional);
-            header.print("{} {}{}", cxxType, camelCase(column.name), i + 1 < table.columns.size() ? ", " : "");
-        }
-        header.print(") noexcept\n");
-        header.indent();
-
-        for (size_t j = 0; j < table.columns.size(); j++) {
-            const auto& column = table.columns[j];
-            auto fieldName = pascalCase(column.name);
-            auto paramName = camelCase(column.name);
-            char sep = (j == 0) ? ':' : ',';
-            if (column.type.isMoveConstructed()) {
-                header.writeln("{} m{}(std::move({}))", sep, fieldName, paramName);
-            } else {
-                header.writeln("{} m{}({})", sep, fieldName, paramName);
-            }
-        }
-
-        header.dedent();
-        header.writeln("{{ }}");
-        header.writeln();
-
-        for (const auto& column : table.columns) {
-            auto fieldName = pascalCase(column.name);
-            auto methodName = pascalCase(column.name);
-            header.writeln("{} get{}() const noexcept {{ return m{}; }}", makeCxxType(column.type, column.optional), methodName, fieldName);
-        }
-#endif
 
         header.dedent();
         header.writeln("}};");
@@ -645,7 +765,6 @@ static void emitCxxBody(
 
     header.dedent();
     header.writeln("}}");
-
 }
 
 int main(int argc, const char **argv) {

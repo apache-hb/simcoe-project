@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root name="logs">
+    <table name="log_severity" primaryKey="level" onConflict="replace">
+        <column name="name" type="text" length="255">
+            <unique onConflict="replace" />
+        </column>
+        <column name="level" type="uint" />
+    </table>
+
+    <table name="log_message" syntheticPrimaryKey="ulong">
+        <column name="message"  type="text" length="4096" />
+
+        <column name="level"    type="uint">
+            <constraint references="log_severity.level" />
+        </column>
+
+        <column name="file"     type="text" length="2048" />
+        <column name="line"     type="uint"               />
+        <column name="function" type="text" length="4096" />
+
+        <unique name="unique_log_message_source_location" onConflict="replace">
+            <column>file</column>
+            <column>line</column>
+            <column>function</column>
+        </unique>
+    </table>
+
+    <table name="log_message_attribute">
+        <column name="key"  type="text" length="255"  />
+        <column name="type" type="text" length="255"  />
+
+        <column name="message" type="ulong">
+            <constraint references="log_message.id" />
+        </column>
+
+        <unique>
+            <column>key</column>
+            <column>message</column>
+        </unique>
+    </table>
+
+    <table name="log_entry" primaryKey="id" syntheticPrimaryKey="ulong">
+        <column name="timestamp" type="ulong" />
+
+        <column name="message" type="ulong">
+            <constraint references="log_message.id" />
+        </column>
+    </table>
+
+    <table name="log_entry_attribute">
+        <column name="entry" type="ulong">
+            <constraint references="log_entry.id" />
+        </column>
+
+        <column name="key" type="ulong">
+            <constraint references="log_message_attribute.id" />
+        </column>
+
+        <column name="value" type="text" length="2048" />
+    </table>
+</root>

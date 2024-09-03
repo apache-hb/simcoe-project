@@ -30,6 +30,8 @@
 
 #include "core/defer.hpp"
 
+#include "logs/structured/message.hpp"
+
 #include "editor.dao.hpp"
 
 using namespace sm;
@@ -254,10 +256,9 @@ public:
         doUpdate(R"(
             CREATE TRIGGER IF NOT EXISTS window_placement_insert
                 BEFORE INSERT ON window_placement
+                WHEN (SELECT COUNT(*) FROM window_placement) > 0
                 BEGIN
-                    IF (SELECT COUNT(*) FROM window_placement) > 0 THEN
-                        SELECT RAISE(FAIL, 'window_placement table is a singleton');
-                    END IF;
+                    SELECT RAISE(FAIL, 'window_placement table is a singleton');
                 END;
         )");
     }
@@ -274,8 +275,8 @@ public:
 static DefaultSystemError gDefaultError{};
 static logs::FileChannel gFileChannel{};
 
-static void common_init(void) {
-    bt_init();
+static void commonInit(void) {
+    // bt_init();
     os_init();
 
     // TODO: popup window for panics and system errors
@@ -312,6 +313,12 @@ static void common_init(void) {
     } else {
         logs::gGlobal.error("failed to open log file: {}", file.error());
     }
+
+    auto sqlite3 = db::Environment::create(db::DbType::eSqlite3).value();
+
+    auto logs = sqlite3.connect({ .host = "logs.db" }).value();
+    if (auto error = sm::logs::structured::setup(logs))
+        error.raise();
 
     threads::init();
 }
@@ -598,7 +605,7 @@ static db::DbError oradbTest() {
 }
 #endif
 
-static int editor_main(sys::ShowWindow show) {
+static int editorMain(sys::ShowWindow show) {
     // sqliteTest();
     // oradbTest();
     const threads::CpuGeometry& geometry = threads::getCpuGeometry();
@@ -623,13 +630,16 @@ static int editor_main(sys::ShowWindow show) {
     return 0;
 }
 
-static int common_main(sys::ShowWindow show) noexcept try {
+static int commonMain(sys::ShowWindow show) noexcept try {
     logs::gGlobal.info("SMC_DEBUG = {}", SMC_DEBUG);
     logs::gGlobal.info("CTU_DEBUG = {}", CTU_DEBUG);
 
-    int result = editor_main(show);
+    int result = editorMain(show);
 
     return result;
+} catch (const db::DbException& err) {
+    logs::gGlobal.error("database error: {} ({})", err.what(), err.code());
+    return -1;
 } catch (const std::exception& err) {
     logs::gGlobal.error("unhandled exception: {}", err.what());
     return -1;
@@ -638,8 +648,8 @@ static int common_main(sys::ShowWindow show) noexcept try {
     return -1;
 }
 
-int main(int argc, const char **argv) {
-    common_init();
+int main(int argc, const char **argv) noexcept try {
+    commonInit();
     sm::Span<const char*> args{argv, size_t(argc)};
     logs::gGlobal.info("args = [{}]", fmt::join(args, ", "));
 
@@ -651,7 +661,7 @@ int main(int argc, const char **argv) {
             return (err == -1) ? 0 : err; // TODO: this is a little silly, should wrap in a type
         }
 
-        return common_main(sys::ShowWindow::eShow);
+        return commonMain(sys::ShowWindow::eShow);
     }();
 
     logs::gGlobal.info("editor exiting with {}", result);
@@ -659,10 +669,19 @@ int main(int argc, const char **argv) {
     logs::shutdown();
 
     return result;
+} catch (const db::DbException& err) {
+    logs::gGlobal.error("database error: {} ({})", err.what(), err.code());
+    return -1;
+} catch (const std::exception& err) {
+    logs::gGlobal.error("unhandled exception: {}", err.what());
+    return -1;
+} catch (...) {
+    logs::gGlobal.error("unknown unhandled exception");
+    return -1;
 }
 
 int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
-    common_init();
+    commonInit();
 
     logs::gGlobal.info("lpCmdLine = {}", lpCmdLine);
     logs::gGlobal.info("nShowCmd = {}", nShowCmd);
@@ -672,7 +691,7 @@ int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdL
         sys::create(hInstance);
         defer { sys::destroy(); };
 
-        return common_main(sys::ShowWindow{nShowCmd});
+        return commonMain(sys::ShowWindow{nShowCmd});
     }();
 
     logs::gGlobal.info("editor exiting with {}", result);

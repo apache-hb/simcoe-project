@@ -2,8 +2,6 @@
 
 #include "writer.hpp"
 
-#include "core/string.hpp"
-
 using namespace llvm;
 using namespace clang;
 
@@ -12,7 +10,7 @@ namespace fs = std::filesystem;
 static constexpr std::string_view kMetaHeaderContent = R"(
 #pragma once
 #include "meta/meta.hpp"
-using namespace sm::meta;
+using namespace sm::reflect::detail;
 )";
 
 static constexpr std::string_view kWarningComment = R"(

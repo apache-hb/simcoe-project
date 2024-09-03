@@ -26,7 +26,6 @@ DbError IStatement::getBlobByName(std::string_view column, Blob& value) noexcept
     return getValue(column, value, &IStatement::getBlobByIndex);
 }
 
-
 /** Binding */
 
 DbError IStatement::bindIntByName(std::string_view name, int64 value) noexcept {

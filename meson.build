@@ -176,10 +176,14 @@ subdir('src/meta')
 subdir('src/vendor/reflect')
 subdir('src/common/core')
 
-# subdir('src/meta/dao')
-subdir('src/common/orm')
+# simple file/console logging
+subdir('src/common/logs/base')
 
-subdir('src/common/logs')
+subdir('src/common/db')
+
+# structured logging
+subdir('src/common/logs/structured')
+
 subdir('src/common/config')
 
 if not is_windows

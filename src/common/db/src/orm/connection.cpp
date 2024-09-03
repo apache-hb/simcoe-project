@@ -137,33 +137,32 @@ Blob ResultSet::getBlob(std::string_view column) noexcept(false) {
 /// named bindpoint
 ///
 
-void BindPoint::to(int64 value) noexcept(false) {
+void BindPoint::toInt(int64 value) noexcept(false) {
     if (DbError error = mImpl->bindIntByName(mName, value))
         error.raise();
 }
 
-void BindPoint::to(bool value) noexcept(false) {
+void BindPoint::toBool(bool value) noexcept(false) {
     if (DbError error = mImpl->bindBooleanByName(mName, value))
         error.raise();
-
 }
 
-void BindPoint::to(std::string_view value) noexcept(false) {
+void BindPoint::toString(std::string_view value) noexcept(false) {
     if (DbError error = mImpl->bindStringByName(mName, value))
         error.raise();
 }
 
-void BindPoint::to(double value) noexcept(false) {
+void BindPoint::toDouble(double value) noexcept(false) {
     if (DbError error = mImpl->bindDoubleByName(mName, value))
         error.raise();
 }
 
-void BindPoint::to(Blob value) noexcept(false) {
+void BindPoint::toBlob(Blob value) noexcept(false) {
     if (DbError error = mImpl->bindBlobByName(mName, value))
         error.raise();
 }
 
-void BindPoint::to(std::nullptr_t) noexcept(false) {
+void BindPoint::toNull() noexcept(false) {
     if (DbError error = mImpl->bindNullByName(mName))
         error.raise();
 }

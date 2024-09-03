@@ -12,8 +12,7 @@
 #   define REFLECT_EXTERNAL_ENUM(id, ...)
 #endif
 
-#define CASE(...) REFLECT(__VA_ARGS__)
-#define FIELD(...) REFLECT(__VA_ARGS__)
+#define PROPERTY(...) REFLECT(__VA_ARGS__)
 #define METHOD(...) REFLECT(__VA_ARGS__)
 
 #include "tags.hpp"

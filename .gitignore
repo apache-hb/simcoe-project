@@ -42,6 +42,7 @@ subprojects/*
 !subprojects/orcl-oci
 !subprojects/db2cli
 !subprojects/.clang-tidy
+adns/
 
 !LICENSE
 !README

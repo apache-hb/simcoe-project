@@ -38,6 +38,6 @@ namespace sm::reflect {
 
     namespace detail {
         template<typename T>
-        class ClassImpl;
+        struct ClassImpl;
     }
 }

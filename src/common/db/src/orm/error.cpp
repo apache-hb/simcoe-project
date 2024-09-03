@@ -15,10 +15,7 @@ DbError::DbError(int code, int status, std::string message) noexcept
 }
 
 void DbError::raise() const noexcept(false) {
-    if (mStatus == eConnectionError)
-        throw DbConnectionException{mCode, mMessage};
-
-    throw DbException{mCode, mMessage};
+    throw DbException{*this};
 }
 
 DbError DbError::ok() noexcept {
