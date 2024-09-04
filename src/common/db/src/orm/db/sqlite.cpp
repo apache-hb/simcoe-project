@@ -82,6 +82,7 @@ static int execStatement(sqlite3_stmt *stmt) noexcept {
 
 class SqliteStatement final : public detail::IStatement {
     sqlite3_stmt *mStatement = nullptr;
+    int mStatus = SQLITE_OK;
 
     DbError getStmtError(int err) const noexcept {
         return getError(err, sqlite3_db_handle(mStatement));
@@ -89,13 +90,21 @@ class SqliteStatement final : public detail::IStatement {
 
 public:
     DbError close() noexcept override {
-        sqlite3_finalize(mStatement);
-        return DbError::ok();
+        CTASSERTF(!sqlite3_stmt_busy(mStatement), "Statement is busy");
+
+        sqlite3 *db = sqlite3_db_handle(mStatement);
+        int err = sqlite3_finalize(mStatement);
+        return getError(err, db);
     }
 
     DbError reset() noexcept override {
-        int err = sqlite3_reset(mStatement);
-        return getStmtError(err);
+        if (int err = sqlite3_reset(mStatement); err != SQLITE_OK)
+            return getStmtError(err);
+
+        if (int err = sqlite3_clear_bindings(mStatement); err != SQLITE_OK)
+            return getStmtError(err);
+
+        return DbError::ok();
     }
 
     int getBindCount() const noexcept override {
@@ -175,31 +184,41 @@ public:
     }
 
     DbError next() noexcept override {
-        int err = sqlite3_step(mStatement);
-        return getStmtError(err);
+        mStatus = sqlite3_step(mStatement);
+        return getStmtError(mStatus);
     }
 
     DbError getIntByIndex(int index, int64& value) noexcept override {
+        CTASSERTF(mStatus == SQLITE_ROW, "Statement is not ready for reading");
         value = sqlite3_column_int64(mStatement, index);
         return DbError::ok();
     }
 
     DbError getBooleanByIndex(int index, bool& value) noexcept override {
+        CTASSERTF(mStatus == SQLITE_ROW, "Statement is not ready for reading");
         value = sqlite3_column_int(mStatement, index) != 0;
         return DbError::ok();
     }
 
     DbError getStringByIndex(int index, std::string_view& value) noexcept override {
-        value = (const char*)sqlite3_column_text(mStatement, index);
+        CTASSERTF(mStatus == SQLITE_ROW, "Statement is not ready for reading");
+        const char *text = (const char*)sqlite3_column_text(mStatement, index);
+        if (text == nullptr) {
+            value = std::string_view{};
+        } else {
+            value = text;
+        }
         return DbError::ok();
     }
 
     DbError getDoubleByIndex(int index, double& value) noexcept override {
+        CTASSERTF(mStatus == SQLITE_ROW, "Statement is not ready for reading");
         value = sqlite3_column_double(mStatement, index);
         return DbError::ok();
     }
 
     DbError getBlobByIndex(int index, Blob& value) noexcept override {
+        CTASSERTF(mStatus == SQLITE_ROW, "Statement is not ready for reading");
         const uint8 *bytes = (const uint8*)sqlite3_column_blob(mStatement, index);
         int length = sqlite3_column_bytes(mStatement, index);
 

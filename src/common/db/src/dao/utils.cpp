@@ -27,7 +27,8 @@ static std::string makeSqlType(const ColumnInfo& info) {
     }
 }
 
-static void emitRangeCheck(std::ostream& os, std::string_view name, int64_t low, int64_t high) noexcept {
+template<typename T>
+static void emitRangeCheck(std::ostream& os, std::string_view name, T low, T high) noexcept {
     os << " CHECK(" << name << " >= " << low << " AND " << name << " <= " << high << ")";
 }
 
@@ -70,13 +71,13 @@ static std::string setupCreateTable(const TableInfo& info, CreateTable options) 
             emitRangeCheck(ss, column.name, INT32_MIN, INT32_MAX);
             break;
         case ColumnType::eUint:
-            emitRangeCheck(ss, column.name, 0, UINT32_MAX);
+            emitRangeCheck<uint32_t>(ss, column.name, 0, UINT32_MAX);
             break;
         case ColumnType::eLong:
             emitRangeCheck(ss, column.name, INT64_MIN, INT64_MAX);
             break;
         case ColumnType::eUlong:
-            emitRangeCheck(ss, column.name, 0, UINT64_MAX);
+            emitRangeCheck<uint64_t>(ss, column.name, 0, UINT64_MAX);
             break;
 
         default: break;
@@ -139,8 +140,6 @@ static std::string setupCreateTable(const TableInfo& info, CreateTable options) 
 
 db::DbError dao::createTableImpl(db::Connection& connection, const TableInfo& info, CreateTable options) noexcept {
     auto sql = setupCreateTable(info, options);
-
-    fmt::println(stderr, "Creating table: {}", sql);
 
     return connection.ddlPrepare(sql)
         .and_then([](auto stmt) { return stmt.update(); })
@@ -239,33 +238,38 @@ db::DbError dao::insertGetPrimaryKeyImpl(db::Connection& connection, const Table
 
     auto sql = setupInsert(info, true);
 
+    fmt::println(stderr, "Insert: {}", sql);
+
     auto result = connection.dmlPrepare(sql)
-        .and_then([&](auto stmt) {
+        .transform([&](auto stmt) {
             for (size_t i = 0; i < info.columns.size(); i++) {
                 bindIndex(stmt, info, i, true, data);
             }
 
-            return stmt.update();
-        });
+            return stmt;
+        })
+        .and_then([](auto stmt) { return stmt.select(); });
 
     auto value = TRY_UNWRAP(result);
 
-    auto pk = info.getPrimaryKey();
-    switch (pk.type) {
-    case ColumnType::eInt:
-        *reinterpret_cast<int32_t*>(generated) = value.getInt(0);
-        break;
-    case ColumnType::eUint:
-        *reinterpret_cast<uint32_t*>(generated) = value.getInt(0);
-        break;
-    case ColumnType::eLong:
-        *reinterpret_cast<int64_t*>(generated) = value.getInt(0);
-        break;
-    case ColumnType::eUlong:
-        *reinterpret_cast<uint64_t*>(generated) = value.getInt(0);
-        break;
-    default:
-        CT_NEVER("Unsupported primary key type");
+    while (!value.next().isDone()) {
+        auto pk = info.getPrimaryKey();
+        switch (pk.type) {
+        case ColumnType::eInt:
+            *reinterpret_cast<int32_t*>(generated) = value.getInt(0);
+            break;
+        case ColumnType::eUint:
+            *reinterpret_cast<uint32_t*>(generated) = value.getInt(0);
+            break;
+        case ColumnType::eLong:
+            *reinterpret_cast<int64_t*>(generated) = value.getInt(0);
+            break;
+        case ColumnType::eUlong:
+            *reinterpret_cast<uint64_t*>(generated) = value.getInt(0);
+            break;
+        default:
+            CT_NEVER("Unsupported primary key type");
+        }
     }
 
     return db::DbError::ok();

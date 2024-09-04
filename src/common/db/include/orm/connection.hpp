@@ -102,6 +102,9 @@ namespace sm::db {
         std::expected<ResultSet, DbError> select() noexcept;
         std::expected<ResultSet, DbError> update() noexcept;
 
+        DbError execute() noexcept;
+        DbError step() noexcept;
+
         DbError close() noexcept;
         DbError reset() noexcept;
 

@@ -18,6 +18,7 @@ namespace sm::db {
 
 namespace sm::logs::structured {
     struct MessageAttributeInfo {
+        uint64_t id;
         std::string_view name;
     };
 
@@ -29,12 +30,15 @@ namespace sm::logs::structured {
     >;
 
     struct LogMessageInfo {
+        uint64_t id;
         logs::Severity level;
         std::string_view message;
-        std::source_location location;
+        uint32_t line;
+        std::string_view file;
+        std::string_view function;
     };
 
-    db::DbError setup(db::Connection& connection) noexcept;
+    db::DbError setup(db::Connection& connection);
 
     namespace detail {
         template<typename T>
@@ -43,22 +47,22 @@ namespace sm::logs::structured {
         };
 
         struct LogMessageId {
-            LogMessageId(const LogMessageInfo& message) noexcept;
-            const std::uint64_t hash;
-            const std::vector<MessageAttributeInfo> attributes;
+            LogMessageId(LogMessageInfo& message) noexcept;
+            LogMessageInfo& info;
+            std::vector<MessageAttributeInfo> attributes;
         };
 
         template<LogMessageFn F, typename... A>
-        const LogMessageInfo& getMessage() noexcept {
+        LogMessageInfo& getMessage() noexcept {
             F fn{};
             static LogMessageInfo message{fn()};
             return message;
         }
 
         template<LogMessageFn F, typename... A>
-        inline LogMessageId gTagInfo{&getMessage<F, A...>()};
+        inline LogMessageId gTagInfo{getMessage<F, A...>()};
 
-        void postLogMessage(const LogMessageInfo& message, fmt::format_args args) noexcept;
+        void postLogMessage(const LogMessageId& message, fmt::format_args args) noexcept;
 
         template<LogMessageFn F, typename... A>
         void fmtMessage(fmt::format_string<A...> fmt, A&&... args) noexcept {
@@ -67,3 +71,22 @@ namespace sm::logs::structured {
         }
     }
 } // namespace sm::logs
+
+#define LOG_MESSAGE(severity, message, ...) \
+    do { \
+        static constexpr std::string_view fnName = __FUNCTION__; \
+        struct LogMessageImpl { \
+            constexpr sm::logs::structured::LogMessageInfo operator()() const noexcept { \
+                return { UINT64_MAX, severity, message, __LINE__, __FILE__, fnName }; \
+            } \
+        }; \
+        sm::logs::structured::detail::fmtMessage<LogMessageImpl>(message __VA_OPT__(,) __VA_ARGS__); \
+    } while (false)
+
+#define LOG_TRACE(...) LOG_MESSAGE(sm::logs::Severity::eTrace, __VA_ARGS__)
+#define LOG_DEBUG(...) LOG_MESSAGE(sm::logs::Severity::eDebug, __VA_ARGS__)
+#define LOG_INFO(...) LOG_MESSAGE(sm::logs::Severity::eInfo, __VA_ARGS__)
+#define LOG_WARN(...) LOG_MESSAGE(sm::logs::Severity::eWarning, __VA_ARGS__)
+#define LOG_ERROR(...) LOG_MESSAGE(sm::logs::Severity::eError, __VA_ARGS)
+#define LOG_FATAL(...) LOG_MESSAGE(sm::logs::Severity::eFatal, __VA_ARGS)
+#define LOG_PANIC(...) LOG_MESSAGE(sm::logs::Severity::ePanic, __VA_ARGS)

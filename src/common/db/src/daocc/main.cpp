@@ -387,11 +387,12 @@ static Column buildDaoColumn(Table& parent, xmlNodePtr node) {
     for (xmlNodePtr cur = node->children; cur; cur = cur->next) {
         if (cur->type == XML_ELEMENT_NODE) {
             if (nodeIs(cur, "unique")) {
-                auto props = getNodeProperties(cur);
+                auto nodeProps = getNodeProperties(cur);
+                auto onConflict = getConflict(getOrDefault(nodeProps, "onConflict", "rollback"));
                 auto id = fmt::format("unique_{}_over_{}", parent.name, name);
                 Unique u = {
-                    .name = getOrDefault(props, "name", id),
-                    .onConflict = getConflict(getOrDefault(props, "onConflict", "rollback")),
+                    .name = getOrDefault(nodeProps, "name", id),
+                    .onConflict = onConflict,
                     .columns = {name},
                 };
                 parent.unique.push_back(u);
@@ -449,9 +450,11 @@ static void buildUniqueConstraint(Table& parent, xmlNodePtr node) {
         return;
     }
 
+    auto onConflict = getConflict(getOrDefault(props, "onConflict", "rollback"));
     auto id = fmt::format("unique_{}_over_{}", parent.name, fmt::join(columns, "_"));
     Unique unique {
         .name = getOrDefault(props, "name", id),
+        .onConflict = onConflict,
         .columns = columns
     };
 

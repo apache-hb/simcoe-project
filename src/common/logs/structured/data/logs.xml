@@ -4,6 +4,7 @@
         <column name="name" type="text" length="255">
             <unique onConflict="replace" />
         </column>
+
         <column name="level" type="uint" />
     </table>
 
@@ -25,7 +26,7 @@
         </unique>
     </table>
 
-    <table name="log_message_attribute">
+    <table name="log_message_attribute" syntheticPrimaryKey="ulong">
         <column name="key"  type="text" length="255"  />
         <column name="type" type="text" length="255"  />
 
@@ -33,7 +34,7 @@
             <constraint references="log_message.id" />
         </column>
 
-        <unique>
+        <unique onConflict="replace">
             <column>key</column>
             <column>message</column>
         </unique>
