@@ -1,4 +1,5 @@
 #include "orm/transaction.hpp"
+#include "core/defer.hpp"
 
 using namespace sm;
 using namespace sm::db;
@@ -6,32 +7,32 @@ using namespace sm::db;
 Transaction::Transaction(Connection *conn) noexcept(false)
     : mConnection(conn)
 {
-    conn->begin();
-    conn->setAutoCommit(false);
+    if (auto err = conn->begin()) {
+        mState = eRollback;
+        err.raise();
+    } else {
+        conn->setAutoCommit(false);
+    }
 }
 
 Transaction::~Transaction() noexcept {
     if (mState != ePending)
         return;
 
-    try {
-        mConnection->commit();
-    } catch (const std::exception& err) {
-        // TODO: use proper logging
-        fmt::println(stderr, "Transaction::~Transaction() failed to commit: {}", err.what());
-    } catch (...) {
-        fmt::println(stderr, "Transaction::~Transaction() failed to commit *unknown*");
+    if (auto err = mConnection->commit()) {
+        fmt::println("Transaction::~Transaction() failed to commit: {}", err.message());
     }
 
-    mConnection->setAutoCommit(true);
+    defer { mConnection->setAutoCommit(true); };
 }
 
 void Transaction::rollback() noexcept(false) {
     if (mState != ePending)
         return; // already committed or rolled back
 
-    mState = eRollback;
-    mConnection->rollback();
+    defer { mConnection->setAutoCommit(true); };
 
-    mConnection->setAutoCommit(true);
+    mState = eRollback;
+    if (auto err = mConnection->rollback())
+        err.raise();
 }

@@ -16,7 +16,7 @@ namespace sm::dao {
     db::DbError createTableImpl(db::Connection& connection, const TableInfo& info, CreateTable options) noexcept;
 
     template<DaoInterface T>
-    std::expected<T, db::DbError> select(db::Connection& connection) noexcept {
+    db::DbResult<T> select(db::Connection& connection) noexcept {
         alignas(T) char buffer[sizeof(T)];
         if (db::DbError error = selectImpl(connection, T::getTableInfo(), buffer))
             return error;
@@ -30,8 +30,8 @@ namespace sm::dao {
     }
 
     template<typename T> requires (DaoInterface<T> && HasPrimaryKey<T>)
-    std::expected<typename T::Id, db::DbError> insertGetPrimaryKey(db::Connection& connection, const T& data) noexcept {
-        typename T::Id generated;
+    db::DbResult<typename T::Id> insertGetPrimaryKey(db::Connection& connection, const T& data) noexcept {
+        typename T::Id generated{};
         const void *src = static_cast<const void*>(&data);
         void *dst = static_cast<void*>(&generated);
         if (db::DbError error = insertGetPrimaryKeyImpl(connection, T::getTableInfo(), src, dst))
@@ -48,6 +48,6 @@ namespace sm::dao {
     template<DaoInterface T>
     bool tableExists(db::Connection& connection) noexcept {
         const TableInfo& info = T::getTableInfo();
-        return connection.tableExists(info.name);
+        return connection.tableExists(info.name).value_or(false);
     }
 }

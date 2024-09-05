@@ -10,8 +10,6 @@
 #include <string_view>
 
 namespace sm::db {
-    class DbException;
-
     class [[nodiscard("Possibly ignoring error")]] DbError {
         int mCode = 0;
         int mStatus = eOk;
@@ -23,7 +21,7 @@ namespace sm::db {
             eOk = 0,
             eError = 1,
             eUnimplemented = 2,
-            eNoMoreData = 3,
+            eDone = 3,
             eConnectionError = 4,
         };
 
@@ -46,42 +44,45 @@ namespace sm::db {
         }
 
         bool isDone() const noexcept {
-            return mStatus == eNoMoreData;
+            return mStatus == eDone || mStatus == eError;
         }
 
         static DbError ok() noexcept;
         static DbError todo() noexcept;
         static DbError error(int code, std::string message) noexcept;
-        static DbError noMoreData(int code) noexcept;
+        static DbError done(int code) noexcept;
         static DbError unsupported(std::string_view subject) noexcept;
         static DbError columnNotFound(std::string_view column) noexcept;
         static DbError bindNotFound(std::string_view bind) noexcept;
         static DbError connectionError(std::string_view message) noexcept;
+        static DbError notReady(std::string message) noexcept;
     };
 
-    class DbException {
-        int mCode = 0;
+    template<typename T>
+    using DbResult = std::expected<T, DbError>;
+
+    class DbException : public std::exception {
+        DbError mError;
         std::string mMessage;
-        std::stacktrace mStacktrace;
 
     public:
         DbException(const DbError& error) noexcept
-            : mCode(error.code())
+            : std::exception()
+            , mError(error)
             , mMessage(error.message())
-            , mStacktrace(error.stacktrace())
         { }
 
         DbException(const DbError& error, std::string_view context) noexcept
-            : mCode(error.code())
+            : std::exception()
+            , mError(error)
             , mMessage(fmt::format("{}. {}", error.message(), context))
-            , mStacktrace(error.stacktrace())
         { }
 
-        int code() const noexcept { return mCode; }
+        int code() const noexcept { return mError.code(); }
         std::string_view message() const noexcept { return mMessage; }
-        const std::stacktrace& stacktrace() const noexcept { return mStacktrace; }
+        const std::stacktrace& stacktrace() const noexcept { return mError.stacktrace(); }
 
-        virtual std::string what() const noexcept { return mMessage; }
+        virtual const char *what() const noexcept { return mMessage.c_str(); }
     };
 
     class DbConnectionException : public DbException {
@@ -106,7 +107,5 @@ namespace sm::db {
         { }
 
         std::string_view statement() const noexcept { return mStatement; }
-
-        virtual std::string what() const noexcept override { return mStatement; }
     };
 }

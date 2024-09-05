@@ -8,7 +8,7 @@ namespace sm::db {
         friend PreparedStatement;
 
         detail::IStatement *mImpl = nullptr;
-        const std::string_view mName;
+        std::string_view mName;
 
         BindPoint(detail::IStatement *impl, std::string_view name) noexcept
             : mImpl(impl)

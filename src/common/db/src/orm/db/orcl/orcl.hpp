@@ -20,8 +20,8 @@ namespace sm::db::detail::orcl {
     static constexpr inline bool kHasBoolType = kBoolType != SQLT_CHR;
 
     std::string oraErrorText(void *handle, sword status, ub4 type) noexcept;
-    bool isSuccess(sword status) noexcept;
     DbError oraGetHandleError(void *handle, sword status, ub4 type) noexcept;
+    bool isSuccess(sword status) noexcept;
 
     template<typename T, ub4 H>
     class OraHandle final {
@@ -43,7 +43,7 @@ namespace sm::db::detail::orcl {
         }
 
         template<typename A>
-        std::expected<A, DbError> getAttribute(OCIError *error, ub4 attr) const noexcept {
+        DbResult<A> getAttribute(OCIError *error, ub4 attr) const noexcept {
             A value;
             if (sword status = getAttribute(error, attr, &value))
                 return std::unexpected(oraGetHandleError(mHandle, status, OCI_HTYPE_ERROR));

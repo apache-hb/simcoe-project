@@ -644,7 +644,7 @@ static void emitCxxBody(
         header.writeln("#include \"{}\"", path.replace_extension(".dao.hpp").filename());
     }
     header.writeln();
-    header.writeln("namespace {}::dao {{", dao.name);
+    header.writeln("namespace sm::dao::{} {{", dao.name);
     header.indent();
 
     bool first = true;
@@ -662,9 +662,9 @@ static void emitCxxBody(
 
         auto className = singular(pascalCase(table.name));
 
-        source.writeln("template<> struct sm::dao::detail::TableInfoImpl<{}::dao::{}> final {{", dao.name, className);
+        source.writeln("template<> struct sm::dao::detail::TableInfoImpl<sm::dao::{}::{}> final {{", dao.name, className);
         source.indent();
-        source.writeln("using ClassType = {}::dao::{};", dao.name, className);
+        source.writeln("using ClassType = sm::dao::{}::{};", dao.name, className);
         source.writeln("using ColumnType = sm::dao::ColumnType;");
 
         ///
@@ -738,9 +738,9 @@ static void emitCxxBody(
         source.writeln("}};");
         source.writeln();
 
-        source.writeln("const sm::dao::TableInfo& {}::dao::{}::getTableInfo() noexcept {{", dao.name, className);
+        source.writeln("const sm::dao::TableInfo& sm::dao::{}::{}::getTableInfo() noexcept {{", dao.name, className);
         source.indent();
-        source.writeln("return sm::dao::detail::TableInfoImpl<{}::dao::{}>::kTableInfo;", dao.name, className);
+        source.writeln("return sm::dao::detail::TableInfoImpl<sm::dao::{}::{}>::kTableInfo;", dao.name, className);
         source.dedent();
         source.writeln("}}");
         source.writeln();

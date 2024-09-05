@@ -110,20 +110,25 @@ namespace sm::db::detail {
         virtual DbError bindBlobByName(std::string_view name, Blob value) noexcept;
         virtual DbError bindNullByName(std::string_view name) noexcept;
 
-
-        std::expected<int, DbError> findColumnIndex(std::string_view name) const noexcept;
-        std::expected<int, DbError> findBindIndex(std::string_view name) const noexcept;
+        DbError findColumnIndex(std::string_view name, int& index) const noexcept;
+        DbError findBindIndex(std::string_view name, int& index) const noexcept;
 
     private:
         template<typename T>
         DbError bindValue(std::string_view name, T value, DbError (IStatement::*func)(int, T)) noexcept {
-            int index = TRY_UNWRAP(findBindIndex(name));
+            int index = -1;
+            if (DbError error = findBindIndex(name, index))
+                return error;
+
             return (this->*func)(index, value);
         }
 
         template<typename T>
         DbError getValue(std::string_view name, T& value, DbError (IStatement::*func)(int, T&)) noexcept {
-            int index = TRY_UNWRAP(findColumnIndex(name));
+            int index = -1;
+            if (DbError error = findColumnIndex(name, index))
+                return error;
+
             return (this->*func)(index, value);
         }
     };

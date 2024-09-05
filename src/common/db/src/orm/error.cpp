@@ -30,8 +30,8 @@ DbError DbError::error(int code, std::string message) noexcept {
     return DbError{code, eError, std::move(message)};
 }
 
-DbError DbError::noMoreData(int code) noexcept {
-    return DbError{code, eNoMoreData, "No more data"};
+DbError DbError::done(int code) noexcept {
+    return DbError{code, eDone, "Done"};
 }
 
 DbError DbError::unsupported(std::string_view subject) noexcept {
@@ -48,4 +48,8 @@ DbError DbError::bindNotFound(std::string_view bind) noexcept {
 
 DbError DbError::connectionError(std::string_view message) noexcept {
     return DbError{-1, eConnectionError, std::string{message}};
+}
+
+DbError DbError::notReady(std::string message) noexcept {
+    return DbError{-1, eError, std::move(message)};
 }

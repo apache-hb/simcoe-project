@@ -28,46 +28,66 @@ namespace sm::db {
         DbError next() noexcept;
 
         int getColumnCount() const noexcept;
-        std::expected<ColumnInfo, DbError> getColumnInfo(int index) const noexcept;
+        DbResult<ColumnInfo> getColumnInfo(int index) const noexcept;
 
-        double getDouble(int index) throws(DbException);
-        int64 getInt(int index) throws(DbException);
-        bool getBool(int index) throws(DbException);
-        std::string_view getString(int index) throws(DbException);
-        Blob getBlob(int index) throws(DbException);
+        DbResult<double> getDouble(int index) noexcept;
+        DbResult<int64> getInt(int index) noexcept;
+        DbResult<bool> getBool(int index) noexcept;
+        DbResult<std::string_view> getString(int index) noexcept;
+        DbResult<Blob> getBlob(int index) noexcept;
 
-        double getDouble(std::string_view column) throws(DbException);
-        int64 getInt(std::string_view column) throws(DbException);
-        bool getBool(std::string_view column) throws(DbException);
-        std::string_view getString(std::string_view column) throws(DbException);
-        Blob getBlob(std::string_view column) throws(DbException);
-
-        template<typename T>
-        T get(std::string_view column) throws(DbException);
+        DbResult<double> getDouble(std::string_view column) noexcept;
+        DbResult<int64> getInt(std::string_view column) noexcept;
+        DbResult<bool> getBool(std::string_view column) noexcept;
+        DbResult<std::string_view> getString(std::string_view column) noexcept;
+        DbResult<Blob> getBlob(std::string_view column) noexcept;
 
         template<typename T>
-        T get(int index) throws(DbException);
+        DbResult<T> get(std::string_view column) noexcept;
+
+        template<typename T>
+        DbResult<T> get(int index) noexcept;
 
         template<std::integral T>
-        T get(int column) throws(DbException) { return static_cast<T>(getInt(column)); }
+        DbResult<T> get(int column) noexcept {
+            return getInt(column)
+                .transform([](auto it) {
+                    return static_cast<T>(it);
+                });
+        }
 
         template<std::floating_point T>
-        T get(int column) throws(DbException) { return static_cast<T>(getDouble(column)); }
+        DbResult<T> get(int column) noexcept {
+            return getDouble(column)
+                .transform([](auto it) {
+                    return static_cast<T>(it);
+                });
+        }
 
         template<std::integral T>
-        T get(std::string_view column) throws(DbException) { return static_cast<T>(getInt(column)); }
+        DbResult<T> get(std::string_view column) noexcept {
+            return getInt(column)
+                .transform([](auto it) {
+                    return static_cast<T>(it);
+                });
+        }
 
         template<std::floating_point T>
-        T get(std::string_view column) throws(DbException) { return static_cast<T>(getDouble(column)); }
+        DbResult<T> get(std::string_view column) noexcept {
+            return getDouble(column)
+                .transform([](auto it) {
+                    return static_cast<T>(it);
+                });
+        }
     };
 
 #define RESULT_SET_GET_IMPL(type, method) \
     template<> \
-    inline type ResultSet::get<type>(std::string_view column) throws(DbException) { \
+    inline DbResult<type> ResultSet::get<type>(std::string_view column) noexcept { \
         return method(column); \
     } \
     template<> \
-    inline type ResultSet::get<type>(int index) throws(DbException) { \
+    inline DbResult<type> ResultSet::get<type>(int index) noexcept { \
         return method(index); \
     }
 
@@ -99,8 +119,8 @@ namespace sm::db {
         void bind(std::string_view name, double value) throws(DbException) { bind(name) = value; }
         void bind(std::string_view name, std::nullptr_t) throws(DbException) { bind(name) = nullptr; }
 
-        std::expected<ResultSet, DbError> select() noexcept;
-        std::expected<ResultSet, DbError> update() noexcept;
+        DbResult<ResultSet> select() noexcept;
+        DbResult<ResultSet> update() noexcept;
 
         DbError execute() noexcept;
         DbError step() noexcept;
@@ -119,7 +139,7 @@ namespace sm::db {
 
         bool mAutoCommit;
 
-        std::expected<PreparedStatement, DbError> sqlPrepare(std::string_view sql, StatementType type) noexcept;
+        DbResult<PreparedStatement> sqlPrepare(std::string_view sql, StatementType type) noexcept;
 
         Connection(detail::IConnection *impl, const ConnectionConfig& config) noexcept
             : mImpl(impl)
@@ -129,27 +149,26 @@ namespace sm::db {
     public:
         SM_MOVE(Connection, default);
 
-        void begin() throws(DbException);
-        void rollback() throws(DbException);
-        void commit() throws(DbException);
+        DbError begin() noexcept;
+        DbError rollback() noexcept;
+        DbError commit() noexcept;
 
         void setAutoCommit(bool enabled) noexcept { mAutoCommit = enabled; }
 
         [[nodiscard]]
         bool autoCommit() const noexcept { return mAutoCommit; }
 
-        std::expected<ResultSet, DbError> select(std::string_view sql) noexcept;
-        std::expected<ResultSet, DbError> update(std::string_view sql) noexcept;
+        DbResult<ResultSet> select(std::string_view sql) noexcept;
+        DbResult<ResultSet> update(std::string_view sql) noexcept;
 
-        std::expected<PreparedStatement, DbError> dqlPrepare(std::string_view sql) noexcept;
-        std::expected<PreparedStatement, DbError> dmlPrepare(std::string_view sql) noexcept;
-        std::expected<PreparedStatement, DbError> ddlPrepare(std::string_view sql) noexcept;
-        std::expected<PreparedStatement, DbError> dclPrepare(std::string_view sql) noexcept;
+        DbResult<PreparedStatement> dqlPrepare(std::string_view sql) noexcept;
+        DbResult<PreparedStatement> dmlPrepare(std::string_view sql) noexcept;
+        DbResult<PreparedStatement> ddlPrepare(std::string_view sql) noexcept;
+        DbResult<PreparedStatement> dclPrepare(std::string_view sql) noexcept;
 
-        [[nodiscard]]
-        bool tableExists(std::string_view name) throws(DbException);
+        DbResult<bool> tableExists(std::string_view name) noexcept;
 
-        std::expected<Version, DbError> dbVersion() const noexcept;
+        DbResult<Version> dbVersion() const noexcept;
     };
 
     class Environment {
@@ -168,8 +187,8 @@ namespace sm::db {
 
         [[nodiscard]]
         static bool isSupported(DbType type) noexcept;
-        static std::expected<Environment, DbError> create(DbType type) noexcept;
+        static DbResult<Environment> create(DbType type) noexcept;
 
-        std::expected<Connection, DbError> connect(const ConnectionConfig& config) noexcept;
+        DbResult<Connection> connect(const ConnectionConfig& config) noexcept;
     };
 }

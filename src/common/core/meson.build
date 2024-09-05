@@ -50,7 +50,7 @@ core = declare_dependency(
 
 catch2 = dependency('catch2-with-main')
 testargs = [ '--reporter=TAP', '--allow-running-no-tests' ]
-testkwargs = { 'protocol' : 'tap', 'args' : testargs }
+testkwargs = { 'protocol' : 'tap', 'args' : testargs, 'timeout': 5 }
 
 coretest = declare_dependency(
     include_directories : '.',

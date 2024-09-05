@@ -164,7 +164,7 @@ static std::string setupInsert(const TableInfo& info, bool returning) noexcept {
         if (returning && info.primaryKey == i)
             continue;
 
-        ss << ":" << i;
+        ss << ":" << info.columns[i].name;
         if (i != info.columns.size() - 1) {
             ss << ", ";
         }
@@ -174,7 +174,9 @@ static std::string setupInsert(const TableInfo& info, bool returning) noexcept {
 
     if (returning) {
         auto pk = info.getPrimaryKey();
-        ss << " RETURNING " << pk.name;
+        ss << " ON CONFLICT DO UPDATE SET "
+            << pk.name << "=" << pk.name
+            << " RETURNING " << pk.name;
     }
 
     ss << ";";
@@ -187,32 +189,32 @@ static void bindIndex(db::PreparedStatement& stmt, const TableInfo& info, size_t
     if (returning && info.primaryKey == index)
         return;
 
-    auto i = fmt::format("{}", index);
+    auto binding = stmt.bind(column.name);
     const void *field = static_cast<const char*>(data) + column.offset;
     switch (column.type) {
     case ColumnType::eInt:
-        stmt.bind(i).toInt(*reinterpret_cast<const int32_t*>(field));
+        binding.toInt(*reinterpret_cast<const int32_t*>(field));
         break;
     case ColumnType::eUint:
-        stmt.bind(i).toInt(*reinterpret_cast<const uint32_t*>(field));
+        binding.toInt(*reinterpret_cast<const uint32_t*>(field));
         break;
     case ColumnType::eLong:
-        stmt.bind(i).toInt(*reinterpret_cast<const int64_t*>(field));
+        binding.toInt(*reinterpret_cast<const int64_t*>(field));
         break;
     case ColumnType::eUlong:
-        stmt.bind(i).toInt(*reinterpret_cast<const uint64_t*>(field));
+        binding.toInt(*reinterpret_cast<const uint64_t*>(field));
         break;
     case ColumnType::eBool:
-        stmt.bind(i).toBool(*reinterpret_cast<const bool*>(field));
+        binding.toBool(*reinterpret_cast<const bool*>(field));
         break;
     case ColumnType::eString:
-        stmt.bind(i).toString(*reinterpret_cast<const std::string*>(field));
+        binding.toString(*reinterpret_cast<const std::string*>(field));
         break;
     case ColumnType::eFloat:
-        stmt.bind(i).toDouble(*reinterpret_cast<const float*>(field));
+        binding.toDouble(*reinterpret_cast<const float*>(field));
         break;
     case ColumnType::eDouble:
-        stmt.bind(i).toDouble(*reinterpret_cast<const double*>(field));
+        binding.toDouble(*reinterpret_cast<const double*>(field));
         break;
     default:
         CT_NEVER("Unsupported column type");
@@ -234,13 +236,13 @@ db::DbError dao::insertImpl(db::Connection& connection, const TableInfo& info, c
 }
 
 db::DbError dao::insertGetPrimaryKeyImpl(db::Connection& connection, const TableInfo& info, const void *data, void *generated) noexcept {
-    CTASSERTF(info.hasAutoIncrementPrimaryKey(), "Table %s has no auto increment primary key", info.name.data());
+    CTASSERTF(info.hasPrimaryKey(), "Table %s has no auto increment primary key", info.name.data());
 
     auto sql = setupInsert(info, true);
 
     fmt::println(stderr, "Insert: {}", sql);
 
-    auto result = connection.dmlPrepare(sql)
+    auto stmt = connection.dmlPrepare(sql)
         .transform([&](auto stmt) {
             for (size_t i = 0; i < info.columns.size(); i++) {
                 bindIndex(stmt, info, i, true, data);
@@ -250,26 +252,32 @@ db::DbError dao::insertGetPrimaryKeyImpl(db::Connection& connection, const Table
         })
         .and_then([](auto stmt) { return stmt.select(); });
 
-    auto value = TRY_UNWRAP(result);
+    auto result = TRY_UNWRAP(stmt);
 
-    while (!value.next().isDone()) {
-        auto pk = info.getPrimaryKey();
-        switch (pk.type) {
-        case ColumnType::eInt:
-            *reinterpret_cast<int32_t*>(generated) = value.getInt(0);
-            break;
-        case ColumnType::eUint:
-            *reinterpret_cast<uint32_t*>(generated) = value.getInt(0);
-            break;
-        case ColumnType::eLong:
-            *reinterpret_cast<int64_t*>(generated) = value.getInt(0);
-            break;
-        case ColumnType::eUlong:
-            *reinterpret_cast<uint64_t*>(generated) = value.getInt(0);
-            break;
-        default:
-            CT_NEVER("Unsupported primary key type");
-        }
+    fmt::println(stderr, "before returning");
+
+    (void)result.next();
+
+    auto pk = info.getPrimaryKey();
+    switch (pk.type) {
+    case ColumnType::eInt:
+        *reinterpret_cast<int32_t*>(generated) = TRY_UNWRAP(result.get<int32_t>(0));
+        fmt::println(stderr, "after returning {}", *reinterpret_cast<int32_t*>(generated));
+        break;
+    case ColumnType::eUint:
+        *reinterpret_cast<uint32_t*>(generated) = TRY_UNWRAP(result.get<uint32_t>(0));
+        fmt::println(stderr, "after returning {}", *reinterpret_cast<uint32_t*>(generated));
+        break;
+    case ColumnType::eLong:
+        *reinterpret_cast<int64_t*>(generated) = TRY_UNWRAP(result.get<int64_t>(0));
+        fmt::println(stderr, "after returning {}", *reinterpret_cast<int64_t*>(generated));
+        break;
+    case ColumnType::eUlong:
+        *reinterpret_cast<uint64_t*>(generated) = TRY_UNWRAP(result.get<uint64_t>(0));
+        fmt::println(stderr, "after returning {}", *reinterpret_cast<uint64_t*>(generated));
+        break;
+    default:
+        CT_NEVER("Unsupported primary key type");
     }
 
     return db::DbError::ok();

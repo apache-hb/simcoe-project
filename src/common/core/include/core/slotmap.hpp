@@ -23,11 +23,11 @@ namespace sm {
 
             constexpr size_t length() const noexcept { return mStorage.length(); }
 
-            constexpr const T& operator[](size_t index) const noexcept { verify_index(index); return mStorage[index]; }
-            constexpr T& operator[](size_t index) noexcept { verify_index(index); return mStorage[index]; }
+            constexpr const T& operator[](size_t index) const noexcept { verifyIndex(index); return mStorage[index]; }
+            constexpr T& operator[](size_t index) noexcept { verifyIndex(index); return mStorage[index]; }
 
-            constexpr const T& get(size_t index) const noexcept { verify_index(index); return mStorage[index]; }
-            constexpr T& get(size_t index) noexcept { verify_index(index); return mStorage[index]; }
+            constexpr const T& get(size_t index) const noexcept { verifyIndex(index); return mStorage[index]; }
+            constexpr T& get(size_t index) noexcept { verifyIndex(index); return mStorage[index]; }
 
             constexpr Iterator begin() noexcept { return mStorage.begin(); }
             constexpr ConstIterator begin() const noexcept { return mStorage.begin(); }
@@ -36,7 +36,7 @@ namespace sm {
             constexpr ConstIterator end() const noexcept { return mStorage.end(); }
 
             constexpr bool test(size_t index, T value) const noexcept {
-                verify_index(index);
+                verifyIndex(index);
                 return mStorage[index] == value;
             }
 
@@ -85,13 +85,13 @@ namespace sm {
 
         protected:
             constexpr void set(size_t index, T value) noexcept {
-                verify_index(index);
+                verifyIndex(index);
                 mStorage[index] = value;
             }
 
             Storage mStorage;
 
-            constexpr void verify_index(size_t index) const noexcept {
+            constexpr void verifyIndex(size_t index) const noexcept {
                 CTASSERTF(index < length(), "index out of bounds: (%zu < %zu)", index, length());
             }
         };

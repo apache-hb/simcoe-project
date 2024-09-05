@@ -44,7 +44,7 @@ int ResultSet::getColumnCount() const noexcept {
     return mImpl->getColumnCount();
 }
 
-std::expected<ColumnInfo, DbError> ResultSet::getColumnInfo(int index) const noexcept {
+DbResult<ColumnInfo> ResultSet::getColumnInfo(int index) const noexcept {
     ColumnInfo column;
     if (DbError error = mImpl->getColumnInfo(index, column))
         return std::unexpected(error);
@@ -53,82 +53,82 @@ std::expected<ColumnInfo, DbError> ResultSet::getColumnInfo(int index) const noe
 }
 
 
-double ResultSet::getDouble(int index) noexcept(false) {
+DbResult<double> ResultSet::getDouble(int index) noexcept {
     double value = 0.0;
     if (DbError error = mImpl->getDoubleByIndex(index, value))
-        error.raise();
+        return error;
 
     return value;
 }
 
-int64 ResultSet::getInt(int index) noexcept(false) {
+DbResult<int64> ResultSet::getInt(int index) noexcept {
     int64 value = 0;
     if (DbError error = mImpl->getIntByIndex(index, value))
-        error.raise();
+        return error;
 
     return value;
 }
 
-bool ResultSet::getBool(int index) noexcept(false) {
+DbResult<bool> ResultSet::getBool(int index) noexcept {
     bool value = false;
     if (DbError error = mImpl->getBooleanByIndex(index, value))
-        error.raise();
+        return error;
 
     return value;
 }
 
-std::string_view ResultSet::getString(int index) noexcept(false) {
+DbResult<std::string_view> ResultSet::getString(int index) noexcept {
     std::string_view value;
     if (DbError error = mImpl->getStringByIndex(index, value))
-        error.raise();
+        return std::unexpected(error);
 
     return value;
 }
 
-Blob ResultSet::getBlob(int index) noexcept(false) {
+DbResult<Blob> ResultSet::getBlob(int index) noexcept {
     Blob value;
     if (DbError error = mImpl->getBlobByIndex(index, value))
-        error.raise();
+        return std::unexpected(error);
 
     return value;
 }
 
-double ResultSet::getDouble(std::string_view column) noexcept(false) {
+DbResult<double> ResultSet::getDouble(std::string_view column) noexcept {
     double value = 0.0;
     if (DbError error = mImpl->getDoubleByName(column, value))
-        error.raise();
+        return error;
 
     return value;
 }
 
-int64 ResultSet::getInt(std::string_view column) noexcept(false) {
+DbResult<int64> ResultSet::getInt(std::string_view column) noexcept {
     int64 value = 0;
     if (DbError error = mImpl->getIntByName(column, value))
-        error.raise();
+        return error;
 
     return value;
 }
 
-bool ResultSet::getBool(std::string_view column) noexcept(false) {
+DbResult<bool> ResultSet::getBool(std::string_view column) noexcept {
     bool value = false;
     if (DbError error = mImpl->getBooleanByName(column, value))
-        error.raise();
+        return error;
 
     return value;
 }
 
-std::string_view ResultSet::getString(std::string_view column) noexcept(false) {
+DbResult<std::string_view> ResultSet::getString(std::string_view column) noexcept {
     std::string_view value;
     if (DbError error = mImpl->getStringByName(column, value))
-        error.raise();
+        return std::unexpected(error);
 
     return value;
 }
 
-Blob ResultSet::getBlob(std::string_view column) noexcept(false) {
+DbResult<Blob> ResultSet::getBlob(std::string_view column) noexcept {
     Blob value;
     if (DbError error = mImpl->getBlobByName(column, value))
-        error.raise();
+        return std::unexpected(error);
 
     return value;
 }
@@ -183,14 +183,14 @@ DbError PreparedStatement::reset() noexcept {
     return mImpl->reset();
 }
 
-std::expected<ResultSet, DbError> PreparedStatement::select() noexcept {
+DbResult<ResultSet> PreparedStatement::select() noexcept {
     if (DbError error = mImpl->select())
         return std::unexpected(error);
 
     return ResultSet{mImpl};
 }
 
-std::expected<ResultSet, DbError> PreparedStatement::update() noexcept {
+DbResult<ResultSet> PreparedStatement::update() noexcept {
     if (DbError error = mImpl->update(mConnection->autoCommit()))
         return std::unexpected(error);
 
@@ -201,15 +201,15 @@ std::expected<ResultSet, DbError> PreparedStatement::update() noexcept {
 /// connection
 ///
 
-bool Connection::tableExists(std::string_view name) noexcept(false) {
+DbResult<bool> Connection::tableExists(std::string_view name) noexcept {
     bool exists = false;
     if (DbError error = mImpl->tableExists(name, exists))
-        error.raise();
+        return error;
 
     return exists;
 }
 
-std::expected<Version, DbError> Connection::dbVersion() const noexcept {
+DbResult<Version> Connection::dbVersion() const noexcept {
     Version version;
     if (DbError error = mImpl->dbVersion(version))
         return std::unexpected(error);
@@ -217,7 +217,7 @@ std::expected<Version, DbError> Connection::dbVersion() const noexcept {
     return version;
 }
 
-std::expected<PreparedStatement, DbError> Connection::sqlPrepare(std::string_view sql, StatementType type) noexcept {
+DbResult<PreparedStatement> Connection::sqlPrepare(std::string_view sql, StatementType type) noexcept {
     detail::IStatement *statement = nullptr;
     if (DbError error = mImpl->prepare(sql, &statement))
         return std::unexpected(error);
@@ -225,47 +225,44 @@ std::expected<PreparedStatement, DbError> Connection::sqlPrepare(std::string_vie
     return PreparedStatement{statement, this, type};
 }
 
-std::expected<PreparedStatement, DbError> Connection::dqlPrepare(std::string_view sql) noexcept {
+DbResult<PreparedStatement> Connection::dqlPrepare(std::string_view sql) noexcept {
     return sqlPrepare(sql, StatementType::eQuery);
 }
 
-std::expected<PreparedStatement, DbError> Connection::dmlPrepare(std::string_view sql) noexcept {
+DbResult<PreparedStatement> Connection::dmlPrepare(std::string_view sql) noexcept {
     return sqlPrepare(sql, StatementType::eModify);
 }
 
-std::expected<PreparedStatement, DbError> Connection::ddlPrepare(std::string_view sql) noexcept {
+DbResult<PreparedStatement> Connection::ddlPrepare(std::string_view sql) noexcept {
     return sqlPrepare(sql, StatementType::eDefine);
 }
 
-std::expected<PreparedStatement, DbError> Connection::dclPrepare(std::string_view sql) noexcept {
+DbResult<PreparedStatement> Connection::dclPrepare(std::string_view sql) noexcept {
     return sqlPrepare(sql, StatementType::eControl);
 }
 
-std::expected<ResultSet, DbError> Connection::select(std::string_view sql) noexcept {
+DbResult<ResultSet> Connection::select(std::string_view sql) noexcept {
     PreparedStatement stmt = TRY_RESULT(dqlPrepare(sql));
 
     return stmt.select();
 }
 
-std::expected<ResultSet, DbError> Connection::update(std::string_view sql) noexcept {
+DbResult<ResultSet> Connection::update(std::string_view sql) noexcept {
     PreparedStatement stmt = TRY_RESULT(dmlPrepare(sql));
 
     return stmt.update();
 }
 
-void Connection::begin() noexcept(false) {
-    if (DbError error = mImpl->begin())
-        error.raise();
+DbError Connection::begin() noexcept {
+    return mImpl->begin();
 }
 
-void Connection::commit() noexcept(false) {
-    if (DbError error = mImpl->commit())
-        error.raise();
+DbError Connection::commit() noexcept {
+    return mImpl->commit();
 }
 
-void Connection::rollback() noexcept(false) {
-    if (DbError error = mImpl->rollback())
-        error.raise();
+DbError Connection::rollback() noexcept {
+    return mImpl->rollback();
 }
 
 ///
@@ -286,7 +283,7 @@ std::string_view db::toString(DbType type) noexcept {
     }
 }
 
-std::expected<Environment, DbError> Environment::create(DbType type) noexcept {
+DbResult<Environment> Environment::create(DbType type) noexcept {
     detail::IEnvironment *env = nullptr;
     DbError error = [&] {
         switch (type) {
@@ -326,7 +323,7 @@ std::expected<Environment, DbError> Environment::create(DbType type) noexcept {
     return Environment{env};
 }
 
-std::expected<Connection, DbError> Environment::connect(const ConnectionConfig& config) noexcept {
+DbResult<Connection> Environment::connect(const ConnectionConfig& config) noexcept {
     detail::IConnection *connection = nullptr;
     if (DbError error = mImpl->connect(config, &connection))
         return std::unexpected(error);

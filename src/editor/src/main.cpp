@@ -179,27 +179,27 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
             return std::nullopt;
         }
 
-        UINT length = select.get<UINT>(0);
+        UINT length = select.get<UINT>(0).value_or(0);
         if (length == 0)
             return std::nullopt;
 
         WINDOWPLACEMENT placement = {
             .length = length,
-            .flags = select.get<UINT>(1),
-            .showCmd = select.get<UINT>(2),
+            .flags = select.get<UINT>(1).value_or(0),
+            .showCmd = select.get<UINT>(2).value_or(0),
             .ptMinPosition = {
-                .x = select.get<LONG>(3),
-                .y = select.get<LONG>(4),
+                .x = select.get<LONG>(3).value_or(0),
+                .y = select.get<LONG>(4).value_or(0),
             },
             .ptMaxPosition = {
-                .x = select.get<LONG>(5),
-                .y = select.get<LONG>(6),
+                .x = select.get<LONG>(5).value_or(0),
+                .y = select.get<LONG>(6).value_or(0),
             },
             .rcNormalPosition = {
-                .left = select.get<LONG>(7),
-                .top = select.get<LONG>(8),
-                .right = select.get<LONG>(9),
-                .bottom = select.get<LONG>(10),
+                .left = select.get<LONG>(7).value_or(0),
+                .top = select.get<LONG>(8).value_or(0),
+                .right = select.get<LONG>(9).value_or(0),
+                .bottom = select.get<LONG>(10).value_or(0),
             },
         };
 
@@ -247,8 +247,8 @@ public:
             }
         };
 
-        if (!dao::tableExists<editor::dao::WindowPlacement>(connection)) {
-            if (db::DbError error = dao::createTable<editor::dao::WindowPlacement>(connection)) {
+        if (!dao::tableExists<sm::dao::editor::WindowPlacement>(connection)) {
+            if (db::DbError error = dao::createTable<sm::dao::editor::WindowPlacement>(connection)) {
                 logs::gAssets.warn("update failed: {}", error.message());
             }
         }

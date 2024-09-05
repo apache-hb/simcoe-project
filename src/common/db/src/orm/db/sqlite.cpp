@@ -24,6 +24,10 @@ static void checkError(const DbError& err) noexcept {
 
 #define CHECK_ERROR(expr) checkError(#expr, expr)
 
+static bool isErrorState(int err) {
+    return err >= SQLITE_ERROR && err != SQLITE_ROW && err != SQLITE_DONE;
+}
+
 static int getStatusType(int err) {
     switch (err) {
     case SQLITE_OK:
@@ -31,7 +35,7 @@ static int getStatusType(int err) {
         return DbError::eOk;
 
     case SQLITE_DONE:
-        return DbError::eNoMoreData;
+        return DbError::eDone;
 
     default:
         return DbError::eError;
@@ -49,16 +53,22 @@ static DbError getError(int err, sqlite3 *db) noexcept {
         return DbError::ok();
 
     if (err == SQLITE_DONE)
-        return DbError::noMoreData(err);
+        return DbError::done(err);
 
     int status = getStatusType(err);
     return DbError{err, status, sqlite3_errmsg(db)};
 }
 
+static int doStep(sqlite3_stmt *stmt) noexcept {
+    int err = sqlite3_step(stmt);
+    fmt::println(stderr, "Status: {} ({})", sqlite3_errstr(err), err);
+    return err;
+}
+
 static int execSteps(sqlite3_stmt *stmt) noexcept {
     int err = 0;
     while (true) {
-        err = sqlite3_step(stmt);
+        err = doStep(stmt);
 
         if (err == SQLITE_ROW)
             continue;
@@ -90,11 +100,8 @@ class SqliteStatement final : public detail::IStatement {
 
 public:
     DbError close() noexcept override {
-        CTASSERTF(!sqlite3_stmt_busy(mStatement), "Statement is busy");
-
-        sqlite3 *db = sqlite3_db_handle(mStatement);
-        int err = sqlite3_finalize(mStatement);
-        return getError(err, db);
+        sqlite3_finalize(mStatement);
+        return DbError::ok();
     }
 
     DbError reset() noexcept override {
@@ -184,41 +191,56 @@ public:
     }
 
     DbError next() noexcept override {
-        mStatus = sqlite3_step(mStatement);
+        mStatus = doStep(mStatement);
         return getStmtError(mStatus);
     }
 
+    bool isRowReady() const noexcept {
+        return mStatus == SQLITE_ROW;
+    }
+
+    DbError rowNotReady() const noexcept {
+        return DbError::notReady(fmt::format("Statement is not ready for reading. {}", sqlite3_errstr(mStatus)));
+    }
+
     DbError getIntByIndex(int index, int64& value) noexcept override {
-        CTASSERTF(mStatus == SQLITE_ROW, "Statement is not ready for reading");
+        if (!isRowReady())
+            return rowNotReady();
+
         value = sqlite3_column_int64(mStatement, index);
         return DbError::ok();
     }
 
     DbError getBooleanByIndex(int index, bool& value) noexcept override {
-        CTASSERTF(mStatus == SQLITE_ROW, "Statement is not ready for reading");
+        if (!isRowReady())
+            return rowNotReady();
+
         value = sqlite3_column_int(mStatement, index) != 0;
         return DbError::ok();
     }
 
     DbError getStringByIndex(int index, std::string_view& value) noexcept override {
-        CTASSERTF(mStatus == SQLITE_ROW, "Statement is not ready for reading");
-        const char *text = (const char*)sqlite3_column_text(mStatement, index);
-        if (text == nullptr) {
-            value = std::string_view{};
-        } else {
+        if (!isRowReady())
+            return rowNotReady();
+
+        if (const char *text = (const char*)sqlite3_column_text(mStatement, index))
             value = text;
-        }
+
         return DbError::ok();
     }
 
     DbError getDoubleByIndex(int index, double& value) noexcept override {
-        CTASSERTF(mStatus == SQLITE_ROW, "Statement is not ready for reading");
+        if (!isRowReady())
+            return rowNotReady();
+
         value = sqlite3_column_double(mStatement, index);
         return DbError::ok();
     }
 
     DbError getBlobByIndex(int index, Blob& value) noexcept override {
-        CTASSERTF(mStatus == SQLITE_ROW, "Statement is not ready for reading");
+        if (!isRowReady())
+            return rowNotReady();
+
         const uint8 *bytes = (const uint8*)sqlite3_column_blob(mStatement, index);
         int length = sqlite3_column_bytes(mStatement, index);
 
@@ -365,6 +387,13 @@ class SqliteEnvironment final : public detail::IEnvironment {
         if (int err = sqlite3_open(dbPath.c_str(), &db))
             return getError(err);
 
+        sqlite3_trace_v2(db, SQLITE_TRACE_STMT, [](unsigned flags, void *ctx, void *p, void *x) {
+            sqlite3_stmt *stmt = (sqlite3_stmt*)p;
+            const char *sql = sqlite3_expanded_sql(stmt);
+            fmt::println(stderr, "SQL: {}", sql);
+            return 0;
+        }, nullptr);
+
         *connection = new SqliteConnection{db};
         return DbError::ok();
     }
@@ -373,8 +402,14 @@ class SqliteEnvironment final : public detail::IEnvironment {
         return false;
     }
 
+
 public:
-    SqliteEnvironment() noexcept = default;
+    SqliteEnvironment() noexcept {
+        int err = sqlite3_config(SQLITE_CONFIG_LOG, +[](void *ctx, int err, const char *msg) {
+            fmt::println(stderr, "SQLite: {}", msg);
+        }, nullptr);
+        CTASSERTF(err == SQLITE_OK, "Failed to configure SQLite logging: %d", err);
+    }
 };
 
 DbError detail::sqlite(detail::IEnvironment **env) noexcept {

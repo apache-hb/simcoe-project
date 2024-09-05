@@ -49,22 +49,17 @@ DbError IStatement::bindBlobByName(std::string_view name, Blob value) noexcept {
 }
 
 DbError IStatement::bindNullByName(std::string_view name) noexcept {
-    int index = TRY_UNWRAP(findColumnIndex(name));
+    int index = -1;
+    if (DbError error = findBindIndex(name, index))
+        return error;
+
     return bindNullByIndex(index);
 }
 
-std::expected<int, DbError> IStatement::findColumnIndex(std::string_view name) const noexcept {
-    int index = -1;
-    if (DbError error = getColumnIndex(name, index))
-        return error;
-
-    return index;
+DbError IStatement::findColumnIndex(std::string_view name, int& index) const noexcept {
+    return getColumnIndex(name, index);
 }
 
-std::expected<int, DbError> IStatement::findBindIndex(std::string_view name) const noexcept {
-    int index = -1;
-    if (DbError error = getBindIndex(name, index))
-        return error;
-
-    return index;
+DbError IStatement::findBindIndex(std::string_view name, int& index) const noexcept {
+    return getBindIndex(name, index);
 }

@@ -60,7 +60,7 @@ static CellInfo initCellValue(OraEnvironment& env, OraError error, OraColumnInfo
     }
 }
 
-static std::expected<ub2, DbError> getColumnSize(OraError error, OraParam param, bool charSemantics) noexcept {
+static DbResult<ub2> getColumnSize(OraError error, OraParam param, bool charSemantics) noexcept {
     if (charSemantics) {
         return param.getAttribute<ub2>(error, OCI_ATTR_CHAR_SIZE);
     } else {
@@ -68,7 +68,7 @@ static std::expected<ub2, DbError> getColumnSize(OraError error, OraParam param,
     }
 }
 
-static std::expected<std::string_view, DbError> getColumnName(OraError error, OraParam param) noexcept {
+static DbResult<std::string_view> getColumnName(OraError error, OraParam param) noexcept {
     ub4 columnNameLength = 0;
     text *columnNameBuffer = nullptr;
     if (sword status = param.getAttribute(error, OCI_ATTR_NAME, &columnNameBuffer, &columnNameLength))
@@ -77,7 +77,7 @@ static std::expected<std::string_view, DbError> getColumnName(OraError error, Or
     return std::string_view{(const char*)columnNameBuffer, columnNameLength};
 }
 
-static std::expected<ub2, DbError> getColumnType(OraError error, OraParam param) noexcept {
+static DbResult<ub2> getColumnType(OraError error, OraParam param) noexcept {
     ub2 dataType = 0;
     if (sword status = param.getAttribute(error, OCI_ATTR_DATA_TYPE, &dataType))
         return std::unexpected(oraGetError(error, status));
@@ -88,7 +88,7 @@ static std::expected<ub2, DbError> getColumnType(OraError error, OraParam param)
     return dataType;
 }
 
-static std::expected<std::vector<OraColumnInfo>, DbError> defineColumns(OraEnvironment& env, OraError error, OraStmt stmt) noexcept {
+static DbResult<std::vector<OraColumnInfo>> defineColumns(OraEnvironment& env, OraError error, OraStmt stmt) noexcept {
     OraParam param;
     std::vector<OraColumnInfo> columns;
     ub4 counter = 1;
@@ -268,7 +268,10 @@ DbError OraStatement::bindIntByName(std::string_view name, int64 value) noexcept
 }
 
 DbError OraStatement::bindBooleanByName(std::string_view name, bool value) noexcept {
-    int index = TRY_UNWRAP(findColumnIndex(name));
+    int index = -1;
+    if (DbError error = findBindIndex(name, index))
+        return error;
+
     const OraColumnInfo& column = mColumnInfo[index];
 
     if (isBoolType(column.type))

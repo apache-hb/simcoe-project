@@ -11,16 +11,21 @@ TEST_CASE("Setup logging") {
     auto conn = env.connect({.host = "testlogging.db"}).value();
 
     try {
-        if (auto err = logs::structured::setup(conn)) {
-            FAIL(err.message());
-        }
+        auto err = logs::structured::setup(conn);
+        REQUIRE(err.isSuccess());
+
 
         // LOG_INFO("Logging setup complete");
     } catch (const db::DbException& err) {
-        FAIL(err.message());
+        for (const auto& frame : err.stacktrace()) {
+            fmt::println(stderr, "  at {0} in {1}:{2}", frame.description(), frame.source_file(), frame.source_line());
+        }
+        FAIL(err.what());
     }
 
     SUCCEED();
 
     LOG_INFO("Logging setup complete");
+
+    LOG_INFO("Log message {index}", 5);
 }

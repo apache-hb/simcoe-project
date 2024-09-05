@@ -38,16 +38,16 @@ std::string orcl::oraErrorText(void *handle, sword status, ub4 type) noexcept {
     return result;
 }
 
-bool orcl::isSuccess(sword status) noexcept {
-    return status == OCI_SUCCESS || status == OCI_SUCCESS_WITH_INFO;
-}
-
 DbError orcl::oraGetHandleError(void *handle, sword status, ub4 type) noexcept {
     if (status == OCI_SUCCESS)
         return DbError::ok();
 
     int inner = isSuccess(status) ? DbError::eOk : DbError::eError;
     return DbError{status, inner, oraErrorText(handle, status, type)};
+}
+
+bool orcl::isSuccess(sword status) noexcept {
+    return status == OCI_SUCCESS || status == OCI_SUCCESS_WITH_INFO;
 }
 
 DbError orcl::oraGetError(OraError error, sword status) noexcept {

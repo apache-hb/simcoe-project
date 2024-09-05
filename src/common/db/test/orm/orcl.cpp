@@ -25,7 +25,7 @@ TEST_CASE("updates") {
 
     auto conn = std::move(connResult.value());
 
-    if (conn.tableExists("test"))
+    if (conn.tableExists("test").value_or(false))
         getValue(conn.update("DROP TABLE test"));
 
     getValue(conn.update("CREATE TABLE test (id NUMBER, name CHARACTER VARYING(100))"));
@@ -34,7 +34,7 @@ TEST_CASE("updates") {
         THEN("simple sql operations work") {
             getValue(conn.update("INSERT INTO test (id, name) VALUES (1, 'test')"));
 
-            conn.commit();
+            checkError(conn.commit());
 
             Transaction tx(&conn);
 
@@ -46,8 +46,8 @@ TEST_CASE("updates") {
             int count = 0;
 
             while (results.next().isSuccess()) {
-                int64 id = results.getInt(0);
-                std::string_view name = results.getString(1);
+                int64 id = getValue(results.getInt(0));
+                std::string_view name = getValue(results.getString(1));
 
                 REQUIRE(id == 1);
                 REQUIRE(name == "test");

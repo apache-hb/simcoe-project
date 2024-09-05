@@ -9,9 +9,6 @@
 #include "logs/logs.hpp"
 #include "orm/error.hpp"
 
-#include <fmtlib/format.h>
-#include <fmt/compile.h>
-
 namespace sm::db {
     class Connection;
 }
@@ -33,9 +30,8 @@ namespace sm::logs::structured {
         uint64_t id;
         logs::Severity level;
         std::string_view message;
-        uint32_t line;
-        std::string_view file;
-        std::string_view function;
+        std::source_location location;
+        std::vector<MessageAttributeInfo> attributes;
     };
 
     db::DbError setup(db::Connection& connection);
@@ -49,7 +45,6 @@ namespace sm::logs::structured {
         struct LogMessageId {
             LogMessageId(LogMessageInfo& message) noexcept;
             LogMessageInfo& info;
-            std::vector<MessageAttributeInfo> attributes;
         };
 
         template<LogMessageFn F, typename... A>
@@ -65,28 +60,27 @@ namespace sm::logs::structured {
         void postLogMessage(const LogMessageId& message, fmt::format_args args) noexcept;
 
         template<LogMessageFn F, typename... A>
-        void fmtMessage(fmt::format_string<A...> fmt, A&&... args) noexcept {
-            const auto& message = gTagInfo<F, A...>;
-            postLogMessage(message, fmt::make_format_args(args...));
+        void fmtMessage(std::string_view fmt, A&&... args) noexcept {
+            postLogMessage(gTagInfo<F, A...>, fmt::make_format_args(args...));
         }
     }
 } // namespace sm::logs
 
 #define LOG_MESSAGE(severity, message, ...) \
     do { \
-        static constexpr std::string_view fnName = __FUNCTION__; \
+        static constexpr std::source_location loc = std::source_location::current(); \
         struct LogMessageImpl { \
             constexpr sm::logs::structured::LogMessageInfo operator()() const noexcept { \
-                return { UINT64_MAX, severity, message, __LINE__, __FILE__, fnName }; \
+                return { UINT64_MAX, severity, message, loc }; \
             } \
         }; \
         sm::logs::structured::detail::fmtMessage<LogMessageImpl>(message __VA_OPT__(,) __VA_ARGS__); \
     } while (false)
 
-#define LOG_TRACE(...) LOG_MESSAGE(sm::logs::Severity::eTrace, __VA_ARGS__)
-#define LOG_DEBUG(...) LOG_MESSAGE(sm::logs::Severity::eDebug, __VA_ARGS__)
-#define LOG_INFO(...) LOG_MESSAGE(sm::logs::Severity::eInfo, __VA_ARGS__)
+#define LOG_TRACE(...) LOG_MESSAGE(sm::logs::Severity::eTrace,  __VA_ARGS__)
+#define LOG_DEBUG(...) LOG_MESSAGE(sm::logs::Severity::eDebug,  __VA_ARGS__)
+#define LOG_INFO(...) LOG_MESSAGE(sm::logs::Severity::eInfo,    __VA_ARGS__)
 #define LOG_WARN(...) LOG_MESSAGE(sm::logs::Severity::eWarning, __VA_ARGS__)
-#define LOG_ERROR(...) LOG_MESSAGE(sm::logs::Severity::eError, __VA_ARGS)
-#define LOG_FATAL(...) LOG_MESSAGE(sm::logs::Severity::eFatal, __VA_ARGS)
-#define LOG_PANIC(...) LOG_MESSAGE(sm::logs::Severity::ePanic, __VA_ARGS)
+#define LOG_ERROR(...) LOG_MESSAGE(sm::logs::Severity::eError,  __VA_ARGS__)
+#define LOG_FATAL(...) LOG_MESSAGE(sm::logs::Severity::eFatal,  __VA_ARGS__)
+#define LOG_PANIC(...) LOG_MESSAGE(sm::logs::Severity::ePanic,  __VA_ARGS__)

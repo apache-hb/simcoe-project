@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <root name="logs">
-    <table name="log_severity" primaryKey="level" onConflict="replace">
+    <table name="log_severity" primaryKey="level" onConflict="ignore">
         <column name="name" type="text" length="255">
-            <unique onConflict="replace" />
+            <unique onConflict="ignore" />
         </column>
 
         <column name="level" type="uint" />
@@ -19,7 +19,7 @@
         <column name="line"     type="uint"               />
         <column name="function" type="text" length="4096" />
 
-        <unique name="unique_log_message_source_location" onConflict="replace">
+        <unique name="unique_log_message_source_location" onConflict="ignore">
             <column>file</column>
             <column>line</column>
             <column>function</column>
@@ -34,13 +34,17 @@
             <constraint references="log_message.id" />
         </column>
 
-        <unique onConflict="replace">
+        <unique onConflict="ignore">
             <column>key</column>
             <column>message</column>
         </unique>
     </table>
 
-    <table name="log_entry" primaryKey="id" syntheticPrimaryKey="ulong">
+    <table name="log_session" primaryKey="start">
+        <column name="start" type="ulong" />
+    </table>
+
+    <table name="log_entry" syntheticPrimaryKey="ulong">
         <column name="timestamp" type="ulong" />
 
         <column name="message" type="ulong">

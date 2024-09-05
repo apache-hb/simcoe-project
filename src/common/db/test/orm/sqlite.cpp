@@ -11,14 +11,14 @@ TEST_CASE("sqlite updates") {
 
     auto conn = getValue(env.connect(kConfig));
 
-    if (conn.tableExists("test"))
+    if (conn.tableExists("test").value_or(false))
         getValue(conn.update("DROP TABLE test"));
 
-    REQUIRE(!conn.tableExists("test"));
+    REQUIRE(conn.tableExists("test") == DbResult<bool>(false));
 
     getValue(conn.update("CREATE TABLE test (id INTEGER, name VARCHAR(100))"));
 
-    REQUIRE(conn.tableExists("test"));
+    REQUIRE(conn.tableExists("test") == DbResult<bool>(true));
 
     SECTION("updates and rollback") {
         getValue(conn.update("INSERT INTO test (id, name) VALUES (1, 'test')"));
@@ -48,8 +48,8 @@ TEST_CASE("sqlite updates") {
 
         int count = 1;
         while (results.next().isSuccess()) {
-            int64 id = results.getInt(0);
-            std::string_view name = results.getString(1);
+            int64 id = getValue(results.getInt(0));
+            std::string_view name = getValue(results.getString(1));
 
             REQUIRE(id == count);
             REQUIRE(name == fmt::format("test{}", count));
