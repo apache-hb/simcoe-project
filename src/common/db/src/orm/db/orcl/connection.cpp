@@ -24,7 +24,7 @@ static DbError getDbVersion(OraServer& server, OraError& error, Version& version
     return DbError::ok();
 }
 
-std::expected<OraStatement, DbError> OraConnection::newStatement(std::string_view sql) noexcept {
+DbResult<OraStatement> OraConnection::newStatement(std::string_view sql) noexcept {
     OraStmt statement;
     OraError error;
     OraEnv& env = mEnvironment.env();

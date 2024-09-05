@@ -47,14 +47,11 @@ static std::string_view onConflictString(OnConflict conflict) noexcept {
     CT_NEVER("Invalid on conflict value");
 }
 
-static std::string setupCreateTable(const TableInfo& info, CreateTable options) noexcept {
+static std::string setupCreateTable(const TableInfo& info) noexcept {
     std::ostringstream ss;
     bool hasConstraints = info.hasPrimaryKey() || info.hasForeignKeys();
 
     ss << "CREATE TABLE";
-
-    if (options == CreateTable::eCreateIfNotExists)
-        ss << " IF NOT EXISTS";
 
     ss << " " << info.name << " (\n";
     for (size_t i = 0; i < info.columns.size(); i++) {
@@ -138,8 +135,11 @@ static std::string setupCreateTable(const TableInfo& info, CreateTable options) 
     return ss.str();
 }
 
-db::DbError dao::createTableImpl(db::Connection& connection, const TableInfo& info, CreateTable options) noexcept {
-    auto sql = setupCreateTable(info, options);
+db::DbError dao::createTableImpl(db::Connection& connection, const TableInfo& info) noexcept {
+    if (connection.tableExists(info.name).value_or(false))
+        return db::DbError::ok();
+
+    auto sql = setupCreateTable(info);
 
     return connection.ddlPrepare(sql)
         .and_then([](auto stmt) { return stmt.update(); })

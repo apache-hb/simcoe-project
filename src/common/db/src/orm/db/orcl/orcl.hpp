@@ -186,7 +186,7 @@ namespace sm::db::detail::orcl {
         OraSession mSession;
         Version mVersion;
 
-        std::expected<OraStatement, DbError> newStatement(std::string_view sql) noexcept;
+        DbResult<OraStatement> newStatement(std::string_view sql) noexcept;
 
         DbError close() noexcept override;
 

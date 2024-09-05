@@ -187,8 +187,19 @@ namespace sm::db {
 
         [[nodiscard]]
         static bool isSupported(DbType type) noexcept;
-        static DbResult<Environment> create(DbType type) noexcept;
 
-        DbResult<Connection> connect(const ConnectionConfig& config) noexcept;
+        static DbResult<Environment> tryCreate(DbType type) noexcept;
+        static Environment create(DbType type) {
+            return tryCreate(type).throwIfFailed();
+        }
+
+        DbResult<Connection> tryConnect(const ConnectionConfig& config) noexcept;
+        Connection connect(const ConnectionConfig& config) {
+            auto result = tryConnect(config);
+            if (!result.has_value())
+                throw DbConnectionException{result.error(), config};
+
+            return std::move(*result);
+        }
     };
 }

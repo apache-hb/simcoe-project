@@ -1,4 +1,4 @@
-project('oradb-oci', 'c',
+project('db2cli', 'c',
     version : '19.0.0'
 )
 

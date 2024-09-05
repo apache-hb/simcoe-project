@@ -138,33 +138,27 @@ DbResult<Blob> ResultSet::getBlob(std::string_view column) noexcept {
 ///
 
 void BindPoint::toInt(int64 value) noexcept(false) {
-    if (DbError error = mImpl->bindIntByName(mName, value))
-        error.raise();
+    mImpl->bindIntByName(mName, value).throwIfFailed();
 }
 
 void BindPoint::toBool(bool value) noexcept(false) {
-    if (DbError error = mImpl->bindBooleanByName(mName, value))
-        error.raise();
+    mImpl->bindBooleanByName(mName, value).throwIfFailed();
 }
 
 void BindPoint::toString(std::string_view value) noexcept(false) {
-    if (DbError error = mImpl->bindStringByName(mName, value))
-        error.raise();
+    mImpl->bindStringByName(mName, value).throwIfFailed();
 }
 
 void BindPoint::toDouble(double value) noexcept(false) {
-    if (DbError error = mImpl->bindDoubleByName(mName, value))
-        error.raise();
+    mImpl->bindDoubleByName(mName, value).throwIfFailed();
 }
 
 void BindPoint::toBlob(Blob value) noexcept(false) {
-    if (DbError error = mImpl->bindBlobByName(mName, value))
-        error.raise();
+    mImpl->bindBlobByName(mName, value).throwIfFailed();
 }
 
 void BindPoint::toNull() noexcept(false) {
-    if (DbError error = mImpl->bindNullByName(mName))
-        error.raise();
+    mImpl->bindNullByName(mName).throwIfFailed();
 }
 
 ///
@@ -283,7 +277,7 @@ std::string_view db::toString(DbType type) noexcept {
     }
 }
 
-DbResult<Environment> Environment::create(DbType type) noexcept {
+DbResult<Environment> Environment::tryCreate(DbType type) noexcept {
     detail::IEnvironment *env = nullptr;
     DbError error = [&] {
         switch (type) {
@@ -323,7 +317,7 @@ DbResult<Environment> Environment::create(DbType type) noexcept {
     return Environment{env};
 }
 
-DbResult<Connection> Environment::connect(const ConnectionConfig& config) noexcept {
+DbResult<Connection> Environment::tryConnect(const ConnectionConfig& config) noexcept {
     detail::IConnection *connection = nullptr;
     if (DbError error = mImpl->connect(config, &connection))
         return std::unexpected(error);

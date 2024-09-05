@@ -314,11 +314,10 @@ static void commonInit(void) {
         logs::gGlobal.error("failed to open log file: {}", file.error());
     }
 
-    auto sqlite3 = db::Environment::create(db::DbType::eSqlite3).value();
+    auto sqlite3 = db::Environment::create(db::DbType::eSqlite3);
 
-    auto logs = sqlite3.connect({ .host = "logs.db" }).value();
-    if (auto error = sm::logs::structured::setup(logs))
-        error.raise();
+    auto logs = sqlite3.connect({ .host = "logs.db" });
+    sm::logs::structured::setup(logs).throwIfFailed();
 
     threads::init();
 }
@@ -364,13 +363,8 @@ static void message_loop(sys::ShowWindow show) {
         .title = "Priority Zero",
     };
 
-    db::Environment sqlite = TRY_RETURN(db::Environment::create(db::DbType::eSqlite3), (const auto& error) {
-        logs::gGlobal.error("failed to create sqlite3 environment: {}", error.message());
-    });
-
-    db::Connection connection = TRY_RETURN(sqlite.connect({ .host = "editor.db" }), (const auto& error) {
-        logs::gGlobal.error("failed to connect to database: {}", error.message());
-    });
+    db::Environment sqlite = db::Environment::create(db::DbType::eSqlite3);
+    db::Connection connection = sqlite.connect({ .host = "editor.db" });
 
     DefaultWindowEvents events{connection};
 

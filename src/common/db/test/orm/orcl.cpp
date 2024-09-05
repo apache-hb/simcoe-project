@@ -16,9 +16,9 @@ TEST_CASE("updates") {
         SKIP("OracleDB not supported");
     }
 
-    auto env = getValue(Environment::create(DbType::eOracleDB));
+    auto env = Environment::create(DbType::eOracleDB);
 
-    auto connResult = env.connect(kConfig);
+    auto connResult = env.tryConnect(kConfig);
     if (!connResult.has_value()) {
         SKIP("Failed to connect to database " << connResult.error().message());
     }

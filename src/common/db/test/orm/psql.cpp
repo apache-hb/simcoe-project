@@ -16,9 +16,9 @@ TEST_CASE("sqlite updates") {
         SKIP("PostgreSQL not supported");
     }
 
-    auto env = getValue(Environment::create(DbType::ePostgreSQL));
+    auto env = Environment::create(DbType::ePostgreSQL);
 
-    auto connResult = env.connect(kConfig);
+    auto connResult = env.tryConnect(kConfig);
     if (!connResult.has_value()) {
         SKIP("Failed to connect to database " << connResult.error().message());
     }

@@ -39,7 +39,7 @@ subprojects/*
 !subprojects/*.wrap
 !subprojects/packagefiles
 !subprojects/packagefiles/**
-!subprojects/orcl-oci
+!subprojects/oracledb-client
 !subprojects/db2cli
 !subprojects/.clang-tidy
 adns/

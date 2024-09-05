@@ -9,7 +9,7 @@ Transaction::Transaction(Connection *conn) noexcept(false)
 {
     if (auto err = conn->begin()) {
         mState = eRollback;
-        err.raise();
+        err.throwIfFailed();
     } else {
         conn->setAutoCommit(false);
     }
@@ -33,6 +33,5 @@ void Transaction::rollback() noexcept(false) {
     defer { mConnection->setAutoCommit(true); };
 
     mState = eRollback;
-    if (auto err = mConnection->rollback())
-        err.raise();
+    mConnection->rollback().throwIfFailed();
 }

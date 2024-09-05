@@ -16,7 +16,7 @@ src = [
 cfg = configuration_data()
 
 sqlite3 = dependency('sqlite3')
-oradb_oci = subproject('orcl-oci', required : get_option('orcl'))
+oracledb = subproject('oracledb-client', required : get_option('orcl'))
 db2cli = subproject('db2cli', required : get_option('db2'))
 postgres = dependency('libpq', required : get_option('psql'))
 devapi = dependency('devapi', required : get_option('mysql'))
@@ -24,7 +24,7 @@ has_mssql = get_option('mssql').allowed() and false
 has_odbc = get_option('odbc').allowed() and false
 
 cfg.set10('ORM_HAS_SQLITE3', true)
-cfg.set10('ORM_HAS_ORCL', oradb_oci.found())
+cfg.set10('ORM_HAS_ORCL', oracledb.found())
 cfg.set10('ORM_HAS_DB2', db2cli.found())
 cfg.set10('ORM_HAS_POSTGRES', postgres.found())
 cfg.set10('ORM_HAS_MYSQL', devapi.found())
@@ -33,13 +33,13 @@ cfg.set10('ORM_HAS_ODBC', has_odbc)
 
 deps = [ core, sqlite3, meta ]
 
-if oradb_oci.found()
+if oracledb.found()
     src += [
         'src/orm/db/orcl/orcl.cpp',
         'src/orm/db/orcl/statement.cpp',
         'src/orm/db/orcl/connection.cpp'
     ]
-    deps += [ oradb_oci.get_variable('oci') ]
+    deps += [ oracledb.get_variable('oci') ]
 endif
 
 if db2cli.found()

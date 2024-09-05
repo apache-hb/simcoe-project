@@ -7,9 +7,9 @@ static constexpr ConnectionConfig kConfig = {
 TEST_CASE("sqlite updates") {
     REQUIRE(Environment::isSupported(DbType::eSqlite3));
 
-    auto env = getValue(Environment::create(DbType::eSqlite3));
+    auto env = Environment::create(DbType::eSqlite3);
 
-    auto conn = getValue(env.connect(kConfig));
+    auto conn = env.connect(kConfig);
 
     if (conn.tableExists("test").value_or(false))
         getValue(conn.update("DROP TABLE test"));

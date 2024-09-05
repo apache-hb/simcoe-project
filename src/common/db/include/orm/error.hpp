@@ -32,8 +32,7 @@ namespace sm::db {
         std::string_view message() const noexcept { return mMessage; }
         const std::stacktrace& stacktrace() const noexcept { return mStacktrace; }
 
-        [[noreturn]]
-        void raise() const throws(DbException);
+        void throwIfFailed() const throws(DbException);
 
         operator bool() const noexcept {
             return mStatus != eOk;
@@ -59,7 +58,99 @@ namespace sm::db {
     };
 
     template<typename T>
-    using DbResult = std::expected<T, DbError>;
+    class DbResult : public std::expected<T, DbError> {
+    public:
+        using Super = std::expected<T, DbError>;
+        using Super::Super;
+
+        DbResult(Super&& result) noexcept
+            : Super(std::move(result))
+        { }
+
+        DbResult(const Super& result) noexcept
+            : Super(result)
+        { }
+
+        auto throwIfFailed() && throws(DbException) {
+            if (!this->has_value())
+                this->error().throwIfFailed();
+
+            return std::move(this->value());
+        }
+
+        auto throwIfFailed() const&& throws(DbException) {
+            if (!this->has_value())
+                this->error().raise();
+
+            return std::move(this->value());
+        }
+
+        template<typename F>
+        DbResult<std::invoke_result_t<F, T>> transform(F&& f) & {
+            if (this->has_value())
+                return std::expected(std::invoke(std::forward<F>(f), this->value()));
+
+            return std::unexpected(std::move(this->error()));
+        }
+
+        template<typename F>
+        DbResult<std::invoke_result_t<F, T>> transform(F&& f) const& {
+            if (this->has_value())
+                return std::invoke(std::forward<F>(f), this->value());
+
+            return std::unexpected(std::move(this->error()));
+        }
+
+        template<typename F>
+        DbResult<std::invoke_result_t<F, T>> transform(F&& f) && {
+            if (this->has_value())
+                return std::invoke(std::forward<F>(f), std::move(this->value()));
+
+            return std::unexpected(std::move(this->error()));
+        }
+
+        template<typename F>
+        DbResult<std::invoke_result_t<F, T>> transform(F&& f) const&& {
+            if (this->has_value())
+                return std::invoke(std::forward<F>(f), std::move(this->value()));
+
+            return std::unexpected(std::move(this->error()));
+        }
+
+        template<typename F>
+        std::invoke_result_t<F, T> and_then(F&& f) & {
+            if (this->has_value())
+                return std::invoke(std::forward<F>(f), this->value());
+
+            return std::unexpected(this->error());
+        }
+
+        template<typename F>
+        std::invoke_result_t<F, T> and_then(F&& f) const& {
+            if (this->has_value())
+                return std::invoke(std::forward<F>(f), this->value());
+
+            return std::unexpected(this->error());
+        }
+
+        template<typename F>
+        std::invoke_result_t<F, T> and_then(F&& f) && {
+            if (this->has_value())
+                return std::invoke(std::forward<F>(f), std::move(this->value()));
+
+            return std::unexpected(std::move(this->error()));
+        }
+
+        template<typename F>
+        std::invoke_result_t<F, T> and_then(F&& f) const&& {
+            if (this->has_value())
+                return std::invoke(std::forward<F>(f), std::move(this->value()));
+
+            return std::unexpected(std::move(this->error()));
+        }
+
+        constexpr auto operator<=>(const DbResult&) const = default;
+    };
 
     class DbException : public std::exception {
         DbError mError;

@@ -4,6 +4,8 @@
 
 #include "logs/structured/message.hpp"
 
+#include <fmtlib/format.h>
+
 #include "logs.dao.hpp"
 
 namespace structured = sm::logs::structured;
@@ -13,6 +15,11 @@ using LogMessageId = sm::logs::structured::detail::LogMessageId;
 using MessageAttributeInfo = sm::logs::structured::MessageAttributeInfo;
 
 static db::Connection *gConnection = nullptr;
+
+template<typename... T>
+struct overloaded : T... {
+    using T::operator()...;
+};
 
 static std::vector<structured::MessageAttributeInfo> getAttributes(std::string_view message) noexcept {
     std::vector<structured::MessageAttributeInfo> attributes;
@@ -71,12 +78,16 @@ void structured::detail::postLogMessage(const LogMessageId& message, fmt::format
         return;
     }
 
-    for (const auto& attribute : message.info.attributes) {
-        fmt::println(stderr, "inserting attribute: id `{}` {}", attribute.id, (void*)&attribute);
+    for (size_t i = 0; i < message.info.attributes.size(); i++) {
+        auto arg = args.get(i);
         sm::dao::logs::LogEntryAttribute entryAttribute {
             .entry = id.value(),
-            .key = attribute.id,
-            .value = "TODO",
+            .key = message.info.attributes[i].id,
+            .value = arg.visit(overloaded {
+                [](fmt::monostate) { return "null"; },
+                [](fmt::format_args::format_arg::handle h) { return "unknown"; },
+                [](auto it) { return fmt::format("{}", it); }
+            })
         };
 
         if (auto error = dao::insert(*gConnection, entryAttribute))
@@ -97,7 +108,7 @@ static constexpr auto kLogSeverityOptions = std::to_array<sm::dao::logs::LogSeve
 db::DbError sm::logs::structured::setup(db::Connection& connection) {
     gConnection = &connection;
 
-    if (auto error = dao::createTable<sm::dao::logs::LogSession>(connection, dao::CreateTable::eCreateIfNotExists))
+    if (auto error = dao::createTable<sm::dao::logs::LogSession>(connection))
         return error;
 
     sm::dao::logs::LogSession session {
@@ -107,23 +118,23 @@ db::DbError sm::logs::structured::setup(db::Connection& connection) {
     if (auto error = dao::insert(connection, session))
         return error;
 
-    if (auto error = dao::createTable<sm::dao::logs::LogSeverity>(connection, dao::CreateTable::eCreateIfNotExists))
+    if (auto error = dao::createTable<sm::dao::logs::LogSeverity>(connection))
         return error;
 
     for (const auto& severity : kLogSeverityOptions)
         if (auto error = dao::insert(connection, severity))
             return error;
 
-    if (auto error = dao::createTable<sm::dao::logs::LogMessage>(connection, dao::CreateTable::eCreateIfNotExists))
+    if (auto error = dao::createTable<sm::dao::logs::LogMessage>(connection))
         return error;
 
-    if (auto error = dao::createTable<sm::dao::logs::LogMessageAttribute>(connection, dao::CreateTable::eCreateIfNotExists))
+    if (auto error = dao::createTable<sm::dao::logs::LogMessageAttribute>(connection))
         return error;
 
-    if (auto error = dao::createTable<sm::dao::logs::LogEntry>(connection, dao::CreateTable::eCreateIfNotExists))
+    if (auto error = dao::createTable<sm::dao::logs::LogEntry>(connection))
         return error;
 
-    if (auto error = dao::createTable<sm::dao::logs::LogEntryAttribute>(connection, dao::CreateTable::eCreateIfNotExists))
+    if (auto error = dao::createTable<sm::dao::logs::LogEntryAttribute>(connection))
         return error;
 
     for (auto& messageId : getLogMessages()) {

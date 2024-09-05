@@ -5,15 +5,11 @@
 #include "dao/dao.hpp"
 
 namespace sm::dao {
-    enum class CreateTable {
-        eCreate,
-        eCreateIfNotExists
-    };
 
     db::DbError selectImpl(db::Connection& connection, const TableInfo& info, void *data) noexcept;
     db::DbError insertImpl(db::Connection& connection, const TableInfo& info, const void *data) noexcept;
     db::DbError insertGetPrimaryKeyImpl(db::Connection& connection, const TableInfo& info, const void *data, void *generated) noexcept;
-    db::DbError createTableImpl(db::Connection& connection, const TableInfo& info, CreateTable options) noexcept;
+    db::DbError createTableImpl(db::Connection& connection, const TableInfo& info) noexcept;
 
     template<DaoInterface T>
     db::DbResult<T> select(db::Connection& connection) noexcept {
@@ -41,8 +37,8 @@ namespace sm::dao {
     }
 
     template<DaoInterface T>
-    db::DbError createTable(db::Connection& connection, CreateTable options = CreateTable::eCreate) noexcept {
-        return createTableImpl(connection, T::getTableInfo(), options);
+    db::DbError createTable(db::Connection& connection) noexcept {
+        return createTableImpl(connection, T::getTableInfo());
     }
 
     template<DaoInterface T>
