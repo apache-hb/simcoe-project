@@ -7,7 +7,7 @@
 #include <variant>
 
 #include "logs/logs.hpp"
-#include "orm/error.hpp"
+#include "db/error.hpp"
 
 namespace sm::db {
     class Connection;

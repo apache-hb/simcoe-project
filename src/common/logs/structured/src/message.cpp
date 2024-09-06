@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "dao/utils.hpp"
+#include "db/transaction.hpp"
 
 #include "logs/structured/message.hpp"
 
@@ -71,8 +71,10 @@ void structured::detail::postLogMessage(const LogMessageId& message, fmt::format
         .message = message.info.id,
     };
 
+    db::Transaction tx(gConnection);
+
     fmt::println(stderr, "inserting entry: id `{}`", message.info.id);
-    auto id = dao::insertGetPrimaryKey(*gConnection, entry);
+    auto id = gConnection->tryInsertReturningPrimaryKey(entry);
     if (!id.has_value()) {
         fmt::println(stderr, "Failed to insert log entry: {}", id.error().message());
         return;
@@ -90,7 +92,7 @@ void structured::detail::postLogMessage(const LogMessageId& message, fmt::format
             })
         };
 
-        if (auto error = dao::insert(*gConnection, entryAttribute))
+        if (auto error = gConnection->tryInsert(entryAttribute))
             fmt::println(stderr, "Failed to insert log entry attribute: {}", error.message());
     }
 }
@@ -108,47 +110,33 @@ static constexpr auto kLogSeverityOptions = std::to_array<sm::dao::logs::LogSeve
 db::DbError sm::logs::structured::setup(db::Connection& connection) {
     gConnection = &connection;
 
-    if (auto error = dao::createTable<sm::dao::logs::LogSession>(connection))
-        return error;
+    connection.createTable(sm::dao::logs::LogSession::getTableInfo());
+    connection.createTable(sm::dao::logs::LogSeverity::getTableInfo());
+    connection.createTable(sm::dao::logs::LogMessage::getTableInfo());
+    connection.createTable(sm::dao::logs::LogMessageAttribute::getTableInfo());
+    connection.createTable(sm::dao::logs::LogEntry::getTableInfo());
+    connection.createTable(sm::dao::logs::LogEntryAttribute::getTableInfo());
 
     sm::dao::logs::LogSession session {
-        .start = getTimestamp(),
+        .startTime = getTimestamp(),
     };
 
-    if (auto error = dao::insert(connection, session))
-        return error;
-
-    if (auto error = dao::createTable<sm::dao::logs::LogSeverity>(connection))
-        return error;
-
-    for (const auto& severity : kLogSeverityOptions)
-        if (auto error = dao::insert(connection, severity))
-            return error;
-
-    if (auto error = dao::createTable<sm::dao::logs::LogMessage>(connection))
-        return error;
-
-    if (auto error = dao::createTable<sm::dao::logs::LogMessageAttribute>(connection))
-        return error;
-
-    if (auto error = dao::createTable<sm::dao::logs::LogEntry>(connection))
-        return error;
-
-    if (auto error = dao::createTable<sm::dao::logs::LogEntryAttribute>(connection))
-        return error;
+    connection.insert(session);
+    for (auto& severity : kLogSeverityOptions)
+        connection.insert(severity);
 
     for (auto& messageId : getLogMessages()) {
         auto& message = messageId.info;
 
         sm::dao::logs::LogMessage daoMessage {
             .message = std::string{message.message},
-            .level = uint32_t(message.level),
-            .file = std::string{message.location.file_name()},
+            .severity = uint32_t(message.level),
+            .path = std::string{message.location.file_name()},
             .line = message.location.line(),
             .function = std::string{message.location.function_name()},
         };
 
-        auto id = TRY_UNWRAP(dao::insertGetPrimaryKey(connection, daoMessage));
+        auto id = connection.insertReturningPrimaryKey(daoMessage);
 
         message.id = id;
 
@@ -159,7 +147,7 @@ db::DbError sm::logs::structured::setup(db::Connection& connection) {
                 .message = id
             };
 
-            auto tagId = TRY_UNWRAP(dao::insertGetPrimaryKey(connection, daoAttribute));
+            auto tagId = connection.insertReturningPrimaryKey(daoAttribute);
 
             attribute.id = tagId;
         }

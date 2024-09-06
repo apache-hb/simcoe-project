@@ -1,6 +1,6 @@
 #pragma once
 
-#include "orm/connection.hpp"
+#include "db/connection.hpp"
 
 namespace sm::db {
     class Transaction {

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "base/panic.h"
 #include <span>
 #include <string_view>
 
@@ -107,7 +106,10 @@ namespace sm::dao {
     };
 
     template<typename T>
-    concept HasPrimaryKey = requires { typename T::Id; };
+    concept HasPrimaryKey = requires {
+        DaoInterface<T>;
+        typename T::Id;
+    };
 
     namespace detail {
         template<typename T>

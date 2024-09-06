@@ -3,7 +3,7 @@
 #include "editor/panels/viewport.hpp"
 #include "input/toggle.hpp"
 #include "logs/logs.hpp"
-#include "orm/transaction.hpp"
+#include "db/transaction.hpp"
 #include "stdafx.hpp"
 
 #include "system/input.hpp"
@@ -26,7 +26,7 @@
 #include "world/ecs.hpp"
 #include "game/ecs.hpp"
 
-#include "orm/connection.hpp"
+#include "db/connection.hpp"
 
 #include "core/defer.hpp"
 
@@ -248,7 +248,7 @@ public:
         };
 
         if (!dao::tableExists<sm::dao::editor::WindowPlacement>(connection)) {
-            if (db::DbError error = dao::createTable<sm::dao::editor::WindowPlacement>(connection)) {
+            if (db::DbError error = connection.tryCreateTable(sm::dao::editor::WindowPlacement::getTableInfo())) {
                 logs::gAssets.warn("update failed: {}", error.message());
             }
         }

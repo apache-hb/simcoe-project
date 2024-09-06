@@ -2,12 +2,14 @@
 
 #include <simcoe_orm_config.h>
 
-#include "orm/bind.hpp"
-#include "orm/core.hpp"
-#include "orm/error.hpp"
+#include "db/bind.hpp"
+#include "db/core.hpp"
+#include "db/error.hpp"
 
 #include "core/core.hpp"
 #include "core/macros.hpp"
+
+#include "dao/dao.hpp"
 
 namespace sm::db {
     /// @brief Represents a result set of a query.
@@ -146,6 +148,10 @@ namespace sm::db {
             , mAutoCommit(config.autoCommit)
         { }
 
+        DbError insertImpl(const dao::TableInfo& table, const void *src) noexcept;
+
+        DbError insertReturningPrimaryKeyImpl(const dao::TableInfo& table, const void *src, void *dst) noexcept;
+
     public:
         SM_MOVE(Connection, default);
 
@@ -157,6 +163,38 @@ namespace sm::db {
 
         [[nodiscard]]
         bool autoCommit() const noexcept { return mAutoCommit; }
+
+        DbError tryCreateTable(const dao::TableInfo& table) noexcept;
+
+        void createTable(const dao::TableInfo& table) throws(DbException) {
+            tryCreateTable(table).throwIfFailed();
+        }
+
+        template<dao::DaoInterface T>
+        DbError tryInsert(const T& value) noexcept {
+            return insertImpl(T::getTableInfo(), static_cast<const void*>(&value));
+        }
+
+        template<dao::DaoInterface T>
+        void insert(const T& value) throws(DbException) {
+            tryInsert(value).throwIfFailed();
+        }
+
+        template<dao::HasPrimaryKey T>
+        DbResult<typename T::Id> tryInsertReturningPrimaryKey(const T& value) noexcept {
+            typename T::Id primaryKey{};
+            const void *src = static_cast<const void*>(&value);
+            void *dst = static_cast<void*>(&primaryKey);
+            if (DbError error = insertReturningPrimaryKeyImpl(T::getTableInfo(), src, dst))
+                return error;
+
+            return primaryKey;
+        }
+
+        template<dao::HasPrimaryKey T>
+        typename T::Id insertReturningPrimaryKey(const T& value) throws(DbException) {
+            return throwIfFailed(tryInsertReturningPrimaryKey(value));
+        }
 
         DbResult<ResultSet> select(std::string_view sql) noexcept;
         DbResult<ResultSet> update(std::string_view sql) noexcept;
@@ -190,7 +228,7 @@ namespace sm::db {
 
         static DbResult<Environment> tryCreate(DbType type) noexcept;
         static Environment create(DbType type) {
-            return tryCreate(type).throwIfFailed();
+            return throwIfFailed(tryCreate(type));
         }
 
         DbResult<Connection> tryConnect(const ConnectionConfig& config) noexcept;

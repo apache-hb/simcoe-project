@@ -1,6 +1,6 @@
 #pragma once
 
-#include "orm/connection.hpp"
+#include "db/connection.hpp"
 
 #include "dao/dao.hpp"
 

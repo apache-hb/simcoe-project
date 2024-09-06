@@ -3,7 +3,7 @@ src = [
     daocc.process('data/logs.xml')
 ]
 
-deps = [ core, logs, orm, dao ]
+deps = [ core, logs, db ]
 
 libstructured_logs = library('structured_logs', src,
     cpp_args : [ '-DSM_STRUCTURED_LOGS_BUILD=1' ],
@@ -15,14 +15,14 @@ libstructured_logs = library('structured_logs', src,
 structured_logs = declare_dependency(
     link_with : libstructured_logs,
     include_directories : [ '.', 'include', ],
-    dependencies : [ core, logs, orm ]
+    dependencies : [ core, logs, db ]
 )
 
 exe = executable('test-structured-logs-setup', 'test/setup.cpp',
     dependencies : [ structured_logs, coretest ]
 )
 
-test('Structured Logs Setup', exe,
+test('Structured logs setup', exe,
     suite : 'structured_logs',
     kwargs : testkwargs
 )

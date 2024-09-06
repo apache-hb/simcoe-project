@@ -1,7 +1,9 @@
 #pragma once
 
-#include "orm/core.hpp"
-#include "orm/error.hpp"
+#include "db/core.hpp"
+#include "db/error.hpp"
+
+#include "dao/dao.hpp"
 
 namespace sm::db::detail {
     struct IEnvironment {
@@ -33,9 +35,25 @@ namespace sm::db::detail {
         virtual DbError commit() noexcept = 0;
         virtual DbError rollback() noexcept = 0;
 
-        /* misc */
+        /** Insert */
 
-        virtual DbError tableExists(std::string_view name, bool& exists) noexcept = 0;
+        virtual DbError setupInsert(const dao::TableInfo& table, std::string& sql) noexcept {
+            return DbError::todo();
+        }
+
+        virtual DbError setupInsertReturningPrimaryKey(const dao::TableInfo& table, std::string& sql) noexcept {
+            return DbError::todo();
+        }
+
+        /** misc */
+
+        virtual DbError tableExists(std::string_view name, bool& exists) noexcept {
+            return DbError::todo();
+        }
+
+        virtual DbError createTable(const dao::TableInfo& table) noexcept {
+            return DbError::todo();
+        }
 
         virtual DbError dbVersion(Version& version) const noexcept {
             version = Version { "unknown", 0, 0, 0 };
@@ -133,10 +151,10 @@ namespace sm::db::detail {
         }
     };
 
-    DbError sqlite(IEnvironment **env) noexcept;
+    DbError getSqliteEnv(IEnvironment **env) noexcept;
     DbError postgres(IEnvironment **env) noexcept;
     DbError mysql(IEnvironment **env) noexcept;
-    DbError oracledb(IEnvironment **env) noexcept;
+    DbError getOracleEnv(IEnvironment **env) noexcept;
     DbError mssql(IEnvironment **env) noexcept;
     DbError db2(IEnvironment **env) noexcept;
 }

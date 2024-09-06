@@ -1,6 +1,6 @@
 #pragma once
 
-#include "orm/core.hpp"
+#include "db/core.hpp"
 #include "core/throws.hpp"
 
 namespace sm::db {

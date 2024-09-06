@@ -1,4 +1,4 @@
-#include "orm/transaction.hpp"
+#include "db/transaction.hpp"
 #include "core/defer.hpp"
 
 using namespace sm;
@@ -9,10 +9,10 @@ Transaction::Transaction(Connection *conn) noexcept(false)
 {
     if (auto err = conn->begin()) {
         mState = eRollback;
-        err.throwIfFailed();
-    } else {
-        conn->setAutoCommit(false);
+        err.raise();
     }
+
+    conn->setAutoCommit(false);
 }
 
 Transaction::~Transaction() noexcept {

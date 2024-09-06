@@ -1,8 +1,8 @@
 #include "test/common.hpp"
 
 // IWYU pragma: begin_exports
-#include "orm/connection.hpp"
-#include "orm/transaction.hpp"
+#include "db/connection.hpp"
+#include "db/transaction.hpp"
 // IWYU pragma: end_exports
 
 using namespace sm;

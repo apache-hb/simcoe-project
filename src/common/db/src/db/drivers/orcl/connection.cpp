@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "db/orcl/orcl.hpp"
+#include "orcl.hpp"
 
 #include "core/memory/unique.hpp"
 #include "core/defer.hpp"
@@ -83,6 +83,25 @@ DbError OraConnection::commit() noexcept {
 DbError OraConnection::rollback() noexcept {
     sword result = OCITransRollback(mService, mError, OCI_DEFAULT);
     return oraGetError(mError, result);
+}
+
+DbError OraConnection::setupInsert(const dao::TableInfo& table, std::string& sql) noexcept {
+    sql = orcl::setupInsert(table);
+    return DbError::ok();
+}
+
+DbError OraConnection::setupInsertReturningPrimaryKey(const dao::TableInfo& table, std::string& sql) noexcept {
+    sql = orcl::setupInsertReturningPrimaryKey(table);
+    return DbError::ok();
+}
+
+DbError OraConnection::createTable(const dao::TableInfo& table) noexcept {
+    auto sql = orcl::setupCreateTable(table);
+    fmt::println(stderr, "Creating table: {}", sql);
+    OraStatement stmt = TRY_UNWRAP(newStatement(sql));
+    defer { (void)stmt.close(); };
+
+    return stmt.update(true);
 }
 
 DbError OraConnection::tableExists(std::string_view name, bool& exists) noexcept {
@@ -217,7 +236,7 @@ void OraEnvironment::wrapFree(void *ctx, void *ptr) {
     env->free(ptr);
 }
 
-DbError detail::oracledb(IEnvironment **env) noexcept {
+DbError detail::getOracleEnv(IEnvironment **env) noexcept {
     UniquePtr orcl = makeUnique<OraEnvironment>();
     OraEnv oci;
     sword result = OCIEnvCreate(

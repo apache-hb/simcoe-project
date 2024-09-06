@@ -1,10 +1,10 @@
-#include "orm/core.hpp"
-#include "orm/error.hpp"
 #include "stdafx.hpp"
 
-#include "db/common.hpp"
+#include "drivers/common.hpp"
 
-#include "orm/connection.hpp"
+#include "db/core.hpp"
+#include "db/error.hpp"
+#include "db/connection.hpp"
 
 using namespace sm;
 using namespace sm::db;
@@ -235,6 +235,103 @@ DbResult<PreparedStatement> Connection::dclPrepare(std::string_view sql) noexcep
     return sqlPrepare(sql, StatementType::eControl);
 }
 
+static void bindIndex(db::PreparedStatement& stmt, const dao::TableInfo& info, size_t index, bool returning, const void *data) noexcept {
+    const auto& column = info.columns[index];
+    if (returning && info.primaryKey == index)
+        return;
+
+    auto binding = stmt.bind(column.name);
+    const void *field = static_cast<const char*>(data) + column.offset;
+    switch (column.type) {
+    case dao::ColumnType::eInt:
+        binding.toInt(*reinterpret_cast<const int32_t*>(field));
+        break;
+    case dao::ColumnType::eUint:
+        binding.toInt(*reinterpret_cast<const uint32_t*>(field));
+        break;
+    case dao::ColumnType::eLong:
+        binding.toInt(*reinterpret_cast<const int64_t*>(field));
+        break;
+    case dao::ColumnType::eUlong:
+        binding.toInt(*reinterpret_cast<const uint64_t*>(field));
+        break;
+    case dao::ColumnType::eBool:
+        binding.toBool(*reinterpret_cast<const bool*>(field));
+        break;
+    case dao::ColumnType::eString:
+        binding.toString(*reinterpret_cast<const std::string*>(field));
+        break;
+    case dao::ColumnType::eFloat:
+        binding.toDouble(*reinterpret_cast<const float*>(field));
+        break;
+    case dao::ColumnType::eDouble:
+        binding.toDouble(*reinterpret_cast<const double*>(field));
+        break;
+    default:
+        CT_NEVER("Unsupported column type");
+    }
+}
+
+DbError Connection::insertImpl(const dao::TableInfo& table, const void *src) noexcept {
+    std::string sql;
+    if (DbError error = mImpl->setupInsert(table, sql))
+        return error;
+
+    auto stmt = TRY_UNWRAP(dmlPrepare(sql));
+    for (size_t i = 0; i < table.columns.size(); i++)
+        bindIndex(stmt, table, i, false, src);
+
+    auto result = TRY_UNWRAP(stmt.update());
+    while (!result.next().isDone()) { }
+
+    return db::DbError::ok();
+}
+
+DbError Connection::insertReturningPrimaryKeyImpl(const dao::TableInfo& table, const void *src, void *dst) noexcept {
+    if (!table.hasPrimaryKey())
+        return DbError::columnNotFound(table.name);
+
+    std::string sql;
+    if (DbError error = mImpl->setupInsertReturningPrimaryKey(table, sql))
+        return error;
+
+    auto stmt = TRY_UNWRAP(dmlPrepare(sql));
+    for (size_t i = 0; i < table.columns.size(); i++)
+        bindIndex(stmt, table, i, true, src);
+
+    auto result = TRY_UNWRAP(stmt.update());
+
+    if (DbError error = result.next())
+        return error;
+
+    auto pk = table.getPrimaryKey();
+    switch (pk.type) {
+    case dao::ColumnType::eInt:
+        *reinterpret_cast<int32_t*>(dst) = TRY_UNWRAP(result.get<int32_t>(0));
+        break;
+    case dao::ColumnType::eUint:
+        *reinterpret_cast<uint32_t*>(dst) = TRY_UNWRAP(result.get<uint32_t>(0));
+        break;
+    case dao::ColumnType::eLong:
+        *reinterpret_cast<int64_t*>(dst) = TRY_UNWRAP(result.get<int64_t>(0));
+        break;
+    case dao::ColumnType::eUlong:
+        *reinterpret_cast<uint64_t*>(dst) = TRY_UNWRAP(result.get<uint64_t>(0));
+        break;
+    default:
+        CT_NEVER("Unsupported primary key type");
+    }
+
+    return db::DbError::ok();
+}
+
+DbError Connection::tryCreateTable(const dao::TableInfo& table) noexcept {
+    if (tableExists(table.name).value_or(false))
+        return DbError::ok();
+
+    return mImpl->createTable(table);
+}
+
 DbResult<ResultSet> Connection::select(std::string_view sql) noexcept {
     PreparedStatement stmt = TRY_RESULT(dqlPrepare(sql));
 
@@ -266,14 +363,14 @@ DbError Connection::rollback() noexcept {
 bool Environment::isSupported(DbType type) noexcept {
     switch (type) {
 #define DB_TYPE(id, str, enabled) case DbType::id: return enabled;
-#include "orm/orm.inc"
+#include "db/orm.inc"
     }
 }
 
 std::string_view db::toString(DbType type) noexcept {
     switch (type) {
 #define DB_TYPE(id, str, enabled) case DbType::id: return str;
-#include "orm/orm.inc"
+#include "db/orm.inc"
     }
 }
 
@@ -281,7 +378,7 @@ DbResult<Environment> Environment::tryCreate(DbType type) noexcept {
     detail::IEnvironment *env = nullptr;
     DbError error = [&] {
         switch (type) {
-        case DbType::eSqlite3: return detail::sqlite(&env);
+        case DbType::eSqlite3: return detail::getSqliteEnv(&env);
 
 #if ORM_HAS_POSTGRES
         case DbType::ePostgreSQL: return detail::postgres(&env);
@@ -292,7 +389,7 @@ DbResult<Environment> Environment::tryCreate(DbType type) noexcept {
 #endif
 
 #if ORM_HAS_ORCL
-        case DbType::eOracleDB: return detail::oracledb(&env);
+        case DbType::eOracleDB: return detail::getOracleEnv(&env);
 #endif
 
 #if ORM_HAS_MSSQL

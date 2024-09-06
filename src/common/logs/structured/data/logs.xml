@@ -1,26 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <root name="logs">
-    <table name="log_severity" primaryKey="level" onConflict="ignore">
+    <table name="log_severity" primaryKey="severity">
         <column name="name" type="text" length="255">
-            <unique onConflict="ignore" />
+            <unique />
         </column>
 
-        <column name="level" type="uint" />
+        <column name="severity" type="uint" />
     </table>
 
     <table name="log_message" syntheticPrimaryKey="ulong">
-        <column name="message"  type="text" length="4096" />
+        <column name="message"  type="text" length="1024" />
 
-        <column name="level"    type="uint">
-            <constraint references="log_severity.level" />
+        <column name="severity" type="uint">
+            <constraint references="log_severity.severity" />
         </column>
 
-        <column name="file"     type="text" length="2048" />
+        <column name="path"     type="text" length="2048" />
         <column name="line"     type="uint"               />
-        <column name="function" type="text" length="4096" />
+        <column name="function" type="text" length="3072" />
 
-        <unique name="unique_log_message_source_location" onConflict="ignore">
-            <column>file</column>
+        <unique name="unique_log_message_source_location">
+            <column>path</column>
             <column>line</column>
             <column>function</column>
         </unique>
@@ -34,14 +34,14 @@
             <constraint references="log_message.id" />
         </column>
 
-        <unique onConflict="ignore">
+        <unique>
             <column>key</column>
             <column>message</column>
         </unique>
     </table>
 
     <table name="log_session" primaryKey="start">
-        <column name="start" type="ulong" />
+        <column name="start_time" type="ulong" />
     </table>
 
     <table name="log_entry" syntheticPrimaryKey="ulong">

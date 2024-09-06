@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "orm/error.hpp"
+#include "db/error.hpp"
 
 using namespace sm;
 using namespace sm::db;
@@ -14,9 +14,13 @@ DbError::DbError(int code, int status, std::string message) noexcept
         mStacktrace = std::stacktrace::current();
 }
 
+void DbError::raise() const noexcept(false) {
+    throw DbException{*this};
+}
+
 void DbError::throwIfFailed() const noexcept(false) {
     if (!isSuccess())
-        throw DbException{*this};
+        raise();
 }
 
 DbError DbError::ok() noexcept {

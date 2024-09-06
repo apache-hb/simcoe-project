@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "db/orcl/orcl.hpp"
+#include "orcl.hpp"
 
 using namespace sm;
 using namespace sm::db;
@@ -235,6 +235,7 @@ DbError OraStatement::getColumnIndex(std::string_view name, int& index) const no
 }
 
 DbError OraStatement::bindIntByIndex(int index, int64 value) noexcept {
+    fmt::println(stderr, "bindIntByIndex: index={}, value={}", index, value);
     return bindAtPosition(index, &value, sizeof(value), SQLT_INT);
 }
 
@@ -264,7 +265,10 @@ DbError OraStatement::bindNullByIndex(int index) noexcept {
 }
 
 DbError OraStatement::bindIntByName(std::string_view name, int64 value) noexcept {
-    return bindAtName(name, &value, sizeof(value), SQLT_INT);
+    fmt::println(stderr, "bindIntByName: name={}, value={}", name, value);
+
+    // TODO: leaks
+    return bindAtName(name, new int64{value}, sizeof(value), SQLT_INT);
 }
 
 DbError OraStatement::bindBooleanByName(std::string_view name, bool value) noexcept {

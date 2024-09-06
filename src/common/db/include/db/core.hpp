@@ -39,7 +39,7 @@ namespace sm::db {
     REFLECT_ENUM(DbType)
     enum class DbType {
 #define DB_TYPE(id, str, enabled) id,
-#include "orm/orm.inc"
+#include "db/orm.inc"
     };
 
     REFLECT_ENUM(DataType)

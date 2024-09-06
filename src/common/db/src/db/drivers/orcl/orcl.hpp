@@ -1,6 +1,6 @@
 #pragma once
 
-#include "db/common.hpp"
+#include "drivers/common.hpp"
 
 #include <oci.h>
 
@@ -22,6 +22,10 @@ namespace sm::db::detail::orcl {
     std::string oraErrorText(void *handle, sword status, ub4 type) noexcept;
     DbError oraGetHandleError(void *handle, sword status, ub4 type) noexcept;
     bool isSuccess(sword status) noexcept;
+
+    std::string setupInsert(const dao::TableInfo& info) noexcept;
+    std::string setupInsertReturningPrimaryKey(const dao::TableInfo& info) noexcept;
+    std::string setupCreateTable(const dao::TableInfo& info) noexcept;
 
     template<typename T, ub4 H>
     class OraHandle final {
@@ -196,6 +200,10 @@ namespace sm::db::detail::orcl {
         DbError commit() noexcept override;
         DbError rollback() noexcept override;
 
+        DbError setupInsert(const dao::TableInfo& table, std::string& sql) noexcept override;
+        DbError setupInsertReturningPrimaryKey(const dao::TableInfo& table, std::string& sql) noexcept override;
+
+        DbError createTable(const dao::TableInfo& table) noexcept override;
         DbError tableExists(std::string_view name, bool& exists) noexcept override;
 
         DbError dbVersion(Version& version) const noexcept override;

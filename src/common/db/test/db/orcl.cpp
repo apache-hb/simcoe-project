@@ -61,5 +61,28 @@ TEST_CASE("updates") {
         THEN("it has a version") {
             getValue(conn.dbVersion());
         }
+
+        THEN("binding variables") {
+            auto stmt = getValue(conn.dmlPrepare("INSERT INTO test (id, name) VALUES (:id, :name)"));
+            stmt.bind("id").toInt(1);
+            stmt.bind("name").toString("test");
+
+            getValue(stmt.update());
+
+            auto results = getValue(conn.select("SELECT * FROM test ORDER BY id ASC"));
+            int count = 0;
+
+            while (results.next().isSuccess()) {
+                int64 id = getValue(results.getInt(0));
+                std::string_view name = getValue(results.getString(1));
+
+                REQUIRE(id == 1);
+                REQUIRE(name == "test");
+
+                count++;
+            }
+
+            REQUIRE(count == 1);
+        }
     }
 }
