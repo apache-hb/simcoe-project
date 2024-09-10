@@ -3,7 +3,7 @@ src = [
     daocc.process('data/logs.xml')
 ]
 
-deps = [ core, logs, db ]
+deps = [ core, logs, db, dependency('concurrentqueue') ]
 
 libstructured_logs = library('structured_logs', src,
     cpp_args : [ '-DSM_STRUCTURED_LOGS_BUILD=1' ],

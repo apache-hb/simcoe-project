@@ -38,7 +38,7 @@ cfg.set10('SMC_DB_HAS_MYSQL', devapi.found())
 cfg.set10('SMC_DB_HAS_MSSQL', has_mssql)
 cfg.set10('SMC_DB_HAS_ODBC', has_odbc)
 
-deps = [ core, sqlite3, meta ]
+deps = [ core, sqlite3, meta, logs ]
 
 if oracledb.found()
     src += [

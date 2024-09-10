@@ -6,6 +6,8 @@ using namespace sm;
 using namespace sm::db;
 using namespace sm::db::detail;
 
+LOG_CATEGORY_IMPL(db::gLog, "db");
+
 DbError IStatement::getIntByName(std::string_view column, int64& value) noexcept {
     return getValue(column, value, &IStatement::getIntByIndex);
 }

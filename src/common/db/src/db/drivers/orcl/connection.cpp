@@ -2,14 +2,12 @@
 
 #include "orcl.hpp"
 
-#include "core/memory/unique.hpp"
 #include "core/defer.hpp"
 
-using namespace sm;
 using namespace sm::db;
 using namespace sm::db::detail::orcl;
 
-static DbError getDbVersion(OraServer& server, OraError& error, Version& version) noexcept {
+static DbError getServerVersion(OraServer& server, OraError& error, Version& version) noexcept {
     text buffer[512];
     ub4 release;
     if (sword result = OCIServerRelease2(server, error, buffer, sizeof(buffer), OCI_HTYPE_SERVER, &release, OCI_DEFAULT))
@@ -17,11 +15,24 @@ static DbError getDbVersion(OraServer& server, OraError& error, Version& version
 
     int major = OCI_SERVER_RELEASE_REL(release);
     int minor = OCI_SERVER_RELEASE_REL_UPD(release);
-    int patch = OCI_SERVER_RELEASE_REL_UPD_REV(release);
+    int revision = OCI_SERVER_RELEASE_REL_UPD_REV(release);
+    int increment = OCI_SERVER_RELEASE_REL_UPD_INC(release);
+    int ext = OCI_SERVER_RELEASE_EXT(release);
 
-    version = Version{(const char*)buffer, major, minor, patch};
+    version = Version{(const char*)buffer, major, minor, revision, increment, ext};
 
     return DbError::ok();
+}
+
+static Version getClientVersion() noexcept {
+    sword major;
+    sword minor;
+    sword revision;
+    sword increment;
+    sword ext;
+    OCIClientVersion(&major, &minor, &revision, &increment, &ext);
+
+    return Version{"Oracle Call Interface", major, minor, revision, increment, ext};
 }
 
 DbResult<OraStatement> OraConnection::newStatement(std::string_view sql) noexcept {
@@ -90,6 +101,11 @@ DbError OraConnection::setupInsert(const dao::TableInfo& table, std::string& sql
     return DbError::ok();
 }
 
+DbError OraConnection::setupInsertOrUpdate(const dao::TableInfo& table, std::string& sql) noexcept {
+    sql = orcl::setupInsertOrUpdate(table);
+    return DbError::ok();
+}
+
 DbError OraConnection::setupInsertReturningPrimaryKey(const dao::TableInfo& table, std::string& sql) noexcept {
     sql = orcl::setupInsertReturningPrimaryKey(table);
     return DbError::ok();
@@ -126,18 +142,13 @@ DbError OraConnection::tableExists(std::string_view name, bool& exists) noexcept
     return stmt.close();
 }
 
-DbError OraConnection::dbVersion(Version& version) const noexcept {
-    text buffer[512];
-    ub4 release;
-    if (sword error = OCIServerRelease2(mServer, mError, buffer, sizeof(buffer), OCI_HTYPE_SERVER, &release, OCI_DEFAULT))
-        return oraGetError(mError, error);
+DbError OraConnection::clientVersion(Version& version) const noexcept {
+    version = getClientVersion();
+    return DbError::ok();
+}
 
-    int major = OCI_SERVER_RELEASE_REL(release);
-    int minor = OCI_SERVER_RELEASE_REL_UPD(release);
-    int patch = OCI_SERVER_RELEASE_REL_UPD_REV(release);
-
-    version = Version{(const char*)buffer, major, minor, patch};
-
+DbError OraConnection::serverVersion(Version& version) const noexcept {
+    version = mServerVersion;
     return DbError::ok();
 }
 
@@ -146,7 +157,7 @@ ub2 OraConnection::getBoolType() const noexcept {
         return SQLT_CHR;
 
     // Oracle 23ai introduced the sql standard boolean type
-    if (mVersion.major >= 23)
+    if (mServerVersion.major >= 23)
         return kBoolType;
 
     return SQLT_CHR;
@@ -199,7 +210,7 @@ DbError OraEnvironment::connect(const ConnectionConfig& config, detail::IConnect
     if (sword result = service.setAttribute(error, OCI_ATTR_SESSION, session))
         return oraGetError(error, result);
 
-    if (DbError result = getDbVersion(server, error, version))
+    if (DbError result = getServerVersion(server, error, version))
         return result;
 
     *connection = new OraConnection{*this, error, server, service, session, version};
@@ -236,7 +247,7 @@ void OraEnvironment::wrapFree(void *ctx, void *ptr) {
     env->free(ptr);
 }
 
-DbError detail::getOracleEnv(IEnvironment **env) noexcept {
+DbError detail::getOracleEnv(detail::IEnvironment **env) noexcept {
     UniquePtr orcl = makeUnique<OraEnvironment>();
     OraEnv oci;
     sword result = OCIEnvCreate(
@@ -247,8 +258,11 @@ DbError detail::getOracleEnv(IEnvironment **env) noexcept {
         0, nullptr
     );
 
-    if (result != OCI_SUCCESS)
-        return oraGetHandleError(oci, result, OCI_HTYPE_ENV);
+    if (result != OCI_SUCCESS) {
+        DbError error = oraGetHandleError(oci, result, OCI_HTYPE_ENV);
+        (void)oci.close(nullptr); // TODO: log if this errors
+        return error;
+    }
 
     orcl->attach(oci);
 

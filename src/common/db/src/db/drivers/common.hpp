@@ -5,6 +5,12 @@
 
 #include "dao/dao.hpp"
 
+#include "logs/logs.hpp"
+
+namespace sm::db {
+    LOG_CATEGORY(gLog);
+}
+
 namespace sm::db::detail {
     struct IEnvironment {
         virtual ~IEnvironment() = default;
@@ -41,6 +47,10 @@ namespace sm::db::detail {
             return DbError::todo();
         }
 
+        virtual DbError setupInsertOrUpdate(const dao::TableInfo& table, std::string& sql) noexcept {
+            return DbError::todo();
+        }
+
         virtual DbError setupInsertReturningPrimaryKey(const dao::TableInfo& table, std::string& sql) noexcept {
             return DbError::todo();
         }
@@ -55,7 +65,12 @@ namespace sm::db::detail {
             return DbError::todo();
         }
 
-        virtual DbError dbVersion(Version& version) const noexcept {
+        virtual DbError clientVersion(Version& version) const noexcept {
+            version = Version { "unknown", 0, 0, 0 };
+            return DbError::ok();
+        }
+
+        virtual DbError serverVersion(Version& version) const noexcept {
             version = Version { "unknown", 0, 0, 0 };
             return DbError::ok();
         }
@@ -66,17 +81,29 @@ namespace sm::db::detail {
 
         /** Lifecycle */
 
-        virtual DbError close() noexcept = 0;
-        virtual DbError reset() noexcept = 0;
+        virtual DbError close() noexcept {
+            return DbError::todo();
+        }
+
+        virtual DbError reset() noexcept {
+            return DbError::todo();
+        }
 
         /** Execution */
 
-        virtual DbError select() noexcept = 0;
-        virtual DbError update(bool autoCommit) noexcept = 0;
+        virtual DbError select() noexcept {
+            return DbError::todo();
+        }
+
+        virtual DbError update(bool autoCommit) noexcept {
+            return DbError::todo();
+        }
 
         /** Fetch results */
 
-        virtual int getColumnCount() const noexcept = 0;
+        virtual int getColumnCount() const noexcept {
+            return -1;
+        }
 
         virtual DbError getColumnIndex(std::string_view name, int& index) const noexcept {
             return DbError::todo();
@@ -86,13 +113,29 @@ namespace sm::db::detail {
             return DbError::todo();
         }
 
-        virtual DbError next() noexcept = 0;
+        virtual DbError next() noexcept {
+            return DbError::todo();
+        }
 
-        virtual DbError getIntByIndex(int index, int64& value) noexcept = 0;
-        virtual DbError getBooleanByIndex(int index, bool& value) noexcept = 0;
-        virtual DbError getStringByIndex(int index, std::string_view& value) noexcept = 0;
-        virtual DbError getDoubleByIndex(int index, double& value) noexcept = 0;
-        virtual DbError getBlobByIndex(int index, Blob& value) noexcept = 0;
+        virtual DbError getIntByIndex(int index, int64& value) noexcept {
+            return DbError::todo();
+        }
+
+        virtual DbError getBooleanByIndex(int index, bool& value) noexcept {
+            return DbError::todo();
+        }
+
+        virtual DbError getStringByIndex(int index, std::string_view& value) noexcept {
+            return DbError::todo();
+        }
+
+        virtual DbError getDoubleByIndex(int index, double& value) noexcept {
+            return DbError::todo();
+        }
+
+        virtual DbError getBlobByIndex(int index, Blob& value) noexcept {
+            return DbError::todo();
+        }
 
         virtual DbError getIntByName(std::string_view column, int64& value) noexcept;
         virtual DbError getBooleanByName(std::string_view column, bool& value) noexcept;
@@ -103,7 +146,9 @@ namespace sm::db::detail {
 
         /** Binding */
 
-        virtual int getBindCount() const noexcept = 0;
+        virtual int getBindCount() const noexcept {
+            return -1;
+        }
 
         virtual DbError getBindIndex(std::string_view name, int& index) const noexcept {
             return DbError::todo();
@@ -114,12 +159,29 @@ namespace sm::db::detail {
         }
 
 
-        virtual DbError bindIntByIndex(int index, int64 value) noexcept = 0;
-        virtual DbError bindBooleanByIndex(int index, bool value) noexcept = 0;
-        virtual DbError bindStringByIndex(int index, std::string_view value) noexcept = 0;
-        virtual DbError bindDoubleByIndex(int index, double value) noexcept = 0;
-        virtual DbError bindBlobByIndex(int index, Blob value) noexcept = 0;
-        virtual DbError bindNullByIndex(int index) noexcept = 0;
+        virtual DbError bindIntByIndex(int index, int64 value) noexcept {
+            return DbError::todo();
+        }
+
+        virtual DbError bindBooleanByIndex(int index, bool value) noexcept {
+            return DbError::todo();
+        }
+
+        virtual DbError bindStringByIndex(int index, std::string_view value) noexcept {
+            return DbError::todo();
+        }
+
+        virtual DbError bindDoubleByIndex(int index, double value) noexcept {
+            return DbError::todo();
+        }
+
+        virtual DbError bindBlobByIndex(int index, Blob value) noexcept {
+            return DbError::todo();
+        }
+
+        virtual DbError bindNullByIndex(int index) noexcept {
+            return DbError::todo();
+        }
 
         virtual DbError bindIntByName(std::string_view name, int64 value) noexcept;
         virtual DbError bindBooleanByName(std::string_view name, bool value) noexcept;
@@ -152,7 +214,7 @@ namespace sm::db::detail {
     };
 
     DbError getSqliteEnv(IEnvironment **env) noexcept;
-    DbError postgres(IEnvironment **env) noexcept;
+    DbError getPostgresEnv(IEnvironment **env) noexcept;
     DbError mysql(IEnvironment **env) noexcept;
     DbError getOracleEnv(IEnvironment **env) noexcept;
     DbError mssql(IEnvironment **env) noexcept;

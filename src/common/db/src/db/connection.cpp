@@ -6,7 +6,9 @@
 #include "db/error.hpp"
 #include "db/connection.hpp"
 
-using namespace sm;
+namespace dao = sm::dao;
+namespace db = sm::db;
+
 using namespace sm::db;
 
 ///
@@ -52,7 +54,6 @@ DbResult<ColumnInfo> ResultSet::getColumnInfo(int index) const noexcept {
     return column;
 }
 
-
 DbResult<double> ResultSet::getDouble(int index) noexcept {
     double value = 0.0;
     if (DbError error = mImpl->getDoubleByIndex(index, value))
@@ -61,7 +62,7 @@ DbResult<double> ResultSet::getDouble(int index) noexcept {
     return value;
 }
 
-DbResult<int64> ResultSet::getInt(int index) noexcept {
+DbResult<sm::int64> ResultSet::getInt(int index) noexcept {
     int64 value = 0;
     if (DbError error = mImpl->getIntByIndex(index, value))
         return error;
@@ -101,7 +102,7 @@ DbResult<double> ResultSet::getDouble(std::string_view column) noexcept {
     return value;
 }
 
-DbResult<int64> ResultSet::getInt(std::string_view column) noexcept {
+DbResult<sm::int64> ResultSet::getInt(std::string_view column) noexcept {
     int64 value = 0;
     if (DbError error = mImpl->getIntByName(column, value))
         return error;
@@ -165,7 +166,7 @@ void BindPoint::toNull() noexcept(false) {
 /// statement
 ///
 
-BindPoint PreparedStatement::bind(std::string_view name) noexcept(false) {
+BindPoint PreparedStatement::bind(std::string_view name) noexcept {
     return BindPoint{mImpl.get(), name};
 }
 
@@ -203,9 +204,17 @@ DbResult<bool> Connection::tableExists(std::string_view name) noexcept {
     return exists;
 }
 
-DbResult<Version> Connection::dbVersion() const noexcept {
+DbResult<Version> Connection::clientVersion() const noexcept {
     Version version;
-    if (DbError error = mImpl->dbVersion(version))
+    if (DbError error = mImpl->clientVersion(version))
+        return std::unexpected(error);
+
+    return version;
+}
+
+DbResult<Version> Connection::serverVersion() const noexcept {
+    Version version;
+    if (DbError error = mImpl->serverVersion(version))
         return std::unexpected(error);
 
     return version;
@@ -213,6 +222,7 @@ DbResult<Version> Connection::dbVersion() const noexcept {
 
 DbResult<PreparedStatement> Connection::sqlPrepare(std::string_view sql, StatementType type) noexcept {
     detail::IStatement *statement = nullptr;
+    fmt::println(stderr, "SQL: {}", sql);
     if (DbError error = mImpl->prepare(sql, &statement))
         return std::unexpected(error);
 
@@ -235,13 +245,14 @@ DbResult<PreparedStatement> Connection::dclPrepare(std::string_view sql) noexcep
     return sqlPrepare(sql, StatementType::eControl);
 }
 
-static void bindIndex(db::PreparedStatement& stmt, const dao::TableInfo& info, size_t index, bool returning, const void *data) noexcept {
+static void bindIndex(PreparedStatement& stmt, const dao::TableInfo& info, size_t index, bool returning, const void *data) noexcept {
     const auto& column = info.columns[index];
     if (returning && info.primaryKey == index)
         return;
 
     auto binding = stmt.bind(column.name);
     const void *field = static_cast<const char*>(data) + column.offset;
+
     switch (column.type) {
     case dao::ColumnType::eInt:
         binding.toInt(*reinterpret_cast<const int32_t*>(field));
@@ -275,6 +286,21 @@ static void bindIndex(db::PreparedStatement& stmt, const dao::TableInfo& info, s
 DbError Connection::insertImpl(const dao::TableInfo& table, const void *src) noexcept {
     std::string sql;
     if (DbError error = mImpl->setupInsert(table, sql))
+        return error;
+
+    auto stmt = TRY_UNWRAP(dmlPrepare(sql));
+    for (size_t i = 0; i < table.columns.size(); i++)
+        bindIndex(stmt, table, i, false, src);
+
+    auto result = TRY_UNWRAP(stmt.update());
+    while (!result.next().isDone()) { }
+
+    return db::DbError::ok();
+}
+
+DbError Connection::insertOrUpdateImpl(const dao::TableInfo& table, const void *src) noexcept {
+    std::string sql;
+    if (DbError error = mImpl->setupInsertOrUpdate(table, sql))
         return error;
 
     auto stmt = TRY_UNWRAP(dmlPrepare(sql));
@@ -380,27 +406,27 @@ DbResult<Environment> Environment::tryCreate(DbType type) noexcept {
         switch (type) {
         case DbType::eSqlite3: return detail::getSqliteEnv(&env);
 
-#if ORM_HAS_POSTGRES
-        case DbType::ePostgreSQL: return detail::postgres(&env);
+#if SMC_DB_HAS_POSTGRES
+        case DbType::ePostgreSQL: return detail::getPostgresEnv(&env);
 #endif
 
-#if ORM_HAS_MYSQL
+#if SMC_DB_HAS_MYSQL
         case DbType::eMySQL: return detail::mysql(&env);
 #endif
 
-#if ORM_HAS_ORCL
+#if SMC_DB_HAS_ORCL
         case DbType::eOracleDB: return detail::getOracleEnv(&env);
 #endif
 
-#if ORM_HAS_MSSQL
+#if SMC_DB_HAS_MSSQL
         case DbType::eMSSQL: return detail::mssql(&env);
 #endif
 
-#if ORM_HAS_DB2
+#if SMC_DB_HAS_DB2
         case DbType::eDB2: return detail::db2(&env);
 #endif
 
-#if ORM_HAS_ODBC
+#if SMC_DB_HAS_ODBC
         case DbType::eODBC: return detail::odbc(&env);
 #endif
 
@@ -416,6 +442,8 @@ DbResult<Environment> Environment::tryCreate(DbType type) noexcept {
 
 DbResult<Connection> Environment::tryConnect(const ConnectionConfig& config) noexcept {
     detail::IConnection *connection = nullptr;
+
+    gLog.info("Connecting to database: {}:{}/{} as role {}", config.host, config.port, config.database, config.user);
     if (DbError error = mImpl->connect(config, &connection))
         return std::unexpected(error);
 

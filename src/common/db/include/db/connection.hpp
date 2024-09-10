@@ -1,6 +1,6 @@
 #pragma once
 
-#include <simcoe_orm_config.h>
+#include <simcoe_db_config.h>
 
 #include "db/bind.hpp"
 #include "db/core.hpp"
@@ -115,11 +115,11 @@ namespace sm::db {
     public:
         SM_MOVE(PreparedStatement, default);
 
-        BindPoint bind(std::string_view name) throws(DbException);
-        void bind(std::string_view name, int64 value) throws(DbException) { bind(name) = value; }
-        void bind(std::string_view name, std::string_view value) throws(DbException) { bind(name) = value; }
-        void bind(std::string_view name, double value) throws(DbException) { bind(name) = value; }
-        void bind(std::string_view name, std::nullptr_t) throws(DbException) { bind(name) = nullptr; }
+        BindPoint bind(std::string_view name) noexcept;
+        void bind(std::string_view name, int64 value) noexcept { bind(name).toInt(value); }
+        void bind(std::string_view name, std::string_view value) noexcept { bind(name).toString(value); }
+        void bind(std::string_view name, double value) noexcept { bind(name).toDouble(value); }
+        void bind(std::string_view name, std::nullptr_t) noexcept { bind(name).toNull(); }
 
         DbResult<ResultSet> select() noexcept;
         DbResult<ResultSet> update() noexcept;
@@ -149,6 +149,8 @@ namespace sm::db {
         { }
 
         DbError insertImpl(const dao::TableInfo& table, const void *src) noexcept;
+        DbError insertOrUpdateImpl(const dao::TableInfo& table, const void *src) noexcept;
+        DbError tryInsertOrUpdateAllImpl(const dao::TableInfo& table, const void *src, size_t count, size_t stride) noexcept;
 
         DbError insertReturningPrimaryKeyImpl(const dao::TableInfo& table, const void *src, void *dst) noexcept;
 
@@ -180,6 +182,16 @@ namespace sm::db {
             tryInsert(value).throwIfFailed();
         }
 
+        template<dao::DaoInterface T>
+        DbError tryInsertOrUpdate(const T& value) noexcept {
+            return insertOrUpdateImpl(T::getTableInfo(), static_cast<const void*>(&value));
+        }
+
+        template<dao::DaoInterface T>
+        void insertOrUpdate(const T& value) throws(DbException) {
+            tryInsertOrUpdate(value).throwIfFailed();
+        }
+
         template<dao::HasPrimaryKey T>
         DbResult<typename T::Id> tryInsertReturningPrimaryKey(const T& value) noexcept {
             typename T::Id primaryKey{};
@@ -206,7 +218,8 @@ namespace sm::db {
 
         DbResult<bool> tableExists(std::string_view name) noexcept;
 
-        DbResult<Version> dbVersion() const noexcept;
+        DbResult<Version> clientVersion() const noexcept;
+        DbResult<Version> serverVersion() const noexcept;
     };
 
     class Environment {

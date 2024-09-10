@@ -24,6 +24,7 @@ namespace sm::db::detail::orcl {
     bool isSuccess(sword status) noexcept;
 
     std::string setupInsert(const dao::TableInfo& info) noexcept;
+    std::string setupInsertOrUpdate(const dao::TableInfo& info) noexcept;
     std::string setupInsertReturningPrimaryKey(const dao::TableInfo& info) noexcept;
     std::string setupCreateTable(const dao::TableInfo& info) noexcept;
 
@@ -188,7 +189,7 @@ namespace sm::db::detail::orcl {
         OraServer mServer;
         OraService mService;
         OraSession mSession;
-        Version mVersion;
+        Version mServerVersion;
 
         DbResult<OraStatement> newStatement(std::string_view sql) noexcept;
 
@@ -201,24 +202,26 @@ namespace sm::db::detail::orcl {
         DbError rollback() noexcept override;
 
         DbError setupInsert(const dao::TableInfo& table, std::string& sql) noexcept override;
+        DbError setupInsertOrUpdate(const dao::TableInfo& table, std::string& sql) noexcept override;
         DbError setupInsertReturningPrimaryKey(const dao::TableInfo& table, std::string& sql) noexcept override;
 
         DbError createTable(const dao::TableInfo& table) noexcept override;
         DbError tableExists(std::string_view name, bool& exists) noexcept override;
 
-        DbError dbVersion(Version& version) const noexcept override;
+        DbError clientVersion(Version& version) const noexcept override;
+        DbError serverVersion(Version& version) const noexcept override;
     public:
         OraConnection(
             OraEnvironment& env, OraError error,
             OraServer server, OraService service,
-            OraSession session, Version version
+            OraSession session, Version serverVersion
         ) noexcept
             : mEnvironment(env)
             , mError(error)
             , mServer(server)
             , mService(service)
             , mSession(session)
-            , mVersion(std::move(version))
+            , mServerVersion(std::move(serverVersion))
         { }
 
         ub2 getBoolType() const noexcept;

@@ -35,6 +35,7 @@ namespace sm::logs::structured {
     };
 
     db::DbError setup(db::Connection& connection);
+    void cleanup();
 
     namespace detail {
         template<typename T>
@@ -60,7 +61,7 @@ namespace sm::logs::structured {
         void postLogMessage(const LogMessageId& message, fmt::format_args args) noexcept;
 
         template<LogMessageFn F, typename... A>
-        void fmtMessage(std::string_view fmt, A&&... args) noexcept {
+        void fmtMessage(A&&... args) noexcept {
             postLogMessage(gTagInfo<F, A...>, fmt::make_format_args(args...));
         }
     }
@@ -74,7 +75,7 @@ namespace sm::logs::structured {
                 return { UINT64_MAX, severity, message, loc }; \
             } \
         }; \
-        sm::logs::structured::detail::fmtMessage<LogMessageImpl>(message __VA_OPT__(,) __VA_ARGS__); \
+        sm::logs::structured::detail::fmtMessage<LogMessageImpl>(__VA_ARGS__); \
     } while (false)
 
 #define LOG_TRACE(...) LOG_MESSAGE(sm::logs::Severity::eTrace,  __VA_ARGS__)

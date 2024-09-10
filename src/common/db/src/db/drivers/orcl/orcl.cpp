@@ -1,3 +1,4 @@
+#include "fmt/ranges.h"
 #include "stdafx.hpp"
 
 #include "orcl.hpp"
@@ -81,35 +82,66 @@ static std::string makeSqlType(const dao::ColumnInfo& info) {
     }
 }
 
+template<typename F>
+static std::vector<std::invoke_result_t<F, size_t, const dao::ColumnInfo&>> forEachField(const dao::TableInfo& info, bool generatePrimaryKey, F&& fn) noexcept {
+    std::vector<std::invoke_result_t<F, size_t, const dao::ColumnInfo&>> result;
+    for (size_t i = 0; i < info.columns.size(); i++) {
+        if (generatePrimaryKey && info.primaryKey == i)
+            continue;
+
+        result.push_back(std::invoke(fn, i, info.columns[i]));
+    }
+
+    return result;
+}
+
+static void setupInsertFields(const dao::TableInfo& info, bool generatePrimaryKey, std::ostream& os) noexcept {
+    auto fields = forEachField(info, generatePrimaryKey, [](size_t i, const dao::ColumnInfo& column) {
+        return column.name;
+    });
+
+    os << fmt::format("{}", fmt::join(fields, ", "));
+}
+
+static void setupBindingFields(const dao::TableInfo& info, bool generatePrimaryKey, std::ostream& os) noexcept {
+    auto fields = forEachField(info, generatePrimaryKey, [](size_t i, const dao::ColumnInfo& column) {
+        return fmt::format(":{}", column.name);
+    });
+
+    os << fmt::format("{}", fmt::join(fields, ", "));
+}
+
 static void setupInsertCommon(const dao::TableInfo& info, bool generatePrimaryKey, std::ostream& os) noexcept {
     os << "INSERT INTO " << info.name << " (";
-    for (size_t i = 0; i < info.columns.size(); i++) {
-        if (generatePrimaryKey && info.primaryKey == i)
-            continue;
-
-        os << info.columns[i].name;
-        if (i != info.columns.size() - 1) {
-            os << ", ";
-        }
-    }
-
+    setupInsertFields(info, generatePrimaryKey, os);
     os << ") VALUES (";
-    for (size_t i = 0; i < info.columns.size(); i++) {
-        if (generatePrimaryKey && info.primaryKey == i)
-            continue;
-
-        os << ":" << info.columns[i].name;
-        if (i != info.columns.size() - 1) {
-            os << ", ";
-        }
-    }
-
+    setupBindingFields(info, generatePrimaryKey, os);
     os << ")";
 }
 
 std::string orcl::setupInsert(const dao::TableInfo& info) noexcept {
     std::stringstream ss;
     setupInsertCommon(info, false, ss);
+
+    return ss.str();
+}
+
+std::string orcl::setupInsertOrUpdate(const dao::TableInfo& info) noexcept {
+    std::stringstream ss;
+
+    auto pk = info.getPrimaryKey();
+
+    ss << "MERGE INTO " << info.name << " USING DUAL ON (" << pk.name << " = :" << pk.name << ")";
+    ss << " WHEN NOT MATCHED THEN INSERT (";
+    setupInsertFields(info, true, ss);
+    ss << ") VALUES (";
+    setupBindingFields(info, true, ss);
+    ss << ") WHEN MATCHED THEN UPDATE SET ";
+    auto values = forEachField(info, true, [](size_t i, const dao::ColumnInfo& column) {
+        return fmt::format("{0} = :{0}", column.name);
+    });
+
+    ss << fmt::format("{}", fmt::join(values, ", "));
 
     return ss.str();
 }

@@ -28,7 +28,6 @@
 
     <table name="log_message_attribute" syntheticPrimaryKey="ulong">
         <column name="key"  type="text" length="255"  />
-        <column name="type" type="text" length="255"  />
 
         <column name="message" type="ulong">
             <constraint references="log_message.id" />

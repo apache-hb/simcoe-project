@@ -1,7 +1,5 @@
 #pragma once
 
-// #include "meta/meta.hpp"
-
 #include "core/core.hpp"
 #include "core/memory/unique.hpp"
 
@@ -20,7 +18,7 @@ namespace sm::db {
     class Environment;
 
     using Blob = std::span<const uint8>;
-    using Date = std::chrono::time_point<std::chrono::system_clock>;
+    using DateTime = std::chrono::time_point<std::chrono::system_clock>;
 
     namespace detail {
         struct IStatement;
@@ -44,7 +42,7 @@ namespace sm::db {
 
     REFLECT_ENUM(DataType)
     enum class DataType {
-        eInteger, // int_least32_t
+        eInteger, // int32_t
         eBoolean, // bool
         eString, // std::string
         eDouble, // double
@@ -68,7 +66,9 @@ namespace sm::db {
         std::string name; ///< user facing version string
         int major;
         int minor;
-        int patch;
+        int revision;
+        int increment;
+        int ext;
     };
 
     struct ConnectionConfig {

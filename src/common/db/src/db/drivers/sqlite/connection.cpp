@@ -4,7 +4,6 @@
 
 #include "core/defer.hpp"
 
-using namespace sm;
 using namespace sm::db;
 
 namespace sqlite = sm::db::detail::sqlite;
@@ -59,6 +58,11 @@ DbError SqliteConnection::setupInsert(const dao::TableInfo& table, std::string& 
     return DbError::ok();
 }
 
+DbError SqliteConnection::setupInsertOrUpdate(const dao::TableInfo& table, std::string& sql) noexcept {
+    sql = sqlite::setupInsertOrUpdate(table);
+    return DbError::ok();
+}
+
 DbError SqliteConnection::setupInsertReturningPrimaryKey(const dao::TableInfo& table, std::string& sql) noexcept {
     sql = sqlite::setupInsertReturningPrimaryKey(table);
     return DbError::ok();
@@ -94,7 +98,7 @@ DbError SqliteConnection::tableExists(std::string_view table, bool& exists) noex
     return DbError::ok();
 }
 
-DbError SqliteConnection::dbVersion(Version& version) const noexcept {
+static Version getSqliteVersion() noexcept {
     const char *name = sqlite3_libversion();
     int num = sqlite3_libversion_number();
 
@@ -102,8 +106,16 @@ DbError SqliteConnection::dbVersion(Version& version) const noexcept {
     int minor = (num >> 8) & 0xFF;
     int patch = num & 0xFF;
 
-    version = Version{name, major, minor, patch};
+    return Version{name, major, minor, patch};
+}
 
+DbError SqliteConnection::clientVersion(Version& version) const noexcept {
+    version = getSqliteVersion();
+    return DbError::ok();
+}
+
+DbError SqliteConnection::serverVersion(Version& version) const noexcept {
+    version = getSqliteVersion();
     return DbError::ok();
 }
 

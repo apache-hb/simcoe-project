@@ -163,6 +163,14 @@ std::string sqlite::setupInsert(const dao::TableInfo& info) noexcept {
     return ss.str();
 }
 
+std::string sqlite::setupInsertOrUpdate(const dao::TableInfo& info) noexcept {
+    std::ostringstream ss;
+    setupInsertCommon(info, false, ss);
+    ss << " ON CONFLICT DO NOTHING;";
+
+    return ss.str();
+}
+
 std::string sqlite::setupInsertReturningPrimaryKey(const dao::TableInfo& info) noexcept {
     std::ostringstream ss;
     setupInsertCommon(info, true, ss);

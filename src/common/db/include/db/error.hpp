@@ -32,6 +32,7 @@ namespace sm::db {
         std::string_view message() const noexcept { return mMessage; }
         const std::stacktrace& stacktrace() const noexcept { return mStacktrace; }
 
+        [[noreturn]]
         void raise() const throws(DbException);
         void throwIfFailed() const throws(DbException);
 
@@ -50,6 +51,7 @@ namespace sm::db {
         static DbError ok() noexcept;
         static DbError todo() noexcept;
         static DbError error(int code, std::string message) noexcept;
+        static DbError outOfMemory() noexcept;
         static DbError done(int code) noexcept;
         static DbError unsupported(std::string_view subject) noexcept;
         static DbError columnNotFound(std::string_view column) noexcept;

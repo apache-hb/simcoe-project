@@ -11,6 +11,7 @@ namespace sm::db::detail::sqlite {
 
     std::string setupCreateTable(const dao::TableInfo& info) noexcept;
     std::string setupInsert(const dao::TableInfo& info) noexcept;
+    std::string setupInsertOrUpdate(const dao::TableInfo& info) noexcept;
     std::string setupInsertReturningPrimaryKey(const dao::TableInfo& info) noexcept;
 
     DbError getError(int err) noexcept;
@@ -84,13 +85,16 @@ namespace sm::db::detail::sqlite {
 
         DbError setupInsert(const dao::TableInfo& table, std::string& sql) noexcept override;
 
+        DbError setupInsertOrUpdate(const dao::TableInfo& table, std::string& sql) noexcept override;
+
         DbError setupInsertReturningPrimaryKey(const dao::TableInfo& table, std::string& sql) noexcept override;
 
         DbError createTable(const dao::TableInfo& table) noexcept override;
 
         DbError tableExists(std::string_view table, bool& exists) noexcept override;
 
-        DbError dbVersion(Version& version) const noexcept override;
+        DbError clientVersion(Version& version) const noexcept override;
+        DbError serverVersion(Version& version) const noexcept override;
 
     public:
         SqliteConnection(sqlite3 *connection) noexcept;

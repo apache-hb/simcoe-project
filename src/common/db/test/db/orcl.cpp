@@ -59,7 +59,8 @@ TEST_CASE("updates") {
         }
 
         THEN("it has a version") {
-            getValue(conn.dbVersion());
+            getValue(conn.clientVersion());
+            getValue(conn.serverVersion());
         }
 
         THEN("binding variables") {
