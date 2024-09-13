@@ -51,6 +51,7 @@ core = declare_dependency(
 catch2 = dependency('catch2-with-main')
 testargs = [ '--reporter=TAP', '--allow-running-no-tests' ]
 testkwargs = { 'protocol' : 'tap', 'args' : testargs, 'timeout': 5 }
+benchkwargs = { 'timeout': 60 }
 
 coretest = declare_dependency(
     include_directories : '.',
@@ -66,6 +67,7 @@ testcases = {
     'string' : 'test/string.cpp',
     'zstring view' : 'test/adt/zstring_view.cpp',
     'vector' : 'test/adt/vector.cpp',
+    'small vector': 'test/adt/small_vector.cpp',
     'bitset' : 'test/adt/bitset.cpp',
     'priority queue' : 'test/adt/priority_queue.cpp',
     'symbol names' : 'test/symbols.cpp',

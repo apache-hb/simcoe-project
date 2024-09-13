@@ -9,21 +9,24 @@
 namespace structured = sm::logs::structured;
 namespace db = sm::db;
 
-using LogMessageId = sm::logs::structured::detail::LogMessageId;
-using MessageAttributeInfo = sm::logs::structured::MessageAttributeInfo;
-
-LOG_CATEGORY_IMPL(gLog, "dblog");
-
 struct LogAttribute {
     uint64_t id;
     std::string value;
 };
 
+using LogMessageId = sm::logs::structured::detail::LogMessageId;
+using MessageAttributeInfo = sm::logs::structured::MessageAttributeInfo;
+
+using LogAttributeVec = sm::SmallVector<LogAttribute, structured::kMaxMessageAttributes>;
+using AttributeInfoVec = sm::SmallVector<MessageAttributeInfo, structured::kMaxMessageAttributes>;
+
 struct LogEntryPacket {
     uint64_t timestamp;
     uint64_t message;
-    std::vector<LogAttribute> attributes;
+    LogAttributeVec attributes;
 };
+
+LOG_CATEGORY_IMPL(gLog, "dblog");
 
 static constexpr auto kLogSeverityOptions = std::to_array<sm::dao::logs::LogSeverity>({
     { "trace",   uint32_t(sm::logs::Severity::eTrace)   },
@@ -42,6 +45,8 @@ static std::jthread *gLogThread = nullptr;
 
 static void commitLogPackets(std::span<const LogEntryPacket> packets) noexcept {
     db::Transaction tx(gConnection);
+
+    fmt::println(stderr, "Committing log packets {}", packets.size());
 
     for (const LogEntryPacket& packet : packets) {
         sm::dao::logs::LogEntry entry {
@@ -69,13 +74,8 @@ static void commitLogPackets(std::span<const LogEntryPacket> packets) noexcept {
     }
 }
 
-template<typename... T>
-struct overloaded : T... {
-    using T::operator()...;
-};
-
-static std::vector<structured::MessageAttributeInfo> getAttributes(std::string_view message) noexcept {
-    std::vector<structured::MessageAttributeInfo> attributes;
+static AttributeInfoVec getAttributes(std::string_view message) noexcept {
+    AttributeInfoVec attributes;
 
     size_t i = 0;
     while (i < message.size()) {
@@ -114,11 +114,11 @@ static std::vector<LogMessageId> &getLogMessages() noexcept {
 LogMessageId::LogMessageId(LogMessageInfo& message) noexcept
     : info(message)
 {
-    message.attributes = getAttributes(message.message);
+    info.attributes = getAttributes(message.message);
     getLogMessages().emplace_back(*this);
 }
 
-void structured::detail::postLogMessage(const LogMessageId& message, fmt::format_args args) noexcept {
+void structured::detail::postLogMessage(const LogMessageId& message, sm::SmallVectorBase<std::string> args) noexcept {
     if (!gIsRunning) {
         gLog.warn("Log message posted after cleanup");
         return;
@@ -126,20 +126,14 @@ void structured::detail::postLogMessage(const LogMessageId& message, fmt::format
 
     uint64_t timestamp = getTimestamp();
 
-    size_t attributeCount = message.info.attributes.size();
-    std::vector<LogAttribute> attributes;
-    attributes.reserve(attributeCount);
-    for (size_t i = 0; i < attributeCount; i++) {
-        auto arg = args.get(i);
-        std::string value = arg.visit(overloaded {
-            [](fmt::monostate) { return "null"; },
-            [](fmt::format_args::format_arg::handle h) { return "unknown"; },
-            [](auto it) { return fmt::format("{}", it); }
-        });
+    ssize_t attrCount = message.info.attributes.ssize();
+    CTASSERTF(args.ssize() == attrCount, "Incorrect number of message attributes (%zd != %zd)", args.size(), attrCount);
 
+    LogAttributeVec attributes;
+    for (ssize_t i = 0; i < attrCount; i++) {
         attributes.emplace_back(LogAttribute {
             .id = message.info.attributes[i].id,
-            .value = value
+            .value = std::move(args[i])
         });
     }
 
@@ -171,8 +165,8 @@ db::DbError structured::setup(db::Connection& connection) {
             connection.insertOrUpdate(severity);
     }
 
-    for (auto& messageId : getLogMessages()) {
-        auto& message = messageId.info;
+    for (LogMessageId& messageId : getLogMessages()) {
+        LogMessageInfo& message = messageId.info;
 
         sm::dao::logs::LogMessage daoMessage {
             .message = std::string{message.message},
@@ -186,7 +180,7 @@ db::DbError structured::setup(db::Connection& connection) {
 
         message.id = id;
 
-        for (auto& attribute : messageId.info.attributes) {
+        for (MessageAttributeInfo& attribute : messageId.info.attributes) {
             sm::dao::logs::LogMessageAttribute daoAttribute {
                 .key = std::string{attribute.name},
                 .message = id
@@ -198,7 +192,8 @@ db::DbError structured::setup(db::Connection& connection) {
         }
     }
 
-    gLogThread = new std::jthread([](const std::stop_token& stop) noexcept {
+    // NOLINTNEXTLINE(performance-unnecessary-value-param) - std::stop_token should be passed by value
+    gLogThread = new std::jthread([](std::stop_token stop) noexcept {
         LogEntryPacket packets[256];
         while (!stop.stop_requested()) {
             size_t count = gLogQueue.wait_dequeue_bulk(packets, std::size(packets));
@@ -210,6 +205,7 @@ db::DbError structured::setup(db::Connection& connection) {
         // commit any remaining packets
         while (true) {
             size_t count = gLogQueue.try_dequeue_bulk(packets, std::size(packets));
+            fmt::println(stderr, "Committing remaining log packets {}", count);
             if (count == 0)
                 break;
 
@@ -225,14 +221,16 @@ db::DbError structured::setup(db::Connection& connection) {
 void structured::cleanup() {
     gLogThread->request_stop();
 
-    // this message is after the request_stop to prevent deadlocks
+    // this message is after the request_stop to prevent deadlocks.
     // if the message queue is empty before entry to this function
-    // the message thread will wait forever, this ensures that there
+    // the message thread will wait forever, this message ensures that there
     // is always at least 1 message in the queue when shutdown
     // is requested
     LOG_INFO("Cleaning up structured logging");
 
+    fmt::println(stderr, "Cleaning up structured logging");
     delete gLogThread;
+    fmt::println(stderr, "Structured logging cleanup complete");
     gLogThread = nullptr;
 
     gConnection = nullptr;

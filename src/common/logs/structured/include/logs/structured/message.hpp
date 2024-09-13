@@ -8,12 +8,15 @@
 
 #include "logs/logs.hpp"
 #include "db/error.hpp"
+#include "core/adt/small_vector.hpp"
 
 namespace sm::db {
     class Connection;
 }
 
 namespace sm::logs::structured {
+    static constexpr size_t kMaxMessageAttributes = 8;
+
     struct MessageAttributeInfo {
         uint64_t id;
         std::string_view name;
@@ -31,7 +34,7 @@ namespace sm::logs::structured {
         logs::Severity level;
         std::string_view message;
         std::source_location location;
-        std::vector<MessageAttributeInfo> attributes;
+        sm::SmallVector<MessageAttributeInfo, kMaxMessageAttributes> attributes;
     };
 
     db::DbError setup(db::Connection& connection);
@@ -58,11 +61,21 @@ namespace sm::logs::structured {
         template<LogMessageFn F, typename... A>
         inline LogMessageId gTagInfo{getMessage<F, A...>()};
 
-        void postLogMessage(const LogMessageId& message, fmt::format_args args) noexcept;
+        void postLogMessage(const LogMessageId& message, sm::SmallVectorBase<std::string> args) noexcept;
 
         template<LogMessageFn F, typename... A>
         void fmtMessage(A&&... args) noexcept {
-            postLogMessage(gTagInfo<F, A...>, fmt::make_format_args(args...));
+            constexpr size_t argCount = sizeof...(A);
+            static_assert(argCount <= kMaxMessageAttributes, "Too many message attributes");
+
+            const LogMessageId& message = gTagInfo<F, A...>;
+            size_t attribCount = message.info.attributes.size();
+            CTASSERTF(argCount == attribCount, "Incorrect number of message attributes %zu != %zu", argCount, attribCount);
+
+            sm::SmallVector<std::string, argCount> argArray{};
+            ((argArray.emplace_back(fmt::to_string(std::forward<A>(args)))), ...);
+
+            postLogMessage(message, argArray);
         }
     }
 } // namespace sm::logs

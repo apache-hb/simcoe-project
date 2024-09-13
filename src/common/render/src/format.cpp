@@ -2,6 +2,8 @@
 
 #include "render/format.hpp"
 
+#include "core/adt/small_vector.hpp"
+
 #include <fmt/ranges.h>
 
 sm::String sm::render::format(D3D12_RESOURCE_STATES states) {

@@ -13,9 +13,6 @@ namespace sm {
     template<typename T>
     using Vector = std::vector<T>;
 
-    template<typename T, size_t N>
-    using SmallVector = Vector<T>; // TODO: make a small vector
-
     template<typename T> requires (std::is_object_v<T> && std::is_move_constructible_v<T>)
     class VectorBase final : public detail::Collection<T> {
         using Super = detail::Collection<T>;
@@ -186,7 +183,7 @@ namespace sm {
 
         // delete the copy assignment operator since it cant be made
         // explicit. use clone() instead.
-        VectorBase& operator=(const VectorBase &other) noexcept = delete;
+        VectorBase& operator=(const VectorBase &other) noexcept = delete("copy using clone()");
 
         constexpr VectorBase& operator=(VectorBase &&other) noexcept {
             swap(*this, other);
@@ -302,81 +299,6 @@ namespace sm {
             std::swap(lhs.mFront, rhs.mFront);
             std::swap(lhs.mBack, rhs.mBack);
             std::swap(lhs.mCapacity, rhs.mCapacity);
-        }
-    };
-
-    template<typename T>
-    class SmallVectorBase : public detail::Collection<T> {
-        using Super = detail::Collection<T>;
-        T *mCapacity;
-
-    protected:
-        constexpr SmallVectorBase(T *front, T *back, T *capacity) noexcept
-            : Super(front, back)
-            , mCapacity(capacity)
-        { }
-
-        constexpr void ensureGrowth(ssize_t size) noexcept {
-            CTASSERTF(size <= capacity(), "Cannot add new element to SmallVector: %zd <= %zd", size, capacity());
-        }
-
-        constexpr void ensureExtra(ssize_t extra) noexcept {
-            ensureGrowth(this->ssize() + extra);
-        }
-    public:
-        constexpr ssize_t capacity() const noexcept { return mCapacity - this->mFront; }
-    };
-
-    template<typename T, size_t N>
-    class SmallVectorBody final : public SmallVectorBase<T> {
-        using Super = SmallVectorBase<T>;
-
-        T mStorage[N];
-    public:
-        constexpr SmallVectorBody() noexcept
-            : Super(mStorage, mStorage, mStorage + N)
-        { }
-
-        constexpr SmallVectorBody(std::initializer_list<T> init) noexcept
-            : Super(mStorage, mStorage + init.size(), mStorage + N)
-        {
-            CTASSERTF(init.size() <= N, "Initializer list size must be less than or equal to N: %zu <= %zu", init.size(), N);
-            std::uninitialized_copy(init.begin(), init.end(), this->mFront);
-        }
-
-        constexpr SmallVectorBody(const T *first, const T *last) noexcept
-            : Super(mStorage, mStorage + (last - first), mStorage + N)
-        {
-            CTASSERTF(last - first <= N, "Range size must be less than or equal to N: %zu <= %zu", last - first, N);
-            std::uninitialized_copy(first, last, this->mFront);
-        }
-
-        template<size_t M>
-        constexpr SmallVectorBody(const T (&array)[M]) noexcept
-            : Super(mStorage, mStorage + M, mStorage + N)
-        {
-            CTASSERTF(M <= N, "Array size must be less than or equal to N: %zu <= %zu", M, N);
-            std::uninitialized_copy(array, array + M, this->mFront);
-        }
-
-        constexpr void emplace_back(auto&&... args) noexcept {
-            this->ensureExtra(1);
-            new (this->mBack++) T(std::forward<decltype(args)>(args)...);
-        }
-
-        constexpr void emplace_back(T &&value) noexcept requires (std::is_move_constructible_v<T>) {
-            this->ensureExtra(1);
-            new (this->mBack++) T(std::move(value));
-        }
-
-        constexpr void push_back(const T &value) noexcept {
-            this->ensureExtra(1);
-            new (this->mBack++) T{value};
-        }
-
-        constexpr void push_back(T &&value) noexcept requires (std::is_move_constructible_v<T>) {
-            this->ensureExtra(1);
-            new (this->mBack++) T{std::move(value)};
         }
     };
 }

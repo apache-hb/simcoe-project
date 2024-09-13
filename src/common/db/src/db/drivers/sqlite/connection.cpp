@@ -162,13 +162,6 @@ class SqliteEnvironment final : public detail::IEnvironment {
         if (int err = sqlite3_open(dbPath.c_str(), &db))
             return sqlite::getError(err);
 
-        sqlite3_trace_v2(db, SQLITE_TRACE_STMT, [](unsigned flags, void *ctx, void *p, void *x) {
-            sqlite3_stmt *stmt = (sqlite3_stmt*)p;
-            const char *sql = sqlite3_expanded_sql(stmt);
-            fmt::println(stderr, "SQL: {}", sql);
-            return 0;
-        }, nullptr);
-
         *connection = new SqliteConnection{db};
         return DbError::ok();
     }

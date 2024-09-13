@@ -26,3 +26,12 @@ test('Structured logs setup', exe,
     suite : 'structured_logs',
     kwargs : testkwargs
 )
+
+exe = executable('benchmark-structured-logs-setup', 'benchmark/setup.cpp',
+    dependencies : [ structured_logs, coretest ]
+)
+
+benchmark('Structured logs benchmark', exe,
+    suite : 'structured_logs',
+    kwargs : benchkwargs
+)

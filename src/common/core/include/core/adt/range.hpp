@@ -3,6 +3,8 @@
 #include "core/core.hpp"
 #include "base/panic.h"
 
+#include <algorithm>
+
 namespace sm::detail {
     template<typename T>
     class Collection {
@@ -70,6 +72,10 @@ namespace sm::detail {
         constexpr const T& at(size_t index) const noexcept {
             verifyIndex(index);
             return mFront[index];
+        }
+
+        constexpr bool contains(const T& value) const noexcept {
+            return std::find(begin(), end(), value) != end();
         }
     };
 }

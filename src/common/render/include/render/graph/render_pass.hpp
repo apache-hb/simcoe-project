@@ -2,6 +2,8 @@
 
 #include "render/graph/handle.hpp"
 
+#include "core/adt/small_vector.hpp"
+
 #include <functional>
 
 #include "render.reflect.h"
