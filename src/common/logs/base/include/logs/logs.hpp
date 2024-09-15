@@ -9,11 +9,8 @@
 
 typedef struct colour_pallete_t colour_pallete_t;
 
-#define LOG_CATEGORY(id) \
-    extern sm::logs::LogCategory id;
-
-#define LOG_CATEGORY_IMPL(id, name) \
-    sm::logs::LogCategory id(name);
+#define LOG_CATEGORY(id) extern sm::logs::LogCategory id
+#define LOG_CATEGORY_IMPL(id, name) sm::logs::LogCategory id(name)
 
 namespace sm::logs {
     enum class Severity {

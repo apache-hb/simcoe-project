@@ -5,7 +5,7 @@
 
 using namespace sm;
 
-LOG_CATEGORY_IMPL(gDrawLog, "draw");
+LOG_CATEGORY_IMPL(gDrawLog, "Draw");
 
 flecs::query<
     const world::ecs::Position,

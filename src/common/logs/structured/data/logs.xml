@@ -8,7 +8,9 @@
         <column name="severity" type="uint" />
     </table>
 
-    <table name="log_message" syntheticPrimaryKey="ulong">
+    <table name="log_message" primaryKey="hash">
+        <column name="hash" type="ulong" />
+
         <column name="message"  type="text" length="1024" />
 
         <column name="severity" type="uint">
@@ -26,12 +28,19 @@
         </unique>
     </table>
 
-    <table name="log_message_attribute" syntheticPrimaryKey="ulong">
+    <table name="log_message_attribute">
         <column name="key"  type="text" length="255"  />
 
+        <column name="param" type="ulong" />
+
         <column name="message" type="ulong">
-            <constraint references="log_message.id" />
+            <constraint references="log_message.hash" />
         </column>
+
+        <unique>
+            <column>param</column>
+            <column>message</column>
+        </unique>
 
         <unique>
             <column>key</column>
@@ -46,8 +55,8 @@
     <table name="log_entry" syntheticPrimaryKey="ulong">
         <column name="timestamp" type="ulong" />
 
-        <column name="message" type="ulong">
-            <constraint references="log_message.id" />
+        <column name="message_hash" type="ulong">
+            <constraint references="log_message.hash" />
         </column>
     </table>
 
@@ -56,8 +65,8 @@
             <constraint references="log_entry.id" />
         </column>
 
-        <column name="key" type="ulong">
-            <constraint references="log_message_attribute.id" />
+        <column name="param" type="ulong">
+            <constraint references="log_message_attribute.param" />
         </column>
 
         <column name="value" type="text" length="2048" />

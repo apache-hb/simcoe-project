@@ -21,12 +21,15 @@ using AttributeInfoVec = sm::SmallVector<MessageAttributeInfo, structured::kMaxM
 
 struct LogEntryPacket {
     uint64_t timestamp;
-    uint64_t messageHash;
+    uint64_t message;
     LogAttributeVec attributes;
 };
 
-LOG_CATEGORY_IMPL(gLog, "Structed Logging");
+LOG_CATEGORY_IMPL(gLog, "dblog");
 
+static constexpr size_t kBufferCount = 512;
+
+#if SMC_LOG_MESSAGE_TEXT
 static constexpr auto kLogSeverityOptions = std::to_array<sm::dao::logs::LogSeverity>({
     { "trace",   uint32_t(sm::logs::Severity::eTrace)   },
     { "debug",   uint32_t(sm::logs::Severity::eDebug)   },
@@ -36,68 +39,78 @@ static constexpr auto kLogSeverityOptions = std::to_array<sm::dao::logs::LogSeve
     { "fatal",   uint32_t(sm::logs::Severity::eFatal)   },
     { "panic",   uint32_t(sm::logs::Severity::ePanic)   }
 });
+#endif
 
-static db::Connection *gConnection = nullptr;
-static std::atomic<bool> gIsRunning = false;
-static moodycamel::BlockingConcurrentQueue<LogEntryPacket> gLogQueue{1024};
-static std::jthread *gLogThread = nullptr;
+// NOLINTBEGIN(performance-unnecessary-value-param) - std::stop_token should be passed by value
 
-static void commitLogPackets(std::span<const LogEntryPacket> packets) noexcept {
-    db::Transaction tx(gConnection);
+class LogState {
+    db::Connection& mConnection;
+    db::PreparedInsertReturning<sm::dao::logs::LogEntry> mInsertEntry;
+    db::PreparedInsert<sm::dao::logs::LogEntryAttribute> mInsertAttribute;
+    moodycamel::BlockingConcurrentQueue<LogEntryPacket> mQueue;
 
-    fmt::println(stderr, "Committing log packets {}", packets.size());
+    void commitPackets(std::span<const LogEntryPacket> packets) noexcept {
+        db::Transaction tx(&mConnection);
 
-    for (const LogEntryPacket& packet : packets) {
-        sm::dao::logs::LogEntry entry {
-            .timestamp = packet.timestamp,
-            .messageHash = packet.messageHash
-        };
-
-        auto id = gConnection->tryInsertReturningPrimaryKey(entry);
-        if (!id.has_value()) {
-            gLog.warn("Failed to insert log entry: {}", id.error().message());
-            continue;
-        }
-
-        for (size_t i = 0; i < packet.attributes.size(); i++) {
-            sm::dao::logs::LogEntryAttribute entryAttribute {
-                .entry = id.value(),
-                .param = uint32_t(i),
-                .value = packet.attributes[i].value
+        for (const LogEntryPacket& packet : packets) {
+            sm::dao::logs::LogEntry entry {
+                .timestamp = packet.timestamp,
+                .message = packet.message
             };
 
-            if (auto error = gConnection->tryInsert(entryAttribute)) {
-                gLog.warn("Failed to insert log entry attribute: {}", error.message());
+            auto id = mInsertEntry.tryInsert(entry);
+            if (!id.has_value()) {
+                gLog.warn("Failed to insert log entry: {}", id.error().message());
+                continue;
+            }
+
+            for (size_t i = 0; i < packet.attributes.size(); i++) {
+                sm::dao::logs::LogEntryAttribute entryAttribute {
+                    .entry = id.value(),
+                    .param = i,
+                    .value = packet.attributes[i].value
+                };
+
+                if (auto error = mInsertAttribute.tryInsert(entryAttribute)) {
+                    gLog.warn("Failed to insert log entry attribute: {}", error.message());
+                }
             }
         }
     }
-}
 
-static AttributeInfoVec getAttributes(std::string_view message) noexcept {
-    AttributeInfoVec attributes;
+public:
+    LogState(db::Connection& db, size_t queueSize)
+        : mConnection(db)
+        , mInsertEntry(db.prepareInsertReturningPrimaryKey<sm::dao::logs::LogEntry>())
+        , mInsertAttribute(db.prepareInsert<sm::dao::logs::LogEntryAttribute>())
+        , mQueue(queueSize)
+    { }
 
-    size_t i = 0;
-    while (i < message.size()) {
-        auto start = message.find_first_of('{', i);
-        if (start == std::string_view::npos) {
-            break;
+    void dequeuePackets(std::stop_token stop, std::span<LogEntryPacket> storage) noexcept {
+        while (!stop.stop_requested()) {
+            size_t count = mQueue.wait_dequeue_bulk(storage.data(), storage.size());
+            commitPackets(std::span(storage.data(), count));
         }
-
-        auto end = message.find_first_of('}', start);
-        if (end == std::string_view::npos) {
-            break;
-        }
-
-        MessageAttributeInfo info {
-            .name = message.substr(start + 1, end - start - 1)
-        };
-
-        attributes.emplace_back(info);
-        i = end + 1;
     }
 
-    return attributes;
-}
+    void flushPackets(std::span<LogEntryPacket> storage) noexcept {
+        while (true) {
+            size_t count = mQueue.try_dequeue_bulk(storage.data(), storage.size());
+            if (count == 0)
+                break;
+
+            commitPackets(std::span(storage.data(), count));
+        }
+    }
+
+    void enqueue(LogEntryPacket&& packet) noexcept {
+        mQueue.enqueue(std::move(packet));
+    }
+};
+
+static std::atomic<bool> gIsRunning = false;
+static sm::UniquePtr<LogState> gState = nullptr;
+static sm::UniquePtr<std::jthread> gLogThread = nullptr;
 
 static uint64_t getTimestamp() noexcept {
     auto now = std::chrono::system_clock::now();
@@ -109,10 +122,9 @@ static std::vector<LogMessageId> &getLogMessages() noexcept {
     return sLogMessages;
 }
 
-LogMessageId::LogMessageId(LogMessageInfo& message) noexcept
+LogMessageId::LogMessageId(const LogMessageInfo& message) noexcept
     : info(message)
 {
-    info.attributes = getAttributes(message.message);
     getLogMessages().emplace_back(*this);
 }
 
@@ -124,7 +136,7 @@ void structured::detail::postLogMessage(const LogMessageId& message, sm::SmallVe
 
     uint64_t timestamp = getTimestamp();
 
-    ssize_t attrCount = message.info.attributes.ssize();
+    ssize_t attrCount = message.info.getAttributeCount();
     CTASSERTF(args.ssize() == attrCount, "Incorrect number of message attributes (%zd != %zd)", args.size(), attrCount);
 
     LogAttributeVec attributes;
@@ -134,18 +146,20 @@ void structured::detail::postLogMessage(const LogMessageId& message, sm::SmallVe
         });
     }
 
-    gLogQueue.enqueue(LogEntryPacket {
+    gState->enqueue(LogEntryPacket {
         .timestamp = timestamp,
-        .messageHash = message.info.hash,
+        .message = message.info.hash,
         .attributes = std::move(attributes)
     });
 }
 
 db::DbError structured::setup(db::Connection& connection) {
-    gConnection = &connection;
-
     connection.createTable(sm::dao::logs::LogSession::getTableInfo());
+
+#if SMC_LOG_MESSAGE_TEXT
     connection.createTable(sm::dao::logs::LogSeverity::getTableInfo());
+#endif
+
     connection.createTable(sm::dao::logs::LogMessage::getTableInfo());
     connection.createTable(sm::dao::logs::LogMessageAttribute::getTableInfo());
     connection.createTable(sm::dao::logs::LogEntry::getTableInfo());
@@ -158,8 +172,11 @@ db::DbError structured::setup(db::Connection& connection) {
     {
         db::Transaction tx(&connection);
         connection.insert(session);
+
+#if SMC_LOG_MESSAGE_TEXT
         for (auto& severity : kLogSeverityOptions)
             connection.insertOrUpdate(severity);
+#endif
     }
 
     for (const LogMessageId& messageId : getLogMessages()) {
@@ -167,45 +184,41 @@ db::DbError structured::setup(db::Connection& connection) {
 
         sm::dao::logs::LogMessage daoMessage {
             .hash = message.hash,
+
+#if SMC_LOG_MESSAGE_TEXT
             .message = std::string{message.message},
             .severity = uint32_t(message.level),
             .path = std::string{message.location.file_name()},
             .line = message.location.line(),
             .function = std::string{message.location.function_name()},
+#endif
         };
 
         connection.insertOrUpdate(daoMessage);
 
-        for (size_t i = 0; i < message.attributes.size(); i++) {
+        for (size_t i = 0; i < message.getAttributeCount(); i++) {
             sm::dao::logs::LogMessageAttribute daoAttribute {
-                .key = std::string{message.attributes[i].name},
+#if SMC_LOG_MESSAGE_TEXT
+                .key = std::string{messageId.info.attributes[i].name},
+#endif
+
                 .param = uint32_t(i),
                 .message = message.hash
             };
 
+            // TODO: should have a connection method to insert or update generating a primary key
             connection.insertOrUpdate(daoAttribute);
         }
     }
 
-    // NOLINTNEXTLINE(performance-unnecessary-value-param) - std::stop_token should be passed by value
+    gState = new LogState(connection, 0x1000);
+
     gLogThread = new std::jthread([](std::stop_token stop) noexcept {
-        LogEntryPacket packets[256];
-        while (!stop.stop_requested()) {
-            size_t count = gLogQueue.wait_dequeue_bulk(packets, std::size(packets));
-            commitLogPackets(std::span(packets, count));
-        }
+        sm::UniquePtr buffer = sm::makeUnique<LogEntryPacket[]>(kBufferCount);
+        gState->dequeuePackets(stop, std::span(buffer.get(), kBufferCount));
 
         gIsRunning = false;
-
-        // commit any remaining packets
-        while (true) {
-            size_t count = gLogQueue.try_dequeue_bulk(packets, std::size(packets));
-            fmt::println(stderr, "Committing remaining log packets {}", count);
-            if (count == 0)
-                break;
-
-            commitLogPackets(std::span(packets, count));
-        }
+        gState->flushPackets(std::span(buffer.get(), kBufferCount));
     });
 
     gIsRunning = true;
@@ -223,10 +236,8 @@ void structured::cleanup() {
     // is requested
     LOG_INFO("Cleaning up structured logging");
 
-    fmt::println(stderr, "Cleaning up structured logging");
-    delete gLogThread;
-    fmt::println(stderr, "Structured logging cleanup complete");
-    gLogThread = nullptr;
-
-    gConnection = nullptr;
+    gLogThread.reset();
+    gState.reset();
 }
+
+// NOLINTEND(performance-unnecessary-value-param)

@@ -4,7 +4,6 @@
 
 #include <string_view>
 #include <source_location>
-#include <variant>
 
 #include "logs/logs.hpp"
 #include "db/error.hpp"
@@ -18,19 +17,11 @@ namespace sm::logs::structured {
     static constexpr size_t kMaxMessageAttributes = 8;
 
     struct MessageAttributeInfo {
-        uint64_t id;
         std::string_view name;
     };
 
-    using MessageAttribute = std::variant<
-        std::string,
-        std::int64_t,
-        float,
-        bool
-    >;
-
     struct LogMessageInfo {
-        uint64_t id;
+        uint64_t hash;
         logs::Severity level;
         std::string_view message;
         std::source_location location;
@@ -41,6 +32,14 @@ namespace sm::logs::structured {
     void cleanup();
 
     namespace detail {
+        consteval uint64_t hashMessage(std::string_view message) noexcept {
+            uint64_t hash = 0;
+            for (char c : message) {
+                hash = (hash * 31) + c;
+            }
+            return hash;
+        }
+
         template<typename T>
         concept LogMessageFn = requires(T fn) {
             { fn() } -> std::same_as<LogMessageInfo>;
@@ -85,7 +84,7 @@ namespace sm::logs::structured {
         static constexpr std::source_location loc = std::source_location::current(); \
         struct LogMessageImpl { \
             constexpr sm::logs::structured::LogMessageInfo operator()() const noexcept { \
-                return { UINT64_MAX, severity, message, loc }; \
+                return { sm::logs::structured::detail::hashMessage(message), severity, message, loc }; \
             } \
         }; \
         sm::logs::structured::detail::fmtMessage<LogMessageImpl>(__VA_ARGS__); \

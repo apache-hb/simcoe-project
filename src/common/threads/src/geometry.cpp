@@ -9,7 +9,7 @@ using namespace sm;
 using namespace sm::threads;
 
 namespace {
-LOG_CATEGORY_IMPL(gThreadLog, "threads");
+LOG_CATEGORY_IMPL(gThreadLog, "Threads");
 
 threads::CpuGeometry gCpuGeometry;
 

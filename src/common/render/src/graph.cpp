@@ -13,7 +13,7 @@ using enum render::ResourceState::Inner;
 using PassBuilder = FrameGraph::PassBuilder;
 using AccessBuilder = FrameGraph::AccessBuilder;
 
-LOG_CATEGORY_IMPL(gRenderLog, "render");
+LOG_CATEGORY_IMPL(gRenderLog, "Render");
 
 math::float4 Clear::getClearColour() const {
     CTASSERTF(mClearType == ClearType::eColour, "Clear value is not a colour (%d)", std::to_underlying(mClearType));

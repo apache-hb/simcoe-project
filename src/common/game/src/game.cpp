@@ -23,8 +23,8 @@ static const uint kPhysicsThreads = std::thread::hardware_concurrency() - 1;
 static game::GameContextImpl *gContext = nullptr;
 static constexpr float kTimeStep = 1.0f / 60.0f;
 
-LOG_CATEGORY_IMPL(gPhysicsLog, "physics")
-LOG_CATEGORY_IMPL(gGameLog, "game")
+LOG_CATEGORY_IMPL(gPhysicsLog, "Physics");
+LOG_CATEGORY_IMPL(gGameLog, "Game");
 
 game::Context game::getContext() {
     return gContext;
