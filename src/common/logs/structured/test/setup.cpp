@@ -17,7 +17,7 @@ using namespace std::chrono_literals;
 // };
 
 TEST_CASE("Setup logging") {
-    auto env = db::Environment::create(db::DbType::eSqlite3);
+    auto env = db::Environment::create(db::DbType::eSqlite3, { .logQueries=true });
     auto conn = env.connect({.host="testlogs.db"});
 
     if (auto err = logs::structured::setup(conn)) {

@@ -24,7 +24,8 @@
 
 #include "logs/logs.hpp"
 
-#include "fmt/std.h"
+#include <fmtlib/format.h>
+#include <fmt/std.h>
 
 #include "math/math.hpp"
 #include "math/format.hpp"

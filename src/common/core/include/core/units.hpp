@@ -87,4 +87,9 @@ namespace sm {
 
         return result;
     }
+
+    template<typename T>
+    constexpr T roundup(T value, T multiple) noexcept {
+        return (value + multiple - 1) / multiple * multiple;
+    }
 }

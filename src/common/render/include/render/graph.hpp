@@ -50,8 +50,8 @@ namespace sm::graph {
         };
 
     public:
-        ClearType getClearType() const;
-        DXGI_FORMAT getFormat() const;
+        ClearType getClearType() const { return mClearType; }
+        DXGI_FORMAT getFormat() const { return mFormat; }
 
         float getClearDepth() const;
         math::float4 getClearColour() const;
@@ -168,7 +168,7 @@ namespace sm::graph {
             }
         };
 
-        struct ResourceHandle final {
+        struct ResourceHandle {
             uint refcount = 0;
 
             // the name of the resource
@@ -205,9 +205,9 @@ namespace sm::graph {
             std::optional<D3D12_RENDER_TARGET_VIEW_DESC> rtv_desc;
             std::optional<D3D12_DEPTH_STENCIL_VIEW_DESC> dsv_desc;
 
-            bool is_imported() const { return type == ResourceType::eImported; }
-            bool is_managed() const { return type == ResourceType::eManaged || type == ResourceType::eTransient; }
-            bool is_used() const { return is_managed() || refcount > 0; }
+            bool isImported() const { return type == ResourceType::eImported; }
+            bool isManaged() const { return type == ResourceType::eManaged || type == ResourceType::eTransient; }
+            bool isUsed() const { return isManaged() || refcount > 0; }
 
             bool isBuffered() const { return info.isBuffered(); }
             bool isExternal() const { return type == ResourceType::eImported; }
@@ -272,7 +272,7 @@ namespace sm::graph {
         uint add_handle(ResourceHandle handle, Usage access);
         Handle add_transient(ResourceInfo info, Usage access, sm::StringView name);
 
-        bool is_imported(Handle handle) const;
+        bool isImported(Handle handle) const;
 
         RenderPassHandle findNextHandleUse(size_t start, Handle handle) const;
 
@@ -283,7 +283,7 @@ namespace sm::graph {
 
             for (size_t i = start; i < mRenderPasses.size(); i++) {
                 auto& pass = mRenderPasses[i];
-                if (!pass.is_used()) continue;
+                if (!pass.isUsed()) continue;
 
                 if (pass.uses_handle(handle)) {
                     if (!fn(pass.getHandleAccess(handle))) {

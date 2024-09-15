@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package
+    xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+    xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+    xmlns:uap10="http://schemas.microsoft.com/appx/manifest/uap/windows10/10"
+    xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities">
+
+    <Identity
+        Name="@COMPANY_ID@.Simcoe.@PRODUCT_ID@"
+        Version="@MAJOR@.@MINOR@.@PATCH@.@BUILD@"
+        Publisher="CN=@COMPANY_ID@, O=@COMPANY_ID@, L=Toronto, S=Ontario, C=Canada"
+        ProcessorArchitecture="x64"
+    />
+
+    <Properties>
+        <DisplayName>@PRODUCT@</DisplayName>
+        <PublisherDisplayName>@COMPANY@</PublisherDisplayName>
+        <Description>@DESCRIPTION@</Description>
+        <Logo>assets\icon\icon.png</Logo>
+    </Properties>
+    <Resources>
+        <Resource Language="en-us" />
+        <Resource Language="en-ca" />
+        <Resource Language="en-gb" />
+    </Resources>
+    <Dependencies>
+        <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.22000" MaxVersionTested="10.0.22621" />
+    </Dependencies>
+    <Capabilities>
+        <rescap:Capability Name="runFullTrust"/>
+    </Capabilities>
+    <Applications>
+        <Application Id="@PRODUCT_ID@" Executable="client.exe" uap10:RuntimeBehavior="packagedClassicApp" uap10:TrustLevel="mediumIL">
+            <uap:VisualElements
+                DisplayName="@PRODUCT@"
+                Description="@DESCRIPTION@"
+                Square150x150Logo="icon/icon.png"
+                Square44x44Logo="icon/icon.png"
+                BackgroundColor="#1f1f1f"
+            />
+        </Application>
+    </Applications>
+</Package>

@@ -96,4 +96,9 @@ namespace sm {
             }
         }
     };
+
+    template<typename T, typename TDelete = DefaultDelete<T[]>>
+    constexpr UniqueArray<T, TDelete> makeUniqueArray(size_t capacity) noexcept {
+        return UniqueArray<T, TDelete>(capacity);
+    }
 }

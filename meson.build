@@ -14,7 +14,7 @@ project('simcoe', [ 'c', 'cpp' ],
 
         'unity=subprojects',
         'default_library=static',
-        'b_vscrt=static_from_buildtype',
+        'b_vscrt=mt',
 
         # configure freetype before harfbuzz to pick up configuration
         # 'freetype2:auto_features=disabled',
@@ -34,6 +34,8 @@ cc = meson.get_compiler('c')
 is_windows = host_machine.system() == 'windows'
 
 add_global_arguments('-D_ITERATOR_DEBUG_LEVEL=0', language : 'cpp')
+
+add_global_arguments(cpp.get_supported_arguments('-Wno-assume'), language : [ 'c', 'cpp' ])
 
 if is_windows
     add_project_arguments('-DNOMINMAX', language : [ 'c', 'cpp' ])
@@ -181,10 +183,10 @@ subdir('src/common/logs/base')
 
 subdir('src/common/db')
 
+subdir('src/common/config')
+
 # structured logging
 subdir('src/common/logs/structured')
-
-subdir('src/common/config')
 
 if not is_windows
     subdir_done()
@@ -246,9 +248,15 @@ rc_cdata.set('MAJOR', parts[0].to_int())
 rc_cdata.set('MINOR', parts[1].to_int())
 rc_cdata.set('PATCH', parts[2].to_int())
 rc_cdata.set('BUILD', 99)
+rc_cdata.set('COMPANY', 'Temptation Games')
+rc_cdata.set('PRODUCT', 'Priority Zero')
+rc_cdata.set('DESCRIPTION', 'Priority Zero')
+
+rc_cdata.set('COMPANY_ID', 'TemptationGames')
+rc_cdata.set('PRODUCT_ID', 'PriorityZero')
 
 rc = configure_file(
-    input : 'data/win32/client.in.rc',
+    input : 'data/win32/client.rc.in',
     output : 'client.temp.rc',
     configuration : rc_cdata
 )
@@ -283,23 +291,29 @@ bundle_config = configure_file(
 )
 
 make_bundle = find_program('scripts/make_bundle.py')
+
+bundle_cmd = [
+    make_bundle,
+    '--desc', '@INPUT@',
+    '--config', bundle_config,
+    '--dir', '@SOURCE_ROOT@/data/assets',
+    '--outdir', '@OUTDIR@',
+    '--bundle', '@OUTPUT@',
+    '--depfile', '@DEPFILE@',
+    '--root', meson.current_source_dir()
+]
+
+if is_debug
+    bundle_cmd += [ '--debug' ]
+endif
+
 game_bundle = custom_target('game_bundle',
     input : [ 'data/assets/bundle.json' ],
     output : 'bundle.tar',
     install : true,
     install_dir : 'bin',
     depfile : 'bundle.d',
-    command : [
-        make_bundle,
-        '--desc', '@INPUT@',
-        '--config', bundle_config,
-        is_debug ? '--debug' : '',
-        '--dir', '@SOURCE_ROOT@/data/assets',
-        '--outdir', '@OUTDIR@',
-        '--bundle', '@OUTPUT@',
-        '--depfile', '@DEPFILE@',
-        '--root', meson.current_source_dir()
-    ]
+    command : bundle_cmd
 )
 
 link_args = [

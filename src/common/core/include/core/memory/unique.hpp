@@ -159,22 +159,22 @@ namespace sm {
     };
 
     template<typename T, typename TDelete = DefaultDelete<T>>
-    UniquePtr<T, TDelete> makeUnique(T *data, TDelete del = TDelete{}) noexcept {
+    constexpr UniquePtr<T, TDelete> makeUnique(T *data, TDelete del = TDelete{}) noexcept {
         return UniquePtr<T, TDelete>(data);
     }
 
     template<typename T, typename TDelete = DefaultDelete<T>>
-    UniquePtr<T, TDelete> makeUnique(auto&&... args) noexcept {
+    constexpr UniquePtr<T, TDelete> makeUnique(auto&&... args) noexcept {
         return UniquePtr<T, TDelete>(new T(std::forward<decltype(args)>(args)...));
     }
 
     template<typename T, typename TDelete = DefaultDelete<T>>
-    UniquePtr<T, TDelete> makeUnique(T *data, size_t size, TDelete del = TDelete{}) noexcept {
+    constexpr UniquePtr<T, TDelete> makeUnique(T *data, size_t size, TDelete del = TDelete{}) noexcept {
         return UniquePtr<T, TDelete>(data, size);
     }
 
     template<IsArray T, typename TDelete = DefaultDelete<T>>
-    UniquePtr<T, TDelete> makeUnique(size_t size) noexcept {
+    constexpr UniquePtr<T, TDelete> makeUnique(size_t size) noexcept {
         using ElementType = std::remove_extent_t<T>;
         return UniquePtr<T, TDelete>(new ElementType[size], size);
     }

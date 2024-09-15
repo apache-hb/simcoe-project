@@ -134,6 +134,7 @@ struct DebugVertex {
     math::float3 colour;
 };
 
+#if SMC_DEBUG
 struct CDebugRenderer final : public JPH::DebugRendererSimple {
     using Super = JPH::DebugRendererSimple;
 
@@ -178,6 +179,7 @@ struct CDebugRenderer final : public JPH::DebugRendererSimple {
         Super::SetCameraPos(to_jph(position->position));
     }
 };
+#endif
 
 static void jph_trace(const char *fmt, ...) { // NOLINT
     char buffer[2048];
@@ -244,7 +246,9 @@ struct game::GameContextImpl {
     sm::UniquePtr<CContactListener> contactListener;
     sm::UniquePtr<CBodyActivationListener> bodyActivationListener;
 
+#if SMC_DEBUG
     sm::UniquePtr<CDebugRenderer> debugRenderer;
+#endif
 
     void init() {
         JPH::RegisterDefaultAllocator();
@@ -264,8 +268,10 @@ struct game::GameContextImpl {
 
         JPH::Factory::sInstance = new JPH::Factory();
 
+#if SMC_DEBUG
         debugRenderer = sm::makeUnique<CDebugRenderer>();
         JPH::DebugRenderer::sInstance = debugRenderer.get();
+#endif
 
         JPH::RegisterTypes();
 
@@ -290,7 +296,9 @@ struct game::GameContextImpl {
         contactListener = sm::makeUnique<CContactListener>();
         physicsSystem->SetContactListener(*contactListener);
 
+#if SMC_DEBUG
         debugRenderer->DrawCoordinateSystem(JPH::RMat44::sIdentity());
+#endif
     }
 };
 
@@ -413,10 +421,12 @@ void CharacterBody::postUpdate() {
 }
 
 void game::Context::debugDrawPhysicsBody(const PhysicsBody& body) {
+#if SMC_DEBUG
     const JPH::Body *object = body.getImpl()->body;
     const JPH::Shape *shape = object->GetShape();
 
     shape->Draw(*mImpl->debugRenderer, object->GetCenterOfMassTransform(), JPH::Vec3::sReplicate(1.0f), JPH::Color::sGreen, false, false);
+#endif
 }
 
 // void game::Context::addClass(const meta::Class& cls) {
@@ -432,7 +442,9 @@ void game::Context::debugDrawPhysicsBody(const PhysicsBody& body) {
 // }
 
 void game::Context::tick(float dt) {
+#if SMC_DEBUG
     mImpl->debugRenderer->begin_frame(mImpl->activeCamera);
+#endif
 
     int steps = 1;
     if (dt > kTimeStep) {
@@ -591,6 +603,7 @@ static const D3D12_ROOT_SIGNATURE_FLAGS kPrimitiveRootFlags
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
 
+[[maybe_unused]]
 static void createDebugLinePSO(render::IDeviceContext& context, render::Pipeline& pipeline, DXGI_FORMAT colour, DXGI_FORMAT depth) {
     {
         // mvp matrix
@@ -636,6 +649,7 @@ static void createDebugLinePSO(render::IDeviceContext& context, render::Pipeline
     }
 }
 
+[[maybe_unused]]
 static void createDebugTrianglePSO(
     render::IDeviceContext& context,
     render::Pipeline& pipeline,
@@ -691,6 +705,7 @@ void game::physics_debug(
     flecs::entity camera,
     graph::Handle target)
 {
+#if SMC_DEBUG
     const world::ecs::Camera *config = camera.get<world::ecs::Camera>();
 
     graph::PassBuilder pass = graph.graphics("Physics Debug");
@@ -782,4 +797,5 @@ void game::physics_debug(
             cmd->DrawInstanced(debug.mTriangles.size(), 1, 0, 0);
         }
     });
+#endif
 }

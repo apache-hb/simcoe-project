@@ -24,7 +24,10 @@
 #include <Jolt/Physics/Body/BodyActivationListener.h>
 #include <Jolt/Physics/Character/Character.h>
 #include <Jolt/Physics/Character/CharacterVirtual.h>
-#include <Jolt/Renderer/DebugRendererSimple.h>
+
+#if SMC_DEBUG
+#   include <Jolt/Renderer/DebugRendererSimple.h>
+#endif
 
 #include <directx/d3dx12_core.h>
 #include <directx/d3dx12_root_signature.h>

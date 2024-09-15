@@ -25,14 +25,6 @@ float Clear::getClearDepth() const {
     return mClearDepth;
 }
 
-ClearType Clear::getClearType() const {
-    return mClearType;
-}
-
-DXGI_FORMAT Clear::getFormat() const {
-    return mFormat;
-}
-
 Clear Clear::empty() {
     Clear clear;
     clear.mClearType = ClearType::eEmpty;
@@ -98,7 +90,7 @@ AccessBuilder PassBuilder::read(Handle handle, sm::StringView name, Usage access
 }
 
 AccessBuilder PassBuilder::write(Handle handle, sm::StringView name, Usage access) {
-    if (mFrameGraph.is_imported(handle)) {
+    if (mFrameGraph.isImported(handle)) {
         hasSideEffects(true);
     }
 
@@ -126,7 +118,7 @@ PassBuilder& PassBuilder::hasSideEffects(bool effects) {
     return *this;
 }
 
-bool FrameGraph::is_imported(Handle handle) const {
+bool FrameGraph::isImported(Handle handle) const {
     return mHandles[handle.index].type == ResourceType::eImported;
 }
 
@@ -143,7 +135,7 @@ RenderPassHandle FrameGraph::findNextHandleUse(size_t start, Handle handle) cons
 
     for (uint i = start + 1; i < mRenderPasses.size(); i++) {
         auto& pass = mRenderPasses[i];
-        if (!pass.is_used())
+        if (!pass.isUsed())
             continue;
 
         if (pass.uses_handle(handle)) {
@@ -604,13 +596,13 @@ void FrameGraph::createManagedResources() {
 
     for (uint i = 0; i < mHandles.size(); i++) {
         auto& handle = mHandles[i];
-        if (!handle.is_used() || handle.is_imported()) continue;
+        if (!handle.isUsed() || handle.isImported()) continue;
 
         tracker.recordResourceAccess(i, handle.access);
     }
 
     for (auto& pass : mRenderPasses) {
-        if (!pass.is_used()) continue;
+        if (!pass.isUsed()) continue;
 
         pass.foreach(eRead | eWrite | eCreate, [&](const ResourceAccess& access) {
             tracker.recordResourceAccess(access.index.index, access.usage);
@@ -620,7 +612,7 @@ void FrameGraph::createManagedResources() {
     for (uint i = 0; i < mHandles.size(); i++) {
         // skip resources that we don't need to create
         auto& handle = mHandles[i];
-        if (!handle.is_used() || handle.is_imported()) continue;
+        if (!handle.isUsed() || handle.isImported()) continue;
 
         D3D12_RESOURCE_FLAGS flags = tracker.getResourceFlags(i);
         D3D12_RESOURCE_STATES state = getStateFromUsage(handle.access);
@@ -649,7 +641,7 @@ void FrameGraph::createManagedResources() {
 
     for (uint index = 0; index < mHandles.size(); index++) {
         auto& handle = mHandles[index];
-        if (!handle.is_used() || handle.is_imported()) continue;
+        if (!handle.isUsed() || handle.isImported()) continue;
 
         auto data = getAllResourceData(Handle{index});
         for (auto& buffer : data) {
@@ -869,8 +861,7 @@ void FrameGraph::schedule_graph() {
         }
 
         void uav(Handle handle) {
-            ID3D12Resource *resource = graph.resource(handle);
-            CTASSERTF(resource != nullptr, "Resource %u is null", handle.index);
+            CTASSERTF(graph.resource(handle) != nullptr, "Resource %u is null", handle.index);
 
             uavs.push_back(events::UnorderedAccess{handle});
         }
@@ -908,7 +899,7 @@ void FrameGraph::schedule_graph() {
 
     for (uint i = 0; i < mHandles.size(); i++) {
         auto& handle = mHandles[i];
-        if (!handle.is_imported() || !handle.is_used()) continue;
+        if (!handle.isImported() || !handle.isUsed()) continue;
 
         Handle idx{i};
 
@@ -919,7 +910,7 @@ void FrameGraph::schedule_graph() {
 
     const render::CommandListType initialQueueType = [&] {
         for (auto& pass : mRenderPasses) {
-            if (!pass.is_used()) continue;
+            if (!pass.isUsed()) continue;
 
             return pass.type;
         }
@@ -952,7 +943,7 @@ void FrameGraph::schedule_graph() {
 
     for (uint i = 0; i < mRenderPasses.size(); i++) {
         auto& pass = mRenderPasses[i];
-        if (!pass.is_used()) continue;
+        if (!pass.isUsed()) continue;
 
         // if the queue type changes, add a sync event
         if (pass.type != getCommandListType(list)) {
@@ -1084,7 +1075,7 @@ void DescriptorPack::release(render::IDeviceContext& context) {
 
 void FrameGraph::destroyManagedResources() {
     for (auto& handle : mHandles) {
-        if (handle.is_imported()) continue;
+        if (handle.isImported()) continue;
 
         handle.descriptors.release(mContext);
     }

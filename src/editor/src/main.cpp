@@ -14,8 +14,6 @@
 
 #include "threads/threads.hpp"
 
-#include "archive/record.hpp"
-
 #include "editor/editor.hpp"
 
 #include "config/config.hpp"
@@ -275,6 +273,24 @@ public:
 static DefaultSystemError gDefaultError{};
 static logs::FileChannel gFileChannel{};
 
+struct LogWrapper {
+    db::Environment env;
+    db::Connection connection;
+
+    LogWrapper()
+        : env(db::Environment::create(db::DbType::eSqlite3))
+        , connection(env.connect({ .host = "logs.db" }))
+    {
+        sm::logs::structured::setup(connection).throwIfFailed();
+    }
+
+    ~LogWrapper() {
+        sm::logs::structured::cleanup();
+    }
+};
+
+sm::UniquePtr<LogWrapper> gLogWrapper;
+
 static void commonInit(void) {
     // bt_init();
     os_init();
@@ -314,10 +330,7 @@ static void commonInit(void) {
         logs::gGlobal.error("failed to open log file: {}", file.error());
     }
 
-    auto sqlite3 = db::Environment::create(db::DbType::eSqlite3);
-
-    auto logs = sqlite3.connect({ .host = "logs.db" });
-    sm::logs::structured::setup(logs).throwIfFailed();
+    gLogWrapper = sm::makeUnique<LogWrapper>();
 
     threads::init();
 }
@@ -644,6 +657,8 @@ static int commonMain(sys::ShowWindow show) noexcept try {
 
 int main(int argc, const char **argv) noexcept try {
     commonInit();
+    defer { gLogWrapper.reset(); };
+
     sm::Span<const char*> args{argv, size_t(argc)};
     logs::gGlobal.info("args = [{}]", fmt::join(args, ", "));
 
@@ -676,6 +691,7 @@ int main(int argc, const char **argv) noexcept try {
 
 int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
     commonInit();
+    defer { gLogWrapper.reset(); };
 
     logs::gGlobal.info("lpCmdLine = {}", lpCmdLine);
     logs::gGlobal.info("nShowCmd = {}", nShowCmd);

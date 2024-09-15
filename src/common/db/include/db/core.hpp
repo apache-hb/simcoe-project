@@ -71,7 +71,17 @@ namespace sm::db {
         int ext;
     };
 
+    REFLECT()
+    struct EnvConfig {
+        REFLECT_BODY(EnvConfig)
+
+        bool logQueries = false;
+    };
+
+    REFLECT()
     struct ConnectionConfig {
+        REFLECT_BODY(ConnectionConfig)
+
         // connection string, if set will override other connection parameters
         std::string_view connection;
 

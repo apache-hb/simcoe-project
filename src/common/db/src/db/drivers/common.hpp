@@ -55,6 +55,18 @@ namespace sm::db::detail {
             return DbError::todo();
         }
 
+        /** Select */
+
+        virtual DbError setupSelect(const dao::TableInfo& table, std::string& sql) noexcept {
+            return DbError::todo();
+        }
+
+        /** Update */
+
+        virtual DbError setupUpdate(const dao::TableInfo& table, std::string& sql) noexcept {
+            return DbError::todo();
+        }
+
         /** misc */
 
         virtual DbError tableExists(std::string_view name, bool& exists) noexcept {
@@ -213,7 +225,7 @@ namespace sm::db::detail {
         }
     };
 
-    DbError getSqliteEnv(IEnvironment **env) noexcept;
+    DbError getSqliteEnv(IEnvironment **env, const EnvConfig& config) noexcept;
     DbError getPostgresEnv(IEnvironment **env) noexcept;
     DbError mysql(IEnvironment **env) noexcept;
     DbError getOracleEnv(IEnvironment **env) noexcept;

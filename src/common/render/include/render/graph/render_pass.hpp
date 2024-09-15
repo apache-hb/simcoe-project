@@ -98,9 +98,9 @@ namespace sm::graph {
         render::CommandListType type;
         bool has_side_effects = false;
 
-        sm::SmallVector<ResourceAccess, 4> creates;
-        sm::SmallVector<ResourceAccess, 4> reads;
-        sm::SmallVector<ResourceAccess, 4> writes;
+        std::vector<ResourceAccess> creates;
+        std::vector<ResourceAccess> reads;
+        std::vector<ResourceAccess> writes;
 
         std::function<void(RenderContext&)> execute;
 
@@ -152,7 +152,7 @@ namespace sm::graph {
             return false;
         }
 
-        bool is_used() const { return has_side_effects || refcount > 0; }
+        bool isUsed() const { return has_side_effects || refcount > 0; }
         bool uses_handle(Handle handle) const;
         bool updates_handle(Handle handle) const;
         Usage get_handle_usage(Handle handle) const;

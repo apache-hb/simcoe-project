@@ -235,7 +235,6 @@ DbError OraStatement::getColumnIndex(std::string_view name, int& index) const no
 }
 
 DbError OraStatement::bindIntByIndex(int index, int64 value) noexcept {
-    fmt::println(stderr, "bindIntByIndex: index={}, value={}", index, value);
     return bindAtPosition(index, &value, sizeof(value), SQLT_INT);
 }
 
@@ -249,8 +248,6 @@ DbError OraStatement::bindBooleanByIndex(int index, bool value) noexcept {
 }
 
 DbError OraStatement::bindStringByIndex(int index, std::string_view value) noexcept {
-    fmt::println(stderr, "bindStringByIndex: index={}, value={}", index, value);
-
     return bindAtPosition(index, (void*)value.data(), value.size(), SQLT_CHR);
 }
 

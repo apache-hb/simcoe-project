@@ -48,12 +48,12 @@ namespace sm::render {
         void unmap(const D3D12_RANGE *range);
         Result write(const void *data, size_t size);
 
-        D3D12_GPU_VIRTUAL_ADDRESS getDeviceAddress() const { return mGpuAddress; }
+        D3D12_GPU_VIRTUAL_ADDRESS getDeviceAddress() const noexcept { return mGpuAddress; }
 
         void reset();
         void rename(sm::StringView name);
 
-        ID3D12Resource *get() const { return mResource.get(); }
+        ID3D12Resource *get() const noexcept { return mResource.get(); }
     };
 
     template<typename T>

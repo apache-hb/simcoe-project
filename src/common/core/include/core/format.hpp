@@ -38,8 +38,8 @@ struct fmt::formatter<T> {
 };
 #else
 template<ctu::Reflected T> requires (ctu::is_enum<T>())
-struct fmt::formatter<T> : fmt::formatter<T::Underlying> {
-    using Super = fmt::formatter<T::Underlying>;
+struct fmt::formatter<T> : fmt::formatter<typename T::Underlying> {
+    using Super = fmt::formatter<typename T::Underlying>;
     auto format(const T& value, fmt::format_context& ctx) const {
         return Super::format(value.as_integral(), ctx);
     }

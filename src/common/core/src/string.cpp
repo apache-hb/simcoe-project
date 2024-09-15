@@ -1,3 +1,4 @@
+#include "core/macros.h"
 #include "stdafx.hpp"
 
 #include "core/string.hpp"
@@ -30,6 +31,7 @@ std::string sm::vformat(const char *fmt, va_list args) {
     result.resize(size);
 
     int res = vsnprintf(result.data(), result.size() + 1, fmt, args);
+    CT_UNUSED(res);
     CTASSERTF(res == size, "vsnprintf returned %d, expected %d", res, size);
 
     return result;

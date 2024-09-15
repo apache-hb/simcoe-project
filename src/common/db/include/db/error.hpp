@@ -25,7 +25,7 @@ namespace sm::db {
             eConnectionError = 4,
         };
 
-        DbError(int code, int status, std::string message) noexcept;
+        DbError(int code, int status, std::string message, bool disableStackTrace = false) noexcept;
 
         int code() const noexcept { return mCode; }
         int status() const noexcept { return mStatus; }

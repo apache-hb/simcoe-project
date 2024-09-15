@@ -28,6 +28,7 @@ namespace sm {
     using ssize_t = std::ptrdiff_t;
 
     struct noinit { };
+    struct init { };
     // NOLINTEND
 
     template<typename T>

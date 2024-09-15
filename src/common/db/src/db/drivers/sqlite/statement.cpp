@@ -50,6 +50,9 @@ int sqlite::execStatement(sqlite3_stmt *stmt) noexcept {
 }
 
 DbError SqliteStatement::getStmtError(int err) const noexcept {
+    if (err == SQLITE_DONE)
+        return DbError::done(err);
+
     return getError(err, sqlite3_db_handle(mStatement));
 }
 

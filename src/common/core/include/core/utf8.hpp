@@ -24,6 +24,10 @@ namespace sm::utf8 {
         char32_t operator*() const;
     };
 
+    /// validate a utf8 string
+    /// @return the offset of the first invalid codepoint, or SIZE_MAX if valid
+    size_t validate(const char8_t *text, size_t length);
+
     // static utf8 string
     class StaticText {
         const char8_t *mText;

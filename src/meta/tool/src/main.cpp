@@ -206,7 +206,7 @@ class CmdAfterConsumer final : public ASTConsumer {
         for (auto *enumerator : decl.enumerators()) {
             mSource.writeln("case {0}: return \"{0}\";", enumerator->getNameAsString());
         }
-        mSource.writeln("default: return \"unknown\";");
+        mSource.writeln("default: return \"Unknown\";");
         mSource.writeln("}}");
 
         mSource.dedent();

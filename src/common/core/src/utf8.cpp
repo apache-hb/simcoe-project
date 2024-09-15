@@ -32,9 +32,7 @@ static constexpr size_t utf8_codepoint_length(const char8_t *text) {
     }
 }
 
-/// validate a utf8 string
-/// @return the offset of the first invalid codepoint, or SIZE_MAX if valid
-static constexpr size_t utf8_validate(const char8_t *text, size_t length) {
+size_t sm::utf8::validate(const char8_t *text, size_t length) {
     size_t offset = 0;
     while (offset < length) {
         // check for invalid bytes
@@ -113,8 +111,10 @@ StaticText::StaticText(const char8_t *text)
     : mText(text)
     , mSize(utf8_size_bytes(text))
 {
-    size_t offset = utf8_validate(text, mSize);
+#if SMC_DEBUG
+    size_t offset = sm::utf8::validate(text, mSize);
     CTASSERTF(offset == SIZE_MAX, "invalid utf8 text at offset %zu", offset);
+#endif
 }
 
 StaticText::StaticText(const char8_t *text, size_t size)

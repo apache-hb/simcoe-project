@@ -29,6 +29,7 @@
 !.clang-format
 !.clang-tidy
 !*.natvis
+!*.in
 
 # assets
 !data/*

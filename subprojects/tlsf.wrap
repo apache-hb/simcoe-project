@@ -1,0 +1,11 @@
+[wrap-file]
+directory = tlsf-deff9ab509341f264addbd3c8ada533678591905
+
+source_url = https://github.com/mattconte/tlsf/archive/deff9ab509341f264addbd3c8ada533678591905.zip
+source_filename = tlsf-deff9ab509341f264addbd3c8ada533678591905.zip
+source_hash = 081e4dc30a2b6421bc1b427604cf4bcd2148e1a7bfaf8bce57154ba011150992
+
+patch_directory = tlsf
+
+[provide]
+dependency_names = tlsf

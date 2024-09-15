@@ -25,7 +25,7 @@ namespace sm {
         os_error_t mError;
 
     public:
-        constexpr OsError(os_error_t error)
+        constexpr OsError(os_error_t error) noexcept
             : mError(error)
         { }
 
@@ -40,9 +40,8 @@ namespace sm {
         template<size_t N = 512>
         SmallString<N> toString() const {
             char buffer[N];
-            if (os_error_get_string(mError, buffer, N) >= N) {
-                buffer[N - 1] = '\0';
-            }
+            size_t size = os_error_get_string(mError, buffer, N);
+            buffer[std::min(size, N - 1)] = '\0';
             return SmallString<N>(buffer);
         }
     };
@@ -89,4 +88,9 @@ struct fmt::formatter<sm::OsError> {
 
 #define SM_ASSERTM(expr, msg) SM_ASSERTF(expr, "{}", msg)
 #define SM_ASSERT(expr) SM_ASSERTM(expr, #expr)
-#define SM_NEVER(...) SM_ASSERTF(false, __VA_ARGS__)
+
+#if SMC_DEBUG
+#   define SM_NEVER(...) SM_ASSERTF(false, __VA_ARGS__)
+#else
+#   define SM_NEVER(...) SM_ASSERTF_ALWAYS(false, __VA_ARGS__)
+#endif

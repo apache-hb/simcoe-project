@@ -2,7 +2,11 @@
 
 #include "sqlite.hpp"
 
+#include "core/memory.hpp"
+#include "core/units.hpp"
 #include "core/defer.hpp"
+
+#include <tlsf.h>
 
 using namespace sm::db;
 
@@ -138,22 +142,51 @@ static void isBlankStringImpl(sqlite3_context *ctx, int argc, sqlite3_value **ar
     sqlite3_result_int(ctx, isBlankString(text));
 }
 
+static void prepareAlways(sqlite3 *connection, const char *sql, sqlite3_stmt **stmt) {
+    [[maybe_unused]] int err = sqlite3_prepare_v2(connection, sql, -1, stmt, nullptr);
+    CTASSERTF(err == SQLITE_OK, "Failed to prepare statement `%s`: %s (%d)", sql, sqlite3_errmsg(connection), err);
+}
+
 SqliteConnection::SqliteConnection(sqlite3 *connection) noexcept
     : mConnection(connection)
 {
-    if (int err = sqlite3_prepare_v2(mConnection, "BEGIN;", -1, &mBeginStmt, nullptr))
-        CT_NEVER("Failed to prepare BEGIN statement: %s (%d)", sqlite3_errmsg(connection), err);
+    prepareAlways(connection, "BEGIN;", &mBeginStmt);
+    prepareAlways(connection, "COMMIT;", &mCommitStmt);
+    prepareAlways(connection, "ROLLBACK;", &mRollbackStmt);
 
-    if (int err = sqlite3_prepare_v2(mConnection, "COMMIT;", -1, &mCommitStmt, nullptr))
-        CT_NEVER("Failed to prepare COMMIT statement: %s (%d)", sqlite3_errmsg(connection), err);
-
-    if (int err = sqlite3_prepare_v2(mConnection, "ROLLBACK;", -1, &mRollbackStmt, nullptr))
-        CT_NEVER("Failed to prepare ROLLBACK statement: %s (%d)", sqlite3_errmsg(connection), err);
-
-    int err = sqlite3_create_function(mConnection, "IS_BLANK_STRING", 1, SQLITE_UTF8 | SQLITE_DETERMINISTIC, nullptr, isBlankStringImpl, nullptr, nullptr);
-    if (err != SQLITE_OK)
-        CT_NEVER("Failed to create IS_BLANK_STRING function: %s (%d)", sqlite3_errmsg(connection), err);
+    [[maybe_unused]] int err = sqlite3_create_function(mConnection, "IS_BLANK_STRING", 1, SQLITE_UTF8 | SQLITE_DETERMINISTIC, nullptr, isBlankStringImpl, nullptr, nullptr);
+    CTASSERTF(err == SQLITE_OK, "Failed to create IS_BLANK_STRING function: %s (%d)", sqlite3_errmsg(connection), err);
 }
+
+static void *gPoolMemory = nullptr;
+static tlsf_t gPool = nullptr;
+
+static void sqliteShutdown(void*) noexcept {
+    tlsf_destroy(gPool);
+
+    free(gPoolMemory);
+}
+
+static int sqliteInit(void*) noexcept {
+    size_t size = sm::megabytes(32).asBytes();
+    gPoolMemory = malloc(size);
+    CTASSERT(gPoolMemory != nullptr);
+
+    gPool = tlsf_create_with_pool(gPoolMemory, size);
+    CTASSERT(gPool != nullptr);
+
+    return SQLITE_OK;
+}
+
+static constexpr sqlite3_mem_methods kMemoryMethods = {
+    .xMalloc = [](int size) { return tlsf_malloc(gPool, size); },
+    .xFree = [](void *ptr) { tlsf_free(gPool, ptr); },
+    .xRealloc = [](void *ptr, int size) { return tlsf_realloc(gPool, ptr, size); },
+    .xSize = [](void *ptr) { return (int)tlsf_block_size(ptr); },
+    .xRoundup = [](int size) { return sm::roundup<int>(size, tlsf_block_size_min()); },
+    .xInit = sqliteInit,
+    .xShutdown = sqliteShutdown,
+};
 
 class SqliteEnvironment final : public detail::IEnvironment {
     DbError connect(const ConnectionConfig& config, detail::IConnection **connection) noexcept override {
@@ -161,6 +194,13 @@ class SqliteEnvironment final : public detail::IEnvironment {
         sqlite3 *db = nullptr;
         if (int err = sqlite3_open(dbPath.c_str(), &db))
             return sqlite::getError(err);
+
+        // TODO: expose these through config options
+#if 0
+        sqlite3_exec(db, "PRAGMA synchronous = OFF", nullptr, nullptr, nullptr);
+        sqlite3_exec(db, "PRAGMA journal_mode = MEMORY", nullptr, nullptr, nullptr);
+        sqlite3_exec(db, "PRAGMA locking_mode = EXCLUSIVE", nullptr, nullptr, nullptr);
+#endif
 
         *connection = new SqliteConnection{db};
         return DbError::ok();
@@ -170,17 +210,33 @@ class SqliteEnvironment final : public detail::IEnvironment {
         return false;
     }
 
-public:
-    SqliteEnvironment() noexcept {
+    static void setConfigLog() {
         int err = sqlite3_config(SQLITE_CONFIG_LOG, +[](void *ctx, int err, const char *msg) {
             fmt::println(stderr, "SQLite: {}", msg);
         }, nullptr);
-        CTASSERTF(err == SQLITE_OK, "Failed to configure SQLite logging: %d", err);
+
+        if (err != SQLITE_OK)
+            fmt::println(stderr, "Failed to set SQLite log: %s (%d)", sqlite3_errstr(err), err);
+    }
+
+    static void setConfigMemory() {
+        int err = sqlite3_config(SQLITE_CONFIG_MALLOC, &kMemoryMethods);
+        if (err != SQLITE_OK)
+            fmt::println(stderr, "Failed to set SQLite memory: {} ({})", sqlite3_errstr(err), err);
+    }
+
+public:
+    SqliteEnvironment(const EnvConfig& config) noexcept {
+        if (config.logQueries)
+            setConfigLog();
+
+
+        setConfigMemory();
     }
 };
 
-DbError detail::getSqliteEnv(detail::IEnvironment **env) noexcept {
-    static SqliteEnvironment sqlite;
+DbError detail::getSqliteEnv(detail::IEnvironment **env, const EnvConfig& config) noexcept {
+    static SqliteEnvironment sqlite{config};
     *env = &sqlite;
     return DbError::ok();
 }

@@ -25,7 +25,12 @@ private_imgui_include = include_directories('include/imgui', 'include/imgui/back
 imgui_deps = [ d3d12, core, math ]
 
 libimgui = library('imgui', src,
-    cpp_args : cpp.get_supported_arguments('/wd4702', '/wd4127', '-Wno-unused-function'),
+    cpp_args : cpp.get_supported_arguments(
+        '/wd4702', '/wd4127',
+        '-Wno-unused-function',
+        '-Wno-unused-variable',
+        '-Wno-unused-but-set-variable'
+    ),
     include_directories : [ imgui_include, private_imgui_include ],
     dependencies : imgui_deps
 )

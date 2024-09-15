@@ -22,6 +22,7 @@ src = [
 
 cfg = configuration_data()
 
+tlsf = dependency('tlsf')
 sqlite3 = dependency('sqlite3')
 oracledb = subproject('oracledb-client', required : get_option('orcl'))
 db2cli = subproject('db2cli', required : get_option('db2'))
@@ -38,7 +39,7 @@ cfg.set10('SMC_DB_HAS_MYSQL', devapi.found())
 cfg.set10('SMC_DB_HAS_MSSQL', has_mssql)
 cfg.set10('SMC_DB_HAS_ODBC', has_odbc)
 
-deps = [ core, sqlite3, meta, logs ]
+deps = [ core, sqlite3, tlsf, meta, logs ]
 
 if oracledb.found()
     src += [
@@ -113,6 +114,7 @@ libxml = dependency('libxml-2.0')
 
 daocc_exe = executable('daocc', src,
     cpp_pch : 'src/daocc/stdafx.hpp',
+    cpp_args : cpp.get_supported_arguments('-Wno-unused-variable'),
     include_directories : 'include',
     dependencies : [ core, libxml ]
 )

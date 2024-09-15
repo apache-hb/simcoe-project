@@ -42,6 +42,11 @@ DbError ResultSet::next() noexcept {
     return mImpl->next();
 }
 
+DbError ResultSet::finish() noexcept {
+    while (!next().isDone()) { }
+    return mImpl->reset();
+}
+
 int ResultSet::getColumnCount() const noexcept {
     return mImpl->getColumnCount();
 }
@@ -192,6 +197,13 @@ DbResult<ResultSet> PreparedStatement::update() noexcept {
     return ResultSet{mImpl};
 }
 
+DbError PreparedStatement::execute() noexcept {
+    auto result = TRY_UNWRAP(update());
+    while (!result.next().isDone()) { }
+
+    return DbError::ok();
+}
+
 ///
 /// connection
 ///
@@ -282,19 +294,27 @@ static void bindIndex(PreparedStatement& stmt, const dao::TableInfo& info, size_
     }
 }
 
-DbError Connection::insertImpl(const dao::TableInfo& table, const void *src) noexcept {
+void PreparedStatement::bindRowData(const dao::TableInfo& info, bool returning, const void *data) noexcept {
+    for (size_t i = 0; i < info.columns.size(); i++)
+        bindIndex(*this, info, i, returning, data);
+}
+
+DbResult<PreparedStatement> Connection::prepareInsertImpl(const dao::TableInfo& table) noexcept {
     std::string sql;
     if (DbError error = mImpl->setupInsert(table, sql))
-        return error;
+        return std::unexpected(error);
 
-    auto stmt = TRY_UNWRAP(dmlPrepare(sql));
-    for (size_t i = 0; i < table.columns.size(); i++)
-        bindIndex(stmt, table, i, false, src);
+    auto stmt = TRY_RESULT(dmlPrepare(sql));
+    return stmt;
+}
 
-    auto result = TRY_UNWRAP(stmt.update());
-    while (!result.next().isDone()) { }
+DbResult<PreparedStatement> Connection::prepareInsertReturningPrimaryKeyImpl(const dao::TableInfo& table) noexcept {
+    std::string sql;
+    if (DbError error = mImpl->setupInsertReturningPrimaryKey(table, sql))
+        return std::unexpected(error);
 
-    return db::DbError::ok();
+    auto stmt = TRY_RESULT(dmlPrepare(sql));
+    return stmt;
 }
 
 DbError Connection::insertOrUpdateImpl(const dao::TableInfo& table, const void *src) noexcept {
@@ -303,49 +323,10 @@ DbError Connection::insertOrUpdateImpl(const dao::TableInfo& table, const void *
         return error;
 
     auto stmt = TRY_UNWRAP(dmlPrepare(sql));
-    for (size_t i = 0; i < table.columns.size(); i++)
-        bindIndex(stmt, table, i, false, src);
+    stmt.bindRowData(table, false, src);
 
     auto result = TRY_UNWRAP(stmt.update());
     while (!result.next().isDone()) { }
-
-    return db::DbError::ok();
-}
-
-DbError Connection::insertReturningPrimaryKeyImpl(const dao::TableInfo& table, const void *src, void *dst) noexcept {
-    if (!table.hasPrimaryKey())
-        return DbError::columnNotFound(table.name);
-
-    std::string sql;
-    if (DbError error = mImpl->setupInsertReturningPrimaryKey(table, sql))
-        return error;
-
-    auto stmt = TRY_UNWRAP(dmlPrepare(sql));
-    for (size_t i = 0; i < table.columns.size(); i++)
-        bindIndex(stmt, table, i, true, src);
-
-    auto result = TRY_UNWRAP(stmt.update());
-
-    if (DbError error = result.next())
-        return error;
-
-    auto pk = table.getPrimaryKey();
-    switch (pk.type) {
-    case dao::ColumnType::eInt:
-        *reinterpret_cast<int32_t*>(dst) = TRY_UNWRAP(result.get<int32_t>(0));
-        break;
-    case dao::ColumnType::eUint:
-        *reinterpret_cast<uint32_t*>(dst) = TRY_UNWRAP(result.get<uint32_t>(0));
-        break;
-    case dao::ColumnType::eLong:
-        *reinterpret_cast<int64_t*>(dst) = TRY_UNWRAP(result.get<int64_t>(0));
-        break;
-    case dao::ColumnType::eUlong:
-        *reinterpret_cast<uint64_t*>(dst) = TRY_UNWRAP(result.get<uint64_t>(0));
-        break;
-    default:
-        CT_NEVER("Unsupported primary key type");
-    }
 
     return db::DbError::ok();
 }
@@ -399,11 +380,11 @@ std::string_view db::toString(DbType type) noexcept {
     }
 }
 
-DbResult<Environment> Environment::tryCreate(DbType type) noexcept {
+DbResult<Environment> Environment::tryCreate(DbType type, const EnvConfig& config) noexcept {
     detail::IEnvironment *env = nullptr;
     DbError error = [&] {
         switch (type) {
-        case DbType::eSqlite3: return detail::getSqliteEnv(&env);
+        case DbType::eSqlite3: return detail::getSqliteEnv(&env, config);
 
 #if SMC_DB_HAS_POSTGRES
         case DbType::ePostgreSQL: return detail::getPostgresEnv(&env);
@@ -442,7 +423,7 @@ DbResult<Environment> Environment::tryCreate(DbType type) noexcept {
 DbResult<Connection> Environment::tryConnect(const ConnectionConfig& config) noexcept {
     detail::IConnection *connection = nullptr;
 
-    gLog.info("Connecting to database: {}:{}/{} as role {}", config.host, config.port, config.database, config.user);
+    gLog.info("Connecting to database: {}:{}/{} as role `{}`", config.host, config.port, config.database, config.user);
     if (DbError error = mImpl->connect(config, &connection))
         return std::unexpected(error);
 
