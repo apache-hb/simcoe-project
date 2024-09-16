@@ -28,11 +28,17 @@ TEST_CASE("Setup logging") {
         err.raise();
     }
 
-    SUCCEED();
+    GIVEN("a successfully setup logging environment") {
+        THEN("a message can be logged") {
+            LOG_INFO("Logging setup complete");
 
-    LOG_INFO("Logging setup complete");
+            LOG_INFO("Log message {index}", 5);
 
-    LOG_INFO("Log message {index}", 5);
+            LOG_INFO("Logging with {multiple} {parameters}", "multiple", true);
+
+            CHECK(logs::structured::isRunning());
+        }
+    }
 
     logs::structured::cleanup();
 }

@@ -29,6 +29,7 @@ namespace sm::logs::structured {
     };
 
     db::DbError setup(db::Connection& connection);
+    bool isRunning() noexcept;
     void cleanup();
 
     namespace detail {

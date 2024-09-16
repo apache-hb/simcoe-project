@@ -38,6 +38,7 @@ static constexpr auto kLogSeverityOptions = std::to_array<sm::dao::logs::LogSeve
 });
 
 static std::atomic<bool> gIsRunning = false;
+static std::atomic<bool> gHasErrors = false;
 
 class DbLogger {
     db::Connection& mConnection;
@@ -59,11 +60,16 @@ class DbLogger {
                 .messageHash = packet.messageHash
             };
 
+            fmt::println(stderr, "Inserting log entry {}", entry.messageHash);
+
             auto id = mInsertEntry.tryInsert(entry);
             if (!id.has_value()) {
                 gFallbackLog.warn("Failed to insert log entry: {}", id.error().message());
+                gHasErrors = true;
                 continue;
             }
+
+            fmt::println(stderr, "Inserted log entry {}", id.value());
 
             for (size_t i = 0; i < packet.attributes.size(); i++) {
                 sm::dao::logs::LogEntryAttribute entryAttribute {
@@ -72,8 +78,11 @@ class DbLogger {
                     .value = packet.attributes[i].value
                 };
 
+                fmt::println(stderr, "Inserting log entry attribute {} {}", entryAttribute.entryId, entryAttribute.param);
+
                 if (auto error = mInsertAttribute.tryInsert(entryAttribute)) {
                     gFallbackLog.warn("Failed to insert log entry attribute: {}", error.message());
+                    gHasErrors = true;
                 }
             }
         }
@@ -163,6 +172,8 @@ void structured::detail::postLogMessage(const LogMessageId& message, sm::SmallVe
         return;
     }
 
+    fmt::println(stderr, "Posting log message {}", message.info.message);
+
     uint64_t timestamp = getTimestamp();
 
     ssize_t attrCount = message.info.attributes.ssize();
@@ -180,6 +191,10 @@ void structured::detail::postLogMessage(const LogMessageId& message, sm::SmallVe
         .messageHash = message.info.hash,
         .attributes = std::move(attributes)
     });
+}
+
+bool structured::isRunning() noexcept {
+    return gHasErrors;
 }
 
 db::DbError structured::setup(db::Connection& connection) {

@@ -68,5 +68,10 @@
         <column name="param" type="ulong" />
 
         <column name="value" type="text" length="2048" />
+
+        <unique>
+            <column>param</column>
+            <column>entry_id</column>
+        </unique>
     </table>
 </root>
