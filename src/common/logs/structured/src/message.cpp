@@ -25,7 +25,7 @@ struct LogEntryPacket {
     LogAttributeVec attributes;
 };
 
-LOG_CATEGORY_IMPL(gLog, "Structed Logging");
+LOG_CATEGORY_IMPL(gFallbackLog, "Structed Logging");
 
 static constexpr auto kLogSeverityOptions = std::to_array<sm::dao::logs::LogSeverity>({
     { "trace",   uint32_t(sm::logs::Severity::eTrace)   },
@@ -37,15 +37,93 @@ static constexpr auto kLogSeverityOptions = std::to_array<sm::dao::logs::LogSeve
     { "panic",   uint32_t(sm::logs::Severity::ePanic)   }
 });
 
-static db::Connection *gConnection = nullptr;
 static std::atomic<bool> gIsRunning = false;
+
+class DbLogger {
+    db::Connection& mConnection;
+    db::PreparedInsertReturning<sm::dao::logs::LogEntry> mInsertEntry = mConnection.prepareInsertReturningPrimaryKey<sm::dao::logs::LogEntry>();
+    db::PreparedInsert<sm::dao::logs::LogEntryAttribute> mInsertAttribute = mConnection.prepareInsert<sm::dao::logs::LogEntryAttribute>();
+    moodycamel::BlockingConcurrentQueue<LogEntryPacket> mQueue;
+
+    size_t mMaxPackets;
+    sm::UniquePtr<LogEntryPacket[]> mPacketBuffer = new LogEntryPacket[mMaxPackets];
+
+    std::jthread mWorkerThread;
+
+    void commit(std::span<const LogEntryPacket> packets) noexcept {
+        db::Transaction tx(&mConnection);
+
+        for (const LogEntryPacket& packet : packets) {
+            sm::dao::logs::LogEntry entry {
+                .timestamp = packet.timestamp,
+                .messageHash = packet.messageHash
+            };
+
+            auto id = mInsertEntry.tryInsert(entry);
+            if (!id.has_value()) {
+                gFallbackLog.warn("Failed to insert log entry: {}", id.error().message());
+                continue;
+            }
+
+            for (size_t i = 0; i < packet.attributes.size(); i++) {
+                sm::dao::logs::LogEntryAttribute entryAttribute {
+                    .entry = id.value(),
+                    .param = uint32_t(i),
+                    .value = packet.attributes[i].value
+                };
+
+                if (auto error = mInsertAttribute.tryInsert(entryAttribute)) {
+                    gFallbackLog.warn("Failed to insert log entry attribute: {}", error.message());
+                }
+            }
+        }
+    }
+
+    void workerThread(std::stop_token stop) noexcept {
+        while (!stop.stop_requested()) {
+            size_t count = mQueue.wait_dequeue_bulk(mPacketBuffer.get(), mMaxPackets);
+            commit(std::span(mPacketBuffer.get(), count));
+        }
+
+        gIsRunning = false;
+
+        // commit any remaining packets
+        while (true) {
+            size_t count = mQueue.try_dequeue_bulk(mPacketBuffer.get(), mMaxPackets);
+            fmt::println(stderr, "Committing remaining log packets {}", count);
+            if (count == 0)
+                break;
+
+            commit(std::span(mPacketBuffer.get(), count));
+        }
+    }
+
+public:
+    DbLogger(db::Connection& connection) noexcept
+        : mConnection(connection)
+        , mQueue(1024)
+        , mMaxPackets(256)
+        , mWorkerThread([this](std::stop_token stop) noexcept {
+            workerThread(stop);
+        })
+    { }
+
+    void enqueue(LogEntryPacket&& packet) noexcept {
+        mQueue.enqueue(std::move(packet));
+    }
+
+    void cleanup() noexcept {
+        mWorkerThread.request_stop();
+    }
+};
+
+static DbLogger *gLogger = nullptr;
+
+#if 0
 static moodycamel::BlockingConcurrentQueue<LogEntryPacket> gLogQueue{1024};
 static std::jthread *gLogThread = nullptr;
-
 static void commitLogPackets(std::span<const LogEntryPacket> packets) noexcept {
     db::Transaction tx(gConnection);
-
-    fmt::println(stderr, "Committing log packets {}", packets.size());
 
     for (const LogEntryPacket& packet : packets) {
         sm::dao::logs::LogEntry entry {
@@ -72,6 +150,7 @@ static void commitLogPackets(std::span<const LogEntryPacket> packets) noexcept {
         }
     }
 }
+#endif
 
 static AttributeInfoVec getAttributes(std::string_view message) noexcept {
     AttributeInfoVec attributes;
@@ -118,14 +197,14 @@ LogMessageId::LogMessageId(LogMessageInfo& message) noexcept
 
 void structured::detail::postLogMessage(const LogMessageId& message, sm::SmallVectorBase<std::string> args) noexcept {
     if (!gIsRunning) {
-        gLog.warn("Log message posted after cleanup");
+        gFallbackLog.warn("Log message posted after cleanup");
         return;
     }
 
     uint64_t timestamp = getTimestamp();
 
     ssize_t attrCount = message.info.attributes.ssize();
-    CTASSERTF(args.ssize() == attrCount, "Incorrect number of message attributes (%zd != %zd)", args.size(), attrCount);
+    CTASSERTF(args.ssize() == attrCount, "Incorrect number of message attributes (%zd != %zd)", args.ssize(), attrCount);
 
     LogAttributeVec attributes;
     for (ssize_t i = 0; i < attrCount; i++) {
@@ -134,7 +213,7 @@ void structured::detail::postLogMessage(const LogMessageId& message, sm::SmallVe
         });
     }
 
-    gLogQueue.enqueue(LogEntryPacket {
+    gLogger->enqueue(LogEntryPacket {
         .timestamp = timestamp,
         .messageHash = message.info.hash,
         .attributes = std::move(attributes)
@@ -142,8 +221,6 @@ void structured::detail::postLogMessage(const LogMessageId& message, sm::SmallVe
 }
 
 db::DbError structured::setup(db::Connection& connection) {
-    gConnection = &connection;
-
     connection.createTable(sm::dao::logs::LogSession::getTableInfo());
     connection.createTable(sm::dao::logs::LogSeverity::getTableInfo());
     connection.createTable(sm::dao::logs::LogMessage::getTableInfo());
@@ -187,34 +264,15 @@ db::DbError structured::setup(db::Connection& connection) {
         }
     }
 
-    // NOLINTNEXTLINE(performance-unnecessary-value-param) - std::stop_token should be passed by value
-    gLogThread = new std::jthread([](std::stop_token stop) noexcept {
-        LogEntryPacket packets[256];
-        while (!stop.stop_requested()) {
-            size_t count = gLogQueue.wait_dequeue_bulk(packets, std::size(packets));
-            commitLogPackets(std::span(packets, count));
-        }
-
-        gIsRunning = false;
-
-        // commit any remaining packets
-        while (true) {
-            size_t count = gLogQueue.try_dequeue_bulk(packets, std::size(packets));
-            fmt::println(stderr, "Committing remaining log packets {}", count);
-            if (count == 0)
-                break;
-
-            commitLogPackets(std::span(packets, count));
-        }
-    });
-
+    gLogger = new DbLogger(connection);
     gIsRunning = true;
 
     return db::DbError::ok();
 }
 
 void structured::cleanup() {
-    gLogThread->request_stop();
+    gIsRunning = false;
+    gLogger->cleanup();
 
     // this message is after the request_stop to prevent deadlocks.
     // if the message queue is empty before entry to this function
@@ -223,10 +281,6 @@ void structured::cleanup() {
     // is requested
     LOG_INFO("Cleaning up structured logging");
 
-    fmt::println(stderr, "Cleaning up structured logging");
-    delete gLogThread;
-    fmt::println(stderr, "Structured logging cleanup complete");
-    gLogThread = nullptr;
-
-    gConnection = nullptr;
+    gFallbackLog.info("Cleaning up structured logging");
+    // TODO: deleting gLogger has a race condition with the worker thread
 }
