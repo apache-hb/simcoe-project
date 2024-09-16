@@ -21,7 +21,7 @@ void detail::destroyEnvironment(detail::IEnvironment *impl) noexcept {
 }
 
 void detail::destroyStatement(detail::IStatement *impl) noexcept {
-    if (DbError err = impl->close())
+    if (DbError err = impl->finalize())
         CT_NEVER("Failed to close statement: %s (%d)", err.message().data(), err.code());
 
     delete impl;
@@ -42,9 +42,8 @@ DbError ResultSet::next() noexcept {
     return mImpl->next();
 }
 
-DbError ResultSet::finish() noexcept {
-    while (!next().isDone()) { }
-    return mImpl->reset();
+DbError ResultSet::execute() noexcept {
+    return mImpl->execute();
 }
 
 int ResultSet::getColumnCount() const noexcept {
@@ -176,11 +175,7 @@ BindPoint PreparedStatement::bind(std::string_view name) noexcept {
 }
 
 DbError PreparedStatement::close() noexcept {
-    return mImpl->close();
-}
-
-DbError PreparedStatement::reset() noexcept {
-    return mImpl->reset();
+    return mImpl->finalize();
 }
 
 DbResult<ResultSet> PreparedStatement::select() noexcept {
@@ -197,11 +192,16 @@ DbResult<ResultSet> PreparedStatement::update() noexcept {
     return ResultSet{mImpl};
 }
 
-DbError PreparedStatement::execute() noexcept {
-    auto result = TRY_UNWRAP(update());
-    while (!result.next().isDone()) { }
+DbResult<ResultSet> PreparedStatement::start() noexcept {
+    if (DbError error = mImpl->start(mConnection->autoCommit(), type()))
+        return std::unexpected(error);
 
-    return DbError::ok();
+    return ResultSet{mImpl};
+}
+
+DbError PreparedStatement::execute() noexcept {
+    auto result = TRY_UNWRAP(start());
+    return result.execute();
 }
 
 ///
@@ -304,8 +304,15 @@ DbResult<PreparedStatement> Connection::prepareInsertImpl(const dao::TableInfo& 
     if (DbError error = mImpl->setupInsert(table, sql))
         return std::unexpected(error);
 
-    auto stmt = TRY_RESULT(dmlPrepare(sql));
-    return stmt;
+    return TRY_RESULT(dmlPrepare(sql));
+}
+
+DbResult<PreparedStatement> Connection::prepareInsertOrUpdateImpl(const dao::TableInfo& table) noexcept {
+    std::string sql;
+    if (DbError error = mImpl->setupInsertOrUpdate(table, sql))
+        return std::unexpected(error);
+
+    return TRY_RESULT(dmlPrepare(sql));
 }
 
 DbResult<PreparedStatement> Connection::prepareInsertReturningPrimaryKeyImpl(const dao::TableInfo& table) noexcept {
@@ -313,22 +320,7 @@ DbResult<PreparedStatement> Connection::prepareInsertReturningPrimaryKeyImpl(con
     if (DbError error = mImpl->setupInsertReturningPrimaryKey(table, sql))
         return std::unexpected(error);
 
-    auto stmt = TRY_RESULT(dmlPrepare(sql));
-    return stmt;
-}
-
-DbError Connection::insertOrUpdateImpl(const dao::TableInfo& table, const void *src) noexcept {
-    std::string sql;
-    if (DbError error = mImpl->setupInsertOrUpdate(table, sql))
-        return error;
-
-    auto stmt = TRY_UNWRAP(dmlPrepare(sql));
-    stmt.bindRowData(table, false, src);
-
-    auto result = TRY_UNWRAP(stmt.update());
-    while (!result.next().isDone()) { }
-
-    return db::DbError::ok();
+    return TRY_RESULT(dmlPrepare(sql));
 }
 
 DbError Connection::tryCreateTable(const dao::TableInfo& table) noexcept {

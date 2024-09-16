@@ -151,7 +151,7 @@ DbError OraStatement::closeColumns() noexcept {
     return DbError::ok();
 }
 
-DbError OraStatement::execute(ub4 flags, int iters) noexcept {
+DbError OraStatement::executeStatement(ub4 flags, int iters) noexcept {
     if (DbError error = closeColumns())
         return error;
 
@@ -171,11 +171,11 @@ DbError OraStatement::execute(ub4 flags, int iters) noexcept {
 }
 
 DbError OraStatement::executeUpdate(ub4 flags) noexcept {
-    return execute(flags, 1);
+    return executeStatement(flags, 1);
 }
 
 DbError OraStatement::executeSelect(ub4 flags) noexcept {
-    return execute(flags, 0);
+    return executeStatement(flags, 0);
 }
 
 int OraStatement::getBindCount() const noexcept {
@@ -212,7 +212,7 @@ DbError OraStatement::bindAtName(std::string_view name, void *value, ub4 size, u
     return DbError::ok();
 }
 
-DbError OraStatement::close() noexcept {
+DbError OraStatement::finalize() noexcept {
     if (DbError error = closeColumns())
         return error;
 
@@ -220,6 +220,22 @@ DbError OraStatement::close() noexcept {
         return oraGetError(mError, result);
 
     DbError result = mError.close(nullptr);
+    return oraGetError(mError, result);
+}
+
+DbError OraStatement::start(bool autoCommit, StatementType type) noexcept {
+    int iters = (type == StatementType::eQuery) ? 0 : 1;
+    ub4 flags = autoCommit ? OCI_COMMIT_ON_SUCCESS : OCI_DEFAULT;
+    return executeStatement(flags, iters);
+}
+
+DbError OraStatement::execute() noexcept {
+    // TODO: some statements need to be reset, others dont
+    return DbError::todo();
+}
+
+DbError OraStatement::next() noexcept {
+    sword result = OCIStmtFetch2(mStatement, mError, 1, OCI_FETCH_NEXT, 0, OCI_DEFAULT);
     return oraGetError(mError, result);
 }
 
@@ -310,18 +326,8 @@ DbError OraStatement::update(bool autoCommit) noexcept {
     return executeUpdate(flags);
 }
 
-DbError OraStatement::reset() noexcept {
-    // TODO: some statements need to be reset, others dont
-    return DbError::todo();
-}
-
 int OraStatement::getColumnCount() const noexcept {
     return mColumnInfo.size();
-}
-
-DbError OraStatement::next() noexcept {
-    sword result = OCIStmtFetch2(mStatement, mError, 1, OCI_FETCH_NEXT, 0, OCI_DEFAULT);
-    return oraGetError(mError, result);
 }
 
 DbError OraStatement::getIntByIndex(int index, int64& value) noexcept {

@@ -47,7 +47,7 @@ TEST_CASE("sqlite updates") {
         ResultSet results = getValue(conn.select("SELECT * FROM test ORDER BY id ASC"));
 
         int count = 1;
-        while (results.next().isSuccess()) {
+        while (!results.next().isDone()) {
             int64 id = getValue(results.getInt(0));
             std::string_view name = getValue(results.getString(1));
 

@@ -130,7 +130,7 @@ namespace sm::db::detail::orcl {
 
         DbError closeColumns() noexcept;
 
-        DbError execute(ub4 flags, int iters) noexcept;
+        DbError executeStatement(ub4 flags, int iters) noexcept;
         DbError executeUpdate(ub4 flags) noexcept;
         DbError executeSelect(ub4 flags) noexcept;
 
@@ -138,7 +138,11 @@ namespace sm::db::detail::orcl {
         DbError bindAtName(std::string_view name, void *value, ub4 size, ub2 type) noexcept;
 
     public:
-        DbError close() noexcept override;
+        DbError finalize() noexcept override;
+        DbError start(bool autoCommit, StatementType type) noexcept override;
+        DbError execute() noexcept override;
+        DbError next() noexcept override;
+
 
         int getBindCount() const noexcept override;
 
@@ -158,12 +162,10 @@ namespace sm::db::detail::orcl {
 
         DbError select() noexcept override;
         DbError update(bool autoCommit) noexcept override;
-        DbError reset() noexcept override;
 
         int getColumnCount() const noexcept override;
         DbError getColumnIndex(std::string_view name, int& index) const noexcept override;
 
-        DbError next() noexcept override;
 
         DbError getIntByIndex(int index, int64& value) noexcept override;
         DbError getBooleanByIndex(int index, bool& value) noexcept override;

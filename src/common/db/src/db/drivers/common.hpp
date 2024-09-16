@@ -93,15 +93,26 @@ namespace sm::db::detail {
 
         /** Lifecycle */
 
-        virtual DbError close() noexcept {
-            return DbError::todo();
-        }
-
-        virtual DbError reset() noexcept {
+        virtual DbError finalize() noexcept {
             return DbError::todo();
         }
 
         /** Execution */
+
+        /** Execute statement and fetch first row of data */
+        virtual DbError start(bool autoCommit, StatementType type) noexcept {
+            return DbError::todo();
+        }
+
+        /** Complete execution of statement */
+        virtual DbError execute() noexcept {
+            return DbError::todo();
+        }
+
+        /** Get next row of data */
+        virtual DbError next() noexcept {
+            return DbError::todo();
+        }
 
         virtual DbError select() noexcept {
             return DbError::todo();
@@ -125,9 +136,6 @@ namespace sm::db::detail {
             return DbError::todo();
         }
 
-        virtual DbError next() noexcept {
-            return DbError::todo();
-        }
 
         virtual DbError getIntByIndex(int index, int64& value) noexcept {
             return DbError::todo();
@@ -169,7 +177,6 @@ namespace sm::db::detail {
         virtual DbError getBindInfo(int index, BindInfo& info) const noexcept {
             return DbError::todo();
         }
-
 
         virtual DbError bindIntByIndex(int index, int64 value) noexcept {
             return DbError::todo();

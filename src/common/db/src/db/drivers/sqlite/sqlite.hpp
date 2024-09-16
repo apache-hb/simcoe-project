@@ -26,9 +26,12 @@ namespace sm::db::detail::sqlite {
         DbError getStmtError(int err) const noexcept;
 
     public:
-        DbError close() noexcept override;
 
-        DbError reset() noexcept override;
+        DbError finalize() noexcept override;
+        DbError start(bool autoCommit, StatementType type) noexcept override;
+        DbError execute() noexcept override;
+        DbError next() noexcept override;
+
 
         int getBindCount() const noexcept override;
 
@@ -41,15 +44,14 @@ namespace sm::db::detail::sqlite {
         DbError bindBlobByIndex(int index, Blob value) noexcept override;
         DbError bindNullByIndex(int index) noexcept override;
 
-        DbError select() noexcept override;
 
+        DbError select() noexcept override;
         DbError update(bool autoCommit) noexcept override;
 
         int getColumnCount() const noexcept override;
 
         DbError getColumnInfo(int index, ColumnInfo& info) const noexcept override;
 
-        DbError next() noexcept override;
 
         bool isRowReady() const noexcept;
 

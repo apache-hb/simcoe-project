@@ -115,14 +115,14 @@ DbError OraConnection::createTable(const dao::TableInfo& table) noexcept {
     auto sql = orcl::setupCreateTable(table);
     fmt::println(stderr, "Creating table: {}", sql);
     OraStatement stmt = TRY_UNWRAP(newStatement(sql));
-    defer { (void)stmt.close(); };
+    defer { (void)stmt.finalize(); };
 
     return stmt.update(true);
 }
 
 DbError OraConnection::tableExists(std::string_view name, bool& exists) noexcept {
     OraStatement stmt = TRY_UNWRAP(newStatement("SELECT COUNT(*) FROM user_tables WHERE table_name = UPPER(:1)"));
-    defer { (void)stmt.close(); };
+    defer { (void)stmt.finalize(); };
 
     if (DbError error = stmt.bindStringByIndex(0, name))
         return error;
@@ -139,7 +139,7 @@ DbError OraConnection::tableExists(std::string_view name, bool& exists) noexcept
 
     exists = count > 0;
 
-    return stmt.close();
+    return stmt.finalize();
 }
 
 DbError OraConnection::clientVersion(Version& version) const noexcept {

@@ -5,6 +5,7 @@
 #include "db/bind.hpp"
 #include "db/core.hpp"
 #include "db/error.hpp"
+#include "db/results.hpp"
 
 #include "core/core.hpp"
 #include "core/macros.hpp"
@@ -12,94 +13,6 @@
 #include "dao/dao.hpp"
 
 namespace sm::db {
-    /// @brief Represents a result set of a query.
-    ///
-    /// @note Not internally synchronized.
-    /// @note Resetting the statement that produced the result set will invalidate the result set.
-    /// @note Columns are 0-indexed.
-    class ResultSet {
-        friend PreparedStatement;
-
-        detail::StmtHandle mImpl;
-
-        ResultSet(detail::StmtHandle impl) noexcept
-            : mImpl(std::move(impl))
-        { }
-
-    public:
-        DbError next() noexcept;
-        DbError finish() noexcept;
-
-        int getColumnCount() const noexcept;
-        DbResult<ColumnInfo> getColumnInfo(int index) const noexcept;
-
-        DbResult<double> getDouble(int index) noexcept;
-        DbResult<int64> getInt(int index) noexcept;
-        DbResult<bool> getBool(int index) noexcept;
-        DbResult<std::string_view> getString(int index) noexcept;
-        DbResult<Blob> getBlob(int index) noexcept;
-
-        DbResult<double> getDouble(std::string_view column) noexcept;
-        DbResult<int64> getInt(std::string_view column) noexcept;
-        DbResult<bool> getBool(std::string_view column) noexcept;
-        DbResult<std::string_view> getString(std::string_view column) noexcept;
-        DbResult<Blob> getBlob(std::string_view column) noexcept;
-
-        template<typename T>
-        DbResult<T> get(std::string_view column) noexcept;
-
-        template<typename T>
-        DbResult<T> get(int index) noexcept;
-
-        template<std::integral T>
-        DbResult<T> get(int column) noexcept {
-            return getInt(column)
-                .transform([](auto it) {
-                    return static_cast<T>(it);
-                });
-        }
-
-        template<std::floating_point T>
-        DbResult<T> get(int column) noexcept {
-            return getDouble(column)
-                .transform([](auto it) {
-                    return static_cast<T>(it);
-                });
-        }
-
-        template<std::integral T>
-        DbResult<T> get(std::string_view column) noexcept {
-            return getInt(column)
-                .transform([](auto it) {
-                    return static_cast<T>(it);
-                });
-        }
-
-        template<std::floating_point T>
-        DbResult<T> get(std::string_view column) noexcept {
-            return getDouble(column)
-                .transform([](auto it) {
-                    return static_cast<T>(it);
-                });
-        }
-    };
-
-#define RESULT_SET_GET_IMPL(type, method) \
-    template<> \
-    inline DbResult<type> ResultSet::get<type>(std::string_view column) noexcept { \
-        return method(column); \
-    } \
-    template<> \
-    inline DbResult<type> ResultSet::get<type>(int index) noexcept { \
-        return method(index); \
-    }
-
-    RESULT_SET_GET_IMPL(bool, getBool);
-    RESULT_SET_GET_IMPL(std::string_view, getString);
-    RESULT_SET_GET_IMPL(Blob, getBlob);
-
-#undef RESULT_SET_GET_IMPL
-
     class PreparedStatement {
         friend Connection;
 
@@ -126,12 +39,12 @@ namespace sm::db {
 
         DbResult<ResultSet> select() noexcept;
         DbResult<ResultSet> update() noexcept;
+        DbResult<ResultSet> start() noexcept;
 
         DbError execute() noexcept;
         DbError step() noexcept;
 
         DbError close() noexcept;
-        DbError reset() noexcept;
 
         [[nodiscard]]
         StatementType type() const noexcept { return mType; }
@@ -160,6 +73,8 @@ namespace sm::db {
     class PreparedInsertReturning {
         friend Connection;
 
+        using PrimaryKey = typename T::Id;
+
         PreparedStatement mStatement;
 
         PreparedInsertReturning(PreparedStatement statement) noexcept
@@ -169,17 +84,15 @@ namespace sm::db {
     public:
         SM_MOVE(PreparedInsertReturning, default);
 
-        DbResult<typename T::Id> tryInsert(const T& value) noexcept {
+        DbResult<PrimaryKey> tryInsert(const T& value) noexcept {
             const auto& info = T::getTableInfo();
             mStatement.bindRowData(info, true, static_cast<const void*>(&value));
 
-            auto result = TRY_UNWRAP(mStatement.update());
-            if (DbError error = result.next())
-                return error;
+            auto result = TRY_UNWRAP(mStatement.start());
 
-            auto pk = result.get<typename T::Id>(info.primaryKey); // TODO: enforce primary key column
+            auto pk = result.get<PrimaryKey>(info.primaryKey); // TODO: enforce primary key column
 
-            if (DbError error = result.finish())
+            if (DbError error = result.execute())
                 return error;
 
             return pk;
@@ -201,9 +114,9 @@ namespace sm::db {
         { }
 
         DbResult<PreparedStatement> prepareInsertImpl(const dao::TableInfo& table) noexcept;
+        DbResult<PreparedStatement> prepareInsertOrUpdateImpl(const dao::TableInfo& table) noexcept;
         DbResult<PreparedStatement> prepareInsertReturningPrimaryKeyImpl(const dao::TableInfo& table) noexcept;
 
-        DbError insertOrUpdateImpl(const dao::TableInfo& table, const void *src) noexcept;
         DbError tryInsertOrUpdateAllImpl(const dao::TableInfo& table, const void *src, size_t count, size_t stride) noexcept;
 
     public:
@@ -237,6 +150,17 @@ namespace sm::db {
             return throwIfFailed(tryPrepareInsert<T>());
         }
 
+        template<dao::DaoInterface T>
+        DbResult<PreparedInsert<T>> tryPrepareInsertOrUpdate() noexcept {
+            auto stmt = TRY_RESULT(prepareInsertOrUpdateImpl(T::getTableInfo()));
+            return PreparedInsert<T>{std::move(stmt)};
+        }
+
+        template<dao::DaoInterface T>
+        PreparedInsert<T> prepareInsertOrUpdate() throws(DbException) {
+            return throwIfFailed(tryPrepareInsertOrUpdate<T>());
+        }
+
         template<dao::HasPrimaryKey T>
         DbResult<PreparedInsertReturning<T>> tryPrepareInsertReturningPrimaryKey() noexcept {
             auto stmt = TRY_RESULT(prepareInsertReturningPrimaryKeyImpl(T::getTableInfo()));
@@ -261,7 +185,8 @@ namespace sm::db {
 
         template<dao::DaoInterface T>
         DbError tryInsertOrUpdate(const T& value) noexcept {
-            return insertOrUpdateImpl(T::getTableInfo(), static_cast<const void*>(&value));
+            auto stmt = TRY_UNWRAP(tryPrepareInsertOrUpdate<T>());
+            return stmt.tryInsert(value);
         }
 
         template<dao::DaoInterface T>

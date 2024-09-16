@@ -37,11 +37,11 @@ namespace sm::db {
         void throwIfFailed() const throws(DbException);
 
         operator bool() const noexcept {
-            return mStatus != eOk;
+            return mStatus != eOk && mStatus != eDone;
         }
 
         bool isSuccess() const noexcept {
-            return mStatus == eOk;
+            return mStatus == eOk || mStatus == eDone;
         }
 
         bool isDone() const noexcept {

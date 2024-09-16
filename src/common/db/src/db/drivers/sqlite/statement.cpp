@@ -21,31 +21,29 @@ static DataType getColumnType(int type) noexcept {
 
 static int doStep(sqlite3_stmt *stmt) noexcept {
     int err = sqlite3_step(stmt);
+    fmt::println(stderr, "Step: {} ({}) {}", sqlite3_errstr(err), err, sqlite3_sql(stmt));
     return err;
 }
 
-static int execSteps(sqlite3_stmt *stmt) noexcept {
-    int err = 0;
-    while (true) {
+/// Run until either a row is available or the statement is done/errored.
+static int runUntilData(sqlite3_stmt *stmt) noexcept {
+    int err = doStep(stmt);
+    while (err == SQLITE_OK)
         err = doStep(stmt);
 
-        if (err == SQLITE_ROW)
-            continue;
+    return err;
+}
 
-        if (err == SQLITE_DONE)
-            break;
-
-        return err;
-    }
-
-    if (err == SQLITE_DONE)
-        err = SQLITE_OK;
+static int runUntilComplete(sqlite3_stmt *stmt) noexcept {
+    int err = doStep(stmt);
+    while (err == SQLITE_OK || err == SQLITE_ROW)
+        err = doStep(stmt);
 
     return err;
 }
 
 int sqlite::execStatement(sqlite3_stmt *stmt) noexcept {
-    execSteps(stmt);
+    runUntilComplete(stmt);
     return sqlite3_reset(stmt);
 }
 
@@ -56,19 +54,44 @@ DbError SqliteStatement::getStmtError(int err) const noexcept {
     return getError(err, sqlite3_db_handle(mStatement));
 }
 
-DbError SqliteStatement::close() noexcept {
+DbError SqliteStatement::finalize() noexcept {
     sqlite3_finalize(mStatement);
     return DbError::ok();
 }
 
-DbError SqliteStatement::reset() noexcept {
-    if (int err = sqlite3_reset(mStatement); err != SQLITE_OK)
-        return getStmtError(err);
+DbError SqliteStatement::start(bool autoCommit, StatementType type) noexcept {
+    mStatus = runUntilData(mStatement);
+    return getStmtError(mStatus);
+}
+
+DbError SqliteStatement::execute() noexcept {
+    if (mStatus != SQLITE_DONE)
+        runUntilComplete(mStatement);
+
+    sqlite3_reset(mStatement);
 
     if (int err = sqlite3_clear_bindings(mStatement); err != SQLITE_OK)
         return getStmtError(err);
 
     return DbError::ok();
+}
+
+DbError SqliteStatement::next() noexcept {
+    mStatus = doStep(mStatement);
+    return getStmtError(mStatus);
+}
+
+DbError SqliteStatement::select() noexcept {
+    // no-op
+    return DbError::ok();
+}
+
+DbError SqliteStatement::update(bool autoCommit) noexcept {
+    int err = runUntilComplete(mStatement);
+    if (err == SQLITE_DONE)
+        err = SQLITE_OK;
+
+    return getStmtError(err);
 }
 
 int SqliteStatement::getBindCount() const noexcept {
@@ -116,16 +139,6 @@ DbError SqliteStatement::bindNullByIndex(int index) noexcept {
     return getStmtError(err);
 }
 
-DbError SqliteStatement::select() noexcept {
-    // no-op
-    return DbError::ok();
-}
-
-DbError SqliteStatement::update(bool autoCommit) noexcept {
-    int err = execSteps(mStatement);
-    return getStmtError(err);
-}
-
 int SqliteStatement::getColumnCount() const noexcept {
     return sqlite3_column_count(mStatement);
 }
@@ -145,11 +158,6 @@ DbError SqliteStatement::getColumnInfo(int index, ColumnInfo& info) const noexce
     info = column;
 
     return DbError::ok();
-}
-
-DbError SqliteStatement::next() noexcept {
-    mStatus = doStep(mStatement);
-    return getStmtError(mStatus);
 }
 
 bool SqliteStatement::isRowReady() const noexcept {

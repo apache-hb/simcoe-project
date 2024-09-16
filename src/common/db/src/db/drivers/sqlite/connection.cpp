@@ -86,16 +86,20 @@ DbError SqliteConnection::tableExists(std::string_view table, bool& exists) noex
         return err;
 
     SqliteStatement ps{stmt};
-    defer { (void)ps.close(); };
+    defer { (void)ps.finalize(); };
 
     if (DbError err = ps.bindStringByName("name", table))
         return err;
 
+    if (DbError err = ps.start(false, StatementType::eQuery))
+        return err;
+
     int64 count = 0;
-    while (ps.next().isSuccess()) {
-        if (DbError err = ps.getIntByIndex(0, count))
-            return err;
-    }
+    if (DbError err = ps.getIntByIndex(0, count))
+        return err;
+
+    if (DbError err = ps.execute())
+        return err;
 
     exists = count > 0;
 

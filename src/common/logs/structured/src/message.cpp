@@ -64,6 +64,7 @@ class DbLogger {
 
             auto id = mInsertEntry.tryInsert(entry);
             if (!id.has_value()) {
+                fmt::println(stderr, "Failed to insert log entry {}", id.error().message());
                 gFallbackLog.warn("Failed to insert log entry: {}", id.error().message());
                 gHasErrors = true;
                 continue;
@@ -81,13 +82,13 @@ class DbLogger {
                 fmt::println(stderr, "Inserting log entry attribute {} {}", entryAttribute.entryId, entryAttribute.param);
 
                 if (auto error = mInsertAttribute.tryInsert(entryAttribute)) {
+                    fmt::println(stderr, "Failed to insert log entry attribute {}", error.message());
                     gFallbackLog.warn("Failed to insert log entry attribute: {}", error.message());
                     gHasErrors = true;
                 }
             }
         }
     }
-
 
 public:
     DbLogger(db::Connection& connection) noexcept
@@ -194,10 +195,10 @@ void structured::detail::postLogMessage(const LogMessageId& message, sm::SmallVe
 }
 
 bool structured::isRunning() noexcept {
-    return gHasErrors;
+    return !gHasErrors;
 }
 
-db::DbError structured::setup(db::Connection& connection) {
+static void registerMessagesWithDb(db::Connection& connection) {
     connection.createTable(sm::dao::logs::LogSession::getTableInfo());
     connection.createTable(sm::dao::logs::LogSeverity::getTableInfo());
     connection.createTable(sm::dao::logs::LogMessage::getTableInfo());
@@ -205,19 +206,17 @@ db::DbError structured::setup(db::Connection& connection) {
     connection.createTable(sm::dao::logs::LogEntry::getTableInfo());
     connection.createTable(sm::dao::logs::LogEntryAttribute::getTableInfo());
 
+    db::Transaction tx(&connection);
     sm::dao::logs::LogSession session {
         .startTime = getTimestamp(),
     };
 
-    {
-        db::Transaction tx(&connection);
-        connection.insert(session);
-        for (auto& severity : kLogSeverityOptions)
-            connection.insertOrUpdate(severity);
-    }
+    connection.insert(session);
+    for (auto& severity : kLogSeverityOptions)
+        connection.insertOrUpdate(severity);
 
     for (const LogMessageId& messageId : getLogMessages()) {
-        const LogMessageInfo& message = messageId.info;
+        const structured::LogMessageInfo& message = messageId.info;
 
         sm::dao::logs::LogMessage daoMessage {
             .hash = message.hash,
@@ -240,6 +239,10 @@ db::DbError structured::setup(db::Connection& connection) {
             connection.insertOrUpdate(daoAttribute);
         }
     }
+}
+
+db::DbError structured::setup(db::Connection& connection) {
+    registerMessagesWithDb(connection);
 
     gLogger = new DbLogger(connection);
     gIsRunning = true;
