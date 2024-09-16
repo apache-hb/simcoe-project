@@ -17,7 +17,7 @@
             <constraint references="log_severity.severity" />
         </column>
 
-        <column name="path"     type="text" length="2048" />
+        <column name="path"     type="text" length="1024" />
         <column name="line"     type="uint"               />
         <column name="function" type="text" length="3072" />
 
@@ -33,18 +33,18 @@
 
         <column name="param" type="ulong" />
 
-        <column name="message" type="ulong">
+        <column name="message_hash" type="ulong">
             <constraint references="log_message.hash" />
         </column>
 
         <unique>
             <column>param</column>
-            <column>message</column>
+            <column>message_hash</column>
         </unique>
 
         <unique>
             <column>key</column>
-            <column>message</column>
+            <column>message_hash</column>
         </unique>
     </table>
 
@@ -61,13 +61,11 @@
     </table>
 
     <table name="log_entry_attribute">
-        <column name="entry" type="ulong">
+        <column name="entry_id" type="ulong">
             <constraint references="log_entry.id" />
         </column>
 
-        <column name="param" type="ulong">
-            <constraint references="log_message_attribute.param" />
-        </column>
+        <column name="param" type="ulong" />
 
         <column name="value" type="text" length="2048" />
     </table>

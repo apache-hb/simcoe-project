@@ -32,8 +32,8 @@ namespace sm::logs::structured {
     void cleanup();
 
     namespace detail {
-        consteval uint64_t hashMessage(std::string_view message) noexcept {
-            uint64_t hash = 0;
+        consteval uint64_t hashMessage(std::string_view message, uint64_t seed) noexcept {
+            uint64_t hash = seed;
             for (char c : message) {
                 hash = (hash * 31) + c;
             }
@@ -84,7 +84,7 @@ namespace sm::logs::structured {
         static constexpr std::source_location loc = std::source_location::current(); \
         struct LogMessageImpl { \
             constexpr sm::logs::structured::LogMessageInfo operator()() const noexcept { \
-                return { sm::logs::structured::detail::hashMessage(message), severity, message, loc }; \
+                return { sm::logs::structured::detail::hashMessage(message, loc.line()), severity, message, loc }; \
             } \
         }; \
         sm::logs::structured::detail::fmtMessage<LogMessageImpl>(__VA_ARGS__); \

@@ -67,7 +67,7 @@ class DbLogger {
 
             for (size_t i = 0; i < packet.attributes.size(); i++) {
                 sm::dao::logs::LogEntryAttribute entryAttribute {
-                    .entry = id.value(),
+                    .entryId = id.value(),
                     .param = uint32_t(i),
                     .value = packet.attributes[i].value
                 };
@@ -77,6 +77,18 @@ class DbLogger {
                 }
             }
         }
+    }
+
+
+public:
+    DbLogger(db::Connection& connection) noexcept
+        : mConnection(connection)
+        , mQueue(1024)
+        , mMaxPackets(256)
+    { }
+
+    void enqueue(LogEntryPacket&& packet) noexcept {
+        mQueue.enqueue(std::move(packet));
     }
 
     void workerThread(std::stop_token stop) noexcept {
@@ -97,60 +109,10 @@ class DbLogger {
             commit(std::span(mPacketBuffer.get(), count));
         }
     }
-
-public:
-    DbLogger(db::Connection& connection) noexcept
-        : mConnection(connection)
-        , mQueue(1024)
-        , mMaxPackets(256)
-        , mWorkerThread([this](std::stop_token stop) noexcept {
-            workerThread(stop);
-        })
-    { }
-
-    void enqueue(LogEntryPacket&& packet) noexcept {
-        mQueue.enqueue(std::move(packet));
-    }
-
-    void cleanup() noexcept {
-        mWorkerThread.request_stop();
-    }
 };
 
 static DbLogger *gLogger = nullptr;
-
-#if 0
-static moodycamel::BlockingConcurrentQueue<LogEntryPacket> gLogQueue{1024};
-static std::jthread *gLogThread = nullptr;
-static void commitLogPackets(std::span<const LogEntryPacket> packets) noexcept {
-    db::Transaction tx(gConnection);
-
-    for (const LogEntryPacket& packet : packets) {
-        sm::dao::logs::LogEntry entry {
-            .timestamp = packet.timestamp,
-            .messageHash = packet.messageHash
-        };
-
-        auto id = gConnection->tryInsertReturningPrimaryKey(entry);
-        if (!id.has_value()) {
-            gLog.warn("Failed to insert log entry: {}", id.error().message());
-            continue;
-        }
-
-        for (size_t i = 0; i < packet.attributes.size(); i++) {
-            sm::dao::logs::LogEntryAttribute entryAttribute {
-                .entry = id.value(),
-                .param = uint32_t(i),
-                .value = packet.attributes[i].value
-            };
-
-            if (auto error = gConnection->tryInsert(entryAttribute)) {
-                gLog.warn("Failed to insert log entry attribute: {}", error.message());
-            }
-        }
-    }
-}
-#endif
+static sm::UniquePtr<std::jthread> gLogThread = nullptr;
 
 static AttributeInfoVec getAttributes(std::string_view message) noexcept {
     AttributeInfoVec attributes;
@@ -257,7 +219,7 @@ db::DbError structured::setup(db::Connection& connection) {
             sm::dao::logs::LogMessageAttribute daoAttribute {
                 .key = std::string{message.attributes[i].name},
                 .param = uint32_t(i),
-                .message = message.hash
+                .messageHash = message.hash
             };
 
             connection.insertOrUpdate(daoAttribute);
@@ -266,13 +228,16 @@ db::DbError structured::setup(db::Connection& connection) {
 
     gLogger = new DbLogger(connection);
     gIsRunning = true;
+    gLogThread = sm::makeUnique<std::jthread>([](std::stop_token stop) {
+        gLogger->workerThread(stop);
+    });
 
     return db::DbError::ok();
 }
 
 void structured::cleanup() {
     gIsRunning = false;
-    gLogger->cleanup();
+    gLogThread->request_stop();
 
     // this message is after the request_stop to prevent deadlocks.
     // if the message queue is empty before entry to this function
@@ -282,5 +247,9 @@ void structured::cleanup() {
     LOG_INFO("Cleaning up structured logging");
 
     gFallbackLog.info("Cleaning up structured logging");
-    // TODO: deleting gLogger has a race condition with the worker thread
+    gLogThread.reset();
+    gFallbackLog.info("Structured logging cleaned up");
+
+    delete gLogger;
+    gLogger = nullptr;
 }
