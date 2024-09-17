@@ -182,3 +182,17 @@ std::string sqlite::setupInsertReturningPrimaryKey(const dao::TableInfo& info) n
 
     return ss.str();
 }
+
+std::string sqlite::setupSelect(const dao::TableInfo& info) noexcept {
+    std::ostringstream ss;
+    ss << "SELECT ";
+    for (size_t i = 0; i < info.columns.size(); i++) {
+        ss << info.columns[i].name;
+        if (i != info.columns.size() - 1) {
+            ss << ", ";
+        }
+    }
+    ss << " FROM " << info.name << ";";
+
+    return ss.str();
+}

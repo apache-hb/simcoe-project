@@ -21,7 +21,6 @@ static DataType getColumnType(int type) noexcept {
 
 static int doStep(sqlite3_stmt *stmt) noexcept {
     int err = sqlite3_step(stmt);
-    fmt::println(stderr, "Step: {} ({}) {}", sqlite3_errstr(err), err, sqlite3_sql(stmt));
     return err;
 }
 

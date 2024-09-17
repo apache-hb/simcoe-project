@@ -99,6 +99,37 @@ namespace sm::db {
         }
     };
 
+    template<dao::DaoInterface T>
+    class PreparedSelect {
+        friend Connection;
+
+        PreparedStatement mStatement;
+
+        PreparedSelect(PreparedStatement statement) noexcept
+            : mStatement(std::move(statement))
+        { }
+
+    public:
+        SM_MOVE(PreparedSelect, default);
+
+        DbResult<ResultSet> execute() noexcept {
+            return mStatement.select();
+        }
+
+        DbResult<std::vector<T>> fetchAll() noexcept {
+            auto result = TRY_RESULT(execute());
+
+            std::vector<T> values;
+            while (result.next().value_or(false)) {
+                T value;
+                result.bindRowData(T::getTableInfo(), false, static_cast<void*>(&value));
+                values.push_back(std::move(value));
+            }
+
+            return values;
+        }
+    };
+
     class Connection {
         friend Environment;
 
@@ -116,6 +147,8 @@ namespace sm::db {
         DbResult<PreparedStatement> prepareInsertImpl(const dao::TableInfo& table) noexcept;
         DbResult<PreparedStatement> prepareInsertOrUpdateImpl(const dao::TableInfo& table) noexcept;
         DbResult<PreparedStatement> prepareInsertReturningPrimaryKeyImpl(const dao::TableInfo& table) noexcept;
+
+        DbResult<PreparedStatement> prepareSelectImpl(const dao::TableInfo& table) noexcept;
 
         DbError tryInsertOrUpdateAllImpl(const dao::TableInfo& table, const void *src, size_t count, size_t stride) noexcept;
 
@@ -171,6 +204,14 @@ namespace sm::db {
         PreparedInsertReturning<T> prepareInsertReturningPrimaryKey() throws(DbException) {
             return throwIfFailed(tryPrepareInsertReturningPrimaryKey<T>());
         }
+
+
+        template<dao::DaoInterface T>
+        DbResult<PreparedSelect<T>> tryPrepareSelect() noexcept {
+            auto stmt = TRY_RESULT(sqlPrepare(T::selectSql(), StatementType::Select));
+            return PreparedSelect<T>{std::move(stmt)};
+        }
+
 
         template<dao::DaoInterface T>
         DbError tryInsert(const T& value) noexcept {

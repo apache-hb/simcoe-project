@@ -72,6 +72,11 @@ DbError SqliteConnection::setupInsertReturningPrimaryKey(const dao::TableInfo& t
     return DbError::ok();
 }
 
+DbError SqliteConnection::setupSelect(const dao::TableInfo& table, std::string& sql) noexcept {
+    sql = sqlite::setupSelect(table);
+    return DbError::ok();
+}
+
 DbError SqliteConnection::createTable(const dao::TableInfo& table) noexcept {
     auto sql = setupCreateTable(table);
     if (int err = sqlite3_exec(mConnection, sql.c_str(), nullptr, nullptr, nullptr))

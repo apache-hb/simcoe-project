@@ -45,6 +45,7 @@ namespace sm::sys {
 
         void create(const WindowConfig &config);
         void destroy_window();
+        void destroyWindow() { destroy_window(); }
 
         friend void create(HINSTANCE hInstance);
 
@@ -59,16 +60,26 @@ namespace sm::sys {
         WindowPlacement getPlacement() const { return get_placement(); }
 
         void set_placement(const WindowPlacement &placement);
+        void setPlacement(const WindowPlacement &placement) { set_placement(placement); }
 
         void show_window(ShowWindow show);
+        void showWindow(ShowWindow show) { show_window(show); }
 
         void set_title(const char *title);
+        void setTitle(const char *title) { set_title(title); }
 
         bool center_window(MultiMonitor monitor = MultiMonitor{}, bool topmost = false);
+        bool centerWindow(MultiMonitor monitor = MultiMonitor{}, bool topmost = false) {
+            return center_window(monitor, topmost);
+        }
 
         WindowCoords get_coords() const;
         WindowCoords get_client_coords() const;
 
+        WindowCoords getCoords() const { return get_coords(); }
+        WindowCoords getClientCoords() const { return get_client_coords(); }
+
         HWND get_handle() const { return mWindow; }
+        HWND getHandle() const { return get_handle(); }
     };
 }

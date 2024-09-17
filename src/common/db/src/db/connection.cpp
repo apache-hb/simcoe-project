@@ -323,6 +323,14 @@ DbResult<PreparedStatement> Connection::prepareInsertReturningPrimaryKeyImpl(con
     return TRY_RESULT(dmlPrepare(sql));
 }
 
+DbResult<PreparedStatement> Connection::prepareSelectImpl(const dao::TableInfo& table) noexcept {
+    std::string sql;
+    if (DbError error = mImpl->setupSelect(table, sql))
+        return std::unexpected(error);
+
+    return TRY_RESULT(dqlPrepare(sql));
+}
+
 DbError Connection::tryCreateTable(const dao::TableInfo& table) noexcept {
     if (tableExists(table.name).value_or(false))
         return DbError::ok();

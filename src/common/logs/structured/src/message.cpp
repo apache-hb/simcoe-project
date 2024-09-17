@@ -60,8 +60,6 @@ class DbLogger {
                 .messageHash = packet.messageHash
             };
 
-            fmt::println(stderr, "Inserting log entry {}", entry.messageHash);
-
             auto id = mInsertEntry.tryInsert(entry);
             if (!id.has_value()) {
                 fmt::println(stderr, "Failed to insert log entry {}", id.error().message());
@@ -70,8 +68,6 @@ class DbLogger {
                 continue;
             }
 
-            fmt::println(stderr, "Inserted log entry {}", id.value());
-
             for (size_t i = 0; i < packet.attributes.size(); i++) {
                 sm::dao::logs::LogEntryAttribute entryAttribute {
                     .entryId = id.value(),
@@ -79,10 +75,7 @@ class DbLogger {
                     .value = packet.attributes[i].value
                 };
 
-                fmt::println(stderr, "Inserting log entry attribute {} {}", entryAttribute.entryId, entryAttribute.param);
-
                 if (auto error = mInsertAttribute.tryInsert(entryAttribute)) {
-                    fmt::println(stderr, "Failed to insert log entry attribute {}", error.message());
                     gFallbackLog.warn("Failed to insert log entry attribute: {}", error.message());
                     gHasErrors = true;
                 }
@@ -112,7 +105,6 @@ public:
         // commit any remaining packets
         while (true) {
             size_t count = mQueue.try_dequeue_bulk(mPacketBuffer.get(), mMaxPackets);
-            fmt::println(stderr, "Committing remaining log packets {}", count);
             if (count == 0)
                 break;
 
@@ -121,8 +113,8 @@ public:
     }
 };
 
-static DbLogger *gLogger = nullptr;
-static sm::UniquePtr<std::jthread> gLogThread = nullptr;
+static sm::UniquePtr<DbLogger> gLogger;
+static sm::UniquePtr<std::jthread> gLogThread;
 
 static AttributeInfoVec getAttributes(std::string_view message) noexcept {
     AttributeInfoVec attributes;
@@ -172,8 +164,6 @@ void structured::detail::postLogMessage(const LogMessageId& message, sm::SmallVe
         gFallbackLog.warn("Log message posted after cleanup");
         return;
     }
-
-    fmt::println(stderr, "Posting log message {}", message.info.message);
 
     uint64_t timestamp = getTimestamp();
 
@@ -254,7 +244,6 @@ db::DbError structured::setup(db::Connection& connection) {
 }
 
 void structured::cleanup() {
-    gIsRunning = false;
     gLogThread->request_stop();
 
     // this message is after the request_stop to prevent deadlocks.
@@ -264,10 +253,12 @@ void structured::cleanup() {
     // is requested
     LOG_INFO("Cleaning up structured logging");
 
+    while (gIsRunning.load())
+        std::this_thread::yield();
+
     gFallbackLog.info("Cleaning up structured logging");
     gLogThread.reset();
     gFallbackLog.info("Structured logging cleaned up");
 
-    delete gLogger;
-    gLogger = nullptr;
+    gLogger.reset();
 }
