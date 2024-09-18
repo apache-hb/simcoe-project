@@ -27,6 +27,7 @@ namespace sm::db::detail::orcl {
     std::string setupInsertOrUpdate(const dao::TableInfo& info) noexcept;
     std::string setupInsertReturningPrimaryKey(const dao::TableInfo& info) noexcept;
     std::string setupCreateTable(const dao::TableInfo& info) noexcept;
+    std::string setupSelect(const dao::TableInfo& info) noexcept;
 
     template<typename T, ub4 H>
     class OraHandle final {
@@ -160,7 +161,6 @@ namespace sm::db::detail::orcl {
         DbError bindBlobByName(std::string_view name, Blob value) noexcept override;
         DbError bindNullByName(std::string_view name) noexcept override;
 
-        DbError select() noexcept override;
         DbError update(bool autoCommit) noexcept override;
 
         int getColumnCount() const noexcept override;
@@ -206,6 +206,8 @@ namespace sm::db::detail::orcl {
         DbError setupInsert(const dao::TableInfo& table, std::string& sql) noexcept override;
         DbError setupInsertOrUpdate(const dao::TableInfo& table, std::string& sql) noexcept override;
         DbError setupInsertReturningPrimaryKey(const dao::TableInfo& table, std::string& sql) noexcept override;
+
+        DbError setupSelect(const dao::TableInfo& table, std::string& sql) noexcept override;
 
         DbError createTable(const dao::TableInfo& table) noexcept override;
         DbError tableExists(std::string_view name, bool& exists) noexcept override;

@@ -317,10 +317,6 @@ DbError OraStatement::bindNullByName(std::string_view name) noexcept {
     return bindAtName(name, nullptr, 0, SQLT_STR);
 }
 
-DbError OraStatement::select() noexcept {
-    return executeSelect(OCI_DEFAULT);
-}
-
 DbError OraStatement::update(bool autoCommit) noexcept {
     ub4 flags = autoCommit ? OCI_COMMIT_ON_SUCCESS : OCI_DEFAULT;
     return executeUpdate(flags);

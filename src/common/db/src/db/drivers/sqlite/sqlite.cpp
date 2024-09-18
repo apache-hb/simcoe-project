@@ -183,6 +183,21 @@ std::string sqlite::setupInsertReturningPrimaryKey(const dao::TableInfo& info) n
     return ss.str();
 }
 
+std::string sqlite::setupUpdate(const dao::TableInfo& info) noexcept {
+    std::ostringstream ss;
+    ss << "UPDATE " << info.name << " SET ";
+    for (size_t i = 0; i < info.columns.size(); i++) {
+        ss << info.columns[i].name << " = :" << info.columns[i].name;
+        if (i != info.columns.size() - 1) {
+            ss << ", ";
+        }
+    }
+
+    ss << " WHERE rowid = rowid;";
+
+    return ss.str();
+}
+
 std::string sqlite::setupSelect(const dao::TableInfo& info) noexcept {
     std::ostringstream ss;
     ss << "SELECT ";

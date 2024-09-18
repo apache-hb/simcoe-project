@@ -111,6 +111,11 @@ DbError OraConnection::setupInsertReturningPrimaryKey(const dao::TableInfo& tabl
     return DbError::ok();
 }
 
+DbError OraConnection::setupSelect(const dao::TableInfo& table, std::string& sql) noexcept {
+    sql = orcl::setupSelect(table);
+    return DbError::ok();
+}
+
 DbError OraConnection::createTable(const dao::TableInfo& table) noexcept {
     auto sql = orcl::setupCreateTable(table);
     fmt::println(stderr, "Creating table: {}", sql);
@@ -127,10 +132,7 @@ DbError OraConnection::tableExists(std::string_view name, bool& exists) noexcept
     if (DbError error = stmt.bindStringByIndex(0, name))
         return error;
 
-    if (DbError result = stmt.select())
-        return result;
-
-    if (DbError result = stmt.next())
+    if (DbError result = stmt.start(true, StatementType::eQuery))
         return result;
 
     int64 count;

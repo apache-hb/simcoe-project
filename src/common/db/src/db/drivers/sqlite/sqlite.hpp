@@ -13,6 +13,7 @@ namespace sm::db::detail::sqlite {
     std::string setupInsert(const dao::TableInfo& info) noexcept;
     std::string setupInsertOrUpdate(const dao::TableInfo& info) noexcept;
     std::string setupInsertReturningPrimaryKey(const dao::TableInfo& info) noexcept;
+    std::string setupUpdate(const dao::TableInfo& info) noexcept;
     std::string setupSelect(const dao::TableInfo& info) noexcept;
 
     DbError getError(int err) noexcept;
@@ -45,11 +46,10 @@ namespace sm::db::detail::sqlite {
         DbError bindBlobByIndex(int index, Blob value) noexcept override;
         DbError bindNullByIndex(int index) noexcept override;
 
-
-        DbError select() noexcept override;
         DbError update(bool autoCommit) noexcept override;
 
         int getColumnCount() const noexcept override;
+        DbError getColumnIndex(std::string_view name, int& index) const noexcept override;
 
         DbError getColumnInfo(int index, ColumnInfo& info) const noexcept override;
 
@@ -87,10 +87,10 @@ namespace sm::db::detail::sqlite {
         DbError rollback() noexcept override;
 
         DbError setupInsert(const dao::TableInfo& table, std::string& sql) noexcept override;
-
         DbError setupInsertOrUpdate(const dao::TableInfo& table, std::string& sql) noexcept override;
-
         DbError setupInsertReturningPrimaryKey(const dao::TableInfo& table, std::string& sql) noexcept override;
+
+        DbError setupUpdate(const dao::TableInfo& table, std::string& sql) noexcept override;
 
         DbError setupSelect(const dao::TableInfo& table, std::string& sql) noexcept override;
 

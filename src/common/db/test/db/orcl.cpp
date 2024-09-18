@@ -64,7 +64,7 @@ TEST_CASE("updates") {
         }
 
         THEN("binding variables") {
-            auto stmt = getValue(conn.dmlPrepare("INSERT INTO test (id, name) VALUES (:id, :name)"));
+            auto stmt = getValue(conn.prepareUpdate("INSERT INTO test (id, name) VALUES (:id, :name)"));
             stmt.bind("id").toInt(1);
             stmt.bind("name").toString("test");
 

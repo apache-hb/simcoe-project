@@ -6,6 +6,9 @@ src = [
 
     # public api
     'src/db/error.cpp',
+    'src/db/bind.cpp',
+    'src/db/results.cpp',
+    'src/db/statement.cpp',
     'src/db/connection.cpp',
     'src/db/transaction.cpp',
 

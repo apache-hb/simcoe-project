@@ -35,176 +35,6 @@ void detail::destroyConnection(detail::IConnection *impl) noexcept {
 }
 
 ///
-/// result set
-///
-
-DbError ResultSet::next() noexcept {
-    return mImpl->next();
-}
-
-DbError ResultSet::execute() noexcept {
-    return mImpl->execute();
-}
-
-int ResultSet::getColumnCount() const noexcept {
-    return mImpl->getColumnCount();
-}
-
-DbResult<ColumnInfo> ResultSet::getColumnInfo(int index) const noexcept {
-    ColumnInfo column;
-    if (DbError error = mImpl->getColumnInfo(index, column))
-        return std::unexpected(error);
-
-    return column;
-}
-
-DbResult<double> ResultSet::getDouble(int index) noexcept {
-    double value = 0.0;
-    if (DbError error = mImpl->getDoubleByIndex(index, value))
-        return error;
-
-    return value;
-}
-
-DbResult<sm::int64> ResultSet::getInt(int index) noexcept {
-    int64 value = 0;
-    if (DbError error = mImpl->getIntByIndex(index, value))
-        return error;
-
-    return value;
-}
-
-DbResult<bool> ResultSet::getBool(int index) noexcept {
-    bool value = false;
-    if (DbError error = mImpl->getBooleanByIndex(index, value))
-        return error;
-
-    return value;
-}
-
-DbResult<std::string_view> ResultSet::getString(int index) noexcept {
-    std::string_view value;
-    if (DbError error = mImpl->getStringByIndex(index, value))
-        return std::unexpected(error);
-
-    return value;
-}
-
-DbResult<Blob> ResultSet::getBlob(int index) noexcept {
-    Blob value;
-    if (DbError error = mImpl->getBlobByIndex(index, value))
-        return std::unexpected(error);
-
-    return value;
-}
-
-DbResult<double> ResultSet::getDouble(std::string_view column) noexcept {
-    double value = 0.0;
-    if (DbError error = mImpl->getDoubleByName(column, value))
-        return error;
-
-    return value;
-}
-
-DbResult<sm::int64> ResultSet::getInt(std::string_view column) noexcept {
-    int64 value = 0;
-    if (DbError error = mImpl->getIntByName(column, value))
-        return error;
-
-    return value;
-}
-
-DbResult<bool> ResultSet::getBool(std::string_view column) noexcept {
-    bool value = false;
-    if (DbError error = mImpl->getBooleanByName(column, value))
-        return error;
-
-    return value;
-}
-
-DbResult<std::string_view> ResultSet::getString(std::string_view column) noexcept {
-    std::string_view value;
-    if (DbError error = mImpl->getStringByName(column, value))
-        return std::unexpected(error);
-
-    return value;
-}
-
-DbResult<Blob> ResultSet::getBlob(std::string_view column) noexcept {
-    Blob value;
-    if (DbError error = mImpl->getBlobByName(column, value))
-        return std::unexpected(error);
-
-    return value;
-}
-
-///
-/// named bindpoint
-///
-
-void BindPoint::toInt(int64 value) noexcept(false) {
-    mImpl->bindIntByName(mName, value).throwIfFailed();
-}
-
-void BindPoint::toBool(bool value) noexcept(false) {
-    mImpl->bindBooleanByName(mName, value).throwIfFailed();
-}
-
-void BindPoint::toString(std::string_view value) noexcept(false) {
-    mImpl->bindStringByName(mName, value).throwIfFailed();
-}
-
-void BindPoint::toDouble(double value) noexcept(false) {
-    mImpl->bindDoubleByName(mName, value).throwIfFailed();
-}
-
-void BindPoint::toBlob(Blob value) noexcept(false) {
-    mImpl->bindBlobByName(mName, value).throwIfFailed();
-}
-
-void BindPoint::toNull() noexcept(false) {
-    mImpl->bindNullByName(mName).throwIfFailed();
-}
-
-///
-/// statement
-///
-
-BindPoint PreparedStatement::bind(std::string_view name) noexcept {
-    return BindPoint{mImpl.get(), name};
-}
-
-DbError PreparedStatement::close() noexcept {
-    return mImpl->finalize();
-}
-
-DbResult<ResultSet> PreparedStatement::select() noexcept {
-    if (DbError error = mImpl->select())
-        return std::unexpected(error);
-
-    return ResultSet{mImpl};
-}
-
-DbResult<ResultSet> PreparedStatement::update() noexcept {
-    if (DbError error = mImpl->update(mConnection->autoCommit()))
-        return std::unexpected(error);
-
-    return ResultSet{mImpl};
-}
-
-DbResult<ResultSet> PreparedStatement::start() noexcept {
-    if (DbError error = mImpl->start(mConnection->autoCommit(), type()))
-        return std::unexpected(error);
-
-    return ResultSet{mImpl};
-}
-
-DbError PreparedStatement::execute() noexcept {
-    auto result = TRY_UNWRAP(start());
-    return result.execute();
-}
-
-///
 /// connection
 ///
 
@@ -232,7 +62,7 @@ DbResult<Version> Connection::serverVersion() const noexcept {
     return version;
 }
 
-DbResult<PreparedStatement> Connection::sqlPrepare(std::string_view sql, StatementType type) noexcept {
+DbResult<PreparedStatement> Connection::prepareStatement(std::string_view sql, StatementType type) noexcept {
     detail::IStatement *statement = nullptr;
     if (DbError error = mImpl->prepare(sql, &statement))
         return std::unexpected(error);
@@ -240,63 +70,20 @@ DbResult<PreparedStatement> Connection::sqlPrepare(std::string_view sql, Stateme
     return PreparedStatement{statement, this, type};
 }
 
-DbResult<PreparedStatement> Connection::dqlPrepare(std::string_view sql) noexcept {
-    return sqlPrepare(sql, StatementType::eQuery);
+DbResult<PreparedStatement> Connection::prepareQuery(std::string_view sql) noexcept {
+    return prepareStatement(sql, StatementType::eQuery);
 }
 
-DbResult<PreparedStatement> Connection::dmlPrepare(std::string_view sql) noexcept {
-    return sqlPrepare(sql, StatementType::eModify);
+DbResult<PreparedStatement> Connection::prepareUpdate(std::string_view sql) noexcept {
+    return prepareStatement(sql, StatementType::eModify);
 }
 
-DbResult<PreparedStatement> Connection::ddlPrepare(std::string_view sql) noexcept {
-    return sqlPrepare(sql, StatementType::eDefine);
+DbResult<PreparedStatement> Connection::prepareDefine(std::string_view sql) noexcept {
+    return prepareStatement(sql, StatementType::eDefine);
 }
 
-DbResult<PreparedStatement> Connection::dclPrepare(std::string_view sql) noexcept {
-    return sqlPrepare(sql, StatementType::eControl);
-}
-
-static void bindIndex(PreparedStatement& stmt, const dao::TableInfo& info, size_t index, bool returning, const void *data) noexcept {
-    const auto& column = info.columns[index];
-    if (returning && info.primaryKey == index)
-        return;
-
-    auto binding = stmt.bind(column.name);
-    const void *field = static_cast<const char*>(data) + column.offset;
-
-    switch (column.type) {
-    case dao::ColumnType::eInt:
-        binding.toInt(*reinterpret_cast<const int32_t*>(field));
-        break;
-    case dao::ColumnType::eUint:
-        binding.toInt(*reinterpret_cast<const uint32_t*>(field));
-        break;
-    case dao::ColumnType::eLong:
-        binding.toInt(*reinterpret_cast<const int64_t*>(field));
-        break;
-    case dao::ColumnType::eUlong:
-        binding.toInt(*reinterpret_cast<const uint64_t*>(field));
-        break;
-    case dao::ColumnType::eBool:
-        binding.toBool(*reinterpret_cast<const bool*>(field));
-        break;
-    case dao::ColumnType::eString:
-        binding.toString(*reinterpret_cast<const std::string*>(field));
-        break;
-    case dao::ColumnType::eFloat:
-        binding.toDouble(*reinterpret_cast<const float*>(field));
-        break;
-    case dao::ColumnType::eDouble:
-        binding.toDouble(*reinterpret_cast<const double*>(field));
-        break;
-    default:
-        CT_NEVER("Unsupported column type");
-    }
-}
-
-void PreparedStatement::bindRowData(const dao::TableInfo& info, bool returning, const void *data) noexcept {
-    for (size_t i = 0; i < info.columns.size(); i++)
-        bindIndex(*this, info, i, returning, data);
+DbResult<PreparedStatement> Connection::prepareControl(std::string_view sql) noexcept {
+    return prepareStatement(sql, StatementType::eControl);
 }
 
 DbResult<PreparedStatement> Connection::prepareInsertImpl(const dao::TableInfo& table) noexcept {
@@ -304,7 +91,7 @@ DbResult<PreparedStatement> Connection::prepareInsertImpl(const dao::TableInfo& 
     if (DbError error = mImpl->setupInsert(table, sql))
         return std::unexpected(error);
 
-    return TRY_RESULT(dmlPrepare(sql));
+    return TRY_RESULT(prepareUpdate(sql));
 }
 
 DbResult<PreparedStatement> Connection::prepareInsertOrUpdateImpl(const dao::TableInfo& table) noexcept {
@@ -312,7 +99,7 @@ DbResult<PreparedStatement> Connection::prepareInsertOrUpdateImpl(const dao::Tab
     if (DbError error = mImpl->setupInsertOrUpdate(table, sql))
         return std::unexpected(error);
 
-    return TRY_RESULT(dmlPrepare(sql));
+    return TRY_RESULT(prepareUpdate(sql));
 }
 
 DbResult<PreparedStatement> Connection::prepareInsertReturningPrimaryKeyImpl(const dao::TableInfo& table) noexcept {
@@ -320,15 +107,23 @@ DbResult<PreparedStatement> Connection::prepareInsertReturningPrimaryKeyImpl(con
     if (DbError error = mImpl->setupInsertReturningPrimaryKey(table, sql))
         return std::unexpected(error);
 
-    return TRY_RESULT(dmlPrepare(sql));
+    return TRY_RESULT(prepareUpdate(sql));
 }
 
-DbResult<PreparedStatement> Connection::prepareSelectImpl(const dao::TableInfo& table) noexcept {
+DbResult<PreparedStatement> Connection::prepareUpdateAllImpl(const dao::TableInfo& table) noexcept {
+    std::string sql;
+    if (DbError error = mImpl->setupUpdate(table, sql))
+        return std::unexpected(error);
+
+    return TRY_RESULT(prepareUpdate(sql));
+}
+
+DbResult<PreparedStatement> Connection::prepareSelectAllImpl(const dao::TableInfo& table) noexcept {
     std::string sql;
     if (DbError error = mImpl->setupSelect(table, sql))
         return std::unexpected(error);
 
-    return TRY_RESULT(dqlPrepare(sql));
+    return TRY_RESULT(prepareQuery(sql));
 }
 
 DbError Connection::tryCreateTable(const dao::TableInfo& table) noexcept {
@@ -339,13 +134,13 @@ DbError Connection::tryCreateTable(const dao::TableInfo& table) noexcept {
 }
 
 DbResult<ResultSet> Connection::select(std::string_view sql) noexcept {
-    PreparedStatement stmt = TRY_RESULT(dqlPrepare(sql));
+    PreparedStatement stmt = TRY_RESULT(prepareQuery(sql));
 
-    return stmt.select();
+    return stmt.start();
 }
 
 DbResult<ResultSet> Connection::update(std::string_view sql) noexcept {
-    PreparedStatement stmt = TRY_RESULT(dmlPrepare(sql));
+    PreparedStatement stmt = TRY_RESULT(prepareUpdate(sql));
 
     return stmt.update();
 }

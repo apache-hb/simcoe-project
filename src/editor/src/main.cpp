@@ -100,106 +100,88 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     db::Connection& mConnection;
 
     void saveWindowPlacement(const WINDOWPLACEMENT& placement) noexcept {
-        auto result = mConnection.dmlPrepare(R"(
-            UPDATE windowplacement SET
-                length = :length,
-                flags = :flags,
-                show_cmd = :show_cmd,
-                min_position_x = :min_position_x,
-                min_position_y = :min_position_y,
-                max_position_x = :max_position_x,
-                max_position_y = :max_position_y,
-                normal_position_left = :normal_position_left,
-                normal_position_top = :normal_position_top,
-                normal_position_right = :normal_position_right,
-                normal_position_bottom = :normal_position_bottom
-            WHERE rowid = rowid;
-        )");
 
-        if (!result) {
-            logs::gGlobal.error("failed to prepare update: {}", result.error().message());
-            return;
-        }
+        logs::gGlobal.info("saveWindowPlacement: WINDOWPLACEMENT {{ length={}, flags={}, showCmd={}, minPositionX={}, minPositionY={}, maxPositionX={}, maxPositionY={}, normalPosLeft={}, normalPosTop={}, normalPosRight={}, normalPosBottom={} }}",
+            placement.length, placement.flags, placement.showCmd,
+            placement.ptMinPosition.x, placement.ptMinPosition.y,
+            placement.ptMaxPosition.x, placement.ptMaxPosition.y,
+            placement.rcNormalPosition.left, placement.rcNormalPosition.top,
+            placement.rcNormalPosition.right, placement.rcNormalPosition.bottom
+        );
 
-        auto stmt = std::move(result.value());
+        sm::dao::editor::WindowPlacement dao {
+            .flags = placement.flags,
+            .showCmd = placement.showCmd,
+            .minPositionX = placement.ptMinPosition.x,
+            .minPositionY = placement.ptMinPosition.y,
+            .maxPositionX = placement.ptMaxPosition.x,
+            .maxPositionY = placement.ptMaxPosition.y,
+            .normalPosLeft = placement.rcNormalPosition.left,
+            .normalPosTop = placement.rcNormalPosition.top,
+            .normalPosRight = placement.rcNormalPosition.right,
+            .normalPosBottom = placement.rcNormalPosition.bottom,
+        };
 
-        db::Transaction tx(&mConnection);
+        logs::gGlobal.info("WindowPlacement {{ flags={}, showCmd={}, minPositionX={}, minPositionY={}, maxPositionX={}, maxPositionY={}, normalPosLeft={}, normalPosTop={}, normalPosRight={}, normalPosBottom={} }}",
+            dao.flags, dao.showCmd,
+            dao.minPositionX, dao.minPositionY,
+            dao.maxPositionX, dao.maxPositionY,
+            dao.normalPosLeft, dao.normalPosTop,
+            dao.normalPosRight, dao.normalPosBottom
+        );
 
-        stmt.bind("length") = (int64)placement.length;
-        stmt.bind("flags") = (int64)placement.flags;
-        stmt.bind("show_cmd") = (int64)placement.showCmd;
-        stmt.bind("min_position_x") = (int64)placement.ptMinPosition.x;
-        stmt.bind("min_position_y") = (int64)placement.ptMinPosition.y;
-        stmt.bind("max_position_x") = (int64)placement.ptMaxPosition.x;
-        stmt.bind("max_position_y") = (int64)placement.ptMaxPosition.y;
-        stmt.bind("normal_position_left") = (int64)placement.rcNormalPosition.left;
-        stmt.bind("normal_position_top") = (int64)placement.rcNormalPosition.top;
-        stmt.bind("normal_position_right") = (int64)placement.rcNormalPosition.right;
-        stmt.bind("normal_position_bottom") = (int64)placement.rcNormalPosition.bottom;
-
-        if (auto update = stmt.update(); !update.has_value()) {
-            logs::gGlobal.error("failed to execute update: {}", update.error().message());
-            return;
+        if (db::DbError error = mConnection.tryInsert(dao)) {
+            logs::gAssets.warn("update failed: {}", error.message());
         }
     }
 
     std::optional<WINDOWPLACEMENT> loadWindowPlacement() noexcept {
-        auto result = mConnection.dqlPrepare(R"(
-            SELECT
-                length,                -- 0
-                flags,                 -- 1
-                show_cmd,              -- 2
-                min_position_x,        -- 3
-                min_position_y,        -- 4
-                max_position_x,        -- 5
-                max_position_y,        -- 6
-                normal_position_left,  -- 7
-                normal_position_top,   -- 8
-                normal_position_right, -- 9
-                normal_position_bottom -- 10
-            FROM windowplacement;
-        )");
-
-        if (!result) {
-            logs::gGlobal.error("failed to prepare query: {}", result.error().message());
+        auto result = mConnection.trySelectOne<sm::dao::editor::WindowPlacement>();
+        if (!result.has_value()) {
+            logs::gGlobal.warn("failed to load window placement: {}", result.error().message());
             return std::nullopt;
         }
 
-        auto stmt = std::move(result.value());
-
-        auto select = TRY_RETURN(stmt.select(), (const auto& error) {
-            logs::gGlobal.error("failed to execute select: {}", error.message());
-            return std::nullopt;
-        });
-
-        if (db::DbError row = select.next()) {
-            logs::gGlobal.error("failed to fetch row: {}", row.message());
-            return std::nullopt;
-        }
-
-        UINT length = select.get<UINT>(0).value_or(0);
-        if (length == 0)
-            return std::nullopt;
+        auto select = result.value();
 
         WINDOWPLACEMENT placement = {
-            .length = length,
-            .flags = select.get<UINT>(1).value_or(0),
-            .showCmd = select.get<UINT>(2).value_or(0),
+            .length = sizeof(WINDOWPLACEMENT),
+            .flags = select.flags,
+            .showCmd = select.showCmd,
             .ptMinPosition = {
-                .x = select.get<LONG>(3).value_or(0),
-                .y = select.get<LONG>(4).value_or(0),
+                .x = (LONG)select.minPositionX,
+                .y = (LONG)select.minPositionY,
             },
             .ptMaxPosition = {
-                .x = select.get<LONG>(5).value_or(0),
-                .y = select.get<LONG>(6).value_or(0),
+                .x = (LONG)select.maxPositionX,
+                .y = (LONG)select.maxPositionY,
             },
             .rcNormalPosition = {
-                .left = select.get<LONG>(7).value_or(0),
-                .top = select.get<LONG>(8).value_or(0),
-                .right = select.get<LONG>(9).value_or(0),
-                .bottom = select.get<LONG>(10).value_or(0),
+                .left = (LONG)select.normalPosLeft,
+                .top = (LONG)select.normalPosTop,
+                .right = (LONG)select.normalPosRight,
+                .bottom = (LONG)select.normalPosBottom,
             },
         };
+
+        logs::gGlobal.info("loaded window placement: WINDOWPLACEMENT {{ length={}, flags={}, showCmd={}, minPositionX={}, minPositionY={}, maxPositionX={}, maxPositionY={}, normalPosLeft={}, normalPosTop={}, normalPosRight={}, normalPosBottom={} }}",
+            placement.length, placement.flags, placement.showCmd,
+            placement.ptMinPosition.x, placement.ptMinPosition.y,
+            placement.ptMaxPosition.x, placement.ptMaxPosition.y,
+            placement.rcNormalPosition.left, placement.rcNormalPosition.top,
+            placement.rcNormalPosition.right, placement.rcNormalPosition.bottom
+        );
+
+        if (LONG width = placement.rcNormalPosition.right - placement.rcNormalPosition.left; width < 128) {
+            logs::gGlobal.warn("window placement width too small {}, ignoring possibly corrupted data", width);
+            return std::nullopt;
+        }
+
+        if (LONG height = placement.rcNormalPosition.bottom - placement.rcNormalPosition.top; height < 128) {
+            logs::gGlobal.warn("window placement height too small {}, ignoring possibly corrupted data", height);
+            return std::nullopt;
+        }
+
 
         return placement;
     }
@@ -221,11 +203,12 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     }
 
     void create(sys::Window &window) override {
-        logs::gGlobal.info("create window");
         if (auto placement = loadWindowPlacement()) {
-            window.set_placement(*placement);
+            logs::gGlobal.info("create window with placement");
+            window.setPlacement(*placement);
         } else {
-            window.center_window(sys::MultiMonitor::ePrimary);
+            logs::gGlobal.info("create window without placement");
+            window.centerWindow(sys::MultiMonitor::ePrimary);
         }
     }
 
@@ -256,7 +239,7 @@ public:
                 BEFORE INSERT ON window_placement
                 WHEN (SELECT COUNT(*) FROM window_placement) > 0
                 BEGIN
-                    SELECT RAISE(FAIL, 'window_placement table is a singleton');
+                    DELETE FROM window_placement WHERE rowid = rowid;
                 END;
         )");
     }

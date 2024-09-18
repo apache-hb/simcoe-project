@@ -226,3 +226,17 @@ std::string orcl::setupCreateTable(const dao::TableInfo& info) noexcept {
 
     return ss.str();
 }
+
+std::string orcl::setupSelect(const dao::TableInfo& info) noexcept {
+    std::ostringstream ss;
+    ss << "SELECT ";
+    for (size_t i = 0; i < info.columns.size(); i++) {
+        ss << info.columns[i].name;
+        if (i != info.columns.size() - 1) {
+            ss << ", ";
+        }
+    }
+    ss << " FROM " << info.name << " WHERE";
+
+    return ss.str();
+}

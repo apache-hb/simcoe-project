@@ -47,9 +47,35 @@ TEST_CASE("sqlite updates") {
         ResultSet results = getValue(conn.select("SELECT * FROM test ORDER BY id ASC"));
 
         int count = 1;
-        while (!results.next().isDone()) {
+        do {
             int64 id = getValue(results.getInt(0));
             std::string_view name = getValue(results.getString(1));
+
+            REQUIRE(id == count);
+            REQUIRE(name == fmt::format("test{}", count));
+
+            count += 1;
+        } while (!results.next().isDone());
+
+        REQUIRE(count == 4);
+    }
+
+    SECTION("ranged for loop selects") {
+        getValue(conn.update(R"(
+            INSERT INTO test
+                (id, name)
+            VALUES
+                (1, 'test1'),
+                (2, 'test2'),
+                (3, 'test3')
+        )"));
+
+        ResultSet results = getValue(conn.select("SELECT * FROM test ORDER BY id ASC"));
+
+        int count = 1;
+        for (auto row : results) {
+            int64 id = getValue(row.getInt(0));
+            std::string_view name = getValue(row.getString(1));
 
             REQUIRE(id == count);
             REQUIRE(name == fmt::format("test{}", count));

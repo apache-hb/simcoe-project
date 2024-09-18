@@ -39,6 +39,10 @@ DbError DbError::outOfMemory() noexcept {
     return DbError{-1, eError, "Out of memory"};
 }
 
+DbError DbError::noData() noexcept {
+    return DbError{-1, eNoData, "No data"};
+}
+
 DbError DbError::done(int code) noexcept {
     return DbError{code, eDone, "Done", true};
 }

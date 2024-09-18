@@ -23,6 +23,7 @@ namespace sm::db {
             eUnimplemented = 2,
             eDone = 3,
             eConnectionError = 4,
+            eNoData = 5,
         };
 
         DbError(int code, int status, std::string message, bool disableStackTrace = false) noexcept;
@@ -52,6 +53,7 @@ namespace sm::db {
         static DbError todo() noexcept;
         static DbError error(int code, std::string message) noexcept;
         static DbError outOfMemory() noexcept;
+        static DbError noData() noexcept;
         static DbError done(int code) noexcept;
         static DbError unsupported(std::string_view subject) noexcept;
         static DbError columnNotFound(std::string_view column) noexcept;

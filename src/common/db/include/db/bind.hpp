@@ -1,6 +1,8 @@
 #pragma once
 
 #include "db/core.hpp"
+#include "db/error.hpp"
+
 #include "core/throws.hpp"
 
 namespace sm::db {
@@ -24,13 +26,21 @@ namespace sm::db {
         void to(Blob value) throws(DbException) { toBlob(value); }
         void to(std::nullptr_t) throws(DbException) { toNull(); }
 
-        void toInt(int64 value) throws(DbException);
-        void toUInt(uint64 value) throws(DbException);
-        void toBool(bool value) throws(DbException);
-        void toString(std::string_view value) throws(DbException);
-        void toDouble(double value) throws(DbException);
-        void toBlob(Blob value) throws(DbException);
-        void toNull() throws(DbException);
+        void toInt(int64 value) throws(DbException) { return tryBindInt(value).throwIfFailed(); }
+        void toUInt(uint64 value) throws(DbException) { return tryBindUInt(value).throwIfFailed(); }
+        void toBool(bool value) throws(DbException) { return tryBindBool(value).throwIfFailed(); }
+        void toString(std::string_view value) throws(DbException) { return tryBindString(value).throwIfFailed(); }
+        void toDouble(double value) throws(DbException) { return tryBindDouble(value).throwIfFailed(); }
+        void toBlob(Blob value) throws(DbException) { return tryBindBlob(value).throwIfFailed(); }
+        void toNull() throws(DbException) { return tryBindNull().throwIfFailed(); }
+
+        DbError tryBindInt(int64 value) noexcept;
+        DbError tryBindUInt(uint64 value) noexcept;
+        DbError tryBindBool(bool value) noexcept;
+        DbError tryBindString(std::string_view value) noexcept;
+        DbError tryBindDouble(double value) noexcept;
+        DbError tryBindBlob(Blob value) noexcept;
+        DbError tryBindNull() noexcept;
 
         void operator=(int64 value) throws(DbException) { to(value); }
         void operator=(bool value) throws(DbException) { to(value); }

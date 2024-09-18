@@ -21,6 +21,7 @@ static DataType getColumnType(int type) noexcept {
 
 static int doStep(sqlite3_stmt *stmt) noexcept {
     int err = sqlite3_step(stmt);
+    // fmt::println(stderr, "sqlite step: {} ({}) {}", sqlite3_errstr(err), err, sqlite3_sql(stmt));
     return err;
 }
 
@@ -80,11 +81,6 @@ DbError SqliteStatement::next() noexcept {
     return getStmtError(mStatus);
 }
 
-DbError SqliteStatement::select() noexcept {
-    // no-op
-    return DbError::ok();
-}
-
 DbError SqliteStatement::update(bool autoCommit) noexcept {
     int err = runUntilComplete(mStatement);
     if (err == SQLITE_DONE)
@@ -140,6 +136,17 @@ DbError SqliteStatement::bindNullByIndex(int index) noexcept {
 
 int SqliteStatement::getColumnCount() const noexcept {
     return sqlite3_column_count(mStatement);
+}
+
+DbError SqliteStatement::getColumnIndex(std::string_view name, int& index) const noexcept {
+    for (int i = 0; i < getColumnCount(); i++) {
+        if (name == sqlite3_column_name(mStatement, i)) {
+            index = i;
+            return DbError::ok();
+        }
+    }
+
+    return DbError::columnNotFound(name);
 }
 
 DbError SqliteStatement::getColumnInfo(int index, ColumnInfo& info) const noexcept {

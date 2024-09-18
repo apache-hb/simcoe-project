@@ -114,10 +114,6 @@ namespace sm::db::detail {
             return DbError::todo();
         }
 
-        virtual DbError select() noexcept {
-            return DbError::todo();
-        }
-
         virtual DbError update(bool autoCommit) noexcept {
             return DbError::todo();
         }
