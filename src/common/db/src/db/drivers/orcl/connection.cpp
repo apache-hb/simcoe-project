@@ -7,7 +7,9 @@
 using namespace sm::db;
 using namespace sm::db::detail::orcl;
 
-static DbError getServerVersion(OraServer& server, OraError& error, Version& version) noexcept {
+namespace chrono = std::chrono;
+
+static DbError getServerVersion(const OraServer& server, OraError& error, Version& version) noexcept {
     text buffer[512];
     ub4 release;
     if (sword result = OCIServerRelease2(server, error, buffer, sizeof(buffer), OCI_HTYPE_SERVER, &release, OCI_DEFAULT))
@@ -36,19 +38,15 @@ static Version getClientVersion() noexcept {
 }
 
 DbResult<OraStatement> OraConnection::newStatement(std::string_view sql) noexcept {
-    OraStmt statement;
-    OraError error;
     OraEnv& env = mEnvironment.env();
-    if (DbError result = oraNewHandle(env, error))
-        return std::unexpected(result);
 
-    if (DbError result = oraNewHandle(env, statement))
-        return std::unexpected(result);
+    OraResource<OraError> error = TRY_RESULT(oraNewResource<OraError>(env));
+    OraResource<OraStmt> statement = TRY_RESULT(oraNewResource<OraStmt>(env, *error));
 
-    if (sword result = OCIStmtPrepare2(mService, &statement, error, (text*)sql.data(), sql.size(), nullptr, 0, OCI_NTV_SYNTAX, OCI_DEFAULT))
-        return std::unexpected(oraGetError(error, result));
+    if (sword result = OCIStmtPrepare2(mService, statement.address(), *error, (text*)sql.data(), sql.size(), nullptr, 0, OCI_NTV_SYNTAX, OCI_DEFAULT))
+        return std::unexpected(oraGetError(*error, result));
 
-    return OraStatement{mEnvironment, *this, statement, error};
+    return OraStatement{mEnvironment, *this, statement.release(), error.release()};
 }
 
 DbError OraConnection::close() noexcept {
@@ -155,12 +153,9 @@ DbError OraConnection::serverVersion(Version& version) const noexcept {
 }
 
 ub2 OraConnection::getBoolType() const noexcept {
-    if constexpr (!kHasBoolType)
-        return SQLT_CHR;
-
-    // Oracle 23ai introduced the sql standard boolean type
+    // Oracle 23ai introduced columns with the sql standard boolean type
     if (mServerVersion.major >= 23)
-        return kBoolType;
+        return SQLT_BOL;
 
     return SQLT_CHR;
 }
@@ -174,48 +169,47 @@ static constexpr std::string_view kConnectionString = R"(
 )";
 
 DbError OraEnvironment::connect(const ConnectionConfig& config, detail::IConnection **connection) noexcept {
-    OraServer server;
-    OraError error;
-    OraService service;
-    OraSession session;
-    Version version;
 
-    if (DbError result = oraNewHandle(mEnv, error))
-        return result;
-
-    if (DbError result = oraNewHandle(mEnv, server))
-        return result;
+    /** Create base connection objects */
+    OraResource<OraError> error = TRY_UNWRAP(oraNewResource<OraError>(mEnv, nullptr));
+    OraResource<OraServer> server = TRY_UNWRAP(oraNewResource<OraServer>(mEnv, *error));
 
     /** Attach to the server */
-    std::string conn = fmt::format(kConnectionString, config.timeout.count(), config.host, config.port, config.database);
-    if (sword result = OCIServerAttach(server, error, (text*)conn.data(), conn.size(), OCI_DEFAULT))
-        return oraGetError(error, result);
+    chrono::seconds timeout = chrono::duration_cast<chrono::seconds>(config.timeout);
+    std::string conn = fmt::format(kConnectionString, timeout.count(), config.host, config.port, config.database);
+    if (sword result = OCIServerAttach(*server, *error, (text*)conn.data(), conn.size(), OCI_DEFAULT))
+        return oraGetError(*error, result);
 
-    if (DbError result = oraNewHandle(mEnv, service))
+    /** Create the service handle and attach the server connection */
+
+    OraResource<OraService> service = TRY_UNWRAP(oraNewResource<OraService>(mEnv, *error));
+
+    if (sword result = (*service).setAttribute(*error, OCI_ATTR_SERVER, *server))
+        return oraGetError(*error, result);
+
+    /** Create session and configure it with connection details */
+
+    OraResource<OraSession> session = TRY_UNWRAP(oraNewResource<OraSession>(mEnv, *error));
+
+    if (sword result = (*session).setAttribute(*error, OCI_ATTR_USERNAME, config.user))
+        return oraGetError(*error, result);
+
+    if (sword result = (*session).setAttribute(*error, OCI_ATTR_PASSWORD, config.password))
+        return oraGetError(*error, result);
+
+    if (sword result = OCISessionBegin(*service, *error, *session, OCI_CRED_RDBMS, OCI_STMT_CACHE))
+        return oraGetError(*error, result);
+
+    if (sword result = (*service).setAttribute(*error, OCI_ATTR_SESSION, *session))
+        return oraGetError(*error, result);
+
+    /** Get version information about the server */
+
+    Version version;
+    if (DbError result = getServerVersion(*server, *error, version))
         return result;
 
-    if (sword result = service.setAttribute(error, OCI_ATTR_SERVER, server))
-        return oraGetError(error, result);
-
-    if (DbError result = oraNewHandle(mEnv, session))
-        return result;
-
-    if (sword result = session.setAttribute(error, OCI_ATTR_USERNAME, config.user))
-        return oraGetError(error, result);
-
-    if (sword result = session.setAttribute(error, OCI_ATTR_PASSWORD, config.password))
-        return oraGetError(error, result);
-
-    if (sword result = OCISessionBegin(service, error, session, OCI_CRED_RDBMS, OCI_STMT_CACHE))
-        return oraGetError(error, result);
-
-    if (sword result = service.setAttribute(error, OCI_ATTR_SESSION, session))
-        return oraGetError(error, result);
-
-    if (DbError result = getServerVersion(server, error, version))
-        return result;
-
-    *connection = new OraConnection{*this, error, server, service, session, version};
+    *connection = new OraConnection{*this, error.release(), server.release(), service.release(), session.release(), version};
 
     return DbError::ok();
 }
@@ -249,7 +243,7 @@ void OraEnvironment::wrapFree(void *ctx, void *ptr) {
     env->free(ptr);
 }
 
-DbError detail::getOracleEnv(detail::IEnvironment **env) noexcept {
+DbError detail::getOracleEnv(detail::IEnvironment **env, const EnvConfig& config) noexcept {
     UniquePtr orcl = makeUnique<OraEnvironment>();
     OraEnv oci;
     sword result = OCIEnvCreate(

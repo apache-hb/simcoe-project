@@ -1,12 +1,15 @@
-#include "fmt/ranges.h"
 #include "stdafx.hpp"
+#include "fmt/ranges.h"
 
 #include "orcl.hpp"
 
-using namespace sm;
+#include "drivers/utils.hpp"
+
 using namespace sm::db;
 
+namespace dao = sm::dao;
 namespace orcl = sm::db::detail::orcl;
+namespace detail = sm::db::detail;
 
 #define STRCASE(ID) case ID: return #ID
 
@@ -85,8 +88,9 @@ static std::string makeSqlType(const dao::ColumnInfo& info) {
 template<typename F>
 static std::vector<std::invoke_result_t<F, size_t, const dao::ColumnInfo&>> forEachField(const dao::TableInfo& info, bool generatePrimaryKey, F&& fn) noexcept {
     std::vector<std::invoke_result_t<F, size_t, const dao::ColumnInfo&>> result;
+    size_t primaryKey = detail::primaryKeyIndex(info);
     for (size_t i = 0; i < info.columns.size(); i++) {
-        if (generatePrimaryKey && info.primaryKey == i)
+        if (generatePrimaryKey && primaryKey == i)
             continue;
 
         result.push_back(std::invoke(fn, i, info.columns[i]));

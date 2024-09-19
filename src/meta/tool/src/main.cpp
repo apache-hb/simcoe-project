@@ -163,6 +163,16 @@ class CmdAfterConsumer final : public ASTConsumer {
         return false;
     }
 
+    static std::string getEnumeratorName(const clang::EnumConstantDecl& decl) {
+        if (const AnnotateAttr *attr = decl.getAttr<AnnotateAttr>()) {
+            if (attr->getAnnotation() == kReflectTag) {
+
+            }
+        }
+
+        return decl.getNameAsString();
+    }
+
     DiagnosticsEngine &mDiag;
 
     std::ostringstream mSourceBody;
@@ -203,7 +213,7 @@ class CmdAfterConsumer final : public ASTConsumer {
 
         mSource.writeln("switch (it) {{");
         mSource.writeln("using enum {};", name);
-        for (auto *enumerator : decl.enumerators()) {
+        for (clang::EnumConstantDecl *enumerator : decl.enumerators()) {
             mSource.writeln("case {0}: return \"{0}\";", enumerator->getNameAsString());
         }
         mSource.writeln("default: return \"Unknown\";");

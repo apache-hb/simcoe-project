@@ -62,7 +62,7 @@ DbResult<Version> Connection::serverVersion() const noexcept {
     return version;
 }
 
-DbResult<PreparedStatement> Connection::prepareStatement(std::string_view sql, StatementType type) noexcept {
+DbResult<PreparedStatement> Connection::tryPrepareStatement(std::string_view sql, StatementType type) noexcept {
     detail::IStatement *statement = nullptr;
     if (DbError error = mImpl->prepare(sql, &statement))
         return std::unexpected(error);
@@ -71,19 +71,19 @@ DbResult<PreparedStatement> Connection::prepareStatement(std::string_view sql, S
 }
 
 DbResult<PreparedStatement> Connection::prepareQuery(std::string_view sql) noexcept {
-    return prepareStatement(sql, StatementType::eQuery);
+    return tryPrepareStatement(sql, StatementType::eQuery);
 }
 
 DbResult<PreparedStatement> Connection::prepareUpdate(std::string_view sql) noexcept {
-    return prepareStatement(sql, StatementType::eModify);
+    return tryPrepareStatement(sql, StatementType::eModify);
 }
 
 DbResult<PreparedStatement> Connection::prepareDefine(std::string_view sql) noexcept {
-    return prepareStatement(sql, StatementType::eDefine);
+    return tryPrepareStatement(sql, StatementType::eDefine);
 }
 
 DbResult<PreparedStatement> Connection::prepareControl(std::string_view sql) noexcept {
-    return prepareStatement(sql, StatementType::eControl);
+    return tryPrepareStatement(sql, StatementType::eControl);
 }
 
 DbResult<PreparedStatement> Connection::prepareInsertImpl(const dao::TableInfo& table) noexcept {
@@ -133,13 +133,13 @@ DbError Connection::tryCreateTable(const dao::TableInfo& table) noexcept {
     return mImpl->createTable(table);
 }
 
-DbResult<ResultSet> Connection::select(std::string_view sql) noexcept {
+DbResult<ResultSet> Connection::trySelectSql(std::string_view sql) noexcept {
     PreparedStatement stmt = TRY_RESULT(prepareQuery(sql));
 
     return stmt.start();
 }
 
-DbResult<ResultSet> Connection::update(std::string_view sql) noexcept {
+DbResult<ResultSet> Connection::tryUpdateSql(std::string_view sql) noexcept {
     PreparedStatement stmt = TRY_RESULT(prepareUpdate(sql));
 
     return stmt.update();
@@ -165,13 +165,8 @@ bool Environment::isSupported(DbType type) noexcept {
     switch (type) {
 #define DB_TYPE(id, str, enabled) case DbType::id: return enabled;
 #include "db/orm.inc"
-    }
-}
 
-std::string_view db::toString(DbType type) noexcept {
-    switch (type) {
-#define DB_TYPE(id, str, enabled) case DbType::id: return str;
-#include "db/orm.inc"
+    default: return false;
     }
 }
 
@@ -190,7 +185,7 @@ DbResult<Environment> Environment::tryCreate(DbType type, const EnvConfig& confi
 #endif
 
 #if SMC_DB_HAS_ORCL
-        case DbType::eOracleDB: return detail::getOracleEnv(&env);
+        case DbType::eOracleDB: return detail::getOracleEnv(&env, config);
 #endif
 
 #if SMC_DB_HAS_MSSQL

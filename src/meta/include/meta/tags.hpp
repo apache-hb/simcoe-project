@@ -1,43 +1,55 @@
 #pragma once
 
+#include <typeinfo>
+
+#define annotation struct
+
+namespace sm::reflect {
+    annotation Name {
+        const char *value;
+    };
+
+    annotation Description {
+        const char *value;
+    };
+
+    annotation Transient {
+        bool value;
+    };
+}
+
 namespace sm::reflect::detail {
-    enum ReflectTagType {
-        eNone = 0,
-        eAnnotate = 1,
-        eName = 2,
-        eDescription = 3,
-        eTransient = 4,
+    struct AnnotateBase {
+        const std::type_info& type;
     };
 
-    struct ReflectTagBase {
-        int type;
-    };
+    template<typename T>
+    struct Annotate final : AnnotateBase {
+        T value;
 
-    template<typename T, ReflectTagType I>
-    struct ReflectTag final : ReflectTagBase {
-        T data;
+        consteval Annotate() noexcept
+            : AnnotateBase(typeid(T))
+            , value()
+        { }
 
-        consteval ReflectTag() noexcept : ReflectTagBase(I), data() { }
-        consteval ReflectTag(T value) noexcept : ReflectTagBase(I), data(value) { }
+        consteval Annotate(auto value) noexcept
+            : AnnotateBase(typeid(T))
+            , value(T{value})
+        { }
 
-        consteval ReflectTag operator=(T value) const noexcept {
-            return ReflectTag{value};
+        consteval Annotate operator=(T value) const noexcept {
+            return Annotate{value};
         }
 
-        consteval ReflectTag operator()(T value) const noexcept {
-            return ReflectTag{value};
+        consteval Annotate operator()(T value) const noexcept {
+            return Annotate{value};
         }
     };
 
-    using Annotate = ReflectTag<const char*, eAnnotate>;
-    constexpr Annotate annotate{}; // NOLINT(readability-identifier-naming)
+    template<typename T>
+    constexpr Annotate<T> annotate{}; // NOLINT(readability-identifier-naming)
 
-    using Name = ReflectTag<const char*, eName>;
-    constexpr Name name{}; // NOLINT(readability-identifier-naming)
-
-    using Description = ReflectTag<const char*, eDescription>;
-    constexpr Description desc{}; // NOLINT(readability-identifier-naming)
-
-    using Transient = ReflectTag<bool, eTransient>;
-    constexpr Transient transient{true}; // NOLINT(readability-identifier-naming)
+    constexpr Annotate<sm::reflect::Name> name{}; // NOLINT(readability-identifier-naming)
+    constexpr Annotate<sm::reflect::Description> desc{}; // NOLINT(readability-identifier-naming)
+    constexpr Annotate<sm::reflect::Transient> transient{true}; // NOLINT(readability-identifier-naming)
 }

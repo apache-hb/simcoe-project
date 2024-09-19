@@ -26,23 +26,23 @@ TEST_CASE("updates") {
     auto conn = std::move(connResult.value());
 
     if (conn.tableExists("test").value_or(false))
-        getValue(conn.update("DROP TABLE test"));
+        getValue(conn.tryUpdateSql("DROP TABLE test"));
 
-    getValue(conn.update("CREATE TABLE test (id NUMBER, name CHARACTER VARYING(100))"));
+    getValue(conn.tryUpdateSql("CREATE TABLE test (id NUMBER, name CHARACTER VARYING(100))"));
 
     GIVEN("a connection") {
         THEN("simple sql operations work") {
-            getValue(conn.update("INSERT INTO test (id, name) VALUES (1, 'test')"));
+            getValue(conn.tryUpdateSql("INSERT INTO test (id, name) VALUES (1, 'test')"));
 
             checkError(conn.commit());
 
             Transaction tx(&conn);
 
-            getValue(conn.update("INSERT INTO test (id, name) VALUES (2, 'test')"));
+            getValue(conn.tryUpdateSql("INSERT INTO test (id, name) VALUES (2, 'test')"));
 
             tx.rollback();
 
-            auto results = getValue(conn.select("SELECT * FROM test ORDER BY id ASC"));
+            auto results = getValue(conn.trySelectSql("SELECT * FROM test ORDER BY id ASC"));
             int count = 0;
 
             while (results.next().isSuccess()) {
@@ -70,7 +70,7 @@ TEST_CASE("updates") {
 
             getValue(stmt.update());
 
-            auto results = getValue(conn.select("SELECT * FROM test ORDER BY id ASC"));
+            auto results = getValue(conn.trySelectSql("SELECT * FROM test ORDER BY id ASC"));
             int count = 0;
 
             while (results.next().isSuccess()) {

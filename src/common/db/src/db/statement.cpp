@@ -1,6 +1,7 @@
 #include "stdafx.hpp"
 
 #include "drivers/common.hpp"
+#include "drivers/utils.hpp"
 
 #include "db/statement.hpp"
 #include "db/connection.hpp"
@@ -43,7 +44,8 @@ DbError PreparedStatement::execute() noexcept {
 
 static void bindIndex(PreparedStatement& stmt, const dao::TableInfo& info, size_t index, bool returning, const void *data) noexcept {
     const auto& column = info.columns[index];
-    if (returning && info.primaryKey == index)
+    size_t primaryKey = detail::primaryKeyIndex(info);
+    if (returning && primaryKey == index)
         return;
 
     auto binding = stmt.bind(column.name);

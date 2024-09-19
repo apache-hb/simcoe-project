@@ -35,7 +35,7 @@ namespace sm::db {
     class PreparedInsertReturning {
         friend Connection;
 
-        using PrimaryKey = typename T::Id;
+        using PrimaryKey = typename T::PrimaryKey;
 
         PreparedStatement mStatement;
 
@@ -52,7 +52,7 @@ namespace sm::db {
 
             auto result = TRY_UNWRAP(mStatement.start());
 
-            auto pk = result.get<PrimaryKey>(info.primaryKey); // TODO: enforce primary key column
+            auto pk = result.get<PrimaryKey>(info.primaryKeyIndex()); // TODO: enforce primary key column
 
             if (DbError error = result.execute())
                 return error;
@@ -121,8 +121,6 @@ namespace sm::db {
 
         bool mAutoCommit;
 
-        DbResult<PreparedStatement> prepareStatement(std::string_view sql, StatementType type) noexcept;
-
         Connection(detail::IConnection *impl, const ConnectionConfig& config) noexcept
             : mImpl(impl)
             , mAutoCommit(config.autoCommit)
@@ -144,6 +142,10 @@ namespace sm::db {
         DbError begin() noexcept;
         DbError rollback() noexcept;
         DbError commit() noexcept;
+
+        DbError tryBegin() noexcept { return begin(); }
+        DbError tryRollback() noexcept { return rollback(); }
+        DbError tryCommit() noexcept { return commit(); }
 
         void setAutoCommit(bool enabled) noexcept { mAutoCommit = enabled; }
 
@@ -220,13 +222,13 @@ namespace sm::db {
         }
 
         template<dao::HasPrimaryKey T>
-        DbResult<typename T::Id> tryInsertReturningPrimaryKey(const T& value) noexcept {
+        DbResult<typename T::PrimaryKey> tryInsertReturningPrimaryKey(const T& value) noexcept {
             auto stmt = TRY_UNWRAP(tryPrepareInsertReturningPrimaryKey<T>());
             return stmt.tryInsert(value);
         }
 
         template<dao::HasPrimaryKey T>
-        typename T::Id insertReturningPrimaryKey(const T& value) throws(DbException) {
+        typename T::PrimaryKey insertReturningPrimaryKey(const T& value) throws(DbException) {
             return throwIfFailed(tryInsertReturningPrimaryKey(value));
         }
 
@@ -301,9 +303,22 @@ namespace sm::db {
             return throwIfFailed(trySelectOne<T>());
         }
 
+        DbResult<ResultSet> trySelectSql(std::string_view sql) noexcept;
+        DbResult<ResultSet> tryUpdateSql(std::string_view sql) noexcept;
 
-        DbResult<ResultSet> select(std::string_view sql) noexcept;
-        DbResult<ResultSet> update(std::string_view sql) noexcept;
+        ResultSet selectSql(std::string_view sql) throws(DbException) {
+            return throwIfFailed(trySelectSql(sql));
+        }
+
+        ResultSet updateSql(std::string_view sql) throws(DbException) {
+            return throwIfFailed(tryUpdateSql(sql));
+        }
+
+        DbResult<PreparedStatement> tryPrepareStatement(std::string_view sql, StatementType type) noexcept;
+
+        PreparedStatement prepareStatement(std::string_view sql, StatementType type) throws(DbException) {
+            return throwIfFailed(tryPrepareStatement(sql, type));
+        }
 
         DbResult<PreparedStatement> prepareQuery(std::string_view sql) noexcept;
         DbResult<PreparedStatement> prepareUpdate(std::string_view sql) noexcept;

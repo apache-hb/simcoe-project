@@ -17,9 +17,15 @@ namespace sm::db::detail::sqlite {
     std::string setupSelect(const dao::TableInfo& info) noexcept;
 
     DbError getError(int err) noexcept;
-    DbError getError(int err, sqlite3 *db) noexcept;
+    DbError getError(int err, sqlite3 *db, const char *message = nullptr) noexcept;
 
     int execStatement(sqlite3_stmt *stmt) noexcept;
+
+    constexpr auto kCloseDb = [](sqlite3 *db) noexcept {
+        sqlite3_close(db);
+    };
+
+    using Sqlite3Handle = sm::UniquePtr<sqlite3, decltype(kCloseDb)>;
 
     class SqliteStatement final : public detail::IStatement {
         sqlite3_stmt *mStatement = nullptr;
@@ -33,7 +39,6 @@ namespace sm::db::detail::sqlite {
         DbError start(bool autoCommit, StatementType type) noexcept override;
         DbError execute() noexcept override;
         DbError next() noexcept override;
-
 
         int getBindCount() const noexcept override;
 
@@ -68,11 +73,13 @@ namespace sm::db::detail::sqlite {
     };
 
     class SqliteConnection final : public detail::IConnection {
-        sqlite3 *mConnection = nullptr;
+        Sqlite3Handle mConnection;
 
         sqlite3_stmt *mBeginStmt = nullptr;
         sqlite3_stmt *mCommitStmt = nullptr;
         sqlite3_stmt *mRollbackStmt = nullptr;
+
+        DbError getConnectionError(int err) const noexcept;
 
         DbError prepare(std::string_view sql, sqlite3_stmt **stmt) noexcept;
 
@@ -102,6 +109,6 @@ namespace sm::db::detail::sqlite {
         DbError serverVersion(Version& version) const noexcept override;
 
     public:
-        SqliteConnection(sqlite3 *connection) noexcept;
+        SqliteConnection(Sqlite3Handle connection) noexcept;
     };
 }

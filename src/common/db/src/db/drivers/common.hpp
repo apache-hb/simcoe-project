@@ -125,7 +125,22 @@ namespace sm::db::detail {
         }
 
         virtual DbError getColumnIndex(std::string_view name, int& index) const noexcept {
-            return DbError::todo();
+            int columnCount = getColumnCount();
+            if (columnCount < 0)
+                return DbError::todo();
+
+            for (int i = 0; i < columnCount; ++i) {
+                ColumnInfo info;
+                if (DbError error = getColumnInfo(i, info))
+                    return error;
+
+                if (info.name == name) {
+                    index = i;
+                    return DbError::ok();
+                }
+            }
+
+            return DbError::columnNotFound(name);
         }
 
         virtual DbError getColumnInfo(int index, ColumnInfo& info) const noexcept {
@@ -230,8 +245,8 @@ namespace sm::db::detail {
 
     DbError getSqliteEnv(IEnvironment **env, const EnvConfig& config) noexcept;
     DbError getPostgresEnv(IEnvironment **env) noexcept;
-    DbError mysql(IEnvironment **env) noexcept;
-    DbError getOracleEnv(IEnvironment **env) noexcept;
-    DbError mssql(IEnvironment **env) noexcept;
-    DbError db2(IEnvironment **env) noexcept;
+    DbError getMySqlEnv(IEnvironment **env) noexcept;
+    DbError getOracleEnv(IEnvironment **env, const EnvConfig& config) noexcept;
+    DbError getMsSqlEnv(IEnvironment **env) noexcept;
+    DbError getDb2Env(IEnvironment **env) noexcept;
 }

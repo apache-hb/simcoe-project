@@ -13,9 +13,13 @@ using namespace sm::db;
 namespace sqlite = sm::db::detail::sqlite;
 using SqliteConnection = sqlite::SqliteConnection;
 
+DbError SqliteConnection::getConnectionError(int err) const noexcept {
+    return sqlite::getError(err, mConnection.get());
+}
+
 DbError SqliteConnection::prepare(std::string_view sql, sqlite3_stmt **stmt) noexcept {
-    if (int err = sqlite3_prepare_v2(mConnection, sql.data(), sql.size(), stmt, nullptr))
-        return getError(err, mConnection);
+    if (int err = sqlite3_prepare_v2(mConnection.get(), sql.data(), sql.size(), stmt, nullptr))
+        return getError(err, mConnection.get());
 
     return DbError::ok();
 }
@@ -25,9 +29,9 @@ DbError SqliteConnection::close() noexcept {
     sqlite3_finalize(mCommitStmt);
     sqlite3_finalize(mRollbackStmt);
 
-    int err = sqlite3_close(mConnection);
+    int err = sqlite3_close(mConnection.release());
     if (err != SQLITE_OK)
-        return getError(err, mConnection);
+        return getConnectionError(err);
 
     mConnection = nullptr;
     return DbError::ok();
@@ -44,17 +48,17 @@ DbError SqliteConnection::prepare(std::string_view sql, detail::IStatement **sta
 
 DbError SqliteConnection::begin() noexcept {
     int err = execStatement(mBeginStmt);
-    return getError(err, mConnection);
+    return getConnectionError(err);
 }
 
 DbError SqliteConnection::commit() noexcept {
     int err = execStatement(mCommitStmt);
-    return getError(err, mConnection);
+    return getConnectionError(err);
 }
 
 DbError SqliteConnection::rollback() noexcept {
     int err = execStatement(mRollbackStmt);
-    return getError(err, mConnection);
+    return getConnectionError(err);
 }
 
 DbError SqliteConnection::setupInsert(const dao::TableInfo& table, std::string& sql) noexcept {
@@ -84,8 +88,8 @@ DbError SqliteConnection::setupSelect(const dao::TableInfo& table, std::string& 
 
 DbError SqliteConnection::createTable(const dao::TableInfo& table) noexcept {
     auto sql = setupCreateTable(table);
-    if (int err = sqlite3_exec(mConnection, sql.c_str(), nullptr, nullptr, nullptr))
-        return getError(err, mConnection);
+    if (int err = sqlite3_exec(mConnection.get(), sql.c_str(), nullptr, nullptr, nullptr))
+        return getError(err, mConnection.get());
 
     return DbError::ok();
 }
@@ -161,15 +165,15 @@ static void prepareAlways(sqlite3 *connection, const char *sql, sqlite3_stmt **s
     CTASSERTF(err == SQLITE_OK, "Failed to prepare statement `%s`: %s (%d)", sql, sqlite3_errmsg(connection), err);
 }
 
-SqliteConnection::SqliteConnection(sqlite3 *connection) noexcept
-    : mConnection(connection)
+SqliteConnection::SqliteConnection(Sqlite3Handle connection) noexcept
+    : mConnection(std::move(connection))
 {
-    prepareAlways(connection, "BEGIN;", &mBeginStmt);
-    prepareAlways(connection, "COMMIT;", &mCommitStmt);
-    prepareAlways(connection, "ROLLBACK;", &mRollbackStmt);
+    prepareAlways(mConnection.get(), "BEGIN;", &mBeginStmt);
+    prepareAlways(mConnection.get(), "COMMIT;", &mCommitStmt);
+    prepareAlways(mConnection.get(), "ROLLBACK;", &mRollbackStmt);
 
-    [[maybe_unused]] int err = sqlite3_create_function(mConnection, "IS_BLANK_STRING", 1, SQLITE_UTF8 | SQLITE_DETERMINISTIC, nullptr, isBlankStringImpl, nullptr, nullptr);
-    CTASSERTF(err == SQLITE_OK, "Failed to create IS_BLANK_STRING function: %s (%d)", sqlite3_errmsg(connection), err);
+    [[maybe_unused]] int err = sqlite3_create_function(mConnection.get(), "IS_BLANK_STRING", 1, SQLITE_UTF8 | SQLITE_DETERMINISTIC, nullptr, isBlankStringImpl, nullptr, nullptr);
+    CTASSERTF(err == SQLITE_OK, "Failed to create IS_BLANK_STRING function: %s (%d)", sqlite3_errmsg(mConnection.get()), err);
 }
 
 static void *gPoolMemory = nullptr;
@@ -202,21 +206,68 @@ static constexpr sqlite3_mem_methods kMemoryMethods = {
     .xShutdown = sqliteShutdown,
 };
 
+static constexpr std::string_view kJournalMode[(int)JournalMode::eCount] = {
+    [(int)JournalMode::eDelete] = "DELETE",
+    [(int)JournalMode::eTruncate] = "TRUNCATE",
+    [(int)JournalMode::ePersist] = "PERSIST",
+    [(int)JournalMode::eMemory] = "MEMORY",
+    [(int)JournalMode::eWal] = "WAL",
+    [(int)JournalMode::eOff] = "OFF",
+};
+
+static constexpr std::string_view kSynchronous[(int)Synchronous::eCount] = {
+    [(int)Synchronous::eExtra] = "EXTRA",
+    [(int)Synchronous::eFull] = "FULL",
+    [(int)Synchronous::eNormal] = "NORMAL",
+    [(int)Synchronous::eOff] = "OFF",
+};
+
+static constexpr std::string_view kLockingMode[(int)LockingMode::eCount] = {
+    [(int)LockingMode::eRelaxed] = "NORMAL",
+    [(int)LockingMode::eExclusive] = "EXCLUSIVE",
+};
+
 class SqliteEnvironment final : public detail::IEnvironment {
+    DbError execute(sqlite3 *db, const std::string& sql) noexcept {
+        char *message = nullptr;
+        defer { if (message != nullptr) sqlite3_free(message); };
+        int err = sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &message);
+
+        if (err != SQLITE_OK) {
+            const char *msg = message != nullptr ? message : sqlite3_errmsg(db);
+            return sqlite::getError(err, db, msg);
+        }
+
+        return DbError::ok();
+    }
+
+    DbError pragma(sqlite3 *db, std::string_view option, std::string_view value) noexcept {
+        std::string sql = fmt::format("PRAGMA {} = {}", option, value);
+        return execute(db, sql);
+    }
+
     DbError connect(const ConnectionConfig& config, detail::IConnection **connection) noexcept override {
         std::string dbPath = std::string{config.host};
-        sqlite3 *db = nullptr;
+        sqlite::Sqlite3Handle db;
         if (int err = sqlite3_open(dbPath.c_str(), &db))
             return sqlite::getError(err);
 
-        // TODO: expose these through config options
-#if 0
-        sqlite3_exec(db, "PRAGMA synchronous = OFF", nullptr, nullptr, nullptr);
-        sqlite3_exec(db, "PRAGMA journal_mode = MEMORY", nullptr, nullptr, nullptr);
-        sqlite3_exec(db, "PRAGMA locking_mode = EXCLUSIVE", nullptr, nullptr, nullptr);
-#endif
+        if (config.journalMode != JournalMode::eDefault) {
+            if (DbError err = pragma(db.get(), "journal_mode", kJournalMode[(int)config.journalMode]))
+                return err;
+        }
 
-        *connection = new SqliteConnection{db};
+        if (config.synchronous != Synchronous::eDefault) {
+            if (DbError err = pragma(db.get(), "synchronous", kSynchronous[(int)config.synchronous]))
+                return err;
+        }
+
+        if (config.lockingMode != LockingMode::eDefault) {
+            if (DbError err = pragma(db.get(), "locking_mode", kLockingMode[(int)config.lockingMode]))
+                return err;
+        }
+
+        *connection = new SqliteConnection{std::move(db)};
         return DbError::ok();
     }
 
@@ -243,7 +294,6 @@ public:
     SqliteEnvironment(const EnvConfig& config) noexcept {
         if (config.logQueries)
             setConfigLog();
-
 
         setConfigMemory();
     }

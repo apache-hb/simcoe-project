@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root name="config">
+    <table name="group" primaryKey="name">
+        <column name="name" type="text" length="255">
+            <unique />
+        </column>
+
+        <column name="description" type="text" length="1024" />
+    </table>
+
+    <table name="option" syntheticPrimaryKey="id">
+        <column name="group" type="text" length="255">
+            <constraint references="group.name" />
+        </column>
+
+        <column name="name" type="text" length="255" />
+        <column name="description" type="text" length="1024" />
+        <column name="type" type="ulong" />
+
+        <unique>
+            <column>group</column>
+            <column>name</column>
+        </unique>
+    </table>
+
+    <table name="enum" primaryKey="name">
+        <column name="name" type="text" length="255">
+            <unique />
+        </column>
+    </table>
+
+    <table name="case">
+        <column name="enum" type="text" length="255">
+            <constraint references="enum.name" />
+        </column>
+
+        <column name="value" type="text" length="255" />
+
+        <unique>
+            <column>enum</column>
+            <column>value</column>
+        </unique>
+    </table>
+</root>

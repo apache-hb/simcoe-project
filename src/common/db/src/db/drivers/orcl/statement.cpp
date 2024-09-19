@@ -20,10 +20,7 @@ static bool isNumberType(ub2 type) noexcept {
 }
 
 static bool isBoolType(ub2 type) noexcept {
-    if constexpr (kHasBoolType)
-        return type == kBoolType;
-
-    return false;
+    return type == SQLT_BOL;
 }
 
 static bool getCellBoolean(const OraColumnInfo& column) noexcept {
@@ -52,7 +49,7 @@ static CellInfo initCellValue(OraEnvironment& env, OraError error, OraColumnInfo
     case SQLT_FLT:
         return CellInfo { &column.value.real, sizeof(column.value.real) };
 
-    case kBoolType:
+    case SQLT_BOL:
         return CellInfo { &column.value.bol, sizeof(column.value.bol) };
 
     default:
@@ -258,7 +255,7 @@ DbError OraStatement::bindBooleanByIndex(int index, bool value) noexcept {
     const OraColumnInfo& column = mColumnInfo[index];
 
     if (isBoolType(column.type))
-        return bindAtPosition(index, &value, sizeof(value), kBoolType);
+        return bindAtPosition(index, &value, sizeof(value), SQLT_BOL);
 
     return bindAtPosition(index, (void*)(value ? "1" : "0"), 1, SQLT_CHR);
 }
@@ -294,7 +291,7 @@ DbError OraStatement::bindBooleanByName(std::string_view name, bool value) noexc
     const OraColumnInfo& column = mColumnInfo[index];
 
     if (isBoolType(column.type))
-        return bindAtName(name, &value, sizeof(value), kBoolType);
+        return bindAtName(name, &value, sizeof(value), SQLT_BOL);
 
     return bindAtName(name, (void*)(value ? "1" : "0"), 1, SQLT_CHR);
 }

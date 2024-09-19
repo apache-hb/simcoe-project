@@ -11,14 +11,6 @@ namespace sm::db::detail::orcl {
     class OraConnection;
     class OraEnvironment;
 
-#ifdef SQLT_BOL
-    static constexpr inline ub2 kBoolType = SQLT_BOL;
-#else
-    static constexpr inline ub2 kBoolType = SQLT_CHR;
-#endif
-
-    static constexpr inline bool kHasBoolType = kBoolType != SQLT_CHR;
-
     std::string oraErrorText(void *handle, sword status, ub4 type) noexcept;
     DbError oraGetHandleError(void *handle, sword status, ub4 type) noexcept;
     bool isSuccess(sword status) noexcept;
@@ -30,10 +22,10 @@ namespace sm::db::detail::orcl {
     std::string setupSelect(const dao::TableInfo& info) noexcept;
 
     template<typename T, ub4 H>
-    class OraHandle final {
+    class OraHandle {
+    public:
         T *mHandle = nullptr;
 
-    public:
         static constexpr inline ub4 kType = H;
 
         sword setAttribute(OCIError *error, ub4 attr, std::string_view value) const noexcept {
@@ -75,6 +67,23 @@ namespace sm::db::detail::orcl {
         }
     };
 
+    template<typename T>
+    class OraDelete : public OraHandle<OCIError, OCI_HTYPE_ERROR> {
+    public:
+        using Super = OraHandle<OCIError, OCI_HTYPE_ERROR>;
+
+        constexpr OraDelete() noexcept = default;
+        constexpr OraDelete(OCIError *error) noexcept
+            : Super(error)
+        { }
+
+        void operator()(T handle) noexcept {
+            DbError error = handle.close(*this);
+            if (error)
+                fmt::println(stderr, "Error closing handle: {}", error.message());
+        }
+    };
+
     using OraError = OraHandle<OCIError, OCI_HTYPE_ERROR>;
     using OraEnv = OraHandle<OCIEnv, OCI_HTYPE_ENV>;
     using OraServer = OraHandle<OCIServer, OCI_HTYPE_SERVER>;
@@ -93,6 +102,22 @@ namespace sm::db::detail::orcl {
     template<typename T>
     DbError oraNewHandle(OCIEnv *env, T& handle) noexcept {
         return oraNewHandle(env, handle.voidpp(), T::kType);
+    }
+
+    template<typename T>
+    using OraResource = sm::UniqueHandle<T, OraDelete<T>>;
+
+    using OraEnvResource = OraResource<OraEnv>;
+
+    template<typename T>
+    DbResult<OraResource<T>> oraNewResource(OCIEnv *env, OCIError *error = nullptr) noexcept {
+        T handle;
+        if (DbError result = oraNewHandle(env, handle))
+            return std::unexpected(result);
+
+        OraDelete<T> deleter{error};
+
+        return OraResource<T>{handle, deleter};
     }
 
     union CellValue {

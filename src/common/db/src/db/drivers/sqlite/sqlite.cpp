@@ -27,7 +27,7 @@ DbError sqlite::getError(int err) noexcept {
     return DbError{err, status, sqlite3_errstr(err)};
 }
 
-DbError sqlite::getError(int err, sqlite3 *db) noexcept {
+DbError sqlite::getError(int err, sqlite3 *db, const char *message) noexcept {
     if (err == SQLITE_OK || err == SQLITE_ROW)
         return DbError::ok();
 
@@ -35,7 +35,8 @@ DbError sqlite::getError(int err, sqlite3 *db) noexcept {
         return DbError::done(err);
 
     int status = getStatusType(err);
-    return DbError{err, status, sqlite3_errmsg(db)};
+    const char *msg = message != nullptr ? message : sqlite3_errmsg(db);
+    return DbError{err, status, msg};
 }
 
 using sm::dao::ColumnType;
@@ -129,10 +130,19 @@ std::string sqlite::setupCreateTable(const dao::TableInfo& info) noexcept {
     return ss.str();
 }
 
+static size_t primaryKeyIndex(const dao::TableInfo& info) noexcept {
+    if (!info.hasPrimaryKey())
+        return SIZE_MAX;
+
+    return std::distance(info.columns.data(), info.primaryKey);
+}
+
 static void setupInsertCommon(const dao::TableInfo& info, bool generatePrimaryKey, std::ostream& os) noexcept {
+    size_t primaryKey = primaryKeyIndex(info);
+
     os << "INSERT INTO " << info.name << " (";
     for (size_t i = 0; i < info.columns.size(); i++) {
-        if (generatePrimaryKey && info.primaryKey == i)
+        if (generatePrimaryKey && primaryKey == i)
             continue;
 
         os << info.columns[i].name;
@@ -143,7 +153,7 @@ static void setupInsertCommon(const dao::TableInfo& info, bool generatePrimaryKe
 
     os << ") VALUES (";
     for (size_t i = 0; i < info.columns.size(); i++) {
-        if (generatePrimaryKey && info.primaryKey == i)
+        if (generatePrimaryKey && primaryKey == i)
             continue;
 
         os << ":" << info.columns[i].name;

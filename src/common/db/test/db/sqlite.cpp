@@ -1,4 +1,5 @@
 #include "orm_test_common.hpp"
+#include <filesystem>
 
 static constexpr ConnectionConfig kConfig = {
     .host = "test.db"
@@ -12,30 +13,30 @@ TEST_CASE("sqlite updates") {
     auto conn = env.connect(kConfig);
 
     if (conn.tableExists("test").value_or(false))
-        getValue(conn.update("DROP TABLE test"));
+        getValue(conn.tryUpdateSql("DROP TABLE test"));
 
     REQUIRE(conn.tableExists("test") == DbResult<bool>(false));
 
-    getValue(conn.update("CREATE TABLE test (id INTEGER, name VARCHAR(100))"));
+    getValue(conn.tryUpdateSql("CREATE TABLE test (id INTEGER, name VARCHAR(100))"));
 
     REQUIRE(conn.tableExists("test") == DbResult<bool>(true));
 
     SECTION("updates and rollback") {
-        getValue(conn.update("INSERT INTO test (id, name) VALUES (1, 'test')"));
+        getValue(conn.tryUpdateSql("INSERT INTO test (id, name) VALUES (1, 'test')"));
 
         Transaction tx(&conn);
 
-        getValue(conn.update("INSERT INTO test (id, name) VALUES (2, 'test')"));
-        getValue(conn.update("INSERT INTO test (id, name) VALUES (3, 'test')"));
+        getValue(conn.tryUpdateSql("INSERT INTO test (id, name) VALUES (2, 'test')"));
+        getValue(conn.tryUpdateSql("INSERT INTO test (id, name) VALUES (3, 'test')"));
 
         tx.rollback();
 
-        auto results = getValue(conn.select("SELECT * FROM test where id = 2"));
+        auto results = getValue(conn.trySelectSql("SELECT * FROM test where id = 2"));
         REQUIRE(results.next().isDone());
     }
 
     SECTION("selects") {
-        getValue(conn.update(R"(
+        getValue(conn.tryUpdateSql(R"(
             INSERT INTO test
                 (id, name)
             VALUES
@@ -44,7 +45,7 @@ TEST_CASE("sqlite updates") {
                 (3, 'test3')
         )"));
 
-        ResultSet results = getValue(conn.select("SELECT * FROM test ORDER BY id ASC"));
+        ResultSet results = getValue(conn.trySelectSql("SELECT * FROM test ORDER BY id ASC"));
 
         int count = 1;
         do {
@@ -61,7 +62,7 @@ TEST_CASE("sqlite updates") {
     }
 
     SECTION("ranged for loop selects") {
-        getValue(conn.update(R"(
+        getValue(conn.tryUpdateSql(R"(
             INSERT INTO test
                 (id, name)
             VALUES
@@ -70,7 +71,7 @@ TEST_CASE("sqlite updates") {
                 (3, 'test3')
         )"));
 
-        ResultSet results = getValue(conn.select("SELECT * FROM test ORDER BY id ASC"));
+        ResultSet results = getValue(conn.trySelectSql("SELECT * FROM test ORDER BY id ASC"));
 
         int count = 1;
         for (auto row : results) {
@@ -84,5 +85,49 @@ TEST_CASE("sqlite updates") {
         }
 
         REQUIRE(count == 4);
+    }
+}
+
+TEST_CASE("sqlite connection creation") {
+    auto env = Environment::create(DbType::eSqlite3);
+
+    static constexpr JournalMode kJournalModes[] = {
+        JournalMode::eDelete,
+        JournalMode::eTruncate,
+        JournalMode::ePersist,
+        JournalMode::eMemory,
+        JournalMode::eWal,
+        JournalMode::eOff
+    };
+
+    static constexpr Synchronous kSynchronousModes[] = {
+        Synchronous::eExtra,
+        Synchronous::eFull,
+        Synchronous::eNormal,
+        Synchronous::eOff
+    };
+
+    static constexpr LockingMode kLockingModes[] = {
+        LockingMode::eRelaxed,
+        LockingMode::eExclusive
+    };
+
+    std::filesystem::create_directory("sqlite_test");
+
+    // ensure all permutations of journal, synchronous, and locking modes can be connected to
+    for (JournalMode journalMode : kJournalModes) {
+        for (Synchronous synchronous : kSynchronousModes) {
+            for (LockingMode lockingMode : kLockingModes) {
+                std::string name = fmt::format("sqlite_test/test-{}-{}-{}.db", toString(journalMode), toString(synchronous), toString(lockingMode));
+                ConnectionConfig config = {
+                    .host = name,
+                    .journalMode = journalMode,
+                    .synchronous = synchronous,
+                    .lockingMode = lockingMode
+                };
+
+                getValue(env.tryConnect(config));
+            }
+        }
     }
 }

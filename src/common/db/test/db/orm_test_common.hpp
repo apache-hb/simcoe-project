@@ -18,9 +18,11 @@ void checkError(const DbError& err) {
 }
 
 template<typename T>
-auto getValue(std::expected<T, DbError> result) {
-    if (result.has_value())
+auto getValue(DbResult<T> result) {
+    if (result.has_value()) {
+        SUCCEED();
         return std::move(result.value());
+    }
 
     checkError(result.error());
     std::unreachable();

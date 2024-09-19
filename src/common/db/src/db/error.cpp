@@ -5,12 +5,12 @@
 using namespace sm;
 using namespace sm::db;
 
-DbError::DbError(int code, int status, std::string message, bool disableStackTrace) noexcept
+DbError::DbError(int code, int status, std::string message, bool enableStackTrace) noexcept
     : mCode(code)
     , mStatus(status)
     , mMessage(std::move(message))
 {
-    if (!isSuccess() && !disableStackTrace)
+    if (!isSuccess() && enableStackTrace)
         mStacktrace = std::stacktrace::current();
 }
 
@@ -44,7 +44,7 @@ DbError DbError::noData() noexcept {
 }
 
 DbError DbError::done(int code) noexcept {
-    return DbError{code, eDone, "Done", true};
+    return DbError{code, eDone, "Done", false};
 }
 
 DbError DbError::unsupported(std::string_view subject) noexcept {

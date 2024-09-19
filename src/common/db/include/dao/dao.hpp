@@ -20,13 +20,6 @@ namespace sm::dao {
         eBlob
     };
 
-    enum class OnConflict {
-        eRollback,
-        eIgnore,
-        eReplace,
-        eAbort,
-    };
-
     struct ColumnInfo {
         std::string_view name;
         size_t offset;
@@ -54,49 +47,36 @@ namespace sm::dao {
 
     struct UniqueKey : ConstraintInfo {
         std::span<const size_t> columns;
-        const OnConflict onConflict;
 
-        constexpr UniqueKey(std::string_view name, std::span<const size_t> columns, OnConflict onConflict) noexcept
+        constexpr UniqueKey(std::string_view name, std::span<const size_t> columns) noexcept
             : ConstraintInfo{name}
             , columns{columns}
-            , onConflict{onConflict}
         { }
 
         template<size_t... I>
-        static constexpr UniqueKey ofColumns(std::string_view name, OnConflict onConflict) noexcept {
+        static constexpr UniqueKey ofColumns(std::string_view name) noexcept {
             static constexpr size_t arr[] = {I...};
-            return UniqueKey{name, arr, onConflict};
+            return UniqueKey{name, arr};
         }
     };
 
     struct TableInfo {
         std::string_view schema;
         std::string_view name;
-        size_t primaryKey;
-        OnConflict onConflict;
+        const ColumnInfo *primaryKey;
 
         std::span<const ColumnInfo> columns;
 
         std::span<const UniqueKey> uniqueKeys;
         std::span<const ForeignKey> foreignKeys;
 
-        bool hasPrimaryKey() const noexcept {
-            return primaryKey != SIZE_MAX;
-        }
-
-        bool hasUniqueKeys() const noexcept {
-            return !uniqueKeys.empty();
-        }
-
-        bool hasForeignKeys() const noexcept {
-            return !foreignKeys.empty();
-        }
+        bool hasPrimaryKey() const noexcept;
+        size_t primaryKeyIndex() const noexcept;
+        bool hasUniqueKeys() const noexcept;
+        bool hasForeignKeys() const noexcept;
 
         const ColumnInfo& getPrimaryKey() const noexcept;
-
-        bool hasAutoIncrementPrimaryKey() const noexcept {
-            return hasPrimaryKey() && getPrimaryKey().autoIncrement;
-        }
+        bool hasAutoIncrementPrimaryKey() const noexcept;
     };
 
     template<typename T>
@@ -108,7 +88,7 @@ namespace sm::dao {
     template<typename T>
     concept HasPrimaryKey = requires {
         DaoInterface<T>;
-        typename T::Id;
+        typename T::PrimaryKey;
     };
 
     namespace detail {

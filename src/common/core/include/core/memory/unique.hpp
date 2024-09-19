@@ -16,7 +16,7 @@ namespace sm {
     ///
     /// @a TEmpty is provided to allow for handles whos default value is not the same as the
     /// value that represents an empty handle. For example mmap returns MAP_FAILED on failure
-    template<typename T, typename TDelete, T TEmpty = T{}>
+    template<typename T, typename TDelete, T TEmpty = T()>
     class UniqueHandle {
         T mHandle = TEmpty;
 

@@ -14,6 +14,7 @@ src = [
 
     # shared driver utilities
     'src/db/drivers/common.cpp',
+    'src/db/drivers/utils.cpp',
 
     # sqlite3 is always enabled
     'src/db/drivers/sqlite/sqlite.cpp',
@@ -82,7 +83,7 @@ db_config = configure_file(
 )
 
 libdb = library('orm', [ src, db_config ],
-    cpp_args : [ '-DSM_DB_BUILD=1', args ],
+    cpp_args : [ '-DSM_DB_BUILD=1', args, cpp.get_supported_arguments('-Wno-c99-designator') ],
     cpp_pch : 'src/db/stdafx.hpp',
     include_directories : [ db_include, reflect_include, 'src/db' ],
     dependencies : deps

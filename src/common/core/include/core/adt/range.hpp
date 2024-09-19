@@ -5,7 +5,7 @@
 
 #include <algorithm>
 
-namespace sm::detail {
+namespace sm::core::detail {
     template<typename T>
     class Collection {
     protected:

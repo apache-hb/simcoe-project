@@ -5,6 +5,7 @@ Checks:
   - '-bugprone-lambda-function-name'
   - '-bugprone-dynamic-static-initializers'
   - '-bugprone-narrowing-conversions'
+  - 'bugprone-exception-escape'
 CheckOptions:
   - { key: readability-identifier-naming.VariableCase, value: lower_case }
   - { key: readability-identifier-naming.ParameterCase, value: aNy_CasE }

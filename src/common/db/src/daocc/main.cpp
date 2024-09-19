@@ -11,7 +11,6 @@ using namespace std::string_view_literals;
 
 using sm::dao::ColumnType;
 using enum ColumnType;
-using sm::dao::OnConflict;
 
 struct Type {
     ColumnType kind;
@@ -66,17 +65,6 @@ static std::string singular(std::string_view text) {
     return std::string{text};
 }
 
-static std::string onConflictToString(OnConflict conflict) noexcept {
-    switch (conflict) {
-        case OnConflict::eRollback: return "OnConflict::eRollback";
-        case OnConflict::eIgnore: return "OnConflict::eIgnore";
-        case OnConflict::eReplace: return "OnConflict::eReplace";
-        case OnConflict::eAbort: return "OnConflict::eAbort";
-    }
-
-    CT_NEVER("Invalid on conflict value: %d", (int)conflict);
-}
-
 static std::string makeCxxType(const Type& type, bool optional) {
     auto base = [&]() -> std::string {
         switch (type.kind) {
@@ -127,7 +115,6 @@ struct ForeignKey {
 
 struct Unique {
     std::string name;
-    OnConflict onConflict = OnConflict::eRollback;
     std::vector<std::string> columns;
 };
 
@@ -148,7 +135,6 @@ struct Column {
 struct Table {
     std::string name;
     std::string primaryKey;
-    OnConflict onConflict = OnConflict::eRollback;
     std::string schema;
     std::vector<Column> columns;
     std::vector<List> lists;
@@ -234,13 +220,6 @@ static const std::map<std::string, ColumnType> kTypeMap = {
     {"text", eString},
     {"float", eFloat},
     {"blob", eBlob}
-};
-
-static const std::map<std::string, OnConflict> kOnConflictMap = {
-    {"rollback", OnConflict::eRollback},
-    {"ignore", OnConflict::eIgnore},
-    {"replace", OnConflict::eReplace},
-    {"abort", OnConflict::eAbort}
 };
 
 static Properties getNodeProperties(xmlNodePtr node) {
@@ -361,15 +340,6 @@ static void buildDaoConstraint(Table& parent, Column& column, xmlNodePtr node) {
     }
 }
 
-static OnConflict getConflict(const std::string& name) {
-    if (auto it = kOnConflictMap.find(name); it != kOnConflictMap.end()) {
-        return it->second;
-    }
-
-    postError("Invalid on conflict: {}", name);
-    return OnConflict::eRollback;
-}
-
 static Column buildDaoColumn(Table& parent, xmlNodePtr node) {
     if (!expectNode(node, "column")) {
         return {};
@@ -388,11 +358,9 @@ static Column buildDaoColumn(Table& parent, xmlNodePtr node) {
         if (cur->type == XML_ELEMENT_NODE) {
             if (nodeIs(cur, "unique")) {
                 auto nodeProps = getNodeProperties(cur);
-                auto onConflict = getConflict(getOrDefault(nodeProps, "onConflict", "rollback"));
                 auto id = fmt::format("unique_{}_over_{}", parent.name, name);
                 Unique u = {
                     .name = getOrDefault(nodeProps, "name", id),
-                    .onConflict = onConflict,
                     .columns = {name},
                 };
                 parent.unique.push_back(u);
@@ -450,11 +418,9 @@ static void buildUniqueConstraint(Table& parent, xmlNodePtr node) {
         return;
     }
 
-    auto onConflict = getConflict(getOrDefault(props, "onConflict", "rollback"));
-    auto id = fmt::format("unique_{}_over_{}", parent.name, fmt::join(columns, "_"));
+    auto id = fmt::format("uk_{}_over_{}", parent.name, fmt::join(columns, "_"));
     Unique unique {
         .name = getOrDefault(props, "name", id),
-        .onConflict = onConflict,
         .columns = columns
     };
 
@@ -482,12 +448,9 @@ static Table buildDaoTable(xmlNodePtr node) {
 
     auto props = getNodeProperties(node);
 
-    auto onConflict = getConflict(getOrDefault(props, "onConflict", "rollback"));
-
     Table table = {
         .name = expectProperty(props, "name", ""),
         .primaryKey = getOrDefault(props, "primaryKey", ""),
-        .onConflict = onConflict
     };
 
     auto syntheticPrimaryKey = getOrDefault(props, "syntheticPrimaryKey", "");
@@ -712,7 +675,7 @@ static void emitCxxBody(
         beginArray(source, "kUniqueKeys", "UniqueKey", table.unique.size());
         for (const auto& unique : table.unique) {
             auto indices = table.getColumnIndices(unique);
-            source.writeln("UniqueKey::ofColumns<{}>(\"{}\", {}),", fmt::join(indices, ", "), unique.name, onConflictToString(unique.onConflict));
+            source.writeln("UniqueKey::ofColumns<{}>(\"{}\"),", fmt::join(indices, ", "), unique.name);
         }
         endArray(source);
         source.writeln();
@@ -726,8 +689,11 @@ static void emitCxxBody(
         source.indent();
         source.writeln(".schema      = \"{}\",", dao.name);
         source.writeln(".name        = \"{}\",", table.name);
-        source.writeln(".primaryKey  = {}ull,", table.getPrimaryKeyIndex());
-        source.writeln(".onConflict  = {},", onConflictToString(table.onConflict));
+        if (table.hasPrimaryKey()) {
+            source.writeln(".primaryKey  = &kColumns[{}],", table.getPrimaryKeyIndex());
+        } else {
+            source.writeln(".primaryKey  = nullptr,");
+        }
         source.writeln(".columns     = kColumns,");
         source.writeln(".uniqueKeys  = kUniqueKeys,");
         source.writeln(".foreignKeys = kForeignKeys,");
@@ -751,7 +717,7 @@ static void emitCxxBody(
         if (table.hasPrimaryKey()) {
             auto pk = table.getPrimaryKey().value();
             auto cxxType = makeCxxType(pk.type, pk.optional);
-            header.writeln("using Id = {};", cxxType);
+            header.writeln("using PrimaryKey = {};", cxxType);
         }
 
         header.writeln("static const sm::dao::TableInfo& getTableInfo() noexcept;");

@@ -14,8 +14,8 @@ namespace sm {
     using Vector = std::vector<T>;
 
     template<typename T> requires (std::is_object_v<T> && std::is_move_constructible_v<T>)
-    class VectorBase final : public detail::Collection<T> {
-        using Super = detail::Collection<T>;
+    class VectorBase final : public core::detail::Collection<T> {
+        using Super = core::detail::Collection<T>;
 
         using SizeType = ssize_t;
         using Self = VectorBase;

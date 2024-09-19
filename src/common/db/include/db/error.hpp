@@ -26,7 +26,7 @@ namespace sm::db {
             eNoData = 5,
         };
 
-        DbError(int code, int status, std::string message, bool disableStackTrace = false) noexcept;
+        DbError(int code, int status, std::string message, bool enableStackTrace = true) noexcept;
 
         int code() const noexcept { return mCode; }
         int status() const noexcept { return mStatus; }

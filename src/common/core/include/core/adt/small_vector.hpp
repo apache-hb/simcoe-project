@@ -10,8 +10,8 @@
 
 namespace sm {
     template<typename T>
-    class SmallVectorBase : public detail::Collection<T> {
-        using Super = detail::Collection<T>;
+    class SmallVectorBase : public core::detail::Collection<T> {
+        using Super = core::detail::Collection<T>;
         T *mCapacity;
 
         static_assert(std::is_nothrow_move_constructible_v<T>);

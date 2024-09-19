@@ -38,6 +38,8 @@ namespace sm::db {
     enum class DbType {
 #define DB_TYPE(id, str, enabled) id,
 #include "db/orm.inc"
+
+        eCount
     };
 
     REFLECT_ENUM(DataType)
@@ -48,7 +50,9 @@ namespace sm::db {
         eDouble, // double
         eBlob, // std::vector<std::byte>
         eNull, // ???
-        eRowId // ???
+        eRowId, // ???
+
+        eCount
     };
 
     REFLECT_ENUM(StatementType)
@@ -56,7 +60,45 @@ namespace sm::db {
         eQuery, // select
         eModify, // update
         eDefine, // create
-        eControl // alter
+        eControl, // alter
+
+        eCount
+    };
+
+    REFLECT_ENUM(JournalMode)
+    enum class JournalMode {
+        eDefault,
+
+        eDelete,
+        eTruncate,
+        ePersist,
+        eMemory,
+        eWal,
+        eOff,
+
+        eCount
+    };
+
+    REFLECT_ENUM(Synchronous)
+    enum class Synchronous {
+        eDefault,
+
+        eExtra,
+        eFull,
+        eNormal,
+        eOff,
+
+        eCount
+    };
+
+    REFLECT_ENUM(LockingMode)
+    enum class LockingMode {
+        eDefault,
+
+        eRelaxed,
+        eExclusive,
+
+        eCount
     };
 
     REFLECT()
@@ -94,6 +136,10 @@ namespace sm::db {
         std::chrono::seconds timeout{5};
 
         bool autoCommit = true;
+
+        JournalMode journalMode = JournalMode::eDefault;
+        Synchronous synchronous = Synchronous::eDefault;
+        LockingMode lockingMode = LockingMode::eDefault;
     };
 
     struct ColumnInfo {

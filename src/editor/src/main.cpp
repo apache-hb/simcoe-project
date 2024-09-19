@@ -1,5 +1,4 @@
 #include "config/option.hpp"
-#include "dao/utils.hpp"
 #include "editor/panels/viewport.hpp"
 #include "input/toggle.hpp"
 #include "logs/logs.hpp"
@@ -98,17 +97,12 @@ class DefaultSystemError final : public ISystemError {
 
 class DefaultWindowEvents final : public sys::IWindowEvents {
     db::Connection& mConnection;
+    render::IDeviceContext *mContext = nullptr;
+    sys::DesktopInput *mInput = nullptr;
+
+    static constexpr math::int2 kMinWindowSize = { 128, 128 };
 
     void saveWindowPlacement(const WINDOWPLACEMENT& placement) noexcept {
-
-        logs::gGlobal.info("saveWindowPlacement: WINDOWPLACEMENT {{ length={}, flags={}, showCmd={}, minPositionX={}, minPositionY={}, maxPositionX={}, maxPositionY={}, normalPosLeft={}, normalPosTop={}, normalPosRight={}, normalPosBottom={} }}",
-            placement.length, placement.flags, placement.showCmd,
-            placement.ptMinPosition.x, placement.ptMinPosition.y,
-            placement.ptMaxPosition.x, placement.ptMaxPosition.y,
-            placement.rcNormalPosition.left, placement.rcNormalPosition.top,
-            placement.rcNormalPosition.right, placement.rcNormalPosition.bottom
-        );
-
         sm::dao::editor::WindowPlacement dao {
             .flags = placement.flags,
             .showCmd = placement.showCmd,
@@ -121,14 +115,6 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
             .normalPosRight = placement.rcNormalPosition.right,
             .normalPosBottom = placement.rcNormalPosition.bottom,
         };
-
-        logs::gGlobal.info("WindowPlacement {{ flags={}, showCmd={}, minPositionX={}, minPositionY={}, maxPositionX={}, maxPositionY={}, normalPosLeft={}, normalPosTop={}, normalPosRight={}, normalPosBottom={} }}",
-            dao.flags, dao.showCmd,
-            dao.minPositionX, dao.minPositionY,
-            dao.maxPositionX, dao.maxPositionY,
-            dao.normalPosLeft, dao.normalPosTop,
-            dao.normalPosRight, dao.normalPosBottom
-        );
 
         if (db::DbError error = mConnection.tryInsert(dao)) {
             logs::gAssets.warn("update failed: {}", error.message());
@@ -164,37 +150,30 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
             },
         };
 
-        logs::gGlobal.info("loaded window placement: WINDOWPLACEMENT {{ length={}, flags={}, showCmd={}, minPositionX={}, minPositionY={}, maxPositionX={}, maxPositionY={}, normalPosLeft={}, normalPosTop={}, normalPosRight={}, normalPosBottom={} }}",
-            placement.length, placement.flags, placement.showCmd,
-            placement.ptMinPosition.x, placement.ptMinPosition.y,
-            placement.ptMaxPosition.x, placement.ptMaxPosition.y,
-            placement.rcNormalPosition.left, placement.rcNormalPosition.top,
-            placement.rcNormalPosition.right, placement.rcNormalPosition.bottom
-        );
-
-        if (LONG width = placement.rcNormalPosition.right - placement.rcNormalPosition.left; width < 128) {
+        if (LONG width = placement.rcNormalPosition.right - placement.rcNormalPosition.left; width < kMinWindowSize.x) {
             logs::gGlobal.warn("window placement width too small {}, ignoring possibly corrupted data", width);
             return std::nullopt;
         }
 
-        if (LONG height = placement.rcNormalPosition.bottom - placement.rcNormalPosition.top; height < 128) {
+        if (LONG height = placement.rcNormalPosition.bottom - placement.rcNormalPosition.top; height < kMinWindowSize.y) {
             logs::gGlobal.warn("window placement height too small {}, ignoring possibly corrupted data", height);
             return std::nullopt;
         }
 
-
         return placement;
     }
 
-    render::IDeviceContext *mContext = nullptr;
-    sys::DesktopInput *mInput = nullptr;
-
     LRESULT event(sys::Window &window, UINT message, WPARAM wparam, LPARAM lparam) override {
         if (mInput) mInput->window_event(message, wparam, lparam);
-        return ImGui_ImplWin32_WndProcHandler(window.get_handle(), message, wparam, lparam);
+        return ImGui_ImplWin32_WndProcHandler(window.getHandle(), message, wparam, lparam);
     }
 
     void resize(sys::Window &window, math::int2 size) override {
+        if (size.x < kMinWindowSize.x || size.y < kMinWindowSize.y) {
+            logs::gGlobal.warn("resize too small {}/{}, ignoring", size.x, size.y);
+            return;
+        }
+
         if (mContext != nullptr) {
             mContext->resize_swapchain(uint2(size));
         }
@@ -222,16 +201,14 @@ public:
         : mConnection(connection)
     {
         auto doUpdate = [&](std::string_view sql) {
-            auto result = mConnection.update(sql);
+            auto result = mConnection.tryUpdateSql(sql);
             if (!result.has_value()) {
                 logs::gAssets.warn("update failed: {}", result.error().message());
             }
         };
 
-        if (!dao::tableExists<sm::dao::editor::WindowPlacement>(connection)) {
-            if (db::DbError error = connection.tryCreateTable(sm::dao::editor::WindowPlacement::getTableInfo())) {
-                logs::gAssets.warn("update failed: {}", error.message());
-            }
+        if (db::DbError error = connection.tryCreateTable(sm::dao::editor::WindowPlacement::getTableInfo())) {
+            logs::gAssets.warn("update failed: {}", error.message());
         }
 
         doUpdate(R"(
