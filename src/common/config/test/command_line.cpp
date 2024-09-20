@@ -1,6 +1,6 @@
 #include "test/common.hpp"
 
-#include "config/option.hpp"
+#include "config/config.hpp"
 
 using namespace sm;
 using namespace sm::config;

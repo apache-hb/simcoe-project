@@ -16,7 +16,8 @@
 #include "draw/draw.hpp"
 #include "render/render.hpp"
 
-#include "config/option.hpp"
+#include "config/config.hpp"
+#include "config/parse.hpp"
 
 #include "core/defer.hpp"
 

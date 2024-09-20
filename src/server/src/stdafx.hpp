@@ -26,7 +26,7 @@
 #include "logs/file.hpp"
 
 #include "config/config.hpp"
-#include "config/option.hpp"
+#include "config/parse.hpp"
 
 #include "system/system.hpp"
 

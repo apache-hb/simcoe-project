@@ -2,7 +2,7 @@
 #include "common.hpp"
 
 #include "core/error.hpp"
-#include "config/option.hpp"
+#include "config/config.hpp"
 
 using namespace sm;
 using namespace sm::config;
@@ -94,7 +94,7 @@ struct ConfigFileSource {
         auto& option = *it->second;
 
         if (!option.isEnumFlags()) {
-            result.fmtError(UpdateStatus::eSyntaxError, "unexpected table for option {}", key);
+            result.fmtError(UpdateStatus::eSyntax, "unexpected table for option {}", key);
             return true;
         }
 
@@ -159,7 +159,7 @@ struct ConfigFileSource {
                 break;
 
             default:
-                result.fmtError(UpdateStatus::eSyntaxError, "unexpected value for option {}", key);
+                result.fmtError(UpdateStatus::eSyntax, "unexpected value for option {}", key);
                 break;
             }
         }
@@ -188,7 +188,7 @@ UpdateResult Context::updateFromConfigFile(std::istream& is) noexcept {
     toml::parse_result parsed = toml::parse(is);
 
     if (parsed.failed()) {
-        result.addError(UpdateStatus::eSyntaxError, std::string{parsed.error().description()});
+        result.addError(UpdateStatus::eSyntax, std::string{parsed.error().description()});
         return result;
     }
 

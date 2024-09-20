@@ -1,6 +1,6 @@
 #pragma once
 
-#include "config/option.hpp"
+#include "config/config.hpp"
 
 namespace sm::config::detail {
     bool verifyWriteAccess(UpdateResult& errs, const OptionBase& option);

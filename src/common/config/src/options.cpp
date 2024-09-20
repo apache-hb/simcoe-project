@@ -1,7 +1,9 @@
 #include "stdafx.hpp"
+
 #include "core/core.hpp"
 #include "core/error.hpp"
-#include "config/option.hpp"
+#include "config/config.hpp"
+#include "config/parse.hpp"
 
 #include "logs/logs.hpp"
 #include "config/config.hpp"
@@ -40,11 +42,7 @@ void UpdateResult::addError(UpdateStatus status, std::string message) noexcept {
 }
 
 constexpr std::string_view getOptionTypeName(OptionType type) noexcept {
-    switch (type) {
-#define OPTION_TYPE(ID, STR) case OptionType::ID: return STR;
-#include "config/config.inc"
-    default: return "unknown";
-    }
+    return toString(type);
 }
 
 void Context::addToGroup(OptionBase *cvar, Group* group) noexcept {

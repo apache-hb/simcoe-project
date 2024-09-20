@@ -8,7 +8,7 @@ src = [
     'src/command_line.cpp',
     'src/config.cpp',
 
-    metacc.process('include/config/option.hpp')
+    metacc.process('include/config/config.hpp')
 ]
 
 libconfig = library('config', src,

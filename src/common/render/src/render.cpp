@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "config/option.hpp"
+#include "config/config.hpp"
 #include "render/render.hpp"
 
 using namespace sm;

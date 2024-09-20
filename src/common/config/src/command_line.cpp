@@ -1,7 +1,7 @@
 #include "stdafx.hpp"
 #include "common.hpp"
 
-#include "config/option.hpp"
+#include "config/config.hpp"
 
 using namespace std::string_view_literals;
 
@@ -212,7 +212,7 @@ UpdateResult Context::updateFromCommandLine(int argc, const char *const *argv) n
             name.remove_prefix(1);
         }
         else {
-            errors.fmtError(UpdateStatus::eSyntaxError, "unexpected value `{}`", name);
+            errors.fmtError(UpdateStatus::eSyntax, "unexpected value `{}`", name);
             continue;
         }
 
