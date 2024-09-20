@@ -2,7 +2,6 @@
 
 #include <simcoe_config.h>
 
-#include "core/compiler.h"
 #include "core/source_info.h"
 
 #include "core/error.hpp"

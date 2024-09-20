@@ -24,12 +24,15 @@ TEST_CASE("Network client server connection") {
         errors.push_back(fmt::vformat(fmt, fmt::make_format_args(args...)));
     };
 
-    std::jthread serverThread = std::jthread([&](std::stop_token stop) {
+    std::jthread serverThread = std::jthread([&](const std::stop_token& stop) {
         server.listen(network.getMaxSockets()).throwIfFailed();
 
         while (!stop.stop_requested()) {
-            std::stop_callback cb(stop, [&] { server.cancel(); });
-            auto client = server.tryAccept();
+            auto client = [&] {
+                std::stop_callback cb(stop, [&] { server.cancel(); });
+                return server.tryAccept();
+            }();
+
             if (!client.has_value()) {
                 const auto& err = client.error();
                 if (err.cancelled())

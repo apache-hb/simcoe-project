@@ -1,27 +1,40 @@
 #pragma once
 
-#include "core/span.hpp"
 #include "core/win32.hpp" // IWYU pragma: keep
 
 #include "core/macros.hpp"
 #include "core/adt/vector.hpp"
 #include "core/core.hpp"
+
 #include <bitset>
 
+#include "threads.meta.hpp"
+
 namespace sm::threads {
-    enum class ThreadClass {
-#define THREAD_CLASS(id, name) id,
-#include "threads/threads.inc"
+    static constexpr size_t kMaxThreads = 512;
+
+    REFLECT_ENUM(ThreadClass)
+    enum class ThreadClass : uint8 {
+        eRealtime,
+        eNormal,
+        eWorker,
+        eIdle
     };
 
-    enum class PriorityClass {
-#define PRIORITY_CLASS(id, name, value) id = (value),
-#include "threads/threads.inc"
+    REFLECT_ENUM(PriorityClass)
+    enum class PriorityClass : int16 {
+        eHigh = HIGH_PRIORITY_CLASS,
+        eNormal = NORMAL_PRIORITY_CLASS,
+        eIdle = THREAD_PRIORITY_IDLE,
     };
 
-    enum class CacheType {
-#define CACHE_TYPE(id, name) id,
-#include "threads/threads.inc"
+    REFLECT_ENUM(CacheType)
+    enum class CacheType : uint8 {
+        eUnified,
+        eInstruction,
+        eData,
+        eTrace,
+        eUnknown
     };
 
     // each subcore belongs to only a single core.
@@ -72,10 +85,10 @@ namespace sm::threads {
 
     // scheduling mask that can span multiple groups
     struct GroupScheduleMask {
-        std::bitset<512> mask;
+        std::bitset<kMaxThreads> mask;
     };
 
-    struct HyperThread : ScheduleMask { };
+    struct LogicalCore : ScheduleMask { };
 
     struct Cache {
         uint id; // multiple caches may share the same id if they span multiple groups
@@ -107,11 +120,11 @@ namespace sm::threads {
     };
 
     struct CpuGeometry {
-        sm::VectorBase<HyperThread> threads;
-        sm::VectorBase<Core> cores;
-        sm::VectorBase<Cache> caches;
-        sm::VectorBase<Group> groups;
-        sm::VectorBase<Package> packages;
+        VectorBase<LogicalCore> threads;
+        VectorBase<Core> cores;
+        VectorBase<Cache> caches;
+        VectorBase<Group> groups;
+        VectorBase<Package> packages;
     };
 
     void init() noexcept;
@@ -136,15 +149,15 @@ namespace sm::threads {
     };
 
     class Scheduler {
-        const SchedulerConfig mConfig;
+        SchedulerConfig mConfig;
         CpuGeometry mCpuGeometry;
 
-        static DWORD WINAPI thread_thunk(LPVOID param);
+        static DWORD WINAPI threadThunk(LPVOID param);
 
-        ThreadHandle launch_thread(void *param);
+        ThreadHandle launchThread(void *param);
 
     public:
-        Scheduler(const SchedulerConfig& config, CpuGeometry geometry)
+        Scheduler(SchedulerConfig config, CpuGeometry geometry)
             : mConfig(config)
             , mCpuGeometry(std::move(geometry))
         { }

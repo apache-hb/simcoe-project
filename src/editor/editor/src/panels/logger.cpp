@@ -84,7 +84,7 @@ void LoggerPanel::drawLogCategory(const logs::LogCategory& category) const {
 
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
-            ImGui::TextColored(colour, "%s", logs::to_string(message.severity).data());
+            ImGui::TextColored(colour, "%s", logs::toString(message.severity).data());
             ImGui::TableNextColumn();
             ImGui::Text("%u", message.timestamp);
             ImGui::TableNextColumn();

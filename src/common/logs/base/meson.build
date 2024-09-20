@@ -2,12 +2,15 @@ src = [
     'src/logs.cpp',
     'src/file.cpp',
     'src/debug.cpp',
-    'src/console.cpp'
+    'src/console.cpp',
+
+    metacc.process('include/logs/logs.hpp')
 ]
 
 deps = [
     cthulhu.get_variable('format_core'),
     core,
+    meta,
 ]
 
 liblogs = library('logs', src,
@@ -19,6 +22,6 @@ liblogs = library('logs', src,
 
 logs = declare_dependency(
     link_with : liblogs,
-    include_directories : [ '.', 'include', ],
-    dependencies : [ core ]
+    include_directories : [ '.', 'include', liblogs.private_dir_include() ],
+    dependencies : [ core, meta ]
 )

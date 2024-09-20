@@ -4,7 +4,6 @@
 #include "core/throws.hpp"
 
 #include <expected>
-#include <span>
 #include <string>
 
 #include <WinSock2.h>

@@ -95,7 +95,7 @@ public:
 
     // TODO: figure out the max number of subcores for the cpu and do this all with arrays
 
-    sm::VectorBase<HyperThread> threads;
+    sm::VectorBase<LogicalCore> threads;
     sm::VectorBase<Core> cores;
     sm::VectorBase<Group> groups;
     sm::VectorBase<Cache> caches;
@@ -103,7 +103,7 @@ public:
     sm::VectorBase<PartialPackageInfo> pendingPackages;
 
     IndexRange<ThreadIndex> getMaskedThreadRange(GROUP_AFFINITY mask) const noexcept {
-        return getMaskedRange<HyperThread, ThreadIndex>(threads, mask);
+        return getMaskedRange<LogicalCore, ThreadIndex>(threads, mask);
     }
 
     IndexRange<CoreIndex> getMaskedCoreRange(GROUP_AFFINITY mask) const noexcept {
@@ -328,7 +328,7 @@ public:
                     .Group = group.Group,
                 };
 
-                threads::HyperThread info = {
+                threads::LogicalCore info = {
                     { .mask = groupAffinity },
                 };
 

@@ -24,7 +24,7 @@ namespace {{ enum.namespace }} {
     std::string_view toString({{ enum.name }} it) noexcept;
 } // namespace {{enum.namespace}}
 template<> struct fmt::formatter<{{ enum.namespace }}::{{ enum.name }}> : fmt::formatter<std::string_view> {
-    fmt::format_context::iterator format({{ enum.namespace }}::{{ enum.name }} it, fmt::format_context& ctx) {
+    constexpr fmt::format_context::iterator format({{ enum.namespace }}::{{ enum.name }} it, fmt::format_context& ctx) const {
         return fmt::formatter<std::string_view>::format({{ enum.namespace }}::toString(it), ctx);
     }
 };

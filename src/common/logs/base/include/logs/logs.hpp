@@ -7,26 +7,26 @@
 #include "core/string.hpp"
 #include "core/adt/vector.hpp"
 
+#include "logs.meta.hpp"
+
 typedef struct colour_pallete_t colour_pallete_t;
 
 #define LOG_CATEGORY(id) extern sm::logs::LogCategory id
 #define LOG_CATEGORY_IMPL(id, name) sm::logs::LogCategory id(name)
 
 namespace sm::logs {
+    REFLECT_ENUM(Severity)
     enum class Severity {
-#define LOG_SEVERITY(id, name, level) id = (level),
-#include "logs/logs.inc"
+        eTrace = 0,
+        eDebug = 1,
+        eInfo = 2,
+        eWarning = 3,
+        eError = 4,
+        eFatal = 5,
+        ePanic = 6,
 
         eCount
     };
-
-    constexpr sm::StringView to_string(Severity severity) noexcept {
-        switch (severity) {
-#define LOG_SEVERITY(id, name, level) case Severity::id: return name;
-#include "logs/logs.inc"
-        default: return "Unknown";
-        }
-    }
 
     class LogCategory final {
         sm::String mName;
@@ -153,11 +153,3 @@ namespace sm::logs {
     bool isConsoleHandleAvailable() noexcept;
     ILogChannel& getConsoleHandle() noexcept;
 } // namespace sm::logs
-
-template<>
-struct fmt::formatter<sm::logs::Severity> : fmt::formatter<fmt::string_view> {
-    template<typename FormatContext>
-    constexpr auto format(sm::logs::Severity severity, FormatContext& ctx) const noexcept {
-        return fmt::formatter<fmt::string_view>::format(sm::logs::to_string(severity), ctx);
-    }
-};

@@ -1,12 +1,14 @@
 inc = include_directories('include')
 tomlplusplus = dependency('tomlplusplus')
 
-deps = [ core ]
+deps = [ core, meta ]
 
 src = [
     'src/options.cpp',
     'src/command_line.cpp',
     'src/config.cpp',
+
+    metacc.process('include/config/option.hpp')
 ]
 
 libconfig = library('config', src,
@@ -19,7 +21,7 @@ libconfig = library('config', src,
 
 config = declare_dependency(
     link_with : libconfig,
-    include_directories : inc,
+    include_directories : [ inc, libconfig.private_dir_include() ],
     dependencies : deps
 )
 

@@ -63,6 +63,7 @@ def main():
     command = [args.metatool, args.reflect, '--', *flags]
     p = subprocess.run(command, capture_output=True, text=True)
     if p.returncode != 0:
+        print(p.stderr)
         sys.exit(p.returncode)
 
     data = json.loads(p.stdout)
