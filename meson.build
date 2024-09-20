@@ -206,6 +206,9 @@ tracy = dependency('tracy')
 
 subdir('src/common/input')
 subdir('src/common/system')
+
+subdir('src/common/net')
+
 subdir('src/common/world')
 subdir('src/common/threads')
 

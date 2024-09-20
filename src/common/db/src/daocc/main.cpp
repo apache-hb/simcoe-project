@@ -2,7 +2,7 @@
 #include "fmt/ranges.h"
 #include "stdafx.hpp"
 
-#include "daocc/writer.hpp"
+#include "writer.hpp"
 #include "dao/dao.hpp"
 
 namespace fs = std::filesystem;

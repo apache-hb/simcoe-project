@@ -163,7 +163,7 @@ DbError Connection::rollback() noexcept {
 
 bool Environment::isSupported(DbType type) noexcept {
     switch (type) {
-#define DB_TYPE(id, str, enabled) case DbType::id: return enabled;
+#define DB_TYPE(id, enabled) case DbType::id: return enabled;
 #include "db/orm.inc"
 
     default: return false;

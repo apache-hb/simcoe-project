@@ -102,7 +102,7 @@ namespace sm::db {
 
     public:
         DbConnectionException(const DbError& error, const ConnectionConfig& config)
-            : DbException(error, fmt::format("{}/[password]@{}:{}/{}", config.user, config.host, config.port, config.database))
+            : DbException(error, fmt::format("{}/pwd@{}:{}/{}", config.user, config.host, config.port, config.database))
             , mConfig(config)
         { }
 
