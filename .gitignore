@@ -34,6 +34,7 @@
 # assets
 !data/*
 !*.md
+!*.jinja2
 
 # dependencies
 subprojects/*

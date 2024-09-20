@@ -8,6 +8,10 @@ import json
 import argparse
 import subprocess
 import itertools
+from jinja2 import Environment, FileSystemLoader
+
+path = os.path.dirname(os.path.realpath(__file__))
+env = Environment(loader=FileSystemLoader(f'{path}\\templates'))
 
 argparser = argparse.ArgumentParser(description="parse a meson introspection file and run the metatool for a specific header file")
 argparser.add_argument("--builddir", required=True, help="meson build directory")
@@ -38,20 +42,13 @@ def get_target_data(builddir, sourcedir, source):
 
 def get_target_args(builddir, sourcedir, source):
     def is_used_arg(arg):
-        return (
-            arg.startswith("-I") or
-            arg.startswith("-D") or
-            arg.startswith("/I") or
-            arg.startswith("/D") or
-            arg.startswith("/clang:-isystem") or
-            arg.startswith("/clang:-I"))
+        prefixes = ["-I", "-D", "/I", "/D", "/clang:-isystem", "/clang:-I"]
+        return any(arg.startswith(prefix) for prefix in prefixes)
 
     def sanitize_arg(arg):
-        if arg.startswith("/clang:-isystem"):
-            return arg.replace("/clang:-isystem", "-isystem")
-
-        if arg.startswith("/clang:-I"):
-            return arg.replace("/clang:-I", "-I")
+        prefixes = ["/clang:-isystem", "/clang:-I"]
+        if any(arg.startswith(prefix) for prefix in prefixes):
+            return arg.replace("/clang:", "")
 
         return arg
 
@@ -63,8 +60,23 @@ def main():
     sourcedir = os.path.realpath(args.sourcedir)
     source = os.path.realpath(args.source)
     flags = get_target_args(args.builddir, sourcedir, source)
-    command = [args.metatool, args.reflect, args.header, args.source, '--', *flags]
-    sys.exit(subprocess.run(command).returncode)
+    command = [args.metatool, args.reflect, '--', *flags]
+    p = subprocess.run(command, capture_output=True, text=True)
+    if p.returncode != 0:
+        sys.exit(p.returncode)
+
+    data = json.loads(p.stdout)
+    header_template = env.get_template("header.meta.hpp.jinja2")
+    source_template = env.get_template("source.meta.cpp.jinja2")
+
+    header_content = header_template.render(data)
+    source_content = source_template.render(data)
+
+    with open(args.header, "w") as f:
+        f.write(header_content)
+
+    with open(args.source, "w") as f:
+        f.write(source_content)
 
 if __name__ == "__main__":
     main()

@@ -29,4 +29,7 @@
 #include <clang/Tooling/CommonOptionsParser.h>
 #include <clang/Tooling/CompilationDatabase.h>
 
+#include "json.hpp"
+#include "unparser.hpp"
+
 // IWYU pragma: end_exports

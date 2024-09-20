@@ -1,0 +1,9 @@
+[wrap-file]
+directory = inja
+
+source_url = https://github.com/pantor/inja/archive/0066e6049e486fa4bbc52c062a22efb594f1cf05.zip
+source_filename = inja-0066e6049e486fa4bbc52c062a22efb594f1cf05.zip
+source_hash = ea317d1462855af32eafe54fd574399234f7ae5946fba76f9df49f432f492fcd
+
+[provide]
+inja = inja_dep

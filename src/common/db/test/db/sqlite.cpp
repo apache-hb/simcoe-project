@@ -126,7 +126,7 @@ TEST_CASE("sqlite connection creation") {
                     .lockingMode = lockingMode
                 };
 
-                getValue(env.tryConnect(config));
+                getValue(env.tryConnect(config), fmt::format("{}, {}, {}", toString(journalMode), toString(synchronous), toString(lockingMode)));
             }
         }
     }

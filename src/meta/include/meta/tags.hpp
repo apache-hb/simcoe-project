@@ -6,15 +6,15 @@
 
 namespace sm::reflect {
     annotation Name {
-        const char *value;
+        const char *value = nullptr;
     };
 
     annotation Description {
-        const char *value;
+        const char *value = "No description provided.";
     };
 
     annotation Transient {
-        bool value;
+        bool value = true;
     };
 }
 

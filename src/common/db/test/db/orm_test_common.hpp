@@ -18,9 +18,9 @@ void checkError(const DbError& err) {
 }
 
 template<typename T>
-auto getValue(DbResult<T> result) {
+auto getValue(DbResult<T> result, std::string_view msg = "") {
     if (result.has_value()) {
-        SUCCEED();
+        SUCCEED(msg);
         return std::move(result.value());
     }
 
