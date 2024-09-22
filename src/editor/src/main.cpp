@@ -5,7 +5,6 @@
 #include "editor/panels/viewport.hpp"
 #include "input/toggle.hpp"
 #include "logs/logs.hpp"
-#include "db/transaction.hpp"
 
 #include "system/input.hpp"
 #include "system/system.hpp"

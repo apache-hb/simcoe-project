@@ -8,6 +8,6 @@ extern "C" {
     extern char end[];
 }
 
-bool sm::isInStaticStorage(const void *ptr) noexcept {
+bool sm::isInStaticStorage(const void *ptr, [[maybe_unused]] bool fallback) noexcept {
     return ptr >= etext && ptr < end;
 }

@@ -21,7 +21,7 @@ namespace sm::config {
     struct EnumValueBuilder {
         T value;
 
-        constexpr EnumValue<T> operator=(std::string_view name) const {
+        constexpr EnumValue<T> operator=(std::string_view name) const noexcept {
             return EnumValue<T>{ name, value };
         }
     };
@@ -65,24 +65,24 @@ namespace sm::config {
 
     struct ChoiceWrapper {
         template<typename T>
-        constexpr auto operator=(std::initializer_list<EnumValue<T>> values) const {
+        constexpr auto operator=(std::initializer_list<EnumValue<T>> values) const noexcept {
             return EnumOptions<T>{values};
         }
 
         template<typename T>
-        constexpr auto operator()(std::initializer_list<EnumValue<T>> values) const {
+        constexpr auto operator()(std::initializer_list<EnumValue<T>> values) const noexcept {
             return EnumOptions<T>{values};
         }
     };
 
     struct FlagsWrapper {
         template<typename T>
-        constexpr auto operator=(std::initializer_list<EnumValue<T>> values) const {
+        constexpr auto operator=(std::initializer_list<EnumValue<T>> values) const noexcept {
             return EnumFlags<T>{values};
         }
 
         template<typename T>
-        constexpr auto operator()(std::initializer_list<EnumValue<T>> values) const {
+        constexpr auto operator()(std::initializer_list<EnumValue<T>> values) const noexcept {
             return EnumFlags<T>{values};
         }
     };
@@ -90,33 +90,33 @@ namespace sm::config {
     template<template<typename> typename T>
     struct ValueWrapper {
         template<typename V>
-        constexpr T<V> operator=(T<V> value) const {
+        constexpr T<V> operator=(T<V> value) const noexcept {
             return value;
         }
 
         template<typename V>
-        constexpr T<V> operator()(T<V> value) const {
+        constexpr T<V> operator()(T<V> value) const noexcept {
             return value;
         }
 
         template<typename V>
-        constexpr T<V> operator=(V value) const {
+        constexpr T<V> operator=(V value) const noexcept {
             return T<V>{value};
         }
 
         template<typename V>
-        constexpr T<V> operator()(V value) const {
+        constexpr T<V> operator()(V value) const noexcept {
             return T<V>{value};
         }
     };
 
     template<typename T, typename V>
     struct ConfigWrapper {
-        constexpr T operator=(V value) const {
+        constexpr T operator=(V value) const noexcept {
             return T{value};
         }
 
-        constexpr T operator()(V value) const {
+        constexpr T operator()(V value) const noexcept {
             return T{value};
         }
     };

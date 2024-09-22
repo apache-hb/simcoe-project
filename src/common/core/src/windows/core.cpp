@@ -10,7 +10,7 @@ static MODULEINFO getModuleInfo() {
     return result;
 }
 
-bool sm::isInStaticStorage(const void *ptr) noexcept {
+bool sm::isInStaticStorage(const void *ptr, [[maybe_unused]] bool fallback) noexcept {
     static MODULEINFO info = getModuleInfo();
     return ptr >= info.lpBaseOfDll && ptr < (char*)info.lpBaseOfDll + info.SizeOfImage;
 }

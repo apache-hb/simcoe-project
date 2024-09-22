@@ -56,7 +56,7 @@ namespace sm {
         virtual void error_frame(bt_address_t) = 0;
         virtual void error_end() = 0;
 
-        constexpr ISystemError()
+        constexpr ISystemError() noexcept
             : bt_error_t{wrap_begin, wrap_end, wrap_frame, this}
         { }
     };

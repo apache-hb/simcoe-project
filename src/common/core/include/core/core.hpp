@@ -33,11 +33,11 @@ namespace sm {
 
     template<typename T>
     struct Empty {
-        constexpr Empty() = default;
-        constexpr Empty(const T&) { }
-        constexpr Empty(T&&) { }
+        constexpr Empty() noexcept = default;
+        constexpr Empty(const T&) noexcept(std::is_nothrow_copy_constructible_v<T>) { }
+        constexpr Empty(T&&) noexcept(std::is_nothrow_move_constructible_v<T>) { }
 
-        constexpr void operator=(T&&) const { }
+        constexpr void operator=(T&&) const noexcept(std::is_nothrow_move_constructible_v<T>) { }
     };
 
     constexpr bool isPowerOf2(auto it) {
@@ -52,10 +52,10 @@ namespace sm {
     template<typename T>
     concept numeric = std::integral<T> || std::floating_point<T>;
 
-    bool isInStaticStorage(const void *ptr) noexcept;
+    bool isInStaticStorage(const void *ptr, bool fallback = false) noexcept;
 
-    bool isStaticStorage(const auto *ptr) noexcept {
-        return isInStaticStorage((const void *)ptr);
+    bool isStaticStorage(const auto *ptr, bool fallback = false) noexcept {
+        return isInStaticStorage((const void *)ptr, fallback);
     }
 }
 

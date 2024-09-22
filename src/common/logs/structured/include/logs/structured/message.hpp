@@ -91,10 +91,10 @@ namespace sm::logs::structured {
         sm::logs::structured::detail::fmtMessage<LogMessageImpl>(__VA_ARGS__); \
     } while (false)
 
-#define LOG_TRACE(...) LOG_MESSAGE(sm::logs::Severity::eTrace,  __VA_ARGS__)
-#define LOG_DEBUG(...) LOG_MESSAGE(sm::logs::Severity::eDebug,  __VA_ARGS__)
-#define LOG_INFO(...) LOG_MESSAGE(sm::logs::Severity::eInfo,    __VA_ARGS__)
-#define LOG_WARN(...) LOG_MESSAGE(sm::logs::Severity::eWarning, __VA_ARGS__)
-#define LOG_ERROR(...) LOG_MESSAGE(sm::logs::Severity::eError,  __VA_ARGS__)
-#define LOG_FATAL(...) LOG_MESSAGE(sm::logs::Severity::eFatal,  __VA_ARGS__)
-#define LOG_PANIC(...) LOG_MESSAGE(sm::logs::Severity::ePanic,  __VA_ARGS__)
+#define LOG_TRACE(...) LOG_MESSAGE(sm::logs::Severity::eTrace,   __VA_ARGS__)
+#define LOG_DEBUG(...) LOG_MESSAGE(sm::logs::Severity::eDebug,   __VA_ARGS__)
+#define LOG_INFO(...)  LOG_MESSAGE(sm::logs::Severity::eInfo,    __VA_ARGS__)
+#define LOG_WARN(...)  LOG_MESSAGE(sm::logs::Severity::eWarning, __VA_ARGS__)
+#define LOG_ERROR(...) LOG_MESSAGE(sm::logs::Severity::eError,   __VA_ARGS__)
+#define LOG_FATAL(...) LOG_MESSAGE(sm::logs::Severity::eFatal,   __VA_ARGS__)
+#define LOG_PANIC(...) LOG_MESSAGE(sm::logs::Severity::ePanic,   __VA_ARGS__)
