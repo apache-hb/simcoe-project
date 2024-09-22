@@ -109,7 +109,7 @@ xclang_args = [
     '-ffast-math',
     '-fno-math-errno',
     '-fnew-infallible',
-    '-fassume-nothrow-exception-dtor'
+    '-fassume-nothrow-exception-dtor',
 ]
 
 xclang_cpp_args = [
@@ -118,7 +118,7 @@ xclang_cpp_args = [
 
     # TODO: this could be UB in the future
     # note: if formatting is doing weird stuff check here
-    '-Wno-nan-infinity-disabled'
+    '-Wno-nan-infinity-disabled',
 ]
 
 foreach arg : xclang_args

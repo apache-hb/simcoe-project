@@ -1,4 +1,4 @@
-llvm = dependency('llvm', modules : [ 'core' ], method : 'cmake', static : true)
+llvm = dependency('llvm', modules : [ 'core', 'support', 'option', 'frontendopenmp', 'windowsdriver' ], method : 'cmake', static : true)
 llvm_libdir = llvm.get_variable(cmake : 'LLVM_LIBRARY_DIRS')
 
 deps = [

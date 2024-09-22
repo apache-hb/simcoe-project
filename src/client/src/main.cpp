@@ -278,7 +278,7 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
     context.destroy();
 }
 
-static int client_main(sys::ShowWindow show) {
+static int clientMain(sys::ShowWindow show) {
     archive::RecordStoreConfig store_config = {
         .path = "client.bin",
         .size = {1, Memory::eMegabytes},
@@ -308,7 +308,7 @@ static int commonMain(sys::ShowWindow show) {
     logs::gGlobal.info("SMC_DEBUG = {}", SMC_DEBUG);
     logs::gGlobal.info("CTU_DEBUG = {}", CTU_DEBUG);
 
-    int result = client_main(show);
+    int result = clientMain(show);
 
     logs::gGlobal.info("client exiting with {}", result);
 
