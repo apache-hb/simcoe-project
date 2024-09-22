@@ -4,7 +4,7 @@ project('microsoft-gdk',
     version : '10.25398.1897',
     license : 'LicenseRef-Proprietary',
     license_files : [ 'LICENSE.md' ],
-    meson_version : '>=1.1.0'
+    meson_version : '>=1.1.0',
 )
 
 host_cpu = host_machine.cpu_family()

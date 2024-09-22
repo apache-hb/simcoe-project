@@ -1,5 +1,5 @@
-llvm = dependency('llvm', components : ['core'], method : 'config-tool', static : true)
-llvm_libdir = llvm.get_variable(configtool: 'libdir')
+llvm = dependency('llvm', modules : [ 'core' ], method : 'cmake', static : true)
+llvm_libdir = llvm.get_variable(cmake : 'LLVM_LIBRARY_DIRS')
 
 deps = [
     cpp.find_library('clangBasic', dirs : llvm_libdir),

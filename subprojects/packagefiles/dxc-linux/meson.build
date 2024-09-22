@@ -5,7 +5,7 @@ project('dxc', 'c',
     # all other files are licensed under the LLVM license
     license : 'LicenseRef-Proprietary AND MIT AND LLVM',
     license_files : [ 'LICENSE-MS.txt', 'LICENSE-LLVM.txt' ],
-    meson_version : '>=1.1.0'
+    meson_version : '>=1.1.0',
 )
 
 host_cpu = host_machine.cpu_family()

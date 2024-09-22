@@ -28,7 +28,8 @@ project('freetype2', 'c',
                        'include/freetype/freetype.h',
                        check: true).stdout().strip(),
   license: 'FLT',
-  license_files : [ 'LICENSE.TXT' ]
+  license_files : [ 'LICENSE.TXT' ],
+  meson_version : '>=1.1.0',
 )
 
 

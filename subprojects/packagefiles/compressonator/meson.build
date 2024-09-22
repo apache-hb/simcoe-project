@@ -6,7 +6,8 @@ project('compressonator', 'cpp',
     ],
     version : '4.5.0',
     license : 'LicenseRef-Proprietary',
-    license_files : [ 'license/license_file' ]
+    license_files : [ 'license/license_file' ],
+    meson_version : '>=1.1.0',
 )
 
 cpp = meson.get_compiler('cpp')

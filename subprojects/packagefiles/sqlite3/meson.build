@@ -1,4 +1,6 @@
-project('sqlite3', 'c')
+project('sqlite3', 'c',
+    version : '3.4.6'
+)
 
 src = [
     'alter.c',

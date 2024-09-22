@@ -4,7 +4,8 @@ project('nvapi', 'cpp',
     version : '550.0.0',
     # all headers and binaries are licensed as all rights reserved by Nvidia
     license : 'LicenseRef-Proprietary',
-    license_files : [ 'License.txt' ]
+    license_files : [ 'License.txt' ],
+    meson_version : '>=1.1.0',
 )
 
 fs = import('fs')

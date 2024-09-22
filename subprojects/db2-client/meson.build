@@ -1,4 +1,4 @@
-project('db2cli', 'c',
+project('db2-client', 'c',
     version : '19.0.0'
 )
 

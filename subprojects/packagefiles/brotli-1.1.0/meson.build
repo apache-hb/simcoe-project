@@ -23,7 +23,8 @@ project(
   'c',
   license: 'MIT',
   version: '1.1.0',
-  license_files: [ 'LICENSE' ]
+  license_files: [ 'LICENSE' ],
+  meson_version : '>=1.1.0',
 )
 
 cc = meson.get_compiler('c')

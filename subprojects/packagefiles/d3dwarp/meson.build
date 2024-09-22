@@ -2,7 +2,7 @@ project('d3d-warp',
     version : '1.0.11',
     license : 'LicenseRef-Proprietary',
     license_files : [ 'LICENSE.txt' ],
-    meson_version : '>=1.1.0'
+    meson_version : '>=1.1.0',
 )
 
 host_cpu = host_machine.cpu_family()

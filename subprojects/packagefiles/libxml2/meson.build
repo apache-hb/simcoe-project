@@ -2,8 +2,10 @@ project(
     'libxml2',
     'c',
     version: '2.13.2',
+    default_options: ['buildtype=debug', 'warning_level=3'],
     license: 'MIT',
-    default_options: ['buildtype=debug', 'warning_level=3']
+    license_files: ['Copyright'],
+    meson_version : '>=1.1.0',
 )
 
 add_project_arguments(['-D_CRT_SECURE_NO_WARNINGS=1', '-D_CRT_NONSTDC_NO_WARNINGS=1'], language : 'c')

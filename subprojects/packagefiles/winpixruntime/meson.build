@@ -1,7 +1,8 @@
 project('winpixruntime', 'c',
     version : '1.0.231030001',
     license : 'LicenseRef-Proprietary',
-    license_files : [ 'license.txt' ]
+    license_files : [ 'license.txt' ],
+    meson_version : '>=1.1.0',
 )
 
 host_cpu = host_machine.cpu_family()

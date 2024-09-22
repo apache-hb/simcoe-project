@@ -42,7 +42,7 @@ subprojects/*
 !subprojects/packagefiles
 !subprojects/packagefiles/**
 !subprojects/oracledb-client
-!subprojects/db2cli
+!subprojects/db2-client
 !subprojects/.clang-tidy
 adns/
 

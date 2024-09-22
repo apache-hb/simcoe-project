@@ -4,7 +4,8 @@ project('zlib-ng', 'c',
     license_files : 'LICENSE.md',
     default_options : [
         'c_std=c11'
-    ]
+    ],
+    meson_version : '>=1.1.0',
 )
 
 cc = meson.get_compiler('c')

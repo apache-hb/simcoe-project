@@ -5,7 +5,7 @@ project('fastgltf', 'cpp',
     ],
     license : 'MIT',
     license_files : [ 'LICENSE.md' ],
-    meson_version : '>=1.1.0'
+    meson_version : '>=1.1.0',
 )
 
 simdjson = dependency('simdjson', version : '>=3.3.0')

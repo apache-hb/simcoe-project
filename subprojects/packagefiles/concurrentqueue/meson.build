@@ -4,7 +4,9 @@ project(
     ['cpp'],
     # Dual licensing
     license: ['symplified-BSD', 'Boost 1.0'],
+    license_files : ['LICENSE.md'],
     version: '1.0.3',
+    meson_version : '>=1.1.0',
 )
 
 concurrentqueue_dep = declare_dependency(

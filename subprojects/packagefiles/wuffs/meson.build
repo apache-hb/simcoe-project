@@ -1,6 +1,7 @@
 project('wuffs', 'c',
     license : 'MIT AND Apache-2.0',
-    license_files : [ 'LICENSE', 'LICENSE-MIT', 'LICENSE-APACHE' ]
+    license_files : [ 'LICENSE', 'LICENSE-MIT', 'LICENSE-APACHE' ],
+    meson_version : '>=1.1.0',
 )
 
 config = {

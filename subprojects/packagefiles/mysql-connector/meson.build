@@ -1,7 +1,8 @@
 project('mysql-connector', 'cpp',
     version : '9.0.0',
     license : 'GPL-2.0',
-    license_files : [ 'LICENSE.txt' ]
+    license_files : [ 'LICENSE.txt' ],
+    meson_version : '>=1.1.0',
 )
 
 add_project_arguments([ '-D_CRT_SECURE_NO_WARNINGS', '-D_SCL_SECURE_NO_WARNINGS' ], language : 'cpp')

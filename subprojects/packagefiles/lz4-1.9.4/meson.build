@@ -380,7 +380,8 @@ project(
     'warning_level=3'
   ],
   version: '1.9.4',
-  license_files: [ 'lib/LICENSE' ]
+  license_files: [ 'lib/LICENSE' ],
+  meson_version : '>=1.1.0',
 )
 
 # upstream meson.build has this as c_args that get passed to nowhere

@@ -1,6 +1,6 @@
 project('argo', 'cpp',
     default_options : [
-        'cpp_std=c++11,c++14'
+        'cpp_std=c++14'
     ]
 )
 

@@ -235,12 +235,12 @@ winpixruntime = subproject('winpixruntime')
 dstorage = subproject('dstorage')
 windows = import('windows')
 
-magick = find_program(['magick', 'convert'], native : true)
+magick = find_program('magick', native : true)
 convert_utf16 = find_program('scripts/convert_utf16.py', native : true)
 
 default_ico = custom_target('default_icon',
     input : [ 'data/assets/icon/icon_circle.png' ],
-    command : [ magick, '@INPUT@', '-define', 'icon:auto-resize=256,128,48,32,16', '@OUTPUT@' ],
+    command : [ magick, 'convert', '@INPUT@', '-define', 'icon:auto-resize=256,128,48,32,16', '@OUTPUT@' ],
     output : [ 'icon_default.ico' ]
 )
 

@@ -1,6 +1,7 @@
 project('artery-font-format', 'cpp',
     license : 'MIT',
-    license_files : [ 'LICENSE.txt' ]
+    license_files : [ 'LICENSE.txt' ],
+    meson_version : '>=1.1.0',
 )
 
 artery_dep = declare_dependency(include_directories : '.')

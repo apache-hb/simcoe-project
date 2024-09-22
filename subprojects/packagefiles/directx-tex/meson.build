@@ -1,6 +1,7 @@
 project('directx-tex', 'cpp',
     license : 'MIT',
-    license_files : [ 'LICENSE' ]
+    license_files : [ 'LICENSE' ],
+    meson_version : '>=1.1.0',
 )
 
 src = [

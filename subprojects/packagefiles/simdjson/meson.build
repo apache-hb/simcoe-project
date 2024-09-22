@@ -3,6 +3,8 @@ project(
   'cpp',
   license: 'Apache-2.0',
   version: '3.9.0',
+  license_files: ['LICENSE'],
+  meson_version : '>=1.1.0',
 )
 
 simdjson_inc = include_directories('singleheader')

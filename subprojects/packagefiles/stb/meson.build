@@ -1,6 +1,7 @@
 project('stb', 'c',
     license : 'MIT OR UNLICENSE',
-    license_files : [ 'LICENSE' ]
+    license_files : [ 'LICENSE' ],
+    meson_version : '>=1.1.0',
 )
 
 fs = import('fs')

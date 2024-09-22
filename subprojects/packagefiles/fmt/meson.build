@@ -1,4 +1,10 @@
-project('fmt', 'cpp', version: '10.1.1', license: 'BSD', default_options: ['cpp_std=c++14'])
+project('fmt', 'cpp',
+  default_options: ['cpp_std=c++14'],
+  version: '10.1.1',
+  license: 'BSD',
+  license_files: ['LICENSE'],
+  meson_version : '>=1.1.0',
+)
 
 fmt_private_cpp_args = []
 fmt_interface_cpp_args = []
