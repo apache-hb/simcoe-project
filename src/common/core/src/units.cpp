@@ -4,7 +4,7 @@
 
 using namespace sm;
 
-SmallString<64> Memory::toString() const noexcept {
+Memory::String Memory::toString() const noexcept {
     if (mBytes == 0) { return "0b"; }
 
     sm::FormatBuffer buffer;
@@ -25,5 +25,5 @@ SmallString<64> Memory::toString() const noexcept {
         }
     }
 
-    return SmallString<64>(buffer.data(), buffer.size());
+    return String(buffer.data(), buffer.size());
 }

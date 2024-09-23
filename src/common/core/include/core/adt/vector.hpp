@@ -207,7 +207,7 @@ namespace sm {
 
         // size query
 
-        constexpr ssize_t capacity() const noexcept { return mCapacity - this->mFront; }
+        [[nodiscard]] constexpr ssize_t capacity() const noexcept { return mCapacity - this->mFront; }
 
         // element access
 

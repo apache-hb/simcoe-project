@@ -5,11 +5,17 @@
 
 #include <expected>
 #include <string>
+#include <chrono>
 
 #include <WinSock2.h>
 
 // 12000 to 12999 are available for use by applications
-#define SNET_END_OF_PACKET 12000
+#define SNET_FIRST_STATUS 12000
+
+#define SNET_END_OF_PACKET 12001
+#define SNET_READ_TIMEOUT 12002
+
+#define SNET_LAST_STATUS 12999
 
 namespace sm::net {
     class NetError {
@@ -21,7 +27,7 @@ namespace sm::net {
 
         int code() const noexcept { return mCode; }
         std::string_view message() const noexcept { return mMessage; }
-        const char *c_str() const noexcept { return mMessage.c_str(); }
+        const char *what() const noexcept { return mMessage.c_str(); }
 
         [[noreturn]]
         void raise() const throws(NetException);
@@ -29,8 +35,12 @@ namespace sm::net {
         void throwIfFailed() const throws(NetException);
 
         operator bool() const noexcept { return mCode != 0; }
+        bool isSuccess() const noexcept { return mCode == 0; }
 
         bool cancelled() const noexcept { return mCode == WSAEINTR; }
+        bool timeout() const noexcept { return mCode == SNET_READ_TIMEOUT; }
+
+        static NetError ok() noexcept { return NetError{0}; }
     };
 
     class NetException : public std::exception {
@@ -41,7 +51,7 @@ namespace sm::net {
             : mError(std::move(error))
         { }
 
-        const char *what() const noexcept override { return mError.c_str(); }
+        const char *what() const noexcept override { return mError.what(); }
     };
 
     template<typename T>
@@ -66,11 +76,16 @@ namespace sm::net {
         const uint8_t *address() const noexcept { return mAddress; }
 
         static constexpr IPv4Address loopback() noexcept {
-            return IPv4Address(127, 0, 0, 1);
+            return { 127, 0, 0, 1 };
         }
     };
 
     std::string toString(const IPv4Address& addr) noexcept;
+
+    struct [[nodiscard]] ReadResult {
+        size_t size;
+        NetError error;
+    };
 
     class Socket {
     protected:
@@ -103,6 +118,8 @@ namespace sm::net {
         NetResult<size_t> sendBytes(const void *data, size_t size) noexcept;
         NetResult<size_t> recvBytes(void *data, size_t size) noexcept;
 
+        ReadResult recvBytesTimeout(void *data, size_t size, std::chrono::milliseconds timeout) noexcept;
+
         template<typename T> requires (std::is_standard_layout_v<T>)
         NetResult<T> recv() noexcept {
             T value;
@@ -112,6 +129,10 @@ namespace sm::net {
 
             return value;
         }
+
+        NetError setBlocking(bool blocking) noexcept;
+        NetError setRecvTimeout(std::chrono::milliseconds timeout) noexcept;
+        NetError setSendTimeout(std::chrono::milliseconds timeout) noexcept;
     };
 
     class ListenSocket : public Socket {

@@ -11,6 +11,8 @@
 using namespace sm;
 using namespace sm::net;
 
+namespace chrono = std::chrono;
+
 static NetError lastNetError() noexcept {
     return NetError{WSAGetLastError()};
 }
@@ -62,6 +64,69 @@ NetResult<size_t> Socket::recvBytes(void *data, size_t size) noexcept {
 
     return received;
 }
+
+ReadResult Socket::recvBytesTimeout(void *data, size_t size, std::chrono::milliseconds timeout) noexcept {
+    const chrono::time_point start = chrono::steady_clock::now();
+    size_t consumed = 0;
+
+    auto timeoutReached = [&] { return start + timeout < chrono::steady_clock::now(); };
+
+    while (!timeoutReached() && consumed < size) {
+        char *ptr = static_cast<char *>(data) + consumed;
+        int remaining = size - consumed;
+
+        int received = ::recv(mSocket, ptr, remaining, 0);
+        if (received > 0) {
+            consumed += received;
+
+            if (consumed >= size)
+                return { consumed, NetError::ok() };
+
+        } else {
+            int lastError = WSAGetLastError();
+            if (lastError != WSAEWOULDBLOCK)
+                return { consumed, NetError{lastError} };
+
+        }
+    }
+
+    return { consumed, NetError{SNET_READ_TIMEOUT} };
+}
+
+NetError Socket::setBlocking(bool blocking) noexcept {
+    u_long mode = blocking ? 0 : 1;
+    if (ioctlsocket(mSocket, FIONBIO, &mode))
+        return lastNetError();
+
+    return NetError::ok();
+}
+
+NetError Socket::setRecvTimeout(std::chrono::milliseconds timeout) noexcept {
+    auto count = timeout.count();
+    struct timeval tv = {
+        .tv_sec = static_cast<long>(count / 1000),
+        .tv_usec = static_cast<long>((count % 1000))
+    };
+
+    if (setsockopt(mSocket, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&tv), sizeof(tv)))
+        return lastNetError();
+
+    return NetError::ok();
+}
+
+NetError Socket::setSendTimeout(std::chrono::milliseconds timeout) noexcept {
+    auto count = timeout.count();
+    struct timeval tv = {
+        .tv_sec = static_cast<long>(count / 1000),
+        .tv_usec = static_cast<long>((count % 1000))
+    };
+
+    if (setsockopt(mSocket, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&tv), sizeof(tv)))
+        return lastNetError();
+
+    return NetError::ok();
+}
+
 
 ///
 /// listen socket

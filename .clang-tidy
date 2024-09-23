@@ -1,11 +1,10 @@
 Checks:
-  - 'performance*,portability*,bugprone*,clang-analyzer*,cert*,concurrency*,readability-identifier-naming'
+  - 'performance*,portability*,bugprone*,clang-analyzer*,cert*,concurrency*'
   - '-bugprone-easily-swappable-parameters'
   - '-performance-no-int-to-ptr'
   - '-bugprone-lambda-function-name'
   - '-bugprone-dynamic-static-initializers'
   - '-bugprone-narrowing-conversions'
-  - 'bugprone-exception-escape'
 CheckOptions:
   - { key: readability-identifier-naming.VariableCase, value: lower_case }
   - { key: readability-identifier-naming.ParameterCase, value: aNy_CasE }

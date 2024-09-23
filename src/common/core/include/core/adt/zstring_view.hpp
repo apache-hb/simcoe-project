@@ -4,19 +4,29 @@
 #include "core/adt/small_string.hpp"
 
 namespace sm {
-    template<std::integral T>
+    template<typename T>
+    concept IsChar
+        = std::same_as<T, char>
+        || std::same_as<T, char8_t>
+        || std::same_as<T, char16_t>
+        || std::same_as<T, char32_t>
+        || std::same_as<T, wchar_t>;
+
+    template<IsChar T>
     constexpr size_t zstrlen(const T *str) {
         size_t length = 0;
-        while (*str++)
-            ++length;
+        while (*str++) {
+            length += 1;
+        }
         return length;
     }
 
-    template<std::integral T>
-    class ZStringViewBase final : public core::detail::Collection<const T> {
+    template<IsChar T>
+    class BasicZStringView final : public core::detail::Collection<const T> {
         using Super = core::detail::Collection<const T>;
+        using Self = BasicZStringView;
 
-        static constexpr inline T kEmptyString[] = { T(0) };
+        static constexpr T kEmptyString[] = { T(0) };
 
         constexpr void verifyZString() const noexcept {
             CTASSERTF(this->getFront() <= this->getBack(), "mFront is greater than mBack");
@@ -27,86 +37,87 @@ namespace sm {
         using String = std::basic_string<T>;
         using View = std::basic_string_view<T>;
 
-        constexpr ZStringViewBase(const T *front, const T *back) noexcept
+        constexpr BasicZStringView(const T *front, const T *back) noexcept
             : Super(front, back)
         {
             verifyZString();
         }
 
-        constexpr ZStringViewBase() noexcept
-            : ZStringViewBase(kEmptyString)
+        constexpr BasicZStringView() noexcept
+            : Self(kEmptyString)
         { }
 
-        constexpr ZStringViewBase(const T *front, size_t length) noexcept
-            : ZStringViewBase(front, front + length)
-        { }
-
-        template<size_t N>
-        constexpr ZStringViewBase(T (&str)[N]) noexcept
-            : ZStringViewBase(str, N)
-        { }
-
-        constexpr ZStringViewBase(const T *front) noexcept
-            : ZStringViewBase(front, front + zstrlen(front))
-        { }
-
-        constexpr ZStringViewBase(const std::basic_string<T> &str) noexcept
-            : ZStringViewBase(str.c_str(), str.c_str() + str.size())
+        constexpr BasicZStringView(const T *front, size_t length) noexcept
+            : Self(front, front + length)
         { }
 
         template<size_t N>
-        constexpr ZStringViewBase(const SmallString<N>& str) noexcept
-            : ZStringViewBase(str.data(), str.data() + str.size())
+        constexpr BasicZStringView(T (&str)[N]) noexcept
+            : Self(str, N)
         { }
 
-        constexpr auto *c_str(this auto& self) noexcept { return self.getFront(); }
-        constexpr size_t length() const noexcept { return Super::size(); }
+        constexpr BasicZStringView(const T *front) noexcept
+            : Self(front, front + zstrlen(front))
+        { }
 
-        constexpr std::strong_ordering operator<=>(const ZStringViewBase& other) const noexcept {
+        constexpr BasicZStringView(const std::basic_string<T> &str) noexcept
+            : Self(str.c_str(), str.c_str() + str.size())
+        { }
+
+        template<size_t N>
+        constexpr BasicZStringView(const SmallString<N>& str) noexcept
+            : Self(str.data(), str.data() + str.size())
+        { }
+
+        [[nodiscard]] constexpr const T *c_str() const noexcept { return this->mFront; }
+
+        [[nodiscard]] constexpr size_t length() const noexcept { return Super::size(); }
+
+        constexpr std::strong_ordering operator<=>(const Self& other) const noexcept {
             return std::lexicographical_compare_three_way(this->cbegin(), this->cend(), other.cbegin(), other.cend());
         }
 
-        constexpr bool operator==(const ZStringViewBase& other) const noexcept {
+        constexpr bool operator==(const Self& other) const noexcept {
             return std::equal(this->cbegin(), this->cend(), other.cbegin(), other.cend());
         }
 
-        constexpr bool startsWith(const ZStringViewBase& other) const noexcept {
+        [[nodiscard]] constexpr bool startsWith(const Self& other) const noexcept {
             return Super::size() >= other.size() && std::equal(other.cbegin(), other.cend(), this->cbegin());
         }
 
-        constexpr bool endsWith(const ZStringViewBase& other) const noexcept {
+        [[nodiscard]] constexpr bool endsWith(const Self& other) const noexcept {
             return Super::size() >= other.size() && std::equal(other.cbegin(), other.cend(), this->cend() - other.size());
         }
 
-        constexpr View toStringView() const noexcept {
+        [[nodiscard]] constexpr View toStringView() const noexcept {
             return View(this->data(), this->size());
         }
 
-        constexpr String toString() const noexcept {
+        [[nodiscard]] constexpr String toString() const noexcept {
             return String(this->data(), this->size());
         }
     };
 
     constexpr bool isNullTerminated(std::string_view view) {
-        return view.data()[view.size()] == '\0';
+        return view[view.size()] == '\0';
     }
 
-    extern template class ZStringViewBase<char>;
-    extern template class ZStringViewBase<char8_t>;
-    extern template class ZStringViewBase<char16_t>;
-    extern template class ZStringViewBase<char32_t>;
-    extern template class ZStringViewBase<wchar_t>;
+    extern template class BasicZStringView<char>;
+    extern template class BasicZStringView<char8_t>;
+    extern template class BasicZStringView<char16_t>;
+    extern template class BasicZStringView<char32_t>;
+    extern template class BasicZStringView<wchar_t>;
 
-    using ZStringView = ZStringViewBase<char>;
-    using ZStringViewWide = ZStringViewBase<wchar_t>;
+    using ZStringView = BasicZStringView<char>;
+    using ZStringViewWide = BasicZStringView<wchar_t>;
 
     namespace literals {
         constexpr ZStringView operator""_zsv(const char *str, size_t length) noexcept {
-            return ZStringView(str, length);
+            return {str, length};
         }
 
         constexpr ZStringViewWide operator""_zsv(const wchar_t *str, size_t length) noexcept {
-            return ZStringViewWide(str, length);
+            return {str, length};
         }
     }
 }

@@ -23,7 +23,7 @@ namespace sm {
             , mCapacity(capacity)
         { }
 
-        constexpr bool isValidSize(ssize_t size) const noexcept {
+        [[nodiscard]] constexpr bool isValidSize(ssize_t size) const noexcept {
             return size >= 0 && size <= capacity();
         }
 
@@ -59,7 +59,7 @@ namespace sm {
         }
 
     public:
-        constexpr ssize_t capacity() const noexcept { return mCapacity - this->mFront; }
+        [[nodiscard]] constexpr ssize_t capacity() const noexcept { return mCapacity - this->mFront; }
 
         constexpr ~SmallVectorBase() noexcept {
             std::destroy(this->mFront, this->mBack);

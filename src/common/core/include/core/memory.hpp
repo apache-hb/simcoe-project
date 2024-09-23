@@ -22,6 +22,8 @@ namespace sm {
         static constexpr size_t kGigabyte = kMegabyte * 1024;
         static constexpr size_t kTerabyte = kGigabyte * 1024;
 
+        using String = SmallString<64>;
+
         static constexpr size_t kSizes[eLimit] = {
             kByte,
             kKilobyte,
@@ -46,7 +48,7 @@ namespace sm {
 
         friend constexpr auto operator<=>(const Memory& lhs, const Memory& rhs) = default;
 
-        SmallString<64> toString() const noexcept;
+        String toString() const noexcept;
 
     private:
         size_t mBytes;

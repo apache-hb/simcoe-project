@@ -18,11 +18,18 @@ net = declare_dependency(
     dependencies : [ core ]
 )
 
-exe = executable('test-net', 'test/net.cpp',
-    dependencies : [ net, coretest ]
-)
+testcases = {
+    'Client Server communication': 'test/client_server.cpp',
+    'Timeout on client recv': 'test/timeout_recv.cpp',
+}
 
-test('Net', exe,
-    suite : 'net',
-    kwargs : testkwargs
-)
+foreach name, source : testcases
+    exe = executable('test-net-' + name, source,
+        dependencies : [ net, coretest ]
+    )
+
+    test(name, exe,
+        suite : 'net',
+        kwargs : testkwargs
+    )
+endforeach
