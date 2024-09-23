@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<root name="editor">
+<root name="archive">
     <table name="window_placement" singleton="true">
         <column name="flags"             type="uint" />
         <column name="show_cmd"          type="uint" />

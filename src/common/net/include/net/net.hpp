@@ -8,6 +8,9 @@
 
 #include <WinSock2.h>
 
+// 12000 to 12999 are available for use by applications
+#define SNET_END_OF_PACKET 12000
+
 namespace sm::net {
     class NetError {
         int mCode;
@@ -99,6 +102,16 @@ namespace sm::net {
 
         NetResult<size_t> sendBytes(const void *data, size_t size) noexcept;
         NetResult<size_t> recvBytes(void *data, size_t size) noexcept;
+
+        template<typename T> requires (std::is_standard_layout_v<T>)
+        NetResult<T> recv() noexcept {
+            T value;
+            auto result = TRY_RESULT(recvBytes(&value, sizeof(T)));
+            if (result != sizeof(T))
+                return std::unexpected{NetError(SNET_END_OF_PACKET)};
+
+            return value;
+        }
     };
 
     class ListenSocket : public Socket {

@@ -164,7 +164,7 @@ namespace sm {
     }
 
     template<typename T, typename TDelete = DefaultDelete<T>>
-    constexpr UniquePtr<T, TDelete> makeUnique(auto&&... args) noexcept {
+    constexpr UniquePtr<T, TDelete> makeUnique(auto&&... args) noexcept(noexcept(T(std::forward<decltype(args)>(args)...))) {
         return UniquePtr<T, TDelete>(new T(std::forward<decltype(args)>(args)...));
     }
 

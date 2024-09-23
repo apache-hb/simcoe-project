@@ -30,7 +30,7 @@
 
 #include "logs/structured/message.hpp"
 
-#include "editor.dao.hpp"
+#include "archive.dao.hpp"
 
 using namespace sm;
 using namespace sm::math;
@@ -104,7 +104,7 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     static constexpr math::int2 kMinWindowSize = { 128, 128 };
 
     void saveWindowPlacement(const WINDOWPLACEMENT& placement) noexcept {
-        sm::dao::editor::WindowPlacement dao {
+        sm::dao::archive::WindowPlacement dao {
             .flags = placement.flags,
             .showCmd = placement.showCmd,
             .minPositionX = placement.ptMinPosition.x,
@@ -123,7 +123,7 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     }
 
     std::optional<WINDOWPLACEMENT> loadWindowPlacement() noexcept {
-        auto result = mConnection.trySelectOne<sm::dao::editor::WindowPlacement>();
+        auto result = mConnection.trySelectOne<sm::dao::archive::WindowPlacement>();
         if (!result.has_value()) {
             logs::gGlobal.warn("failed to load window placement: {}", result.error().message());
             return std::nullopt;
@@ -208,7 +208,7 @@ public:
             }
         };
 
-        if (db::DbError error = connection.tryCreateTable(sm::dao::editor::WindowPlacement::getTableInfo())) {
+        if (db::DbError error = connection.tryCreateTable(sm::dao::archive::WindowPlacement::getTableInfo())) {
             logs::gAssets.warn("update failed: {}", error.message());
         }
 
@@ -358,7 +358,7 @@ static void message_loop(sys::ShowWindow show) {
 
         .swapchain = {
             .size = uint2(client),
-            .length = 2,
+            .length = 8,
             .format = DXGI_FORMAT_R8G8B8A8_UNORM,
         },
 

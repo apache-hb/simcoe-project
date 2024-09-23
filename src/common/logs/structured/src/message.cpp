@@ -131,8 +131,11 @@ static AttributeInfoVec getAttributes(std::string_view message) noexcept {
             break;
         }
 
+        auto id = message.substr(start + 1, end - start - 1);
+        CTASSERTF(!id.empty(), "Empty message attribute in message: %.*s", (int)message.size(), message.data());
+
         MessageAttributeInfo info {
-            .name = message.substr(start + 1, end - start - 1)
+            .name = id
         };
 
         attributes.emplace_back(info);

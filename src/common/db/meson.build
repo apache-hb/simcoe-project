@@ -116,6 +116,10 @@ src = [ 'src/daocc/main.cpp' ]
 
 libxml = dependency('libxml-2.0')
 
+dao = declare_dependency(
+    include_directories : 'include',
+)
+
 daocc_exe = executable('daocc', src,
     cpp_pch : 'src/daocc/stdafx.hpp',
     cpp_args : cpp.get_supported_arguments('-Wno-unused-variable'),

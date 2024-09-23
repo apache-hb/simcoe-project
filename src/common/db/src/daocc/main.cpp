@@ -772,8 +772,6 @@ int main(int argc, const char **argv) {
         return 1;
     }
 
-    xmlDocDump(stdout, doc);
-
     xmlNodePtr root = xmlDocGetRootElement(doc);
     Root dao = buildDaoRoot(root);
 

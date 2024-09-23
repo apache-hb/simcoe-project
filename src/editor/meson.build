@@ -1,7 +1,7 @@
 subdir('project')
 subdir('editor')
 
-src = [ files('src/main.cpp'), daocc.process('src/editor.xml') ]
+src = [ files('src/main.cpp') ]
 pch = meson.current_source_dir() / 'src/stdafx.hpp'
 
 deps = [ editorgui, system, db, structured_logs ]

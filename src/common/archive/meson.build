@@ -9,11 +9,12 @@ src = [
 
     reflect.process('data/format.ct'),
     reflect.process('data/io.ct'),
-    reflect.process('data/record.ct')
+    reflect.process('data/record.ct'),
+    daocc.process('data/archive.xml'),
 ]
 
 deps = [
-    core, logs, math,
+    core, logs, math, dao,
     cthulhu.get_variable('io')
 ]
 

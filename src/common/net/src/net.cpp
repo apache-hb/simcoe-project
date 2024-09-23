@@ -94,7 +94,7 @@ NetError ListenSocket::listen(int backlog) noexcept {
 void Network::cleanup() noexcept {
     int result = WSACleanup();
     if (result != 0) {
-        LOG_ERROR("WSACleanup failed with error: {}", result);
+        LOG_ERROR("WSACleanup failed with error: {error}", result);
     }
 
     mData = WSADATA{};
@@ -110,9 +110,9 @@ NetResult<Network> Network::tryCreate() noexcept {
     if (int result = WSAStartup(MAKEWORD(2, 2), &data))
         return std::unexpected(NetError{result});
 
-    LOG_INFO("WSAStartup successful. version {}.{}", data.wVersion, data.wHighVersion);
+    LOG_INFO("WSAStartup successful. {wVersion}.{wHighVersion}", data.wVersion, data.wHighVersion);
 
-    LOG_INFO("Description: `{}`, Status: `{}`",
+    LOG_INFO("Description: `{szDescription}`, Status: `{szSystemStatus}`",
         std::string{data.szDescription},
         std::string{data.szSystemStatus}
     );

@@ -170,6 +170,10 @@ simcoe_config = configure_file(
 
 config_include = include_directories('.')
 
+###
+### engine modules
+###
+
 # we vendor fmtlib via a small shim header to hook FMT_THROW(x) into cthulhu's error handling
 subdir('src/vendor/fmtlib')
 
@@ -226,6 +230,12 @@ subdir('src/vendor/imnodes')
 subdir('src/vendor/imgui_memory_editor')
 
 subdir('src/common/game')
+
+###
+### game modules
+###
+
+subdir('src/game/packets')
 
 # windows specific dependencies
 agility = subproject('d3d12')

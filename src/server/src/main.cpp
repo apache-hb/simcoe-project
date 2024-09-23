@@ -7,7 +7,17 @@
 
 #include "logs/structured/message.hpp"
 
+#include "net/net.hpp"
+
+#include "packets/packets.hpp"
+
 using namespace sm;
+
+static sm::opt<bool> gRunAsClient {
+    name = "client",
+    desc = "Run as a client",
+    init = false
+};
 
 static fmt_backtrace_t print_options_make(io_t *io) {
     fmt_backtrace_t print = {
@@ -99,7 +109,7 @@ static void commonInit(void) {
     if (logs::isDebugConsoleAvailable())
         logger.addChannel(logs::getDebugConsole());
 
-    if (auto file = logs::FileChannel::open("editor.log"); file) {
+    if (auto file = logs::FileChannel::open("server.log"); file) {
         gFileChannel = std::move(file.value());
         logger.addChannel(gFileChannel);
     } else {
@@ -111,6 +121,35 @@ static void commonInit(void) {
     threads::init();
 }
 
+static constexpr net::IPv4Address kAddress = net::IPv4Address::loopback();
+static constexpr uint16_t kPort = 9989;
+
+__attribute__((target("crc32")))
+static uint32_t crc32(const std::byte *data, size_t size) {
+    uint32_t crc = 0;
+    while (size > sizeof(uint64_t)) {
+        crc = _mm_crc32_u64(crc, *reinterpret_cast<const uint64_t *>(data));
+        data += sizeof(uint64_t);
+        size -= sizeof(uint64_t);
+    }
+
+    while (size >= sizeof(uint8_t)) {
+        crc = _mm_crc32_u8(crc, *reinterpret_cast<const uint8_t *>(data));
+        data += sizeof(uint8_t);
+        size -= sizeof(uint8_t);
+    }
+
+    return crc;
+}
+
+static int clientMain() {
+    net::Network network = net::Network::create();
+
+    auto socket = network.connect(kAddress, kPort);
+
+    return 0;
+}
+
 static int serverMain() {
     const threads::CpuGeometry& geometry = threads::getCpuGeometry();
 
@@ -120,6 +159,68 @@ static int serverMain() {
     };
     threads::Scheduler scheduler{threadConfig, geometry};
 
+    bool running = true;
+
+    net::Network network = net::Network::create();
+
+    auto listener = network.bind(kAddress, kPort);
+
+    listener.listen(8).throwIfFailed();
+
+    while (running) {
+        auto maybeSocket = listener.tryAccept();
+        if (!maybeSocket && maybeSocket.error().cancelled()) {
+            break;
+        }
+
+        if (!maybeSocket) {
+            logs::gGlobal.error("failed to accept connection: {}", maybeSocket.error().message());
+            continue;
+        }
+
+        net::Socket socket = std::move(maybeSocket.value());
+        auto maybeHeader = socket.recv<game::PacketHeader>();
+        if (!maybeHeader) {
+            logs::gGlobal.error("failed to receive packet header: {}", maybeHeader.error().message());
+            continue;
+        }
+
+        game::PacketHeader header = maybeHeader.value();
+
+        std::byte buffer[512];
+        size_t size = game::getPacketDataSize(header);
+        auto maybeRead = socket.recvBytes(buffer, size);
+        if (!maybeRead) {
+            logs::gGlobal.error("failed to receive packet data: {}", maybeRead.error().message());
+            continue;
+        }
+
+        auto read = maybeRead.value();
+        if (read != size) {
+            logs::gGlobal.error("failed to receive all packet data: expected {}, got {}", size, read);
+            continue;
+        }
+
+        uint32_t crc = crc32(buffer, size);
+        if (crc != header.crc) {
+            logs::gGlobal.error("packet data crc mismatch: expected {:x}, got {:x}", header.crc, crc);
+            continue;
+        }
+
+        switch (header.type) {
+        case game::PacketType::eCreateAccountRequest: {
+            auto *packet = reinterpret_cast<game::CreateAccountRequestPacket *>(buffer);
+            logs::gGlobal.info("received create account request {} {}", packet->username, packet->password);
+            break;
+        }
+
+        default: {
+            logs::gGlobal.error("unknown packet type: {}", header.type);
+            break;
+        }
+        }
+    }
+
     return 0;
 }
 
@@ -127,9 +228,11 @@ static int commonMain() noexcept try {
     logs::gGlobal.info("SMC_DEBUG = {}", SMC_DEBUG);
     logs::gGlobal.info("CTU_DEBUG = {}", CTU_DEBUG);
 
-    int result = serverMain();
-
-    return result;
+    if (gRunAsClient.getValue()) {
+        return clientMain();
+    } else {
+        return serverMain();
+    }
 } catch (const std::exception& err) {
     logs::gGlobal.error("unhandled exception: {}", err.what());
     return -1;
