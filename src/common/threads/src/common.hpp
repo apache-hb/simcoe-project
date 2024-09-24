@@ -3,12 +3,14 @@
 #include "threads/threads.hpp"
 
 #include "core/library.hpp"
+#include "logs/structured/message.hpp"
 
 #define DLSYM(lib, name) lib.fn<decltype(&(name))>(#name)
 
+LOG_MESSAGE_CATEGORY(ThreadLog, "Threads");
+
 namespace sm::threads::detail {
     using FnGetSystemCpuSetInformation = decltype(&GetSystemCpuSetInformation);
-    using FnGetLogicalProcessorInformation = decltype(&GetLogicalProcessorInformation);
     using FnGetLogicalProcessorInformationEx = decltype(&GetLogicalProcessorInformationEx);
 
     struct CpuInfoLibrary {

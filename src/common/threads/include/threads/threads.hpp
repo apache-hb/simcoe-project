@@ -37,32 +37,6 @@ namespace sm::threads {
         eUnknown
     };
 
-    // each subcore belongs to only a single core.
-    enum struct ThreadIndex : uint16 {
-        eInvalid = UINT16_MAX
-    };
-
-    // a core will have 1 or more threads, and belongs to a single chiplet.
-    enum struct CoreIndex : uint16 {
-        eInvalid = UINT16_MAX
-    };
-
-    // a group will have 1 or more cores, and belongs to a single package.
-    enum struct GroupIndex : uint16 {
-        eInvalid = UINT16_MAX
-    };
-
-    // a package will have 1 or more chiplets
-    enum struct PackageIndex : uint16 {
-        eInvalid = UINT16_MAX
-    };
-
-    // a cache will have 1 or more segments, and belongs to a single package.
-    // it may span multiple groups, and will be identified by the same id.
-    enum struct CacheIndex : uint16 {
-        eInvalid = UINT16_MAX
-    };
-
     // scheduling mask for a single group
     struct ScheduleMask {
         GROUP_AFFINITY mask;
@@ -78,8 +52,6 @@ namespace sm::threads {
     };
 
     struct ProcessorCore : ScheduleMask {
-        std::vector<ThreadIndex> threads;
-
         uint16 schedule;  // schedule speed (lower is faster)
         uint8 efficiency; // efficiency (higher is more efficient)
     };
@@ -93,14 +65,11 @@ namespace sm::threads {
     };
 
     struct ProcessorPackage {
-        std::vector<ThreadIndex> threads;
-        std::vector<CoreIndex> cores;
-        std::vector<GroupIndex> groups;
-        std::vector<CacheIndex> caches;
+
     };
 
     struct Group {
-        std::vector<CoreIndex> cores;
+
     };
 
     struct ProcessorDie {

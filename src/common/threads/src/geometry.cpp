@@ -94,24 +94,30 @@ private:
 
 // GetLogicalProcessorInformationEx provides information about inter-core communication
 struct ProcessorInfoEx {
-    ProcessorInfoEx(LOGICAL_PROCESSOR_RELATIONSHIP relation, detail::FnGetLogicalProcessorInformationEx pfnGetLogicalProcessorInformationEx) noexcept {
-        if (pfnGetLogicalProcessorInformationEx(relation, nullptr, &mSize)) {
-            gThreadLog.warn("GetLogicalProcessorInformationEx{{1}} failed with error {}", sys::getLastError());
-            return;
+    static std::optional<ProcessorInfoEx> create(LOGICAL_PROCESSOR_RELATIONSHIP relation, detail::FnGetLogicalProcessorInformationEx pfnGetLogicalProcessorInformationEx) noexcept {
+        if (pfnGetLogicalProcessorInformationEx == nullptr) {
+            LOG_WARN(ThreadLog, "GetLogicalProcessorInformationEx not available");
+            return std::nullopt;
+        }
+
+        DWORD size = 0;
+        if (pfnGetLogicalProcessorInformationEx(relation, nullptr, &size)) {
+            LOG_WARN(ThreadLog, "GetLogicalProcessorInformationEx{{1}} failed with error {}", sys::getLastError());
+            return std::nullopt;
         }
 
         if (OsError err = sys::getLastError(); err != OsError(ERROR_INSUFFICIENT_BUFFER)) {
-            gThreadLog.warn("GetLogicalProcessorInformationEx{{2}} failed with error {}", err);
-            return;
+            LOG_WARN(ThreadLog, "GetLogicalProcessorInformationEx{{2}} failed with error {}", err);
+            return std::nullopt;
         }
 
-        mMemory = sm::UniquePtr<std::byte[]>(mSize);
-        if (!pfnGetLogicalProcessorInformationEx(relation, getBuffer(), &mSize)) {
-            gThreadLog.warn("GetLogicalProcessorInformationEx{{3}} failed with error {}", sys::getLastError());
-            return;
+        auto memory = sm::UniquePtr<std::byte[]>(size);
+        if (!pfnGetLogicalProcessorInformationEx(relation, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)memory.get(), &size)) {
+            LOG_WARN(ThreadLog, "GetLogicalProcessorInformationEx{{3}} failed with error {}", sys::getLastError());
+            return std::nullopt;
         }
 
-        mRemaining = mSize;
+        return ProcessorInfoEx{std::move(memory), size};
     }
 
     ProcessorInfoExIterator begin() const noexcept {
@@ -127,85 +133,14 @@ private:
         return reinterpret_cast<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *>(mMemory.get());
     }
 
-    sm::UniquePtr<std::byte[]> mMemory;
-    DWORD mSize = 0;
-
-    DWORD mRemaining = 0;
-};
-
-struct ProcessorInfoIterator {
-    ProcessorInfoIterator(SYSTEM_LOGICAL_PROCESSOR_INFORMATION *buffer, DWORD count) noexcept
-        : mBuffer(buffer)
-        , mCount(count)
+    ProcessorInfoEx(sm::UniquePtr<std::byte[]> memory, DWORD size) noexcept
+        : mMemory(std::move(memory))
+        , mRemaining(size)
     { }
 
-    SYSTEM_LOGICAL_PROCESSOR_INFORMATION *operator++() noexcept {
-        CTASSERT(mCount > 0);
-
-        mCount -= 1;
-        if (mCount > 0) {
-            mBuffer += 1;
-        }
-
-        return mBuffer;
-    }
-
-    SYSTEM_LOGICAL_PROCESSOR_INFORMATION *operator*() const noexcept {
-        return mBuffer;
-    }
-
-    bool operator==(const ProcessorInfoIterator &other) const noexcept {
-        return mCount == other.mCount;
-    }
-
-private:
-    SYSTEM_LOGICAL_PROCESSOR_INFORMATION *mBuffer;
-    DWORD mCount;
-};
-
-struct ProcessorInfo {
-    ProcessorInfo(detail::FnGetLogicalProcessorInformation pfnGetLogicalProcessorInformation) {
-        if (pfnGetLogicalProcessorInformation(nullptr, &mSize)) {
-            gThreadLog.warn("GetLogicalProcessorInformation{{1}} failed with error {}", sys::getLastError());
-            return;
-        }
-
-        if (OsError err = sys::getLastError(); err != OsError(ERROR_INSUFFICIENT_BUFFER)) {
-            gThreadLog.warn("GetLogicalProcessorInformation{{2}} failed with error {}", err);
-            return;
-        }
-
-        mMemory = sm::UniquePtr<std::byte[]>(mSize);
-
-        if (!pfnGetLogicalProcessorInformation(getBuffer(), &mSize)) {
-            gThreadLog.warn("GetLogicalProcessorInformation{{3}} failed with error {}", sys::getLastError());
-            return;
-        }
-
-        if (mSize % sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION) != 0) {
-            gThreadLog.warn("GetLogicalProcessorInformation{{4}} returned invalid size {}. not a multiple of {}", mSize, sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION));
-            return;
-        }
-
-        mCount = mSize / sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
-    }
-
-    ProcessorInfoIterator begin() const noexcept {
-        return ProcessorInfoIterator(getBuffer(), mCount);
-    }
-
-    ProcessorInfoIterator end() const noexcept {
-        return ProcessorInfoIterator(getBuffer(), 0);
-    }
-
-private:
-    SYSTEM_LOGICAL_PROCESSOR_INFORMATION *getBuffer() const noexcept {
-        return reinterpret_cast<SYSTEM_LOGICAL_PROCESSOR_INFORMATION*>(mMemory.get());
-    }
-
     sm::UniquePtr<std::byte[]> mMemory;
-    DWORD mSize = 0;
-    DWORD mCount = 0;
+
+    DWORD mRemaining = 0;
 };
 
 // GetSystemCpuSetInformation provides information about cpu speeds
@@ -240,45 +175,57 @@ private:
 };
 
 struct CpuSetInfo {
-    CpuSetInfo(detail::FnGetSystemCpuSetInformation pfnGetSystemCpuSetInformation) noexcept {
+    static std::optional<CpuSetInfo> create(detail::FnGetSystemCpuSetInformation pfnGetSystemCpuSetInformation) noexcept {
+        if (pfnGetSystemCpuSetInformation == nullptr) {
+            LOG_WARN(ThreadLog, "GetSystemCpuSetInformation not available");
+            return std::nullopt;
+        }
+
         HANDLE process = GetCurrentProcess();
-        if (pfnGetSystemCpuSetInformation(nullptr, 0, &mSize, process, 0)) {
-            gThreadLog.warn("GetSystemCpuSetInformation{{1}} failed with error {}", sys::getLastError());
-            return;
+        ULONG size = 0;
+        if (pfnGetSystemCpuSetInformation(nullptr, 0, &size, process, 0)) {
+            LOG_WARN(ThreadLog, "GetSystemCpuSetInformation{{1}} failed with error {}", sys::getLastError());
+            return std::nullopt;
         }
 
         if (OsError err = sys::getLastError(); err != OsError(ERROR_INSUFFICIENT_BUFFER)) {
-            gThreadLog.warn("GetSystemCpuSetInformation{{2}} failed with error {}", err);
-            return;
+            LOG_WARN(ThreadLog, "GetSystemCpuSetInformation{{2}} failed with error {}", err);
+            return std::nullopt;
         }
 
-        mMemory = sm::UniquePtr<std::byte[]>(mSize);
-        mInfo = reinterpret_cast<SYSTEM_CPU_SET_INFORMATION *>(mMemory.get());
-        if (!pfnGetSystemCpuSetInformation(mInfo, mSize, &mSize, process, 0)) {
-            gThreadLog.warn("GetSystemCpuSetInformation{{3}} failed with error {}", sys::getLastError());
-            return;
+        auto memory = sm::UniquePtr<std::byte[]>(size);
+        if (!pfnGetSystemCpuSetInformation((PSYSTEM_CPU_SET_INFORMATION)memory.get(), size, &size, process, 0)) {
+            LOG_WARN(ThreadLog, "GetSystemCpuSetInformation{{3}} failed with error {}", sys::getLastError());
+            return std::nullopt;
         }
 
-        mRemaining = mSize;
+        return CpuSetInfo{std::move(memory), size};
     }
 
     CpuSetIterator begin() const noexcept {
-        return CpuSetIterator(mInfo, mRemaining);
+        return CpuSetIterator(getBuffer(), mRemaining);
     }
 
     CpuSetIterator end() const noexcept {
-        return CpuSetIterator(mInfo, 0);
+        return CpuSetIterator(getBuffer(), 0);
     }
 
 private:
+    CpuSetInfo(sm::UniquePtr<std::byte[]> memory, ULONG size) noexcept
+        : mMemory(std::move(memory))
+        , mRemaining(size)
+    { }
+
+    SYSTEM_CPU_SET_INFORMATION *getBuffer() const noexcept {
+        return reinterpret_cast<SYSTEM_CPU_SET_INFORMATION *>(mMemory.get());
+    }
+
     sm::UniquePtr<std::byte[]> mMemory;
-    SYSTEM_CPU_SET_INFORMATION *mInfo = nullptr;
-    ULONG mSize = 0;
 
     ULONG mRemaining = 0;
 };
 
-struct ProcessorInfoLayout {
+struct ProcessorLayout {
     void addCoreInfo(const PROCESSOR_RELATIONSHIP &info) noexcept {
         fmt::println(stderr, "Core: {:064b} {} {}", info.Flags, info.EfficiencyClass, info.GroupCount);
         for (WORD i = 0; i < info.GroupCount; i++) {
@@ -344,55 +291,57 @@ struct ProcessorInfoLayout {
 }
 
 CpuGeometry detail::buildCpuGeometry(const CpuInfoLibrary& library) noexcept {
-    ProcessorInfoLayout processorInfoLayout{};
+    ProcessorLayout processorLayout{};
 
-    if (library.pfnGetLogicalProcessorInformationEx != nullptr) {
-        ProcessorInfoEx processorInfoEx{RelationAll, library.pfnGetLogicalProcessorInformationEx};
+    if (auto maybeProcessorInfoEx = ProcessorInfoEx::create(RelationAll, library.pfnGetLogicalProcessorInformationEx)) {
+        ProcessorInfoEx processorInfoEx = std::move(*maybeProcessorInfoEx);
 
         for (auto relation : processorInfoEx) {
             if (relation->Relationship == RelationProcessorCore)
-                processorInfoLayout.addCoreInfo(relation->Processor);
+                processorLayout.addCoreInfo(relation->Processor);
         }
 
         for (auto relation : processorInfoEx) {
             if (relation->Relationship == RelationCache)
-                processorInfoLayout.addCacheInfo(relation->Cache);
+                processorLayout.addCacheInfo(relation->Cache);
         }
 
         for (auto relation : processorInfoEx) {
             if (relation->Relationship == RelationNumaNode)
-                processorInfoLayout.addNumaInfo(relation->NumaNode);
+                processorLayout.addNumaInfo(relation->NumaNode);
         }
 
         for (auto relation : processorInfoEx) {
             if (relation->Relationship == RelationProcessorPackage)
-                processorInfoLayout.addPackageInfo(relation->Processor);
+                processorLayout.addPackageInfo(relation->Processor);
         }
 
         for (auto relation : processorInfoEx) {
             if (relation->Relationship == RelationGroup)
-                processorInfoLayout.addGroupInfo(relation->Group);
+                processorLayout.addGroupInfo(relation->Group);
         }
 
         for (auto relation : processorInfoEx) {
             if (relation->Relationship == RelationProcessorDie)
-                processorInfoLayout.addDieInfo(relation->Processor);
+                processorLayout.addDieInfo(relation->Processor);
         }
 
         for (auto relation : processorInfoEx) {
             if (relation->Relationship == RelationProcessorModule)
-                processorInfoLayout.addModuleInfo(relation->Processor);
+                processorLayout.addModuleInfo(relation->Processor);
         }
     } else {
-        // LOG_WARN(ThreadLog, "No processor information available");
+        LOG_WARN(ThreadLog, "No processor information available");
+
+        return CpuGeometry { };
     }
 
-    if (library.pfnGetSystemCpuSetInformation != nullptr) {
-        CpuSetInfo cpusetInfo{library.pfnGetSystemCpuSetInformation};
+    if (auto maybeCpuSetInfo = CpuSetInfo::create(library.pfnGetSystemCpuSetInformation)) {
+        CpuSetInfo cpusetInfo = std::move(*maybeCpuSetInfo);
 
         for (auto info : cpusetInfo) {
             if (info->Type == CpuSetInformation)
-                processorInfoLayout.addCpuSetInfo(*info);
+                processorLayout.addCpuSetInfo(*info);
         }
     }
 

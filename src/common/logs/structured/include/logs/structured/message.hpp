@@ -3,6 +3,7 @@
 #include <simcoe_config.h>
 
 #include <string_view>
+#include <array>
 #include <source_location>
 
 #include "logs/logs.hpp"
@@ -54,7 +55,7 @@ namespace sm::logs::structured {
         const LogCategory& category;
         std::string_view message;
         std::source_location location;
-        sm::SmallVector<MessageAttributeInfo, kMaxMessageAttributes> attributes;
+        std::span<const MessageAttributeInfo> attributes;
     };
 
     db::DbError setup(db::Connection& connection);
@@ -67,9 +68,53 @@ namespace sm::logs::structured {
             { fn() } -> std::same_as<LogMessageInfo>;
         };
 
+        constexpr static std::string_view kIndices[structured::kMaxMessageAttributes] = {
+            "0", "1", "2", "3", "4", "5", "6", "7"
+        };
+
+        consteval std::vector<MessageAttributeInfo> getAttributes(std::string_view message) noexcept {
+            std::vector<MessageAttributeInfo> attributes;
+
+            size_t i = 0;
+            while (i < message.size()) {
+                auto start = message.find_first_of('{', i);
+                if (start == std::string_view::npos) {
+                    break;
+                }
+
+                auto end = message.find_first_of('}', start);
+                if (end == std::string_view::npos) {
+                    break;
+                }
+
+                auto id = message.substr(start + 1, end - start - 1);
+                if (id.empty())
+                    id = kIndices[attributes.size()];
+
+                MessageAttributeInfo info {
+                    .name = id
+                };
+
+                attributes.emplace_back(info);
+                i = end + 1;
+            }
+
+            return attributes;
+        }
+
+#define PARSE_MESSAGE_ATTRIBUTES(message) \
+    []() constexpr { \
+        std::array<sm::logs::structured::MessageAttributeInfo, sm::logs::structured::detail::getAttributes(message).size()> result{}; \
+        size_t i = 0; \
+        for (const auto& attr : sm::logs::structured::detail::getAttributes(message)) { \
+            result[i++] = attr; \
+        } \
+        return result; \
+    }()
+
         struct LogMessageId {
             LogMessageId(LogMessageInfo& message) noexcept;
-            LogMessageInfo& info;
+            const LogMessageInfo& info;
         };
 
         template<LogMessageFn F, typename... A>
@@ -114,9 +159,10 @@ namespace sm::logs::structured {
 #define LOG_MESSAGE(category, severity, message, ...) \
     do { \
         static constexpr std::source_location loc = std::source_location::current(); \
+        static constexpr auto attrs = PARSE_MESSAGE_ATTRIBUTES(message); \
         struct LogMessageImpl { \
             constexpr sm::logs::structured::LogMessageInfo operator()() const noexcept { \
-                return { sm::logs::structured::detail::hashMessage(message, loc.line()), severity, sm::logs::structured::detail::gLogCategory<category>, message, loc }; \
+                return { sm::logs::structured::detail::hashMessage(message, loc.line()), severity, sm::logs::structured::detail::gLogCategory<category>, message, loc, attrs }; \
             } \
         }; \
         sm::logs::structured::detail::fmtMessage<LogMessageImpl>(__VA_ARGS__); \
@@ -124,8 +170,8 @@ namespace sm::logs::structured {
 
 #define LOG_TRACE(category, ...) LOG_MESSAGE(category, sm::logs::Severity::eTrace,   __VA_ARGS__)
 #define LOG_DEBUG(category, ...) LOG_MESSAGE(category, sm::logs::Severity::eDebug,   __VA_ARGS__)
-#define LOG_INFO(category, ...) LOG_MESSAGE(category, sm::logs::Severity::eInfo,    __VA_ARGS__)
-#define LOG_WARN(category, ...) LOG_MESSAGE(category, sm::logs::Severity::eWarning, __VA_ARGS__)
+#define LOG_INFO(category, ...)  LOG_MESSAGE(category, sm::logs::Severity::eInfo,    __VA_ARGS__)
+#define LOG_WARN(category, ...)  LOG_MESSAGE(category, sm::logs::Severity::eWarning, __VA_ARGS__)
 #define LOG_ERROR(category, ...) LOG_MESSAGE(category, sm::logs::Severity::eError,   __VA_ARGS__)
 #define LOG_FATAL(category, ...) LOG_MESSAGE(category, sm::logs::Severity::eFatal,   __VA_ARGS__)
 #define LOG_PANIC(category, ...) LOG_MESSAGE(category, sm::logs::Severity::ePanic,   __VA_ARGS__)

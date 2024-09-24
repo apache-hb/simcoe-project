@@ -117,35 +117,6 @@ public:
 static sm::UniquePtr<DbLogger> gLogger;
 static sm::UniquePtr<std::jthread> gLogThread;
 
-static AttributeInfoVec getAttributes(std::string_view message) noexcept {
-    AttributeInfoVec attributes;
-
-    size_t i = 0;
-    while (i < message.size()) {
-        auto start = message.find_first_of('{', i);
-        if (start == std::string_view::npos) {
-            break;
-        }
-
-        auto end = message.find_first_of('}', start);
-        if (end == std::string_view::npos) {
-            break;
-        }
-
-        auto id = message.substr(start + 1, end - start - 1);
-        CTASSERTF(!id.empty(), "Empty message attribute in message: %.*s", (int)message.size(), message.data());
-
-        MessageAttributeInfo info {
-            .name = id
-        };
-
-        attributes.emplace_back(info);
-        i = end + 1;
-    }
-
-    return attributes;
-}
-
 static uint64_t getTimestamp() noexcept {
     auto now = std::chrono::system_clock::now();
     return uint64_t(now.time_since_epoch().count());
@@ -159,7 +130,6 @@ static std::vector<LogMessageId> &getLogMessages() noexcept {
 LogMessageId::LogMessageId(LogMessageInfo& message) noexcept
     : info(message)
 {
-    info.attributes = getAttributes(message.message);
     getLogMessages().emplace_back(*this);
 }
 
@@ -182,7 +152,7 @@ void structured::detail::postLogMessage(const LogMessageId& message, sm::SmallVe
 
     uint64_t timestamp = getTimestamp();
 
-    ssize_t attrCount = message.info.attributes.ssize();
+    ssize_t attrCount = message.info.attributes.size();
     CTASSERTF(args.ssize() == attrCount, "Incorrect number of message attributes (%zd != %zd)", args.ssize(), attrCount);
 
     LogAttributeVec attributes;
