@@ -52,11 +52,15 @@ DbError DbError::unsupported(std::string_view subject) noexcept {
 }
 
 DbError DbError::columnNotFound(std::string_view column) noexcept {
-    return DbError{-1, eError, fmt::format("Column not found: {}", column)};
+    return DbError{-1, eError, fmt::format("Column not found: `{}`", column)};
 }
 
 DbError DbError::bindNotFound(std::string_view bind) noexcept {
-    return DbError{-1, eError, fmt::format("Bind not found: {}", bind)};
+    return DbError{-1, eError, fmt::format("Named bind `{}` not found", bind)};
+}
+
+DbError DbError::bindNotFound(int bind) noexcept {
+    return DbError{-1, eError, fmt::format("Bind at index `{}` not found", bind)};
 }
 
 DbError DbError::connectionError(std::string_view message) noexcept {

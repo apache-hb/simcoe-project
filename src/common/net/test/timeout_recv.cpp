@@ -1,6 +1,7 @@
 #include "net_test_common.hpp"
 
 #include <thread>
+#include <fstream>
 
 #include "net/net.hpp"
 
@@ -15,7 +16,7 @@ TEST_CASE("Network client server connection") {
 
     NetTestStream errors;
 
-    auto server = network.bind(IPv4Address::loopback(), 9999);
+    auto server = network.bind(IPv4Address::loopback(), 9989);
 
     REQUIRE(server.setBlocking(false).isSuccess());
     REQUIRE(server.setBlocking(true).isSuccess());
@@ -46,11 +47,17 @@ TEST_CASE("Network client server connection") {
         }
     });
 
-    auto client = network.connect(IPv4Address::loopback(), 9999);
+    auto client = network.connect(IPv4Address::loopback(), 9989);
     client.setBlocking(false).throwIfFailed();
 
-    // recv a buffer of 256, only 128 will ever be sent. this should timeout
-    char buffer[kBufferSize * 2];
+    // recv a buffer larger than what will ever be sent. this should timeout
+    char buffer[kBufferSize * 16];
     auto [read, err] = client.recvBytesTimeout(buffer, sizeof(buffer), 256ms);
-    errors.expect(err.timeout(), "Expected timeout, got: {}", err.message());
+
+    std::ofstream of("timeout_recv.bin", std::ios::binary | std::ios::out);
+    of.write(buffer, sizeof(buffer));
+    of.close();
+
+    errors.expect(err.timeout(), "Expected timeout, got: {}. read {} bytes", err.message(), read);
+
 }

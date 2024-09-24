@@ -16,6 +16,8 @@ using namespace std::chrono_literals;
 //     .timeout = 1s
 // };
 
+LOG_MESSAGE_CATEGORY(TestLog, "Tests");
+
 TEST_CASE("Setup logging") {
     auto env = db::Environment::create(db::DbType::eSqlite3, { .logQueries=true });
     auto conn = env.connect({.host="testlogs.db"});
@@ -30,11 +32,11 @@ TEST_CASE("Setup logging") {
 
     GIVEN("a successfully setup logging environment") {
         THEN("a message can be logged") {
-            LOG_INFO("Logging setup complete");
+            LOG_INFO(TestLog, "Logging setup complete");
 
-            LOG_INFO("Log message {index}", 5);
+            LOG_INFO(TestLog, "Log message {index}", 5);
 
-            LOG_INFO("Logging with {multiple} {parameters}", "multiple", true);
+            LOG_INFO(TestLog, "Logging with {multiple} {parameters}", "multiple", true);
 
             CHECK(logs::structured::isRunning());
         }

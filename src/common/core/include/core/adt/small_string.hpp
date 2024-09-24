@@ -56,6 +56,10 @@ namespace sm {
             : SmallString(str.data(), str.size())
         { }
 
+        constexpr explicit operator std::string() const noexcept {
+            return std::string(mBuffer, mLength);
+        }
+
         [[nodiscard]] constexpr const char *data() const noexcept { return mBuffer; }
         [[nodiscard]] constexpr int16 size() const noexcept { return mLength; }
         [[nodiscard]] constexpr const char *c_str() const noexcept { return mBuffer; }

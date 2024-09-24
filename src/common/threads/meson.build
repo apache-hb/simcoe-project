@@ -21,3 +21,19 @@ threads = declare_dependency(
     include_directories : [ threads_include, libthreads.private_dir_include() ],
     dependencies : deps
 )
+
+testcases = {
+    'Processor geometry': 'test/geometry.cpp',
+}
+
+foreach name, source : testcases
+    exe = executable('test-threads-' + name, source,
+        include_directories : 'src',
+        dependencies : [ threads, coretest ]
+    )
+
+    test(name, exe,
+        suite : 'threads',
+        kwargs : testkwargs
+    )
+endforeach

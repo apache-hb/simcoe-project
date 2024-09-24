@@ -8,6 +8,14 @@
         <column name="severity" type="uint" />
     </table>
 
+    <table name="log_category" primaryKey="hash">
+        <column name="hash" type="ulong" />
+
+        <column name="name" type="text" length="255">
+            <unique />
+        </column>
+    </table>
+
     <table name="log_message" primaryKey="hash">
         <column name="hash" type="ulong" />
 
@@ -15,6 +23,10 @@
 
         <column name="severity" type="uint">
             <constraint references="log_severity.severity" />
+        </column>
+
+        <column name="category" type="ulong">
+            <constraint references="log_category.hash" />
         </column>
 
         <column name="path"     type="text" length="1024" />

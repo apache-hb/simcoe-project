@@ -13,6 +13,7 @@ struct LogAttribute {
     std::string value;
 };
 
+using LogCategory = sm::logs::structured::LogCategory;
 using LogMessageId = sm::logs::structured::detail::LogMessageId;
 using MessageAttributeInfo = sm::logs::structured::MessageAttributeInfo;
 
@@ -94,7 +95,7 @@ public:
         mQueue.enqueue(std::move(packet));
     }
 
-    void workerThread(std::stop_token stop) noexcept {
+    void workerThread(const std::stop_token& stop) noexcept {
         while (!stop.stop_requested()) {
             size_t count = mQueue.wait_dequeue_bulk(mPacketBuffer.get(), mMaxPackets);
             commit(std::span(mPacketBuffer.get(), count));
@@ -162,6 +163,17 @@ LogMessageId::LogMessageId(LogMessageInfo& message) noexcept
     getLogMessages().emplace_back(*this);
 }
 
+static std::vector<LogCategory> &getLogCategories() noexcept {
+    static std::vector<LogCategory> sLogCategories;
+    return sLogCategories;
+}
+
+structured::LogCategory::LogCategory(LogCategoryData data) noexcept
+    : data(data)
+{
+    getLogCategories().emplace_back(*this);
+}
+
 void structured::detail::postLogMessage(const LogMessageId& message, sm::SmallVectorBase<std::string> args) noexcept {
     if (!gIsRunning) {
         gFallbackLog.warn("Log message posted after cleanup");
@@ -194,6 +206,7 @@ bool structured::isRunning() noexcept {
 static void registerMessagesWithDb(db::Connection& connection) {
     connection.createTable(sm::dao::logs::LogSession::getTableInfo());
     connection.createTable(sm::dao::logs::LogSeverity::getTableInfo());
+    connection.createTable(sm::dao::logs::LogCategory::getTableInfo());
     connection.createTable(sm::dao::logs::LogMessage::getTableInfo());
     connection.createTable(sm::dao::logs::LogMessageAttribute::getTableInfo());
     connection.createTable(sm::dao::logs::LogEntry::getTableInfo());
@@ -208,6 +221,15 @@ static void registerMessagesWithDb(db::Connection& connection) {
     for (auto& severity : kLogSeverityOptions)
         connection.insertOrUpdate(severity);
 
+    for (const LogCategory& category : getLogCategories()) {
+        sm::dao::logs::LogCategory daoCategory {
+            .hash = category.hash(),
+            .name = std::string{category.data.name},
+        };
+
+        connection.insertOrUpdate(daoCategory);
+    }
+
     for (const LogMessageId& messageId : getLogMessages()) {
         const structured::LogMessageInfo& message = messageId.info;
 
@@ -215,6 +237,7 @@ static void registerMessagesWithDb(db::Connection& connection) {
             .hash = message.hash,
             .message = std::string{message.message},
             .severity = uint32_t(message.level),
+            .category = message.category.hash(),
             .path = std::string{message.location.file_name()},
             .line = message.location.line(),
             .function = std::string{message.location.function_name()},
@@ -239,7 +262,7 @@ db::DbError structured::setup(db::Connection& connection) {
 
     gLogger = new DbLogger(connection);
     gIsRunning = true;
-    gLogThread = sm::makeUnique<std::jthread>([](std::stop_token stop) {
+    gLogThread = sm::makeUnique<std::jthread>([](const std::stop_token& stop) {
         gLogger->workerThread(stop);
     });
 
@@ -254,7 +277,7 @@ void structured::cleanup() {
     // the message thread will wait forever, this message ensures that there
     // is always at least 1 message in the queue when shutdown
     // is requested
-    LOG_INFO("Cleaning up structured logging");
+    LOG_INFO(GlobalLog, "Cleaning up structured logging");
 
     while (gIsRunning.load())
         std::this_thread::yield();

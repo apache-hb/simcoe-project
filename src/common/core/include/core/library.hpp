@@ -7,6 +7,8 @@
 
 #include "os/os.h"
 
+#include <expected>
+
 constexpr bool operator!=(const os_library_t& lhs, const os_library_t& rhs) {
     return lhs.impl != rhs.impl;
 }
@@ -21,23 +23,29 @@ namespace sm {
         LibraryHandle mHandle;
         OsError mError = 0;
 
-        void *get_symbol(const char *name);
+        void *getSymbol(const char *name) noexcept;
+
+        Library(os_library_t library) noexcept
+            : mHandle(library)
+        { }
 
     public:
-        Library() = default;
+        Library() noexcept = default;
         Library(const char *path);
         Library(const fs::path& path);
 
-        OsError get_error() const;
+        static std::expected<Library, OsError> open(const fs::path& path) noexcept;
+
+        OsError getError() const noexcept;
 
         template<typename F>
         F fn(const char *name) {
-            return reinterpret_cast<F>(get_symbol(name));
+            return reinterpret_cast<F>(getSymbol(name));
         }
 
         template<typename T>
         T *var(const char *name) {
-            return reinterpret_cast<T*>(get_symbol(name));
+            return reinterpret_cast<T*>(getSymbol(name));
         }
     };
 }

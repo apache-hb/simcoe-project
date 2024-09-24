@@ -63,16 +63,6 @@ namespace sm::threads {
         eInvalid = UINT16_MAX
     };
 
-    template<typename T> requires __is_enum(T)
-    struct IndexRange {
-        T front;
-        T back;
-
-        constexpr size_t size() const noexcept {
-            return static_cast<size_t>(back) - static_cast<size_t>(front) + 1;
-        }
-    };
-
     // scheduling mask for a single group
     struct ScheduleMask {
         GROUP_AFFINITY mask;
@@ -83,17 +73,18 @@ namespace sm::threads {
         }
     };
 
-    // scheduling mask that can span multiple groups
-    struct GroupScheduleMask {
-        std::bitset<kMaxThreads> mask;
+    struct LogicalCore : ScheduleMask {
+
     };
 
-    struct LogicalCore : ScheduleMask { };
+    struct ProcessorCore : ScheduleMask {
+        std::vector<ThreadIndex> threads;
+
+        uint16 schedule;  // schedule speed (lower is faster)
+        uint8 efficiency; // efficiency (higher is more efficient)
+    };
 
     struct Cache {
-        uint id; // multiple caches may share the same id if they span multiple groups
-        ScheduleMask mask; // the mask for this segment of the cache
-
         uint8 level;
         uint8 associativity;
         uint16 lineSize;
@@ -101,30 +92,45 @@ namespace sm::threads {
         CacheType type;
     };
 
-    struct Core : ScheduleMask {
-        IndexRange<ThreadIndex> threads;
-
-        uint16 schedule;  // schedule speed (lower is faster)
-        uint8 efficiency; // efficiency (higher is more efficient)
+    struct ProcessorPackage {
+        std::vector<ThreadIndex> threads;
+        std::vector<CoreIndex> cores;
+        std::vector<GroupIndex> groups;
+        std::vector<CacheIndex> caches;
     };
 
-    struct Group : ScheduleMask {
-        IndexRange<CoreIndex> cores;
+    struct Group {
+        std::vector<CoreIndex> cores;
     };
 
-    struct Package {
-        IndexRange<ThreadIndex> threads;
-        IndexRange<CoreIndex> cores;
-        IndexRange<GroupIndex> groups;
-        IndexRange<CacheIndex> caches;
+    struct ProcessorDie {
+
+    };
+
+    struct NumaNode {
+
+    };
+
+    struct ProcessorModule {
+
     };
 
     struct CpuGeometry {
-        VectorBase<LogicalCore> threads;
-        VectorBase<Core> cores;
-        VectorBase<Cache> caches;
-        VectorBase<Group> groups;
-        VectorBase<Package> packages;
+        std::vector<LogicalCore> logicalCores;
+        std::vector<ProcessorCore> processorCores;
+        std::vector<Cache> caches;
+        std::vector<ProcessorPackage> packages;
+        std::vector<Group> groups;
+        std::vector<ProcessorDie> dies;
+        std::vector<NumaNode> numaNodes;
+        std::vector<ProcessorModule> modules;
+
+        // if we can't detect the cpu geometry, just let the OS
+        // handle scheduling for us.
+        bool disableScheduler() const noexcept {
+            return logicalCores.size() == 0
+                || processorCores.size() == 0;
+        }
     };
 
     void init() noexcept;

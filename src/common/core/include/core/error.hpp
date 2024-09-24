@@ -3,6 +3,7 @@
 #include <simcoe_config.h>
 
 #include "core/adt/small_string.hpp"
+#include "core/throws.hpp"
 
 #include "backtrace/backtrace.h"
 #include "core/source_info.h"
@@ -13,11 +14,11 @@
 #include <string_view>
 
 namespace sm {
-    CT_NORETURN
-    panic(source_info_t info, std::string_view msg);
+    class OsException;
 
-    CT_NORETURN
-    vpanic(source_info_t info, std::string_view msg, auto &&...args) {
+    CT_NORETURN panic(source_info_t info, std::string_view msg);
+
+    CT_NORETURN vpanic(source_info_t info, std::string_view msg, auto &&...args) {
         panic(info, fmt::vformat(msg, fmt::make_format_args(args...)));
     }
 
@@ -29,13 +30,16 @@ namespace sm {
             : mError(error)
         { }
 
-        constexpr os_error_t error() const { return mError; }
-        constexpr operator bool() const { return mError != 0; }
-        constexpr bool success() const { return mError == 0; }
-        constexpr bool failed() const { return mError != 0; }
+        constexpr os_error_t error() const noexcept { return mError; }
+        constexpr operator bool() const noexcept { return mError != 0; }
+        constexpr bool success() const noexcept { return mError == 0; }
+        constexpr bool failed() const noexcept { return mError != 0; }
 
-        constexpr bool operator==(const OsError &) const = default;
-        constexpr bool operator!=(const OsError &) const = default;
+        constexpr bool operator==(const OsError &) const noexcept = default;
+        constexpr bool operator!=(const OsError &) const noexcept = default;
+
+        CT_NORETURN raise() const throws(OsException);
+        void throwIfFailed() const throws(OsException);
 
         template<size_t N = 512>
         SmallString<N> toString() const {
@@ -44,6 +48,20 @@ namespace sm {
             buffer[std::min(size, N - 1)] = '\0';
             return SmallString<N>(buffer);
         }
+    };
+
+    class OsException : public std::exception {
+        OsError mError;
+        std::string mMessage;
+
+    public:
+        OsException(OsError error)
+            : mError(error)
+            , mMessage(error.toString())
+        { }
+
+        OsError error() const noexcept { return mError; }
+        const char *what() const noexcept override { return mMessage.c_str(); }
     };
 
     class ISystemError : public bt_error_t {

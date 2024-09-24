@@ -19,3 +19,11 @@ void ISystemError::wrap_end(void *user) {
 void sm::panic(source_info_t info, std::string_view msg) {
     ctu_panic(info, "%.*s", (int)msg.size(), msg.data());
 }
+
+CT_NORETURN OsError::raise() const noexcept(false) {
+    throw OsException(*this);
+}
+
+void OsError::throwIfFailed() const noexcept(false) {
+    if (failed()) raise();
+}
