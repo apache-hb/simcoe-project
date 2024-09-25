@@ -9,8 +9,6 @@
 
 #include "threads/threads.hpp"
 
-#include "archive/record.hpp"
-
 #include "config/config.hpp"
 
 #include "draw/draw.hpp"
@@ -19,7 +17,11 @@
 #include "config/config.hpp"
 #include "config/parse.hpp"
 
+#include "db/connection.hpp"
+
 #include "core/defer.hpp"
+
+#include "archive.dao.hpp"
 
 using namespace sm;
 using namespace math;
@@ -81,43 +83,131 @@ class DefaultSystemError final : public ISystemError {
 };
 
 class DefaultWindowEvents final : public sys::IWindowEvents {
-    archive::RecordStore &mStore;
-
-    sys::WindowPlacement *mWindowPlacement = nullptr;
-    archive::RecordLookup mPlacementLookup;
+    db::Connection& mConnection;
 
     render::IDeviceContext *mContext = nullptr;
     sys::DesktopInput *mInput = nullptr;
+
+    static constexpr math::int2 kMinWindowSize = { 128, 128 };
+
+    void saveWindowPlacement(const WINDOWPLACEMENT& placement) noexcept {
+        sm::dao::archive::WindowPlacement dao {
+            .flags = placement.flags,
+            .showCmd = placement.showCmd,
+            .minPositionX = placement.ptMinPosition.x,
+            .minPositionY = placement.ptMinPosition.y,
+            .maxPositionX = placement.ptMaxPosition.x,
+            .maxPositionY = placement.ptMaxPosition.y,
+            .normalPosLeft = placement.rcNormalPosition.left,
+            .normalPosTop = placement.rcNormalPosition.top,
+            .normalPosRight = placement.rcNormalPosition.right,
+            .normalPosBottom = placement.rcNormalPosition.bottom,
+        };
+
+        if (db::DbError error = mConnection.tryInsert(dao)) {
+            logs::gAssets.warn("update failed: {}", error.message());
+        }
+    }
+
+    std::optional<WINDOWPLACEMENT> loadWindowPlacement() noexcept {
+        auto result = mConnection.trySelectOne<sm::dao::archive::WindowPlacement>();
+        if (!result.has_value()) {
+            logs::gGlobal.warn("failed to load window placement: {}", result.error().message());
+            return std::nullopt;
+        }
+
+        auto select = result.value();
+
+        WINDOWPLACEMENT placement = {
+            .length = sizeof(WINDOWPLACEMENT),
+            .flags = select.flags,
+            .showCmd = select.showCmd,
+            .ptMinPosition = {
+                .x = (LONG)select.minPositionX,
+                .y = (LONG)select.minPositionY,
+            },
+            .ptMaxPosition = {
+                .x = (LONG)select.maxPositionX,
+                .y = (LONG)select.maxPositionY,
+            },
+            .rcNormalPosition = {
+                .left = (LONG)select.normalPosLeft,
+                .top = (LONG)select.normalPosTop,
+                .right = (LONG)select.normalPosRight,
+                .bottom = (LONG)select.normalPosBottom,
+            },
+        };
+
+        if (LONG width = placement.rcNormalPosition.right - placement.rcNormalPosition.left; width < kMinWindowSize.x) {
+            logs::gGlobal.warn("window placement width too small {}, ignoring possibly corrupted data", width);
+            return std::nullopt;
+        }
+
+        if (LONG height = placement.rcNormalPosition.bottom - placement.rcNormalPosition.top; height < kMinWindowSize.y) {
+            logs::gGlobal.warn("window placement height too small {}, ignoring possibly corrupted data", height);
+            return std::nullopt;
+        }
+
+        return placement;
+    }
 
     LRESULT event(sys::Window &window, UINT message, WPARAM wparam, LPARAM lparam) override {
         if (mInput) mInput->window_event(message, wparam, lparam);
         return ImGui_ImplWin32_WndProcHandler(window.get_handle(), message, wparam, lparam);
     }
 
-    void resize(sys::Window &, math::int2 size) override {
+    void resize(sys::Window &window, math::int2 size) override {
+        if (size.x < kMinWindowSize.x || size.y < kMinWindowSize.y) {
+            logs::gGlobal.warn("resize too small {}/{}, ignoring", size.x, size.y);
+            return;
+        }
+
         if (mContext != nullptr) {
             mContext->resize_swapchain(math::uint2(size));
         }
+
+        saveWindowPlacement(window.getPlacement());
     }
 
     void create(sys::Window &window) override {
-        logs::gGlobal.info("create window");
-        if (mPlacementLookup = mStore.getRecord(&mWindowPlacement); mPlacementLookup == archive::RecordLookup::eOpened) {
-            window.set_placement(*mWindowPlacement);
+        if (auto placement = loadWindowPlacement()) {
+            logs::gGlobal.info("create window with placement");
+            window.setPlacement(*placement);
         } else {
-            window.center_window(sys::MultiMonitor::ePrimary);
+            logs::gGlobal.info("create window without placement");
+            window.centerWindow(sys::MultiMonitor::ePrimary);
         }
     }
 
     bool close(sys::Window &window) override {
-        if (mPlacementLookup.has_valid_data()) *mWindowPlacement = window.get_placement();
+        saveWindowPlacement(window.getPlacement());
         return true;
     }
 
 public:
-    DefaultWindowEvents(archive::RecordStore &store)
-        : mStore(store)
-    { }
+    DefaultWindowEvents(db::Connection& connection)
+        : mConnection(connection)
+    {
+        auto doUpdate = [&](std::string_view sql) {
+            auto result = mConnection.tryUpdateSql(sql);
+            if (!result.has_value()) {
+                logs::gAssets.warn("update failed: {}", result.error().message());
+            }
+        };
+
+        if (db::DbError error = connection.tryCreateTable(sm::dao::archive::WindowPlacement::getTableInfo())) {
+            logs::gAssets.warn("update failed: {}", error.message());
+        }
+
+        doUpdate(R"(
+            CREATE TRIGGER IF NOT EXISTS window_placement_insert
+                BEFORE INSERT ON window_placement
+                WHEN (SELECT COUNT(*) FROM window_placement) > 0
+                BEGIN
+                    DELETE FROM window_placement WHERE rowid = rowid;
+                END;
+        )");
+    }
 
     void attachRenderContext(render::IDeviceContext *context) {
         mContext = context;
@@ -202,7 +292,7 @@ static sm::IFileSystem *mountArchive(bool isPacked, const fs::path &path) {
     }
 }
 
-static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
+static void message_loop(sys::ShowWindow show) {
     sys::WindowConfig window_config = {
         .mode = sys::WindowMode::eWindowed,
         .width = 1280,
@@ -210,7 +300,10 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
         .title = "Priority Zero",
     };
 
-    DefaultWindowEvents events{store};
+    db::Environment sqlite = db::Environment::create(db::DbType::eSqlite3);
+    db::Connection connection = sqlite.connect({ .host = "client.db" });
+
+    DefaultWindowEvents events{connection};
 
     sys::Window window{window_config, events};
     sys::DesktopInput desktop_input{window};
@@ -279,14 +372,6 @@ static void message_loop(sys::ShowWindow show, archive::RecordStore &store) {
 }
 
 static int clientMain(sys::ShowWindow show) {
-    archive::RecordStoreConfig store_config = {
-        .path = "client.bin",
-        .size = {1, Memory::eMegabytes},
-        .record_count = 256,
-    };
-
-    archive::RecordStore store{store_config};
-
     const threads::CpuGeometry& geometry = threads::getCpuGeometry();
 
     threads::SchedulerConfig thread_config = {
@@ -295,11 +380,7 @@ static int clientMain(sys::ShowWindow show) {
     };
     threads::Scheduler scheduler{thread_config, geometry};
 
-    if (!store.isValid()) {
-        store.reset();
-    }
-
-    message_loop(show, store);
+    message_loop(show);
 
     return 0;
 }

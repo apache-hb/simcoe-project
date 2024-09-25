@@ -2,14 +2,12 @@ archive_include = include_directories('.', 'include')
 
 src = [
     'src/io.cpp',
-    'src/record.cpp',
     'src/bundle.cpp',
     'src/image.cpp',
     'src/fs.cpp',
 
     reflect.process('data/format.ct'),
     reflect.process('data/io.ct'),
-    reflect.process('data/record.ct'),
     daocc.process('data/archive.xml'),
 ]
 

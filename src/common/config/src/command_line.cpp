@@ -13,14 +13,14 @@ static void getBase(std::string_view& arg, int& base) noexcept {
 
     if (arg.starts_with("0x") || arg.starts_with("0X")) {
         base = 16;
-        arg.remove_prefix(2);
     } else if (arg.starts_with("0b") || arg.starts_with("0B")) {
         base = 2;
-        arg.remove_prefix(2);
-    } else if (arg.starts_with("0") && arg.size() > 1 && std::isdigit(arg[2])) {
+    } else if (arg.starts_with("0o") || arg.starts_with("0O")) {
         base = 8;
-        arg.remove_prefix(1);
     }
+
+    if (base != 10)
+        arg.remove_prefix(2);
 }
 
 static void getSign(std::string_view& arg, int& sign) noexcept {

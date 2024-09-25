@@ -132,7 +132,7 @@ namespace sm::net {
         template<typename T> requires (std::is_standard_layout_v<T>)
         NetResult<T> recv() noexcept {
             T value;
-            auto result = TRY_RESULT(recvBytes(&value, sizeof(T)));
+            size_t result = TRY_RESULT(recvBytes(&value, sizeof(T)));
             if (result != sizeof(T))
                 return std::unexpected{NetError(SNET_END_OF_PACKET, "expected {} bytes, received {}", sizeof(T), result)};
 
@@ -141,12 +141,10 @@ namespace sm::net {
 
         template<typename T> requires (std::is_standard_layout_v<T>)
         NetError send(const T& value) noexcept {
-            auto result = sendBytes(&value, sizeof(T));
-            if (!result.has_value())
-                return result.error();
+            size_t result = TRY_UNWRAP(sendBytes(&value, sizeof(T)));
 
-            if (result.value() != sizeof(T))
-                return NetError(SNET_END_OF_PACKET, "expected {} bytes, sent {}", sizeof(T), result.value());
+            if (result != sizeof(T))
+                return NetError(SNET_END_OF_PACKET, "expected {} bytes, sent {}", sizeof(T), result);
 
             return NetError::ok();
         }
