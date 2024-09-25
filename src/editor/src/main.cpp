@@ -201,25 +201,9 @@ public:
     DefaultWindowEvents(db::Connection& connection)
         : mConnection(connection)
     {
-        auto doUpdate = [&](std::string_view sql) {
-            auto result = mConnection.tryUpdateSql(sql);
-            if (!result.has_value()) {
-                logs::gAssets.warn("update failed: {}", result.error().message());
-            }
-        };
-
         if (db::DbError error = connection.tryCreateTable(sm::dao::archive::WindowPlacement::getTableInfo())) {
             logs::gAssets.warn("update failed: {}", error.message());
         }
-
-        doUpdate(R"(
-            CREATE TRIGGER IF NOT EXISTS window_placement_insert
-                BEFORE INSERT ON window_placement
-                WHEN (SELECT COUNT(*) FROM window_placement) > 0
-                BEGIN
-                    DELETE FROM window_placement WHERE rowid = rowid;
-                END;
-        )");
     }
 
     void attachRenderContext(render::IDeviceContext *context) {

@@ -39,11 +39,16 @@ void detail::destroyConnection(detail::IConnection *impl) noexcept {
 ///
 
 DbResult<bool> Connection::tableExists(std::string_view name) noexcept {
-    bool exists = false;
-    if (DbError error = mImpl->tableExists(name, exists))
+    std::string sql;
+    if (DbError error = mImpl->setupTableExists(sql))
         return error;
 
-    return exists;
+    PreparedStatement stmt = TRY_RESULT(prepareQuery(sql));
+    stmt.bind("name").to(name);
+    ResultSet results = TRY_RESULT(stmt.start());
+
+    int count = results.get<int>(0).value_or(0);
+    return count > 0;
 }
 
 DbResult<Version> Connection::clientVersion() const noexcept {
@@ -130,7 +135,18 @@ DbError Connection::tryCreateTable(const dao::TableInfo& table) noexcept {
     if (tableExists(table.name).value_or(false))
         return DbError::ok();
 
-    return mImpl->createTable(table);
+    if (DbError error = mImpl->createTable(table))
+        return error;
+
+    if (table.isSingleton()) {
+        std::string sql;
+        if (DbError error = mImpl->setupSingletonTrigger(table, sql))
+            return error;
+
+        TRY_UNWRAP(tryUpdateSql(sql));
+    }
+
+    return DbError::ok();
 }
 
 DbResult<ResultSet> Connection::trySelectSql(std::string_view sql) noexcept {

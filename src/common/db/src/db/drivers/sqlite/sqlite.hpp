@@ -9,7 +9,9 @@ namespace sm::db::detail::sqlite {
 
     #define CHECK_ERROR(expr) checkError(#expr, expr)
 
+    std::string setupTableExists() noexcept;
     std::string setupCreateTable(const dao::TableInfo& info) noexcept;
+    std::string setupCreateSingletonTrigger(std::string_view name) noexcept;
     std::string setupInsert(const dao::TableInfo& info) noexcept;
     std::string setupInsertOrUpdate(const dao::TableInfo& info) noexcept;
     std::string setupInsertReturningPrimaryKey(const dao::TableInfo& info) noexcept;
@@ -34,7 +36,6 @@ namespace sm::db::detail::sqlite {
         DbError getStmtError(int err) const noexcept;
 
     public:
-
         DbError finalize() noexcept override;
         DbError start(bool autoCommit, StatementType type) noexcept override;
         DbError execute() noexcept override;
@@ -57,7 +58,6 @@ namespace sm::db::detail::sqlite {
         DbError getColumnIndex(std::string_view name, int& index) const noexcept override;
 
         DbError getColumnInfo(int index, ColumnInfo& info) const noexcept override;
-
 
         bool isRowReady() const noexcept;
 
@@ -101,9 +101,11 @@ namespace sm::db::detail::sqlite {
 
         DbError setupSelect(const dao::TableInfo& table, std::string& sql) noexcept override;
 
-        DbError createTable(const dao::TableInfo& table) noexcept override;
+        DbError setupSingletonTrigger(const dao::TableInfo& table, std::string& sql) noexcept override;
 
-        DbError tableExists(std::string_view table, bool& exists) noexcept override;
+        DbError setupTableExists(std::string& sql) noexcept override;
+
+        DbError createTable(const dao::TableInfo& table) noexcept override;
 
         DbError clientVersion(Version& version) const noexcept override;
         DbError serverVersion(Version& version) const noexcept override;

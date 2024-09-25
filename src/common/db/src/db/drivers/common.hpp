@@ -67,15 +67,25 @@ namespace sm::db::detail {
             return DbError::todo();
         }
 
-        /** misc */
+        /** Triggers */
 
-        virtual DbError tableExists(std::string_view name, bool& exists) noexcept {
+        virtual DbError setupSingletonTrigger(const dao::TableInfo& table, std::string& sql) noexcept {
             return DbError::todo();
         }
+
+        /** Tables */
+
+        virtual DbError setupTableExists(std::string& sql) noexcept {
+            return DbError::todo();
+        }
+
+        virtual DbError tableExists(std::string_view name, bool& exists) noexcept;
 
         virtual DbError createTable(const dao::TableInfo& table) noexcept {
             return DbError::todo();
         }
+
+        /** Version */
 
         virtual DbError clientVersion(Version& version) const noexcept {
             version = Version { "unknown", 0, 0, 0 };

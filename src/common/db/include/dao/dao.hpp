@@ -69,6 +69,7 @@ namespace sm::dao {
 
         std::span<const UniqueKey> uniqueKeys;
         std::span<const ForeignKey> foreignKeys;
+        bool singleton;
 
         bool hasPrimaryKey() const noexcept;
         size_t primaryKeyIndex() const noexcept;
@@ -77,6 +78,8 @@ namespace sm::dao {
 
         const ColumnInfo& getPrimaryKey() const noexcept;
         bool hasAutoIncrementPrimaryKey() const noexcept;
+
+        bool isSingleton() const noexcept { return singleton; }
     };
 
     template<typename T>

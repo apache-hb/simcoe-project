@@ -1,0 +1,11 @@
+[wrap-file]
+directory = instantclient-sdk-windows.x64-23.5.0.24.07
+
+source_url = https://download.oracle.com/otn_software/nt/instantclient/2350000/instantclient-sdk-windows.x64-23.5.0.24.07.zip
+source_hash = 194365f9cbbef4eb7c1bc8df17bc82e6d069d07d2e25b6efa35997b9a4029b0a
+source_filename = instantclient-sdk-windows.x64-23.5.0.24.07.zip
+
+patch_directory = instantclient-sdk
+
+[provide]
+dependency_names = instantclient

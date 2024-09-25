@@ -86,36 +86,20 @@ DbError SqliteConnection::setupSelect(const dao::TableInfo& table, std::string& 
     return DbError::ok();
 }
 
+DbError SqliteConnection::setupSingletonTrigger(const dao::TableInfo& table, std::string& sql) noexcept {
+    sql = sqlite::setupCreateSingletonTrigger(table.name);
+    return DbError::ok();
+}
+
+DbError SqliteConnection::setupTableExists(std::string& sql) noexcept {
+    sql = sqlite::setupTableExists();
+    return DbError::ok();
+}
+
 DbError SqliteConnection::createTable(const dao::TableInfo& table) noexcept {
     auto sql = setupCreateTable(table);
     if (int err = sqlite3_exec(mConnection.get(), sql.c_str(), nullptr, nullptr, nullptr))
         return getError(err, mConnection.get());
-
-    return DbError::ok();
-}
-
-DbError SqliteConnection::tableExists(std::string_view table, bool& exists) noexcept {
-    sqlite3_stmt *stmt = nullptr;
-    if (DbError err = prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=:name", &stmt))
-        return err;
-
-    SqliteStatement ps{stmt};
-    defer { (void)ps.finalize(); };
-
-    if (DbError err = ps.bindStringByName("name", table))
-        return err;
-
-    if (DbError err = ps.start(false, StatementType::eQuery))
-        return err;
-
-    int64 count = 0;
-    if (DbError err = ps.getIntByIndex(0, count))
-        return err;
-
-    if (DbError err = ps.execute())
-        return err;
-
-    exists = count > 0;
 
     return DbError::ok();
 }

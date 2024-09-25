@@ -4,34 +4,19 @@
 
 #include <string_view>
 #include <array>
-#include <source_location>
 
 #include "logs/logs.hpp"
 #include "db/error.hpp"
 #include "core/adt/small_vector.hpp"
 
 #include "logs/structured/category.hpp"
+#include "logs/structured/core.hpp"
 
 namespace sm::db {
     class Connection;
 }
 
 namespace sm::logs::structured {
-    static constexpr size_t kMaxMessageAttributes = 8;
-
-    struct MessageAttributeInfo {
-        std::string_view name;
-    };
-
-    struct LogMessageInfo {
-        uint64_t hash;
-        logs::Severity level;
-        const Category& category;
-        std::string_view message;
-        std::source_location location;
-        std::span<const MessageAttributeInfo> attributes;
-    };
-
     db::DbError setup(db::Connection& connection);
     bool isRunning() noexcept;
     void cleanup();
@@ -41,40 +26,6 @@ namespace sm::logs::structured {
         concept LogMessageFn = requires(T fn) {
             { fn() } -> std::same_as<LogMessageInfo>;
         };
-
-        constexpr static std::string_view kIndices[structured::kMaxMessageAttributes] = {
-            "0", "1", "2", "3", "4", "5", "6", "7"
-        };
-
-        consteval std::vector<MessageAttributeInfo> getAttributes(std::string_view message) noexcept {
-            std::vector<MessageAttributeInfo> attributes;
-
-            size_t i = 0;
-            while (i < message.size()) {
-                auto start = message.find_first_of('{', i);
-                if (start == std::string_view::npos) {
-                    break;
-                }
-
-                auto end = message.find_first_of('}', start);
-                if (end == std::string_view::npos) {
-                    break;
-                }
-
-                auto id = message.substr(start + 1, end - start - 1);
-                if (id.empty())
-                    id = kIndices[attributes.size()];
-
-                MessageAttributeInfo info {
-                    .name = id
-                };
-
-                attributes.emplace_back(info);
-                i = end + 1;
-            }
-
-            return attributes;
-        }
 
         struct LogMessageId {
             LogMessageId(LogMessageInfo& message) noexcept;
@@ -112,16 +63,6 @@ namespace sm::logs::structured {
         }
     }
 } // namespace sm::logs
-
-#define PARSE_MESSAGE_ATTRIBUTES(message) \
-    []() constexpr { \
-        std::array<sm::logs::structured::MessageAttributeInfo, sm::logs::structured::detail::getAttributes(message).size()> result{}; \
-        size_t i = 0; \
-        for (const auto& attr : sm::logs::structured::detail::getAttributes(message)) { \
-            result[i++] = attr; \
-        } \
-        return result; \
-    }()
 
 #define LOG_MESSAGE_CATEGORY(id, name) \
     struct id final : public sm::logs::Category { \

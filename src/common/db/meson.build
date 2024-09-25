@@ -28,7 +28,7 @@ cfg = configuration_data()
 
 tlsf = dependency('tlsf')
 sqlite3 = dependency('sqlite3')
-oracledb = subproject('oracledb-client', required : get_option('orcl'))
+oracledb = dependency('instantclient', required : get_option('orcl'))
 db2cli = subproject('db2-client', required : get_option('db2'))
 postgres = dependency('libpq', required : get_option('psql'))
 devapi = dependency('devapi', required : get_option('mysql'))

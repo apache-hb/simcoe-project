@@ -142,6 +142,7 @@ struct Table {
     std::vector<ForeignKey> foregin;
     bool imported = false;
     bool syntheticPrimaryKey = false;
+    bool singleton = false;
 
     std::vector<size_t> getColumnIndices(const Unique& unique) const noexcept {
         std::vector<size_t> indices;
@@ -451,6 +452,7 @@ static Table buildDaoTable(xmlNodePtr node) {
     Table table = {
         .name = expectProperty(props, "name", ""),
         .primaryKey = getOrDefault(props, "primaryKey", ""),
+        .singleton = getOrDefault(props, "singleton", "false") == "true"
     };
 
     auto syntheticPrimaryKey = getOrDefault(props, "syntheticPrimaryKey", "");
@@ -697,6 +699,7 @@ static void emitCxxBody(
         source.writeln(".columns     = kColumns,");
         source.writeln(".uniqueKeys  = kUniqueKeys,");
         source.writeln(".foreignKeys = kForeignKeys,");
+        source.writeln(".singleton   = {},", table.singleton ? "true" : "false");
         source.dedent();
         source.writeln("}};");
 
