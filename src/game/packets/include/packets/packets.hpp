@@ -30,39 +30,45 @@ namespace game {
 
     REFLECT()
     struct AckPacket {
-        PacketHeader header;
+        PacketHeader header = {PacketType::eAck, 0};
         uint32_t ack;
     };
 
     REFLECT()
     struct CreateAccountRequestPacket {
-        PacketHeader header;
+        PacketHeader header = {PacketType::eCreateAccountRequest, 0};
         char username[32];
         char password[32];
     };
 
+    REFLECT_ENUM(CreateAccountStatus)
+    enum class CreateAccountStatus : uint32_t {
+        eSuccess = 0,
+        eFailure,
+    };
+
     REFLECT()
     struct CreateAccountResponsePacket {
-        PacketHeader header;
-        uint32_t result;
+        PacketHeader header = {PacketType::eCreateAccountResponse, 0};
+        CreateAccountStatus status;
     };
 
     REFLECT()
     struct LoginRequestPacket {
-        PacketHeader header;
+        PacketHeader header = {PacketType::eLoginRequest, 0};
         char username[32];
         char password[32];
     };
 
     REFLECT()
     struct LoginResponsePacket {
-        PacketHeader header;
+        PacketHeader header = {PacketType::eLoginResponse, 0};
         uint32_t result;
     };
 
     REFLECT()
     struct MessageRequestPacket {
-        PacketHeader header;
+        PacketHeader header = {PacketType::eMessageRequest, 0};
         char message[256];
     };
 
@@ -74,21 +80,25 @@ namespace game {
 
     REFLECT()
     struct MessageResponsePacket {
-        PacketHeader header;
+        PacketHeader header = {PacketType::eMessageResponse, 0};
         MessagePostStatus result;
     };
 
     static constexpr size_t getPacketDataSize(PacketHeader header) {
-        switch (header.type) {
-        case PacketType::eAck: return sizeof(AckPacket);
-        case PacketType::eCreateAccountRequest: return sizeof(CreateAccountRequestPacket);
-        case PacketType::eCreateAccountResponse: return sizeof(CreateAccountResponsePacket);
-        case PacketType::eLoginRequest: return sizeof(LoginRequestPacket);
-        case PacketType::eLoginResponse: return sizeof(LoginResponsePacket);
-        case PacketType::eMessageRequest: return sizeof(MessageRequestPacket);
-        case PacketType::eMessageResponse: return sizeof(MessageResponsePacket);
+        size_t fullSize = [type = header.type] {
+            switch (type) {
+            case PacketType::eAck: return sizeof(AckPacket);
+            case PacketType::eCreateAccountRequest: return sizeof(CreateAccountRequestPacket);
+            case PacketType::eCreateAccountResponse: return sizeof(CreateAccountResponsePacket);
+            case PacketType::eLoginRequest: return sizeof(LoginRequestPacket);
+            case PacketType::eLoginResponse: return sizeof(LoginResponsePacket);
+            case PacketType::eMessageRequest: return sizeof(MessageRequestPacket);
+            case PacketType::eMessageResponse: return sizeof(MessageResponsePacket);
 
-        default: return 0;
-        }
+            default: return sizeof(PacketHeader);
+            }
+        }();
+
+        return fullSize - sizeof(PacketHeader);
     }
 }

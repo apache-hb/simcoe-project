@@ -37,6 +37,14 @@ add_global_arguments('-D_ITERATOR_DEBUG_LEVEL=0', language : 'cpp')
 
 add_global_arguments(cpp.get_supported_arguments('-Wno-assume'), language : [ 'c', 'cpp' ])
 
+if cpp.get_id() == 'clang-cl' and get_option('b_sanitize').contains('address')
+    libs = [
+        'C:/Program Files/LLVM/lib/clang/20/lib/windows/clang_rt.asan_dynamic_runtime_thunk-x86_64.lib',
+        'C:/Program Files/LLVM/lib/clang/20/lib/windows/clang_rt.asan_dynamic-x86_64.lib',
+    ]
+    add_global_link_arguments(libs, language : [ 'c', 'cpp' ])
+endif
+
 if is_windows
     add_project_arguments('-DNOMINMAX', language : [ 'c', 'cpp' ])
 endif

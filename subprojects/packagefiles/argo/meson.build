@@ -41,6 +41,7 @@ inc = include_directories('.')
 libargo = library('argo', src,
     cpp_args : args,
     include_directories : inc,
+    override_options : [ 'b_sanitize=none' ],
 )
 
 argo_dep = declare_dependency(

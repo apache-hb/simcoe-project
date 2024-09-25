@@ -34,7 +34,7 @@ meta_tool = executable('meta-tool', src,
     include_directories : [ 'include' ],
     cpp_pch : 'src/stdafx.hpp',
     dependencies : deps,
-    override_options : [ 'b_vscrt=mt' ],
+    override_options : [ 'b_vscrt=mt', 'b_sanitize=none' ],
     cpp_args : [
         '-D_ITERATOR_DEBUG_LEVEL=0',
         '-D_SILENCE_CXX23_ALIGNED_UNION_DEPRECATION_WARNING=1'

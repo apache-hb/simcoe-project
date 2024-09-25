@@ -7,6 +7,8 @@
 #include <string>
 #include <chrono>
 
+#include <fmtlib/format.h>
+
 #include <WinSock2.h>
 
 // 12000 to 12999 are available for use by applications
@@ -24,6 +26,12 @@ namespace sm::net {
 
     public:
         NetError(int code) noexcept;
+
+        template<typename... A>
+        NetError(int code, fmt::format_string<A...> fmt, A&&... args)
+            : mCode(code)
+            , mMessage(fmt::vformat(fmt, fmt::make_format_args(args...)))
+        { }
 
         int code() const noexcept { return mCode; }
         std::string_view message() const noexcept { return mMessage; }
@@ -92,6 +100,7 @@ namespace sm::net {
         void closeSocket() noexcept;
 
         SOCKET mSocket = INVALID_SOCKET;
+        bool mBlocking = true;
 
     public:
         Socket(SOCKET socket) noexcept
@@ -125,12 +134,26 @@ namespace sm::net {
             T value;
             auto result = TRY_RESULT(recvBytes(&value, sizeof(T)));
             if (result != sizeof(T))
-                return std::unexpected{NetError(SNET_END_OF_PACKET)};
+                return std::unexpected{NetError(SNET_END_OF_PACKET, "expected {} bytes, received {}", sizeof(T), result)};
 
             return value;
         }
 
+        template<typename T> requires (std::is_standard_layout_v<T>)
+        NetError send(const T& value) noexcept {
+            auto result = sendBytes(&value, sizeof(T));
+            if (!result.has_value())
+                return result.error();
+
+            if (result.value() != sizeof(T))
+                return NetError(SNET_END_OF_PACKET, "expected {} bytes, sent {}", sizeof(T), result.value());
+
+            return NetError::ok();
+        }
+
         NetError setBlocking(bool blocking) noexcept;
+        bool isBlocking() const noexcept { return mBlocking; }
+
         NetError setRecvTimeout(std::chrono::milliseconds timeout) noexcept;
         NetError setSendTimeout(std::chrono::milliseconds timeout) noexcept;
     };

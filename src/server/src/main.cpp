@@ -10,6 +10,7 @@
 #include "net/net.hpp"
 
 #include "packets/packets.hpp"
+#include <unordered_set>
 
 using namespace sm;
 
@@ -122,8 +123,9 @@ static void commonInit(void) {
 }
 
 static constexpr net::IPv4Address kAddress = net::IPv4Address::loopback();
-static constexpr uint16_t kPort = 9989;
+static constexpr uint16_t kPort = 9979;
 
+#if 0
 __attribute__((target("crc32")))
 static uint32_t crc32(const std::byte *data, size_t size) {
     uint32_t crc = 0;
@@ -141,13 +143,42 @@ static uint32_t crc32(const std::byte *data, size_t size) {
 
     return crc;
 }
+#endif
 
 static int clientMain() {
     net::Network network = net::Network::create();
 
     auto socket = network.connect(kAddress, kPort);
+    game::CreateAccountRequestPacket packet = {
+        .header = {
+            .type = game::PacketType::eCreateAccountRequest,
+        },
+        .username = "test",
+        .password = "password",
+    };
+
+    net::throwIfFailed(socket.sendBytes(&packet, sizeof(packet)));
+
+    auto response = socket.recv<game::CreateAccountResponsePacket>();
+
+    if (!response) {
+        logs::gGlobal.error("failed to receive create account response: {}", response.error().message());
+        return -1;
+    }
+
+    logs::gGlobal.info("received create account response: {}", response.value().status);
 
     return 0;
+}
+
+static void recvDataPacket(std::span<std::byte> dst, net::Socket& socket, game::PacketHeader header) {
+    std::memcpy(dst.data(), &header, sizeof(header));
+    size_t size = game::getPacketDataSize(header);
+
+    size_t read = socket.recvBytes(dst.data() + sizeof(header), size).value();
+    if (read != size) {
+        logs::gGlobal.error("failed to receive all packet data: expected {}, got {}", size, read);
+    }
 }
 
 static int serverMain() {
@@ -167,6 +198,8 @@ static int serverMain() {
 
     listener.listen(8).throwIfFailed();
 
+    std::unordered_set<std::unique_ptr<std::jthread>> threads;
+
     while (running) {
         auto maybeSocket = listener.tryAccept();
         if (!maybeSocket && maybeSocket.error().cancelled()) {
@@ -178,48 +211,42 @@ static int serverMain() {
             continue;
         }
 
-        net::Socket socket = std::move(maybeSocket.value());
+        auto socket = std::move(maybeSocket.value());
+
+        socket.setBlocking(false).throwIfFailed();
+
         auto maybeHeader = socket.recv<game::PacketHeader>();
         if (!maybeHeader) {
             logs::gGlobal.error("failed to receive packet header: {}", maybeHeader.error().message());
-            continue;
+            break;
         }
 
         game::PacketHeader header = maybeHeader.value();
 
         std::byte buffer[512];
-        size_t size = game::getPacketDataSize(header);
-        auto maybeRead = socket.recvBytes(buffer, size);
-        if (!maybeRead) {
-            logs::gGlobal.error("failed to receive packet data: {}", maybeRead.error().message());
-            continue;
-        }
+        recvDataPacket(buffer, socket, header);
 
-        auto read = maybeRead.value();
-        if (read != size) {
-            logs::gGlobal.error("failed to receive all packet data: expected {}, got {}", size, read);
-            continue;
-        }
-
-        uint32_t crc = crc32(buffer, size);
-        if (crc != header.crc) {
-            logs::gGlobal.error("packet data crc mismatch: expected {:x}, got {:x}", header.crc, crc);
-            continue;
-        }
-
-        switch (header.type) {
-        case game::PacketType::eCreateAccountRequest: {
+        if (header.type == game::PacketType::eCreateAccountRequest) {
             auto *packet = reinterpret_cast<game::CreateAccountRequestPacket *>(buffer);
-            logs::gGlobal.info("received create account request {} {}", packet->username, packet->password);
-            break;
+            logs::gGlobal.info("received create account request {} {} `{}` `{}`", packet->header.type, packet->header.crc, packet->username, packet->password);
+
+        } else {
+            logs::gGlobal.error("unknown packet type: {}", header.type);
         }
 
-        default: {
-            logs::gGlobal.error("unknown packet type: {}", header.type);
-            break;
-        }
-        }
+        game::CreateAccountResponsePacket resp {
+            .header = game::PacketHeader {
+                .type = game::PacketType::eCreateAccountResponse,
+            },
+            .status = game::CreateAccountStatus::eSuccess
+        };
+
+        auto err = socket.send(resp);
+
+        err.throwIfFailed();
     }
+
+    threads.clear();
 
     return 0;
 }

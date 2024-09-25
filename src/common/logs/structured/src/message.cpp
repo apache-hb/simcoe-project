@@ -13,7 +13,7 @@ struct LogAttribute {
     std::string value;
 };
 
-using LogCategory = sm::logs::structured::LogCategory;
+using Category = sm::logs::Category;
 using LogMessageId = sm::logs::structured::detail::LogMessageId;
 using MessageAttributeInfo = sm::logs::structured::MessageAttributeInfo;
 
@@ -133,12 +133,12 @@ LogMessageId::LogMessageId(LogMessageInfo& message) noexcept
     getLogMessages().emplace_back(*this);
 }
 
-static std::vector<LogCategory> &getLogCategories() noexcept {
-    static std::vector<LogCategory> sLogCategories;
+static std::vector<Category> &getLogCategories() noexcept {
+    static std::vector<Category> sLogCategories;
     return sLogCategories;
 }
 
-structured::LogCategory::LogCategory(LogCategoryData data) noexcept
+Category::Category(detail::LogCategoryData data) noexcept
     : data(data)
 {
     getLogCategories().emplace_back(*this);
@@ -191,7 +191,7 @@ static void registerMessagesWithDb(db::Connection& connection) {
     for (auto& severity : kLogSeverityOptions)
         connection.insertOrUpdate(severity);
 
-    for (const LogCategory& category : getLogCategories()) {
+    for (const Category& category : getLogCategories()) {
         sm::dao::logs::LogCategory daoCategory {
             .hash = category.hash(),
             .name = std::string{category.data.name},

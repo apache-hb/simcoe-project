@@ -10,40 +10,14 @@
 #include "db/error.hpp"
 #include "core/adt/small_vector.hpp"
 
+#include "logs/structured/category.hpp"
+
 namespace sm::db {
     class Connection;
 }
 
 namespace sm::logs::structured {
     static constexpr size_t kMaxMessageAttributes = 8;
-
-    namespace detail {
-        consteval uint64_t hashMessage(std::string_view message, uint64_t seed) noexcept {
-            uint64_t hash = seed;
-            for (char c : message) {
-                hash = (hash * 31) + c;
-            }
-            return hash;
-        }
-    }
-
-    struct LogCategoryData {
-        std::string_view name;
-        uint64_t hash;
-
-        consteval LogCategoryData(std::string_view name, uint64_t line) noexcept
-            : name(name)
-            , hash(detail::hashMessage(name, line))
-        { }
-    };
-
-    struct LogCategory {
-        const LogCategoryData data;
-
-        LogCategory(LogCategoryData data) noexcept;
-
-        constexpr uint64_t hash() const noexcept { return data.hash; }
-    };
 
     struct MessageAttributeInfo {
         std::string_view name;
@@ -52,7 +26,7 @@ namespace sm::logs::structured {
     struct LogMessageInfo {
         uint64_t hash;
         logs::Severity level;
-        const LogCategory& category;
+        const Category& category;
         std::string_view message;
         std::source_location location;
         std::span<const MessageAttributeInfo> attributes;
@@ -102,16 +76,6 @@ namespace sm::logs::structured {
             return attributes;
         }
 
-#define PARSE_MESSAGE_ATTRIBUTES(message) \
-    []() constexpr { \
-        std::array<sm::logs::structured::MessageAttributeInfo, sm::logs::structured::detail::getAttributes(message).size()> result{}; \
-        size_t i = 0; \
-        for (const auto& attr : sm::logs::structured::detail::getAttributes(message)) { \
-            result[i++] = attr; \
-        } \
-        return result; \
-    }()
-
         struct LogMessageId {
             LogMessageId(LogMessageInfo& message) noexcept;
             const LogMessageInfo& info;
@@ -128,7 +92,7 @@ namespace sm::logs::structured {
         inline LogMessageId gTagInfo{getMessage<F, A...>()};
 
         template<typename T>
-        inline LogCategory gLogCategory = T{};
+        inline Category gLogCategory = T{};
 
         void postLogMessage(const LogMessageId& message, sm::SmallVectorBase<std::string> args) noexcept;
 
@@ -149,10 +113,20 @@ namespace sm::logs::structured {
     }
 } // namespace sm::logs
 
+#define PARSE_MESSAGE_ATTRIBUTES(message) \
+    []() constexpr { \
+        std::array<sm::logs::structured::MessageAttributeInfo, sm::logs::structured::detail::getAttributes(message).size()> result{}; \
+        size_t i = 0; \
+        for (const auto& attr : sm::logs::structured::detail::getAttributes(message)) { \
+            result[i++] = attr; \
+        } \
+        return result; \
+    }()
+
 #define LOG_MESSAGE_CATEGORY(id, name) \
-    struct id final : public sm::logs::structured::LogCategory { \
+    struct id final : public sm::logs::Category { \
         constexpr id() noexcept \
-            : LogCategory(sm::logs::structured::LogCategoryData{name, __LINE__}) \
+            : Category(sm::logs::detail::LogCategoryData{name, __LINE__}) \
         { } \
     }
 
@@ -162,7 +136,7 @@ namespace sm::logs::structured {
         static constexpr auto attrs = PARSE_MESSAGE_ATTRIBUTES(message); \
         struct LogMessageImpl { \
             constexpr sm::logs::structured::LogMessageInfo operator()() const noexcept { \
-                return { sm::logs::structured::detail::hashMessage(message, loc.line()), severity, sm::logs::structured::detail::gLogCategory<category>, message, loc, attrs }; \
+                return { sm::logs::detail::hashMessage(message, loc.line()), severity, sm::logs::structured::detail::gLogCategory<category>, message, loc, attrs }; \
             } \
         }; \
         sm::logs::structured::detail::fmtMessage<LogMessageImpl>(__VA_ARGS__); \

@@ -8,6 +8,8 @@
 
 #include "net/net.hpp"
 
+#include "core/macros.h"
+
 using namespace sm;
 using namespace sm::net;
 
@@ -24,9 +26,21 @@ std::string net::toString(const IPv4Address& addr) noexcept {
     return fmt::format("{}.{}.{}.{}", bytes[0], bytes[1], bytes[2], bytes[3]);
 }
 
+static std::string fmtOsError(int code) noexcept {
+    switch (code) {
+    case SNET_READ_TIMEOUT:
+        return "Read timeout (" CT_STR(SNET_READ_TIMEOUT) ")";
+    case SNET_END_OF_PACKET:
+        return "End of packet (" CT_STR(SNET_END_OF_PACKET) ")";
+
+    default:
+        return fmt::format("OS error: {} ({})", OsError(code), code);
+    }
+}
+
 NetError::NetError(int code) noexcept
     : mCode(code)
-    , mMessage(fmt::format("{} ({})", OsError(code), code))
+    , mMessage(fmtOsError(code))
 { }
 
 void NetError::raise() const noexcept(false) {
@@ -99,6 +113,8 @@ NetError Socket::setBlocking(bool blocking) noexcept {
     u_long mode = blocking ? 0 : 1;
     if (ioctlsocket(mSocket, FIONBIO, &mode))
         return lastNetError();
+
+    mBlocking = blocking;
 
     return NetError::ok();
 }
