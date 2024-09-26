@@ -32,7 +32,8 @@ static std::string fmtOsError(int code) noexcept {
         return "Read timeout (" CT_STR(SNET_READ_TIMEOUT) ")";
     case SNET_END_OF_PACKET:
         return "End of packet (" CT_STR(SNET_END_OF_PACKET) ")";
-
+    case SNET_CONNECTION_CLOSED:
+        return "Connection closed (" CT_STR(SNET_CONNECTION_CLOSED) ")";
     default:
         return fmt::format("OS error: {} ({})", OsError(code), code);
     }
@@ -77,6 +78,9 @@ NetResult<size_t> Socket::recvBytes(void *data, size_t size) noexcept {
     int received = ::recv(mSocket, static_cast<char *>(data), size, 0);
     if (received == SOCKET_ERROR)
         return std::unexpected(lastNetError());
+
+    if (received == 0)
+        return std::unexpected(NetError{SNET_CONNECTION_CLOSED});
 
     return received;
 }

@@ -16,6 +16,7 @@
 
 #define SNET_END_OF_PACKET 12001
 #define SNET_READ_TIMEOUT 12002
+#define SNET_CONNECTION_CLOSED 12003
 
 #define SNET_LAST_STATUS 12999
 
@@ -47,6 +48,7 @@ namespace sm::net {
 
         bool cancelled() const noexcept { return mCode == WSAEINTR; }
         bool timeout() const noexcept { return mCode == SNET_READ_TIMEOUT; }
+        bool connectionClosed() const noexcept { return mCode == SNET_CONNECTION_CLOSED; }
 
         static NetError ok() noexcept { return NetError{0}; }
     };
@@ -67,7 +69,7 @@ namespace sm::net {
 
     template<typename T>
     T throwIfFailed(NetResult<T> result) throws(NetException) {
-        if (result)
+        if (result.has_value())
             return std::move(result.value());
 
         throw NetException(result.error());
@@ -133,6 +135,7 @@ namespace sm::net {
         NetResult<T> recv() noexcept {
             T value;
             size_t result = TRY_RESULT(recvBytes(&value, sizeof(T)));
+
             if (result != sizeof(T))
                 return std::unexpected{NetError(SNET_END_OF_PACKET, "expected {} bytes, received {}", sizeof(T), result)};
 

@@ -8,7 +8,7 @@ src = [
     metacc.process('include/threads/threads.hpp')
 ]
 
-deps = [ core, logs, structured_logs, system, meta ]
+deps = [ core, config, logs, structured_logs, system, meta ]
 
 libthreads = library('threads', src,
     cpp_args : [ '-DSM_THREADS_BUILD=1' ],

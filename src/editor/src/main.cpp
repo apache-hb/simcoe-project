@@ -224,7 +224,7 @@ struct LogWrapper {
 
     LogWrapper()
         : env(db::Environment::create(db::DbType::eSqlite3))
-        , connection(env.connect({ .host = "logs.db" }))
+        , connection(env.connect({ .host = "editor-logs.db" }))
     {
         sm::logs::structured::setup(connection).throwIfFailed();
     }
@@ -462,112 +462,7 @@ static void message_loop(sys::ShowWindow show) {
     // game.shutdown();
 }
 
-#if 0
-static db::DbError sqliteTest() {
-    auto env = TRY(db::Environment::create(db::DbType::eSqlite3), (const auto& error) {
-        logs::gGlobal.error("failed to create sqlite3 environment: {}", error.message());
-    });
-
-    auto conn = TRY(env.connect({ .host = "test.db" }), (const auto& error) {
-        logs::gGlobal.error("failed to connect to database: {}", error.message());
-    });
-
-    if (conn.tableExists("test")) {
-        TRY(conn.update("DROP TABLE test"), (const auto& error) {
-            logs::gGlobal.error("failed to drop table: {}", error.message());
-        });
-    }
-
-    CTASSERT(!conn.tableExists("test"));
-
-    TRY(conn.update("CREATE TABLE test (id INTEGER, name VARCHAR(100))"), (const auto& error) {
-        logs::gGlobal.error("failed to create table: {}", error.message());
-    });
-
-    std::string_view sql = R"(
-        CREATE TABLE IF NOT EXISTS test (
-            id   INTEGER      NOT NULL PRIMARY KEY,
-            name VARCHAR(255) NOT NULL
-        ) STRICT;
-    )";
-
-    auto result = TRY(conn.prepare(sql), (const auto& error) {
-        logs::gGlobal.error("failed to prepare query: {}", error.message());
-    });
-
-    TRY(result.update(), (const auto& error) {
-        logs::gGlobal.error("failed to execute update: {}", error.message());
-    });
-
-    logs::gGlobal.info("executed query");
-
-    return db::DbError::ok();
-}
-
-static db::DbError oradbTest() {
-    auto env = TRY(db::Environment::create(db::DbType::eOracleDB), (const auto& error) {
-        logs::gGlobal.error("failed to create oracledb environment: {}", error.message());
-    });
-
-    db::ConnectionConfig config = {
-        .port = 1521,
-        .host = "localhost",
-        .user = "elliothb",
-        .password = "elliothb",
-        .database = "orclpdb"
-    };
-
-    auto conn = TRY(env.connect(config), (const auto& error) {
-        logs::gGlobal.error("failed to connect to database: {}", error.message());
-    });
-
-    auto doUpdate = [&](std::string_view sql) {
-        auto result = TRY(conn.prepare(sql), (const auto& error) {
-            logs::gGlobal.error("failed to prepare query: {}", error.message());
-        });
-
-        TRY(result.update(), (const auto& error) {
-            logs::gGlobal.error("failed to execute update: {}", error.message());
-        });
-
-        if (db::DbError err = conn.commit()) {
-            logs::gGlobal.error("failed to commit transaction: {}", err.message());
-        }
-
-        logs::gGlobal.info("executed query");
-
-        return db::DbError::ok();
-    };
-
-    doUpdate(R"(
-        CREATE TABLE people (
-            id   INTEGER      NOT NULL,
-            name VARCHAR(255) NOT NULL,
-            CONSTRAINT people_pk PRIMARY KEY (id)
-        )
-    )");
-
-    doUpdate("INSERT INTO people VALUES (1, 'hello')");
-    doUpdate("INSERT INTO people VALUES (2, 'world')");
-
-    if (db::DbError err = conn.commit())
-        logs::gGlobal.error("failed to commit transaction: {}", err.message());
-
-    return db::DbError::ok();
-}
-#endif
-
 static int editorMain(sys::ShowWindow show) {
-    // sqliteTest();
-    // oradbTest();
-    const threads::CpuGeometry& geometry = threads::getCpuGeometry();
-
-    threads::SchedulerConfig thread_config = {
-        .workers = 8,
-        .priority = threads::PriorityClass::eNormal,
-    };
-    threads::Scheduler scheduler{thread_config, geometry};
-
     ecs_os_set_api_defaults();
     ecs_os_api_t api = ecs_os_get_api();
     api.abort_ = [] {

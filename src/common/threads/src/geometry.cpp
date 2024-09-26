@@ -2,14 +2,23 @@
 
 #include "common.hpp"
 
+#include "config/config.hpp"
+
 #include "core/memory/unique.hpp"
 
 #include "system/system.hpp"
 
 using namespace sm;
-using namespace sm::threads;
+
+namespace detail = sm::threads::detail;
 
 using CpuInfoLibrary = threads::detail::CpuInfoLibrary;
+
+static sm::opt<bool> gUsePinning {
+    name = "pinning",
+    desc = "Use core pinning",
+    init = true
+};
 
 template<>
 struct fmt::formatter<PROCESSOR_CACHE_TYPE> {
@@ -41,8 +50,6 @@ CpuInfoLibrary CpuInfoLibrary::load() {
 }
 
 namespace {
-LOG_CATEGORY_IMPL(gThreadLog, "Threads");
-
 threads::CpuGeometry gCpuGeometry;
 
 #if 0
@@ -102,18 +109,18 @@ struct ProcessorInfoEx {
 
         DWORD size = 0;
         if (pfnGetLogicalProcessorInformationEx(relation, nullptr, &size)) {
-            LOG_WARN(ThreadLog, "GetLogicalProcessorInformationEx{{1}} failed with error {}", sys::getLastError());
+            LOG_WARN(ThreadLog, "GetLogicalProcessorInformationEx failed with error {}", sys::getLastError());
             return std::nullopt;
         }
 
         if (OsError err = sys::getLastError(); err != OsError(ERROR_INSUFFICIENT_BUFFER)) {
-            LOG_WARN(ThreadLog, "GetLogicalProcessorInformationEx{{2}} failed with error {}", err);
+            LOG_WARN(ThreadLog, "GetLogicalProcessorInformationEx failed with error {}", err);
             return std::nullopt;
         }
 
         auto memory = sm::UniquePtr<std::byte[]>(size);
         if (!pfnGetLogicalProcessorInformationEx(relation, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)memory.get(), &size)) {
-            LOG_WARN(ThreadLog, "GetLogicalProcessorInformationEx{{3}} failed with error {}", sys::getLastError());
+            LOG_WARN(ThreadLog, "GetLogicalProcessorInformationEx failed with error {}", sys::getLastError());
             return std::nullopt;
         }
 
@@ -184,18 +191,18 @@ struct CpuSetInfo {
         HANDLE process = GetCurrentProcess();
         ULONG size = 0;
         if (pfnGetSystemCpuSetInformation(nullptr, 0, &size, process, 0)) {
-            LOG_WARN(ThreadLog, "GetSystemCpuSetInformation{{1}} failed with error {}", sys::getLastError());
+            LOG_WARN(ThreadLog, "GetSystemCpuSetInformation failed with error {}", sys::getLastError());
             return std::nullopt;
         }
 
         if (OsError err = sys::getLastError(); err != OsError(ERROR_INSUFFICIENT_BUFFER)) {
-            LOG_WARN(ThreadLog, "GetSystemCpuSetInformation{{2}} failed with error {}", err);
+            LOG_WARN(ThreadLog, "GetSystemCpuSetInformation failed with error {}", err);
             return std::nullopt;
         }
 
         auto memory = sm::UniquePtr<std::byte[]>(size);
         if (!pfnGetSystemCpuSetInformation((PSYSTEM_CPU_SET_INFORMATION)memory.get(), size, &size, process, 0)) {
-            LOG_WARN(ThreadLog, "GetSystemCpuSetInformation{{3}} failed with error {}", sys::getLastError());
+            LOG_WARN(ThreadLog, "GetSystemCpuSetInformation failed with error {}", sys::getLastError());
             return std::nullopt;
         }
 
@@ -226,6 +233,14 @@ private:
 };
 
 struct ProcessorLayout {
+    std::vector<threads::LogicalCore> logicalCores;
+    std::vector<threads::ProcessorCore> processorCores;
+    std::vector<threads::Cache> caches;
+    std::vector<threads::ProcessorPackage> packages;
+    std::vector<threads::ProcessorDie> dies;
+    std::vector<threads::NumaNode> numaNodes;
+    std::vector<threads::ProcessorModule> modules;
+
     void addCoreInfo(const PROCESSOR_RELATIONSHIP &info) noexcept {
         fmt::println(stderr, "Core: {:064b} {} {}", info.Flags, info.EfficiencyClass, info.GroupCount);
         for (WORD i = 0; i < info.GroupCount; i++) {
@@ -290,8 +305,18 @@ struct ProcessorLayout {
 };
 }
 
-CpuGeometry detail::buildCpuGeometry(const CpuInfoLibrary& library) noexcept {
+threads::CpuGeometry detail::buildCpuGeometry(const CpuInfoLibrary& library) noexcept {
+#if 0
     ProcessorLayout processorLayout{};
+
+    if (auto maybeCpuSetInfo = CpuSetInfo::create(library.pfnGetSystemCpuSetInformation)) {
+        CpuSetInfo cpusetInfo = std::move(*maybeCpuSetInfo);
+
+        for (auto info : cpusetInfo) {
+            if (info->Type == CpuSetInformation)
+                processorLayout.addCpuSetInfo(*info);
+        }
+    }
 
     if (auto maybeProcessorInfoEx = ProcessorInfoEx::create(RelationAll, library.pfnGetLogicalProcessorInformationEx)) {
         ProcessorInfoEx processorInfoEx = std::move(*maybeProcessorInfoEx);
@@ -336,21 +361,12 @@ CpuGeometry detail::buildCpuGeometry(const CpuInfoLibrary& library) noexcept {
         return CpuGeometry { };
     }
 
-    if (auto maybeCpuSetInfo = CpuSetInfo::create(library.pfnGetSystemCpuSetInformation)) {
-        CpuSetInfo cpusetInfo = std::move(*maybeCpuSetInfo);
-
-        for (auto info : cpusetInfo) {
-            if (info->Type == CpuSetInformation)
-                processorLayout.addCpuSetInfo(*info);
-        }
-    }
-
     // print cpu geometry
-
+#endif
     return CpuGeometry { };
 }
 
-const CpuGeometry& threads::getCpuGeometry() noexcept {
+const threads::CpuGeometry& threads::getCpuGeometry() noexcept {
     return gCpuGeometry;
 }
 

@@ -125,6 +125,8 @@ def run_command(cmd):
 
     result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if result.returncode != 0:
+        print(result.stdout.decode('utf-8'))
+        print(result.stderr.decode('utf-8'))
         log.info(f'exit code: {result.returncode}')
     return result.returncode
 

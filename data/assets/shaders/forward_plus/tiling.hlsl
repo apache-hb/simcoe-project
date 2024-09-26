@@ -183,7 +183,6 @@ void csCullLights(
         gLightIndexCount = 0;
     }
 
-#if 0
     FrustumData frustum;
     {
         uint pxm = TILE_SIZE * groupId.x;
@@ -225,7 +224,6 @@ void csCullLights(
     light_index_t spotLightsInTile = gLightIndexCount - pointLightsInTile;
 
     GroupMemoryBarrierWithGroupSync();
-#endif
 
     // write the light indices to the buffer
     uint groupIdIndex = gCameraData.getGroupTileIndex(groupId, TILE_SIZE);
@@ -248,7 +246,7 @@ void csCullLights(
 
     uint2 gridSize = getWindowGridSize();
 
-    if (startOffset >= 3896634) {
+    if (startOffset >= 3497256) {
         gLightIndexBuffer[(groupIdIndex * 16) + 0] = 0xFFFFFFFF;
 
         gLightIndexBuffer[(groupIdIndex * 16) + 1] = groupId.x;

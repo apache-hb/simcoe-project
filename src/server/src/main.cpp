@@ -10,9 +10,14 @@
 #include "net/net.hpp"
 
 #include "packets/packets.hpp"
+#include <random>
 #include <unordered_set>
 
+#include "server.dao.hpp"
+
 using namespace sm;
+
+using namespace std::chrono_literals;
 
 static sm::opt<bool> gRunAsClient {
     name = "client",
@@ -66,7 +71,7 @@ struct LogWrapper {
 
     LogWrapper()
         : env(db::Environment::create(db::DbType::eSqlite3))
-        , connection(env.connect({ .host = "logs.db" }))
+        , connection(env.connect({ .host = "server-logs.db" }))
     {
         sm::logs::structured::setup(connection).throwIfFailed();
     }
@@ -118,8 +123,6 @@ static void commonInit(void) {
     }
 
     gLogWrapper = sm::makeUnique<LogWrapper>();
-
-    threads::init();
 }
 
 static constexpr net::IPv4Address kAddress = net::IPv4Address::loopback();
@@ -145,7 +148,7 @@ static uint32_t crc32(const std::byte *data, size_t size) {
 }
 #endif
 
-static int clientMain() {
+static int clientMain() noexcept try {
     net::Network network = net::Network::create();
 
     auto socket = network.connect(kAddress, kPort);
@@ -157,18 +160,31 @@ static int clientMain() {
         .password = "password",
     };
 
-    net::throwIfFailed(socket.sendBytes(&packet, sizeof(packet)));
+    socket.send(packet).throwIfFailed();
 
-    auto response = socket.recv<game::CreateAccountResponsePacket>();
+    auto maybeResponse = socket.recv<game::CreateAccountResponsePacket>();
 
-    if (!response) {
-        logs::gGlobal.error("failed to receive create account response: {}", response.error().message());
+    if (!maybeResponse) {
+        logs::gGlobal.error("failed to receive create account response: {}", maybeResponse.error().message());
         return -1;
     }
 
-    logs::gGlobal.info("received create account response: {}", response.value().status);
+    auto response = maybeResponse.value();
+
+    if (response.header.type != game::PacketType::eCreateAccountResponse) {
+        logs::gGlobal.error("unexpected packet type: {}", response.header.type);
+        return -1;
+    }
+
+    logs::gGlobal.info("received create account response: {}", response.status);
 
     return 0;
+} catch (std::exception& err) {
+    logs::gGlobal.error("unhandled exception in client: {}", err.what());
+    return -1;
+} catch (...) {
+    logs::gGlobal.error("unknown unhandled exception in client");
+    return -1;
 }
 
 static void recvDataPacket(std::span<std::byte> dst, net::Socket& socket, game::PacketHeader header) {
@@ -181,14 +197,34 @@ static void recvDataPacket(std::span<std::byte> dst, net::Socket& socket, game::
     }
 }
 
-static int serverMain() {
-    const threads::CpuGeometry& geometry = threads::getCpuGeometry();
+static std::string createSalt(int length) {
+    static constexpr char kChars[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    std::random_device random{};
+    std::mt19937 gen(random());
 
-    threads::SchedulerConfig threadConfig = {
-        .workers = 8,
-        .priority = threads::PriorityClass::eNormal,
-    };
-    threads::Scheduler scheduler{threadConfig, geometry};
+    std::uniform_int_distribution<int> dist(0, sizeof(kChars) - 1);
+
+    std::string salt;
+    salt.reserve(length);
+
+    for (int i = 0; i < length; i++) {
+        salt.push_back(kChars[dist(gen)]);
+    }
+
+    return salt;
+}
+
+static uint64_t hashWithSalt(const std::string& password, const std::string& salt) {
+    std::string combined = password + salt;
+    return std::hash<std::string>{}(combined);
+}
+
+static int serverMain() {
+    db::Environment sqlite = db::Environment::create(db::DbType::eSqlite3);
+
+    db::Connection users = sqlite.connect({ .host = "server-users.db" });
+    users.createTable(sm::dao::server::User::getTableInfo());
+    users.createTable(sm::dao::server::Message::getTableInfo());
 
     bool running = true;
 
@@ -199,6 +235,7 @@ static int serverMain() {
     listener.listen(8).throwIfFailed();
 
     std::unordered_set<std::unique_ptr<std::jthread>> threads;
+    std::mutex dbMutex;
 
     while (running) {
         auto maybeSocket = listener.tryAccept();
@@ -211,39 +248,60 @@ static int serverMain() {
             continue;
         }
 
-        auto socket = std::move(maybeSocket.value());
+        std::unique_ptr<std::jthread> thread = std::make_unique<std::jthread>([&, socket = std::move(maybeSocket.value())](const std::stop_token& stop) mutable {
+            try {
+                while (!stop.stop_requested()) {
+                    auto maybeHeader = socket.recv<game::PacketHeader>();
+                    if (!maybeHeader && maybeHeader.error().connectionClosed()) {
+                        logs::gGlobal.info("client disconnected");
+                        break;
+                    }
 
-        socket.setBlocking(false).throwIfFailed();
+                    game::PacketHeader header = maybeHeader.value();
 
-        auto maybeHeader = socket.recv<game::PacketHeader>();
-        if (!maybeHeader) {
-            logs::gGlobal.error("failed to receive packet header: {}", maybeHeader.error().message());
-            break;
-        }
+                    std::byte buffer[512];
+                    recvDataPacket(buffer, socket, header);
 
-        game::PacketHeader header = maybeHeader.value();
+                    if (header.type == game::PacketType::eCreateAccountRequest) {
+                        auto *packet = reinterpret_cast<game::CreateAccountRequestPacket *>(buffer);
+                        logs::gGlobal.info("received create account request {} {} `{}` `{}`", packet->header.type, packet->header.crc, packet->username, packet->password);
 
-        std::byte buffer[512];
-        recvDataPacket(buffer, socket, header);
+                        std::string salt = createSalt(16);
 
-        if (header.type == game::PacketType::eCreateAccountRequest) {
-            auto *packet = reinterpret_cast<game::CreateAccountRequestPacket *>(buffer);
-            logs::gGlobal.info("received create account request {} {} `{}` `{}`", packet->header.type, packet->header.crc, packet->username, packet->password);
+                        sm::dao::server::User user {
+                            .name = packet->username,
+                            .password = hashWithSalt(packet->password, salt),
+                            .salt = salt,
+                        };
 
-        } else {
-            logs::gGlobal.error("unknown packet type: {}", header.type);
-        }
+                        game::CreateAccountStatus result = [&] {
+                            std::lock_guard guard(dbMutex);
+                            db::DbError result = users.tryInsert(user);
+                            return result.isSuccess() ? game::CreateAccountStatus::eSuccess : game::CreateAccountStatus::eFailure;
+                        }();
 
-        game::CreateAccountResponsePacket resp {
-            .header = game::PacketHeader {
-                .type = game::PacketType::eCreateAccountResponse,
-            },
-            .status = game::CreateAccountStatus::eSuccess
-        };
+                        logs::gGlobal.info("create account result: {}", result);
 
-        auto err = socket.send(resp);
+                        game::CreateAccountResponsePacket resp {
+                            .header = game::PacketHeader {
+                                .type = game::PacketType::eCreateAccountResponse,
+                            },
+                            .status = result
+                        };
 
-        err.throwIfFailed();
+                        socket.send(resp).throwIfFailed();
+                    } else {
+                        logs::gGlobal.error("unknown packet type: {}", header.type);
+                    }
+                }
+            } catch (std::exception& err) {
+                logs::gGlobal.error("unhandled exception in client thread: {}", err.what());
+            } catch (...) {
+                logs::gGlobal.error("unknown unhandled exception in client thread");
+            }
+        });
+
+        threads.insert(std::move(thread));
     }
 
     threads.clear();

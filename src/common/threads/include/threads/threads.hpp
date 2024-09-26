@@ -47,11 +47,13 @@ namespace sm::threads {
         }
     };
 
-    struct LogicalCore : ScheduleMask {
-
+    struct LogicalCore {
+        DWORD id;
+        WORD group;
+        WORD logicalProcessorIndex;
     };
 
-    struct ProcessorCore : ScheduleMask {
+    struct ProcessorCore {
         uint16 schedule;  // schedule speed (lower is faster)
         uint8 efficiency; // efficiency (higher is more efficient)
     };
@@ -64,8 +66,16 @@ namespace sm::threads {
         CacheType type;
     };
 
-    struct ProcessorPackage {
+    struct CoreComplex {
 
+    };
+
+    struct CoreChiplet {
+
+    };
+
+    struct ProcessorPackage {
+        std::vector<ScheduleMask> groups;
     };
 
     struct Group {
@@ -87,12 +97,11 @@ namespace sm::threads {
     struct CpuGeometry {
         std::vector<LogicalCore> logicalCores;
         std::vector<ProcessorCore> processorCores;
+        std::vector<CoreComplex> complexes;
+        std::vector<CoreChiplet> chiplets;
         std::vector<Cache> caches;
         std::vector<ProcessorPackage> packages;
-        std::vector<Group> groups;
-        std::vector<ProcessorDie> dies;
         std::vector<NumaNode> numaNodes;
-        std::vector<ProcessorModule> modules;
 
         // if we can't detect the cpu geometry, just let the OS
         // handle scheduling for us.
@@ -100,6 +109,17 @@ namespace sm::threads {
             return logicalCores.size() == 0
                 || processorCores.size() == 0;
         }
+    };
+
+    class IScheduler {
+    public:
+    };
+
+    class ICpuGeometry {
+    public:
+        virtual ~ICpuGeometry() = default;
+
+        virtual IScheduler *newScheduler() = 0;
     };
 
     void init() noexcept;
