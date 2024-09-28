@@ -28,7 +28,7 @@ cfg = configuration_data()
 
 tlsf = dependency('tlsf')
 sqlite3 = dependency('sqlite3')
-oracledb = dependency('instantclient', required : get_option('orcl'))
+oci = dependency('instantclient', required : get_option('orcl'))
 db2cli = subproject('db2-client', required : get_option('db2'))
 postgres = dependency('libpq', required : get_option('psql'))
 devapi = dependency('devapi', required : get_option('mysql'))
@@ -36,7 +36,7 @@ has_mssql = get_option('mssql').allowed() and false
 has_odbc = get_option('odbc').allowed() and false
 
 cfg.set10('SMC_DB_HAS_SQLITE3', true)
-cfg.set10('SMC_DB_HAS_ORCL', oracledb.found())
+cfg.set10('SMC_DB_HAS_ORCL', oci.found())
 cfg.set10('SMC_DB_HAS_DB2', db2cli.found())
 cfg.set10('SMC_DB_HAS_POSTGRES', postgres.found())
 cfg.set10('SMC_DB_HAS_MYSQL', devapi.found())
@@ -45,13 +45,13 @@ cfg.set10('SMC_DB_HAS_ODBC', has_odbc)
 
 deps = [ core, sqlite3, tlsf, meta, logs ]
 
-if oracledb.found()
+if oci.found()
     src += [
         'src/db/drivers/orcl/orcl.cpp',
         'src/db/drivers/orcl/statement.cpp',
         'src/db/drivers/orcl/connection.cpp'
     ]
-    deps += [ oracledb.get_variable('oci') ]
+    deps += [ oci ]
 endif
 
 if db2cli.found()

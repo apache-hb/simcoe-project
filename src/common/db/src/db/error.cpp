@@ -55,6 +55,10 @@ DbError DbError::columnNotFound(std::string_view column) noexcept {
     return DbError{-1, eError, fmt::format("Column not found: `{}`", column)};
 }
 
+DbError DbError::typeMismatch(std::string_view column, DataType actual, DataType expected) noexcept {
+    return DbError{-1, eError, fmt::format("Column `{}` type mismatch: expected {}, got {}", column, expected, actual)};
+}
+
 DbError DbError::bindNotFound(std::string_view bind) noexcept {
     return DbError{-1, eError, fmt::format("Named bind `{}` not found", bind)};
 }

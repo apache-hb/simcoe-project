@@ -20,6 +20,9 @@ namespace sm::db::detail::orcl {
     std::string setupInsertReturningPrimaryKey(const dao::TableInfo& info) noexcept;
     std::string setupCreateTable(const dao::TableInfo& info) noexcept;
     std::string setupSelect(const dao::TableInfo& info) noexcept;
+    std::string setupUpdate(const dao::TableInfo& info) noexcept;
+    std::string setupSingletonTrigger(std::string_view name) noexcept;
+    std::string setupTableExists() noexcept;
 
     template<typename T, ub4 H>
     class OraHandle {
@@ -121,11 +124,12 @@ namespace sm::db::detail::orcl {
     }
 
     union CellValue {
-        oratext *text;
+        char *text;
         OCINumber num;
         OCIDate date;
         int64 integer;
         double real;
+        void *lob;
 
         // oratypes.h is rude and defines boolean as a macro
         boolean bol;
@@ -135,13 +139,14 @@ namespace sm::db::detail::orcl {
         std::string_view name;
         ub4 charSemantics;
         ub4 columnWidth;
-        OraDefine define;
+        OraDefine define{nullptr};
 
         CellValue value;
         ub2 type;
-        ub2 valueLength;
+        ub4 valueLength;
         sb2 precision;
         sb1 scale;
+        sb2 indicator;
     };
 
     class OraStatement final : public detail::IStatement {
@@ -150,11 +155,16 @@ namespace sm::db::detail::orcl {
         OraStmt mStatement;
         OraError mError;
 
+        std::vector<void*> mBindValues;
         std::vector<OraColumnInfo> mColumnInfo;
+
+        void *initBindValue(const void *value, ub4 size) noexcept;
+        void *initStringBindValue(std::string_view value) noexcept;
 
         bool useBoolType() const noexcept;
 
         DbError closeColumns() noexcept;
+        void freeBindValues() noexcept;
 
         DbError executeStatement(ub4 flags, int iters) noexcept;
         DbError executeUpdate(ub4 flags) noexcept;
@@ -190,6 +200,7 @@ namespace sm::db::detail::orcl {
 
         int getColumnCount() const noexcept override;
         DbError getColumnIndex(std::string_view name, int& index) const noexcept override;
+        DbError getColumnInfo(int index, ColumnInfo& info) const noexcept override;
 
 
         DbError getIntByIndex(int index, int64& value) noexcept override;
@@ -234,8 +245,13 @@ namespace sm::db::detail::orcl {
 
         DbError setupSelect(const dao::TableInfo& table, std::string& sql) noexcept override;
 
+        DbError setupUpdate(const dao::TableInfo& table, std::string& sql) noexcept override;
+
+        DbError setupSingletonTrigger(const dao::TableInfo& table, std::string& sql) noexcept override;
+
+        DbError setupTableExists(std::string& sql) noexcept override;
+
         DbError createTable(const dao::TableInfo& table) noexcept override;
-        DbError tableExists(std::string_view name, bool& exists) noexcept override;
 
         DbError clientVersion(Version& version) const noexcept override;
         DbError serverVersion(Version& version) const noexcept override;

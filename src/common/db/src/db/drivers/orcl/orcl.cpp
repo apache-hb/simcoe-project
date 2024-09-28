@@ -240,7 +240,37 @@ std::string orcl::setupSelect(const dao::TableInfo& info) noexcept {
             ss << ", ";
         }
     }
-    ss << " FROM " << info.name << " WHERE";
+    ss << " FROM " << info.name << ";";
 
     return ss.str();
+}
+
+std::string orcl::setupUpdate(const dao::TableInfo& info) noexcept {
+    std::ostringstream ss;
+    ss << "UPDATE " << info.name << " SET ";
+    for (size_t i = 0; i < info.columns.size(); i++) {
+        ss << info.columns[i].name << " = :" << info.columns[i].name;
+        if (i != info.columns.size() - 1) {
+            ss << ", ";
+        }
+    }
+
+    ss << ";";
+
+    return ss.str();
+}
+
+static constexpr std::string_view kCreateSingletonTrigger =
+    "CREATE TRIGGER IF NOT EXISTS {0}_singleton\n"
+    "    BEFORE INSERT ON {0}\n"
+    "BEGIN\n"
+    "    DELETE FROM {0};\n"
+    "END;";
+
+std::string orcl::setupSingletonTrigger(std::string_view name) noexcept {
+    return fmt::format(kCreateSingletonTrigger, name);
+}
+
+std::string orcl::setupTableExists() noexcept {
+    return "SELECT COUNT(*) FROM user_tables WHERE table_name = UPPER(:name)";
 }

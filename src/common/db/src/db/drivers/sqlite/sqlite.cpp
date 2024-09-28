@@ -219,7 +219,7 @@ std::string sqlite::setupUpdate(const dao::TableInfo& info) noexcept {
         }
     }
 
-    ss << " WHERE rowid = rowid;";
+    ss << ";";
 
     return ss.str();
 }

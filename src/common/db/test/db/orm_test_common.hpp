@@ -25,5 +25,5 @@ auto getValue(DbResult<T> result, std::string_view msg = "") {
     }
 
     checkError(result.error());
-    std::unreachable();
+    throw std::runtime_error("unexpected error");
 }

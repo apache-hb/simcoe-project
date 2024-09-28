@@ -8,30 +8,23 @@ using namespace sm::db::detail;
 
 LOG_CATEGORY_IMPL(db::gLog, "DB");
 
-DbError IConnection::tableExists(std::string_view name, bool& exists) noexcept {
-    std::string sql;
-    if (DbError error = setupTableExists(sql))
-        return error;
+DbError IStatement::getColumnIndex(std::string_view name, int& index) const noexcept {
+    int columnCount = getColumnCount();
+    if (columnCount < 0)
+        return DbError::todo();
 
-    sm::UniquePtr<IStatement> stmt;
-    if (DbError error = prepare(sql, &stmt))
-        return error;
+    for (int i = 0; i < columnCount; ++i) {
+        ColumnInfo info;
+        if (DbError error = getColumnInfo(i, info))
+            return error;
 
-    if (DbError error = stmt->bindStringByName("name", name))
-        return error;
+        if (info.name == name) {
+            index = i;
+            return DbError::ok();
+        }
+    }
 
-    if (DbError error = stmt->start(true, StatementType::eQuery))
-        return error;
-
-    int64 count = 0;
-    if (DbError error = stmt->getIntByIndex(0, count))
-        return error;
-
-    if (DbError error = stmt->finalize())
-        return error;
-
-    exists = count > 0;
-    return DbError::ok();
+    return DbError::columnNotFound(name);
 }
 
 DbError IStatement::getIntByName(std::string_view column, int64& value) noexcept {
@@ -73,7 +66,7 @@ DbError IStatement::bindDoubleByName(std::string_view name, double value) noexce
 }
 
 DbError IStatement::bindBlobByName(std::string_view name, Blob value) noexcept {
-    return bindValue(name, value, &IStatement::bindBlobByIndex);
+    return bindValue(name, std::move(value), &IStatement::bindBlobByIndex);
 }
 
 DbError IStatement::bindNullByName(std::string_view name) noexcept {

@@ -22,14 +22,14 @@ void detail::destroyEnvironment(detail::IEnvironment *impl) noexcept {
 
 void detail::destroyStatement(detail::IStatement *impl) noexcept {
     if (DbError err = impl->finalize())
-        CT_NEVER("Failed to close statement: %s (%d)", err.message().data(), err.code());
+        CT_NEVER("Failed to close statement: %s (%d)", err.what(), err.code());
 
     delete impl;
 }
 
 void detail::destroyConnection(detail::IConnection *impl) noexcept {
     if (DbError err = impl->close())
-        CT_NEVER("Failed to close connection: %s (%d)", err.message().data(), err.code());
+        CT_NEVER("Failed to close connection: %s (%d)", err.what(), err.code());
 
     delete impl;
 }
@@ -47,8 +47,7 @@ DbResult<bool> Connection::tableExists(std::string_view name) noexcept {
     stmt.bind("name").to(name);
     ResultSet results = TRY_RESULT(stmt.start());
 
-    int count = results.get<int>(0).value_or(0);
-    return count > 0;
+    return TRY_RESULT(results.get<int>(0)) > 0;
 }
 
 DbResult<Version> Connection::clientVersion() const noexcept {

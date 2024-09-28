@@ -114,32 +114,27 @@ DbError OraConnection::setupSelect(const dao::TableInfo& table, std::string& sql
     return DbError::ok();
 }
 
+DbError OraConnection::setupUpdate(const dao::TableInfo& table, std::string& sql) noexcept {
+    sql = orcl::setupUpdate(table);
+    return DbError::ok();
+}
+
+DbError OraConnection::setupSingletonTrigger(const dao::TableInfo& table, std::string& sql) noexcept {
+    sql = orcl::setupSingletonTrigger(table.name);
+    return DbError::ok();
+}
+
+DbError OraConnection::setupTableExists(std::string& sql) noexcept {
+    sql = orcl::setupTableExists();
+    return DbError::ok();
+}
+
 DbError OraConnection::createTable(const dao::TableInfo& table) noexcept {
     auto sql = orcl::setupCreateTable(table);
-    fmt::println(stderr, "Creating table: {}", sql);
     OraStatement stmt = TRY_UNWRAP(newStatement(sql));
     defer { (void)stmt.finalize(); };
 
     return stmt.update(true);
-}
-
-DbError OraConnection::tableExists(std::string_view name, bool& exists) noexcept {
-    OraStatement stmt = TRY_UNWRAP(newStatement("SELECT COUNT(*) FROM user_tables WHERE table_name = UPPER(:1)"));
-    defer { (void)stmt.finalize(); };
-
-    if (DbError error = stmt.bindStringByIndex(0, name))
-        return error;
-
-    if (DbError result = stmt.start(true, StatementType::eQuery))
-        return result;
-
-    int64 count;
-    if (DbError result = stmt.getIntByIndex(0, count))
-        return result;
-
-    exists = count > 0;
-
-    return stmt.finalize();
 }
 
 DbError OraConnection::clientVersion(Version& version) const noexcept {
@@ -246,12 +241,13 @@ void OraEnvironment::wrapFree(void *ctx, void *ptr) {
 DbError detail::getOracleEnv(detail::IEnvironment **env, const EnvConfig& config) noexcept {
     UniquePtr orcl = makeUnique<OraEnvironment>();
     OraEnv oci;
-    sword result = OCIEnvCreate(
+    sword result = OCIEnvNlsCreate(
         &oci, OCI_THREADED, orcl.get(),
         &OraEnvironment::wrapMalloc,
         &OraEnvironment::wrapRealloc,
         &OraEnvironment::wrapFree,
-        0, nullptr
+        0, nullptr,
+        0, 0
     );
 
     if (result != OCI_SUCCESS) {

@@ -31,6 +31,7 @@ namespace sm::db {
         int code() const noexcept { return mCode; }
         int status() const noexcept { return mStatus; }
         std::string_view message() const noexcept { return mMessage; }
+        const char *what() const noexcept { return mMessage.c_str(); }
         const std::stacktrace& stacktrace() const noexcept { return mStacktrace; }
 
         [[noreturn]]
@@ -57,6 +58,7 @@ namespace sm::db {
         static DbError done(int code) noexcept;
         static DbError unsupported(std::string_view subject) noexcept;
         static DbError columnNotFound(std::string_view column) noexcept;
+        static DbError typeMismatch(std::string_view column, DataType actual, DataType expected) noexcept;
         static DbError bindNotFound(std::string_view bind) noexcept;
         static DbError bindNotFound(int bind) noexcept;
         static DbError connectionError(std::string_view message) noexcept;

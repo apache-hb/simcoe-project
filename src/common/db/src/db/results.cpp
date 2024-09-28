@@ -31,7 +31,12 @@ int ResultSet::getColumnCount() const noexcept {
     return mImpl->getColumnCount();
 }
 
+// TODO: deduplicate checks
+
 DbResult<ColumnInfo> ResultSet::getColumnInfo(int index) const noexcept {
+    if (index < 0 || index >= getColumnCount())
+        return std::unexpected{DbError::columnNotFound(fmt::format(":{}", index))};
+
     ColumnInfo column;
     if (DbError error = mImpl->getColumnInfo(index, column))
         return std::unexpected(error);
@@ -40,6 +45,10 @@ DbResult<ColumnInfo> ResultSet::getColumnInfo(int index) const noexcept {
 }
 
 DbResult<double> ResultSet::getDouble(int index) noexcept {
+    ColumnInfo info = TRY_RESULT(getColumnInfo(index));
+    if (info.type != DataType::eDouble)
+        return std::unexpected(DbError::typeMismatch(info.name, info.type, DataType::eDouble));
+
     double value = 0.0;
     if (DbError error = mImpl->getDoubleByIndex(index, value))
         return error;
@@ -48,6 +57,10 @@ DbResult<double> ResultSet::getDouble(int index) noexcept {
 }
 
 DbResult<sm::int64> ResultSet::getInt(int index) noexcept {
+    ColumnInfo info = TRY_RESULT(getColumnInfo(index));
+    if (info.type != DataType::eInteger)
+        return std::unexpected(DbError::typeMismatch(info.name, info.type, DataType::eInteger));
+
     int64 value = 0;
     if (DbError error = mImpl->getIntByIndex(index, value))
         return error;
@@ -56,6 +69,10 @@ DbResult<sm::int64> ResultSet::getInt(int index) noexcept {
 }
 
 DbResult<bool> ResultSet::getBool(int index) noexcept {
+    ColumnInfo info = TRY_RESULT(getColumnInfo(index));
+    if (info.type != DataType::eBoolean)
+        return std::unexpected(DbError::typeMismatch(info.name, info.type, DataType::eBoolean));
+
     bool value = false;
     if (DbError error = mImpl->getBooleanByIndex(index, value))
         return error;
@@ -64,6 +81,10 @@ DbResult<bool> ResultSet::getBool(int index) noexcept {
 }
 
 DbResult<std::string_view> ResultSet::getString(int index) noexcept {
+    ColumnInfo info = TRY_RESULT(getColumnInfo(index));
+    if (info.type != DataType::eString)
+        return std::unexpected(DbError::typeMismatch(info.name, info.type, DataType::eString));
+
     std::string_view value;
     if (DbError error = mImpl->getStringByIndex(index, value))
         return std::unexpected(error);
@@ -72,6 +93,10 @@ DbResult<std::string_view> ResultSet::getString(int index) noexcept {
 }
 
 DbResult<Blob> ResultSet::getBlob(int index) noexcept {
+    ColumnInfo info = TRY_RESULT(getColumnInfo(index));
+    if (info.type != DataType::eBlob)
+        return std::unexpected(DbError::typeMismatch(info.name, info.type, DataType::eBlob));
+
     Blob value;
     if (DbError error = mImpl->getBlobByIndex(index, value))
         return std::unexpected(error);

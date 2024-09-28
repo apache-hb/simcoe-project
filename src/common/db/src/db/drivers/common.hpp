@@ -79,8 +79,6 @@ namespace sm::db::detail {
             return DbError::todo();
         }
 
-        virtual DbError tableExists(std::string_view name, bool& exists) noexcept;
-
         virtual DbError createTable(const dao::TableInfo& table) noexcept {
             return DbError::todo();
         }
@@ -134,24 +132,7 @@ namespace sm::db::detail {
             return -1;
         }
 
-        virtual DbError getColumnIndex(std::string_view name, int& index) const noexcept {
-            int columnCount = getColumnCount();
-            if (columnCount < 0)
-                return DbError::todo();
-
-            for (int i = 0; i < columnCount; ++i) {
-                ColumnInfo info;
-                if (DbError error = getColumnInfo(i, info))
-                    return error;
-
-                if (info.name == name) {
-                    index = i;
-                    return DbError::ok();
-                }
-            }
-
-            return DbError::columnNotFound(name);
-        }
+        virtual DbError getColumnIndex(std::string_view name, int& index) const noexcept;
 
         virtual DbError getColumnInfo(int index, ColumnInfo& info) const noexcept {
             return DbError::todo();
