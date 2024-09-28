@@ -313,7 +313,7 @@ static sm::IFileSystem *mountArchive(bool isPacked, const fs::path &path) {
     }
 }
 
-static void message_loop(sys::ShowWindow show) {
+static void messageLoop(sys::ShowWindow show) {
     sys::WindowConfig window_config = {
         .mode = sys::WindowMode::eWindowed,
         .width = 1280,
@@ -471,7 +471,7 @@ static int editorMain(sys::ShowWindow show) {
     ecs_os_set_api(&api);
 
     init_imgui();
-    message_loop(show);
+    messageLoop(show);
     destroy_imgui();
 
     return 0;

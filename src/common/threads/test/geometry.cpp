@@ -1,23 +1,33 @@
 #include "test/common.hpp"
 
 #include "threads/threads.hpp"
-#include "common.hpp"
+#include "backends/common.hpp"
 
 using namespace sm;
 
 using CpuInfoLibrary = threads::detail::CpuInfoLibrary;
 
-TEST_CASE("Processor Geometry") {
-    threads::init();
+TEST_CASE("CpuSet Geometry") {
+    CpuInfoLibrary lib = CpuInfoLibrary::load();
+    if (lib.pfnGetLogicalProcessorInformationEx == nullptr)
+        SKIP("GetLogicalProcessorInformationEx not available");
 
-    const auto& geometry = threads::getCpuGeometry();
+    if (lib.pfnGetSystemCpuSetInformation == nullptr)
+        SKIP("GetSystemCpuSetInformation not available");
 
-    CHECK(geometry.packages.size() > 0);
-    // CHECK(geometry.cores.size() > 0);
-    // CHECK(geometry.threads.size() > 0);
-    CHECK(geometry.caches.size() > 0);
+    auto result = threads::detail::newCpuSetGeometry(
+        lib.pfnGetLogicalProcessorInformationEx,
+        lib.pfnGetSystemCpuSetInformation
+    );
+
+    CHECK(result != nullptr);
 }
 
+TEST_CASE("Processor Geometry") {
+    threads::init();
+}
+
+#if 0
 TEST_CASE("New APIs missing") {
     CpuInfoLibrary lib = CpuInfoLibrary::load();
 
@@ -47,3 +57,4 @@ TEST_CASE("New APIs missing") {
         (void)threads::detail::buildCpuGeometry(temp);
     }
 }
+#endif

@@ -86,6 +86,33 @@ TEST_CASE("sqlite updates") {
 
         REQUIRE(count == 4);
     }
+
+    SECTION("Blob IO") {
+        if (conn.tableExists("blob_test").value_or(false))
+            getValue(conn.tryUpdateSql("DROP TABLE blob_test"));
+
+        getValue(conn.tryUpdateSql("CREATE TABLE blob_test (id INTEGER, data BLOB)"));
+
+        Blob blob{100};
+        for (size_t i = 0; i < blob.size(); i++) {
+            blob[i] = static_cast<std::byte>(i);
+        }
+
+        auto stmt = getValue(conn.prepareUpdate("INSERT INTO blob_test (id, data) VALUES (1, :blob)"));
+        stmt.bind("blob").to(blob);
+        getValue(stmt.update());
+
+        ResultSet results = getValue(conn.trySelectSql("SELECT * FROM blob_test"));
+
+        Blob readBlob = getValue(results.getBlob(1));
+        REQUIRE(readBlob.size() == blob.size());
+
+        for (size_t i = 0; i < blob.size(); i++) {
+            REQUIRE(readBlob[i] == blob[i]);
+        }
+
+        REQUIRE(results.next().isDone());
+    }
 }
 
 TEST_CASE("sqlite connection creation") {

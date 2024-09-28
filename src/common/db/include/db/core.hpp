@@ -4,7 +4,7 @@
 #include "core/memory/unique.hpp"
 
 #include <expected>
-#include <span>
+#include <vector>
 #include <chrono>
 
 #include "core.meta.hpp"
@@ -17,7 +17,7 @@ namespace sm::db {
     class Connection;
     class Environment;
 
-    using Blob = std::span<const uint8>;
+    using Blob = std::vector<std::byte>;
     using DateTime = std::chrono::time_point<std::chrono::system_clock>;
 
     namespace detail {
@@ -35,7 +35,7 @@ namespace sm::db {
     }
 
     REFLECT_ENUM(DbType)
-    enum class DbType {
+    enum class DbType : uint_least8_t {
 #define DB_TYPE(id, enabled) id,
 #include "db/orm.inc"
 
@@ -43,7 +43,7 @@ namespace sm::db {
     };
 
     REFLECT_ENUM(DataType)
-    enum class DataType {
+    enum class DataType : uint_least8_t {
         eInteger, // int32_t
         eBoolean, // bool
         eString, // std::string
@@ -56,7 +56,7 @@ namespace sm::db {
     };
 
     REFLECT_ENUM(StatementType)
-    enum class StatementType {
+    enum class StatementType : uint_least8_t {
         eQuery, // select
         eModify, // update
         eDefine, // create
@@ -66,7 +66,7 @@ namespace sm::db {
     };
 
     REFLECT_ENUM(JournalMode)
-    enum class JournalMode {
+    enum class JournalMode : uint_least8_t {
         eDefault,
 
         eDelete,
@@ -80,7 +80,7 @@ namespace sm::db {
     };
 
     REFLECT_ENUM(Synchronous)
-    enum class Synchronous {
+    enum class Synchronous : uint_least8_t {
         eDefault,
 
         eExtra,
@@ -92,7 +92,7 @@ namespace sm::db {
     };
 
     REFLECT_ENUM(LockingMode)
-    enum class LockingMode {
+    enum class LockingMode : uint_least8_t {
         eDefault,
 
         eRelaxed,

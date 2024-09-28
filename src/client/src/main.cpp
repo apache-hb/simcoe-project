@@ -276,7 +276,7 @@ static sm::IFileSystem *mountArchive(bool isPacked, const fs::path &path) {
     }
 }
 
-static void message_loop(sys::ShowWindow show) {
+static void messageLoop(sys::ShowWindow show) {
     sys::WindowConfig window_config = {
         .mode = sys::WindowMode::eWindowed,
         .width = 1280,
@@ -356,16 +356,7 @@ static void message_loop(sys::ShowWindow show) {
 }
 
 static int clientMain(sys::ShowWindow show) {
-    const threads::CpuGeometry& geometry = threads::getCpuGeometry();
-
-    threads::SchedulerConfig thread_config = {
-        .workers = 8,
-        .priority = threads::PriorityClass::eNormal,
-    };
-    threads::Scheduler scheduler{thread_config, geometry};
-
-    message_loop(show);
-
+    messageLoop(show);
     return 0;
 }
 

@@ -5,6 +5,12 @@ src = [
     'src/geometry.cpp',
     'src/schedule.cpp',
 
+    'src/cpuinfo.cpp',
+
+    'src/backends/cpuset.cpp',
+    'src/backends/logical.cpp',
+    'src/backends/default.cpp',
+
     metacc.process('include/threads/threads.hpp')
 ]
 
@@ -12,7 +18,7 @@ deps = [ core, config, logs, structured_logs, system, meta ]
 
 libthreads = library('threads', src,
     cpp_args : [ '-DSM_THREADS_BUILD=1' ],
-    include_directories : [ threads_include ],
+    include_directories : [ threads_include, 'src' ],
     dependencies : deps
 )
 
@@ -24,7 +30,7 @@ threads = declare_dependency(
 
 # TODO: re-enable tests
 testcases = {
-    # 'Processor geometry': 'test/geometry.cpp',
+    'Processor geometry': 'test/geometry.cpp',
 }
 
 foreach name, source : testcases

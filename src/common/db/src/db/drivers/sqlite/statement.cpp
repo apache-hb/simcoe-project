@@ -125,7 +125,7 @@ DbError SqliteStatement::bindDoubleByIndex(int index, double value) noexcept {
 }
 
 DbError SqliteStatement::bindBlobByIndex(int index, Blob value) noexcept {
-    int err = sqlite3_bind_blob(mStatement, index + 1, value.data(), value.size_bytes(), SQLITE_STATIC);
+    int err = sqlite3_bind_blob(mStatement, index + 1, value.data(), value.size(), SQLITE_STATIC);
     return getStmtError(err);
 }
 
@@ -212,10 +212,11 @@ DbError SqliteStatement::getBlobByIndex(int index, Blob& value) noexcept {
     if (!isRowReady())
         return rowNotReady();
 
-    const uint8 *bytes = (const uint8*)sqlite3_column_blob(mStatement, index);
+    const std::byte *bytes = (const std::byte*)sqlite3_column_blob(mStatement, index);
     int length = sqlite3_column_bytes(mStatement, index);
-
-    value = Blob{bytes, bytes + length};
+    if (length > 0) {
+        value = Blob{bytes, bytes + length};
+    }
 
     return DbError::ok();
 }

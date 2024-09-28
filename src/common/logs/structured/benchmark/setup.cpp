@@ -21,7 +21,7 @@ LOG_MESSAGE_CATEGORY(TestLog, "Tests");
 
 TEST_CASE("Setup logging") {
     auto env = db::Environment::create(db::DbType::eSqlite3);
-    auto conn = env.connect({.host="testlogs.db"});
+    auto conn = env.connect({.host="benchlogs.db"});
 
     if (auto err = logs::structured::setup(conn)) {
         err.raise();

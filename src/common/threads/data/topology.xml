@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root name="topology">
+    <table name="logical_core" syntheticPrimaryKey="ulong">
+        <column name="cpuset_id" type="ulong"    />
+        <column name="core_index" type="ulong"   />
+        <column name="thread_index" type="ulong" />
+    </table>
+
+    <table name="physical_core" syntheticPrimaryKey="ulong">
+        <column name="core_index" type="ulong" />
+    </table>
+
+    <table name="cache" syntheticPrimaryKey="ulong">
+        <column name="level" type="uint"            />
+        <column name="associativity" type="uint"    />
+        <column name="size" type="uint"             />
+        <column name="line_size" type="uint"        />
+        <column name="type" type="text" length="32" />
+    </table>
+</root>

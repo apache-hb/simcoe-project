@@ -1,14 +1,18 @@
 #pragma once
 
+#include "core/core.hpp"
+#include "core/error.hpp"
+#include "core/macros.hpp"
+#include "core/memory.hpp"
+#include "core/memory/unique.hpp"
+
 #include "core/win32.hpp" // IWYU pragma: keep
 
-#include "core/macros.hpp"
-#include "core/adt/vector.hpp"
-#include "core/core.hpp"
-
-#include <bitset>
+#include "logs/structured/message.hpp"
 
 #include "threads.meta.hpp"
+
+LOG_MESSAGE_CATEGORY(ThreadLog, "Threads");
 
 namespace sm::threads {
     static constexpr size_t kMaxThreads = 512;
@@ -50,7 +54,8 @@ namespace sm::threads {
     struct LogicalCore {
         DWORD id;
         WORD group;
-        WORD logicalProcessorIndex;
+        WORD coreIndex;
+        WORD threadIndex;
     };
 
     struct ProcessorCore {
@@ -66,10 +71,6 @@ namespace sm::threads {
         CacheType type;
     };
 
-    struct CoreComplex {
-
-    };
-
     struct CoreChiplet {
 
     };
@@ -79,11 +80,11 @@ namespace sm::threads {
     };
 
     struct Group {
-
-    };
-
-    struct ProcessorDie {
-
+        Cache l3Cache;
+        std::vector<Cache> l2Caches;
+        std::vector<Cache> l1Caches;
+        std::vector<LogicalCore> logicalCores;
+        std::vector<ProcessorCore> cores;
     };
 
     struct NumaNode {
@@ -94,72 +95,76 @@ namespace sm::threads {
 
     };
 
-    struct CpuGeometry {
-        std::vector<LogicalCore> logicalCores;
-        std::vector<ProcessorCore> processorCores;
-        std::vector<CoreComplex> complexes;
-        std::vector<CoreChiplet> chiplets;
-        std::vector<Cache> caches;
-        std::vector<ProcessorPackage> packages;
-        std::vector<NumaNode> numaNodes;
+    class ThreadHandle {
+        HANDLE mHandle;
+        DWORD mThreadId;
 
-        // if we can't detect the cpu geometry, just let the OS
-        // handle scheduling for us.
-        bool disableScheduler() const noexcept {
-            return logicalCores.size() == 0
-                || processorCores.size() == 0;
-        }
+    public:
+        ThreadHandle(HANDLE handle, DWORD threadId) noexcept;
+
+        ~ThreadHandle() noexcept;
+
+        OsError join() noexcept;
+
+        HANDLE getHandle() const noexcept { return mHandle; }
+        DWORD getThreadId() const noexcept { return mThreadId; }
     };
 
     class IScheduler {
+        virtual ThreadHandle launchThread(void *param, LPTHREAD_START_ROUTINE start) = 0;
+
     public:
+        virtual ~IScheduler() = default;
+
+        template<typename F>
+        ThreadHandle launch(F &&fn) {
+            auto thunk = [](void *param) noexcept -> unsigned long {
+                try {
+                    auto fn = sm::makeUnique<F>(reinterpret_cast<F*>(param));
+                    (*fn)();
+                    return 0;
+                } catch (std::exception &err) {
+                    LOG_ERROR(ThreadLog, "Thread exception: {}", err.what());
+                } catch (...) {
+                    LOG_ERROR(ThreadLog, "Unknown thread exception");
+                }
+
+                return -1;
+            };
+
+            F *param = new F(std::forward<F>(fn));
+            return launchThread(param, thunk);
+        }
     };
 
     class ICpuGeometry {
+
+    protected:
+        std::vector<LogicalCore> mLogicalCores;
+        std::vector<ProcessorCore> mProcessorCores;
+        std::vector<Cache> mCaches;
+
+        // amd ccd groups
+        std::vector<Group> mCoreGroups;
+
+        void createCoreGroups();
+
+        ICpuGeometry() = default;
+
     public:
         virtual ~ICpuGeometry() = default;
 
-        virtual IScheduler *newScheduler() = 0;
+        virtual IScheduler *newScheduler(std::vector<LogicalCore> threads) = 0;
+
+        std::span<const LogicalCore> logicalCores() const noexcept { return mLogicalCores; }
+        std::span<const ProcessorCore> processorCores() const noexcept { return mProcessorCores; }
+        std::span<const Cache> caches() const noexcept { return mCaches; }
+
+        std::vector<Cache> l3Caches() const;
+        std::vector<Cache> l2Caches() const;
+        std::vector<Cache> l1Caches() const;
     };
 
     void init() noexcept;
-    const CpuGeometry& getCpuGeometry() noexcept;
-
-    class ThreadHandle {
-        HANDLE mHandle = nullptr;
-
-    public:
-        ThreadHandle(HANDLE handle)
-            : mHandle(handle)
-        { }
-
-        HANDLE getHandle() const {
-            return mHandle;
-        }
-    };
-
-    struct SchedulerConfig {
-        uint workers;
-        PriorityClass priority;
-    };
-
-    class Scheduler {
-        SchedulerConfig mConfig;
-        CpuGeometry mCpuGeometry;
-
-        static DWORD WINAPI threadThunk(LPVOID param);
-
-        ThreadHandle launchThread(void *param);
-
-    public:
-        Scheduler(SchedulerConfig config, CpuGeometry geometry)
-            : mConfig(config)
-            , mCpuGeometry(std::move(geometry))
-        { }
-
-        template <typename T>
-        ThreadHandle launch(SM_UNUSED T &&task) {
-            return ThreadHandle{nullptr};
-        }
-    };
+    ICpuGeometry *getCpuGeometry() noexcept;
 }

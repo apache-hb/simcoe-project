@@ -13,7 +13,7 @@ Memory::String Memory::toString() const noexcept {
 
     // seperate each part with a +
 
-    for (int fmt = eLimit - 1; fmt >= 0; fmt--) {
+    for (int fmt = eCount - 1; fmt >= 0; fmt--) {
         size_t size = total / kSizes[fmt];
         if (size > 0) {
             fmt::format_to(out, "{}{}", size, kNames[fmt]);

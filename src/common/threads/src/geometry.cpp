@@ -1,6 +1,6 @@
 #include "threads/threads.hpp"
 
-#include "common.hpp"
+#include "backends/common.hpp"
 
 #include "config/config.hpp"
 
@@ -50,7 +50,6 @@ CpuInfoLibrary CpuInfoLibrary::load() {
 }
 
 namespace {
-threads::CpuGeometry gCpuGeometry;
 
 #if 0
 constexpr CacheType getCacheType(PROCESSOR_CACHE_TYPE type) noexcept {
@@ -237,7 +236,6 @@ struct ProcessorLayout {
     std::vector<threads::ProcessorCore> processorCores;
     std::vector<threads::Cache> caches;
     std::vector<threads::ProcessorPackage> packages;
-    std::vector<threads::ProcessorDie> dies;
     std::vector<threads::NumaNode> numaNodes;
     std::vector<threads::ProcessorModule> modules;
 
@@ -305,8 +303,7 @@ struct ProcessorLayout {
 };
 }
 
-threads::CpuGeometry detail::buildCpuGeometry(const CpuInfoLibrary& library) noexcept {
-#if 0
+threads::ICpuGeometry *detail::buildCpuGeometry(const CpuInfoLibrary& library) {
     ProcessorLayout processorLayout{};
 
     if (auto maybeCpuSetInfo = CpuSetInfo::create(library.pfnGetSystemCpuSetInformation)) {
@@ -358,19 +355,17 @@ threads::CpuGeometry detail::buildCpuGeometry(const CpuInfoLibrary& library) noe
     } else {
         LOG_WARN(ThreadLog, "No processor information available");
 
-        return CpuGeometry { };
+        return nullptr;
     }
 
-    // print cpu geometry
-#endif
-    return CpuGeometry { };
+    return nullptr;
 }
 
-const threads::CpuGeometry& threads::getCpuGeometry() noexcept {
-    return gCpuGeometry;
+threads::ICpuGeometry *threads::getCpuGeometry() noexcept {
+    return nullptr;
 }
 
 void threads::init() noexcept {
     CpuInfoLibrary library = CpuInfoLibrary::load();
-    gCpuGeometry = detail::buildCpuGeometry(library);
+    detail::buildCpuGeometry(library);
 }
