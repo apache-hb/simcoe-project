@@ -25,15 +25,15 @@ TEST_CASE("updates") {
 
     auto conn = std::move(connResult.value());
 
-    auto allTables = getValue(conn.trySelectSql("SELECT * FROM user_tables"));
+#if 0
+    auto allTables = getValue(conn.trySelectSql("SELECT table_name FROM user_tables"));
     for (auto &row : allTables) {
         for (int i = 0; i < row.getColumnCount(); i++) {
             auto info = row.getColumnInfo(i).value_or(ColumnInfo{});
             fmt::println(stderr, "Column {}: {} = `{}`", i, info.name, row.get<std::string>(i).value_or("not a string"));
         }
     }
-
-    (void)conn.tableExists("test");
+#endif
 
     if (getValue(conn.tableExists("test")))
         getValue(conn.tryUpdateSql("DROP TABLE test"));
@@ -86,7 +86,7 @@ TEST_CASE("updates") {
             auto results = getValue(conn.trySelectSql("SELECT * FROM test ORDER BY id ASC"));
             int count = 0;
 
-            while (results.next().isSuccess()) {
+            while (!results.isDone()) {
                 int64 id = getValue(results.getInt(0));
                 std::string_view name = getValue(results.getString(1));
 
@@ -94,6 +94,8 @@ TEST_CASE("updates") {
                 REQUIRE(name == "test");
 
                 count++;
+
+                (void)(results.next());
             }
 
             REQUIRE(count == 1);

@@ -16,7 +16,7 @@ static bool isStringType(ub2 type) noexcept {
 }
 
 static bool isBlobType(ub2 type) noexcept {
-    return type == SQLT_BLOB;
+    return type == SQLT_BLOB || type == SQLT_BIN;
 }
 
 static bool isNumberType(ub2 type) noexcept {
@@ -36,7 +36,7 @@ static bool getCellBoolean(const OraColumnInfo& column) noexcept {
 
 static CellInfo initCellValue(OraEnvironment& env, OraError error, OraColumnInfo& column) noexcept {
     if (isStringType(column.type)) {
-        ub4 length = (column.columnWidth + 1) * sizeof(utext);
+        ub4 length = (column.columnWidth + 1);
         column.value.text = (char*)env.malloc(length);
         column.value.text[0] = '\0';
         return CellInfo { column.value.text, length };
@@ -49,7 +49,7 @@ static CellInfo initCellValue(OraEnvironment& env, OraError error, OraColumnInfo
 
     switch (column.type) {
     case SQLT_VNU:
-        OCINumberSetPi(error, &column.value.num);
+        OCINumberSetZero(error, &column.value.num);
         return CellInfo { &column.value.num, sizeof(column.value.num) };
 
     case SQLT_DAT:
@@ -106,6 +106,8 @@ static DbResult<std::vector<OraColumnInfo>> defineColumns(OraEnvironment& env, O
             dataType = SQLT_VNU;
         if (dataType == SQLT_CHR)
             dataType = SQLT_STR;
+        if (dataType == SQLT_BLOB)
+            dataType = SQLT_BIN;
 
         std::string_view columnName = TRY_RESULT(getColumnName(error, param));
 
@@ -124,8 +126,6 @@ static DbResult<std::vector<OraColumnInfo>> defineColumns(OraEnvironment& env, O
             info.precision = TRY_RESULT(param.getAttribute<sb2>(error, OCI_ATTR_PRECISION));
             info.scale = TRY_RESULT(param.getAttribute<sb1>(error, OCI_ATTR_SCALE));
         }
-
-        fmt::println(stderr, "Column: {} {} {} {}", columnName, dataType, columnWidth, charSemantics);
 
         auto [value, size] = initCellValue(env, error, info);
 
@@ -153,10 +153,9 @@ void *OraStatement::initBindValue(const void *value, ub4 size) noexcept {
 }
 
 void *OraStatement::initStringBindValue(std::string_view value) noexcept {
-    std::wstring wstr = sm::widen(value);
-    void *result = std::malloc((wstr.size() * sizeof(wchar_t)) + 1);
-    std::memcpy(result, wstr.data(), wstr.size() * sizeof(wchar_t));
-    ((wchar_t*)result)[wstr.size()] = L'\0';
+    void *result = mEnvironment.malloc(value.size() + 1);
+    std::memcpy(result, value.data(), value.size());
+    ((char*)result)[value.size()] = '\0';
     mBindValues.push_back(result);
     return result;
 }
@@ -343,7 +342,6 @@ DbError OraStatement::bindBooleanByName(std::string_view name, bool value) noexc
 
 DbError OraStatement::bindStringByName(std::string_view name, std::string_view value) noexcept {
     void *data = initStringBindValue(value);
-    fmt::println(stderr, "Binding string: {}", (char*)data);
     return bindAtName(name, data, value.size(), SQLT_CHR);
 }
 
@@ -388,21 +386,24 @@ DbError OraStatement::getColumnInfo(int index, ColumnInfo& info) const noexcept 
 
         return DataType::eNull;
     }();
+
     return DbError::ok();
 }
 
 DbError OraStatement::getIntByIndex(int index, int64& value) noexcept {
     const OraColumnInfo& column = mColumnInfo[index];
+    if (column.indicator) {
+        value = 0;
+        return DbError::ok();
+    }
+
     const CellValue& cell = column.value;
 
     if (column.type == SQLT_VNU || column.type == SQLT_NUM) {
         int64 integer;
         if (sword status = OCINumberToInt(mError, &cell.num, sizeof(integer), OCI_NUMBER_SIGNED, &integer)) {
-            fmt::println(stderr, "Failed to convert number to integer: {}", status);
             return oraGetError(mError, status);
         }
-
-        fmt::println(stderr, "Converted number to integer: {}", integer);
 
         value = integer;
     } else {
@@ -414,23 +415,44 @@ DbError OraStatement::getIntByIndex(int index, int64& value) noexcept {
 
 DbError OraStatement::getBooleanByIndex(int index, bool& value) noexcept {
     const OraColumnInfo& column = mColumnInfo[index];
+    if (column.indicator) {
+        value = false;
+        return DbError::ok();
+    }
+
     value = getCellBoolean(column);
     return DbError::ok();
 }
 
 DbError OraStatement::getStringByIndex(int index, std::string_view& value) noexcept {
     const OraColumnInfo& column = mColumnInfo[index];
+    if (column.indicator) {
+        value = {};
+        return DbError::ok();
+    }
+
     value = {(const char*)column.value.text, column.valueLength};
     return DbError::ok();
 }
 
 DbError OraStatement::getDoubleByIndex(int index, double& value) noexcept {
-    value = mColumnInfo[index].value.real;
+    const OraColumnInfo& column = mColumnInfo[index];
+    if (column.indicator) {
+        value = 0.0;
+        return DbError::ok();
+    }
+
+    value = column.value.real;
     return DbError::ok();
 }
 
 DbError OraStatement::getBlobByIndex(int index, Blob& value) noexcept {
     const OraColumnInfo& column = mColumnInfo[index];
+    if (column.indicator) {
+        value = {};
+        return DbError::ok();
+    }
+
     const CellValue& cell = column.value;
 
     value = Blob{(std::byte*)cell.lob, (std::byte*)cell.lob + column.valueLength};
