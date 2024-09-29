@@ -8,25 +8,6 @@ using namespace sm::db::detail;
 
 LOG_CATEGORY_IMPL(db::gLog, "DB");
 
-DbError IStatement::getColumnIndex(std::string_view name, int& index) const noexcept {
-    int columnCount = getColumnCount();
-    if (columnCount < 0)
-        return DbError::todo("getColumnCount");
-
-    for (int i = 0; i < columnCount; ++i) {
-        ColumnInfo info;
-        if (DbError error = getColumnInfo(i, info))
-            return error;
-
-        if (info.name == name) {
-            index = i;
-            return DbError::ok();
-        }
-    }
-
-    return DbError::columnNotFound(name);
-}
-
 DbError IStatement::getIntByName(std::string_view column, int64& value) noexcept {
     return getValue(column, value, &IStatement::getIntByIndex);
 }

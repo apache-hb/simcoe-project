@@ -176,6 +176,7 @@ namespace sm::db {
 
     class Connection {
         friend Environment;
+        friend ResultSet;
 
         detail::ConnectionHandle mImpl;
 
@@ -197,6 +198,8 @@ namespace sm::db {
         PreparedStatement prepareSelectAllImpl(const dao::TableInfo& table);
 
         PreparedStatement prepareDropImpl(const dao::TableInfo& table);
+
+        detail::IConnection *impl() noexcept { return mImpl.get(); }
 
     public:
         SM_MOVE(Connection, default);

@@ -26,7 +26,7 @@ DbResult<ResultSet> PreparedStatement::update() noexcept {
     if (DbError error = mImpl->update(mConnection->autoCommit()))
         return std::unexpected(error);
 
-    return ResultSet{mImpl};
+    return ResultSet{mImpl, mConnection};
 }
 
 DbResult<ResultSet> PreparedStatement::start() noexcept {
@@ -34,7 +34,7 @@ DbResult<ResultSet> PreparedStatement::start() noexcept {
     if (!error.isSuccess())
         return std::unexpected(error);
 
-    return ResultSet{mImpl, error.isDone()};
+    return ResultSet{mImpl, mConnection, error.isDone()};
 }
 
 DbError PreparedStatement::execute() noexcept {

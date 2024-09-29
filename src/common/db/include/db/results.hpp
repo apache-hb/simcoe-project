@@ -19,13 +19,16 @@ namespace sm::db {
         friend PreparedStatement;
 
         detail::StmtHandle mImpl;
+        Connection *mConnection;
         bool mIsDone;
 
-        ResultSet(detail::StmtHandle impl, bool isDone = false) noexcept
+        ResultSet(detail::StmtHandle impl, Connection *connection, bool isDone = false) noexcept
             : mImpl(std::move(impl))
+            , mConnection(connection)
             , mIsDone(isDone)
         { }
 
+        DataType getBoolType() const noexcept;
         DbError getRowData(const dao::TableInfo& info, void *dst) noexcept;
 
         DbError checkColumnAccess(int index, DataType expected) noexcept;

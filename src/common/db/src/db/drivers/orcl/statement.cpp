@@ -20,7 +20,7 @@ static bool isBlobType(ub2 type) noexcept {
 }
 
 static bool isNumberType(ub2 type) noexcept {
-    return type == SQLT_NUM || type == SQLT_INT || type == SQLT_FLT || type == SQLT_VNU;
+    return type == SQLT_NUM || type == SQLT_INT || type == SQLT_VNU;
 }
 
 static bool isBoolType(ub2 type) noexcept {
@@ -61,8 +61,7 @@ static CellInfo initCellValue(OraEnvironment& env, OraError error, OraColumnInfo
     case SQLT_BOL:
         return CellInfo { &column.value.bol, sizeof(column.value.bol) };
 
-    case SQLT_IBFLOAT:
-    case SQLT_IBDOUBLE:
+    case SQLT_FLT:
         return CellInfo { &column.value.real, sizeof(column.value.real) };
 
     default:
@@ -109,6 +108,8 @@ static DbResult<std::vector<OraColumnInfo>> defineColumns(OraEnvironment& env, O
             dataType = SQLT_STR;
         if (dataType == SQLT_BLOB)
             dataType = SQLT_BIN;
+        if (dataType == SQLT_IBFLOAT || dataType == SQLT_IBDOUBLE)
+            dataType = SQLT_FLT;
 
         std::string_view columnName = TRY_RESULT(getColumnName(error, param));
 
@@ -281,9 +282,19 @@ DbError OraStatement::next() noexcept {
     return oraGetError(mError, result);
 }
 
+static std::string toUpper(std::string_view str) noexcept {
+    std::string result;
+    result.reserve(str.size());
+    for (char c : str)
+        result.push_back(std::toupper(c));
+
+    return result;
+}
+
 DbError OraStatement::getColumnIndex(std::string_view name, int& index) const noexcept {
+    std::string search = toUpper(name);
     for (int i = 0; i < mColumnInfo.size(); ++i) {
-        if (mColumnInfo[i].name == name) {
+        if (mColumnInfo[i].name == search) {
             index = i;
             return DbError::ok();
         }
@@ -359,26 +370,39 @@ int OraStatement::getColumnCount() const noexcept {
     return mColumnInfo.size();
 }
 
+static DataType getColumnType(ub2 type) noexcept {
+    if (isStringType(type))
+        return DataType::eString;
+
+    if (isBlobType(type))
+        return DataType::eBlob;
+
+    if (type == SQLT_FLT)
+        return DataType::eDouble;
+
+    if (isNumberType(type))
+        return DataType::eInteger;
+
+    if (isBoolType(type))
+        return DataType::eBoolean;
+
+
+    return DataType::eNull;
+}
+
 DbError OraStatement::getColumnInfo(int index, ColumnInfo& info) const noexcept {
     const OraColumnInfo& column = mColumnInfo[index];
     info.name = column.name;
-    info.type = [type = column.type] -> DataType {
-        if (isStringType(type))
-            return DataType::eString;
-
-        if (isBlobType(type))
-            return DataType::eBlob;
-
-        if (isNumberType(type))
-            return DataType::eInteger;
-
-        if (isBoolType(type))
-            return DataType::eBoolean;
-
-        return DataType::eNull;
-    }();
-
+    info.type = getColumnType(column.type);
     return DbError::ok();
+}
+
+DbError OraStatement::getColumnInfo(std::string_view name, ColumnInfo& info) const noexcept {
+    int index = -1;
+    if (DbError error = getColumnIndex(name, index))
+        return error;
+
+    return getColumnInfo(index, info);
 }
 
 DbError OraStatement::getIntByIndex(int index, int64& value) noexcept {

@@ -204,7 +204,9 @@ namespace sm::db::detail::orcl {
 
         int getColumnCount() const noexcept override;
         DbError getColumnIndex(std::string_view name, int& index) const noexcept override;
+
         DbError getColumnInfo(int index, ColumnInfo& info) const noexcept override;
+        DbError getColumnInfo(std::string_view name, ColumnInfo& info) const noexcept override;
 
 
         DbError getIntByIndex(int index, int64& value) noexcept override;
@@ -261,6 +263,9 @@ namespace sm::db::detail::orcl {
 
         DbError clientVersion(Version& version) const noexcept override;
         DbError serverVersion(Version& version) const noexcept override;
+
+        DataType boolEquivalentType() const noexcept override { return DataType::eBoolean; }
+
     public:
         OraConnection(
             OraEnvironment& env, OraError error,

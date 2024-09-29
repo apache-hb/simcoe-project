@@ -166,6 +166,14 @@ DbError SqliteStatement::getColumnInfo(int index, ColumnInfo& info) const noexce
     return DbError::ok();
 }
 
+DbError SqliteStatement::getColumnInfo(std::string_view name, ColumnInfo& info) const noexcept {
+    int index;
+    if (DbError error = getColumnIndex(name, index))
+        return error;
+
+    return getColumnInfo(index, info);
+}
+
 bool SqliteStatement::isRowReady() const noexcept {
     return mStatus == SQLITE_ROW;
 }

@@ -30,7 +30,9 @@ TEST_CASE("updates") {
         for (int i = 0; i < row.getColumnCount(); i++) {
             auto info = row.getColumnInfo(i).value_or(ColumnInfo{});
             std::string val = row.get<std::string>(i).value_or("not a string");
-            fmt::println(stderr, "Column {}: {} = `{}`", i, info.name, val);
+
+            (void)info;
+            (void)val;
         }
     }
 

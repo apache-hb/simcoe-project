@@ -3,6 +3,7 @@
 #include "drivers/common.hpp"
 
 #include "db/results.hpp"
+#include "db/connection.hpp"
 
 using namespace sm;
 using namespace sm::db;
@@ -31,7 +32,12 @@ int ResultSet::getColumnCount() const noexcept {
     return mImpl->getColumnCount();
 }
 
-// TODO: deduplicate checks
+// TODO: deduplicate
+
+DataType ResultSet::getBoolType() const noexcept {
+    detail::IConnection *connection = mConnection->impl();
+    return connection->boolEquivalentType();
+}
 
 DbError ResultSet::checkColumnAccess(int index, DataType expected) noexcept {
     if (!mImpl->hasDataReady())
@@ -44,19 +50,28 @@ DbError ResultSet::checkColumnAccess(int index, DataType expected) noexcept {
     if (DbError error = mImpl->getColumnInfo(index, info))
         return error;
 
-    if (info.type != expected)
+    DataType matching = (expected == DataType::eBoolean) ? getBoolType() : expected;
+
+    if (info.type != matching)
         return DbError::typeMismatch(info.name, info.type, expected);
 
     return DbError::ok();
 }
 
 DbError ResultSet::checkColumnAccess(std::string_view column, DataType expected) noexcept {
-    // TODO: optimize this for direct column by name access
-    int index = 0;
-    if (DbError error = mImpl->getColumnIndex(column, index))
+    if (!mImpl->hasDataReady())
+        return DbError::noData();
+
+    ColumnInfo info;
+    if (DbError error = mImpl->getColumnInfo(column, info))
         return error;
 
-    return checkColumnAccess(index, expected);
+    DataType matching = (expected == DataType::eBoolean) ? getBoolType() : expected;
+
+    if (info.type != matching)
+        return DbError::typeMismatch(info.name, info.type, expected);
+
+    return DbError::ok();
 }
 
 DbResult<ColumnInfo> ResultSet::getColumnInfo(int index) const noexcept {

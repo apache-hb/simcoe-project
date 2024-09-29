@@ -100,6 +100,10 @@ namespace sm::db::detail {
             version = Version { "unknown", 0, 0, 0 };
             return DbError::ok();
         }
+
+        virtual DataType boolEquivalentType() const noexcept {
+            return DataType::eBoolean;
+        }
     };
 
     struct IStatement {
@@ -142,12 +146,17 @@ namespace sm::db::detail {
             return true;
         }
 
-        virtual DbError getColumnIndex(std::string_view name, int& index) const noexcept;
+        virtual DbError getColumnIndex(std::string_view name, int& index) const noexcept {
+            return DbError::todo("getColumnIndex");
+        }
 
         virtual DbError getColumnInfo(int index, ColumnInfo& info) const noexcept {
             return DbError::todo("getColumnInfo");
         }
 
+        virtual DbError getColumnInfo(std::string_view name, ColumnInfo& info) const noexcept {
+            return DbError::todo("getColumnInfo");
+        }
 
         virtual DbError getIntByIndex(int index, int64& value) noexcept {
             return DbError::todo("getIntByIndex");

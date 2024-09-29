@@ -65,8 +65,6 @@ DbResult<Version> Connection::serverVersion() const noexcept {
 }
 
 DbResult<PreparedStatement> Connection::tryPrepareStatement(std::string_view sql, StatementType type) noexcept {
-    fmt::println(stderr, "prepare: {}", sql);
-
     detail::IStatement *statement = nullptr;
     if (DbError error = mImpl->prepare(sql, &statement))
         return std::unexpected(error);
