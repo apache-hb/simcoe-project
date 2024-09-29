@@ -108,7 +108,7 @@ TEST_CASE("sqlite updates") {
         REQUIRE(readBlob.size() == blob.size());
 
         for (size_t i = 0; i < blob.size(); i++) {
-            REQUIRE(readBlob[i] == blob[i]);
+            CHECK(readBlob[i] == blob[i]);
         }
 
         REQUIRE(results.next().isDone());

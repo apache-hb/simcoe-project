@@ -4,7 +4,7 @@
 
 namespace sm::db::detail::sqlite {
     static void checkError(const DbError& err) noexcept {
-        CTASSERTF(err.isSuccess(), "Error: %d (%s)", err.code(), err.message().data());
+        CTASSERTF(err.isSuccess(), "Error: %d (%s)", err.code(), err.what());
     }
 
     #define CHECK_ERROR(expr) checkError(#expr, expr)
@@ -34,6 +34,7 @@ namespace sm::db::detail::sqlite {
         int mStatus = SQLITE_OK;
 
         DbError getStmtError(int err) const noexcept;
+        bool hasDataReady() const noexcept override { return mStatus == SQLITE_ROW; }
 
     public:
         DbError finalize() noexcept override;

@@ -39,7 +39,7 @@ DbResult<ResultSet> PreparedStatement::start() noexcept {
 
 DbError PreparedStatement::execute() noexcept {
     auto result = TRY_UNWRAP(start());
-    return result.execute();
+    return mImpl->execute();
 }
 
 static void bindIndex(PreparedStatement& stmt, const dao::TableInfo& info, size_t index, bool returning, const void *data) noexcept {

@@ -32,7 +32,7 @@ DbError BindPoint::tryBindDouble(double value) noexcept {
 }
 
 DbError BindPoint::tryBindBlob(Blob value) noexcept {
-    return mImpl->bindBlobByName(mName, value);
+    return mImpl->bindBlobByName(mName, std::move(value));
 }
 
 DbError BindPoint::tryBindNull() noexcept {

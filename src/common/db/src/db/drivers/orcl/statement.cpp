@@ -195,11 +195,6 @@ DbError OraStatement::executeStatement(ub4 flags, int iters) noexcept {
 
     mColumnInfo = TRY_UNWRAP(defineColumns(mEnvironment, mError, mStatement));
 
-    if (iters == 0) {
-        if (sword result = OCIStmtFetch2(mStatement, mError, 1, OCI_FETCH_NEXT, 0, OCI_DEFAULT))
-            return oraGetError(mError, result);
-    }
-
     return DbError::ok();
 }
 
@@ -259,18 +254,25 @@ DbError OraStatement::finalize() noexcept {
 }
 
 DbError OraStatement::start(bool autoCommit, StatementType type) noexcept {
-    int iters = (type == StatementType::eQuery) ? 0 : 1;
+    bool isQuery = (type == StatementType::eQuery);
+    int iters = isQuery ? 0 : 1;
     ub4 flags = autoCommit ? OCI_COMMIT_ON_SUCCESS : OCI_DEFAULT;
-    return executeStatement(flags, iters);
+    if (DbError error = executeStatement(flags, iters))
+        return error;
+
+    if (isQuery)
+        return next();
+
+    return DbError::ok();
 }
 
 DbError OraStatement::execute() noexcept {
-    // TODO: some statements need to be reset, others dont
-    return DbError::todo();
+    return DbError::ok();
 }
 
 DbError OraStatement::next() noexcept {
     sword result = OCIStmtFetch2(mStatement, mError, 1, OCI_FETCH_NEXT, 0, OCI_DEFAULT);
+    mHasData = (result == OCI_SUCCESS);
     return oraGetError(mError, result);
 }
 
@@ -400,7 +402,7 @@ DbError OraStatement::getIntByIndex(int index, int64& value) noexcept {
     const CellValue& cell = column.value;
 
     if (column.type == SQLT_VNU || column.type == SQLT_NUM) {
-        int64 integer;
+        long integer;
         if (sword status = OCINumberToInt(mError, &cell.num, sizeof(integer), OCI_NUMBER_SIGNED, &integer)) {
             return oraGetError(mError, status);
         }

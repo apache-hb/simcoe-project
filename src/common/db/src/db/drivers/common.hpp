@@ -132,6 +132,10 @@ namespace sm::db::detail {
             return -1;
         }
 
+        virtual bool hasDataReady() const noexcept {
+            return true;
+        }
+
         virtual DbError getColumnIndex(std::string_view name, int& index) const noexcept;
 
         virtual DbError getColumnInfo(int index, ColumnInfo& info) const noexcept {

@@ -28,6 +28,9 @@ namespace sm::db {
 
         DbError getRowData(const dao::TableInfo& info, void *dst) noexcept;
 
+        DbError checkColumnAccess(int index, DataType expected) noexcept;
+        DbError checkColumnAccess(std::string_view column, DataType expected) noexcept;
+
     public:
         class EndSentinel { };
 

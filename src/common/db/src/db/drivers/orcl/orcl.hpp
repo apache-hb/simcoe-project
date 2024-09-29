@@ -154,6 +154,7 @@ namespace sm::db::detail::orcl {
         OraConnection& mConnection;
         OraStmt mStatement;
         OraError mError;
+        bool mHasData = false;
 
         std::vector<void*> mBindValues;
         std::vector<OraColumnInfo> mColumnInfo;
@@ -162,6 +163,7 @@ namespace sm::db::detail::orcl {
         void *initStringBindValue(std::string_view value) noexcept;
 
         bool useBoolType() const noexcept;
+        bool hasDataReady() const noexcept override { return mHasData; }
 
         DbError closeColumns() noexcept;
         void freeBindValues() noexcept;
