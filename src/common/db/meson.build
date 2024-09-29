@@ -95,23 +95,6 @@ db = declare_dependency(
     dependencies : [ core, meta ]
 )
 
-tests = {
-    'sqlite3': 'test/db/sqlite.cpp',
-    'Oracle DB': 'test/db/orcl.cpp',
-    'PostgreSQL': 'test/db/psql.cpp',
-}
-
-foreach name, source : tests
-    exe = executable('test-db-' + name.to_lower().replace(' ', '-'), source,
-        dependencies : [ db, coretest ]
-    )
-
-    test(name + ' DB', exe,
-        suite : 'db',
-        kwargs : testkwargs
-    )
-endforeach
-
 src = [ 'src/daocc/main.cpp' ]
 
 libxml = dependency('libxml-2.0')
@@ -132,3 +115,22 @@ daocc = generator(daocc_exe,
     output : [ '@BASENAME@.dao.hpp', '@BASENAME@.dao.cpp' ],
     depfile : '@BASENAME@.d'
 )
+
+tests = {
+    'sqlite3': 'test/db/sqlite.cpp',
+    'Oracle DB': 'test/db/orcl.cpp',
+    'PostgreSQL': 'test/db/psql.cpp',
+    'DAO': [ 'test/dao/dao.cpp', daocc.process('test/dao/tests.xml') ]
+}
+
+foreach name, source : tests
+    exe = executable('test-db-' + name.to_lower().replace(' ', '-'), source,
+        include_directories : 'test',
+        dependencies : [ db, coretest ]
+    )
+
+    test(name + ' DB', exe,
+        suite : 'db',
+        kwargs : testkwargs
+    )
+endforeach

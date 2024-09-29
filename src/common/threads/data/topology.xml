@@ -1,20 +1,49 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <root name="topology">
     <table name="logical_core" syntheticPrimaryKey="ulong">
-        <column name="cpuset_id" type="ulong"    />
-        <column name="core_index" type="ulong"   />
+        <column name="cpuset_id" type="ulong">
+            <unique />
+        </column>
+
+        <column name="core_id" type="ulong">
+            <constraint references="physical_core.id" />
+        </column>
+
         <column name="thread_index" type="ulong" />
     </table>
 
     <table name="physical_core" syntheticPrimaryKey="ulong">
+        <column name="package_id" type="ulong">
+            <constraint references="package.id" />
+        </column>
+
         <column name="core_index" type="ulong" />
+
+        <column name="smt" type="bool" />
+
+        <column name="l3_cache_id" type="ulong">
+            <constraint references="cache.id" />
+        </column>
     </table>
 
     <table name="cache" syntheticPrimaryKey="ulong">
-        <column name="level" type="uint"            />
-        <column name="associativity" type="uint"    />
-        <column name="size" type="uint"             />
-        <column name="line_size" type="uint"        />
-        <column name="type" type="text" length="32" />
+        <column name="level" type="uint"             />
+        <column name="associativity" type="uint"     />
+        <column name="size" type="uint"              />
+        <column name="line_size" type="uint"         />
+        <column name="type" type="text" length="32"  />
+        <column name="mask" type="blob" length="512" />
+    </table>
+
+    <table name="package" syntheticPrimaryKey="ulong">
+        <column name="numa_id" type="ulong">
+            <constraint references="numa_region.id" />
+        </column>
+
+        <column name="mask" type="blob" length="512" />
+    </table>
+
+    <table name="numa_region" syntheticPrimaryKey="ulong">
+        <column name="mask" type="blob" length="512" />
     </table>
 </root>

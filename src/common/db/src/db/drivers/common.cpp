@@ -11,7 +11,7 @@ LOG_CATEGORY_IMPL(db::gLog, "DB");
 DbError IStatement::getColumnIndex(std::string_view name, int& index) const noexcept {
     int columnCount = getColumnCount();
     if (columnCount < 0)
-        return DbError::todo();
+        return DbError::todo("getColumnCount");
 
     for (int i = 0; i < columnCount; ++i) {
         ColumnInfo info;

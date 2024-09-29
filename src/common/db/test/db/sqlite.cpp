@@ -2,7 +2,7 @@
 #include <filesystem>
 
 static constexpr ConnectionConfig kConfig = {
-    .host = "test.db"
+    .host = "testdb.db"
 };
 
 TEST_CASE("sqlite updates") {
@@ -98,7 +98,7 @@ TEST_CASE("sqlite updates") {
             blob[i] = static_cast<std::byte>(i);
         }
 
-        auto stmt = getValue(conn.prepareUpdate("INSERT INTO blob_test (id, data) VALUES (1, :blob)"));
+        auto stmt = getValue(conn.tryPrepareUpdate("INSERT INTO blob_test (id, data) VALUES (1, :blob)"));
         stmt.bind("blob").to(blob);
         getValue(stmt.update());
 

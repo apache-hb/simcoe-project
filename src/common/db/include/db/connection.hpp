@@ -26,8 +26,14 @@ namespace sm::db {
         SM_MOVE(PreparedInsert, default);
 
         DbError tryInsert(const T& value) noexcept {
-            bindRowToStatement(mStatement, T::getTableInfo(), false, static_cast<const void*>(&value));
+            if (DbError error = bindRowToStatement(mStatement, T::getTableInfo(), false, static_cast<const void*>(&value)))
+                return error;
+
             return mStatement.execute();
+        }
+
+        void insert(const T& value) throws(DbException) {
+            tryInsert(value).throwIfFailed();
         }
     };
 
@@ -48,7 +54,8 @@ namespace sm::db {
 
         DbResult<PrimaryKey> tryInsert(const T& value) noexcept {
             const auto& info = T::getTableInfo();
-            bindRowToStatement(mStatement, info, true, static_cast<const void*>(&value));
+            if (DbError error = bindRowToStatement(mStatement, info, true, static_cast<const void*>(&value)))
+                return std::unexpected{error};
 
             auto result = TRY_UNWRAP(mStatement.start());
 
@@ -58,6 +65,10 @@ namespace sm::db {
                 return error;
 
             return pk;
+        }
+
+        PrimaryKey insert(const T& value) throws(DbException) {
+            return tryInsert(value).throwIfFailed();
         }
     };
 
@@ -109,8 +120,57 @@ namespace sm::db {
         SM_MOVE(PreparedUpdate, default);
 
         DbError tryUpdate(const T& value) noexcept {
-            bindRowToStatement(mStatement, T::getTableInfo(), false, static_cast<const void*>(&value));
+            if (DbError error = bindRowToStatement(mStatement, T::getTableInfo(), false, static_cast<const void*>(&value)))
+                return error;
             return mStatement.execute();
+        }
+
+        void update(const T& value) throws(DbException) {
+            tryUpdate(value).throwIfFailed();
+        }
+    };
+
+    template<dao::DaoInterface T>
+    class PreparedTruncate {
+        friend Connection;
+
+        PreparedStatement mStatement;
+
+        PreparedTruncate(PreparedStatement statement) noexcept
+            : mStatement(std::move(statement))
+        { }
+
+    public:
+        SM_MOVE(PreparedTruncate, default);
+
+        DbError tryTruncate() noexcept {
+            return mStatement.execute();
+        }
+
+        void truncate() throws(DbException) {
+            tryTruncate().throwIfFailed();
+        }
+    };
+
+    template<dao::DaoInterface T>
+    class PreparedDrop {
+        friend Connection;
+
+        PreparedStatement mStatement;
+
+        PreparedDrop(PreparedStatement statement) noexcept
+            : mStatement(std::move(statement))
+        { }
+
+    public:
+        SM_MOVE(PreparedDrop, default);
+
+        DbError tryDrop() noexcept {
+            return mStatement.execute();
+        }
+
+        void drop() throws(DbException) {
+            tryDrop().throwIfFailed();
         }
     };
 
@@ -126,15 +186,17 @@ namespace sm::db {
             , mAutoCommit(config.autoCommit)
         { }
 
-        DbResult<PreparedStatement> prepareInsertImpl(const dao::TableInfo& table) noexcept;
-        DbResult<PreparedStatement> prepareInsertOrUpdateImpl(const dao::TableInfo& table) noexcept;
-        DbResult<PreparedStatement> prepareInsertReturningPrimaryKeyImpl(const dao::TableInfo& table) noexcept;
+        PreparedStatement prepareInsertImpl(const dao::TableInfo& table);
+        PreparedStatement prepareInsertOrUpdateImpl(const dao::TableInfo& table);
+        PreparedStatement prepareInsertReturningPrimaryKeyImpl(const dao::TableInfo& table);
 
-        DbResult<PreparedStatement> prepareUpdateAllImpl(const dao::TableInfo& table) noexcept;
+        PreparedStatement prepareTruncateImpl(const dao::TableInfo& table);
 
-        DbResult<PreparedStatement> prepareSelectAllImpl(const dao::TableInfo& table) noexcept;
+        PreparedStatement prepareUpdateAllImpl(const dao::TableInfo& table);
 
-        DbError tryInsertOrUpdateAllImpl(const dao::TableInfo& table, const void *src, size_t count, size_t stride) noexcept;
+        PreparedStatement prepareSelectAllImpl(const dao::TableInfo& table);
+
+        PreparedStatement prepareDropImpl(const dao::TableInfo& table);
 
     public:
         SM_MOVE(Connection, default);
@@ -163,36 +225,42 @@ namespace sm::db {
         ///
 
         template<dao::DaoInterface T>
-        DbResult<PreparedInsert<T>> tryPrepareInsert() noexcept {
-            auto stmt = TRY_RESULT(prepareInsertImpl(T::getTableInfo()));
-            return PreparedInsert<T>{std::move(stmt)};
+        DbResult<PreparedInsert<T>> tryPrepareInsert() noexcept try {
+            return prepareInsert<T>();
+        } catch (const DbException& e) {
+            return std::unexpected{e.error()};
         }
 
         template<dao::DaoInterface T>
         PreparedInsert<T> prepareInsert() throws(DbException) {
-            return throwIfFailed(tryPrepareInsert<T>());
-        }
-
-        template<dao::DaoInterface T>
-        DbResult<PreparedInsert<T>> tryPrepareInsertOrUpdate() noexcept {
-            auto stmt = TRY_RESULT(prepareInsertOrUpdateImpl(T::getTableInfo()));
+            auto stmt = prepareInsertImpl(T::getTableInfo());
             return PreparedInsert<T>{std::move(stmt)};
         }
 
         template<dao::DaoInterface T>
+        DbResult<PreparedInsert<T>> tryPrepareInsertOrUpdate() noexcept try {
+            return prepareInsertOrUpdate<T>();
+        } catch (const DbException& e) {
+            return std::unexpected{e.error()};
+        }
+
+        template<dao::DaoInterface T>
         PreparedInsert<T> prepareInsertOrUpdate() throws(DbException) {
-            return throwIfFailed(tryPrepareInsertOrUpdate<T>());
+            auto stmt = prepareInsertOrUpdateImpl(T::getTableInfo());
+            return PreparedInsert<T>{std::move(stmt)};
         }
 
         template<dao::HasPrimaryKey T>
-        DbResult<PreparedInsertReturning<T>> tryPrepareInsertReturningPrimaryKey() noexcept {
-            auto stmt = TRY_RESULT(prepareInsertReturningPrimaryKeyImpl(T::getTableInfo()));
-            return PreparedInsertReturning<T>{std::move(stmt)};
+        DbResult<PreparedInsertReturning<T>> tryPrepareInsertReturningPrimaryKey() noexcept try {
+            return prepareInsertReturningPrimaryKey<T>();
+        } catch (const DbException& e) {
+            return std::unexpected{e.error()};
         }
 
         template<dao::HasPrimaryKey T>
         PreparedInsertReturning<T> prepareInsertReturningPrimaryKey() throws(DbException) {
-            return throwIfFailed(tryPrepareInsertReturningPrimaryKey<T>());
+            auto stmt = prepareInsertReturningPrimaryKeyImpl(T::getTableInfo());
+            return PreparedInsertReturning<T>{std::move(stmt)};
         }
 
         ///
@@ -200,36 +268,110 @@ namespace sm::db {
         ///
 
         template<dao::DaoInterface T>
-        DbError tryInsert(const T& value) noexcept {
-            auto stmt = TRY_UNWRAP(tryPrepareInsert<T>());
-            return stmt.tryInsert(value);
+        DbError tryInsert(const T& value) noexcept try {
+            insert<T>(value);
+            return DbError::ok();
+        } catch (const DbException& e) {
+            return e.error();
         }
 
         template<dao::DaoInterface T>
         void insert(const T& value) throws(DbException) {
-            tryInsert(value).throwIfFailed();
+            auto stmt = prepareInsert<T>();
+            stmt.insert(value);
         }
 
         template<dao::DaoInterface T>
-        DbError tryInsertOrUpdate(const T& value) noexcept {
-            auto stmt = TRY_UNWRAP(tryPrepareInsertOrUpdate<T>());
-            return stmt.tryInsert(value);
+        DbError tryInsertOrUpdate(const T& value) noexcept try {
+            insertOrUpdate<T>(value);
+            return DbError::ok();
+        } catch (const DbException& e) {
+            return e.error();
         }
 
         template<dao::DaoInterface T>
         void insertOrUpdate(const T& value) throws(DbException) {
-            tryInsertOrUpdate(value).throwIfFailed();
+            auto stmt = prepareInsertOrUpdate<T>();
+            stmt.insert(value);
         }
 
         template<dao::HasPrimaryKey T>
-        DbResult<typename T::PrimaryKey> tryInsertReturningPrimaryKey(const T& value) noexcept {
-            auto stmt = TRY_UNWRAP(tryPrepareInsertReturningPrimaryKey<T>());
-            return stmt.tryInsert(value);
+        DbResult<typename T::PrimaryKey> tryInsertReturningPrimaryKey(const T& value) noexcept try {
+            return insertReturningPrimaryKey<T>(value);
+        } catch (const DbException& e) {
+            return std::unexpected{e.error()};
         }
 
         template<dao::HasPrimaryKey T>
         typename T::PrimaryKey insertReturningPrimaryKey(const T& value) throws(DbException) {
-            return throwIfFailed(tryInsertReturningPrimaryKey(value));
+            auto stmt = prepareInsertReturningPrimaryKey<T>();
+            return stmt.insert(value);
+        }
+
+        ///
+        /// prepare truncate
+        ///
+
+        template<dao::DaoInterface T>
+        DbResult<PreparedTruncate<T>> tryPrepareTruncate() noexcept try {
+            return prepareTruncate<T>();
+        } catch (const DbException& e) {
+            return std::unexpected{e.error()};
+        }
+
+        template<dao::DaoInterface T>
+        PreparedTruncate<T> prepareTruncate() throws(DbException) {
+            auto stmt = prepareTruncateImpl(T::getTableInfo());
+            return PreparedTruncate<T>{std::move(stmt)};
+        }
+
+        ///
+        /// truncate
+        ///
+
+        template<dao::DaoInterface T>
+        DbError tryTruncate() noexcept {
+            auto stmt = TRY_UNWRAP(tryPrepareTruncate<T>());
+            return stmt.tryTruncate();
+        }
+
+        template<dao::DaoInterface T>
+        void truncate() throws(DbException) {
+            auto stmt = prepareTruncate<T>();
+            stmt.truncate();
+        }
+
+        ///
+        /// prepare drop
+        ///
+
+        template<dao::DaoInterface T>
+        DbResult<PreparedDrop<T>> tryPrepareDrop() noexcept try {
+            return prepareDrop<T>();
+        } catch (const DbException& e) {
+            return std::unexpected{e.error()};
+        }
+
+        template<dao::DaoInterface T>
+        PreparedDrop<T> prepareDrop() throws(DbException) {
+            auto stmt = prepareDropImpl(T::getTableInfo());
+            return PreparedDrop<T>{std::move(stmt)};
+        }
+
+        ///
+        /// drop
+        ///
+
+        template<dao::DaoInterface T>
+        DbError tryDrop() noexcept {
+            auto stmt = TRY_UNWRAP(tryPrepareDrop<T>());
+            return stmt.execute();
+        }
+
+        template<dao::DaoInterface T>
+        void drop() throws(DbException) {
+            auto stmt = prepareDrop<T>();
+            stmt.drop();
         }
 
         ///
@@ -267,14 +409,16 @@ namespace sm::db {
         ///
 
         template<dao::DaoInterface T>
-        DbResult<PreparedSelect<T>> tryPrepareSelectAll() noexcept {
-            auto stmt = TRY_RESULT(prepareSelectAllImpl(T::getTableInfo()));
-            return PreparedSelect<T>{std::move(stmt)};
+        DbResult<PreparedSelect<T>> tryPrepareSelectAll() noexcept try {
+            return prepareSelectAll<T>();
+        } catch (const DbException& e) {
+            return std::unexpected{e.error()};
         }
 
         template<dao::DaoInterface T>
         PreparedSelect<T> prepareSelectAll() throws(DbException) {
-            return throwIfFailed(tryPrepareSelectAll<T>());
+            auto stmt = prepareSelectAllImpl(T::getTableInfo());
+            return PreparedSelect<T>{std::move(stmt)};
         }
 
         ///
@@ -320,12 +464,31 @@ namespace sm::db {
             return throwIfFailed(tryPrepareStatement(sql, type));
         }
 
-        DbResult<PreparedStatement> prepareQuery(std::string_view sql) noexcept;
-        DbResult<PreparedStatement> prepareUpdate(std::string_view sql) noexcept;
-        DbResult<PreparedStatement> prepareDefine(std::string_view sql) noexcept;
-        DbResult<PreparedStatement> prepareControl(std::string_view sql) noexcept;
+        DbResult<PreparedStatement> tryPrepareQuery(std::string_view sql) noexcept;
+        DbResult<PreparedStatement> tryPrepareUpdate(std::string_view sql) noexcept;
+        DbResult<PreparedStatement> tryPrepareDefine(std::string_view sql) noexcept;
+        DbResult<PreparedStatement> tryPrepareControl(std::string_view sql) noexcept;
+
+        PreparedStatement prepareQuery(std::string_view sql) throws(DbException) {
+            return throwIfFailed(tryPrepareQuery(sql));
+        }
+
+        PreparedStatement prepareUpdate(std::string_view sql) throws(DbException) {
+            return throwIfFailed(tryPrepareUpdate(sql));
+        }
+
+        PreparedStatement prepareDefine(std::string_view sql) throws(DbException) {
+            return throwIfFailed(tryPrepareDefine(sql));
+        }
+
+        PreparedStatement prepareControl(std::string_view sql) throws(DbException) {
+            return throwIfFailed(tryPrepareControl(sql));
+        }
 
         DbResult<bool> tableExists(std::string_view name) noexcept;
+        DbResult<bool> tableExists(const dao::TableInfo& info) noexcept {
+            return tableExists(info.name);
+        }
 
         DbResult<Version> clientVersion() const noexcept;
         DbResult<Version> serverVersion() const noexcept;

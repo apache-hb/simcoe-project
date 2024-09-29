@@ -39,11 +39,9 @@ void detail::destroyConnection(detail::IConnection *impl) noexcept {
 ///
 
 DbResult<bool> Connection::tableExists(std::string_view name) noexcept {
-    std::string sql;
-    if (DbError error = mImpl->setupTableExists(sql))
-        return error;
+    std::string sql = mImpl->setupTableExists();
 
-    PreparedStatement stmt = TRY_RESULT(prepareQuery(sql));
+    PreparedStatement stmt = TRY_RESULT(tryPrepareQuery(sql));
     stmt.bind("name").to(name);
     ResultSet results = TRY_RESULT(stmt.start());
 
@@ -67,6 +65,8 @@ DbResult<Version> Connection::serverVersion() const noexcept {
 }
 
 DbResult<PreparedStatement> Connection::tryPrepareStatement(std::string_view sql, StatementType type) noexcept {
+    fmt::println(stderr, "prepare: {}", sql);
+
     detail::IStatement *statement = nullptr;
     if (DbError error = mImpl->prepare(sql, &statement))
         return std::unexpected(error);
@@ -74,74 +74,66 @@ DbResult<PreparedStatement> Connection::tryPrepareStatement(std::string_view sql
     return PreparedStatement{statement, this, type};
 }
 
-DbResult<PreparedStatement> Connection::prepareQuery(std::string_view sql) noexcept {
+DbResult<PreparedStatement> Connection::tryPrepareQuery(std::string_view sql) noexcept {
     return tryPrepareStatement(sql, StatementType::eQuery);
 }
 
-DbResult<PreparedStatement> Connection::prepareUpdate(std::string_view sql) noexcept {
+DbResult<PreparedStatement> Connection::tryPrepareUpdate(std::string_view sql) noexcept {
     return tryPrepareStatement(sql, StatementType::eModify);
 }
 
-DbResult<PreparedStatement> Connection::prepareDefine(std::string_view sql) noexcept {
+DbResult<PreparedStatement> Connection::tryPrepareDefine(std::string_view sql) noexcept {
     return tryPrepareStatement(sql, StatementType::eDefine);
 }
 
-DbResult<PreparedStatement> Connection::prepareControl(std::string_view sql) noexcept {
+DbResult<PreparedStatement> Connection::tryPrepareControl(std::string_view sql) noexcept {
     return tryPrepareStatement(sql, StatementType::eControl);
 }
 
-DbResult<PreparedStatement> Connection::prepareInsertImpl(const dao::TableInfo& table) noexcept {
-    std::string sql;
-    if (DbError error = mImpl->setupInsert(table, sql))
-        return std::unexpected(error);
-
-    return TRY_RESULT(prepareUpdate(sql));
+PreparedStatement Connection::prepareInsertImpl(const dao::TableInfo& table) noexcept(false) {
+    std::string sql = mImpl->setupInsert(table);
+    return prepareUpdate(sql);
 }
 
-DbResult<PreparedStatement> Connection::prepareInsertOrUpdateImpl(const dao::TableInfo& table) noexcept {
-    std::string sql;
-    if (DbError error = mImpl->setupInsertOrUpdate(table, sql))
-        return std::unexpected(error);
-
-    return TRY_RESULT(prepareUpdate(sql));
+PreparedStatement Connection::prepareInsertOrUpdateImpl(const dao::TableInfo& table) noexcept(false) {
+    std::string sql = mImpl->setupInsertOrUpdate(table);
+    return prepareUpdate(sql);
 }
 
-DbResult<PreparedStatement> Connection::prepareInsertReturningPrimaryKeyImpl(const dao::TableInfo& table) noexcept {
-    std::string sql;
-    if (DbError error = mImpl->setupInsertReturningPrimaryKey(table, sql))
-        return std::unexpected(error);
-
-    return TRY_RESULT(prepareUpdate(sql));
+PreparedStatement Connection::prepareInsertReturningPrimaryKeyImpl(const dao::TableInfo& table) noexcept(false) {
+    std::string sql = mImpl->setupInsertReturningPrimaryKey(table);
+    return prepareUpdate(sql);
 }
 
-DbResult<PreparedStatement> Connection::prepareUpdateAllImpl(const dao::TableInfo& table) noexcept {
-    std::string sql;
-    if (DbError error = mImpl->setupUpdate(table, sql))
-        return std::unexpected(error);
-
-    return TRY_RESULT(prepareUpdate(sql));
+PreparedStatement Connection::prepareTruncateImpl(const dao::TableInfo& table) noexcept(false) {
+    std::string sql = mImpl->setupTruncate(table);
+    return prepareUpdate(sql);
 }
 
-DbResult<PreparedStatement> Connection::prepareSelectAllImpl(const dao::TableInfo& table) noexcept {
-    std::string sql;
-    if (DbError error = mImpl->setupSelect(table, sql))
-        return std::unexpected(error);
+PreparedStatement Connection::prepareUpdateAllImpl(const dao::TableInfo& table) noexcept(false) {
+    std::string sql = mImpl->setupUpdate(table);
+    return prepareUpdate(sql);
+}
 
-    return TRY_RESULT(prepareQuery(sql));
+PreparedStatement Connection::prepareSelectAllImpl(const dao::TableInfo& table) noexcept(false) {
+    std::string sql = mImpl->setupSelect(table);
+    return prepareQuery(sql);
+}
+
+PreparedStatement Connection::prepareDropImpl(const dao::TableInfo& table) noexcept(false) {
+    std::string sql = fmt::format("DROP TABLE {}", table.name);
+    return prepareUpdate(sql);
 }
 
 DbError Connection::tryCreateTable(const dao::TableInfo& table) noexcept {
     if (tableExists(table.name).value_or(false))
         return DbError::ok();
 
-    if (DbError error = mImpl->createTable(table))
-        return error;
+    std::string sql = mImpl->setupCreateTable(table);
+    auto stmt = TRY_UNWRAP(tryUpdateSql(sql));
 
     if (table.isSingleton()) {
-        std::string sql;
-        if (DbError error = mImpl->setupSingletonTrigger(table, sql))
-            return error;
-
+        std::string sql = mImpl->setupSingletonTrigger(table);
         TRY_UNWRAP(tryUpdateSql(sql));
     }
 
@@ -149,13 +141,13 @@ DbError Connection::tryCreateTable(const dao::TableInfo& table) noexcept {
 }
 
 DbResult<ResultSet> Connection::trySelectSql(std::string_view sql) noexcept {
-    PreparedStatement stmt = TRY_RESULT(prepareQuery(sql));
+    PreparedStatement stmt = TRY_RESULT(tryPrepareQuery(sql));
 
     return stmt.start();
 }
 
 DbResult<ResultSet> Connection::tryUpdateSql(std::string_view sql) noexcept {
-    PreparedStatement stmt = TRY_RESULT(prepareUpdate(sql));
+    PreparedStatement stmt = TRY_RESULT(tryPrepareUpdate(sql));
 
     return stmt.update();
 }

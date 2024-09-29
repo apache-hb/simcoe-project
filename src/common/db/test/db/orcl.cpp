@@ -82,7 +82,7 @@ TEST_CASE("updates") {
         THEN("binding variables") {
             conn.setAutoCommit(true);
 
-            auto stmt = getValue(conn.prepareUpdate("INSERT INTO test (id, name) VALUES (:id, :name)"));
+            auto stmt = getValue(conn.tryPrepareUpdate("INSERT INTO test (id, name) VALUES (:id, :name)"));
             stmt.bind("id").toInt(1);
             stmt.bind("name").toString("test");
 
@@ -116,7 +116,7 @@ TEST_CASE("updates") {
             blob[i] = static_cast<std::byte>(i);
         }
 
-        auto stmt = getValue(conn.prepareUpdate("INSERT INTO blob_test (id, data) VALUES (1, :blob)"));
+        auto stmt = getValue(conn.tryPrepareUpdate("INSERT INTO blob_test (id, data) VALUES (1, :blob)"));
         stmt.bind("blob").to(blob);
         getValue(stmt.update());
 

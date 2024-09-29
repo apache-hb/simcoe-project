@@ -47,6 +47,13 @@ class DefaultSystemError final : public sm::ISystemError {
 
 constinit static DefaultSystemError gDefaultError{};
 
+static const int kInstallTerminateHandler = [] noexcept {
+    std::set_terminate([]() {
+        CT_NEVER("Uncaught exception");
+    });
+    return 0;
+}();
+
 struct RunListener : public Catch::EventListenerBase {
     using Catch::EventListenerBase::EventListenerBase;
 

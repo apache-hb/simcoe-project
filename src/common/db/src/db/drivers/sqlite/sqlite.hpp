@@ -15,6 +15,7 @@ namespace sm::db::detail::sqlite {
     std::string setupInsert(const dao::TableInfo& info) noexcept;
     std::string setupInsertOrUpdate(const dao::TableInfo& info) noexcept;
     std::string setupInsertReturningPrimaryKey(const dao::TableInfo& info) noexcept;
+    std::string setupTruncate(std::string_view name) noexcept;
     std::string setupUpdate(const dao::TableInfo& info) noexcept;
     std::string setupSelect(const dao::TableInfo& info) noexcept;
 
@@ -94,19 +95,21 @@ namespace sm::db::detail::sqlite {
 
         DbError rollback() noexcept override;
 
-        DbError setupInsert(const dao::TableInfo& table, std::string& sql) noexcept override;
-        DbError setupInsertOrUpdate(const dao::TableInfo& table, std::string& sql) noexcept override;
-        DbError setupInsertReturningPrimaryKey(const dao::TableInfo& table, std::string& sql) noexcept override;
+        std::string setupInsert(const dao::TableInfo& table) noexcept(false) override;
+        std::string setupInsertOrUpdate(const dao::TableInfo& table) noexcept(false) override;
+        std::string setupInsertReturningPrimaryKey(const dao::TableInfo& table) noexcept(false) override;
 
-        DbError setupUpdate(const dao::TableInfo& table, std::string& sql) noexcept override;
+        std::string setupTruncate(const dao::TableInfo& table) noexcept(false) override;
 
-        DbError setupSelect(const dao::TableInfo& table, std::string& sql) noexcept override;
+        std::string setupUpdate(const dao::TableInfo& table) noexcept(false) override;
 
-        DbError setupSingletonTrigger(const dao::TableInfo& table, std::string& sql) noexcept override;
+        std::string setupSelect(const dao::TableInfo& table) noexcept(false) override;
 
-        DbError setupTableExists(std::string& sql) noexcept override;
+        std::string setupSingletonTrigger(const dao::TableInfo& table) noexcept(false) override;
 
-        DbError createTable(const dao::TableInfo& table) noexcept override;
+        std::string setupTableExists() noexcept(false) override;
+
+        std::string setupCreateTable(const dao::TableInfo& table) noexcept(false) override;
 
         DbError clientVersion(Version& version) const noexcept override;
         DbError serverVersion(Version& version) const noexcept override;

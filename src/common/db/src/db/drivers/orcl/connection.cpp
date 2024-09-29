@@ -94,47 +94,40 @@ DbError OraConnection::rollback() noexcept {
     return oraGetError(mError, result);
 }
 
-DbError OraConnection::setupInsert(const dao::TableInfo& table, std::string& sql) noexcept {
-    sql = orcl::setupInsert(table);
-    return DbError::ok();
+std::string OraConnection::setupInsert(const dao::TableInfo& table) noexcept(false) {
+    return orcl::setupInsert(table);
 }
 
-DbError OraConnection::setupInsertOrUpdate(const dao::TableInfo& table, std::string& sql) noexcept {
-    sql = orcl::setupInsertOrUpdate(table);
-    return DbError::ok();
+std::string OraConnection::setupInsertOrUpdate(const dao::TableInfo& table) noexcept(false) {
+    return orcl::setupInsertOrUpdate(table);
 }
 
-DbError OraConnection::setupInsertReturningPrimaryKey(const dao::TableInfo& table, std::string& sql) noexcept {
-    sql = orcl::setupInsertReturningPrimaryKey(table);
-    return DbError::ok();
+std::string OraConnection::setupInsertReturningPrimaryKey(const dao::TableInfo& table) noexcept(false) {
+    return orcl::setupInsertReturningPrimaryKey(table);
 }
 
-DbError OraConnection::setupSelect(const dao::TableInfo& table, std::string& sql) noexcept {
-    sql = orcl::setupSelect(table);
-    return DbError::ok();
+std::string OraConnection::setupTruncate(const dao::TableInfo& table) noexcept(false) {
+    return orcl::setupTruncate(table.name);
 }
 
-DbError OraConnection::setupUpdate(const dao::TableInfo& table, std::string& sql) noexcept {
-    sql = orcl::setupUpdate(table);
-    return DbError::ok();
+std::string OraConnection::setupSelect(const dao::TableInfo& table) noexcept(false) {
+    return orcl::setupSelect(table);
 }
 
-DbError OraConnection::setupSingletonTrigger(const dao::TableInfo& table, std::string& sql) noexcept {
-    sql = orcl::setupSingletonTrigger(table.name);
-    return DbError::ok();
+std::string OraConnection::setupUpdate(const dao::TableInfo& table) noexcept(false) {
+    return orcl::setupUpdate(table);
 }
 
-DbError OraConnection::setupTableExists(std::string& sql) noexcept {
-    sql = orcl::setupTableExists();
-    return DbError::ok();
+std::string OraConnection::setupSingletonTrigger(const dao::TableInfo& table) noexcept(false) {
+    return orcl::setupSingletonTrigger(table.name);
 }
 
-DbError OraConnection::createTable(const dao::TableInfo& table) noexcept {
-    auto sql = orcl::setupCreateTable(table);
-    OraStatement stmt = TRY_UNWRAP(newStatement(sql));
-    defer { (void)stmt.finalize(); };
+std::string OraConnection::setupTableExists() noexcept(false) {
+    return orcl::setupTableExists();
+}
 
-    return stmt.update(true);
+std::string OraConnection::setupCreateTable(const dao::TableInfo& table) noexcept(false) {
+    return orcl::setupCreateTable(table);
 }
 
 DbError OraConnection::clientVersion(Version& version) const noexcept {

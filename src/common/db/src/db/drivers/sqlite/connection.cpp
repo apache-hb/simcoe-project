@@ -61,47 +61,40 @@ DbError SqliteConnection::rollback() noexcept {
     return getConnectionError(err);
 }
 
-DbError SqliteConnection::setupInsert(const dao::TableInfo& table, std::string& sql) noexcept {
-    sql = sqlite::setupInsert(table);
-    return DbError::ok();
+std::string SqliteConnection::setupInsert(const dao::TableInfo& table) noexcept(false) {
+    return sqlite::setupInsert(table);
 }
 
-DbError SqliteConnection::setupInsertOrUpdate(const dao::TableInfo& table, std::string& sql) noexcept {
-    sql = sqlite::setupInsertOrUpdate(table);
-    return DbError::ok();
+std::string SqliteConnection::setupInsertOrUpdate(const dao::TableInfo& table) noexcept(false) {
+    return sqlite::setupInsertOrUpdate(table);
 }
 
-DbError SqliteConnection::setupInsertReturningPrimaryKey(const dao::TableInfo& table, std::string& sql) noexcept {
-    sql = sqlite::setupInsertReturningPrimaryKey(table);
-    return DbError::ok();
+std::string SqliteConnection::setupInsertReturningPrimaryKey(const dao::TableInfo& table) noexcept(false) {
+    return sqlite::setupInsertReturningPrimaryKey(table);
 }
 
-DbError SqliteConnection::setupUpdate(const dao::TableInfo& table, std::string& sql) noexcept {
-    sql = sqlite::setupUpdate(table);
-    return DbError::ok();
+std::string SqliteConnection::setupTruncate(const dao::TableInfo& table) noexcept(false) {
+    return sqlite::setupTruncate(table.name);
 }
 
-DbError SqliteConnection::setupSelect(const dao::TableInfo& table, std::string& sql) noexcept {
-    sql = sqlite::setupSelect(table);
-    return DbError::ok();
+std::string SqliteConnection::setupUpdate(const dao::TableInfo& table) noexcept(false) {
+    return sqlite::setupUpdate(table);
 }
 
-DbError SqliteConnection::setupSingletonTrigger(const dao::TableInfo& table, std::string& sql) noexcept {
-    sql = sqlite::setupCreateSingletonTrigger(table.name);
-    return DbError::ok();
+std::string SqliteConnection::setupSelect(const dao::TableInfo& table) noexcept(false) {
+    return sqlite::setupSelect(table);
 }
 
-DbError SqliteConnection::setupTableExists(std::string& sql) noexcept {
-    sql = sqlite::setupTableExists();
-    return DbError::ok();
+std::string SqliteConnection::setupSingletonTrigger(const dao::TableInfo& table) noexcept(false) {
+    return sqlite::setupCreateSingletonTrigger(table.name);
 }
 
-DbError SqliteConnection::createTable(const dao::TableInfo& table) noexcept {
-    auto sql = setupCreateTable(table);
-    if (int err = sqlite3_exec(mConnection.get(), sql.c_str(), nullptr, nullptr, nullptr))
-        return getError(err, mConnection.get());
+std::string SqliteConnection::setupTableExists() noexcept(false) {
+    return sqlite::setupTableExists();
+}
 
-    return DbError::ok();
+std::string SqliteConnection::setupCreateTable(const dao::TableInfo& table) noexcept(false) {
+    return sqlite::setupCreateTable(table);
 }
 
 static Version getSqliteVersion() noexcept {

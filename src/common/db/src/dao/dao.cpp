@@ -5,6 +5,21 @@
 using namespace sm;
 using namespace sm::dao;
 
+std::string_view dao::toString(ColumnType type) noexcept {
+    switch (type) {
+    case ColumnType::eInt: return "eInt";
+    case ColumnType::eUint: return "eUint";
+    case ColumnType::eLong: return "eLong";
+    case ColumnType::eUlong: return "eUlong";
+    case ColumnType::eBool: return "eBool";
+    case ColumnType::eString: return "eString";
+    case ColumnType::eFloat: return "eFloat";
+    case ColumnType::eDouble: return "eDouble";
+    case ColumnType::eBlob: return "eBlob";
+    default: return "unknown";
+    }
+}
+
 bool TableInfo::hasPrimaryKey() const noexcept {
     return primaryKey != nullptr;
 }

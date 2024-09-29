@@ -43,44 +43,50 @@ namespace sm::db::detail {
 
         /** Insert */
 
-        virtual DbError setupInsert(const dao::TableInfo& table, std::string& sql) noexcept {
-            return DbError::todo();
+        virtual std::string setupInsert(const dao::TableInfo& table) throws(DbException) {
+            throw DbException{DbError::todo("setupInsert")};
         }
 
-        virtual DbError setupInsertOrUpdate(const dao::TableInfo& table, std::string& sql) noexcept {
-            return DbError::todo();
+        virtual std::string setupInsertOrUpdate(const dao::TableInfo& table) throws(DbException) {
+            throw DbException{DbError::todo("setupInsertOrUpdate")};
         }
 
-        virtual DbError setupInsertReturningPrimaryKey(const dao::TableInfo& table, std::string& sql) noexcept {
-            return DbError::todo();
+        virtual std::string setupInsertReturningPrimaryKey(const dao::TableInfo& table) throws(DbException) {
+            throw DbException{DbError::todo("setupInsertReturningPrimaryKey")};
+        }
+
+        /** Truncate */
+
+        virtual std::string setupTruncate(const dao::TableInfo& table) throws(DbException) {
+            throw DbException{DbError::todo("setupTruncate")};
         }
 
         /** Select */
 
-        virtual DbError setupSelect(const dao::TableInfo& table, std::string& sql) noexcept {
-            return DbError::todo();
+        virtual std::string setupSelect(const dao::TableInfo& table) throws(DbException) {
+            throw DbException{DbError::todo("setupSelect")};
         }
 
         /** Update */
 
-        virtual DbError setupUpdate(const dao::TableInfo& table, std::string& sql) noexcept {
-            return DbError::todo();
+        virtual std::string setupUpdate(const dao::TableInfo& table) throws(DbException) {
+            throw DbException{DbError::todo("setupUpdate")};
         }
 
         /** Triggers */
 
-        virtual DbError setupSingletonTrigger(const dao::TableInfo& table, std::string& sql) noexcept {
-            return DbError::todo();
+        virtual std::string setupSingletonTrigger(const dao::TableInfo& table) throws(DbException) {
+            throw DbException{DbError::todo("setupSingletonTrigger")};
         }
 
         /** Tables */
 
-        virtual DbError setupTableExists(std::string& sql) noexcept {
-            return DbError::todo();
+        virtual std::string setupTableExists() throws(DbException) {
+            throw DbException{DbError::todo("setupTableExists")};
         }
 
-        virtual DbError createTable(const dao::TableInfo& table) noexcept {
-            return DbError::todo();
+        virtual std::string setupCreateTable(const dao::TableInfo& table) throws(DbException) {
+            throw DbException{DbError::todo("setupCreateTable")};
         }
 
         /** Version */
@@ -102,28 +108,28 @@ namespace sm::db::detail {
         /** Lifecycle */
 
         virtual DbError finalize() noexcept {
-            return DbError::todo();
+            return DbError::todo("finalize");
         }
 
         /** Execution */
 
         /** Execute statement and fetch first row of data */
         virtual DbError start(bool autoCommit, StatementType type) noexcept {
-            return DbError::todo();
+            return DbError::todo("start");
         }
 
         /** Complete execution of statement */
         virtual DbError execute() noexcept {
-            return DbError::todo();
+            return DbError::todo("execute");
         }
 
         /** Get next row of data */
         virtual DbError next() noexcept {
-            return DbError::todo();
+            return DbError::todo("next");
         }
 
         virtual DbError update(bool autoCommit) noexcept {
-            return DbError::todo();
+            return DbError::todo("update");
         }
 
         /** Fetch results */
@@ -139,28 +145,28 @@ namespace sm::db::detail {
         virtual DbError getColumnIndex(std::string_view name, int& index) const noexcept;
 
         virtual DbError getColumnInfo(int index, ColumnInfo& info) const noexcept {
-            return DbError::todo();
+            return DbError::todo("getColumnInfo");
         }
 
 
         virtual DbError getIntByIndex(int index, int64& value) noexcept {
-            return DbError::todo();
+            return DbError::todo("getIntByIndex");
         }
 
         virtual DbError getBooleanByIndex(int index, bool& value) noexcept {
-            return DbError::todo();
+            return DbError::todo("getBooleanByIndex");
         }
 
         virtual DbError getStringByIndex(int index, std::string_view& value) noexcept {
-            return DbError::todo();
+            return DbError::todo("getStringByIndex");
         }
 
         virtual DbError getDoubleByIndex(int index, double& value) noexcept {
-            return DbError::todo();
+            return DbError::todo("getDoubleByIndex");
         }
 
         virtual DbError getBlobByIndex(int index, Blob& value) noexcept {
-            return DbError::todo();
+            return DbError::todo("getBlobByIndex");
         }
 
         virtual DbError getIntByName(std::string_view column, int64& value) noexcept;
@@ -177,35 +183,35 @@ namespace sm::db::detail {
         }
 
         virtual DbError getBindIndex(std::string_view name, int& index) const noexcept {
-            return DbError::todo();
+            return DbError::todo("getBindIndex");
         }
 
         virtual DbError getBindInfo(int index, BindInfo& info) const noexcept {
-            return DbError::todo();
+            return DbError::todo("getBindInfo");
         }
 
         virtual DbError bindIntByIndex(int index, int64 value) noexcept {
-            return DbError::todo();
+            return DbError::todo("bindIntByIndex");
         }
 
         virtual DbError bindBooleanByIndex(int index, bool value) noexcept {
-            return DbError::todo();
+            return DbError::todo("bindBooleanByIndex");
         }
 
         virtual DbError bindStringByIndex(int index, std::string_view value) noexcept {
-            return DbError::todo();
+            return DbError::todo("bindStringByIndex");
         }
 
         virtual DbError bindDoubleByIndex(int index, double value) noexcept {
-            return DbError::todo();
+            return DbError::todo("bindDoubleByIndex");
         }
 
         virtual DbError bindBlobByIndex(int index, Blob value) noexcept {
-            return DbError::todo();
+            return DbError::todo("bindBlobByIndex");
         }
 
         virtual DbError bindNullByIndex(int index) noexcept {
-            return DbError::todo();
+            return DbError::todo("bindNullByIndex");
         }
 
         virtual DbError bindIntByName(std::string_view name, int64 value) noexcept;

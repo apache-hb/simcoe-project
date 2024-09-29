@@ -58,11 +58,12 @@ static CellInfo initCellValue(OraEnvironment& env, OraError error, OraColumnInfo
     case SQLT_INT:
         return CellInfo { &column.value.integer, sizeof(column.value.integer) };
 
-    case SQLT_FLT:
-        return CellInfo { &column.value.real, sizeof(column.value.real) };
-
     case SQLT_BOL:
         return CellInfo { &column.value.bol, sizeof(column.value.bol) };
+
+    case SQLT_IBFLOAT:
+    case SQLT_IBDOUBLE:
+        return CellInfo { &column.value.real, sizeof(column.value.real) };
 
     default:
         CT_NEVER("Unsupported data type %d", column.type);
@@ -207,7 +208,11 @@ DbError OraStatement::executeSelect(ub4 flags) noexcept {
 }
 
 int OraStatement::getBindCount() const noexcept {
-    return -1;
+    return mStatement.getAttribute<ub4>(mError, OCI_ATTR_BIND_COUNT).value_or(-1);
+}
+
+DbError OraStatement::getBindIndex(std::string_view name, int& index) const noexcept {
+    return DbError::todo(fmt::format("getBindIndex({})", name));
 }
 
 DbError OraStatement::bindAtPosition(int index, void *value, ub4 size, ub2 type) noexcept {
@@ -292,15 +297,9 @@ DbError OraStatement::bindIntByIndex(int index, int64 value) noexcept {
 }
 
 DbError OraStatement::bindBooleanByIndex(int index, bool value) noexcept {
-    const OraColumnInfo& column = mColumnInfo[index];
-
-    if (isBoolType(column.type)) {
-        static constexpr bool kValues[] = {false, true};
-        const bool *ptr = &kValues[value];
-        return bindAtPosition(index, (void*)ptr, sizeof(value), SQLT_BOL);
-    }
-
-    return bindAtPosition(index, (void*)(value ? "1" : "0"), 1, SQLT_CHR);
+    static constexpr bool kValues[] = {false, true};
+    const bool *ptr = &kValues[value];
+    return bindAtPosition(index, (void*)ptr, sizeof(value), SQLT_BOL);
 }
 
 DbError OraStatement::bindStringByIndex(int index, std::string_view value) noexcept {
@@ -327,19 +326,9 @@ DbError OraStatement::bindIntByName(std::string_view name, int64 value) noexcept
 }
 
 DbError OraStatement::bindBooleanByName(std::string_view name, bool value) noexcept {
-    int index = -1;
-    if (DbError error = findBindIndex(name, index))
-        return error;
-
-    const OraColumnInfo& column = mColumnInfo[index];
-
-    if (isBoolType(column.type)) {
-        static constexpr bool kValues[] = {false, true};
-        const bool *ptr = &kValues[value];
-        return bindAtName(name, (void*)ptr, sizeof(value), SQLT_BOL);
-    }
-
-    return bindAtName(name, (void*)(value ? "1" : "0"), 1, SQLT_CHR);
+    static constexpr bool kValues[] = {false, true};
+    const bool *ptr = &kValues[value];
+    return bindAtName(name, (void*)ptr, sizeof(value), SQLT_BOL);
 }
 
 DbError OraStatement::bindStringByName(std::string_view name, std::string_view value) noexcept {

@@ -240,7 +240,7 @@ std::string orcl::setupSelect(const dao::TableInfo& info) noexcept {
             ss << ", ";
         }
     }
-    ss << " FROM " << info.name << ";";
+    ss << " FROM " << info.name;
 
     return ss.str();
 }
@@ -255,8 +255,6 @@ std::string orcl::setupUpdate(const dao::TableInfo& info) noexcept {
         }
     }
 
-    ss << ";";
-
     return ss.str();
 }
 
@@ -269,6 +267,10 @@ static constexpr std::string_view kCreateSingletonTrigger =
 
 std::string orcl::setupSingletonTrigger(std::string_view name) noexcept {
     return fmt::format(kCreateSingletonTrigger, name);
+}
+
+std::string orcl::setupTruncate(std::string_view name) noexcept {
+    return fmt::format("TRUNCATE TABLE {}", name);
 }
 
 std::string orcl::setupTableExists() noexcept {

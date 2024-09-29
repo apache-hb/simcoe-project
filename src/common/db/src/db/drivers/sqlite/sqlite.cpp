@@ -47,12 +47,11 @@ static std::string makeSqlType(const dao::ColumnInfo& info) {
     case ColumnType::eLong:
     case ColumnType::eUint:
     case ColumnType::eUlong:
-        return "INTEGER";
     case ColumnType::eBool:
-        return "BOOLEAN";
+        return "INTEGER";
     case ColumnType::eFloat:
     case ColumnType::eDouble:
-        return "FLOAT";
+        return "REAL";
     case ColumnType::eString:
         return "TEXT";
     case ColumnType::eBlob:
@@ -207,6 +206,10 @@ std::string sqlite::setupInsertReturningPrimaryKey(const dao::TableInfo& info) n
         << " RETURNING " << pk.name << ";";
 
     return ss.str();
+}
+
+std::string sqlite::setupTruncate(std::string_view name) noexcept {
+    return fmt::format("DELETE FROM {};", name);
 }
 
 std::string sqlite::setupUpdate(const dao::TableInfo& info) noexcept {

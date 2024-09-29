@@ -42,6 +42,8 @@ cmake -S llvm -B build-stage2 -G Ninja -DLLVM_ENABLE_PROJECTS="llvm;clang;clang-
 
 cmake -S llvm -B build-stage3 -G Ninja -DLLVM_ENABLE_PROJECTS="llvm;clang;clang-tools-extra;lld;compiler-rt" -DCMAKE_LINKER="lld-link.exe" -DCMAKE_C_COMPILER="clang-cl.exe" -DCMAKE_CXX_COMPILER="clang-cl.exe" -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DLLVM_INCLUDE_TOOLS=ON -DCMAKE_CXX_FLAGS="-march=native -mtune=native" -DCMAKE_C_FLAGS="-march=native -mtune=native" -DCMAKE_RC_COMPILER="llvm-rc.exe" -DLLVM_ENABLE_LTO=Thin -DLLVM_INTEGRATED_CRT_ALLOC="K:/GitHub/rpmalloc" -DCMAKE_INSTALL_PREFIX="C:/Program Files/LLVM" -DCMAKE_BUILD_TYPE=Release -DLLVM_PARALLEL_LINK_JOBS=8 -DLLVM_TARGETS_TO_BUILD="X86"
 
+cmake -S llvm -B build-test -G Ninja -DLLVM_ENABLE_PROJECTS="llvm;clang" -DCMAKE_LINKER="lld-link.exe" -DCMAKE_C_COMPILER="clang-cl.exe" -DCMAKE_CXX_COMPILER="clang-cl.exe" -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DLLVM_INCLUDE_TOOLS=ON -DCMAKE_CXX_FLAGS="-march=native -mtune=native" -DCMAKE_C_FLAGS="-march=native -mtune=native" -DCMAKE_RC_COMPILER="llvm-rc.exe" -DLLVM_PARALLEL_LINK_JOBS=8 -DLLVM_TARGETS_TO_BUILD="X86"
+
 # build llvm for local use
 cmake -S llvm -B build -G Ninja -DLLVM_ENABLE_PROJECTS="llvm;clang;clang-tools-extra;lld;lldb" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="K:\llvm" -DLLVM_TARGETS_TO_BUILD="X86" -DCMAKE_TOOLCHAIN_FILE="K:/vcpkg/scripts/buildsystems/vcpkg.cmake" -DCMAKE_LINKER="lld-link" -DCMAKE_C_COMPILER="clang-cl" -DCMAKE_CXX_COMPILER="clang-cl" -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded" -DLLVM_INCLUDE_TOOLS=ON -DCMAKE_CXX_FLAGS="-march=native -mtune=native" -DCMAKE_C_FLAGS="-march=native -mtune=native" -DCMAKE_RC_COMPILER="llvm-rc.exe" -DLLVM_ENABLE_LTO=Thin
 

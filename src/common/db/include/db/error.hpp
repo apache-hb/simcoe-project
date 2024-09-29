@@ -52,6 +52,7 @@ namespace sm::db {
 
         static DbError ok() noexcept;
         static DbError todo() noexcept;
+        static DbError todo(std::string_view subject) noexcept;
         static DbError error(int code, std::string message) noexcept;
         static DbError outOfMemory() noexcept;
         static DbError noData() noexcept;
@@ -93,6 +94,7 @@ namespace sm::db {
             , mMessage(fmt::format("{}. {}", error.message(), context))
         { }
 
+        DbError error() const noexcept { return mError; }
         int code() const noexcept { return mError.code(); }
         std::string_view message() const noexcept { return mMessage; }
         const std::stacktrace& stacktrace() const noexcept { return mError.stacktrace(); }

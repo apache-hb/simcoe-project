@@ -41,5 +41,5 @@ namespace sm::db {
         StatementType type() const noexcept { return mType; }
     };
 
-    void bindRowToStatement(PreparedStatement& stmt, const dao::TableInfo& info, bool returning, const void *data) noexcept;
+    DbError bindRowToStatement(PreparedStatement& stmt, const dao::TableInfo& info, bool returning, const void *data) noexcept;
 }

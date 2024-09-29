@@ -212,6 +212,10 @@ static void postError(fmt::format_string<A...> msg, A&&... args) {
     gError = 1;
 }
 
+static const std::string_view kBannedNames[] = {
+    "bool", "blob"
+};
+
 static const std::map<std::string, ColumnType> kTypeMap = {
     {"int", eInt},
     {"uint", eUint},
@@ -260,6 +264,25 @@ static std::string expectProperty(const Properties &props, std::string_view key,
 
     postError("Missing property: {}", key);
     return std::string{def};
+}
+
+static void checkNameValid(std::string_view name) {
+    std::string lower{name};
+    for (char& c : lower) {
+        c = std::tolower(c);
+    }
+
+    if (std::find(std::begin(kBannedNames), std::end(kBannedNames), lower) != std::end(kBannedNames)) {
+        postError("Banned name: {}", name);
+        return;
+    }
+
+    for (char c : name) {
+        if (!std::isalpha(c) && c != '_') {
+            postError("Invalid character in name: {}", name);
+            return;
+        }
+    }
 }
 
 static std::optional<ColumnType> findType(const std::string& name) {
@@ -355,15 +378,18 @@ static Column buildDaoColumn(Table& parent, xmlNodePtr node) {
         .autoIncrement = getOrDefault(props, "autoIncrement", "false") == "true"
     };
 
+    checkNameValid(column.name);
+
     for (xmlNodePtr cur = node->children; cur; cur = cur->next) {
         if (cur->type == XML_ELEMENT_NODE) {
             if (nodeIs(cur, "unique")) {
                 auto nodeProps = getNodeProperties(cur);
-                auto id = fmt::format("unique_{}_over_{}", parent.name, name);
+                auto id = fmt::format("ak_{}_{}", parent.name, name);
                 Unique u = {
                     .name = getOrDefault(nodeProps, "name", id),
                     .columns = {name},
                 };
+                checkNameValid(u.name);
                 parent.unique.push_back(u);
             } else {
                 buildDaoConstraint(parent, column, cur);
@@ -381,6 +407,7 @@ static List buildDaoList(Table& parent, xmlNodePtr node) {
 
     auto props = getNodeProperties(node);
     auto name = expectProperty(props, "name", "");
+    checkNameValid(name);
 
     List list = {
         .name = name,
@@ -419,7 +446,7 @@ static void buildUniqueConstraint(Table& parent, xmlNodePtr node) {
         return;
     }
 
-    auto id = fmt::format("uk_{}_over_{}", parent.name, fmt::join(columns, "_"));
+    auto id = fmt::format("ak_{}_{}", parent.name, fmt::join(columns, "_"));
     Unique unique {
         .name = getOrDefault(props, "name", id),
         .columns = columns
@@ -454,6 +481,8 @@ static Table buildDaoTable(xmlNodePtr node) {
         .primaryKey = getOrDefault(props, "primaryKey", ""),
         .singleton = getOrDefault(props, "singleton", "false") == "true"
     };
+
+    checkNameValid(table.name);
 
     auto syntheticPrimaryKey = getOrDefault(props, "syntheticPrimaryKey", "");
     if (!syntheticPrimaryKey.empty()) {
@@ -493,6 +522,8 @@ static Table buildDaoTable(xmlNodePtr node) {
 static std::vector<Table> buildRootElement(xmlNodePtr node) {
     if (nodeIs(node, "root")) {
         auto name = expectProperty(getNodeProperties(node), "name", "");
+        checkNameValid(name);
+
         // this is an imported root node
         std::vector<Table> tables;
         for (xmlNodePtr cur = node->children; cur; cur = cur->next) {
@@ -523,6 +554,8 @@ static Root buildDaoRoot(xmlNodePtr node) {
     Root ctx = {
         .name = expectProperty(props, "name", "")
     };
+
+    checkNameValid(ctx.name);
 
     for (xmlNodePtr cur = node->children; cur; cur = cur->next) {
         if (cur->type == XML_ELEMENT_NODE) {

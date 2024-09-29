@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root name="tests">
+    <table name="example" syntheticPrimaryKey="ulong">
+        <column name="name" type="text" length="255" />
+        <column name="yesno" type="bool" />
+
+        <column name="x" type="int" />
+        <column name="y" type="int" />
+
+        <column name="binary" type="blob" length="512" />
+
+        <column name="cxxint" type="int" />
+        <column name="cxxuint" type="uint" />
+        <column name="cxxlong" type="long" />
+        <column name="cxxulong" type="ulong" />
+        <column name="floating" type="float" />
+    </table>
+</root>

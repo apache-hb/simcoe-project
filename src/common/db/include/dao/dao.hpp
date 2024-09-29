@@ -20,6 +20,8 @@ namespace sm::dao {
         eBlob
     };
 
+    std::string_view toString(ColumnType type) noexcept;
+
     struct ColumnInfo {
         std::string_view name;
         size_t offset;

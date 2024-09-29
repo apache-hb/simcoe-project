@@ -207,8 +207,11 @@ static DbError getColumnData(ResultSet& results, const dao::ColumnInfo& info, vo
     case eDouble:
         *reinterpret_cast<double*>(dst) = TRY_UNWRAP(results.get<float>(info.name));
         break;
+    case eBlob:
+        *reinterpret_cast<Blob*>(dst) = TRY_UNWRAP(results.get<Blob>(info.name));
+        break;
     default:
-        return DbError::todo();
+        return DbError::todo(toString(info.type));
     }
 
     return DbError::ok();

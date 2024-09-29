@@ -31,6 +31,10 @@ DbError DbError::todo() noexcept {
     return DbError{-1, eUnimplemented, "Not implemented"};
 }
 
+DbError DbError::todo(std::string_view subject) noexcept {
+    return DbError{-1, eUnimplemented, fmt::format("Not implemented: {}", subject)};
+}
+
 DbError DbError::error(int code, std::string message) noexcept {
     return DbError{code, eError, std::move(message)};
 }

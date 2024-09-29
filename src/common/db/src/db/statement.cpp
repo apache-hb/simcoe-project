@@ -42,46 +42,43 @@ DbError PreparedStatement::execute() noexcept {
     return mImpl->execute();
 }
 
-static void bindIndex(PreparedStatement& stmt, const dao::TableInfo& info, size_t index, bool returning, const void *data) noexcept {
+static DbError bindIndex(PreparedStatement& stmt, const dao::TableInfo& info, size_t index, bool returning, const void *data) noexcept {
     const auto& column = info.columns[index];
     size_t primaryKey = detail::primaryKeyIndex(info);
     if (returning && primaryKey == index)
-        return;
+        return DbError::ok();
 
     auto binding = stmt.bind(column.name);
     const void *field = static_cast<const char*>(data) + column.offset;
 
     switch (column.type) {
     case dao::ColumnType::eInt:
-        binding.toInt(*reinterpret_cast<const int32_t*>(field));
-        break;
+        return binding.tryBindInt(*reinterpret_cast<const int32_t*>(field));
     case dao::ColumnType::eUint:
-        binding.toInt(*reinterpret_cast<const uint32_t*>(field));
-        break;
+        return binding.tryBindUInt(*reinterpret_cast<const uint32_t*>(field));
     case dao::ColumnType::eLong:
-        binding.toInt(*reinterpret_cast<const int64_t*>(field));
-        break;
+        return binding.tryBindInt(*reinterpret_cast<const int64_t*>(field));
     case dao::ColumnType::eUlong:
-        binding.toInt(*reinterpret_cast<const uint64_t*>(field));
-        break;
+        return binding.tryBindUInt(*reinterpret_cast<const uint64_t*>(field));
     case dao::ColumnType::eBool:
-        binding.toBool(*reinterpret_cast<const bool*>(field));
-        break;
+        return binding.tryBindBool(*reinterpret_cast<const bool*>(field));
     case dao::ColumnType::eString:
-        binding.toString(*reinterpret_cast<const std::string*>(field));
-        break;
+        return binding.tryBindString(*reinterpret_cast<const std::string*>(field));
     case dao::ColumnType::eFloat:
-        binding.toDouble(*reinterpret_cast<const float*>(field));
-        break;
+        return binding.tryBindDouble(*reinterpret_cast<const float*>(field));
     case dao::ColumnType::eDouble:
-        binding.toDouble(*reinterpret_cast<const double*>(field));
-        break;
+        return binding.tryBindDouble(*reinterpret_cast<const double*>(field));
+    case dao::ColumnType::eBlob:
+        return binding.tryBindBlob(*reinterpret_cast<const Blob*>(field));
     default:
-        CT_NEVER("Unsupported column type");
+        return DbError::todo(toString(column.type));
     }
 }
 
-void db::bindRowToStatement(PreparedStatement& stmt, const dao::TableInfo& info, bool returning, const void *data) noexcept {
+DbError db::bindRowToStatement(PreparedStatement& stmt, const dao::TableInfo& info, bool returning, const void *data) noexcept {
     for (size_t i = 0; i < info.columns.size(); i++)
-        bindIndex(stmt, info, i, returning, data);
+        if (DbError error = bindIndex(stmt, info, i, returning, data))
+            return error;
+
+    return DbError::ok();
 }
