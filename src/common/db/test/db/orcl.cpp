@@ -71,8 +71,6 @@ TEST_CASE("updates") {
                 (void)results.next();
             }
 
-            fmt::println(stderr, "Done first select");
-
             REQUIRE(count == 1);
         }
 
