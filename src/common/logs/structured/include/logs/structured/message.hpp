@@ -9,7 +9,6 @@
 
 #include "logs/logs.hpp"
 #include "db/error.hpp"
-#include "core/adt/small_vector.hpp"
 
 #include "logs/structured/category.hpp"
 #include "logs/structured/core.hpp"
@@ -49,8 +48,7 @@ namespace sm::logs::structured {
         template<typename T>
         inline Category gLogCategory = T{};
 
-        void postLogMessage(const LogMessageId& message, sm::SmallVectorBase<std::string> args) noexcept;
-        void postLogMessage(const LogMessageId& message, ArgStore args) noexcept;
+        void postLogMessage(const LogMessageInfo& message, ArgStore args) noexcept;
 
         template<LogMessageFn F, typename... A>
         void fmtMessage(A&&... args) noexcept {
@@ -61,14 +59,7 @@ namespace sm::logs::structured {
             store.reserve(info.attributeCount(), info.namedAttributes.size());
             ((store.push_back(std::forward<A>(args))), ...);
 
-            postLogMessage(message, std::move(store));
-
-#if 0
-            sm::SmallVector<std::string, argCount> argArray{};
-            ((argArray.emplace_back(fmt::to_string(std::forward<A>(args)))), ...);
-
-            postLogMessage(message, argArray);
-#endif
+            postLogMessage(info, std::move(store));
         }
     }
 } // namespace sm::logs

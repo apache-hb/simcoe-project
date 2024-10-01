@@ -30,8 +30,7 @@ using AttributeInfoVec = sm::SmallVector<MessageAttributeInfo, structured::kMaxM
 
 struct LogEntryPacket {
     uint64_t timestamp;
-    uint64_t messageHash;
-    LogAttributeVec attributes;
+    const LogMessageInfo *message;
     sm::logs::structured::detail::ArgStore args;
 };
 
@@ -64,10 +63,10 @@ class DbLogger {
     void commit(std::span<const LogEntryPacket> packets) noexcept {
         db::Transaction tx(&mConnection);
 
-        for (const LogEntryPacket& packet : packets) {
+        for (const auto& [timestamp, message, args] : packets) {
             sm::dao::logs::LogEntry entry {
-                .timestamp = packet.timestamp,
-                .messageHash = packet.messageHash
+                .timestamp = timestamp,
+                .messageHash = message->hash
             };
 
             auto id = mInsertEntry.tryInsert(entry);
@@ -78,11 +77,52 @@ class DbLogger {
                 continue;
             }
 
-            for (size_t i = 0; i < packet.attributes.size(); i++) {
+            fmt::format_args params{args};
+
+            for (int i = 0; i < message->indexAttributeCount; i++) {
+                auto arg = params.get(i);
+                fmt::format_args args{&arg, 1};
+
+                sm::dao::logs::LogEntryAttribute entryAttribute {
+                    .entryId = id.value(),
+                    .key = fmt::to_string(i),
+                    .value = fmt::vformat("{}", args)
+                };
+
+                fmt::println(stderr, "insert {}: {}", entryAttribute.value, entryAttribute.key);
+
+                if (auto error = mInsertAttribute.tryInsert(entryAttribute)) {
+                    fmt::println(stderr, "Failed to insert log entry attribute: {}", error.message());
+                    gFallbackLog.warn("Failed to insert log entry attribute: {}", error.message());
+                    gHasErrors = true;
+                }
+            }
+
+            for (const auto& name : message->namedAttributes) {
+                auto arg = params.get(fmt::string_view{name.name});
+                fmt::format_args args{&arg, 1};
+
+                sm::dao::logs::LogEntryAttribute entryAttribute {
+                    .entryId = id.value(),
+                    .key = fmt::to_string(name.name),
+                    .value = fmt::vformat("{}", args)
+                };
+
+                fmt::println(stderr, "insert {}: {}", entryAttribute.value, entryAttribute.key);
+
+                if (auto error = mInsertAttribute.tryInsert(entryAttribute)) {
+                    fmt::println(stderr, "Failed to insert log entry attribute: {}", error.message());
+                    gFallbackLog.warn("Failed to insert log entry attribute: {}", error.message());
+                    gHasErrors = true;
+                }
+            }
+
+#if 0
+            for (size_t i = 0; i < params.size(); i++) {
                 sm::dao::logs::LogEntryAttribute entryAttribute {
                     .entryId = id.value(),
                     .param = uint32_t(i),
-                    .value = packet.attributes[i].value
+                    .value = fmt::to_string(params.get(i))
                 };
 
                 if (auto error = mInsertAttribute.tryInsert(entryAttribute)) {
@@ -90,11 +130,12 @@ class DbLogger {
                     gHasErrors = true;
                 }
             }
+#endif
         }
     }
 
 public:
-    DbLogger(db::Connection& connection) noexcept
+    DbLogger(db::Connection& connection)
         : mConnection(connection)
         , mQueue(1024)
         , mMaxPackets(256)
@@ -153,7 +194,7 @@ Category::Category(detail::LogCategoryData data) noexcept
     getLogCategories().emplace_back(*this);
 }
 
-void structured::detail::postLogMessage(const LogMessageId& message, detail::ArgStore args) noexcept {
+void structured::detail::postLogMessage(const LogMessageInfo& message, detail::ArgStore args) noexcept {
     if (!gIsRunning) {
         gFallbackLog.warn("Log message posted after cleanup");
         return;
@@ -163,11 +204,12 @@ void structured::detail::postLogMessage(const LogMessageId& message, detail::Arg
 
     gLogger->enqueue(LogEntryPacket {
         .timestamp = timestamp,
-        .messageHash = message.info.hash,
+        .message = &message,
         .args = std::move(args)
     });
 }
 
+#if 0
 void structured::detail::postLogMessage(const LogMessageId& message, sm::SmallVectorBase<std::string> args) noexcept {
     if (!gIsRunning) {
         gFallbackLog.warn("Log message posted after cleanup");
@@ -192,6 +234,7 @@ void structured::detail::postLogMessage(const LogMessageId& message, sm::SmallVe
         .attributes = std::move(attributes)
     });
 }
+#endif
 
 bool structured::isRunning() noexcept {
     return !gHasErrors;
@@ -238,6 +281,7 @@ static void registerMessagesWithDb(db::Connection& connection) {
         connection.insertOrUpdate(daoMessage);
 
         for (int i = 0; i < message.indexAttributeCount; i++) {
+            fmt::println(stderr, "{}: {}", i, message.message);
             sm::dao::logs::LogMessageAttribute daoAttribute {
                 .key = fmt::to_string(i),
                 .messageHash = message.hash
@@ -247,6 +291,7 @@ static void registerMessagesWithDb(db::Connection& connection) {
         }
 
         for (const auto& attribute : message.namedAttributes) {
+            fmt::println(stderr, "{}: {}", attribute.name, message.message);
             sm::dao::logs::LogMessageAttribute daoAttribute {
                 .key = std::string{attribute.name},
                 .messageHash = message.hash
@@ -292,12 +337,6 @@ void structured::cleanup() {
 void structured::Logger::addChannel(ILogChannel& channel) noexcept {
     channel.attach(getLogCategories(), getLogMessages());
     mChannels.emplace_back(&channel);
-}
-
-void structured::Logger::postMessage(const LogMessageInfo& message, const sm::SmallVectorBase<std::string>& args) noexcept {
-    std::span<const std::string> span(args.data(), args.size());
-    for (ILogChannel* channel : mChannels)
-        channel->postMessage(message, span);
 }
 
 structured::Logger& structured::Logger::instance() noexcept {

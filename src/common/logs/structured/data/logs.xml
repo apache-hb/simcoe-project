@@ -41,7 +41,7 @@
     </table>
 
     <table name="log_message_attribute">
-        <column name="key"  type="text" length="255"  />
+        <column name="key" type="text" length="31" />
 
         <column name="message_hash" type="ulong">
             <constraint references="log_message.hash" />
@@ -70,13 +70,13 @@
             <constraint references="log_entry.id" />
         </column>
 
-        <column name="param" type="ulong" />
+        <column name="key" type="text" length="31" />
 
         <column name="value" type="text" length="2048" />
 
         <unique>
-            <column>param</column>
             <column>entry_id</column>
+            <column>key</column>
         </unique>
     </table>
 </root>
