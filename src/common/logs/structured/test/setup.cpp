@@ -34,9 +34,9 @@ TEST_CASE("Setup logging") {
         THEN("a message can be logged") {
             LOG_INFO(TestLog, "Logging setup complete");
 
-            LOG_INFO(TestLog, "Log message {index}", 5);
+            LOG_INFO(TestLog, "Log message {0}", 5);
 
-            LOG_INFO(TestLog, "Logging with {multiple} {parameters}", "multiple", true);
+            LOG_INFO(TestLog, "Logging with {multiple} {parameters}", fmt::arg("multiple", 1), fmt::arg("parameters", true));
 
             CHECK(logs::structured::isRunning());
         }

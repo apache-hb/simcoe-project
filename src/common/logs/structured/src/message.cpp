@@ -2,18 +2,26 @@
 
 #include "db/transaction.hpp"
 
+#include "logs/structured/channel.hpp"
 #include "logs/structured/message.hpp"
 
 #include "logs.dao.hpp"
 
+
 namespace structured = sm::logs::structured;
 namespace db = sm::db;
+
+static_assert(BUILD_MESSAGE_ATTRIBUTES_IMPL("just text").size() == 0);
+static_assert(BUILD_MESSAGE_ATTRIBUTES_IMPL("thing {0}", 1).size() == 1);
+static_assert(BUILD_MESSAGE_ATTRIBUTES_IMPL("multiple {0} second {0} identical {0} indices", 1).size() == 1);
+static_assert(BUILD_MESSAGE_ATTRIBUTES_IMPL("thing {0} second {1} third {name}", 1, 2, fmt::arg("name", "bob")).size() == 3);
 
 struct LogAttribute {
     std::string value;
 };
 
 using Category = sm::logs::Category;
+using LogMessageInfo = sm::logs::structured::LogMessageInfo;
 using LogMessageId = sm::logs::structured::detail::LogMessageId;
 using MessageAttributeInfo = sm::logs::structured::MessageAttributeInfo;
 
@@ -24,6 +32,7 @@ struct LogEntryPacket {
     uint64_t timestamp;
     uint64_t messageHash;
     LogAttributeVec attributes;
+    sm::logs::structured::detail::ArgStore args;
 };
 
 LOG_CATEGORY_IMPL(gFallbackLog, "Structed Logging");
@@ -122,15 +131,9 @@ static uint64_t getTimestamp() noexcept {
     return uint64_t(now.time_since_epoch().count());
 }
 
-static std::vector<LogMessageId> &getLogMessages() noexcept {
-    static std::vector<LogMessageId> sLogMessages;
+static std::vector<LogMessageInfo> &getLogMessages() noexcept {
+    static std::vector<LogMessageInfo> sLogMessages;
     return sLogMessages;
-}
-
-LogMessageId::LogMessageId(LogMessageInfo& message) noexcept
-    : info(message)
-{
-    getLogMessages().emplace_back(*this);
 }
 
 static std::vector<Category> &getLogCategories() noexcept {
@@ -138,10 +141,31 @@ static std::vector<Category> &getLogCategories() noexcept {
     return sLogCategories;
 }
 
+LogMessageId::LogMessageId(LogMessageInfo& message) noexcept
+    : info(message)
+{
+    getLogMessages().emplace_back(message);
+}
+
 Category::Category(detail::LogCategoryData data) noexcept
     : data(data)
 {
     getLogCategories().emplace_back(*this);
+}
+
+void structured::detail::postLogMessage(const LogMessageId& message, detail::ArgStore args) noexcept {
+    if (!gIsRunning) {
+        gFallbackLog.warn("Log message posted after cleanup");
+        return;
+    }
+
+    uint64_t timestamp = getTimestamp();
+
+    gLogger->enqueue(LogEntryPacket {
+        .timestamp = timestamp,
+        .messageHash = message.info.hash,
+        .args = std::move(args)
+    });
 }
 
 void structured::detail::postLogMessage(const LogMessageId& message, sm::SmallVectorBase<std::string> args) noexcept {
@@ -152,7 +176,7 @@ void structured::detail::postLogMessage(const LogMessageId& message, sm::SmallVe
 
     uint64_t timestamp = getTimestamp();
 
-    ssize_t attrCount = message.info.attributes.size();
+    ssize_t attrCount = message.info.attributeCount();
     CTASSERTF(args.ssize() == attrCount, "Incorrect number of message attributes (%zd != %zd)", args.ssize(), attrCount);
 
     LogAttributeVec attributes;
@@ -200,9 +224,7 @@ static void registerMessagesWithDb(db::Connection& connection) {
         connection.insertOrUpdate(daoCategory);
     }
 
-    for (const LogMessageId& messageId : getLogMessages()) {
-        const structured::LogMessageInfo& message = messageId.info;
-
+    for (const LogMessageInfo& message : getLogMessages()) {
         sm::dao::logs::LogMessage daoMessage {
             .hash = message.hash,
             .message = std::string{message.message},
@@ -215,10 +237,18 @@ static void registerMessagesWithDb(db::Connection& connection) {
 
         connection.insertOrUpdate(daoMessage);
 
-        for (size_t i = 0; i < message.attributes.size(); i++) {
+        for (int i = 0; i < message.indexAttributeCount; i++) {
             sm::dao::logs::LogMessageAttribute daoAttribute {
-                .key = std::string{message.attributes[i].name},
-                .param = uint32_t(i),
+                .key = fmt::to_string(i),
+                .messageHash = message.hash
+            };
+
+            connection.insertOrUpdate(daoAttribute);
+        }
+
+        for (const auto& attribute : message.namedAttributes) {
+            sm::dao::logs::LogMessageAttribute daoAttribute {
+                .key = std::string{attribute.name},
                 .messageHash = message.hash
             };
 
@@ -257,4 +287,20 @@ void structured::cleanup() {
     gFallbackLog.info("Structured logging cleaned up");
 
     gLogger.reset();
+}
+
+void structured::Logger::addChannel(ILogChannel& channel) noexcept {
+    channel.attach(getLogCategories(), getLogMessages());
+    mChannels.emplace_back(&channel);
+}
+
+void structured::Logger::postMessage(const LogMessageInfo& message, const sm::SmallVectorBase<std::string>& args) noexcept {
+    std::span<const std::string> span(args.data(), args.size());
+    for (ILogChannel* channel : mChannels)
+        channel->postMessage(message, span);
+}
+
+structured::Logger& structured::Logger::instance() noexcept {
+    static Logger sInstance;
+    return sInstance;
 }

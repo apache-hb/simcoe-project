@@ -81,14 +81,6 @@ DbError SqliteStatement::next() noexcept {
     return getStmtError(mStatus);
 }
 
-DbError SqliteStatement::update(bool autoCommit) noexcept {
-    int err = runUntilComplete(mStatement);
-    if (err == SQLITE_DONE)
-        err = SQLITE_OK;
-
-    return getStmtError(err);
-}
-
 int SqliteStatement::getBindCount() const noexcept {
     return sqlite3_bind_parameter_count(mStatement);
 }
@@ -174,34 +166,17 @@ DbError SqliteStatement::getColumnInfo(std::string_view name, ColumnInfo& info) 
     return getColumnInfo(index, info);
 }
 
-bool SqliteStatement::isRowReady() const noexcept {
-    return mStatus == SQLITE_ROW;
-}
-
-DbError SqliteStatement::rowNotReady() const noexcept {
-    return DbError::notReady(fmt::format("Statement is not ready for reading. {}", sqlite3_errstr(mStatus)));
-}
-
 DbError SqliteStatement::getIntByIndex(int index, int64& value) noexcept {
-    if (!isRowReady())
-        return rowNotReady();
-
     value = sqlite3_column_int64(mStatement, index);
     return DbError::ok();
 }
 
 DbError SqliteStatement::getBooleanByIndex(int index, bool& value) noexcept {
-    if (!isRowReady())
-        return rowNotReady();
-
     value = sqlite3_column_int(mStatement, index) != 0;
     return DbError::ok();
 }
 
 DbError SqliteStatement::getStringByIndex(int index, std::string_view& value) noexcept {
-    if (!isRowReady())
-        return rowNotReady();
-
     if (const char *text = (const char*)sqlite3_column_text(mStatement, index))
         value = text;
 
@@ -209,18 +184,12 @@ DbError SqliteStatement::getStringByIndex(int index, std::string_view& value) no
 }
 
 DbError SqliteStatement::getDoubleByIndex(int index, double& value) noexcept {
-    if (!isRowReady())
-        return rowNotReady();
-
     value = sqlite3_column_double(mStatement, index);
     return DbError::ok();
 }
 
 DbError SqliteStatement::getBlobByIndex(int index, Blob& value) noexcept {
-    if (!isRowReady())
-        return rowNotReady();
-
-    const std::byte *bytes = (const std::byte*)sqlite3_column_blob(mStatement, index);
+    const std::uint8_t *bytes = (const std::uint8_t*)sqlite3_column_blob(mStatement, index);
     int length = sqlite3_column_bytes(mStatement, index);
     if (length > 0) {
         value = Blob{bytes, bytes + length};
@@ -228,6 +197,20 @@ DbError SqliteStatement::getBlobByIndex(int index, Blob& value) noexcept {
 
     return DbError::ok();
 }
+
+DbError SqliteStatement::isNullByIndex(int index, bool& value) noexcept {
+    value = sqlite3_column_type(mStatement, index) == SQLITE_NULL;
+    return DbError::ok();
+}
+
+DbError SqliteStatement::isNullByName(std::string_view column, bool& value) noexcept {
+    int index;
+    if (DbError error = getColumnIndex(column, index))
+        return error;
+
+    return isNullByIndex(index, value);
+}
+
 
 SqliteStatement::SqliteStatement(sqlite3_stmt *stmt) noexcept
     : mStatement(stmt)

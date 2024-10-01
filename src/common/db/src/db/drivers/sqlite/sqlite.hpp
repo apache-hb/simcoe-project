@@ -54,23 +54,20 @@ namespace sm::db::detail::sqlite {
         DbError bindBlobByIndex(int index, Blob value) noexcept override;
         DbError bindNullByIndex(int index) noexcept override;
 
-        DbError update(bool autoCommit) noexcept override;
-
         int getColumnCount() const noexcept override;
         DbError getColumnIndex(std::string_view name, int& index) const noexcept override;
 
         DbError getColumnInfo(int index, ColumnInfo& info) const noexcept override;
         DbError getColumnInfo(std::string_view name, ColumnInfo& info) const noexcept override;
 
-        bool isRowReady() const noexcept;
-
-        DbError rowNotReady() const noexcept;
-
         DbError getIntByIndex(int index, int64& value) noexcept override;
         DbError getBooleanByIndex(int index, bool& value) noexcept override;
         DbError getStringByIndex(int index, std::string_view& value) noexcept override;
         DbError getDoubleByIndex(int index, double& value) noexcept override;
         DbError getBlobByIndex(int index, Blob& value) noexcept override;
+
+        DbError isNullByIndex(int index, bool& value) noexcept override;
+        DbError isNullByName(std::string_view column, bool& value) noexcept override;
 
         SqliteStatement(sqlite3_stmt *stmt) noexcept;
     };

@@ -37,24 +37,24 @@ TEST_CASE("updates") {
     }
 
     if (getValue(conn.tableExists("test"))) {
-        getValue(conn.tryUpdateSql("DROP TABLE test"));
+        checkError(conn.tryUpdateSql("DROP TABLE test"));
         REQUIRE(!conn.tableExists("test").value_or(true));
     }
 
-    getValue(conn.tryUpdateSql("CREATE TABLE test (id NUMBER, name VARCHAR2(100))"));
+    checkError(conn.tryUpdateSql("CREATE TABLE test (id NUMBER, name VARCHAR2(100))"));
 
     REQUIRE(conn.tableExists("test").value_or(false));
 
 
     GIVEN("a connection") {
         THEN("simple sql operations work") {
-            getValue(conn.tryUpdateSql("INSERT INTO test (id, name) VALUES (1, 'bob')"));
+            checkError(conn.tryUpdateSql("INSERT INTO test (id, name) VALUES (1, 'bob')"));
 
             checkError(conn.commit());
 
             Transaction tx(&conn);
 
-            getValue(conn.tryUpdateSql("INSERT INTO test (id, name) VALUES (2, 'bob')"));
+            checkError(conn.tryUpdateSql("INSERT INTO test (id, name) VALUES (2, 'bob')"));
 
             tx.rollback();
 
@@ -109,18 +109,18 @@ TEST_CASE("updates") {
 
     SECTION("Blob IO") {
         if (conn.tableExists("blob_test").value_or(false))
-            getValue(conn.tryUpdateSql("DROP TABLE blob_test"));
+            checkError(conn.tryUpdateSql("DROP TABLE blob_test"));
 
-        getValue(conn.tryUpdateSql("CREATE TABLE blob_test (id INTEGER, data BLOB)"));
+        checkError(conn.tryUpdateSql("CREATE TABLE blob_test (id INTEGER, data BLOB)"));
 
         Blob blob{100};
         for (size_t i = 0; i < blob.size(); i++) {
-            blob[i] = static_cast<std::byte>(i);
+            blob[i] = static_cast<std::uint8_t>(i);
         }
 
         auto stmt = getValue(conn.tryPrepareUpdate("INSERT INTO blob_test (id, data) VALUES (1, :blob)"));
         stmt.bind("blob").to(blob);
-        getValue(stmt.update());
+        checkError(stmt.execute());
 
         ResultSet results = getValue(conn.trySelectSql("SELECT * FROM blob_test"));
 

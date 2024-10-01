@@ -200,14 +200,14 @@ namespace sm::db::detail::orcl {
         DbError bindBlobByName(std::string_view name, Blob value) noexcept override;
         DbError bindNullByName(std::string_view name) noexcept override;
 
-        DbError update(bool autoCommit) noexcept override;
+        DbError isNullByIndex(int index, bool& value) noexcept override;
+        DbError isNullByName(std::string_view column, bool& value) noexcept override;
 
         int getColumnCount() const noexcept override;
         DbError getColumnIndex(std::string_view name, int& index) const noexcept override;
 
         DbError getColumnInfo(int index, ColumnInfo& info) const noexcept override;
         DbError getColumnInfo(std::string_view name, ColumnInfo& info) const noexcept override;
-
 
         DbError getIntByIndex(int index, int64& value) noexcept override;
         DbError getBooleanByIndex(int index, bool& value) noexcept override;

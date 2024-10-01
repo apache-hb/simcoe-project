@@ -4,7 +4,8 @@
 #include "core/memory/unique.hpp"
 
 #include <expected>
-#include <vector>
+#include <memory>
+#include <string>
 #include <chrono>
 
 #include "core.meta.hpp"
@@ -16,9 +17,6 @@ namespace sm::db {
     class PreparedStatement;
     class Connection;
     class Environment;
-
-    using Blob = std::vector<std::byte>;
-    using DateTime = std::chrono::time_point<std::chrono::system_clock>;
 
     namespace detail {
         struct IStatement;

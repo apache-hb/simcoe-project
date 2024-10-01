@@ -14,7 +14,7 @@ using enum ColumnType;
 
 struct Type {
     ColumnType kind;
-    bool nullable;
+    bool nullable = false;
     size_t size;
 
     bool isString() const { return kind == eString; }
@@ -76,7 +76,7 @@ static std::string makeCxxType(const Type& type, bool optional) {
             case eString: return "std::string";
             case eFloat: return "float";
             case eDouble: return "double";
-            case eBlob: return "std::vector<uint8_t>";
+            case eBlob: return "sm::db::Blob";
         }
 
         CT_NEVER("Invalid type %d", (int)type.kind);
@@ -213,10 +213,10 @@ static void postError(fmt::format_string<A...> msg, A&&... args) {
 }
 
 static const std::string_view kBannedNames[] = {
-    "bool", "blob"
+    "bool", "blob", "table", "column"
 };
 
-static const std::map<std::string, ColumnType> kTypeMap = {
+static const std::map<std::string_view, ColumnType> kTypeMap = {
     {"int", eInt},
     {"uint", eUint},
     {"long", eLong},
@@ -295,7 +295,7 @@ static std::optional<ColumnType> findType(const std::string& name) {
 
 static Type buildType(const Properties &props) {
     auto type = expectProperty(props, "type", "int");
-    bool nullable = getOrDefault(props, "nullable", "true") == "true";
+    bool nullable = getOrDefault(props, "nullable", "false") == "true";
     if (type == "text") {
         auto len = expectProperty(props, "length", "0");
 
@@ -377,6 +377,10 @@ static Column buildDaoColumn(Table& parent, xmlNodePtr node) {
         .optional = getOrDefault(props, "nullable", "false") == "true",
         .autoIncrement = getOrDefault(props, "autoIncrement", "false") == "true"
     };
+
+    if (column.type.isBlob() && column.type.nullable) {
+        postError("Blob columns cannot be nullable. {}", name);
+    }
 
     checkNameValid(column.name);
 
@@ -679,6 +683,7 @@ static void emitCxxBody(
             source.writeln(".type = ColumnType::{},", colType);
             source.writeln(".length = {},", column.type.size);
             source.writeln(".autoIncrement = {},", column.autoIncrement ? "true" : "false");
+            source.writeln(".nullable = {},", column.type.nullable ? "true" : "false");
             source.dedent();
             source.writeln("}},");
         }

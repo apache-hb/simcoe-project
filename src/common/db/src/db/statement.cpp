@@ -22,13 +22,6 @@ DbError PreparedStatement::close() noexcept {
     return mImpl->finalize();
 }
 
-DbResult<ResultSet> PreparedStatement::update() noexcept {
-    if (DbError error = mImpl->update(mConnection->autoCommit()))
-        return std::unexpected(error);
-
-    return ResultSet{mImpl, mConnection};
-}
-
 DbResult<ResultSet> PreparedStatement::start() noexcept {
     DbError error = mImpl->start(mConnection->autoCommit(), type());
     if (!error.isSuccess())
@@ -42,6 +35,22 @@ DbError PreparedStatement::execute() noexcept {
     return mImpl->execute();
 }
 
+template<typename T>
+DbError tryBindField(BindPoint& binding, const void *field, bool nullable) noexcept {
+    using Option = std::optional<T>;
+    if (nullable) {
+        const Option *value = reinterpret_cast<const Option*>(field);
+        if (value->has_value()) {
+            return binding.tryBind(value->value());
+        } else {
+            return binding.tryBindNull();
+        }
+    }
+
+    const T *value = reinterpret_cast<const T*>(field);
+    return binding.tryBind(*value);
+}
+
 static DbError bindIndex(PreparedStatement& stmt, const dao::TableInfo& info, size_t index, bool returning, const void *data) noexcept {
     const auto& column = info.columns[index];
     size_t primaryKey = detail::primaryKeyIndex(info);
@@ -50,26 +59,27 @@ static DbError bindIndex(PreparedStatement& stmt, const dao::TableInfo& info, si
 
     auto binding = stmt.bind(column.name);
     const void *field = static_cast<const char*>(data) + column.offset;
+    bool nullable = column.nullable;
 
     switch (column.type) {
     case dao::ColumnType::eInt:
-        return binding.tryBindInt(*reinterpret_cast<const int32_t*>(field));
+        return tryBindField<int32_t>(binding, field, nullable);
     case dao::ColumnType::eUint:
-        return binding.tryBindUInt(*reinterpret_cast<const uint32_t*>(field));
+        return tryBindField<uint32_t>(binding, field, nullable);
     case dao::ColumnType::eLong:
-        return binding.tryBindInt(*reinterpret_cast<const int64_t*>(field));
+        return tryBindField<int64_t>(binding, field, nullable);
     case dao::ColumnType::eUlong:
-        return binding.tryBindUInt(*reinterpret_cast<const uint64_t*>(field));
+        return tryBindField<uint64_t>(binding, field, nullable);
     case dao::ColumnType::eBool:
-        return binding.tryBindBool(*reinterpret_cast<const bool*>(field));
+        return tryBindField<bool>(binding, field, nullable);
     case dao::ColumnType::eString:
-        return binding.tryBindString(*reinterpret_cast<const std::string*>(field));
+        return tryBindField<std::string>(binding, field, nullable);
     case dao::ColumnType::eFloat:
-        return binding.tryBindDouble(*reinterpret_cast<const float*>(field));
+        return tryBindField<float>(binding, field, nullable);
     case dao::ColumnType::eDouble:
-        return binding.tryBindDouble(*reinterpret_cast<const double*>(field));
+        return tryBindField<double>(binding, field, nullable);
     case dao::ColumnType::eBlob:
-        return binding.tryBindBlob(*reinterpret_cast<const Blob*>(field));
+        return tryBindField<db::Blob>(binding, field, nullable);
     default:
         return DbError::todo(toString(column.type));
     }

@@ -47,6 +47,14 @@ DbError DbError::noData() noexcept {
     return DbError{-1, eNoData, "No data"};
 }
 
+DbError DbError::columnIsNull(int index) noexcept {
+    return DbError{-1, eError, fmt::format("Column `{}` is null", index)};
+}
+
+DbError DbError::columnIsNull(std::string_view name) noexcept {
+    return DbError{-1, eError, fmt::format("Column `{}` is null", name)};
+}
+
 DbError DbError::done(int code) noexcept {
     return DbError{code, eDone, "Done", false};
 }

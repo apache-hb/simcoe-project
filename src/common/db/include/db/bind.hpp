@@ -3,6 +3,8 @@
 #include "db/core.hpp"
 #include "db/error.hpp"
 
+#include "dao/dao.hpp"
+
 #include "core/throws.hpp"
 
 namespace sm::db {
@@ -41,6 +43,20 @@ namespace sm::db {
         DbError tryBindDouble(double value) noexcept;
         DbError tryBindBlob(Blob value) noexcept;
         DbError tryBindNull() noexcept;
+
+        template<std::signed_integral T>
+        DbError tryBind(T value) noexcept { return tryBindInt(value); }
+
+        template<std::unsigned_integral T>
+        DbError tryBind(T value) noexcept { return tryBindUInt(value); }
+
+        template<std::floating_point T>
+        DbError tryBind(T value) noexcept { return tryBindDouble(value); }
+
+        DbError tryBind(bool value) noexcept { return tryBindBool(value); }
+        DbError tryBind(std::string_view value) noexcept { return tryBindString(value); }
+        DbError tryBind(Blob value) noexcept { return tryBindBlob(value); }
+        DbError tryBind(std::nullptr_t) noexcept { return tryBindNull(); }
 
         void operator=(int64 value) throws(DbException) { to(value); }
         void operator=(bool value) throws(DbException) { to(value); }

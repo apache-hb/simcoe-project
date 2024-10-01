@@ -5,6 +5,8 @@
 #include <string_view>
 #include <array>
 
+#include "fmt/args.h"
+
 #include "logs/logs.hpp"
 #include "db/error.hpp"
 #include "core/adt/small_vector.hpp"
@@ -22,6 +24,8 @@ namespace sm::logs::structured {
     void cleanup();
 
     namespace detail {
+        using ArgStore = fmt::dynamic_format_arg_store<fmt::format_context>;
+
         template<typename T>
         concept LogMessageFn = requires(T fn) {
             { fn() } -> std::same_as<LogMessageInfo>;
@@ -46,20 +50,25 @@ namespace sm::logs::structured {
         inline Category gLogCategory = T{};
 
         void postLogMessage(const LogMessageId& message, sm::SmallVectorBase<std::string> args) noexcept;
+        void postLogMessage(const LogMessageId& message, ArgStore args) noexcept;
 
         template<LogMessageFn F, typename... A>
         void fmtMessage(A&&... args) noexcept {
-            constexpr size_t argCount = sizeof...(A);
-            static_assert(argCount <= kMaxMessageAttributes, "Too many message attributes");
-
             const LogMessageId& message = gTagInfo<F, A...>;
-            size_t attribCount = message.info.attributes.size();
-            CTASSERTF(argCount == attribCount, "Incorrect number of message attributes %zu != %zu", argCount, attribCount);
+            const LogMessageInfo& info = message.info;
 
+            ArgStore store;
+            store.reserve(info.attributeCount(), info.namedAttributes.size());
+            ((store.push_back(std::forward<A>(args))), ...);
+
+            postLogMessage(message, std::move(store));
+
+#if 0
             sm::SmallVector<std::string, argCount> argArray{};
             ((argArray.emplace_back(fmt::to_string(std::forward<A>(args)))), ...);
 
             postLogMessage(message, argArray);
+#endif
         }
     }
 } // namespace sm::logs
@@ -74,10 +83,10 @@ namespace sm::logs::structured {
 #define LOG_MESSAGE(category, severity, message, ...) \
     do { \
         static constexpr std::source_location loc = std::source_location::current(); \
-        static constexpr auto attrs = PARSE_MESSAGE_ATTRIBUTES(message); \
+        static constexpr auto attrs = BUILD_MESSAGE_ATTRIBUTES_IMPL(message, __VA_ARGS__); \
         struct LogMessageImpl { \
             constexpr sm::logs::structured::LogMessageInfo operator()() const noexcept { \
-                return { sm::logs::detail::hashMessage(message, loc.line()), severity, sm::logs::structured::detail::gLogCategory<category>, message, loc, attrs }; \
+                return { sm::logs::detail::hashMessage(message, loc.line()), severity, sm::logs::structured::detail::gLogCategory<category>, message, loc, attrs.indices, attrs.namedAttributes() }; \
             } \
         }; \
         sm::logs::structured::detail::fmtMessage<LogMessageImpl>(__VA_ARGS__); \

@@ -195,41 +195,77 @@ DbResult<Blob> ResultSet::getBlob(std::string_view column) noexcept {
     return value;
 }
 
-static DbError getColumnData(ResultSet& results, const dao::ColumnInfo& info, void *dst) noexcept {
-    using enum dao::ColumnType;
-    switch (info.type) {
-    case eInt:
-        *reinterpret_cast<int32_t*>(dst) = TRY_UNWRAP(results.get<int32_t>(info.name));
-        break;
-    case eUint:
-        *reinterpret_cast<uint32_t*>(dst) = TRY_UNWRAP(results.get<uint32_t>(info.name));
-        break;
-    case eLong:
-        *reinterpret_cast<int64_t*>(dst) = TRY_UNWRAP(results.get<int64_t>(info.name));
-        break;
-    case eUlong:
-        *reinterpret_cast<uint64_t*>(dst) = TRY_UNWRAP(results.get<uint64_t>(info.name));
-        break;
-    case eBool:
-        *reinterpret_cast<bool*>(dst) = TRY_UNWRAP(results.get<bool>(info.name));
-        break;
-    case eString:
-        *reinterpret_cast<std::string*>(dst) = TRY_UNWRAP(results.get<std::string>(info.name));
-        break;
-    case eFloat:
-        *reinterpret_cast<float*>(dst) = TRY_UNWRAP(results.get<double>(info.name));
-        break;
-    case eDouble:
-        *reinterpret_cast<double*>(dst) = TRY_UNWRAP(results.get<float>(info.name));
-        break;
-    case eBlob:
-        *reinterpret_cast<Blob*>(dst) = TRY_UNWRAP(results.get<Blob>(info.name));
-        break;
-    default:
-        return DbError::todo(toString(info.type));
+DbResult<bool> ResultSet::isNull(int index) noexcept {
+    if (index < 0 || index >= getColumnCount())
+        return std::unexpected{DbError::columnNotFound(fmt::format(":{}", index))};
+
+    bool value = false;
+    if (DbError error = mImpl->isNullByIndex(index, value))
+        return std::unexpected(error);
+
+    return value;
+}
+
+DbResult<bool> ResultSet::isNull(std::string_view column) noexcept {
+    if (!mImpl->hasDataReady())
+        return std::unexpected{DbError::noData()};
+
+    bool value = false;
+    if (DbError error = mImpl->isNullByName(column, value))
+        return std::unexpected(error);
+
+    return value;
+}
+
+template<typename T>
+DbError setColumnField(ResultSet& results, void *dst, std::string_view name, bool nullable) noexcept {
+    using Option = std::optional<T>;
+    bool isNull = results.isNull(name).value_or(true);
+    if (nullable) {
+        Option *value = reinterpret_cast<Option*>(dst);
+        if (isNull) {
+            *value = std::nullopt;
+        } else {
+            *value = TRY_UNWRAP(results.get<T>(name));
+        }
+    } else {
+        T *value = reinterpret_cast<T*>(dst);
+        if (isNull)
+            return DbError::columnIsNull(name);
+
+        *value = TRY_UNWRAP(results.get<T>(name));
     }
 
     return DbError::ok();
+}
+
+static DbError getColumnData(ResultSet& results, const dao::ColumnInfo& info, void *dst) noexcept {
+    std::string_view name = info.name;
+    bool nullable = info.nullable;
+
+    using enum dao::ColumnType;
+    switch (info.type) {
+    case eInt:
+        return setColumnField<int32_t>(results, dst, name, nullable);
+    case eUint:
+        return setColumnField<uint32_t>(results, dst, name, nullable);
+    case eLong:
+        return setColumnField<int64_t>(results, dst, name, nullable);
+    case eUlong:
+        return setColumnField<uint64_t>(results, dst, name, nullable);
+    case eBool:
+        return setColumnField<bool>(results, dst, name, nullable);
+    case eString:
+        return setColumnField<std::string>(results, dst, name, nullable);
+    case eFloat:
+        return setColumnField<float>(results, dst, name, nullable);
+    case eDouble:
+        return setColumnField<double>(results, dst, name, nullable);
+    case eBlob:
+        return setColumnField<Blob>(results, dst, name, nullable);
+    default:
+        return DbError::todo(toString(info.type));
+    }
 }
 
 DbError ResultSet::getRowData(const dao::TableInfo& info, void *dst) noexcept {

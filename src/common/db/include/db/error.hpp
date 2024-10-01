@@ -56,6 +56,8 @@ namespace sm::db {
         static DbError error(int code, std::string message) noexcept;
         static DbError outOfMemory() noexcept;
         static DbError noData() noexcept;
+        static DbError columnIsNull(int index) noexcept;
+        static DbError columnIsNull(std::string_view name) noexcept;
         static DbError done(int code) noexcept;
         static DbError unsupported(std::string_view subject) noexcept;
         static DbError columnNotFound(std::string_view column) noexcept;

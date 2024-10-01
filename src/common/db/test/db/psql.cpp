@@ -26,21 +26,21 @@ TEST_CASE("sqlite updates") {
     auto conn = std::move(connResult.value());
 
     if (conn.tableExists("test").value_or(false))
-        getValue(conn.tryUpdateSql("DROP TABLE test"));
+        checkError(conn.tryUpdateSql("DROP TABLE test"));
 
     REQUIRE(conn.tableExists("test") == DbResult<bool>(false));
 
-    getValue(conn.tryUpdateSql("CREATE TABLE test (id INTEGER, name VARCHAR(100))"));
+    checkError(conn.tryUpdateSql("CREATE TABLE test (id INTEGER, name VARCHAR(100))"));
 
     REQUIRE(conn.tableExists("test") == DbResult<bool>(true));
 
     SECTION("updates and rollback") {
-        getValue(conn.tryUpdateSql("INSERT INTO test (id, name) VALUES (1, 'test')"));
+        checkError(conn.tryUpdateSql("INSERT INTO test (id, name) VALUES (1, 'test')"));
 
         Transaction tx(&conn);
 
-        getValue(conn.tryUpdateSql("INSERT INTO test (id, name) VALUES (2, 'test')"));
-        getValue(conn.tryUpdateSql("INSERT INTO test (id, name) VALUES (3, 'test')"));
+        checkError(conn.tryUpdateSql("INSERT INTO test (id, name) VALUES (2, 'test')"));
+        checkError(conn.tryUpdateSql("INSERT INTO test (id, name) VALUES (3, 'test')"));
 
         tx.rollback();
 
@@ -49,7 +49,7 @@ TEST_CASE("sqlite updates") {
     }
 
     SECTION("selects") {
-        getValue(conn.tryUpdateSql(R"(
+        checkError(conn.tryUpdateSql(R"(
             INSERT INTO test
                 (id, name)
             VALUES

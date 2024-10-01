@@ -69,9 +69,11 @@ std::string sqlite::setupCreateTable(const dao::TableInfo& info) noexcept {
     for (size_t i = 0; i < info.columns.size(); i++) {
         const auto& column = info.columns[i];
 
-        ss << "\t" << column.name << " " << makeSqlType(column) << " NOT NULL";
+        ss << "\t" << column.name << " " << makeSqlType(column);
+        if (!column.nullable)
+            ss << " NOT NULL";
 
-        if (column.type == ColumnType::eString)
+        if (column.type == ColumnType::eString && !column.nullable)
             ss << " CHECK(NOT IS_BLANK_STRING(" << column.name << "))";
 
         if (hasConstraints || (i != info.columns.size() - 1)) {

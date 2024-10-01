@@ -26,10 +26,11 @@ namespace sm::db {
         void bind(std::string_view name, int64 value) noexcept { bind(name).toInt(value); }
         void bind(std::string_view name, std::string_view value) noexcept { bind(name).toString(value); }
         void bind(std::string_view name, double value) noexcept { bind(name).toDouble(value); }
+        void bind(std::string_view name, bool value) noexcept { bind(name).toBool(value); }
+        void bind(std::string_view name, Blob value) noexcept { bind(name).toBlob(value); }
         void bind(std::string_view name, std::nullptr_t) noexcept { bind(name).toNull(); }
 
         DbResult<ResultSet> select() noexcept;
-        DbResult<ResultSet> update() noexcept;
         DbResult<ResultSet> start() noexcept;
 
         DbError execute() noexcept;

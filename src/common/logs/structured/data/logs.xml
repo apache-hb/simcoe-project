@@ -19,7 +19,7 @@
     <table name="log_message" primaryKey="hash">
         <column name="hash" type="ulong" />
 
-        <column name="message"  type="text" length="1024" />
+        <column name="message"  type="text" length="1024" nullable="true" />
 
         <column name="severity" type="uint">
             <constraint references="log_severity.severity" />
@@ -43,16 +43,9 @@
     <table name="log_message_attribute">
         <column name="key"  type="text" length="255"  />
 
-        <column name="param" type="ulong" />
-
         <column name="message_hash" type="ulong">
             <constraint references="log_message.hash" />
         </column>
-
-        <unique>
-            <column>param</column>
-            <column>message_hash</column>
-        </unique>
 
         <unique>
             <column>key</column>

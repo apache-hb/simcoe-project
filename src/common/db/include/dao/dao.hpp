@@ -2,6 +2,13 @@
 
 #include <span>
 #include <string_view>
+#include <vector>
+#include <chrono>
+
+namespace sm::db {
+    using Blob = std::vector<std::uint8_t>;
+    using DateTime = std::chrono::time_point<std::chrono::system_clock>;
+}
 
 namespace sm::dao {
     struct ColumnInfo;
@@ -28,6 +35,7 @@ namespace sm::dao {
         ColumnType type;
         size_t length;
         bool autoIncrement;
+        bool nullable;
     };
 
     struct ConstraintInfo {

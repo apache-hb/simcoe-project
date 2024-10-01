@@ -128,11 +128,13 @@ DbError Connection::tryCreateTable(const dao::TableInfo& table) noexcept {
         return DbError::ok();
 
     std::string sql = mImpl->setupCreateTable(table);
-    auto stmt = TRY_UNWRAP(tryUpdateSql(sql));
+    if (DbError error = tryUpdateSql(sql))
+        return error;
 
     if (table.isSingleton()) {
         std::string sql = mImpl->setupSingletonTrigger(table);
-        TRY_UNWRAP(tryUpdateSql(sql));
+        if (DbError error = tryUpdateSql(sql))
+            return error;
     }
 
     return DbError::ok();
@@ -144,10 +146,10 @@ DbResult<ResultSet> Connection::trySelectSql(std::string_view sql) noexcept {
     return stmt.start();
 }
 
-DbResult<ResultSet> Connection::tryUpdateSql(std::string_view sql) noexcept {
-    PreparedStatement stmt = TRY_RESULT(tryPrepareUpdate(sql));
+DbError Connection::tryUpdateSql(std::string_view sql) noexcept {
+    PreparedStatement stmt = TRY_UNWRAP(tryPrepareUpdate(sql));
 
-    return stmt.update();
+    return stmt.execute();
 }
 
 DbError Connection::begin() noexcept {

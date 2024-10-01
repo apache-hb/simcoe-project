@@ -91,15 +91,9 @@ namespace sm::db::detail {
 
         /** Version */
 
-        virtual DbError clientVersion(Version& version) const noexcept {
-            version = Version { "unknown", 0, 0, 0 };
-            return DbError::ok();
-        }
+        virtual DbError clientVersion(Version& version) const noexcept = 0;
 
-        virtual DbError serverVersion(Version& version) const noexcept {
-            version = Version { "unknown", 0, 0, 0 };
-            return DbError::ok();
-        }
+        virtual DbError serverVersion(Version& version) const noexcept = 0;
 
         virtual DataType boolEquivalentType() const noexcept {
             return DataType::eBoolean;
@@ -111,30 +105,18 @@ namespace sm::db::detail {
 
         /** Lifecycle */
 
-        virtual DbError finalize() noexcept {
-            return DbError::todo("finalize");
-        }
+        virtual DbError finalize() noexcept = 0;
 
         /** Execution */
 
         /** Execute statement and fetch first row of data */
-        virtual DbError start(bool autoCommit, StatementType type) noexcept {
-            return DbError::todo("start");
-        }
+        virtual DbError start(bool autoCommit, StatementType type) noexcept = 0;
 
         /** Complete execution of statement */
-        virtual DbError execute() noexcept {
-            return DbError::todo("execute");
-        }
+        virtual DbError execute() noexcept = 0;
 
         /** Get next row of data */
-        virtual DbError next() noexcept {
-            return DbError::todo("next");
-        }
-
-        virtual DbError update(bool autoCommit) noexcept {
-            return DbError::todo("update");
-        }
+        virtual DbError next() noexcept = 0;
 
         /** Fetch results */
 
@@ -183,6 +165,15 @@ namespace sm::db::detail {
         virtual DbError getStringByName(std::string_view column, std::string_view& value) noexcept;
         virtual DbError getDoubleByName(std::string_view column, double& value) noexcept;
         virtual DbError getBlobByName(std::string_view column, Blob& value) noexcept;
+
+
+        virtual DbError isNullByIndex(int index, bool& value) noexcept {
+            return DbError::todo("isNullByName");
+        }
+
+        virtual DbError isNullByName(std::string_view column, bool& value) noexcept {
+            return DbError::todo("isNullByName");
+        }
 
 
         /** Binding */

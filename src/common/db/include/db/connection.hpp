@@ -451,14 +451,14 @@ namespace sm::db {
         }
 
         DbResult<ResultSet> trySelectSql(std::string_view sql) noexcept;
-        DbResult<ResultSet> tryUpdateSql(std::string_view sql) noexcept;
+        DbError tryUpdateSql(std::string_view sql) noexcept;
 
         ResultSet selectSql(std::string_view sql) throws(DbException) {
             return throwIfFailed(trySelectSql(sql));
         }
 
-        ResultSet updateSql(std::string_view sql) throws(DbException) {
-            return throwIfFailed(tryUpdateSql(sql));
+        void updateSql(std::string_view sql) throws(DbException) {
+            tryUpdateSql(sql).throwIfFailed();
         }
 
         DbResult<PreparedStatement> tryPrepareStatement(std::string_view sql, StatementType type) noexcept;

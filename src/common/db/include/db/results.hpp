@@ -84,6 +84,9 @@ namespace sm::db {
         DbResult<std::string_view> getString(std::string_view column) noexcept;
         DbResult<Blob> getBlob(std::string_view column) noexcept;
 
+        DbResult<bool> isNull(int index) noexcept;
+        DbResult<bool> isNull(std::string_view column) noexcept;
+
         template<dao::DaoInterface T>
         DbResult<T> getRow() noexcept {
             T value;

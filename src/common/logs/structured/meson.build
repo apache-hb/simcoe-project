@@ -1,5 +1,9 @@
 src = [
     'src/message.cpp',
+
+    'src/console.cpp',
+    'src/file.cpp',
+
     daocc.process('data/logs.xml')
 ]
 

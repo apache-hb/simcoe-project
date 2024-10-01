@@ -80,7 +80,7 @@ static DbResult<ub2> getColumnSize(OraError error, OraParam param, bool charSema
 static DbResult<std::string_view> getColumnName(OraError error, OraParam param) noexcept {
     ub4 columnNameLength = 0;
     text *columnNameBuffer = nullptr;
-    if (sword status = param.getAttribute(error, OCI_ATTR_NAME, &columnNameBuffer, &columnNameLength))
+    if (sword status = param.getAttribute(error, OCI_ATTR_NAME, (void*)&columnNameBuffer, &columnNameLength))
         return std::unexpected(oraGetError(error, status));
 
     return std::string_view{(const char*)columnNameBuffer, columnNameLength};
@@ -361,9 +361,18 @@ DbError OraStatement::bindNullByName(std::string_view name) noexcept {
     return bindAtName(name, nullptr, 0, SQLT_STR);
 }
 
-DbError OraStatement::update(bool autoCommit) noexcept {
-    ub4 flags = autoCommit ? OCI_COMMIT_ON_SUCCESS : OCI_DEFAULT;
-    return executeUpdate(flags);
+
+DbError OraStatement::isNullByIndex(int index, bool& value) noexcept {
+    value = mColumnInfo[index].indicator;
+    return DbError::ok();
+}
+
+DbError OraStatement::isNullByName(std::string_view column, bool& value) noexcept {
+    int index = -1;
+    if (DbError error = getColumnIndex(column, index))
+        return error;
+
+    return isNullByIndex(index, value);
 }
 
 int OraStatement::getColumnCount() const noexcept {
@@ -469,7 +478,8 @@ DbError OraStatement::getBlobByIndex(int index, Blob& value) noexcept {
     }
 
     const CellValue& cell = column.value;
+    const std::uint8_t *bytes = (const std::uint8_t*)cell.lob;
 
-    value = Blob{(std::byte*)cell.lob, (std::byte*)cell.lob + column.valueLength};
+    value = Blob{bytes, bytes + column.valueLength};
     return DbError::ok();
 }

@@ -14,5 +14,15 @@
         <column name="cxxlong" type="long" />
         <column name="cxxulong" type="ulong" />
         <column name="floating" type="float" />
+
+        <column name="opt_name" type="text" length="255" nullable="true" />
+        <column name="opt_yesno" type="bool" nullable="true" />
+        <column name="opt_x" type="int" nullable="true" />
+        <column name="opt_y" type="int" nullable="true" />
+        <column name="opt_cxxint" type="int" nullable="true" />
+        <column name="opt_cxxuint" type="uint" nullable="true" />
+        <column name="opt_cxxlong" type="long" nullable="true" />
+        <column name="opt_cxxulong" type="ulong" nullable="true" />
+        <column name="opt_floating" type="float" nullable="true" />
     </table>
 </root>

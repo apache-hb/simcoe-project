@@ -80,7 +80,10 @@ TEST_CASE("DAO") {
             .cxxuint = 2,
             .cxxlong = 3,
             .cxxulong = 4,
-            .floating = 3.14
+            .floating = 3.14,
+
+            .optName = "optional",
+            .optYesno = true,
         };
 
         conn.truncate<Example>();
@@ -94,12 +97,17 @@ TEST_CASE("DAO") {
             CHECK(row.yesno == true);
             CHECK(row.x == 1);
             CHECK(row.y == 50);
-            CHECK(row.binary == std::vector<uint8_t>{0x01, 0x02, 0x03});
+            CHECK(row.binary == Blob{0x01, 0x02, 0x03});
             CHECK(row.cxxint == 1);
             CHECK(row.cxxuint == 2);
             CHECK(row.cxxlong == 3);
             CHECK(row.cxxulong == 4);
             CHECK(std::abs(row.floating - 3.14) < 0.0001);
+
+            CHECK(row.optName == "optional");
+            CHECK(row.optYesno == true);
+            CHECK(!row.optCxxint.has_value());
+            CHECK(!row.optCxxuint.has_value());
 
             count++;
         }

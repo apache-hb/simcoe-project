@@ -13,21 +13,21 @@ TEST_CASE("sqlite updates") {
     auto conn = env.connect(kConfig);
 
     if (conn.tableExists("test").value_or(false))
-        getValue(conn.tryUpdateSql("DROP TABLE test"));
+        checkError(conn.tryUpdateSql("DROP TABLE test"));
 
     REQUIRE(conn.tableExists("test") == DbResult<bool>(false));
 
-    getValue(conn.tryUpdateSql("CREATE TABLE test (id INTEGER, name VARCHAR(100))"));
+    checkError(conn.tryUpdateSql("CREATE TABLE test (id INTEGER, name VARCHAR(100))"));
 
     REQUIRE(conn.tableExists("test") == DbResult<bool>(true));
 
     SECTION("updates and rollback") {
-        getValue(conn.tryUpdateSql("INSERT INTO test (id, name) VALUES (1, 'test')"));
+        checkError(conn.tryUpdateSql("INSERT INTO test (id, name) VALUES (1, 'test')"));
 
         Transaction tx(&conn);
 
-        getValue(conn.tryUpdateSql("INSERT INTO test (id, name) VALUES (2, 'test')"));
-        getValue(conn.tryUpdateSql("INSERT INTO test (id, name) VALUES (3, 'test')"));
+        checkError(conn.tryUpdateSql("INSERT INTO test (id, name) VALUES (2, 'test')"));
+        checkError(conn.tryUpdateSql("INSERT INTO test (id, name) VALUES (3, 'test')"));
 
         tx.rollback();
 
@@ -36,7 +36,7 @@ TEST_CASE("sqlite updates") {
     }
 
     SECTION("selects") {
-        getValue(conn.tryUpdateSql(R"(
+        checkError(conn.tryUpdateSql(R"(
             INSERT INTO test
                 (id, name)
             VALUES
@@ -62,7 +62,7 @@ TEST_CASE("sqlite updates") {
     }
 
     SECTION("ranged for loop selects") {
-        getValue(conn.tryUpdateSql(R"(
+        checkError(conn.tryUpdateSql(R"(
             INSERT INTO test
                 (id, name)
             VALUES
@@ -89,18 +89,18 @@ TEST_CASE("sqlite updates") {
 
     SECTION("Blob IO") {
         if (conn.tableExists("blob_test").value_or(false))
-            getValue(conn.tryUpdateSql("DROP TABLE blob_test"));
+            checkError(conn.tryUpdateSql("DROP TABLE blob_test"));
 
-        getValue(conn.tryUpdateSql("CREATE TABLE blob_test (id INTEGER, data BLOB)"));
+        checkError(conn.tryUpdateSql("CREATE TABLE blob_test (id INTEGER, data BLOB)"));
 
         Blob blob{100};
         for (size_t i = 0; i < blob.size(); i++) {
-            blob[i] = static_cast<std::byte>(i);
+            blob[i] = static_cast<std::uint8_t>(i);
         }
 
         auto stmt = getValue(conn.tryPrepareUpdate("INSERT INTO blob_test (id, data) VALUES (1, :blob)"));
         stmt.bind("blob").to(blob);
-        getValue(stmt.update());
+        checkError(stmt.execute());
 
         ResultSet results = getValue(conn.trySelectSql("SELECT * FROM blob_test"));
 
