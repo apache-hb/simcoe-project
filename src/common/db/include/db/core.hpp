@@ -46,7 +46,8 @@ namespace sm::db {
         eBoolean, // bool
         eString, // std::string
         eDouble, // double
-        eBlob, // std::vector<std::byte>
+        eBlob, // Blob
+        eDateTime, // DateTime
         eNull, // ???
         eRowId, // ???
 

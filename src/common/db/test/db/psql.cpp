@@ -2,15 +2,6 @@
 
 using namespace std::chrono_literals;
 
-static constexpr ConnectionConfig kConfig = {
-    .port = 5432,
-    .host = "localhost",
-    .user = "TEST_USER",
-    .password = "TEST_USER",
-    .database = "TESTDB",
-    .timeout = 1s
-};
-
 TEST_CASE("sqlite updates") {
     if (!Environment::isSupported(DbType::ePostgreSQL)) {
         SKIP("PostgreSQL not supported");
@@ -18,7 +9,7 @@ TEST_CASE("sqlite updates") {
 
     auto env = Environment::create(DbType::ePostgreSQL);
 
-    auto connResult = env.tryConnect(kConfig);
+    auto connResult = env.tryConnect(kPostgresConfig);
     if (!connResult.has_value()) {
         SKIP("Failed to connect to database " << connResult.error().message());
     }

@@ -32,12 +32,19 @@ int ResultSet::getColumnCount() const noexcept {
     return mImpl->getColumnCount();
 }
 
-// TODO: deduplicate
 
-DataType ResultSet::getBoolType() const noexcept {
-    detail::IConnection *connection = mConnection->impl();
-    return connection->boolEquivalentType();
+static DataType remapExpectedType(detail::IConnection *connection, DataType expected) noexcept {
+    switch (expected) {
+    case DataType::eBoolean:
+        return connection->boolEquivalentType();
+    case DataType::eDateTime:
+        return connection->dateTimeEquivalentType();
+    default:
+        return expected;
+    }
 }
+
+// TODO: deduplicate
 
 DbError ResultSet::checkColumnAccess(int index, DataType expected) noexcept {
     if (!mImpl->hasDataReady())
@@ -50,7 +57,7 @@ DbError ResultSet::checkColumnAccess(int index, DataType expected) noexcept {
     if (DbError error = mImpl->getColumnInfo(index, info))
         return error;
 
-    DataType matching = (expected == DataType::eBoolean) ? getBoolType() : expected;
+    DataType matching = remapExpectedType(mConnection->impl(), expected);
 
     if (info.type != matching)
         return DbError::typeMismatch(info.name, info.type, expected);
@@ -66,7 +73,7 @@ DbError ResultSet::checkColumnAccess(std::string_view column, DataType expected)
     if (DbError error = mImpl->getColumnInfo(column, info))
         return error;
 
-    DataType matching = (expected == DataType::eBoolean) ? getBoolType() : expected;
+    DataType matching = remapExpectedType(mConnection->impl(), expected);
 
     if (info.type != matching)
         return DbError::typeMismatch(info.name, info.type, expected);
@@ -140,6 +147,17 @@ DbResult<Blob> ResultSet::getBlob(int index) noexcept {
     return value;
 }
 
+DbResult<DateTime> ResultSet::getDateTime(int index) noexcept {
+    if (DbError error = checkColumnAccess(index, DataType::eDateTime))
+        return std::unexpected(error);
+
+    DateTime value;
+    if (DbError error = mImpl->getDateTimeByIndex(index, value))
+        return std::unexpected(error);
+
+    return value;
+}
+
 DbResult<double> ResultSet::getDouble(std::string_view column) noexcept {
     if (DbError error = checkColumnAccess(column, DataType::eDouble))
         return std::unexpected(error);
@@ -190,6 +208,17 @@ DbResult<Blob> ResultSet::getBlob(std::string_view column) noexcept {
 
     Blob value;
     if (DbError error = mImpl->getBlobByName(column, value))
+        return std::unexpected(error);
+
+    return value;
+}
+
+DbResult<DateTime> ResultSet::getDateTime(std::string_view column) noexcept {
+    if (DbError error = checkColumnAccess(column, DataType::eDateTime))
+        return std::unexpected(error);
+
+    DateTime value;
+    if (DbError error = mImpl->getDateTimeByName(column, value))
         return std::unexpected(error);
 
     return value;
@@ -263,6 +292,8 @@ static DbError getColumnData(ResultSet& results, const dao::ColumnInfo& info, vo
         return setColumnField<double>(results, dst, name, nullable);
     case eBlob:
         return setColumnField<Blob>(results, dst, name, nullable);
+    case eDateTime:
+        return setColumnField<DateTime>(results, dst, name, nullable);
     default:
         return DbError::todo(toString(info.type));
     }

@@ -7,6 +7,25 @@
 
 using namespace sm;
 using namespace sm::db;
+using namespace std::chrono_literals;
+
+static constexpr ConnectionConfig kOracleConfig = {
+    .port = 1521,
+    .host = "localhost",
+    .user = "TEST_USER",
+    .password = "TEST_USER",
+    .database = "FREEPDB1",
+    .timeout = 1s
+};
+
+static constexpr ConnectionConfig kPostgresConfig = {
+    .port = 5432,
+    .host = "localhost",
+    .user = "TEST_USER",
+    .password = "TEST_USER",
+    .database = "TESTDB",
+    .timeout = 1s
+};
 
 void checkError(const DbError& err) {
     if (!err.isSuccess()) {

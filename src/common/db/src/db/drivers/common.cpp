@@ -28,6 +28,10 @@ DbError IStatement::getBlobByName(std::string_view column, Blob& value) noexcept
     return getValue(column, value, &IStatement::getBlobByIndex);
 }
 
+DbError IStatement::getDateTimeByName(std::string_view column, DateTime& value) noexcept {
+    return getValue(column, value, &IStatement::getDateTimeByIndex);
+}
+
 /** Binding */
 
 DbError IStatement::bindIntByName(std::string_view name, int64 value) noexcept {
@@ -48,6 +52,10 @@ DbError IStatement::bindDoubleByName(std::string_view name, double value) noexce
 
 DbError IStatement::bindBlobByName(std::string_view name, Blob value) noexcept {
     return bindValue(name, std::move(value), &IStatement::bindBlobByIndex);
+}
+
+DbError IStatement::bindDateTimeByName(std::string_view name, DateTime value) noexcept {
+    return bindValue(name, value, &IStatement::bindDateTimeByIndex);
 }
 
 DbError IStatement::bindNullByName(std::string_view name) noexcept {

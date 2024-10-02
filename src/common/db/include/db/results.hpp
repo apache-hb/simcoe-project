@@ -28,7 +28,6 @@ namespace sm::db {
             , mIsDone(isDone)
         { }
 
-        DataType getBoolType() const noexcept;
         DbError getRowData(const dao::TableInfo& info, void *dst) noexcept;
 
         DbError checkColumnAccess(int index, DataType expected) noexcept;
@@ -77,12 +76,14 @@ namespace sm::db {
         DbResult<bool> getBool(int index) noexcept;
         DbResult<std::string_view> getString(int index) noexcept;
         DbResult<Blob> getBlob(int index) noexcept;
+        DbResult<DateTime> getDateTime(int index) noexcept;
 
         DbResult<double> getDouble(std::string_view column) noexcept;
         DbResult<int64> getInt(std::string_view column) noexcept;
         DbResult<bool> getBool(std::string_view column) noexcept;
         DbResult<std::string_view> getString(std::string_view column) noexcept;
         DbResult<Blob> getBlob(std::string_view column) noexcept;
+        DbResult<DateTime> getDateTime(std::string_view column) noexcept;
 
         DbResult<bool> isNull(int index) noexcept;
         DbResult<bool> isNull(std::string_view column) noexcept;
@@ -164,6 +165,7 @@ namespace sm::db {
     RESULT_SET_GET_IMPL(bool, getBool);
     RESULT_SET_GET_IMPL(std::string_view, getString);
     RESULT_SET_GET_IMPL(Blob, getBlob);
+    RESULT_SET_GET_IMPL(DateTime, getDateTime);
 
 #undef RESULT_SET_GET_IMPL
 

@@ -27,6 +27,10 @@ static bool isBoolType(ub2 type) noexcept {
     return type == SQLT_BOL;
 }
 
+static bool isDateType(ub2 type) noexcept {
+    return type == SQLT_TIMESTAMP;
+}
+
 static bool getCellBoolean(const OraColumnInfo& column) noexcept {
     if (isBoolType(column.type))
         return column.value.bol;
@@ -34,7 +38,7 @@ static bool getCellBoolean(const OraColumnInfo& column) noexcept {
     return column.value.text[0] != '0';
 }
 
-static CellInfo initCellValue(OraEnvironment& env, OraError error, OraColumnInfo& column) noexcept {
+static DbResult<CellInfo> initCellValue(OraEnvironment& env, OraError error, OraColumnInfo& column) noexcept {
     if (isStringType(column.type)) {
         ub4 length = (column.columnWidth + 1);
         column.value.text = (char*)env.malloc(length);
@@ -47,13 +51,17 @@ static CellInfo initCellValue(OraEnvironment& env, OraError error, OraColumnInfo
         return CellInfo { column.value.lob, column.columnWidth };
     }
 
+    if (isDateType(column.type)) {
+        if (sword result = OCIDescriptorAlloc(env.env(), (void**)&column.value.date, OCI_DTYPE_TIMESTAMP, 0, nullptr))
+            return std::unexpected(oraGetError(error, result));
+
+        return CellInfo { &column.value.date, sizeof(column.value.date) };
+    }
+
     switch (column.type) {
     case SQLT_VNU:
         OCINumberSetZero(error, &column.value.num);
         return CellInfo { &column.value.num, sizeof(column.value.num) };
-
-    case SQLT_DAT:
-        return CellInfo { &column.value.date, sizeof(column.value.date) };
 
     case SQLT_INT:
         return CellInfo { &column.value.integer, sizeof(column.value.integer) };
@@ -65,7 +73,7 @@ static CellInfo initCellValue(OraEnvironment& env, OraError error, OraColumnInfo
         return CellInfo { &column.value.real, sizeof(column.value.real) };
 
     default:
-        CT_NEVER("Unsupported data type %d", column.type);
+        return std::unexpected{DbError::todo(fmt::format("Unsupported data type {}", column.type))};
     }
 }
 
@@ -90,7 +98,23 @@ static DbResult<ub2> getColumnType(OraError error, OraParam param) noexcept {
     return param.getAttribute<ub2>(error, OCI_ATTR_DATA_TYPE);
 }
 
-static DbResult<std::vector<OraColumnInfo>> defineColumns(OraEnvironment& env, OraError error, OraStmt stmt) noexcept {
+static ub2 remapDataType(ub2 type, bool hasBoolType) noexcept {
+    switch (type) {
+    case SQLT_NUM: return SQLT_VNU;
+    case SQLT_CHR: return SQLT_STR;
+    case SQLT_BLOB: return SQLT_BIN;
+    case SQLT_DAT: return SQLT_TIMESTAMP;
+    case SQLT_BOL: return hasBoolType ? SQLT_BOL : SQLT_CHR;
+
+    case SQLT_IBDOUBLE: case SQLT_IBFLOAT:
+        return SQLT_FLT;
+
+    default:
+        return type;
+    }
+}
+
+static DbResult<std::vector<OraColumnInfo>> defineColumns(OraEnvironment& env, OraError error, OraStmt stmt, bool hasBoolType) noexcept {
     std::vector<OraColumnInfo> columns;
     ub4 params = TRY_RESULT(stmt.getAttribute<ub4>(error, OCI_ATTR_PARAM_COUNT));
     columns.reserve(params + 1);
@@ -102,14 +126,7 @@ static DbResult<std::vector<OraColumnInfo>> defineColumns(OraEnvironment& env, O
             return std::unexpected(oraGetError(error, result));
 
         ub2 dataType = TRY_RESULT(getColumnType(error, param));
-        if (dataType == SQLT_NUM)
-            dataType = SQLT_VNU;
-        if (dataType == SQLT_CHR)
-            dataType = SQLT_STR;
-        if (dataType == SQLT_BLOB)
-            dataType = SQLT_BIN;
-        if (dataType == SQLT_IBFLOAT || dataType == SQLT_IBDOUBLE)
-            dataType = SQLT_FLT;
+        dataType = remapDataType(dataType, hasBoolType);
 
         std::string_view columnName = TRY_RESULT(getColumnName(error, param));
 
@@ -129,7 +146,7 @@ static DbResult<std::vector<OraColumnInfo>> defineColumns(OraEnvironment& env, O
             info.scale = TRY_RESULT(param.getAttribute<sb1>(error, OCI_ATTR_SCALE));
         }
 
-        auto [value, size] = initCellValue(env, error, info);
+        auto [value, size] = TRY_RESULT(initCellValue(env, error, info));
 
         info.valueLength = size;
 
@@ -147,40 +164,40 @@ static DbResult<std::vector<OraColumnInfo>> defineColumns(OraEnvironment& env, O
     return columns;
 }
 
-void *OraStatement::initBindValue(const void *value, ub4 size) noexcept {
-    void *result = std::malloc(size);
-    std::memcpy(result, value, size);
-    mBindValues.push_back(result);
-    return result;
-}
-
-void *OraStatement::initStringBindValue(std::string_view value) noexcept {
-    void *result = mEnvironment.malloc(value.size() + 1);
-    std::memcpy(result, value.data(), value.size());
-    ((char*)result)[value.size()] = '\0';
-    mBindValues.push_back(result);
-    return result;
-}
-
-bool OraStatement::useBoolType() const noexcept {
-    ub2 type = mConnection.getBoolType();
-    return isBoolType(type);
-}
-
 DbError OraStatement::closeColumns() noexcept {
-    for (OraColumnInfo& column : mColumnInfo)
-        if (isStringType(column.type))
+    for (OraColumnInfo& column : mColumnInfo) {
+        if (isStringType(column.type)) {
             mEnvironment.free(column.value.text);
+        } else if (isBlobType(column.type)) {
+            mEnvironment.free(column.value.lob);
+        } else if (isDateType(column.type)) {
+            if (DbError error = column.value.date.close(mError))
+                return error;
+        }
+    }
 
     mColumnInfo.clear();
     return DbError::ok();
 }
 
-void OraStatement::freeBindValues() noexcept {
-    for (void *value : mBindValues)
-        mEnvironment.free(value);
+template<typename... T>
+struct overloaded : T... {
+    using T::operator()...;
+};
 
-    mBindValues.clear();
+void OraStatement::freeBindValues() noexcept {
+    while (!mBindValues.empty()) {
+        auto& value = mBindValues.front();
+        std::visit(overloaded {
+            [&](OraDateTime& date) {
+                if (DbError error = date.close(mError))
+                    fmt::println(stderr, "Failed to close date: {}", error.message());
+            },
+            [](auto&) { }
+        }, value);
+
+        mBindValues.pop_front();
+    }
 }
 
 DbError OraStatement::executeStatement(ub4 flags, int iters) noexcept {
@@ -195,7 +212,7 @@ DbError OraStatement::executeStatement(ub4 flags, int iters) noexcept {
     if (!isSuccess(status))
         return oraGetError(mError, status);
 
-    mColumnInfo = TRY_UNWRAP(defineColumns(mEnvironment, mError, mStatement));
+    mColumnInfo = TRY_UNWRAP(defineColumns(mEnvironment, mError, mStatement, mConnection.hasBoolType()));
 
     return DbError::ok();
 }
@@ -266,10 +283,7 @@ DbError OraStatement::start(bool autoCommit, StatementType type) noexcept {
     if (DbError error = executeStatement(flags, iters))
         return error;
 
-    if (isQuery)
-        return next();
-
-    return DbError::ok();
+    return isQuery ? next() : DbError::ok();
 }
 
 DbError OraStatement::execute() noexcept {
@@ -304,27 +318,72 @@ DbError OraStatement::getColumnIndex(std::string_view name, int& index) const no
 }
 
 DbError OraStatement::bindIntByIndex(int index, int64 value) noexcept {
-    return bindAtPosition(index, &value, sizeof(value), SQLT_INT);
+    int64_t *data = addBindValue(value);
+    return bindAtPosition(index, data, sizeof(*data), SQLT_INT);
+}
+
+struct CellBindInfo {
+    const void *ptr;
+    ub4 size;
+    ub2 type;
+};
+
+static CellBindInfo getBoolBindingValue(bool value, bool hasBoolType) noexcept {
+    if (hasBoolType) {
+        static constexpr bool kValues[] = {false, true};
+        return { (void*)&kValues[value], sizeof(value), SQLT_BOL };
+    } else {
+        static constexpr const char *kValues[] = {"0", "1"};
+        return { (void*)kValues[value], 1, SQLT_CHR };
+    }
 }
 
 DbError OraStatement::bindBooleanByIndex(int index, bool value) noexcept {
-    static constexpr bool kValues[] = {false, true};
-    const bool *ptr = &kValues[value];
-    return bindAtPosition(index, (void*)ptr, sizeof(value), SQLT_BOL);
+    auto [ptr, size, type] = getBoolBindingValue(value, mConnection.hasBoolType());
+    return bindAtPosition(index, (void*)ptr, size, type);
 }
 
 DbError OraStatement::bindStringByIndex(int index, std::string_view value) noexcept {
-    void *data = initStringBindValue(value);
-    return bindAtPosition(index, data, value.size(), SQLT_CHR);
+    std::string *data = addBindValue(std::string(value));
+    return bindAtPosition(index, data->data(), data->size(), SQLT_CHR);
 }
 
 DbError OraStatement::bindDoubleByIndex(int index, double value) noexcept {
-    return bindAtPosition(index, &value, sizeof(value), SQLT_FLT);
+    double *data = addBindValue(value);
+    return bindAtPosition(index, data, sizeof(double), SQLT_FLT);
 }
 
 DbError OraStatement::bindBlobByIndex(int index, Blob value) noexcept {
-    void *data = initBindValue(value.data(), value.size());
-    return bindAtPosition(index, data, value.size(), SQLT_BIN);
+    Blob *data = addBindValue(std::move(value));
+    return bindAtPosition(index, data->data(), data->size(), SQLT_BIN);
+}
+
+DbError OraStatement::initDateTime(DateTime initial, OraDateTime &result) noexcept {
+    OCIDateTime *handle = nullptr;
+    if (sword status = OCIDescriptorAlloc(mEnvironment.env(), (void**)&handle, OCI_DTYPE_TIMESTAMP, 0, nullptr))
+        return oraGetError(mError, status);
+
+    OraDateTime datetime{handle};
+
+    auto [year, month, day, hour, minute, second, fsec] = DateTimeComponents::fromDateTime(initial);
+
+    sword status = OCIDateTimeConstruct(mEnvironment.env(), mError, datetime, year, month, day, hour, minute, second, fsec, nullptr, 0);
+    if (status != OCI_SUCCESS) {
+        return oraGetError(mError, status);
+    }
+
+    result = datetime;
+    return DbError::ok();
+}
+
+DbError OraStatement::bindDateTimeByIndex(int index, DateTime value) noexcept {
+    OraDateTime datetime;
+    if (DbError error = initDateTime(value, datetime))
+        return error;
+
+    OCIDateTime **addr = addBindValue(datetime);
+
+    return bindAtPosition(index, (void*)addr, sizeof(*addr), SQLT_TIMESTAMP);
 }
 
 DbError OraStatement::bindNullByIndex(int index) noexcept {
@@ -332,35 +391,42 @@ DbError OraStatement::bindNullByIndex(int index) noexcept {
 }
 
 DbError OraStatement::bindIntByName(std::string_view name, int64 value) noexcept {
-    void *data = initBindValue(&value, sizeof(value));
-    return bindAtName(name, data, sizeof(value), SQLT_INT);
+    int64_t *addr = addBindValue(value);
+    return bindAtName(name, addr, sizeof(*addr), SQLT_INT);
 }
 
 DbError OraStatement::bindBooleanByName(std::string_view name, bool value) noexcept {
-    static constexpr bool kValues[] = {false, true};
-    const bool *ptr = &kValues[value];
-    return bindAtName(name, (void*)ptr, sizeof(value), SQLT_BOL);
+    auto [ptr, size, type] = getBoolBindingValue(value, mConnection.hasBoolType());
+    return bindAtName(name, (void*)ptr, size, type);
 }
 
 DbError OraStatement::bindStringByName(std::string_view name, std::string_view value) noexcept {
-    void *data = initStringBindValue(value);
-    return bindAtName(name, data, value.size(), SQLT_CHR);
+    std::string *addr = addBindValue(std::string(value));
+    return bindAtName(name, addr->data(), addr->size(), SQLT_CHR);
 }
 
 DbError OraStatement::bindDoubleByName(std::string_view name, double value) noexcept {
-    void *data = initBindValue(&value, sizeof(value));
-    return bindAtName(name, data, sizeof(value), SQLT_FLT);
+    double *addr = addBindValue(value);
+    return bindAtName(name, addr, sizeof(*addr), SQLT_FLT);
 }
 
 DbError OraStatement::bindBlobByName(std::string_view name, Blob value) noexcept {
-    void *data = initBindValue(value.data(), value.size());
-    return bindAtName(name, data, value.size(), SQLT_BIN);
+    Blob *addr = addBindValue(std::move(value));
+    return bindAtName(name, addr->data(), addr->size(), SQLT_BIN);
+}
+
+DbError OraStatement::bindDateTimeByName(std::string_view name, DateTime value) noexcept {
+    OraDateTime datetime;
+    if (DbError error = initDateTime(value, datetime))
+        return error;
+
+    OCIDateTime **addr = addBindValue(datetime);
+    return bindAtName(name, (void*)addr, sizeof(*addr), SQLT_TIMESTAMP);
 }
 
 DbError OraStatement::bindNullByName(std::string_view name) noexcept {
     return bindAtName(name, nullptr, 0, SQLT_STR);
 }
-
 
 DbError OraStatement::isNullByIndex(int index, bool& value) noexcept {
     value = mColumnInfo[index].indicator;
@@ -395,6 +461,8 @@ static DataType getColumnType(ub2 type) noexcept {
     if (isBoolType(type))
         return DataType::eBoolean;
 
+    if (isDateType(type))
+        return DataType::eDateTime;
 
     return DataType::eNull;
 }
@@ -482,4 +550,31 @@ DbError OraStatement::getBlobByIndex(int index, Blob& value) noexcept {
 
     value = Blob{bytes, bytes + column.valueLength};
     return DbError::ok();
+}
+
+DbError OraStatement::extractDateTime(const OraDateTime& datetime, DateTime& result) noexcept {
+    sb2 year;
+    ub1 month, day;
+    if (sword status = OCIDateTimeGetDate(mEnvironment.env(), mError, datetime, &year, &month, &day))
+        return oraGetError(mError, status);
+
+    ub1 hour, minute, second;
+    ub4 fsec;
+    if (sword status = OCIDateTimeGetTime(mEnvironment.env(), mError, datetime, &hour, &minute, &second, &fsec))
+        return oraGetError(mError, status);
+
+    DateTimeComponents components { year, month, day, hour, minute, second, fsec };
+    result = components.toDateTime();
+
+    return DbError::ok();
+}
+
+DbError OraStatement::getDateTimeByIndex(int index, DateTime& value) noexcept {
+    const OraColumnInfo& column = mColumnInfo[index];
+    if (column.indicator) {
+        value = {};
+        return DbError::ok();
+    }
+
+    return extractDateTime(column.value.date, value);
 }

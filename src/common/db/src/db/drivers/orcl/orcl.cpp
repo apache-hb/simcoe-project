@@ -63,30 +63,33 @@ DbError orcl::oraNewHandle(OCIEnv *env, void **handle, ub4 type) noexcept {
     return oraGetHandleError(env, result, OCI_HTYPE_ENV);
 }
 
-using sm::dao::ColumnType;
-
-static std::string makeSqlType(const dao::ColumnInfo& info) {
+static std::string makeSqlType(const dao::ColumnInfo& info, bool hasBoolean) {
     switch (info.type) {
-    case ColumnType::eInt:
-    case ColumnType::eLong:
-    case ColumnType::eUint:
-    case ColumnType::eUlong:
+    case dao::ColumnType::eInt:
+    case dao::ColumnType::eLong:
+    case dao::ColumnType::eUint:
+    case dao::ColumnType::eUlong:
         return "INTEGER";
-    case ColumnType::eBool:
-        return "BOOLEAN";
-    case ColumnType::eFloat:
+    case dao::ColumnType::eBool:
+        return hasBoolean ? "BOOLEAN" : "CHAR(1)";
+    case dao::ColumnType::eFloat:
         return "BINARY_FLOAT";
-    case ColumnType::eDouble:
+    case dao::ColumnType::eDouble:
         return "BINARY_DOUBLE";
-    case ColumnType::eString:
+    case dao::ColumnType::eString:
         return fmt::format("VARCHAR2({})", info.length);
-    case ColumnType::eBlob:
+    case dao::ColumnType::eBlob:
         return "BLOB";
+    case dao::ColumnType::eDateTime:
+        return "TIMESTAMP";
+
+    default:
+        DbError::todo(fmt::format("Unsupported type {}", toString(info.type))).raise();
     }
 }
 
 template<typename F>
-static std::vector<std::invoke_result_t<F, size_t, const dao::ColumnInfo&>> forEachField(const dao::TableInfo& info, bool generatePrimaryKey, F&& fn) noexcept {
+static std::vector<std::invoke_result_t<F, size_t, const dao::ColumnInfo&>> forEachField(const dao::TableInfo& info, bool generatePrimaryKey, F&& fn) {
     std::vector<std::invoke_result_t<F, size_t, const dao::ColumnInfo&>> result;
     size_t primaryKey = detail::primaryKeyIndex(info);
     for (size_t i = 0; i < info.columns.size(); i++) {
@@ -99,7 +102,7 @@ static std::vector<std::invoke_result_t<F, size_t, const dao::ColumnInfo&>> forE
     return result;
 }
 
-static void setupInsertFields(const dao::TableInfo& info, bool generatePrimaryKey, std::ostream& os) noexcept {
+static void setupInsertFields(const dao::TableInfo& info, bool generatePrimaryKey, std::ostream& os) {
     auto fields = forEachField(info, generatePrimaryKey, [](size_t i, const dao::ColumnInfo& column) {
         return column.name;
     });
@@ -107,7 +110,7 @@ static void setupInsertFields(const dao::TableInfo& info, bool generatePrimaryKe
     os << fmt::format("{}", fmt::join(fields, ", "));
 }
 
-static void setupBindingFields(const dao::TableInfo& info, bool generatePrimaryKey, std::ostream& os) noexcept {
+static void setupBindingFields(const dao::TableInfo& info, bool generatePrimaryKey, std::ostream& os) {
     auto fields = forEachField(info, generatePrimaryKey, [](size_t i, const dao::ColumnInfo& column) {
         return fmt::format(":{}", column.name);
     });
@@ -115,7 +118,7 @@ static void setupBindingFields(const dao::TableInfo& info, bool generatePrimaryK
     os << fmt::format("{}", fmt::join(fields, ", "));
 }
 
-static void setupInsertCommon(const dao::TableInfo& info, bool generatePrimaryKey, std::ostream& os) noexcept {
+static void setupInsertCommon(const dao::TableInfo& info, bool generatePrimaryKey, std::ostream& os) {
     os << "INSERT INTO " << info.name << " (";
     setupInsertFields(info, generatePrimaryKey, os);
     os << ") VALUES (";
@@ -123,14 +126,14 @@ static void setupInsertCommon(const dao::TableInfo& info, bool generatePrimaryKe
     os << ")";
 }
 
-std::string orcl::setupInsert(const dao::TableInfo& info) noexcept {
+std::string orcl::setupInsert(const dao::TableInfo& info) {
     std::stringstream ss;
     setupInsertCommon(info, false, ss);
 
     return ss.str();
 }
 
-std::string orcl::setupInsertOrUpdate(const dao::TableInfo& info) noexcept {
+std::string orcl::setupInsertOrUpdate(const dao::TableInfo& info) {
     std::stringstream ss;
 
     auto pk = info.getPrimaryKey();
@@ -150,7 +153,7 @@ std::string orcl::setupInsertOrUpdate(const dao::TableInfo& info) noexcept {
     return ss.str();
 }
 
-std::string orcl::setupInsertReturningPrimaryKey(const dao::TableInfo& info) noexcept {
+std::string orcl::setupInsertReturningPrimaryKey(const dao::TableInfo& info) {
     std::stringstream ss;
     setupInsertCommon(info, true, ss);
 
@@ -161,7 +164,7 @@ std::string orcl::setupInsertReturningPrimaryKey(const dao::TableInfo& info) noe
     return ss.str();
 }
 
-std::string orcl::setupCreateTable(const dao::TableInfo& info) noexcept {
+std::string orcl::setupCreateTable(const dao::TableInfo& info, bool hasBoolType) {
     std::ostringstream ss;
     bool hasConstraints = info.hasPrimaryKey() || info.hasForeignKeys();
 
@@ -171,7 +174,7 @@ std::string orcl::setupCreateTable(const dao::TableInfo& info) noexcept {
     for (size_t i = 0; i < info.columns.size(); i++) {
         const auto& column = info.columns[i];
 
-        ss << "\t" << column.name << " " << makeSqlType(column);
+        ss << "\t" << column.name << " " << makeSqlType(column, hasBoolType);
 
         if (!column.nullable)
             ss << " NOT NULL";
@@ -234,7 +237,7 @@ std::string orcl::setupCreateTable(const dao::TableInfo& info) noexcept {
     return ss.str();
 }
 
-std::string orcl::setupSelect(const dao::TableInfo& info) noexcept {
+std::string orcl::setupSelect(const dao::TableInfo& info) {
     std::ostringstream ss;
     ss << "SELECT ";
     for (size_t i = 0; i < info.columns.size(); i++) {
@@ -248,7 +251,7 @@ std::string orcl::setupSelect(const dao::TableInfo& info) noexcept {
     return ss.str();
 }
 
-std::string orcl::setupUpdate(const dao::TableInfo& info) noexcept {
+std::string orcl::setupUpdate(const dao::TableInfo& info) {
     std::ostringstream ss;
     ss << "UPDATE " << info.name << " SET ";
     for (size_t i = 0; i < info.columns.size(); i++) {
@@ -268,14 +271,14 @@ static constexpr std::string_view kCreateSingletonTrigger =
     "    DELETE FROM {0};\n"
     "END;";
 
-std::string orcl::setupSingletonTrigger(std::string_view name) noexcept {
+std::string orcl::setupSingletonTrigger(std::string_view name) {
     return fmt::format(kCreateSingletonTrigger, name);
 }
 
-std::string orcl::setupTruncate(std::string_view name) noexcept {
+std::string orcl::setupTruncate(std::string_view name) {
     return fmt::format("TRUNCATE TABLE {}", name);
 }
 
-std::string orcl::setupTableExists() noexcept {
+std::string orcl::setupTableExists() {
     return "SELECT COUNT(*) FROM user_tables WHERE table_name = UPPER(:name)";
 }

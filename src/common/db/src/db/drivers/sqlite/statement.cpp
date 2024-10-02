@@ -5,7 +5,9 @@
 using namespace sm;
 using namespace sm::db;
 
+namespace chrono = std::chrono;
 namespace sqlite = sm::db::detail::sqlite;
+
 using SqliteStatement = sqlite::SqliteStatement;
 
 static DataType getColumnType(int type) noexcept {
@@ -121,6 +123,12 @@ DbError SqliteStatement::bindBlobByIndex(int index, Blob value) noexcept {
     return getStmtError(err);
 }
 
+DbError SqliteStatement::bindDateTimeByIndex(int index, DateTime value) noexcept {
+    int64_t timestamp = chrono::duration_cast<chrono::milliseconds>(value.time_since_epoch()).count();
+    int err = sqlite3_bind_int64(mStatement, index + 1, timestamp);
+    return getStmtError(err);
+}
+
 DbError SqliteStatement::bindNullByIndex(int index) noexcept {
     int err = sqlite3_bind_null(mStatement, index + 1);
     return getStmtError(err);
@@ -185,6 +193,12 @@ DbError SqliteStatement::getStringByIndex(int index, std::string_view& value) no
 
 DbError SqliteStatement::getDoubleByIndex(int index, double& value) noexcept {
     value = sqlite3_column_double(mStatement, index);
+    return DbError::ok();
+}
+
+DbError SqliteStatement::getDateTimeByIndex(int index, DateTime& value) noexcept {
+    int64_t timestamp = sqlite3_column_int64(mStatement, index);
+    value = DateTime{chrono::milliseconds{timestamp}};
     return DbError::ok();
 }
 

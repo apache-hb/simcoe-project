@@ -26,6 +26,7 @@ namespace sm::db {
         void to(std::string_view value) throws(DbException) { toString(value); }
         void to(double value) throws(DbException) { toDouble(value); }
         void to(Blob value) throws(DbException) { toBlob(value); }
+        void to(DateTime value) throws(DbException) { toDateTime(value); }
         void to(std::nullptr_t) throws(DbException) { toNull(); }
 
         void toInt(int64 value) throws(DbException) { return tryBindInt(value).throwIfFailed(); }
@@ -34,6 +35,7 @@ namespace sm::db {
         void toString(std::string_view value) throws(DbException) { return tryBindString(value).throwIfFailed(); }
         void toDouble(double value) throws(DbException) { return tryBindDouble(value).throwIfFailed(); }
         void toBlob(Blob value) throws(DbException) { return tryBindBlob(value).throwIfFailed(); }
+        void toDateTime(DateTime value) throws(DbException) { return tryBindDateTime(value).throwIfFailed(); }
         void toNull() throws(DbException) { return tryBindNull().throwIfFailed(); }
 
         DbError tryBindInt(int64 value) noexcept;
@@ -42,6 +44,7 @@ namespace sm::db {
         DbError tryBindString(std::string_view value) noexcept;
         DbError tryBindDouble(double value) noexcept;
         DbError tryBindBlob(Blob value) noexcept;
+        DbError tryBindDateTime(DateTime value) noexcept;
         DbError tryBindNull() noexcept;
 
         template<std::signed_integral T>
@@ -56,6 +59,7 @@ namespace sm::db {
         DbError tryBind(bool value) noexcept { return tryBindBool(value); }
         DbError tryBind(std::string_view value) noexcept { return tryBindString(value); }
         DbError tryBind(Blob value) noexcept { return tryBindBlob(value); }
+        DbError tryBind(DateTime value) noexcept { return tryBindDateTime(value); }
         DbError tryBind(std::nullptr_t) noexcept { return tryBindNull(); }
 
         void operator=(int64 value) throws(DbException) { to(value); }
@@ -63,6 +67,7 @@ namespace sm::db {
         void operator=(std::string_view value) throws(DbException) { to(value); }
         void operator=(double value) throws(DbException) { to(value); }
         void operator=(Blob value) throws(DbException) { to(value); }
+        void operator=(DateTime value) throws(DbException) { to(value); }
         void operator=(std::nullptr_t) throws(DbException) { to(nullptr); }
     };
 }

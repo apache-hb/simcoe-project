@@ -2,15 +2,6 @@
 
 using namespace std::chrono_literals;
 
-static constexpr ConnectionConfig kConfig = {
-    .port = 1521,
-    .host = "localhost",
-    .user = "TEST_USER",
-    .password = "TEST_USER",
-    .database = "FREEPDB1",
-    .timeout = 1s
-};
-
 TEST_CASE("updates") {
     if (!Environment::isSupported(DbType::eOracleDB)) {
         SKIP("OracleDB not supported");
@@ -18,7 +9,7 @@ TEST_CASE("updates") {
 
     auto env = Environment::create(DbType::eOracleDB);
 
-    auto connResult = env.tryConnect(kConfig);
+    auto connResult = env.tryConnect(kOracleConfig);
     if (!connResult.has_value()) {
         SKIP("Failed to connect to database " << connResult.error().message());
     }

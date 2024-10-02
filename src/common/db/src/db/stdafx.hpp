@@ -8,5 +8,6 @@
 #include <sqlite3.h>
 
 #include <filesystem>
+#include <chrono>
 
 // IWYU pragma: end_exports

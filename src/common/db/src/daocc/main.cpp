@@ -66,7 +66,7 @@ static std::string singular(std::string_view text) {
 }
 
 static std::string makeCxxType(const Type& type, bool optional) {
-    auto base = [&]() -> std::string {
+    auto base = [&] -> std::string {
         switch (type.kind) {
             case eInt: return "int32_t";
             case eUint: return "uint32_t";
@@ -77,9 +77,9 @@ static std::string makeCxxType(const Type& type, bool optional) {
             case eFloat: return "float";
             case eDouble: return "double";
             case eBlob: return "sm::db::Blob";
+            case eDateTime: return "sm::db::DateTime";
+            default: CT_NEVER("Invalid type %d", (int)type.kind);
         }
-
-        CT_NEVER("Invalid type %d", (int)type.kind);
     }();
 
     return optional ? fmt::format("std::optional<{}>", base) : base;
@@ -98,6 +98,9 @@ static std::string makeColumnType(const Type& type) {
     STRCASE(eFloat);
     STRCASE(eDouble);
     STRCASE(eBlob);
+    STRCASE(eDateTime);
+
+    default: CT_NEVER("Invalid type %d", (int)type.kind);
     }
 }
 
@@ -213,7 +216,7 @@ static void postError(fmt::format_string<A...> msg, A&&... args) {
 }
 
 static const std::string_view kBannedNames[] = {
-    "bool", "blob", "table", "column"
+    "bool", "blob", "table", "column", "when"
 };
 
 static const std::map<std::string_view, ColumnType> kTypeMap = {
@@ -224,7 +227,9 @@ static const std::map<std::string_view, ColumnType> kTypeMap = {
     {"bool", eBool},
     {"text", eString},
     {"float", eFloat},
-    {"blob", eBlob}
+    {"double", eDouble},
+    {"blob", eBlob},
+    {"datetime", eDateTime}
 };
 
 static Properties getNodeProperties(xmlNodePtr node) {

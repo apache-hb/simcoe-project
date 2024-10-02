@@ -22,9 +22,12 @@ namespace sm::dao {
         eBool, // bool
         eString, // std::string
 
-        eFloat,
-        eDouble,
-        eBlob
+        eFloat, // float
+        eDouble, // double
+        eBlob, // Blob
+        eDateTime, // DateTime
+
+        eCount
     };
 
     std::string_view toString(ColumnType type) noexcept;

@@ -127,7 +127,7 @@ std::string OraConnection::setupTableExists() noexcept(false) {
 }
 
 std::string OraConnection::setupCreateTable(const dao::TableInfo& table) noexcept(false) {
-    return orcl::setupCreateTable(table);
+    return orcl::setupCreateTable(table, hasBoolType());
 }
 
 DbError OraConnection::clientVersion(Version& version) const noexcept {

@@ -14,6 +14,8 @@
         <column name="cxxlong" type="long" />
         <column name="cxxulong" type="ulong" />
         <column name="floating" type="float" />
+        <column name="double_value" type="double" />
+        <column name="start_date" type="datetime" />
 
         <column name="opt_name" type="text" length="255" nullable="true" />
         <column name="opt_yesno" type="bool" nullable="true" />
@@ -24,5 +26,7 @@
         <column name="opt_cxxlong" type="long" nullable="true" />
         <column name="opt_cxxulong" type="ulong" nullable="true" />
         <column name="opt_floating" type="float" nullable="true" />
+        <column name="opt_double" type="double" nullable="true" />
+        <column name="opt_start_date" type="datetime" nullable="true" />
     </table>
 </root>

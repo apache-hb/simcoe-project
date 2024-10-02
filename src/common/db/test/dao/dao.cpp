@@ -3,6 +3,7 @@
 
 #include "tests.dao.hpp"
 
+using namespace std::chrono;
 using namespace std::chrono_literals;
 
 using Example = sm::dao::tests::Example;
@@ -14,25 +15,11 @@ struct TestCaseData {
 
 static constexpr TestCaseData kBackends[] = {
     TestCaseData {
-        .config = {
-            .port = 1521,
-            .host = "localhost",
-            .user = "TEST_USER",
-            .password = "TEST_USER",
-            .database = "FREEPDB1",
-            .timeout = 1s
-        },
+        .config = kOracleConfig,
         .type = DbType::eOracleDB
     },
     TestCaseData {
-        .config = {
-            .port = 5432,
-            .host = "localhost",
-            .user = "TEST_USER",
-            .password = "TEST_USER",
-            .database = "TESTDB",
-            .timeout = 1s
-        },
+        .config = kPostgresConfig,
         .type = DbType::ePostgreSQL
     },
     TestCaseData {
@@ -69,6 +56,8 @@ TEST_CASE("DAO") {
 
         conn.createTable(Example::getTableInfo());
 
+        db::DateTime now = sys_days(2024y/January/1d);
+
         Example example {
             .id = 1,
             .name = "example",
@@ -81,6 +70,8 @@ TEST_CASE("DAO") {
             .cxxlong = 3,
             .cxxulong = 4,
             .floating = 3.14,
+            .doubleValue = 9999999999999999999.0,
+            .startDate = now,
 
             .optName = "optional",
             .optYesno = true,
@@ -103,6 +94,8 @@ TEST_CASE("DAO") {
             CHECK(row.cxxlong == 3);
             CHECK(row.cxxulong == 4);
             CHECK(std::abs(row.floating - 3.14) < 0.0001);
+            CHECK(std::abs(row.doubleValue - 9999999999999999999.0) < 0.0001);
+            CHECK(row.startDate == now);
 
             CHECK(row.optName == "optional");
             CHECK(row.optYesno == true);

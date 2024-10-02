@@ -80,6 +80,8 @@ static DbError bindIndex(PreparedStatement& stmt, const dao::TableInfo& info, si
         return tryBindField<double>(binding, field, nullable);
     case dao::ColumnType::eBlob:
         return tryBindField<db::Blob>(binding, field, nullable);
+    case dao::ColumnType::eDateTime:
+        return tryBindField<db::DateTime>(binding, field, nullable);
     default:
         return DbError::todo(toString(column.type));
     }

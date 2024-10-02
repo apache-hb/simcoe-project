@@ -16,7 +16,8 @@ std::string_view dao::toString(ColumnType type) noexcept {
     case ColumnType::eFloat: return "eFloat";
     case ColumnType::eDouble: return "eDouble";
     case ColumnType::eBlob: return "eBlob";
-    default: return "unknown";
+    case ColumnType::eDateTime: return "eDateTime";
+    default: return "ColumnType::unknown";
     }
 }
 

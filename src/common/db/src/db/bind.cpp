@@ -35,6 +35,10 @@ DbError BindPoint::tryBindBlob(Blob value) noexcept {
     return mImpl->bindBlobByName(mName, std::move(value));
 }
 
+DbError BindPoint::tryBindDateTime(DateTime value) noexcept {
+    return mImpl->bindDateTimeByName(mName, value);
+}
+
 DbError BindPoint::tryBindNull() noexcept {
     return mImpl->bindNullByName(mName);
 }

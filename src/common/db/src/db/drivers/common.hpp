@@ -98,6 +98,10 @@ namespace sm::db::detail {
         virtual DataType boolEquivalentType() const noexcept {
             return DataType::eBoolean;
         }
+
+        virtual DataType dateTimeEquivalentType() const noexcept {
+            return DataType::eDateTime;
+        }
     };
 
     struct IStatement {
@@ -160,11 +164,16 @@ namespace sm::db::detail {
             return DbError::todo("getBlobByIndex");
         }
 
+        virtual DbError getDateTimeByIndex(int index, DateTime& value) noexcept {
+            return DbError::todo("getDateTimeByIndex");
+        }
+
         virtual DbError getIntByName(std::string_view column, int64& value) noexcept;
         virtual DbError getBooleanByName(std::string_view column, bool& value) noexcept;
         virtual DbError getStringByName(std::string_view column, std::string_view& value) noexcept;
         virtual DbError getDoubleByName(std::string_view column, double& value) noexcept;
         virtual DbError getBlobByName(std::string_view column, Blob& value) noexcept;
+        virtual DbError getDateTimeByName(std::string_view column, DateTime& value) noexcept;
 
 
         virtual DbError isNullByIndex(int index, bool& value) noexcept {
@@ -210,6 +219,10 @@ namespace sm::db::detail {
             return DbError::todo("bindBlobByIndex");
         }
 
+        virtual DbError bindDateTimeByIndex(int index, DateTime value) noexcept {
+            return DbError::todo("bindDateTimeByIndex");
+        }
+
         virtual DbError bindNullByIndex(int index) noexcept {
             return DbError::todo("bindNullByIndex");
         }
@@ -219,6 +232,7 @@ namespace sm::db::detail {
         virtual DbError bindStringByName(std::string_view name, std::string_view value) noexcept;
         virtual DbError bindDoubleByName(std::string_view name, double value) noexcept;
         virtual DbError bindBlobByName(std::string_view name, Blob value) noexcept;
+        virtual DbError bindDateTimeByName(std::string_view name, DateTime value) noexcept;
         virtual DbError bindNullByName(std::string_view name) noexcept;
 
         DbError findColumnIndex(std::string_view name, int& index) const noexcept;

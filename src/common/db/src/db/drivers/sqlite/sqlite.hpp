@@ -52,6 +52,7 @@ namespace sm::db::detail::sqlite {
         DbError bindStringByIndex(int index, std::string_view value) noexcept override;
         DbError bindDoubleByIndex(int index, double value) noexcept override;
         DbError bindBlobByIndex(int index, Blob value) noexcept override;
+        DbError bindDateTimeByIndex(int index, DateTime value) noexcept override;
         DbError bindNullByIndex(int index) noexcept override;
 
         int getColumnCount() const noexcept override;
@@ -64,6 +65,7 @@ namespace sm::db::detail::sqlite {
         DbError getBooleanByIndex(int index, bool& value) noexcept override;
         DbError getStringByIndex(int index, std::string_view& value) noexcept override;
         DbError getDoubleByIndex(int index, double& value) noexcept override;
+        DbError getDateTimeByIndex(int index, DateTime& value) noexcept override;
         DbError getBlobByIndex(int index, Blob& value) noexcept override;
 
         DbError isNullByIndex(int index, bool& value) noexcept override;
@@ -113,6 +115,7 @@ namespace sm::db::detail::sqlite {
         DbError serverVersion(Version& version) const noexcept override;
 
         DataType boolEquivalentType() const noexcept override { return DataType::eInteger; }
+        DataType dateTimeEquivalentType() const noexcept override { return DataType::eInteger; }
 
     public:
         SqliteConnection(Sqlite3Handle connection) noexcept;

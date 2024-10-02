@@ -41,13 +41,14 @@ DbError sqlite::getError(int err, sqlite3 *db, const char *message) noexcept {
 
 using sm::dao::ColumnType;
 
-static std::string makeSqlType(const dao::ColumnInfo& info) {
+static std::string_view makeSqlType(const dao::ColumnInfo& info) noexcept {
     switch (info.type) {
     case ColumnType::eInt:
     case ColumnType::eLong:
     case ColumnType::eUint:
     case ColumnType::eUlong:
     case ColumnType::eBool:
+    case ColumnType::eDateTime:
         return "INTEGER";
     case ColumnType::eFloat:
     case ColumnType::eDouble:
@@ -56,6 +57,9 @@ static std::string makeSqlType(const dao::ColumnInfo& info) {
         return "TEXT";
     case ColumnType::eBlob:
         return "BLOB";
+
+    default:
+        CT_NEVER("Invalid column type: %d", (int)info.type);
     }
 }
 
