@@ -73,7 +73,7 @@ struct LogWrapper {
         : env(db::Environment::create(db::DbType::eSqlite3))
         , connection(env.connect({ .host = "server-logs.db" }))
     {
-        sm::logs::structured::setup(connection).throwIfFailed();
+        sm::logs::structured::setup(connection);
     }
 
     ~LogWrapper() {

@@ -3,6 +3,7 @@ src = [
 
     'src/console.cpp',
     'src/file.cpp',
+    'src/database.cpp',
 
     daocc.process('data/logs.xml')
 ]

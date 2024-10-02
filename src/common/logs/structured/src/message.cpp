@@ -1,342 +1,98 @@
 #include "stdafx.hpp"
 
-#include "db/transaction.hpp"
-
 #include "logs/structured/channel.hpp"
 #include "logs/structured/message.hpp"
 
-#include "logs.dao.hpp"
-
-
 namespace structured = sm::logs::structured;
 namespace db = sm::db;
+
+using CategoryInfo = sm::logs::structured::CategoryInfo;
+using MessageInfo = sm::logs::structured::MessageInfo;
+
+using CategoryId = sm::logs::structured::detail::CategoryId;
+using MessageId = sm::logs::structured::detail::MessageId;
 
 static_assert(BUILD_MESSAGE_ATTRIBUTES_IMPL("just text").size() == 0);
 static_assert(BUILD_MESSAGE_ATTRIBUTES_IMPL("thing {0}", 1).size() == 1);
 static_assert(BUILD_MESSAGE_ATTRIBUTES_IMPL("multiple {0} second {0} identical {0} indices", 1).size() == 1);
 static_assert(BUILD_MESSAGE_ATTRIBUTES_IMPL("thing {0} second {1} third {name}", 1, 2, fmt::arg("name", "bob")).size() == 3);
 
-struct LogAttribute {
-    std::string value;
-};
-
-using Category = sm::logs::Category;
-using LogMessageInfo = sm::logs::structured::LogMessageInfo;
-using LogMessageId = sm::logs::structured::detail::LogMessageId;
-using MessageAttributeInfo = sm::logs::structured::MessageAttributeInfo;
-
-using LogAttributeVec = sm::SmallVector<LogAttribute, structured::kMaxMessageAttributes>;
-using AttributeInfoVec = sm::SmallVector<MessageAttributeInfo, structured::kMaxMessageAttributes>;
-
-struct LogEntryPacket {
-    uint64_t timestamp;
-    const LogMessageInfo *message;
-    sm::logs::structured::detail::ArgStore args;
-};
-
-LOG_CATEGORY_IMPL(gFallbackLog, "Structed Logging");
-
-static constexpr auto kLogSeverityOptions = std::to_array<sm::dao::logs::LogSeverity>({
-    { "trace",   uint32_t(sm::logs::Severity::eTrace)   },
-    { "debug",   uint32_t(sm::logs::Severity::eDebug)   },
-    { "info",    uint32_t(sm::logs::Severity::eInfo)    },
-    { "warning", uint32_t(sm::logs::Severity::eWarning) },
-    { "error",   uint32_t(sm::logs::Severity::eError)   },
-    { "fatal",   uint32_t(sm::logs::Severity::eFatal)   },
-    { "panic",   uint32_t(sm::logs::Severity::ePanic)   }
-});
-
-static std::atomic<bool> gIsRunning = false;
 static std::atomic<bool> gHasErrors = false;
-
-class DbLogger {
-    db::Connection& mConnection;
-    db::PreparedInsertReturning<sm::dao::logs::LogEntry> mInsertEntry = mConnection.prepareInsertReturningPrimaryKey<sm::dao::logs::LogEntry>();
-    db::PreparedInsert<sm::dao::logs::LogEntryAttribute> mInsertAttribute = mConnection.prepareInsert<sm::dao::logs::LogEntryAttribute>();
-    moodycamel::BlockingConcurrentQueue<LogEntryPacket> mQueue;
-
-    size_t mMaxPackets;
-    sm::UniquePtr<LogEntryPacket[]> mPacketBuffer = new LogEntryPacket[mMaxPackets];
-
-    std::jthread mWorkerThread;
-
-    void commit(std::span<const LogEntryPacket> packets) noexcept {
-        db::Transaction tx(&mConnection);
-
-        for (const auto& [timestamp, message, args] : packets) {
-            sm::dao::logs::LogEntry entry {
-                .timestamp = timestamp,
-                .messageHash = message->hash
-            };
-
-            auto id = mInsertEntry.tryInsert(entry);
-            if (!id.has_value()) {
-                fmt::println(stderr, "Failed to insert log entry {}", id.error().message());
-                gFallbackLog.warn("Failed to insert log entry: {}", id.error().message());
-                gHasErrors = true;
-                continue;
-            }
-
-            fmt::format_args params{args};
-
-            for (int i = 0; i < message->indexAttributeCount; i++) {
-                auto arg = params.get(i);
-                fmt::format_args args{&arg, 1};
-
-                sm::dao::logs::LogEntryAttribute entryAttribute {
-                    .entryId = id.value(),
-                    .key = fmt::to_string(i),
-                    .value = fmt::vformat("{}", args)
-                };
-
-                fmt::println(stderr, "insert {}: {}", entryAttribute.value, entryAttribute.key);
-
-                if (auto error = mInsertAttribute.tryInsert(entryAttribute)) {
-                    fmt::println(stderr, "Failed to insert log entry attribute: {}", error.message());
-                    gFallbackLog.warn("Failed to insert log entry attribute: {}", error.message());
-                    gHasErrors = true;
-                }
-            }
-
-            for (const auto& name : message->namedAttributes) {
-                auto arg = params.get(fmt::string_view{name.name});
-                fmt::format_args args{&arg, 1};
-
-                sm::dao::logs::LogEntryAttribute entryAttribute {
-                    .entryId = id.value(),
-                    .key = fmt::to_string(name.name),
-                    .value = fmt::vformat("{}", args)
-                };
-
-                fmt::println(stderr, "insert {}: {}", entryAttribute.value, entryAttribute.key);
-
-                if (auto error = mInsertAttribute.tryInsert(entryAttribute)) {
-                    fmt::println(stderr, "Failed to insert log entry attribute: {}", error.message());
-                    gFallbackLog.warn("Failed to insert log entry attribute: {}", error.message());
-                    gHasErrors = true;
-                }
-            }
-
-#if 0
-            for (size_t i = 0; i < params.size(); i++) {
-                sm::dao::logs::LogEntryAttribute entryAttribute {
-                    .entryId = id.value(),
-                    .param = uint32_t(i),
-                    .value = fmt::to_string(params.get(i))
-                };
-
-                if (auto error = mInsertAttribute.tryInsert(entryAttribute)) {
-                    gFallbackLog.warn("Failed to insert log entry attribute: {}", error.message());
-                    gHasErrors = true;
-                }
-            }
-#endif
-        }
-    }
-
-public:
-    DbLogger(db::Connection& connection)
-        : mConnection(connection)
-        , mQueue(1024)
-        , mMaxPackets(256)
-    { }
-
-    void enqueue(LogEntryPacket&& packet) noexcept {
-        mQueue.enqueue(std::move(packet));
-    }
-
-    void workerThread(const std::stop_token& stop) noexcept {
-        while (!stop.stop_requested()) {
-            size_t count = mQueue.wait_dequeue_bulk(mPacketBuffer.get(), mMaxPackets);
-            commit(std::span(mPacketBuffer.get(), count));
-        }
-
-        gIsRunning = false;
-
-        // commit any remaining packets
-        while (true) {
-            size_t count = mQueue.try_dequeue_bulk(mPacketBuffer.get(), mMaxPackets);
-            if (count == 0)
-                break;
-
-            commit(std::span(mPacketBuffer.get(), count));
-        }
-    }
-};
-
-static sm::UniquePtr<DbLogger> gLogger;
-static sm::UniquePtr<std::jthread> gLogThread;
 
 static uint64_t getTimestamp() noexcept {
     auto now = std::chrono::system_clock::now();
     return uint64_t(now.time_since_epoch().count());
 }
 
-static std::vector<LogMessageInfo> &getLogMessages() noexcept {
-    static std::vector<LogMessageInfo> sLogMessages;
+static std::vector<MessageInfo> &getLogMessages() noexcept {
+    static std::vector<MessageInfo> sLogMessages;
     return sLogMessages;
 }
 
-static std::vector<Category> &getLogCategories() noexcept {
-    static std::vector<Category> sLogCategories;
+static std::vector<CategoryInfo> &getLogCategories() noexcept {
+    static std::vector<CategoryInfo> sLogCategories;
     return sLogCategories;
 }
 
-LogMessageId::LogMessageId(LogMessageInfo& message) noexcept
+MessageId::MessageId(MessageInfo message) noexcept
     : info(message)
 {
     getLogMessages().emplace_back(message);
 }
 
-Category::Category(detail::LogCategoryData data) noexcept
+CategoryId::CategoryId(CategoryInfo data) noexcept
     : data(data)
 {
-    getLogCategories().emplace_back(*this);
+    getLogCategories().emplace_back(this->data);
 }
 
-void structured::detail::postLogMessage(const LogMessageInfo& message, detail::ArgStore args) noexcept {
-    if (!gIsRunning) {
-        gFallbackLog.warn("Log message posted after cleanup");
-        return;
-    }
+structured::MessageStore structured::getMessages() noexcept {
+    structured::MessageStore result {
+        .categories = getLogCategories(),
+        .messages = getLogMessages(),
+    };
 
-    uint64_t timestamp = getTimestamp();
-
-    gLogger->enqueue(LogEntryPacket {
-        .timestamp = timestamp,
-        .message = &message,
-        .args = std::move(args)
-    });
+    return result;
 }
 
-#if 0
-void structured::detail::postLogMessage(const LogMessageId& message, sm::SmallVectorBase<std::string> args) noexcept {
-    if (!gIsRunning) {
-        gFallbackLog.warn("Log message posted after cleanup");
-        return;
-    }
-
-    uint64_t timestamp = getTimestamp();
-
-    ssize_t attrCount = message.info.attributeCount();
-    CTASSERTF(args.ssize() == attrCount, "Incorrect number of message attributes (%zd != %zd)", args.ssize(), attrCount);
-
-    LogAttributeVec attributes;
-    for (ssize_t i = 0; i < attrCount; i++) {
-        attributes.emplace_back(LogAttribute {
-            .value = std::move(args[i])
-        });
-    }
-
-    gLogger->enqueue(LogEntryPacket {
-        .timestamp = timestamp,
-        .messageHash = message.info.hash,
-        .attributes = std::move(attributes)
-    });
+void structured::detail::postLogMessage(const MessageInfo& message, ArgStore args) noexcept {
+    Logger::instance().postMessage(message, std::move(args));
 }
-#endif
 
 bool structured::isRunning() noexcept {
     return !gHasErrors;
 }
 
-static void registerMessagesWithDb(db::Connection& connection) {
-    connection.createTable(sm::dao::logs::LogSession::getTableInfo());
-    connection.createTable(sm::dao::logs::LogSeverity::getTableInfo());
-    connection.createTable(sm::dao::logs::LogCategory::getTableInfo());
-    connection.createTable(sm::dao::logs::LogMessage::getTableInfo());
-    connection.createTable(sm::dao::logs::LogMessageAttribute::getTableInfo());
-    connection.createTable(sm::dao::logs::LogEntry::getTableInfo());
-    connection.createTable(sm::dao::logs::LogEntryAttribute::getTableInfo());
-
-    db::Transaction tx(&connection);
-    sm::dao::logs::LogSession session {
-        .startTime = getTimestamp(),
-    };
-
-    connection.insert(session);
-    for (auto& severity : kLogSeverityOptions)
-        connection.insertOrUpdate(severity);
-
-    for (const Category& category : getLogCategories()) {
-        sm::dao::logs::LogCategory daoCategory {
-            .hash = category.hash(),
-            .name = std::string{category.data.name},
-        };
-
-        connection.insertOrUpdate(daoCategory);
-    }
-
-    for (const LogMessageInfo& message : getLogMessages()) {
-        sm::dao::logs::LogMessage daoMessage {
-            .hash = message.hash,
-            .message = std::string{message.message},
-            .severity = uint32_t(message.level),
-            .category = message.category.hash(),
-            .path = std::string{message.location.file_name()},
-            .line = message.location.line(),
-            .function = std::string{message.location.function_name()},
-        };
-
-        connection.insertOrUpdate(daoMessage);
-
-        for (int i = 0; i < message.indexAttributeCount; i++) {
-            fmt::println(stderr, "{}: {}", i, message.message);
-            sm::dao::logs::LogMessageAttribute daoAttribute {
-                .key = fmt::to_string(i),
-                .messageHash = message.hash
-            };
-
-            connection.insertOrUpdate(daoAttribute);
-        }
-
-        for (const auto& attribute : message.namedAttributes) {
-            fmt::println(stderr, "{}: {}", attribute.name, message.message);
-            sm::dao::logs::LogMessageAttribute daoAttribute {
-                .key = std::string{attribute.name},
-                .messageHash = message.hash
-            };
-
-            connection.insertOrUpdate(daoAttribute);
-        }
-    }
-}
-
-db::DbError structured::setup(db::Connection& connection) {
-    registerMessagesWithDb(connection);
-
-    gLogger = new DbLogger(connection);
-    gIsRunning = true;
-    gLogThread = sm::makeUnique<std::jthread>([](const std::stop_token& stop) {
-        gLogger->workerThread(stop);
-    });
-
-    return db::DbError::ok();
+void structured::setup(db::Connection& connection) {
+    std::unique_ptr<ILogChannel> db{database(connection)};
+    Logger::instance().addChannel(std::move(db));
 }
 
 void structured::cleanup() {
-    gLogThread->request_stop();
-
-    // this message is after the request_stop to prevent deadlocks.
-    // if the message queue is empty before entry to this function
-    // the message thread will wait forever, this message ensures that there
-    // is always at least 1 message in the queue when shutdown
-    // is requested
-    LOG_INFO(GlobalLog, "Cleaning up structured logging");
-
-    while (gIsRunning.load())
-        std::this_thread::yield();
-
-    gFallbackLog.info("Cleaning up structured logging");
-    gLogThread.reset();
-    gFallbackLog.info("Structured logging cleaned up");
-
-    gLogger.reset();
+    Logger::instance().cleanup();
 }
 
-void structured::Logger::addChannel(ILogChannel& channel) noexcept {
-    channel.attach(getLogCategories(), getLogMessages());
-    mChannels.emplace_back(&channel);
+void structured::Logger::addChannel(std::unique_ptr<ILogChannel> channel) {
+    channel->attach();
+    mChannels.emplace_back(std::move(channel));
+}
+
+void structured::Logger::cleanup() noexcept {
+    mChannels.clear();
+}
+
+void structured::Logger::postMessage(const MessageInfo& message, ArgStore args) noexcept {
+    uint64_t timestamp = getTimestamp();
+    std::shared_ptr<ArgStore> sharedArgs = std::make_shared<ArgStore>(std::move(args));
+
+    for (auto& channel : mChannels) {
+        LogMessagePacket packet = {
+            .message = message,
+            .timestamp = timestamp,
+            .args = sharedArgs
+        };
+        channel->postMessage(packet);
+    }
 }
 
 structured::Logger& structured::Logger::instance() noexcept {

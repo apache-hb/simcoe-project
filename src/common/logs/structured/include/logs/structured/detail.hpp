@@ -2,7 +2,7 @@
 
 #include <string_view>
 
-namespace sm::logs::detail {
+namespace sm::logs::structured::detail {
     consteval uint64_t hashMessage(std::string_view message, uint64_t seed) noexcept {
         uint64_t hash = seed;
         for (char c : message) {
@@ -10,14 +10,4 @@ namespace sm::logs::detail {
         }
         return hash;
     }
-
-    struct LogCategoryData {
-        std::string_view name;
-        uint64_t hash;
-
-        consteval LogCategoryData(std::string_view name, uint64_t line) noexcept
-            : name(name)
-            , hash(hashMessage(name, line))
-        { }
-    };
 }

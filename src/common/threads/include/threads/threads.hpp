@@ -8,7 +8,7 @@
 
 #include "core/win32.hpp" // IWYU pragma: keep
 
-#include "logs/structured/message.hpp"
+#include "logs/structured/logging.hpp"
 
 #include "threads.meta.hpp"
 
@@ -119,8 +119,9 @@ namespace sm::threads {
         template<typename F>
         ThreadHandle launch(F &&fn) {
             auto thunk = [](void *param) noexcept -> unsigned long {
+                auto fn = sm::makeUnique<F>(reinterpret_cast<F*>(param));
+
                 try {
-                    auto fn = sm::makeUnique<F>(reinterpret_cast<F*>(param));
                     (*fn)();
                     return 0;
                 } catch (std::exception &err) {

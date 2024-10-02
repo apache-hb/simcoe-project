@@ -1,32 +1,43 @@
 #pragma once
 
-#include "core/adt/small_vector.hpp"
+#include "logs/structured/logging.hpp"
 
-#include "logs/structured/core.hpp"
+#include "core/fs.hpp"
+
+namespace sm::db {
+    class Connection;
+}
 
 namespace sm::logs::structured {
+    struct LogMessagePacket {
+        const MessageInfo& message;
+        uint64_t timestamp;
+        std::shared_ptr<ArgStore> args;
+    };
+
     class ILogChannel {
     public:
         virtual ~ILogChannel() = default;
 
-        virtual void attach(
-            std::span<const Category> categories,
-            std::span<const LogMessageInfo> messages
-        ) noexcept = 0;
+        virtual void attach() = 0;
 
-        virtual void postMessage(const LogMessageInfo& message, fmt::format_args args) noexcept = 0;
+        virtual void postMessage(LogMessagePacket packet) noexcept = 0;
     };
 
     class Logger {
-        std::vector<ILogChannel*> mChannels;
+        std::vector<std::unique_ptr<ILogChannel>> mChannels;
 
     public:
-        void addChannel(ILogChannel& channel) noexcept;
+        void addChannel(std::unique_ptr<ILogChannel> channel);
 
-        void postMessage(const LogMessageInfo& message, const sm::SmallVectorBase<std::string>& args) noexcept;
+        void cleanup() noexcept;
+
+        void postMessage(const MessageInfo& message, ArgStore args) noexcept;
 
         static Logger& instance() noexcept;
     };
 
-    ILogChannel *console() noexcept;
+    ILogChannel *console();
+    ILogChannel *file(const fs::path& path);
+    ILogChannel *database(db::Connection& connection);
 }

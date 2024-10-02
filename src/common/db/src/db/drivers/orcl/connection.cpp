@@ -141,7 +141,7 @@ DbError OraConnection::serverVersion(Version& version) const noexcept {
 }
 
 ub2 OraConnection::getBoolType() const noexcept {
-    // Oracle 23ai introduced columns with the sql standard boolean type
+    // Oracle 23 introduced columns with the sql standard boolean type
     if (mServerVersion.major >= 23)
         return SQLT_BOL;
 

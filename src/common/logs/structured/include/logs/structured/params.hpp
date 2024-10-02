@@ -1,36 +1,13 @@
 #pragma once
 
-#include "logs/structured/category.hpp"
-
-#include "logs/logs.hpp"
-
-#include "fmt/compile.h"
-
+#include <span>
 #include <string_view>
 #include <charconv>
-#include <source_location>
-#include <array>
+
+#include "fmt/compile.h"
+#include "fmt/args.h"
 
 namespace sm::logs::structured {
-    static constexpr size_t kMaxMessageAttributes = 8;
-
-    struct MessageAttributeInfo {
-        std::string_view name;
-    };
-
-    struct LogMessageInfo {
-        uint64_t hash;
-        logs::Severity level;
-        const Category& category;
-        std::string_view message;
-        std::source_location location;
-
-        int indexAttributeCount;
-        std::span<const MessageAttributeInfo> namedAttributes;
-
-        size_t attributeCount() const noexcept { return indexAttributeCount + namedAttributes.size(); }
-    };
-
     template<int N> requires (N >= 0)
     struct NumberToString {
         static constexpr size_t kBufferSize = (N / 10) + 1;
@@ -45,41 +22,11 @@ namespace sm::logs::structured {
         }
     };
 
-    namespace detail {
-        constexpr static std::string_view kIndices[structured::kMaxMessageAttributes] = {
-            "0", "1", "2", "3", "4", "5", "6", "7"
-        };
+    using ArgStore = fmt::dynamic_format_arg_store<fmt::format_context>;
 
-        consteval std::vector<MessageAttributeInfo> getAttributes(std::string_view message) noexcept {
-            std::vector<MessageAttributeInfo> attributes;
-
-            size_t i = 0;
-            while (i < message.size()) {
-                auto start = message.find_first_of('{', i);
-                if (start == std::string_view::npos) {
-                    break;
-                }
-
-                auto end = message.find_first_of('}', start);
-                if (end == std::string_view::npos) {
-                    break;
-                }
-
-                auto id = message.substr(start + 1, end - start - 1);
-                if (id.empty())
-                    id = kIndices[attributes.size()];
-
-                MessageAttributeInfo info {
-                    .name = id
-                };
-
-                attributes.emplace_back(info);
-                i = end + 1;
-            }
-
-            return attributes;
-        }
-    }
+    struct MessageAttributeInfo {
+        std::string_view name;
+    };
 
     struct InnerAttributeInfo {
         std::string_view name;
@@ -151,15 +98,6 @@ namespace sm::logs::structured {
         return makeFormatAttributesInner(fmt.lhs) + makeFormatAttributesInner(fmt.rhs);
     }
 
-    template<size_t N>
-    struct PartialAttributeArray {
-        MessageAttributeInfo attributes[N] = {};
-        int indices;
-
-        constexpr size_t size() const noexcept { return N + indices; }
-        constexpr std::span<const MessageAttributeInfo> namedAttributes() const noexcept { return { attributes, N }; }
-    };
-
     constexpr size_t largestIndexAttribute(std::span<const InnerAttributeInfo> attributes) noexcept {
         int largest = 0;
         for (const auto& attr : attributes)
@@ -197,7 +135,16 @@ namespace sm::logs::structured {
     }
 
     template<size_t N>
-    constexpr auto makePartialAttributeArray(std::span<const InnerAttributeInfo> attributes) noexcept {
+    struct PartialAttributeArray {
+        MessageAttributeInfo attributes[N] = {};
+        int indices;
+
+        constexpr size_t size() const noexcept { return N + indices; }
+        constexpr std::span<const MessageAttributeInfo> namedAttributes() const noexcept { return { attributes, N }; }
+    };
+
+    template<size_t N>
+    constexpr PartialAttributeArray<N> makePartialAttributeArray(std::span<const InnerAttributeInfo> attributes) noexcept {
         PartialAttributeArray<N> result{};
         result.indices = largestIndexAttribute(attributes);
 
@@ -237,14 +184,4 @@ namespace sm::logs::structured {
     []() constexpr { \
         using Wrapper = decltype(sm::logs::structured::compileTupleArgs(__VA_ARGS__)); \
         return (Wrapper{})(FMT_COMPILE(message)); \
-    }()
-
-#define PARSE_MESSAGE_ATTRIBUTES(message) \
-    []() constexpr { \
-        std::array<sm::logs::structured::MessageAttributeInfo, sm::logs::structured::detail::getAttributes(message).size()> result{}; \
-        size_t i = 0; \
-        for (const auto& attr : sm::logs::structured::detail::getAttributes(message)) { \
-            result[i++] = attr; \
-        } \
-        return result; \
     }()

@@ -226,7 +226,7 @@ struct LogWrapper {
         : env(db::Environment::create(db::DbType::eSqlite3))
         , connection(env.connect({ .host = "editor-logs.db" }))
     {
-        sm::logs::structured::setup(connection).throwIfFailed();
+        sm::logs::structured::setup(connection);
     }
 
     ~LogWrapper() {

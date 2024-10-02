@@ -3,7 +3,7 @@
 
 #include "db/connection.hpp"
 
-#include "logs/structured/message.hpp"
+#include "logs/structured/logging.hpp"
 
 using namespace sm;
 using namespace std::chrono_literals;
@@ -23,10 +23,7 @@ TEST_CASE("Setup logging") {
     auto env = db::Environment::create(db::DbType::eSqlite3);
     auto conn = env.connect({.host="benchlogs.db"});
 
-    if (auto err = logs::structured::setup(conn)) {
-        err.raise();
-    }
-
+    logs::structured::setup(conn);
     SUCCEED();
 
     BENCHMARK("Log plain message") {
