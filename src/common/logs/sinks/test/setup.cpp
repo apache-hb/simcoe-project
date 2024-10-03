@@ -7,12 +7,20 @@
 using namespace sm;
 using namespace std::chrono_literals;
 
+static constexpr db::ConnectionConfig kOracleConfig = {
+    .port = 1521,
+    .host = "localhost",
+    .user = "TEST_USER",
+    .password = "TEST_USER",
+    .database = "FREEPDB1",
+    .timeout = 1s
+};
+
 LOG_MESSAGE_CATEGORY(TestLog, "Tests");
 
 TEST_CASE("Setup logging") {
     auto env = db::Environment::create(db::DbType::eSqlite3, { .logQueries=true });
-    auto conn = env.connect({.host="testlogs.db"});
-    logs::structured::setup(conn);
+    logs::structured::setup(env.connect({.host="testlogs.db"}));
 
     GIVEN("a successfully setup logging environment") {
         THEN("a message can be logged") {

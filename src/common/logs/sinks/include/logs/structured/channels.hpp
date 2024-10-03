@@ -1,6 +1,7 @@
 #pragma once
 
-#include "logs/structured/logging.hpp"
+#include "logs/structured/channel.hpp"
+#include "db/connection.hpp"
 
 #include "core/fs.hpp"
 
@@ -9,10 +10,10 @@ namespace sm::db {
 }
 
 namespace sm::logs::structured {
-    void setup(db::Connection& connection);
+    void setup(db::Connection connection);
     void shutdown();
 
     ILogChannel *console();
     ILogChannel *file(const fs::path& path);
-    ILogChannel *database(db::Connection& connection);
+    IAsyncLogChannel *database(db::Connection connection);
 }

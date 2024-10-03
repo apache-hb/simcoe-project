@@ -69,13 +69,11 @@ static logs::FileChannel gFileChannel{};
 
 struct LogWrapper {
     db::Environment env;
-    db::Connection connection;
 
     LogWrapper()
         : env(db::Environment::create(db::DbType::eSqlite3))
-        , connection(env.connect({ .host = "server-logs.db" }))
     {
-        sm::logs::structured::setup(connection);
+        sm::logs::structured::setup(env.connect({ .host = "server-logs.db" }));
     }
 
     ~LogWrapper() {

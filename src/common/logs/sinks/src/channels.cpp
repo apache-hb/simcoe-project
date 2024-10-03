@@ -5,9 +5,9 @@
 
 namespace structured = sm::logs::structured;
 
-void structured::setup(db::Connection& connection) {
-    std::unique_ptr<ILogChannel> channel(database(connection));
-    structured::Logger::instance().addChannel(std::move(channel));
+void structured::setup(db::Connection connection) {
+    std::unique_ptr<IAsyncLogChannel> channel(database(std::move(connection)));
+    structured::Logger::instance().addAsyncChannel(std::move(channel));
 }
 
 void structured::shutdown() {

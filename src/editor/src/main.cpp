@@ -230,7 +230,7 @@ static void commonInit(void) {
 
     bt_init();
     os_init();
-    logs::structured::setup(gLogging->connection);
+    logs::structured::setup(std::move(gLogging->connection));
 
     // TODO: popup window for panics and system errors
     gSystemError = gDefaultError;

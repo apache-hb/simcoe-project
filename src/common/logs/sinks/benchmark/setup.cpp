@@ -21,9 +21,8 @@ LOG_MESSAGE_CATEGORY(TestLog, "Tests");
 
 TEST_CASE("Setup logging") {
     auto env = db::Environment::create(db::DbType::eSqlite3);
-    auto conn = env.connect({.host="benchlogs.db"});
 
-    logs::structured::setup(conn);
+    logs::structured::setup(env.connect({.host="benchlogs.db"}));
     SUCCEED();
 
     BENCHMARK("Log plain message") {

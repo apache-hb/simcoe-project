@@ -26,21 +26,34 @@ void structured::Logger::addChannel(std::unique_ptr<ILogChannel> channel) {
     mChannels.emplace_back(std::move(channel));
 }
 
+void structured::Logger::addAsyncChannel(std::unique_ptr<IAsyncLogChannel> channel) {
+    channel->attach();
+    mAsyncChannel = std::move(channel);
+}
+
 void structured::Logger::shutdown() noexcept {
     mChannels.clear();
 }
 
 void structured::Logger::postMessage(const MessageInfo& message, ArgStore args) noexcept {
     uint64_t timestamp = getTimestamp();
-    std::shared_ptr<ArgStore> sharedArgs = std::make_shared<ArgStore>(std::move(args));
 
     for (auto& channel : mChannels) {
-        LogMessagePacket packet = {
+        MessagePacket packet = {
             .message = message,
             .timestamp = timestamp,
-            .args = sharedArgs
+            .args = args
         };
         channel->postMessage(packet);
+    }
+
+    if (mAsyncChannel) {
+        AsyncMessagePacket packet = {
+            .message = message,
+            .timestamp = timestamp,
+            .args = std::move(args)
+        };
+        mAsyncChannel->postMessageAsync(std::move(packet));
     }
 }
 

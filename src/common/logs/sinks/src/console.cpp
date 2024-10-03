@@ -16,7 +16,7 @@ class ConsoleChannel final : public structured::ILogChannel {
         }
     }
 
-    void postMessage(structured::LogMessagePacket packet) noexcept override {
+    void postMessage(structured::MessagePacket packet) noexcept override {
         uint64_t hash = packet.message.hash;
         if (!mMessages.contains(hash)) {
             fmt::println(stderr, "Unknown message: {}", hash);
@@ -25,7 +25,7 @@ class ConsoleChannel final : public structured::ILogChannel {
 
         auto it = mMessages.at(hash);
 
-        fmt::vprintln(stderr, it->message, *packet.args);
+        fmt::vprintln(stderr, it->message, packet.args);
     }
 
 public:

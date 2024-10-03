@@ -27,7 +27,7 @@ class FileChannel final : public structured::ILogChannel {
         mStream.close();
     }
 
-    void postMessage(structured::LogMessagePacket packet) noexcept override {
+    void postMessage(structured::MessagePacket packet) noexcept override {
         uint64_t hash = packet.message.hash;
         if (!mMessages.contains(hash)) {
             mStream << "Unknown message: " << hash << '\n';
@@ -36,7 +36,7 @@ class FileChannel final : public structured::ILogChannel {
 
         auto it = mMessages.at(hash);
 
-        mStream << fmt::vformat(it->message, *packet.args) << '\n';
+        mStream << fmt::vformat(it->message, packet.args) << '\n';
     }
 
 public:
