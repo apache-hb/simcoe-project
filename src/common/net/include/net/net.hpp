@@ -213,3 +213,14 @@ namespace sm::net {
         size_t getMaxSockets() const noexcept { return mData.iMaxSockets; }
     };
 }
+
+template<>
+struct fmt::formatter<sm::net::NetError> {
+    constexpr auto parse(format_parse_context& ctx) const {
+        return ctx.begin();
+    }
+
+    constexpr auto format(const sm::net::NetError& error, fmt::format_context& ctx) const {
+        return format_to(ctx.out(), "NetError({}: {})", error.code(), error.message());
+    }
+};

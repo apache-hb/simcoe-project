@@ -1,16 +1,18 @@
-#include "db/transaction.hpp"
-#include "logs/structured/message.hpp"
 #include "stdafx.hpp"
+
+#include "logs/structured/logging.hpp"
+#include "logs/structured/message.hpp"
 
 #include "logs/structured/category.hpp"
 #include "logs/structured/channel.hpp"
+#include "logs/structured/channels.hpp"
 
+#include "db/transaction.hpp"
 #include "db/connection.hpp"
 
 #include "logs.dao.hpp"
 
 namespace db = sm::db;
-namespace fs = sm::fs;
 namespace logs = sm::logs;
 namespace structured = sm::logs::structured;
 

@@ -5,7 +5,7 @@
 
 #include "threads/threads.hpp"
 
-#include "logs/structured/message.hpp"
+#include "logs/structured/channels.hpp"
 
 #include "net/net.hpp"
 
@@ -18,6 +18,8 @@
 using namespace sm;
 
 using namespace std::chrono_literals;
+
+LOG_MESSAGE_CATEGORY(LaunchLog, "Launch");
 
 static sm::opt<bool> gRunAsClient {
     name = "client",
@@ -77,7 +79,7 @@ struct LogWrapper {
     }
 
     ~LogWrapper() {
-        sm::logs::structured::cleanup();
+        sm::logs::structured::shutdown();
     }
 };
 
@@ -119,7 +121,7 @@ static void commonInit(void) {
         gFileChannel = std::move(file.value());
         logger.addChannel(gFileChannel);
     } else {
-        logs::gGlobal.error("failed to open log file: {}", file.error());
+        LOG_ERROR(LaunchLog, "failed to open log file: {}", file.error());
     }
 
     gLogWrapper = sm::makeUnique<LogWrapper>();
@@ -165,25 +167,25 @@ static int clientMain() noexcept try {
     auto maybeResponse = socket.recv<game::CreateAccountResponsePacket>();
 
     if (!maybeResponse) {
-        logs::gGlobal.error("failed to receive create account response: {}", maybeResponse.error().message());
+        LOG_WARN(GlobalLog, "failed to receive create account response: {}", maybeResponse.error());
         return -1;
     }
 
     auto response = maybeResponse.value();
 
     if (response.header.type != game::PacketType::eCreateAccountResponse) {
-        logs::gGlobal.error("unexpected packet type: {}", response.header.type);
+        LOG_WARN(GlobalLog, "unexpected packet type: {}", response.header.type);
         return -1;
     }
 
-    logs::gGlobal.info("received create account response: {}", response.status);
+    LOG_INFO(GlobalLog, "received create account response: {}", response.status);
 
     return 0;
 } catch (std::exception& err) {
-    logs::gGlobal.error("unhandled exception in client: {}", err.what());
+    LOG_ERROR(GlobalLog, "unhandled exception in client: {}", err.what());
     return -1;
 } catch (...) {
-    logs::gGlobal.error("unknown unhandled exception in client");
+    LOG_ERROR(GlobalLog, "unknown unhandled exception in client");
     return -1;
 }
 
@@ -193,7 +195,7 @@ static void recvDataPacket(std::span<std::byte> dst, net::Socket& socket, game::
 
     size_t read = socket.recvBytes(dst.data() + sizeof(header), size).value();
     if (read != size) {
-        logs::gGlobal.error("failed to receive all packet data: expected {}, got {}", size, read);
+        LOG_ERROR(GlobalLog, "failed to receive all packet data: expected {}, got {}", size, read);
     }
 }
 
@@ -244,7 +246,7 @@ static int serverMain() {
         }
 
         if (!maybeSocket) {
-            logs::gGlobal.error("failed to accept connection: {}", maybeSocket.error().message());
+            LOG_ERROR(GlobalLog,"failed to accept connection: {}", maybeSocket.error());
             continue;
         }
 
@@ -253,7 +255,7 @@ static int serverMain() {
                 while (!stop.stop_requested()) {
                     auto maybeHeader = socket.recv<game::PacketHeader>();
                     if (!maybeHeader && maybeHeader.error().connectionClosed()) {
-                        logs::gGlobal.info("client disconnected");
+                        LOG_INFO(GlobalLog, "client disconnected");
                         break;
                     }
 
@@ -264,7 +266,7 @@ static int serverMain() {
 
                     if (header.type == game::PacketType::eCreateAccountRequest) {
                         auto *packet = reinterpret_cast<game::CreateAccountRequestPacket *>(buffer);
-                        logs::gGlobal.info("received create account request {} {} `{}` `{}`", packet->header.type, packet->header.crc, packet->username, packet->password);
+                        LOG_INFO(GlobalLog, "received create account request {} {} `{}` `{}`", packet->header.type, packet->header.crc, packet->username, packet->password);
 
                         std::string salt = createSalt(16);
 
@@ -280,7 +282,7 @@ static int serverMain() {
                             return result.isSuccess() ? game::CreateAccountStatus::eSuccess : game::CreateAccountStatus::eFailure;
                         }();
 
-                        logs::gGlobal.info("create account result: {}", result);
+                        LOG_INFO(GlobalLog, "create account result: {}", result);
 
                         game::CreateAccountResponsePacket resp {
                             .header = game::PacketHeader {
@@ -291,13 +293,13 @@ static int serverMain() {
 
                         socket.send(resp).throwIfFailed();
                     } else {
-                        logs::gGlobal.error("unknown packet type: {}", header.type);
+                        LOG_WARN(GlobalLog, "unknown packet type: {}", header.type);
                     }
                 }
             } catch (std::exception& err) {
-                logs::gGlobal.error("unhandled exception in client thread: {}", err.what());
+                LOG_ERROR(GlobalLog, "unhandled exception in client thread: {}", err.what());
             } catch (...) {
-                logs::gGlobal.error("unknown unhandled exception in client thread");
+                LOG_ERROR(GlobalLog, "unknown unhandled exception in client thread");
             }
         });
 
@@ -319,10 +321,10 @@ static int commonMain() noexcept try {
         return serverMain();
     }
 } catch (const std::exception& err) {
-    logs::gGlobal.error("unhandled exception: {}", err.what());
+    LOG_ERROR(LaunchLog, "unhandled exception: {}", err.what());
     return -1;
 } catch (...) {
-    logs::gGlobal.error("unknown unhandled exception");
+    LOG_ERROR(LaunchLog, "unknown unhandled exception");
     return -1;
 }
 
@@ -344,19 +346,19 @@ int main(int argc, const char **argv) noexcept try {
         return commonMain();
     }();
 
-    logs::gGlobal.info("editor exiting with {}", result);
+    LOG_INFO(LaunchLog, "editor exiting with {}", result);
 
     logs::shutdown();
 
     return result;
 } catch (const db::DbException& err) {
-    logs::gGlobal.error("database error: {} ({})", err.what(), err.code());
+    LOG_ERROR(LaunchLog, "database error: {}", err.error());
     return -1;
 } catch (const std::exception& err) {
-    logs::gGlobal.error("unhandled exception: {}", err.what());
+    LOG_ERROR(LaunchLog, "unhandled exception: {}", err.what());
     return -1;
 } catch (...) {
-    logs::gGlobal.error("unknown unhandled exception");
+    LOG_ERROR(LaunchLog, "unknown unhandled exception");
     return -1;
 }
 
@@ -364,8 +366,8 @@ int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdL
     commonInit();
     defer { gLogWrapper.reset(); };
 
-    logs::gGlobal.info("lpCmdLine = {}", lpCmdLine);
-    logs::gGlobal.info("nShowCmd = {}", nShowCmd);
+    LOG_INFO(LaunchLog, "lpCmdLine = {}", lpCmdLine);
+    LOG_INFO(LaunchLog, "nShowCmd = {}", nShowCmd);
     // TODO: parse lpCmdLine
 
     int result = [&] {
@@ -375,7 +377,7 @@ int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdL
         return commonMain();
     }();
 
-    logs::gGlobal.info("editor exiting with {}", result);
+    LOG_INFO(LaunchLog, "editor exiting with {}", result);
 
     logs::shutdown();
 

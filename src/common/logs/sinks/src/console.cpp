@@ -1,15 +1,12 @@
 #include "stdafx.hpp"
 
+#include "logs/structured/logging.hpp"
 #include "logs/structured/channel.hpp"
+#include "logs/structured/channels.hpp"
 
-#include <fstream>
-
-namespace fs = sm::fs;
-namespace logs = sm::logs;
 namespace structured = sm::logs::structured;
 
-class FileChannel final : public structured::ILogChannel {
-    std::ofstream mStream;
+class ConsoleChannel final : public structured::ILogChannel {
     std::unordered_map<uint64_t, const structured::MessageInfo*> mMessages;
 
     void attach() override {
@@ -19,28 +16,22 @@ class FileChannel final : public structured::ILogChannel {
         }
     }
 
-    ~FileChannel() override {
-        mStream.close();
-    }
-
     void postMessage(structured::LogMessagePacket packet) noexcept override {
         uint64_t hash = packet.message.hash;
         if (!mMessages.contains(hash)) {
-            mStream << "Unknown message: " << hash << '\n';
+            fmt::println(stderr, "Unknown message: {}", hash);
             return;
         }
 
         auto it = mMessages.at(hash);
 
-        mStream << fmt::vformat(it->message, *packet.args) << '\n';
+        fmt::vprintln(stderr, it->message, *packet.args);
     }
 
 public:
-    FileChannel(const fs::path& path) noexcept
-        : mStream(path, std::ios::out)
-    { }
+    ConsoleChannel() noexcept = default;
 };
 
-structured::ILogChannel *sm::logs::structured::file(const fs::path& path) {
-    return new FileChannel(path);
+structured::ILogChannel *sm::logs::structured::console() {
+    return new ConsoleChannel;
 }

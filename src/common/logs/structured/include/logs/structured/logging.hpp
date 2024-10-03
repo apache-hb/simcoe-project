@@ -5,14 +5,7 @@
 #include "logs/structured/category.hpp"
 #include "logs/structured/message.hpp"
 
-namespace sm::db {
-    class Connection;
-}
-
 namespace sm::logs::structured {
-    void setup(db::Connection& connection);
-    void cleanup();
-
     struct MessageStore {
         std::span<const CategoryInfo> categories;
         std::span<const MessageInfo> messages;
@@ -26,7 +19,7 @@ namespace sm::logs::structured {
         template<LogMessageFn F, typename... A>
         void fmtMessage(A&&... args) noexcept {
             const MessageId& message = gTagInfo<F, A...>;
-            const MessageInfo& info = message.info;
+            const MessageInfo& info = message.data;
 
             ArgStore store;
             store.reserve(info.attributeCount(), info.namedAttributes.size());

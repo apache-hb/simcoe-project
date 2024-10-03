@@ -1,12 +1,6 @@
 #pragma once
 
-#include "logs/structured/logging.hpp"
-
-#include "core/fs.hpp"
-
-namespace sm::db {
-    class Connection;
-}
+#include "logs/structured/message.hpp"
 
 namespace sm::logs::structured {
     struct LogMessagePacket {
@@ -23,21 +17,4 @@ namespace sm::logs::structured {
 
         virtual void postMessage(LogMessagePacket packet) noexcept = 0;
     };
-
-    class Logger {
-        std::vector<std::unique_ptr<ILogChannel>> mChannels;
-
-    public:
-        void addChannel(std::unique_ptr<ILogChannel> channel);
-
-        void cleanup() noexcept;
-
-        void postMessage(const MessageInfo& message, ArgStore args) noexcept;
-
-        static Logger& instance() noexcept;
-    };
-
-    ILogChannel *console();
-    ILogChannel *file(const fs::path& path);
-    ILogChannel *database(db::Connection& connection);
 }

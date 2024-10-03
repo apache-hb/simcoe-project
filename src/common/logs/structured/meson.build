@@ -1,14 +1,9 @@
 src = [
-    'src/message.cpp',
-
-    'src/console.cpp',
-    'src/file.cpp',
-    'src/database.cpp',
-
-    daocc.process('data/logs.xml')
+    'src/logging.cpp',
+    'src/logger.cpp'
 ]
 
-deps = [ core, logs, db, dependency('concurrentqueue') ]
+deps = [ core, logs ]
 
 libstructured_logs = library('structured_logs', src,
     cpp_args : [ '-DSM_STRUCTURED_LOGS_BUILD=1' ],
@@ -20,23 +15,5 @@ libstructured_logs = library('structured_logs', src,
 structured_logs = declare_dependency(
     link_with : libstructured_logs,
     include_directories : [ '.', 'include', ],
-    dependencies : [ core, logs, db ]
-)
-
-exe = executable('test-structured-logs-setup', 'test/setup.cpp',
-    dependencies : [ structured_logs, coretest ]
-)
-
-test('Structured logs setup', exe,
-    suite : 'structured_logs',
-    kwargs : testkwargs
-)
-
-exe = executable('benchmark-structured-logs-setup', 'benchmark/setup.cpp',
-    dependencies : [ structured_logs, coretest ]
-)
-
-benchmark('Structured logs benchmark', exe,
-    suite : 'structured_logs',
-    kwargs : benchkwargs
+    dependencies : [ core, logs ]
 )

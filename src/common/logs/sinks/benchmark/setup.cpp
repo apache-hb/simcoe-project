@@ -3,7 +3,7 @@
 
 #include "db/connection.hpp"
 
-#include "logs/structured/logging.hpp"
+#include "logs/structured/channels.hpp"
 
 using namespace sm;
 using namespace std::chrono_literals;
@@ -34,5 +34,5 @@ TEST_CASE("Setup logging") {
         LOG_INFO(TestLog, "Benchmark logging message with {arg}", fmt::arg("arg", 42));
     };
 
-    logs::structured::cleanup();
+    logs::structured::shutdown();
 }

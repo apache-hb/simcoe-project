@@ -17,7 +17,7 @@ namespace sm::logs::structured {
         struct CategoryId {
             const CategoryInfo data;
 
-            CategoryId(CategoryInfo data) noexcept;
+            CategoryId(CategoryInfo info) noexcept;
 
             constexpr uint64_t hash() const noexcept { return data.hash; }
         };

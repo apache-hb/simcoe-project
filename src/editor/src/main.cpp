@@ -28,7 +28,7 @@
 
 #include "core/defer.hpp"
 
-#include "logs/structured/logging.hpp"
+#include "logs/structured/channels.hpp"
 
 #include "archive.dao.hpp"
 
@@ -487,7 +487,7 @@ static int commonMain(sys::ShowWindow show) noexcept try {
 
 int main(int argc, const char **argv) noexcept try {
     commonInit();
-    defer { logs::structured::cleanup(); };
+    defer { logs::structured::shutdown(); };
 
     sm::Span<const char*> args{argv, size_t(argc)};
     LOG_INFO(GlobalLog, "args = [{}]", fmt::join(args, ", "));
@@ -521,7 +521,7 @@ int main(int argc, const char **argv) noexcept try {
 
 int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
     commonInit();
-    defer { logs::structured::cleanup(); };
+    defer { logs::structured::shutdown(); };
 
     LOG_INFO(GlobalLog, "lpCmdLine = {}", lpCmdLine);
     LOG_INFO(GlobalLog, "nShowCmd = {}", nShowCmd);

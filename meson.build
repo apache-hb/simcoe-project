@@ -193,12 +193,14 @@ subdir('src/common/core')
 # simple file/console logging
 subdir('src/common/logs/base')
 
-subdir('src/common/db')
-
-subdir('src/common/config')
-
 # structured logging
 subdir('src/common/logs/structured')
+
+subdir('src/common/db')
+
+subdir('src/common/logs/sinks')
+
+subdir('src/common/config')
 
 if not is_windows
     subdir_done()

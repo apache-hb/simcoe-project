@@ -38,8 +38,8 @@ namespace sm::logs::structured {
 
     namespace detail {
         struct MessageId {
-            MessageId(const MessageInfo& message) noexcept;
-            const MessageInfo& info;
+            MessageId(const MessageInfo& info) noexcept;
+            const MessageInfo& data;
         };
 
         template<typename T>

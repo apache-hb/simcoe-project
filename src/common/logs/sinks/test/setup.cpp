@@ -2,7 +2,7 @@
 
 #include "db/connection.hpp"
 
-#include "logs/structured/logging.hpp"
+#include "logs/structured/channels.hpp"
 
 using namespace sm;
 using namespace std::chrono_literals;
@@ -21,8 +21,10 @@ TEST_CASE("Setup logging") {
             LOG_INFO(TestLog, "Log message {0}", 5);
 
             LOG_INFO(TestLog, "Logging with {multiple} {parameters}", fmt::arg("multiple", 1), fmt::arg("parameters", false));
+
+            SUCCEED("No exceptions thrown");
         }
     }
 
-    logs::structured::cleanup();
+    logs::structured::shutdown();
 }

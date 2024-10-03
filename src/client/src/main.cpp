@@ -21,6 +21,8 @@
 
 #include "core/defer.hpp"
 
+#include "logs/structured/channels.hpp"
+
 #include "archive.dao.hpp"
 
 using namespace sm;
