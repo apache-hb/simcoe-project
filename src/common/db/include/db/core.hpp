@@ -8,7 +8,11 @@
 #include <string>
 #include <chrono>
 
+#include "logs/structured/logging.hpp"
+
 #include "core.meta.hpp"
+
+LOG_MESSAGE_CATEGORY(DbLog, "DB");
 
 namespace sm::db {
     class ResultSet;
@@ -150,3 +154,15 @@ namespace sm::db {
         std::string_view name;
     };
 }
+
+template<>
+struct fmt::formatter<sm::db::ConnectionConfig> {
+    constexpr auto parse(format_parse_context& ctx) {
+        return ctx.begin();
+    }
+
+    constexpr auto format(const sm::db::ConnectionConfig& config, format_context& ctx) {
+        return format_to(ctx.out(), "ConnectionConfig({}:{}, {}/{}, {}s)",
+            config.host, config.port, config.user, config.database, config.timeout.count());
+    }
+};

@@ -130,6 +130,10 @@ class DbChannel final : public structured::ILogChannel {
     }
 
     void postMessage(structured::LogMessagePacket packet) noexcept override {
+        // discard messages from the database channel to prevent infinite recursion
+        if (structured::detail::gLogCategory<DbLog> == packet.message.category)
+            return;
+
         mQueue.enqueue(LogEntryPacket {
             .timestamp = packet.timestamp,
             .message = &packet.message,

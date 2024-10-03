@@ -3,12 +3,6 @@
 #include "drivers/common.hpp"
 
 namespace sm::db::detail::sqlite {
-    static void checkError(const DbError& err) noexcept {
-        CTASSERTF(err.isSuccess(), "Error: %d (%s)", err.code(), err.what());
-    }
-
-    #define CHECK_ERROR(expr) checkError(#expr, expr)
-
     std::string setupTableExists() noexcept;
     std::string setupCreateTable(const dao::TableInfo& info) noexcept;
     std::string setupCreateSingletonTrigger(std::string_view name) noexcept;
@@ -25,7 +19,10 @@ namespace sm::db::detail::sqlite {
     int execStatement(sqlite3_stmt *stmt) noexcept;
 
     constexpr auto kCloseDb = [](sqlite3 *db) noexcept {
-        sqlite3_close(db);
+        int err = sqlite3_close(db);
+        if (err != SQLITE_OK) {
+            LOG_WARN(DbLog, "Failed to close SQLite connection: {} ({})", sqlite3_errstr(err), err);
+        }
     };
 
     using Sqlite3Handle = sm::UniquePtr<sqlite3, decltype(kCloseDb)>;

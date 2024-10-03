@@ -230,17 +230,17 @@ class SqliteEnvironment final : public detail::IEnvironment {
             return sqlite::getError(err);
 
         if (config.journalMode != JournalMode::eDefault) {
-            if (DbError err = pragma(db.get(), "journal_mode", kJournalMode[(int)config.journalMode]))
+            if (DbError err = pragma(db.get(), "journal_mode", kJournalMode[std::to_underlying(config.journalMode)]))
                 return err;
         }
 
         if (config.synchronous != Synchronous::eDefault) {
-            if (DbError err = pragma(db.get(), "synchronous", kSynchronous[(int)config.synchronous]))
+            if (DbError err = pragma(db.get(), "synchronous", kSynchronous[std::to_underlying(config.synchronous)]))
                 return err;
         }
 
         if (config.lockingMode != LockingMode::eDefault) {
-            if (DbError err = pragma(db.get(), "locking_mode", kLockingMode[(int)config.lockingMode]))
+            if (DbError err = pragma(db.get(), "locking_mode", kLockingMode[std::to_underlying(config.lockingMode)]))
                 return err;
         }
 
@@ -253,18 +253,21 @@ class SqliteEnvironment final : public detail::IEnvironment {
     }
 
     static void setConfigLog() {
-        int err = sqlite3_config(SQLITE_CONFIG_LOG, +[](void *ctx, int err, const char *msg) {
-            fmt::println(stderr, "SQLite: {}", msg);
-        }, nullptr);
+        auto fn = +[](void *ctx, int err, const char *msg) {
+            LOG_INFO(DbLog, "sqlite: {}", msg);
+        };
+        int err = sqlite3_config(SQLITE_CONFIG_LOG, fn, nullptr);
 
-        if (err != SQLITE_OK)
-            fmt::println(stderr, "Failed to set SQLite log: %s (%d)", sqlite3_errstr(err), err);
+        if (err != SQLITE_OK) {
+            LOG_WARN(DbLog, "Failed to set SQLite log: {} ({})", sqlite3_errstr(err), err);
+        }
     }
 
     static void setConfigMemory() {
         int err = sqlite3_config(SQLITE_CONFIG_MALLOC, &kMemoryMethods);
-        if (err != SQLITE_OK)
-            fmt::println(stderr, "Failed to set SQLite memory: {} ({})", sqlite3_errstr(err), err);
+        if (err != SQLITE_OK) {
+            LOG_WARN(DbLog, "Failed to set SQLite memory: {} ({})", sqlite3_errstr(err), err);
+        }
     }
 
 public:

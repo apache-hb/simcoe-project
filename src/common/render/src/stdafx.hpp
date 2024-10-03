@@ -41,7 +41,4 @@
 
 #include "system/system.hpp"
 
-LOG_CATEGORY(gGpuLog);
-LOG_CATEGORY(gRenderLog);
-
 // IWYU pragma: end_exports

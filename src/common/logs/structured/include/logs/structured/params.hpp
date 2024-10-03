@@ -88,6 +88,12 @@ namespace sm::logs::structured {
         return AttributeArray<1>{ info };
     }
 
+    template<typename T, int N>
+    constexpr AttributeArray<1> makeFormatAttributesInner(fmt::detail::spec_field<char, T, N> field) noexcept {
+        InnerAttributeInfo info{ N + 1 };
+        return AttributeArray<1>{ info };
+    }
+
     constexpr AttributeArray<1> makeFormatAttributesInner(fmt::detail::runtime_named_field<char> field) noexcept {
         InnerAttributeInfo info{ std::string_view{field.name} };
         return AttributeArray<1>{ info };

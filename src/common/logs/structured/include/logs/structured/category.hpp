@@ -20,6 +20,7 @@ namespace sm::logs::structured {
             CategoryId(CategoryInfo info) noexcept;
 
             constexpr uint64_t hash() const noexcept { return data.hash; }
+            constexpr bool operator==(const CategoryInfo& info) const noexcept { return data.hash == info.hash; }
         };
 
         template<typename T>

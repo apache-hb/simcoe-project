@@ -43,7 +43,7 @@ cfg.set10('SMC_DB_HAS_MYSQL', devapi.found())
 cfg.set10('SMC_DB_HAS_MSSQL', has_mssql)
 cfg.set10('SMC_DB_HAS_ODBC', has_odbc)
 
-deps = [ core, sqlite3, tlsf, meta, logs ]
+deps = [ core, sqlite3, tlsf, meta, structured_logs ]
 
 if oci.found()
     src += [
@@ -92,7 +92,7 @@ libdb = library('orm', [ src, db_config ],
 db = declare_dependency(
     link_with : libdb,
     include_directories : [ '.', db_include, libdb.private_dir_include() ],
-    dependencies : [ core, meta ]
+    dependencies : [ core, meta, structured_logs ]
 )
 
 src = [ 'src/daocc/main.cpp' ]

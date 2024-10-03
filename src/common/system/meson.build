@@ -20,7 +20,7 @@ src = [
     reflect.process('data/system.ct'),
 ]
 
-deps = [ core, logs, math, cthulhu.get_variable('os'), input, config ]
+deps = [ core, structured_logs, math, cthulhu.get_variable('os'), input, config ]
 
 libsystem = library('system', src,
     cpp_args : [ '-DSM_SYSTEM_BUILD=1' ],

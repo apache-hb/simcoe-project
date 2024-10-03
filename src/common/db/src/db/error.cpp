@@ -10,8 +10,11 @@ DbError::DbError(int code, int status, std::string message, bool enableStackTrac
     , mStatus(status)
     , mMessage(std::move(message))
 {
-    if (!isSuccess() && enableStackTrace)
+    if (!isSuccess() && enableStackTrace) {
         mStacktrace = std::stacktrace::current();
+
+        LOG_WARN(DbLog, "DbError {}: {}", mMessage, mCode);
+    }
 }
 
 void DbError::raise() const noexcept(false) {

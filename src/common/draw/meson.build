@@ -13,7 +13,7 @@ src = [
     'src/ecs/forward_plus/opaque.cpp'
 ]
 
-deps = [ render, input ]
+deps = [ render, input, structured_logs ]
 
 libdraw = library('draw', src,
     cpp_args : [ '-DSM_DRAW_BUILD=1' ],

@@ -8,7 +8,11 @@
 #include "core/fs.hpp"
 #include "logs/logs.hpp" // IWYU pragma: export
 
+#include "logs/structured/logging.hpp"
+
 #include "system.reflect.h" // IWYU pragma: export
+
+LOG_MESSAGE_CATEGORY(SystemLog, "System");
 
 namespace sm::sys {
     CT_NORETURN assertLastError(source_info_t panic, const char *expr);

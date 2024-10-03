@@ -6,8 +6,6 @@
 
 using namespace sm;
 
-LOG_CATEGORY_IMPL(gSystemLog, "System");
-
 HINSTANCE gInstance = nullptr;
 LPTSTR gWindowClass = nullptr;
 

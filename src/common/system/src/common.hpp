@@ -5,5 +5,3 @@
 
 extern HINSTANCE gInstance;
 extern LPTSTR gWindowClass;
-
-LOG_CATEGORY(gSystemLog);

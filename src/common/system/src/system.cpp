@@ -33,13 +33,13 @@ void sys::create(HINSTANCE hInstance) {
     );
 
     if (hIcon == nullptr) {
-        gSystemLog.warn("failed to load icon {}", getLastError());
+        LOG_WARN(SystemLog, "failed to load icon {}", getLastError());
     }
 
     HCURSOR hCursor = LoadCursorA(nullptr, IDC_ARROW);
 
     if (hCursor == nullptr) {
-        gSystemLog.warn("failed to load cursor {}", getLastError());
+        LOG_WARN(SystemLog, "failed to load cursor {}", getLastError());
     }
 
     const WNDCLASSEXA kClass = {
@@ -70,7 +70,7 @@ void sys::create(HINSTANCE hInstance) {
     }
 
     if (gExecutablePathLength >= kPathMax) {
-        gSystemLog.warn("executable path longer than {}, may be truncated", kPathMax);
+        LOG_WARN(SystemLog, "executable path longer than {}, may be truncated", kPathMax);
     }
 
     gProgramPath = fs::path{gExecutablePath, gExecutablePath + gExecutablePathLength};

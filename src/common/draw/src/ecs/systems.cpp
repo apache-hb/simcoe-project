@@ -1,11 +1,13 @@
 #include "stdafx.hpp"
 
+#include "logs/structured/logging.hpp"
+
 #include "draw/draw.hpp"
 #include "world/ecs.hpp"
 
 using namespace sm;
 
-LOG_CATEGORY_IMPL(gDrawLog, "Draw");
+LOG_MESSAGE_CATEGORY(DrawLog, "Draw");
 
 flecs::query<
     const world::ecs::Position,

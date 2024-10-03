@@ -5,12 +5,6 @@
 
 #include "dao/dao.hpp"
 
-#include "logs/logs.hpp"
-
-namespace sm::db {
-    LOG_CATEGORY(gLog);
-}
-
 namespace sm::db::detail {
     struct IEnvironment {
         virtual ~IEnvironment() = default;

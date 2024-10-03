@@ -220,7 +220,7 @@ DbResult<Environment> Environment::tryCreate(DbType type, const EnvConfig& confi
 DbResult<Connection> Environment::tryConnect(const ConnectionConfig& config) noexcept {
     detail::IConnection *connection = nullptr;
 
-    gLog.info("Connecting to database: {}:{}/{} as role `{}`", config.host, config.port, config.database, config.user);
+    LOG_INFO(DbLog, "Connecting to database: {}:{}/{} as role `{}`", config.host, config.port, config.database, config.user);
     if (DbError error = mImpl->connect(config, &connection))
         return std::unexpected(error);
 

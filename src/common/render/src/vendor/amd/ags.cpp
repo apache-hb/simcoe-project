@@ -18,16 +18,16 @@ using namespace sm::render;
 
 static_assert(sizeof(AGSReturnCode) <= sizeof(int), "AGSReturnCode size mismatch");
 
-static LOG_CATEGORY_IMPL(gAgsLogs, "ags");
+LOG_MESSAGE_CATEGORY(AgsLog, "AMD Gpu Services");
 
 static AGSContext *gAgsContext = nullptr;
 static AGSGPUInfo gAgsGpuInfo = {};
 
 template<typename T>
 static T getLibrarySymbol(HMODULE module, const char *name) {
-    auto symbol = (T)(void*)::GetProcAddress(module, name);
+    auto symbol = reinterpret_cast<T>(::GetProcAddress(module, name));
     if (!symbol) {
-        gAgsLogs.error("Failed to get symbol: {}", name);
+        LOG_ERROR(AgsLog, "Failed to get symbol: {}", name);
         return nullptr;
     }
 

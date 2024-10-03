@@ -86,7 +86,7 @@ static LUID getOverrideLUID() {
     {
         auto [ptr, ec] = std::from_chars(high.data(), high.data() + high.size(), result.HighPart, 16);
         if (ec != std::errc()) {
-            gGpuLog.error("failed to parse high part of adapter LUID: {}", high);
+            LOG_ERROR(GpuLog, "failed to parse high part of adapter LUID: {}", high);
             return { 0, 0 };
         }
     }
@@ -94,7 +94,7 @@ static LUID getOverrideLUID() {
     {
         auto [ptr, ec] = std::from_chars(low.data(), low.data() + low.size(), result.LowPart, 16);
         if (ec != std::errc()) {
-            gGpuLog.error("failed to parse low part of adapter LUID: {}", low);
+            LOG_ERROR(GpuLog, "failed to parse low part of adapter LUID: {}", low);
             return { 0, 0 };
         }
     }
@@ -177,26 +177,28 @@ static uint getSwapChainFlags(const Instance& instance) {
     return instance.isTearingSupported() ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 }
 
-static logs::Severity getSeverityLevel(MessageSeverity sev) {
-    using enum MessageSeverity::Inner;
-
-    switch (sev.as_enum()) {
-    case eMessage: return logs::Severity::eTrace;
-    case eInfo: return logs::Severity::eInfo;
-    case eWarning: return logs::Severity::eWarning;
-    case eError: return logs::Severity::eError;
-    case eCorruption: return logs::Severity::eFatal;
-
-    default: return logs::Severity::eError;
-    }
-}
-
 static void onQueueMessage(D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID id, LPCSTR desc, void *user) {
     MessageCategory c{category};
     MessageSeverity s{severity};
     MessageID message{id};
 
-    gGpuLog.log(getSeverityLevel(s), "{} {}: {}", c, message, desc);
+    switch (severity) {
+    case D3D12_MESSAGE_SEVERITY_CORRUPTION:
+        LOG_PANIC(GpuLog, "{} {}: {}", c, message, desc);
+        break;
+    case D3D12_MESSAGE_SEVERITY_ERROR:
+        LOG_ERROR(GpuLog, "{} {}: {}", c, message, desc);
+        break;
+    case D3D12_MESSAGE_SEVERITY_WARNING:
+        LOG_WARN(GpuLog, "{} {}: {}", c, message, desc);
+        break;
+    case D3D12_MESSAGE_SEVERITY_INFO:
+        LOG_INFO(GpuLog, "{} {}: {}", c, message, desc);
+        break;
+    case D3D12_MESSAGE_SEVERITY_MESSAGE:
+        LOG_DEBUG(GpuLog, "{} {}: {}", c, message, desc);
+        break;
+    }
 }
 
 void IDeviceContext::enable_info_queue() {
@@ -205,7 +207,7 @@ void IDeviceContext::enable_info_queue() {
         mInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
         mInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
     } else {
-        gGpuLog.warn("failed to query info queue: {}", hr);
+        LOG_WARN(GpuLog, "failed to query info queue: {}", hr);
     }
 }
 
@@ -215,13 +217,13 @@ void IDeviceContext::enable_debug_layer(bool gbv, bool rename) {
 
         Object<ID3D12Debug3> debug3;
         if (mDebug.query(&debug3)) debug3->SetEnableGPUBasedValidation(gbv);
-        else gGpuLog.warn("failed to get debug3 interface: {}", hr);
+        else LOG_WARN(GpuLog, "failed to get debug3 interface: {}", hr);
 
         Object<ID3D12Debug5> debug5;
         if (mDebug.query(&debug5)) debug5->SetEnableAutoName(rename);
-        else gGpuLog.warn("failed to get debug5 interface: {}", hr);
+        else LOG_WARN(GpuLog, "failed to get debug5 interface: {}", hr);
     } else {
-        gGpuLog.warn("failed to get debug interface: {}", hr);
+        LOG_WARN(GpuLog, "failed to get debug interface: {}", hr);
     }
 }
 
@@ -230,7 +232,7 @@ void IDeviceContext::disable_debug_layer() {
     if (Result hr = D3D12GetDebugInterface(IID_PPV_ARGS(&debug4))) {
         debug4->DisableDebugLayer();
     } else {
-        gGpuLog.warn("failed to query debug4 interface: {}", hr);
+        LOG_WARN(GpuLog, "failed to query debug4 interface: {}", hr);
     }
 }
 
@@ -240,21 +242,21 @@ void IDeviceContext::enable_dred(bool enabled) {
         dred->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
         dred->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
     } else {
-        gGpuLog.warn("failed to query dred settings: {}", hr);
+        LOG_WARN(GpuLog, "failed to query dred settings: {}", hr);
     }
 }
 
 void IDeviceContext::query_root_signature_version() {
     mRootSignatureVersion = mFeatureSupport.HighestRootSignatureVersion();
-    gGpuLog.info("root signature version: {}", mRootSignatureVersion);
+    LOG_INFO(GpuLog, "root signature version: {}", mRootSignatureVersion);
 }
 
 void IDeviceContext::serialize_root_signature(Object<ID3D12RootSignature>& signature, const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& desc) {
     Blob serialized;
     Blob error;
     if (Result hr = D3DX12SerializeVersionedRootSignature(&desc, mRootSignatureVersion.as_facade(), &serialized, &error); !hr) {
-        gGpuLog.error("failed to serialize root signature: {}", hr);
-        gGpuLog.error("| error: {}", error.as_string());
+        LOG_ERROR(GpuLog, "failed to serialize root signature: {}", hr);
+        LOG_ERROR(GpuLog, "| error: {}", error.as_string());
         SM_ASSERT_HR(hr);
     }
 
@@ -263,7 +265,7 @@ void IDeviceContext::serialize_root_signature(Object<ID3D12RootSignature>& signa
 
 void IDeviceContext::create_device(Adapter& adapter) {
     if (auto flags = adapter.flags(); flags.test(AdapterFlag::eSoftware) && mDebugFlags.test(DebugFlags::eGpuValidation)) {
-        gGpuLog.warn("adapter `{}` is a software adapter, enabling gpu validation has major performance implications", adapter.name());
+        LOG_WARN(GpuLog, "adapter `{}` is a software adapter, enabling gpu validation has major performance implications", adapter.name());
     }
 
     if (mDebugFlags.test(DebugFlags::eDeviceDebugLayer))
@@ -277,16 +279,16 @@ void IDeviceContext::create_device(Adapter& adapter) {
 
     set_current_adapter(adapter);
     if (Result hr = D3D12CreateDevice(adapter.get(), fl.as_facade(), IID_PPV_ARGS(&mDevice)); !hr) {
-        gGpuLog.error("failed to create device `{}` at feature level `{}`", adapter.name(), fl, hr);
-        gGpuLog.error("| hresult: {}", hr);
-        gGpuLog.error("falling back to warp adapter...");
+        LOG_ERROR(GpuLog, "failed to create device `{}` at feature level `{}`", adapter.name(), fl, hr);
+        LOG_ERROR(GpuLog, "| hresult: {}", hr);
+        LOG_ERROR(GpuLog, "falling back to warp adapter...");
 
         Adapter& warp = mInstance.getWarpAdapter();
         set_current_adapter(warp);
         SM_ASSERT_HR(D3D12CreateDevice(warp.get(), fl.as_facade(), IID_PPV_ARGS(&mDevice)));
     }
 
-    gGpuLog.info("device created: {}", mCurrentAdapter->name());
+    LOG_INFO(GpuLog, "device created: {}", mCurrentAdapter->name());
 
     if (mDebugFlags.test(DebugFlags::eInfoQueue))
         enable_info_queue();
@@ -295,8 +297,8 @@ void IDeviceContext::create_device(Adapter& adapter) {
 
     query_root_signature_version();
 
-    gGpuLog.info("| feature level: {}", fl);
-    gGpuLog.info("| flags: {}", mDebugFlags);
+    LOG_INFO(GpuLog, "| feature level: {}", fl);
+    LOG_INFO(GpuLog, "| flags: {}", mDebugFlags);
 }
 
 static constexpr D3D12MA::ALLOCATOR_FLAGS kAllocatorFlags = D3D12MA::ALLOCATOR_FLAG_DEFAULT_POOLS_NOT_ZEROED | D3D12MA::ALLOCATOR_FLAG_SINGLETHREADED;
@@ -901,7 +903,7 @@ IDeviceContext::IDeviceContext(const RenderConfig& config)
 
 void IDeviceContext::create() {
     if (!mInstance.hasViableAdapter()) {
-        gGpuLog.error("no viable adapter found, exiting...");
+        LOG_ERROR(GpuLog, "no viable adapter found, exiting...");
         return;
     }
 
@@ -911,7 +913,7 @@ void IDeviceContext::create() {
             if (Adapter *adapter = mInstance.getAdapterByLUID(luid)) {
                 return *adapter;
             }
-            gGpuLog.warn("adapter with luid {:x}:{:x} not found, falling back to default adapter", luid.HighPart, luid.LowPart);
+            LOG_WARN(GpuLog, "adapter with luid {:x}:{:x} not found, falling back to default adapter", luid.HighPart, luid.LowPart);
         } else if (mDebugFlags.test(DebugFlags::eWarpAdapter)) {
             return mInstance.getWarpAdapter();
         }
