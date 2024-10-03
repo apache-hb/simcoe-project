@@ -21,11 +21,11 @@ static FARPROC WINAPI dllDelayLoadHook(unsigned notify, PDelayLoadInfo info) {
         auto library = LoadLibrary(path.string().c_str());
 
         if (library != nullptr) {
-            logs::gDebug.info("dllDelayLoadHook: loaded: {}", path);
+            LOG_INFO(SystemLog, "dllDelayLoadHook: loaded: {}", path);
             return reinterpret_cast<FARPROC>(library);
         }
 
-        logs::gDebug.warn("dllDelayLoadHook: failed to load: {}", path);
+        LOG_WARN(SystemLog, "dllDelayLoadHook: failed to load: {}", path);
     }
 
     return nullptr;

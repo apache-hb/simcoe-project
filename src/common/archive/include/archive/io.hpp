@@ -7,7 +7,11 @@
 
 #include "core/memory/unique.hpp"
 
+#include "logs/structured/logging.hpp"
+
 #include "io.reflect.h"
+
+LOG_MESSAGE_CATEGORY(IoLog, "IO");
 
 namespace sm {
     constexpr auto kIoClose = [](io_t *io) {

@@ -1,3 +1,4 @@
+#include "archive/io.hpp"
 #include "stdafx.hpp"
 
 #include "core/map.hpp"
@@ -65,7 +66,7 @@ struct ArchiveFileSystem final : sm::IFileSystem {
                 break;
 
             if (r != ARCHIVE_OK) {
-                logs::gAssets.error("failed to read archive: {}", archive_error_string(archive));
+                LOG_ERROR(IoLog, "failed to read archive: {}", archive_error_string(archive));
                 continue;
             }
 
@@ -92,7 +93,7 @@ struct ArchiveFileSystem final : sm::IFileSystem {
         archive_read_support_format_all(archive);
         int r = archive_read_open_filename(archive, path.string().c_str(), 10240);
         if (r != ARCHIVE_OK) {
-            logs::gAssets.error("failed to open archive: {} ({})", path.string(), archive_error_string(archive));
+            LOG_ERROR(IoLog, "failed to open archive: {} ({})", path.string(), archive_error_string(archive));
             archive_read_free(archive);
             return;
         }

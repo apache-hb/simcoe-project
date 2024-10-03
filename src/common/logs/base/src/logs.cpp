@@ -5,9 +5,6 @@
 using namespace sm;
 using namespace sm::logs;
 
-LOG_CATEGORY_IMPL(logs::gDebug, "Debug");
-LOG_CATEGORY_IMPL(logs::gAssets, "Assets");
-
 static constexpr colour_t getSeverityColour(Severity severity) {
     using enum logs::Severity;
     switch (severity) {

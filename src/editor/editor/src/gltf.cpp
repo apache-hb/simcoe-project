@@ -2,6 +2,8 @@
 
 #include "editor/editor.hpp"
 
+LOG_MESSAGE_CATEGORY(GltfLog, "GLTF Import");
+
 using namespace sm;
 using namespace sm::ed;
 using namespace sm::math;
@@ -69,24 +71,24 @@ void Editor::importGltf(const fs::path& path) {
     auto gltfLoadImage = [&](uint index, const fg::Image& image) {
         std::visit(fg::visitor {
             [&](const auto& arg) {
-                logs::gAssets.warn("Unknown image load type (name: {})", image.name);
+                LOG_WARN(GltfLog, "Unknown image load type (name: {})", image.name);
             },
             [&](const fg::sources::URI& uri) {
-                logs::gAssets.info("Loading image from URI: {}", uri.uri.fspath().string());
+                LOG_INFO(GltfLog, "Loading image from URI: {}", uri.uri.fspath().string());
                 world::IndexOf img = loadImageInfo(mContext.mWorld, parent / uri.uri.fspath());
                 if (img != world::kInvalidIndex) {
                     mContext.upload_image(img);
 
                     imageMap.emplace(index, img);
                 } else {
-                    logs::gAssets.error("Failed to load image: {}", image.name);
+                    LOG_ERROR(GltfLog, "Failed to load image: {}", image.name);
                 }
             },
             [&](const fg::sources::Array& array) {
-                logs::gAssets.info("Loading image from array: {}", image.name);
+                LOG_INFO(GltfLog, "Loading image from array: {}", image.name);
             },
             [&](const fg::sources::BufferView& view) {
-                logs::gAssets.info("Loading image from buffer view: {}", image.name);
+                LOG_INFO(GltfLog, "Loading image from buffer view: {}", image.name);
             }
         }, image.data);
     };
@@ -124,25 +126,25 @@ void Editor::importGltf(const fs::path& path) {
         auto *tangentAttr = primitive.findAttribute("TANGENT");
 
         if (posAttr == primitive.attributes.end()) {
-            logs::gAssets.error("Primitive has no position attribute");
+            LOG_ERROR(GltfLog, "Primitive has no position attribute");
             return world::kInvalidIndex;
         }
 
         if (!primitive.indicesAccessor.has_value()) {
-            logs::gAssets.error("Primitive has no indices accessor");
+            LOG_ERROR(GltfLog, "Primitive has no indices accessor");
             return world::kInvalidIndex;
         }
 
         auto& indexAccess = asset.accessors[primitive.indicesAccessor.value()];
         if (!indexAccess.bufferViewIndex.has_value()) {
-            logs::gAssets.error("Indices accessor has no buffer view");
+            LOG_ERROR(GltfLog, "Indices accessor has no buffer view");
             return world::kInvalidIndex;
         }
 
 
         auto& posAccess = asset.accessors[posAttr->second];
         if (!posAccess.bufferViewIndex.has_value()) {
-            logs::gAssets.error("Position accessor has no buffer view");
+            LOG_ERROR(GltfLog, "Position accessor has no buffer view");
             return world::kInvalidIndex;
         }
 
@@ -246,7 +248,7 @@ void Editor::importGltf(const fs::path& path) {
             }
         }();
 
-        logs::gAssets.info("Loading mesh: {}", name);
+        LOG_INFO(GltfLog, "Loading mesh: {}", name);
         sm::Vector<world::IndexOf<world::Model>> models;
         for (size_t i = 0; i < mesh.primitives.size(); i++) {
             world::IndexOf index = gltfLoadPrimitive(mesh.primitives[i], fmt::format("{}.{}", name, i));
@@ -267,7 +269,7 @@ void Editor::importGltf(const fs::path& path) {
             }
         }();
 
-        logs::gAssets.info("Loading node: {}", name);
+        LOG_INFO(GltfLog, "Loading node: {}", name);
 
         sm::Vector<world::IndexOf<world::Model>> models;
 
@@ -286,7 +288,7 @@ void Editor::importGltf(const fs::path& path) {
 
     auto gltfUpdateNode = [&](uint index, const fg::Node& node) {
         if (!nodeMap.contains(index)) {
-            logs::gAssets.error("Node {} not found", index);
+            LOG_ERROR(GltfLog, "Node {} not found", index);
             return;
         }
 
@@ -296,7 +298,7 @@ void Editor::importGltf(const fs::path& path) {
         // reparent children
         for (size_t child : node.children) {
             if (!nodeMap.contains(child)) {
-                logs::gAssets.error("Child node {} not found", child);
+                LOG_ERROR(GltfLog, "Child node {} not found", child);
                 continue;
             }
 
@@ -349,7 +351,7 @@ void Editor::importGltf(const fs::path& path) {
 
         for (size_t i : scene.nodeIndices) {
             if (!nodeMap.contains(i)) {
-                logs::gAssets.error("Node {} not found in scene", i);
+                LOG_ERROR(GltfLog, "Node {} not found in scene", i);
                 continue;
             }
 
@@ -374,5 +376,5 @@ void Editor::importGltf(const fs::path& path) {
         }
     });
 
-    logs::gAssets.info("Loaded glTF: {}", path.string());
+    LOG_INFO(GltfLog, "Loaded glTF: {}", path.string());
 }

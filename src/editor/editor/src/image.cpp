@@ -3,13 +3,15 @@
 #include "archive/image.hpp"
 #include "editor/editor.hpp"
 
+#include "archive/io.hpp"
+
 using namespace sm;
 using namespace sm::ed;
 
 world::IndexOf<world::Image> ed::loadImageInfo(world::World& world, const fs::path& path) {
     auto maybeImage = sm::openImage(path);
     if (!maybeImage.has_value()) {
-        logs::gAssets.warn("Failed to load image {}. {}", path.string(), maybeImage.error());
+        LOG_WARN(IoLog, "Failed to load image {}. {}", path.string(), maybeImage.error());
         return world::kInvalidIndex;
     }
 

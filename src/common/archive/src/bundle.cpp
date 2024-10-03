@@ -1,5 +1,7 @@
 #include "stdafx.hpp"
 
+#include "archive/io.hpp"
+
 #include "archive/bundle.hpp"
 
 #include "core/string.hpp"
@@ -17,7 +19,7 @@ sm::Span<const uint8> Bundle::getFileData(sm::StringView dir, sm::StringView nam
     auto path = fmt::format("bundle/{}/{}", dir, name);
     sm::View data = mFileSystem->readFileData(path);
     if (data.empty()) {
-        logs::gAssets.error("failed to read file: {}", path);
+        LOG_ERROR(IoLog, "failed to read file: {}", path);
         return {};
     }
 

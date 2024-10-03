@@ -140,9 +140,6 @@ namespace sm::logs {
         }
     };
 
-    LOG_CATEGORY(gDebug);
-    LOG_CATEGORY(gAssets);
-
     Logger& getGlobalLogger() noexcept;
     void shutdown() noexcept;
 

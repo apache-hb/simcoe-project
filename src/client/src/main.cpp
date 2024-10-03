@@ -1,3 +1,4 @@
+#include "archive/io.hpp"
 #include "stdafx.hpp"
 
 #include "draw/camera.hpp"
@@ -107,7 +108,7 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
         };
 
         if (db::DbError error = mConnection.tryInsert(dao)) {
-            logs::gAssets.warn("update failed: {}", error.message());
+            LOG_WARN(IoLog, "update failed: {}", error.message());
         }
     }
 
