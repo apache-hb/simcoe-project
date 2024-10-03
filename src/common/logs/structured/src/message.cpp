@@ -18,10 +18,16 @@ static_assert(BUILD_MESSAGE_ATTRIBUTES_IMPL("multiple {0} second {0} identical {
 static_assert(BUILD_MESSAGE_ATTRIBUTES_IMPL("thing {0} second {1} third {name}", 1, 2, fmt::arg("name", "bob")).size() == 3);
 
 static std::atomic<bool> gHasErrors = false;
+static const auto kStartTime = std::chrono::system_clock::now();
+static const auto kStartTicks = std::chrono::high_resolution_clock::now();
 
 static uint64_t getTimestamp() noexcept {
-    auto now = std::chrono::system_clock::now();
-    return uint64_t(now.time_since_epoch().count());
+    auto now = std::chrono::high_resolution_clock::now();
+    // use kStartTime and kStartTicks to calculate current time in milliseconds
+    auto ticksSinceStart = std::chrono::duration_cast<std::chrono::milliseconds>(now - kStartTicks);
+    auto timeSinceStart = kStartTime + ticksSinceStart;
+
+    return std::chrono::duration_cast<std::chrono::milliseconds>(timeSinceStart.time_since_epoch()).count();
 }
 
 static std::vector<MessageInfo> &getLogMessages() noexcept {
@@ -34,7 +40,7 @@ static std::vector<CategoryInfo> &getLogCategories() noexcept {
     return sLogCategories;
 }
 
-MessageId::MessageId(MessageInfo message) noexcept
+MessageId::MessageId(const MessageInfo& message) noexcept
     : info(message)
 {
     getLogMessages().emplace_back(message);

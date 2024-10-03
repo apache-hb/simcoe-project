@@ -7,9 +7,9 @@ namespace sm::logs::structured {
         std::string_view name;
         uint64_t hash;
 
-        consteval CategoryInfo(std::string_view name, uint64_t line) noexcept
+        consteval CategoryInfo(std::string_view name) noexcept
             : name(name)
-            , hash(detail::hashMessage(name, line))
+            , hash(detail::hashMessage(name))
         { }
     };
 

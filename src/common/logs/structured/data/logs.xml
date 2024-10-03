@@ -33,7 +33,8 @@
         <column name="line"     type="uint"               />
         <column name="function" type="text" length="3072" />
 
-        <unique name="unique_log_message_source_location">
+        <unique>
+            <column>message</column>
             <column>path</column>
             <column>line</column>
             <column>function</column>

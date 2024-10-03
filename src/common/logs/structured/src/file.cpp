@@ -1,6 +1,5 @@
 #include "stdafx.hpp"
 
-#include "logs/structured/category.hpp"
 #include "logs/structured/channel.hpp"
 
 #include <fstream>

@@ -41,7 +41,7 @@ namespace sm::logs::structured {
 #define LOG_MESSAGE_CATEGORY(id, name) \
     struct id final : public sm::logs::structured::CategoryInfo { \
         constexpr id() noexcept \
-            : CategoryInfo(sm::logs::structured::CategoryInfo{name, __LINE__}) \
+            : CategoryInfo(sm::logs::structured::CategoryInfo{name}) \
         { } \
     }
 

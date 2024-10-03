@@ -112,7 +112,7 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
     std::optional<WINDOWPLACEMENT> loadWindowPlacement() noexcept {
         auto result = mConnection.trySelectOne<sm::dao::archive::WindowPlacement>();
         if (!result.has_value()) {
-            logs::gGlobal.warn("failed to load window placement: {}", result.error().message());
+            LOG_WARN(GlobalLog, "failed to load window placement: {}", result.error());
             return std::nullopt;
         }
 

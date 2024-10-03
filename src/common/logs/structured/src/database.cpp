@@ -42,8 +42,6 @@ static void registerMessagesWithDb(
     std::span<const structured::CategoryInfo> categories,
     std::span<const structured::MessageInfo> messages
 ) {
-    fmt::println(stderr, "Registering messages with database");
-
     connection.createTable(sm::dao::logs::LogSession::getTableInfo());
     connection.createTable(sm::dao::logs::LogSeverity::getTableInfo());
     connection.createTable(sm::dao::logs::LogCategory::getTableInfo());
@@ -101,8 +99,6 @@ static void registerMessagesWithDb(
             connection.insertOrUpdate(daoAttribute);
         }
     }
-
-    fmt::println(stderr, "Done registering messages with database");
 }
 
 class DbChannel final : public structured::ILogChannel {
@@ -132,8 +128,6 @@ class DbChannel final : public structured::ILogChannel {
     }
 
     void postMessage(structured::LogMessagePacket packet) noexcept override {
-        fmt::println(stderr, "post message");
-
         mQueue.enqueue(LogEntryPacket {
             .timestamp = packet.timestamp,
             .message = &packet.message,
@@ -143,8 +137,6 @@ class DbChannel final : public structured::ILogChannel {
 
     void commit(std::span<const LogEntryPacket> packets) noexcept {
         db::Transaction tx(&mConnection);
-        fmt::println(stderr, "Sending {} messages with database", packets.size());
-
 
         for (const auto& [timestamp, message, args] : packets) {
             sm::dao::logs::LogEntry entry {

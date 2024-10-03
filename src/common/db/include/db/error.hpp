@@ -128,3 +128,14 @@ namespace sm::db {
         std::string_view statement() const noexcept { return mStatement; }
     };
 }
+
+template<>
+struct fmt::formatter<sm::db::DbError> {
+    constexpr auto parse(fmt::format_parse_context& ctx) const {
+        return ctx.begin();
+    }
+
+    constexpr auto format(const sm::db::DbError& error, fmt::format_context& ctx) const {
+        return format_to(ctx.out(), "DbError({}: {})", error.code(), error.message());
+    }
+};

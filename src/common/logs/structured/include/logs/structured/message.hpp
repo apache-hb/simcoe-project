@@ -24,7 +24,7 @@ namespace sm::logs::structured {
             const CategoryInfo& category, std::source_location location,
             int indexAttributeCount, std::span<const MessageAttributeInfo> namedAttributes
         ) noexcept
-            : hash(detail::hashMessage(message, location.line()))
+            : hash(detail::hashMessage(message))
             , level(level)
             , category(category)
             , message(message)
@@ -38,8 +38,8 @@ namespace sm::logs::structured {
 
     namespace detail {
         struct MessageId {
-            MessageId(MessageInfo message) noexcept;
-            const MessageInfo info;
+            MessageId(const MessageInfo& message) noexcept;
+            const MessageInfo& info;
         };
 
         template<typename T>

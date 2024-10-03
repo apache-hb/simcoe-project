@@ -31,7 +31,7 @@ TEST_CASE("Setup logging") {
     };
 
     BENCHMARK("Log message with arguments") {
-        LOG_INFO(TestLog, "Benchmark logging message with {arg}", 5);
+        LOG_INFO(TestLog, "Benchmark logging message with {arg}", fmt::arg("arg", 42));
     };
 
     logs::structured::cleanup();
