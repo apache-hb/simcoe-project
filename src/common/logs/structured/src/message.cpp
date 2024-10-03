@@ -17,6 +17,8 @@ static_assert(BUILD_MESSAGE_ATTRIBUTES_IMPL("thing {0}", 1).size() == 1);
 static_assert(BUILD_MESSAGE_ATTRIBUTES_IMPL("multiple {0} second {0} identical {0} indices", 1).size() == 1);
 static_assert(BUILD_MESSAGE_ATTRIBUTES_IMPL("thing {0} second {1} third {name}", 1, 2, fmt::arg("name", "bob")).size() == 3);
 
+// theres probably like 2 or 3 ticks of difference between these
+// but it's not really a big deal
 static const auto kStartTime = std::chrono::system_clock::now();
 static const auto kStartTicks = std::chrono::high_resolution_clock::now();
 
