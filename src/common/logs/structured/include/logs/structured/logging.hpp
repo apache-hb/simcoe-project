@@ -11,7 +11,6 @@ namespace sm::db {
 
 namespace sm::logs::structured {
     void setup(db::Connection& connection);
-    bool isRunning() noexcept;
     void cleanup();
 
     struct MessageStore {

@@ -21,8 +21,6 @@ TEST_CASE("Setup logging") {
             LOG_INFO(TestLog, "Log message {0}", 5);
 
             LOG_INFO(TestLog, "Logging with {multiple} {parameters}", fmt::arg("multiple", 1), fmt::arg("parameters", false));
-
-            CHECK(logs::structured::isRunning());
         }
     }
 

@@ -17,13 +17,13 @@ static_assert(BUILD_MESSAGE_ATTRIBUTES_IMPL("thing {0}", 1).size() == 1);
 static_assert(BUILD_MESSAGE_ATTRIBUTES_IMPL("multiple {0} second {0} identical {0} indices", 1).size() == 1);
 static_assert(BUILD_MESSAGE_ATTRIBUTES_IMPL("thing {0} second {1} third {name}", 1, 2, fmt::arg("name", "bob")).size() == 3);
 
-static std::atomic<bool> gHasErrors = false;
 static const auto kStartTime = std::chrono::system_clock::now();
 static const auto kStartTicks = std::chrono::high_resolution_clock::now();
 
 static uint64_t getTimestamp() noexcept {
-    auto now = std::chrono::high_resolution_clock::now();
     // use kStartTime and kStartTicks to calculate current time in milliseconds
+    // using high_resolution_clock is much faster than system_clock on windows
+    auto now = std::chrono::high_resolution_clock::now();
     auto ticksSinceStart = std::chrono::duration_cast<std::chrono::milliseconds>(now - kStartTicks);
     auto timeSinceStart = kStartTime + ticksSinceStart;
 
@@ -63,10 +63,6 @@ structured::MessageStore structured::getMessages() noexcept {
 
 void structured::detail::postLogMessage(const MessageInfo& message, ArgStore args) noexcept {
     Logger::instance().postMessage(message, std::move(args));
-}
-
-bool structured::isRunning() noexcept {
-    return !gHasErrors;
 }
 
 void structured::setup(db::Connection& connection) {
