@@ -1,5 +1,7 @@
-#include "editor/panels/viewport.hpp"
 #include "stdafx.hpp"
+
+#include "editor/panels/viewport.hpp"
+#include "logs/structured/logging.hpp"
 
 #include "editor/draw.hpp"
 
@@ -50,7 +52,7 @@ void EditorContext::init() {
         .event(flecs::OnSet)
         .event(flecs::UnSet)
         .iter([this](flecs::iter& it, const world::ecs::Camera*) {
-            logs::gGlobal.info("Camera event: {} ({})", it.event().name().c_str(), it.count());
+            LOG_INFO(GlobalLog, "Camera event: {} ({})", it.event().name().c_str(), it.count());
             mFrameGraphDirty = true;
         });
 }

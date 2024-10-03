@@ -61,6 +61,7 @@ namespace sm::net {
             : mError(std::move(error))
         { }
 
+        NetError error() const noexcept { return mError; }
         const char *what() const noexcept override { return mError.what(); }
     };
 

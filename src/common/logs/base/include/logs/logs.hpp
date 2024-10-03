@@ -140,7 +140,6 @@ namespace sm::logs {
         }
     };
 
-    LOG_CATEGORY(gGlobal);
     LOG_CATEGORY(gDebug);
     LOG_CATEGORY(gAssets);
 

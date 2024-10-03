@@ -312,8 +312,8 @@ static int serverMain() {
 }
 
 static int commonMain() noexcept try {
-    logs::gGlobal.info("SMC_DEBUG = {}", SMC_DEBUG);
-    logs::gGlobal.info("CTU_DEBUG = {}", CTU_DEBUG);
+    LOG_INFO(GlobalLog, "SMC_DEBUG = {}", SMC_DEBUG);
+    LOG_INFO(GlobalLog, "CTU_DEBUG = {}", CTU_DEBUG);
 
     if (gRunAsClient.getValue()) {
         return clientMain();
@@ -333,7 +333,7 @@ int main(int argc, const char **argv) noexcept try {
     defer { gLogWrapper.reset(); };
 
     sm::Span<const char*> args{argv, size_t(argc)};
-    logs::gGlobal.info("args = [{}]", fmt::join(args, ", "));
+    LOG_INFO(GlobalLog, "args = [{}]", fmt::join(args, ", "));
 
     int result = [&] {
         sys::create(GetModuleHandleA(nullptr));
