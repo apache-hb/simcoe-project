@@ -128,7 +128,7 @@ void ecs::lightBinning(
         auto lightIndicesHandle = context.mSrvPool.gpu_handle(lightIndices);
 
         const ecs::ViewportDeviceData *vpd = camera.get<ecs::ViewportDeviceData>();
-        logs::gGlobal.info("window size: {}", ((ViewportData*)vpd->mapped)->windowSize);
+        // LOG_INFO(GlobalLog, "window size: {}", ((ViewportData*)vpd->mapped)->windowSize);
 
         commands->SetComputeRootSignature(data.pipeline.signature.get());
         commands->SetPipelineState(data.pipeline.pso.get());

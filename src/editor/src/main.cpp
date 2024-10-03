@@ -28,7 +28,7 @@
 
 #include "core/defer.hpp"
 
-#include "logs/structured/message.hpp"
+#include "logs/structured/logging.hpp"
 
 #include "archive.dao.hpp"
 
@@ -58,6 +58,13 @@ static sm::opt<bool> gBundlePacked {
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
                                                              LPARAM lParam);
+
+struct LoggingDb {
+    db::Environment sqlite = db::Environment::create(db::DbType::eSqlite3);
+    db::Connection connection = sqlite.connect({ .host = "editor-logs.db" });
+};
+
+static sm::UniquePtr<LoggingDb> gLogging;
 
 static fmt_backtrace_t print_options_make(io_t *io) {
     fmt_backtrace_t print = {
@@ -118,14 +125,14 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
         };
 
         if (db::DbError error = mConnection.tryInsert(dao)) {
-            logs::gAssets.warn("update failed: {}", error.message());
+            LOG_WARN(GlobalLog, "update failed: {}", error);
         }
     }
 
     std::optional<WINDOWPLACEMENT> loadWindowPlacement() noexcept {
         auto result = mConnection.trySelectOne<sm::dao::archive::WindowPlacement>();
         if (!result.has_value()) {
-            logs::gGlobal.warn("failed to load window placement: {}", result.error().message());
+            LOG_WARN(GlobalLog, "failed to load window placement: {}", result.error());
             return std::nullopt;
         }
 
@@ -152,12 +159,12 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
         };
 
         if (LONG width = placement.rcNormalPosition.right - placement.rcNormalPosition.left; width < kMinWindowSize.x) {
-            logs::gGlobal.warn("window placement width too small {}, ignoring possibly corrupted data", width);
+            LOG_WARN(GlobalLog, "window placement width too small {}, ignoring possibly corrupted data", width);
             return std::nullopt;
         }
 
         if (LONG height = placement.rcNormalPosition.bottom - placement.rcNormalPosition.top; height < kMinWindowSize.y) {
-            logs::gGlobal.warn("window placement height too small {}, ignoring possibly corrupted data", height);
+            LOG_WARN(GlobalLog, "window placement height too small {}, ignoring possibly corrupted data", height);
             return std::nullopt;
         }
 
@@ -171,7 +178,7 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
 
     void resize(sys::Window &window, math::int2 size) override {
         if (size.x < kMinWindowSize.x || size.y < kMinWindowSize.y) {
-            logs::gGlobal.warn("resize too small {}/{}, ignoring", size.x, size.y);
+            LOG_WARN(GlobalLog, "resize too small {}/{}, ignoring", size.x, size.y);
             return;
         }
 
@@ -184,10 +191,10 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
 
     void create(sys::Window &window) override {
         if (auto placement = loadWindowPlacement()) {
-            logs::gGlobal.info("create window with placement");
+            LOG_INFO(GlobalLog, "create window with placement");
             window.setPlacement(*placement);
         } else {
-            logs::gGlobal.info("create window without placement");
+            LOG_INFO(GlobalLog, "create window without placement");
             window.centerWindow(sys::MultiMonitor::ePrimary);
         }
     }
@@ -202,7 +209,7 @@ public:
         : mConnection(connection)
     {
         if (db::DbError error = connection.tryCreateTable(sm::dao::archive::WindowPlacement::getTableInfo())) {
-            logs::gAssets.warn("update failed: {}", error.message());
+            LOG_WARN(GlobalLog, "update failed: {}", error);
         }
     }
 
@@ -218,27 +225,12 @@ public:
 static DefaultSystemError gDefaultError{};
 static logs::FileChannel gFileChannel{};
 
-struct LogWrapper {
-    db::Environment env;
-    db::Connection connection;
-
-    LogWrapper()
-        : env(db::Environment::create(db::DbType::eSqlite3))
-        , connection(env.connect({ .host = "editor-logs.db" }))
-    {
-        sm::logs::structured::setup(connection);
-    }
-
-    ~LogWrapper() {
-        sm::logs::structured::cleanup();
-    }
-};
-
-sm::UniquePtr<LogWrapper> gLogWrapper;
-
 static void commonInit(void) {
-    // bt_init();
+    gLogging = sm::makeUnique<LoggingDb>();
+
+    bt_init();
     os_init();
+    logs::structured::setup(gLogging->connection);
 
     // TODO: popup window for panics and system errors
     gSystemError = gDefaultError;
@@ -272,10 +264,8 @@ static void commonInit(void) {
         gFileChannel = std::move(file.value());
         logger.addChannel(gFileChannel);
     } else {
-        logs::gGlobal.error("failed to open log file: {}", file.error());
+        LOG_ERROR(GlobalLog, "failed to open log file: {}", file.error());
     }
-
-    gLogWrapper = sm::makeUnique<LogWrapper>();
 
     threads::init();
 }
@@ -478,29 +468,29 @@ static int editorMain(sys::ShowWindow show) {
 }
 
 static int commonMain(sys::ShowWindow show) noexcept try {
-    logs::gGlobal.info("SMC_DEBUG = {}", SMC_DEBUG);
-    logs::gGlobal.info("CTU_DEBUG = {}", CTU_DEBUG);
+    LOG_INFO(GlobalLog, "SMC_DEBUG = {}", SMC_DEBUG);
+    LOG_INFO(GlobalLog, "CTU_DEBUG = {}", CTU_DEBUG);
 
     int result = editorMain(show);
 
     return result;
 } catch (const db::DbException& err) {
-    logs::gGlobal.error("database error: {} ({})", err.what(), err.code());
+    LOG_ERROR(GlobalLog, "database error: {} ({})", err.what(), err.code());
     return -1;
 } catch (const std::exception& err) {
-    logs::gGlobal.error("unhandled exception: {}", err.what());
+    LOG_ERROR(GlobalLog, "unhandled exception: {}", err.what());
     return -1;
 } catch (...) {
-    logs::gGlobal.error("unknown unhandled exception");
+    LOG_ERROR(GlobalLog, "unknown unhandled exception");
     return -1;
 }
 
 int main(int argc, const char **argv) noexcept try {
     commonInit();
-    defer { gLogWrapper.reset(); };
+    defer { logs::structured::cleanup(); };
 
     sm::Span<const char*> args{argv, size_t(argc)};
-    logs::gGlobal.info("args = [{}]", fmt::join(args, ", "));
+    LOG_INFO(GlobalLog, "args = [{}]", fmt::join(args, ", "));
 
     int result = [&] {
         sys::create(GetModuleHandleA(nullptr));
@@ -513,28 +503,28 @@ int main(int argc, const char **argv) noexcept try {
         return commonMain(sys::ShowWindow::eShow);
     }();
 
-    logs::gGlobal.info("editor exiting with {}", result);
+    LOG_INFO(GlobalLog, "editor exiting with {}", result);
 
     logs::shutdown();
 
     return result;
 } catch (const db::DbException& err) {
-    logs::gGlobal.error("database error: {} ({})", err.what(), err.code());
+    LOG_ERROR(GlobalLog, "database error: {}", err.error());
     return -1;
 } catch (const std::exception& err) {
-    logs::gGlobal.error("unhandled exception: {}", err.what());
+    LOG_ERROR(GlobalLog, "unhandled exception: {}", err.what());
     return -1;
 } catch (...) {
-    logs::gGlobal.error("unknown unhandled exception");
+    LOG_ERROR(GlobalLog, "unknown unhandled exception");
     return -1;
 }
 
 int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
     commonInit();
-    defer { gLogWrapper.reset(); };
+    defer { logs::structured::cleanup(); };
 
-    logs::gGlobal.info("lpCmdLine = {}", lpCmdLine);
-    logs::gGlobal.info("nShowCmd = {}", nShowCmd);
+    LOG_INFO(GlobalLog, "lpCmdLine = {}", lpCmdLine);
+    LOG_INFO(GlobalLog, "nShowCmd = {}", nShowCmd);
     // TODO: parse lpCmdLine
 
     int result = [&] {
@@ -544,7 +534,7 @@ int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdL
         return commonMain(sys::ShowWindow{nShowCmd});
     }();
 
-    logs::gGlobal.info("editor exiting with {}", result);
+    LOG_INFO(GlobalLog, "editor exiting with {}", result);
 
     logs::shutdown();
 

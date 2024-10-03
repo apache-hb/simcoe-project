@@ -139,12 +139,12 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
         };
 
         if (LONG width = placement.rcNormalPosition.right - placement.rcNormalPosition.left; width < kMinWindowSize.x) {
-            logs::gGlobal.warn("window placement width too small {}, ignoring possibly corrupted data", width);
+            LOG_WARN(GlobalLog, "window placement width too small {}, ignoring possibly corrupted data", width);
             return std::nullopt;
         }
 
         if (LONG height = placement.rcNormalPosition.bottom - placement.rcNormalPosition.top; height < kMinWindowSize.y) {
-            logs::gGlobal.warn("window placement height too small {}, ignoring possibly corrupted data", height);
+            LOG_WARN(GlobalLog, "window placement height too small {}, ignoring possibly corrupted data", height);
             return std::nullopt;
         }
 
@@ -158,7 +158,7 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
 
     void resize(sys::Window &window, math::int2 size) override {
         if (size.x < kMinWindowSize.x || size.y < kMinWindowSize.y) {
-            logs::gGlobal.warn("resize too small {}/{}, ignoring", size.x, size.y);
+            LOG_WARN(GlobalLog, "resize too small {}/{}, ignoring", size.x, size.y);
             return;
         }
 
@@ -171,10 +171,10 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
 
     void create(sys::Window &window) override {
         if (auto placement = loadWindowPlacement()) {
-            logs::gGlobal.info("create window with placement");
+            LOG_INFO(GlobalLog, "create window with placement");
             window.setPlacement(*placement);
         } else {
-            logs::gGlobal.info("create window without placement");
+            LOG_INFO(GlobalLog, "create window without placement");
             window.centerWindow(sys::MultiMonitor::ePrimary);
         }
     }
@@ -189,7 +189,7 @@ public:
         : mConnection(connection)
     {
         if (db::DbError error = connection.tryCreateTable(sm::dao::archive::WindowPlacement::getTableInfo())) {
-            logs::gAssets.warn("update failed: {}", error.message());
+            LOG_WARN(GlobalLog, "update failed: {}", error.message());
         }
     }
 
@@ -205,9 +205,19 @@ public:
 constinit static DefaultSystemError gDefaultError{};
 static logs::FileChannel gFileChannel{};
 
+struct LoggingDb {
+    db::Environment sqlite = db::Environment::create(db::DbType::eSqlite3);
+    db::Connection connection = sqlite.connect({ .host = "client-logs.db" });
+};
+
+static sm::UniquePtr<LoggingDb> gLogging;
+
 static void commonInit(void) {
+    gLogging = sm::makeUnique<LoggingDb>();
+
     bt_init();
     os_init();
+    logs::structured::setup(gLogging->connection);
 
     gSystemError = gDefaultError;
 
@@ -219,7 +229,7 @@ static void commonInit(void) {
 
         auto message = sm::vformat(msg, args);
 
-        logs::gGlobal.log(logs::Severity::ePanic, "{}", message);
+        LOG_PANIC(GlobalLog, "panic: {}", message);
 
         bt_report_t *report = bt_report_collect(arena);
         fmt_backtrace(kPrintOptions, report);
@@ -239,7 +249,7 @@ static void commonInit(void) {
         gFileChannel = std::move(file.value());
         logger.addChannel(gFileChannel);
     } else {
-        logs::gGlobal.error("failed to open log file: {}", file.error());
+        LOG_ERROR(GlobalLog, "failed to open log file: {}", file.error());
     }
 
     threads::init();
@@ -361,12 +371,12 @@ static int clientMain(sys::ShowWindow show) {
 }
 
 static int commonMain(sys::ShowWindow show) {
-    logs::gGlobal.info("SMC_DEBUG = {}", SMC_DEBUG);
-    logs::gGlobal.info("CTU_DEBUG = {}", CTU_DEBUG);
+    LOG_INFO(GlobalLog, "SMC_DEBUG = {}", SMC_DEBUG);
+    LOG_INFO(GlobalLog, "CTU_DEBUG = {}", CTU_DEBUG);
 
     int result = clientMain(show);
 
-    logs::gGlobal.info("client exiting with {}", result);
+    LOG_INFO(GlobalLog, "client exiting with {}", result);
 
     return result;
 }
@@ -375,7 +385,7 @@ int main(int argc, const char **argv) {
     commonInit();
 
     sm::Span<const char*> args{argv, size_t(argc)};
-    logs::gGlobal.info("args = [{}]", fmt::join(args, ", "));
+    LOG_INFO(GlobalLog, "args = [{}]", fmt::join(args, ", "));
 
     sys::create(GetModuleHandleA(nullptr));
     defer { sys::destroy(); };
@@ -390,8 +400,8 @@ int main(int argc, const char **argv) {
 int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
     commonInit();
 
-    logs::gGlobal.info("lpCmdLine = {}", lpCmdLine);
-    logs::gGlobal.info("nShowCmd = {}", nShowCmd);
+    LOG_INFO(GlobalLog, "lpCmdLine = {}", lpCmdLine);
+    LOG_INFO(GlobalLog, "nShowCmd = {}", nShowCmd);
 
     // TODO: parse lpCmdLine
 
