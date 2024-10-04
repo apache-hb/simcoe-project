@@ -88,9 +88,16 @@ static DbError bindIndex(PreparedStatement& stmt, const dao::TableInfo& info, si
 }
 
 DbError db::bindRowToStatement(PreparedStatement& stmt, const dao::TableInfo& info, bool returning, const void *data) noexcept {
-    for (size_t i = 0; i < info.columns.size(); i++)
+    size_t primaryKey = detail::primaryKeyIndex(info);
+
+    for (size_t i = 0; i < info.columns.size(); i++) {
         if (DbError error = bindIndex(stmt, info, i, returning, data))
             return error;
+
+        if (returning && primaryKey == i) {
+
+        }
+    }
 
     return DbError::ok();
 }

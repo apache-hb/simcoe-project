@@ -29,4 +29,18 @@
         <column name="opt_double" type="double" nullable="true" />
         <column name="opt_start_date" type="datetime" nullable="true" />
     </table>
+
+    <table name="example_upsert" primaryKey="id">
+        <column name="id" type="int" />
+        <column name="name" type="text" length="255" />
+    </table>
+
+    <table name="test_insert_returning" primaryKey="id">
+        <column name="id" type="int" />
+        <column name="name" type="text" length="255" />
+
+        <column name="x" type="float" />
+        <column name="y" type="float" />
+        <column name="z" type="float" />
+    </table>
 </root>

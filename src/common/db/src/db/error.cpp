@@ -38,6 +38,10 @@ DbError DbError::todo(std::string_view subject) noexcept {
     return DbError{-1, eUnimplemented, fmt::format("Not implemented: {}", subject)};
 }
 
+DbError DbError::todoFn(std::source_location location) noexcept {
+    return DbError::todo(location.function_name());
+}
+
 DbError DbError::error(int code, std::string message) noexcept {
     return DbError{code, eError, std::move(message)};
 }

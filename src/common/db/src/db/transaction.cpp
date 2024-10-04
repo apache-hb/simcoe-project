@@ -19,8 +19,8 @@ Transaction::~Transaction() noexcept {
     if (mState != ePending)
         return;
 
-    if (auto err = mConnection->commit()) {
-        fmt::println("Transaction::~Transaction() failed to commit: {}", err.message());
+    if (DbError err = mConnection->commit()) {
+        LOG_ERROR(DbLog, "Transaction::~Transaction() failed to commit: {}", err);
     }
 
     defer { mConnection->setAutoCommit(true); };

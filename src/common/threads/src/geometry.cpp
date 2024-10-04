@@ -240,53 +240,53 @@ struct ProcessorLayout {
     std::vector<threads::ProcessorModule> modules;
 
     void addCoreInfo(const PROCESSOR_RELATIONSHIP &info) noexcept {
-        fmt::println(stderr, "Core: {:064b} {} {}", info.Flags, info.EfficiencyClass, info.GroupCount);
+        LOG_INFO(ThreadLog, "Core: {:064b} {} {}", info.Flags, info.EfficiencyClass, info.GroupCount);
         for (WORD i = 0; i < info.GroupCount; i++) {
-            fmt::println(stderr, "  Core Group {}: {:064b}", info.GroupMask[i].Group, info.GroupMask[i].Mask);
+            LOG_INFO(ThreadLog, "  Core Group {}: {:064b}", info.GroupMask[i].Group, info.GroupMask[i].Mask);
         }
     }
 
     void addCacheInfo(const CACHE_RELATIONSHIP &info) noexcept {
-        fmt::println(stderr, "Cache: level={} associativity={} lineSize={} cacheSize={} type={} groups={}",
+        LOG_INFO(ThreadLog, "Cache: level={} associativity={} lineSize={} cacheSize={} type={} groups={}",
             info.Level, info.Associativity, info.LineSize, info.CacheSize, info.Type, info.GroupCount);
 
         for (WORD i = 0; i < info.GroupCount; i++) {
-            fmt::println(stderr, "  Cache Group {}: {:064b}", info.GroupMasks[i].Group, info.GroupMasks[i].Mask);
+            LOG_INFO(ThreadLog, "  Cache Group {}: {:064b}", info.GroupMasks[i].Group, info.GroupMasks[i].Mask);
         }
     }
 
     void addNumaInfo(const NUMA_NODE_RELATIONSHIP &info) noexcept {
-        fmt::println(stderr, "Numa: node={} groups={}", info.NodeNumber, info.GroupCount);
+        LOG_INFO(ThreadLog, "Numa: node={} groups={}", info.NodeNumber, info.GroupCount);
         for (WORD i = 0; i < info.GroupCount; i++) {
-            fmt::println(stderr, "  Numa Group {}: {:064b}", info.GroupMasks[i].Group, info.GroupMasks[i].Mask);
+            LOG_INFO(ThreadLog, "  Numa Group {}: {:064b}", info.GroupMasks[i].Group, info.GroupMasks[i].Mask);
         }
     }
 
     void addPackageInfo(const PROCESSOR_RELATIONSHIP &info) noexcept {
-        fmt::println(stderr, "Package: {:064b} {} {}", info.Flags, info.EfficiencyClass, info.GroupCount);
+        LOG_INFO(ThreadLog, "Package: {:064b} {} {}", info.Flags, info.EfficiencyClass, info.GroupCount);
         for (WORD i = 0; i < info.GroupCount; i++) {
-            fmt::println(stderr, "  Package Group {}: {:064b}", info.GroupMask[i].Group, info.GroupMask[i].Mask);
+            LOG_INFO(ThreadLog, "  Package Group {}: {:064b}", info.GroupMask[i].Group, info.GroupMask[i].Mask);
         }
     }
 
     void addGroupInfo(const GROUP_RELATIONSHIP &info) noexcept {
-        fmt::println(stderr, "Group: {:064b} {}", info.MaximumGroupCount, info.ActiveGroupCount);
+        LOG_INFO(ThreadLog, "Group: {:064b} {}", info.MaximumGroupCount, info.ActiveGroupCount);
         for (WORD i = 0; i < info.ActiveGroupCount; i++) {
-            fmt::println(stderr, "  Group {}: {:064b}", info.GroupInfo[i].MaximumProcessorCount, info.GroupInfo[i].ActiveProcessorCount);
+            LOG_INFO(ThreadLog, "  Group {}: {:064b}", info.GroupInfo[i].MaximumProcessorCount, info.GroupInfo[i].ActiveProcessorCount);
         }
     }
 
     void addDieInfo(const PROCESSOR_RELATIONSHIP &info) noexcept {
-        fmt::println(stderr, "Die: {:064b} {} {}", info.Flags, info.EfficiencyClass, info.GroupCount);
+        LOG_INFO(ThreadLog, "Die: {:064b} {} {}", info.Flags, info.EfficiencyClass, info.GroupCount);
         for (WORD i = 0; i < info.GroupCount; i++) {
-            fmt::println(stderr, "  Die Group {}: {:064b}", info.GroupMask[i].Group, info.GroupMask[i].Mask);
+            LOG_INFO(ThreadLog, "  Die Group {}: {:064b}", info.GroupMask[i].Group, info.GroupMask[i].Mask);
         }
     }
 
     void addModuleInfo(const PROCESSOR_RELATIONSHIP &info) noexcept {
-        fmt::println(stderr, "Module: {:064b} {} {}", info.Flags, info.EfficiencyClass, info.GroupCount);
+        LOG_INFO(ThreadLog, "Module: {:064b} {} {}", info.Flags, info.EfficiencyClass, info.GroupCount);
         for (WORD i = 0; i < info.GroupCount; i++) {
-            fmt::println(stderr, "  Module Group {}: {:064b}", info.GroupMask[i].Group, info.GroupMask[i].Mask);
+            LOG_INFO(ThreadLog, "  Module Group {}: {:064b}", info.GroupMask[i].Group, info.GroupMask[i].Mask);
         }
     }
 
@@ -297,8 +297,8 @@ struct ProcessorLayout {
             "coreIndex={}, lastLevelCacheIndex={}, numaNodeIndex={}, efficiencyClass={},",
             cpuSet.Id, cpuSet.Group, cpuSet.LogicalProcessorIndex, cpuSet.CoreIndex, cpuSet.LastLevelCacheIndex, cpuSet.NumaNodeIndex, cpuSet.EfficiencyClass);
 
-        fmt::println(stderr, "  Parked={}, Allocated={}, AllocatedToTargetProcess={}, RealTime={}", cpuSet.Parked, cpuSet.Allocated, cpuSet.AllocatedToTargetProcess, cpuSet.RealTime);
-        fmt::println(stderr, "  SchedulingClass={}, AllocationTag={}", cpuSet.SchedulingClass, cpuSet.AllocationTag);
+        LOG_INFO(ThreadLog, "  Parked={}, Allocated={}, AllocatedToTargetProcess={}, RealTime={}", cpuSet.Parked, cpuSet.Allocated, cpuSet.AllocatedToTargetProcess, cpuSet.RealTime);
+        LOG_INFO(ThreadLog, "  SchedulingClass={}, AllocationTag={}", cpuSet.SchedulingClass, cpuSet.AllocationTag);
     }
 };
 }

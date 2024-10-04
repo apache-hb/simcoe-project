@@ -6,7 +6,7 @@
 
 #include <oci.h>
 
-namespace sm::db::detail::orcl {
+namespace sm::db::oracle {
     using DateTime = sm::db::DateTime;
 
     struct DateTimeComponents {

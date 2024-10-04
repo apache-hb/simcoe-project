@@ -24,7 +24,8 @@ structured_logs_sinks = declare_dependency(
 )
 
 exe = executable('test-structured-logs-setup', 'test/setup.cpp',
-    dependencies : [ structured_logs_sinks, coretest ]
+    include_directories : libstructured_logs_sinks.private_dir_include(),
+    dependencies : [ structured_logs_sinks, coretest, db ]
 )
 
 test('Structured logs setup', exe,

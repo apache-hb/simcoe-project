@@ -68,7 +68,7 @@ namespace sm::db {
         }
 
         PrimaryKey insert(const T& value) throws(DbException) {
-            return tryInsert(value).throwIfFailed();
+            return throwIfFailed(tryInsert(value));
         }
     };
 
@@ -222,6 +222,8 @@ namespace sm::db {
         void createTable(const dao::TableInfo& table) throws(DbException) {
             tryCreateTable(table).throwIfFailed();
         }
+
+        DbError tryDropTable(const dao::TableInfo& table) noexcept;
 
         ///
         /// prepare insert
@@ -377,6 +379,11 @@ namespace sm::db {
             stmt.drop();
         }
 
+        void drop(const dao::TableInfo& info) throws(DbException) {
+            auto stmt = prepareDropImpl(info);
+            stmt.execute().throwIfFailed();
+        }
+
         ///
         /// prepare update
         ///
@@ -449,6 +456,21 @@ namespace sm::db {
         T selectOne() throws(DbException) {
             return throwIfFailed(trySelectOne<T>());
         }
+
+        ///
+        /// utils
+        ///
+
+        void replaceTable(const dao::TableInfo& info) throws(DbException) {
+            if (tableExists(info).value_or(false))
+                drop(info);
+
+            createTable(info);
+        }
+
+        ///
+        /// raw access
+        ///
 
         DbResult<ResultSet> trySelectSql(std::string_view sql) noexcept;
         DbError tryUpdateSql(std::string_view sql) noexcept;

@@ -4,7 +4,7 @@
 
 #include <oci.h>
 
-namespace sm::db::detail::orcl {
+namespace sm::db::oracle {
     std::string oraErrorText(void *handle, sword status, ub4 type) noexcept;
     DbError oraGetHandleError(void *handle, sword status, ub4 type) noexcept;
     bool isSuccess(sword status) noexcept;
@@ -110,5 +110,4 @@ namespace sm::db::detail::orcl {
 
     using OraParam = OraDescriptor<OCIParam, OCI_DTYPE_PARAM>;
     using OraDateTime = OraDescriptor<OCIDateTime, OCI_DTYPE_TIMESTAMP>;
-
 }

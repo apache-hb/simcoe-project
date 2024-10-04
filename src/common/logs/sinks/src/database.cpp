@@ -57,9 +57,14 @@ static void registerMessagesWithDb(
         .startTime = getTimestamp(),
     };
 
+    auto insertSeverity = connection.prepareInsertOrUpdate<sm::dao::logs::LogSeverity>();
+    auto insertCategory = connection.prepareInsertOrUpdate<sm::dao::logs::LogCategory>();
+    auto insertMessage = connection.prepareInsertOrUpdate<sm::dao::logs::LogMessage>();
+    auto insertAttribute = connection.prepareInsertOrUpdate<sm::dao::logs::LogMessageAttribute>();
+
     connection.insert(session);
     for (auto& severity : kLogSeverityOptions)
-        connection.insertOrUpdate(severity);
+        insertSeverity.insert(severity);
 
     for (const structured::CategoryInfo& category : categories) {
         sm::dao::logs::LogCategory daoCategory {
@@ -67,7 +72,7 @@ static void registerMessagesWithDb(
             .name = std::string{category.name},
         };
 
-        connection.insertOrUpdate(daoCategory);
+        insertCategory.insert(daoCategory);
     }
 
     for (const structured::MessageInfo& message : messages) {
@@ -81,7 +86,7 @@ static void registerMessagesWithDb(
             .function = std::string{message.location.function_name()},
         };
 
-        connection.insertOrUpdate(daoMessage);
+        insertMessage.insert(daoMessage);
 
         for (int i = 0; i < message.indexAttributeCount; i++) {
             sm::dao::logs::LogMessageAttribute daoAttribute {
@@ -89,7 +94,7 @@ static void registerMessagesWithDb(
                 .messageHash = message.hash
             };
 
-            connection.insertOrUpdate(daoAttribute);
+            insertAttribute.insert(daoAttribute);
         }
 
         for (const auto& attribute : message.namedAttributes) {
@@ -98,7 +103,7 @@ static void registerMessagesWithDb(
                 .messageHash = message.hash
             };
 
-            connection.insertOrUpdate(daoAttribute);
+            insertAttribute.insert(daoAttribute);
         }
     }
 }

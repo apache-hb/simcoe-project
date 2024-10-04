@@ -2,12 +2,19 @@
 
 #include <simcoe_config.h>
 
+#if __has_include("reflect/reflect.h")
+
 #include "reflect/reflect.h"
+
+#endif
+
 #include "fmtlib/format.h"
 
 namespace sm {
     using FormatBuffer = fmt::basic_memory_buffer<char, 256>;
 }
+
+#if __has_include("reflect/reflect.h")
 
 #if SMC_DEBUG
 template<ctu::Reflected T> requires (ctu::is_enum<T>())
@@ -44,4 +51,6 @@ struct fmt::formatter<T> : fmt::formatter<typename T::Underlying> {
         return Super::format(value.as_integral(), ctx);
     }
 };
+#endif
+
 #endif

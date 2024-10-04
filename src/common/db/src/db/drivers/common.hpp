@@ -38,49 +38,49 @@ namespace sm::db::detail {
         /** Insert */
 
         virtual std::string setupInsert(const dao::TableInfo& table) throws(DbException) {
-            throw DbException{DbError::todo("setupInsert")};
+            throw DbException{DbError::todoFn()};
         }
 
         virtual std::string setupInsertOrUpdate(const dao::TableInfo& table) throws(DbException) {
-            throw DbException{DbError::todo("setupInsertOrUpdate")};
+            throw DbException{DbError::todoFn()};
         }
 
         virtual std::string setupInsertReturningPrimaryKey(const dao::TableInfo& table) throws(DbException) {
-            throw DbException{DbError::todo("setupInsertReturningPrimaryKey")};
+            throw DbException{DbError::todoFn()};
         }
 
         /** Truncate */
 
         virtual std::string setupTruncate(const dao::TableInfo& table) throws(DbException) {
-            throw DbException{DbError::todo("setupTruncate")};
+            throw DbException{DbError::todoFn()};
         }
 
         /** Select */
 
         virtual std::string setupSelect(const dao::TableInfo& table) throws(DbException) {
-            throw DbException{DbError::todo("setupSelect")};
+            throw DbException{DbError::todoFn()};
         }
 
         /** Update */
 
         virtual std::string setupUpdate(const dao::TableInfo& table) throws(DbException) {
-            throw DbException{DbError::todo("setupUpdate")};
+            throw DbException{DbError::todoFn()};
         }
 
         /** Triggers */
 
         virtual std::string setupSingletonTrigger(const dao::TableInfo& table) throws(DbException) {
-            throw DbException{DbError::todo("setupSingletonTrigger")};
+            throw DbException{DbError::todoFn()};
         }
 
         /** Tables */
 
         virtual std::string setupTableExists() throws(DbException) {
-            throw DbException{DbError::todo("setupTableExists")};
+            throw DbException{DbError::todoFn()};
         }
 
         virtual std::string setupCreateTable(const dao::TableInfo& table) throws(DbException) {
-            throw DbException{DbError::todo("setupCreateTable")};
+            throw DbException{DbError::todoFn()};
         }
 
         /** Version */
@@ -178,9 +178,7 @@ namespace sm::db::detail {
             return DbError::todo("isNullByName");
         }
 
-
-        /** Binding */
-
+        /** Binding info */
         virtual int getBindCount() const noexcept {
             return -1;
         }
@@ -192,6 +190,18 @@ namespace sm::db::detail {
         virtual DbError getBindInfo(int index, BindInfo& info) const noexcept {
             return DbError::todo("getBindInfo");
         }
+
+        /** Binding returning output variables */
+
+        virtual DbError bindIntReturnByName(std::string_view name) throws(DbException) {
+            throw DbException{DbError::todoFn()};
+        }
+
+        virtual DbError bindStringReturnByName(std::string_view name) throws(DbException) {
+            throw DbException{DbError::todoFn()};
+        }
+
+        /** Binding input variables */
 
         virtual DbError bindIntByIndex(int index, int64 value) noexcept {
             return DbError::todo("bindIntByIndex");

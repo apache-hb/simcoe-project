@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "sqlite.hpp"
+#include "sqlite/sqlite.hpp"
 
 using namespace sm;
 using namespace sm::db;

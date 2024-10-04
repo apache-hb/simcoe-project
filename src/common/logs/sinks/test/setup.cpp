@@ -4,10 +4,16 @@
 
 #include "logs/structured/channels.hpp"
 
+#include "logs.dao.hpp"
+
 using namespace sm;
 using namespace std::chrono_literals;
 
-static constexpr db::ConnectionConfig kOracleConfig = {
+#define USE_ORACLE 1
+
+#if USE_ORACLE
+
+static constexpr db::ConnectionConfig kConfig = {
     .port = 1521,
     .host = "localhost",
     .user = "TEST_USER",
@@ -16,11 +22,30 @@ static constexpr db::ConnectionConfig kOracleConfig = {
     .timeout = 1s
 };
 
+static constexpr db::DbType kType = db::DbType::eOracleDB;
+
+#else
+
+static constexpr db::ConnectionConfig kConfig = {
+    .host = "testdb.db"
+};
+
+static constexpr db::DbType kType = db::DbType::eSqlite3;
+
+#endif
+
 LOG_MESSAGE_CATEGORY(TestLog, "Tests");
 
 TEST_CASE("Setup logging") {
-    auto env = db::Environment::create(db::DbType::eSqlite3, { .logQueries=true });
-    logs::structured::setup(env.connect({.host="testlogs.db"}));
+    auto env = db::Environment::create(kType, { .logQueries=true });
+    try {
+        logs::structured::setup(env.connect(kConfig));
+    } catch (db::DbException& e) {
+        for (const auto& frame : e.stacktrace()) {
+            fmt::println(stderr, "[{}:{}] {}", frame.source_file(), frame.source_line(), frame.description());
+        }
+        FAIL(e.what());
+    }
 
     GIVEN("a successfully setup logging environment") {
         THEN("a message can be logged") {
@@ -35,4 +60,7 @@ TEST_CASE("Setup logging") {
     }
 
     logs::structured::shutdown();
+
+    auto conn = env.connect(kConfig);
+
 }

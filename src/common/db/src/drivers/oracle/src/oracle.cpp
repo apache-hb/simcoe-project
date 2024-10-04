@@ -1,31 +1,30 @@
 #include "stdafx.hpp"
-#include "fmt/ranges.h"
 
-#include "orcl.hpp"
+#include "oracle/oracle.hpp"
 
 #include "drivers/utils.hpp"
 
 using namespace sm::db;
 
 namespace dao = sm::dao;
-namespace orcl = sm::db::detail::orcl;
+namespace oracle = sm::db::oracle;
 namespace detail = sm::db::detail;
 
 #define STRCASE(ID) case ID: return #ID
 
-std::string orcl::oraErrorText(void *handle, sword status, ub4 type) noexcept {
+std::string oracle::oraErrorText(void *handle, sword status, ub4 type) noexcept {
     auto result = [&] -> std::string {
         text buffer[OCI_ERROR_MAXMSG_SIZE];
         sb4 error;
 
         switch (status) {
         STRCASE(OCI_SUCCESS);
-        STRCASE(OCI_SUCCESS_WITH_INFO);
         STRCASE(OCI_NO_DATA);
         STRCASE(OCI_INVALID_HANDLE);
         STRCASE(OCI_NEED_DATA);
         STRCASE(OCI_STILL_EXECUTING);
-        case OCI_ERROR:
+
+        case OCI_SUCCESS_WITH_INFO: case OCI_ERROR:
             if (sword err = OCIErrorGet(handle, 1, nullptr, &error, buffer, sizeof(buffer), type)) {
                 return fmt::format("Failed to get error text: {}", err);
             }
@@ -42,23 +41,26 @@ std::string orcl::oraErrorText(void *handle, sword status, ub4 type) noexcept {
     return result;
 }
 
-DbError orcl::oraGetHandleError(void *handle, sword status, ub4 type) noexcept {
+DbError oracle::oraGetHandleError(void *handle, sword status, ub4 type) noexcept {
     if (status == OCI_SUCCESS)
         return DbError::ok();
+
+    if (status == OCI_NO_DATA)
+        return DbError::done(OCI_NO_DATA);
 
     int inner = isSuccess(status) ? DbError::eOk : DbError::eError;
     return DbError{status, inner, oraErrorText(handle, status, type)};
 }
 
-bool orcl::isSuccess(sword status) noexcept {
-    return status == OCI_SUCCESS || status == OCI_SUCCESS_WITH_INFO;
+bool oracle::isSuccess(sword status) noexcept {
+    return status == OCI_SUCCESS;
 }
 
-DbError orcl::oraGetError(OraError error, sword status) noexcept {
+DbError oracle::oraGetError(OraError error, sword status) noexcept {
     return oraGetHandleError(error, status, OCI_HTYPE_ERROR);
 }
 
-DbError orcl::oraNewHandle(OCIEnv *env, void **handle, ub4 type) noexcept {
+DbError oracle::oraNewHandle(OCIEnv *env, void **handle, ub4 type) noexcept {
     sword result = OCIHandleAlloc(env, handle, type, 0, nullptr);
     return oraGetHandleError(env, result, OCI_HTYPE_ENV);
 }
@@ -118,6 +120,16 @@ static void setupBindingFields(const dao::TableInfo& info, bool generatePrimaryK
     os << fmt::format("{}", fmt::join(fields, ", "));
 }
 
+static std::vector<std::string_view> uniqueColumnNames(const dao::TableInfo& info, const sm::dao::UniqueKey& unique) {
+    std::vector<std::string_view> columns;
+    columns.reserve(unique.columns.size());
+    for (size_t i = 0; i < unique.columns.size(); i++) {
+        columns.push_back(info.columns[unique.columns[i]].name);
+    }
+
+    return columns;
+}
+
 static void setupInsertCommon(const dao::TableInfo& info, bool generatePrimaryKey, std::ostream& os) {
     os << "INSERT INTO " << info.name << " (";
     setupInsertFields(info, generatePrimaryKey, os);
@@ -126,23 +138,23 @@ static void setupInsertCommon(const dao::TableInfo& info, bool generatePrimaryKe
     os << ")";
 }
 
-std::string orcl::setupInsert(const dao::TableInfo& info) {
+std::string oracle::setupInsert(const dao::TableInfo& info) {
     std::stringstream ss;
     setupInsertCommon(info, false, ss);
 
     return ss.str();
 }
 
-std::string orcl::setupInsertOrUpdate(const dao::TableInfo& info) {
+static std::string setupInsertOrReplaceOnPrimaryKey(const dao::TableInfo& info) {
     std::stringstream ss;
 
     auto pk = info.getPrimaryKey();
 
     ss << "MERGE INTO " << info.name << " USING DUAL ON (" << pk.name << " = :" << pk.name << ")";
     ss << " WHEN NOT MATCHED THEN INSERT (";
-    setupInsertFields(info, true, ss);
+    setupInsertFields(info, false, ss);
     ss << ") VALUES (";
-    setupBindingFields(info, true, ss);
+    setupBindingFields(info, false, ss);
     ss << ") WHEN MATCHED THEN UPDATE SET ";
     auto values = forEachField(info, true, [](size_t i, const dao::ColumnInfo& column) {
         return fmt::format("{0} = :{0}", column.name);
@@ -153,7 +165,63 @@ std::string orcl::setupInsertOrUpdate(const dao::TableInfo& info) {
     return ss.str();
 }
 
-std::string orcl::setupInsertReturningPrimaryKey(const dao::TableInfo& info) {
+static std::string setupInsertOrReplaceOnUniqueKeys(const dao::TableInfo& info) {
+    std::unordered_set<std::string_view> uniqueColumns;
+
+    auto createWhereClause = [&](const dao::UniqueKey& unique) {
+        auto columns = uniqueColumnNames(info, unique);
+        for (auto column : columns) {
+            uniqueColumns.insert(column);
+        }
+        std::vector<std::string> result;
+        result.reserve(columns.size());
+        for (size_t i = 0; i < columns.size(); i++) {
+            result.push_back(fmt::format("{} = :{}", columns[i], columns[i]));
+        }
+
+        return fmt::format("({})", fmt::join(result, " AND "));
+    };
+
+
+    std::stringstream ss;
+
+    ss << "MERGE INTO " << info.name << " USING DUAL ON (" << createWhereClause(info.uniqueKeys[0]) << ")";
+    ss << " WHEN NOT MATCHED THEN INSERT (";
+    setupInsertFields(info, false, ss);
+    ss << ") VALUES (";
+    setupBindingFields(info, false, ss);
+    ss << ")";
+
+    std::vector<std::string> values;
+    for (size_t i = 0; i < info.columns.size(); i++) {
+        const auto& name = info.columns[i].name;
+        if (uniqueColumns.contains(name))
+            continue;
+
+        values.push_back(fmt::format("{0} = :{0}", name));
+    }
+
+    if (!values.empty()) {
+        ss << " WHEN MATCHED THEN UPDATE SET ";
+        ss << fmt::format("{}", fmt::join(values, ", "));
+    }
+
+    return ss.str();
+}
+
+std::string oracle::setupInsertOrUpdate(const dao::TableInfo& info) {
+    if (info.hasPrimaryKey()) {
+        return setupInsertOrReplaceOnPrimaryKey(info);
+    }
+
+    if (!info.uniqueKeys.empty()) {
+        return setupInsertOrReplaceOnUniqueKeys(info);
+    }
+
+    return setupInsert(info);
+}
+
+std::string oracle::setupInsertReturningPrimaryKey(const dao::TableInfo& info) {
     std::stringstream ss;
     setupInsertCommon(info, true, ss);
 
@@ -164,9 +232,8 @@ std::string orcl::setupInsertReturningPrimaryKey(const dao::TableInfo& info) {
     return ss.str();
 }
 
-std::string orcl::setupCreateTable(const dao::TableInfo& info, bool hasBoolType) {
+std::string oracle::setupCreateTable(const dao::TableInfo& info, bool hasBoolType) {
     std::ostringstream ss;
-    bool hasConstraints = info.hasPrimaryKey() || info.hasForeignKeys();
 
     ss << "CREATE TABLE";
 
@@ -176,68 +243,59 @@ std::string orcl::setupCreateTable(const dao::TableInfo& info, bool hasBoolType)
 
         ss << "\t" << column.name << " " << makeSqlType(column, hasBoolType);
 
-        if (!column.nullable)
-            ss << " NOT NULL";
-
-        if (column.type == dao::ColumnType::eString && !column.nullable)
-            ss << " CHECK(NOT REGEXP_LIKE(" << column.name << ", '\\s'))";
-
-        if (hasConstraints || (i != info.columns.size() - 1)) {
-            ss << ",";
+        if ((i != info.columns.size() - 1)) {
+            ss << ",\n";
         }
-
-        ss << "\n";
     }
 
-    if (info.hasPrimaryKey()) {
-        ss << "\tCONSTRAINT pk_" << info.name
-        << " PRIMARY KEY (" << info.getPrimaryKey().name
-        << ")";
+    std::vector<std::string> constraints;
 
-        if (info.hasForeignKeys() || info.hasUniqueKeys()) {
-            ss << ",\n";
-        } else {
-            ss << "\n";
-        }
+    auto addConstraint = [&]<typename... A>(fmt::format_string<A...> fmt, A&&... args) {
+        constraints.push_back(fmt::format(fmt, std::forward<A>(args)...));
+    };
+
+    if (info.hasPrimaryKey()) {
+        const auto& pk = info.getPrimaryKey();
+        addConstraint("pk_{} PRIMARY KEY({})", info.name, pk.name);
+    }
+
+    for (size_t i = 0; i < info.columns.size(); i++) {
+        const auto& column = info.columns[i];
+
+        if (column.nullable)
+            continue;
+
+        bool isString = column.type == dao::ColumnType::eString;
+
+        addConstraint("ck_{0}_{1}_nonnull CHECK({1} IS NOT NULL)", info.name, column.name);
+
+        if (isString)
+            addConstraint("ck_{0}_{1}_nonblank CHECK(REGEXP_LIKE({1}, '\\S'))", info.name, column.name);
     }
 
     for (size_t i = 0; i < info.foreignKeys.size(); i++) {
         const auto& foreign = info.foreignKeys[i];
-        ss << "\tCONSTRAINT " << foreign.name << " FOREIGN KEY (" << foreign.column << ") REFERENCES " << foreign.foreignTable << "(" << foreign.foreignColumn << ")";
-
-        if (info.hasUniqueKeys() || i != info.foreignKeys.size() - 1) {
-            ss << ",";
-        }
-
-        ss << "\n";
+        addConstraint("{} FOREIGN KEY({}) REFERENCES {}({})", foreign.name, foreign.column, foreign.foreignTable, foreign.foreignColumn);
     }
 
     for (size_t i = 0; i < info.uniqueKeys.size(); i++) {
         const auto& unique = info.uniqueKeys[i];
-        ss << "\tCONSTRAINT " << unique.name << " UNIQUE (";
-        for (size_t j = 0; j < unique.columns.size(); j++) {
-            const auto& column = info.columns[unique.columns[j]];
-            ss << column.name;
-            if (j != unique.columns.size() - 1) {
-                ss << ", ";
-            }
-        }
 
-        ss << ")";
+        std::vector<std::string_view> columns = uniqueColumnNames(info, unique);
 
-        if (i != info.uniqueKeys.size() - 1) {
-            ss << ",\n";
-        } else {
-            ss << "\n";
-        }
+        addConstraint("{} UNIQUE ({})", unique.name, fmt::join(columns, ", "));
     }
 
-    ss << ")";
+    for (size_t i = 0; i < constraints.size(); i++) {
+        ss << ",\n\tCONSTRAINT " << constraints[i];
+    }
+
+    ss << "\n)";
 
     return ss.str();
 }
 
-std::string orcl::setupSelect(const dao::TableInfo& info) {
+std::string oracle::setupSelect(const dao::TableInfo& info) {
     std::ostringstream ss;
     ss << "SELECT ";
     for (size_t i = 0; i < info.columns.size(); i++) {
@@ -251,11 +309,12 @@ std::string orcl::setupSelect(const dao::TableInfo& info) {
     return ss.str();
 }
 
-std::string orcl::setupUpdate(const dao::TableInfo& info) {
+std::string oracle::setupUpdate(const dao::TableInfo& info) {
     std::ostringstream ss;
     ss << "UPDATE " << info.name << " SET ";
     for (size_t i = 0; i < info.columns.size(); i++) {
-        ss << info.columns[i].name << " = :" << info.columns[i].name;
+        const auto& name = info.columns[i].name;
+        ss << name << " = :" << name;
         if (i != info.columns.size() - 1) {
             ss << ", ";
         }
@@ -271,14 +330,14 @@ static constexpr std::string_view kCreateSingletonTrigger =
     "    DELETE FROM {0};\n"
     "END;";
 
-std::string orcl::setupSingletonTrigger(std::string_view name) {
+std::string oracle::setupSingletonTrigger(std::string_view name) {
     return fmt::format(kCreateSingletonTrigger, name);
 }
 
-std::string orcl::setupTruncate(std::string_view name) {
+std::string oracle::setupTruncate(std::string_view name) {
     return fmt::format("TRUNCATE TABLE {}", name);
 }
 
-std::string orcl::setupTableExists() {
+std::string oracle::setupTableExists() {
     return "SELECT COUNT(*) FROM user_tables WHERE table_name = UPPER(:name)";
 }

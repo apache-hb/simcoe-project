@@ -1,10 +1,12 @@
 #include "stdafx.hpp"
 
-#include "orcl.hpp"
+#include "oracle/statement.hpp"
+#include "oracle/environment.hpp"
+#include "oracle/connection.hpp"
 
 using namespace sm;
 using namespace sm::db;
-using namespace sm::db::detail::orcl;
+using namespace sm::db::oracle;
 
 struct CellInfo {
     void *value;
@@ -17,6 +19,10 @@ static bool isStringType(ub2 type) noexcept {
 
 static bool isBlobType(ub2 type) noexcept {
     return type == SQLT_BLOB || type == SQLT_BIN;
+}
+
+static bool isFloatType(ub2 type) noexcept {
+    return type == SQLT_BDOUBLE;
 }
 
 static bool isNumberType(ub2 type) noexcept {
@@ -55,7 +61,7 @@ static DbResult<CellInfo> initCellValue(OraEnvironment& env, OraError error, Ora
         if (sword result = OCIDescriptorAlloc(env.env(), (void**)&column.value.date, OCI_DTYPE_TIMESTAMP, 0, nullptr))
             return std::unexpected(oraGetError(error, result));
 
-        return CellInfo { &column.value.date, sizeof(column.value.date) };
+        return CellInfo { (void*)&column.value.date, sizeof(column.value.date) };
     }
 
     switch (column.type) {
@@ -69,8 +75,8 @@ static DbResult<CellInfo> initCellValue(OraEnvironment& env, OraError error, Ora
     case SQLT_BOL:
         return CellInfo { &column.value.bol, sizeof(column.value.bol) };
 
-    case SQLT_FLT:
-        return CellInfo { &column.value.real, sizeof(column.value.real) };
+    case SQLT_BDOUBLE:
+        return CellInfo { &column.value.bdouble, sizeof(column.value.bdouble) };
 
     default:
         return std::unexpected{DbError::todo(fmt::format("Unsupported data type {}", column.type))};
@@ -107,7 +113,7 @@ static ub2 remapDataType(ub2 type, bool hasBoolType) noexcept {
     case SQLT_BOL: return hasBoolType ? SQLT_BOL : SQLT_CHR;
 
     case SQLT_IBDOUBLE: case SQLT_IBFLOAT:
-        return SQLT_FLT;
+        return SQLT_BDOUBLE;
 
     default:
         return type;
@@ -191,7 +197,7 @@ void OraStatement::freeBindValues() noexcept {
         std::visit(overloaded {
             [&](OraDateTime& date) {
                 if (DbError error = date.close(mError))
-                    fmt::println(stderr, "Failed to close date: {}", error.message());
+                    LOG_WARN(DbLog, "Failed to close date: {}", error.message());
             },
             [](auto&) { }
         }, value);
@@ -215,14 +221,6 @@ DbError OraStatement::executeStatement(ub4 flags, int iters) noexcept {
     mColumnInfo = TRY_UNWRAP(defineColumns(mEnvironment, mError, mStatement, mConnection.hasBoolType()));
 
     return DbError::ok();
-}
-
-DbError OraStatement::executeUpdate(ub4 flags) noexcept {
-    return executeStatement(flags, 1);
-}
-
-DbError OraStatement::executeSelect(ub4 flags) noexcept {
-    return executeStatement(flags, 0);
 }
 
 int OraStatement::getBindCount() const noexcept {
@@ -276,10 +274,17 @@ DbError OraStatement::finalize() noexcept {
     return oraGetError(mError, result);
 }
 
+static ub4 computeFlags(bool isQuery, bool autoCommit) noexcept {
+    if (isQuery)
+        return OCI_STMT_SCROLLABLE_READONLY;
+
+    return autoCommit ? OCI_COMMIT_ON_SUCCESS : OCI_DEFAULT;
+}
+
 DbError OraStatement::start(bool autoCommit, StatementType type) noexcept {
     bool isQuery = (type == StatementType::eQuery);
     int iters = isQuery ? 0 : 1;
-    ub4 flags = autoCommit ? OCI_COMMIT_ON_SUCCESS : OCI_DEFAULT;
+    ub4 flags = computeFlags(isQuery, autoCommit);
     if (DbError error = executeStatement(flags, iters))
         return error;
 
@@ -327,6 +332,8 @@ struct CellBindInfo {
     ub4 size;
     ub2 type;
 };
+
+// TODO: https://docs.oracle.com/en/database/oracle/oracle-database/19/lnoci/binding-and-defining-in-oci.html#GUID-415F2F47-03BA-4E3D-B622-A799409DA243
 
 static CellBindInfo getBoolBindingValue(bool value, bool hasBoolType) noexcept {
     if (hasBoolType) {
@@ -452,7 +459,7 @@ static DataType getColumnType(ub2 type) noexcept {
     if (isBlobType(type))
         return DataType::eBlob;
 
-    if (type == SQLT_FLT)
+    if (isFloatType(type))
         return DataType::eDouble;
 
     if (isNumberType(type))
@@ -534,7 +541,7 @@ DbError OraStatement::getDoubleByIndex(int index, double& value) noexcept {
         return DbError::ok();
     }
 
-    value = column.value.real;
+    value = column.value.bdouble;
     return DbError::ok();
 }
 

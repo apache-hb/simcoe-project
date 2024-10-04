@@ -53,6 +53,7 @@ namespace sm::db {
         static DbError ok() noexcept;
         static DbError todo() noexcept;
         static DbError todo(std::string_view subject) noexcept;
+        static DbError todoFn(std::source_location location = std::source_location::current()) noexcept;
         static DbError error(int code, std::string message) noexcept;
         static DbError outOfMemory() noexcept;
         static DbError noData() noexcept;

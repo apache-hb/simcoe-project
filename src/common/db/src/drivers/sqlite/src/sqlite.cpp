@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "sqlite.hpp"
+#include "sqlite/sqlite.hpp"
 
 using namespace sm;
 using namespace sm::db;
@@ -197,7 +197,15 @@ std::string sqlite::setupInsert(const dao::TableInfo& info) noexcept {
 std::string sqlite::setupInsertOrUpdate(const dao::TableInfo& info) noexcept {
     std::ostringstream ss;
     setupInsertCommon(info, false, ss);
-    ss << " ON CONFLICT DO NOTHING;";
+    ss << " ON CONFLICT DO UPDATE SET ";
+    for (size_t i = 0; i < info.columns.size(); i++) {
+        ss << info.columns[i].name << " = :" << info.columns[i].name;
+        if (i != info.columns.size() - 1) {
+            ss << ", ";
+        }
+    }
+
+    ss << ";";
 
     return ss.str();
 }

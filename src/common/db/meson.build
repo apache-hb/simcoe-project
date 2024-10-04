@@ -1,4 +1,5 @@
 db_include = include_directories('include')
+db_private_include = [ include_directories('src/db', 'src/db/drivers') ]
 
 src = [
     # dao support structures
@@ -15,11 +16,6 @@ src = [
     # shared driver utilities
     'src/db/drivers/common.cpp',
     'src/db/drivers/utils.cpp',
-
-    # sqlite3 is always enabled
-    'src/db/drivers/sqlite/sqlite.cpp',
-    'src/db/drivers/sqlite/statement.cpp',
-    'src/db/drivers/sqlite/connection.cpp',
 
     metacc.process('include/db/core.hpp')
 ]
@@ -45,12 +41,22 @@ cfg.set10('SMC_DB_HAS_ODBC', has_odbc)
 
 deps = [ core, sqlite3, tlsf, meta, structured_logs ]
 
+# sqlite3 is always enabled
+src += [
+    'src/drivers/sqlite/src/sqlite.cpp',
+    'src/drivers/sqlite/src/statement.cpp',
+    'src/drivers/sqlite/src/connection.cpp',
+]
+db_private_include += [ include_directories('src/drivers/sqlite/include') ]
+
 if oci.found()
     src += [
-        'src/db/drivers/orcl/orcl.cpp',
-        'src/db/drivers/orcl/statement.cpp',
-        'src/db/drivers/orcl/connection.cpp'
+        'src/drivers/oracle/src/oracle.cpp',
+        'src/drivers/oracle/src/statement.cpp',
+        'src/drivers/oracle/src/connection.cpp',
+        'src/drivers/oracle/src/environment.cpp'
     ]
+    db_private_include += [ include_directories('src/drivers/oracle/include') ]
     deps += [ oci ]
 endif
 
@@ -85,7 +91,7 @@ db_config = configure_file(
 libdb = library('orm', [ src, db_config ],
     cpp_args : [ '-DSM_DB_BUILD=1', args, cpp.get_supported_arguments('-Wno-c99-designator') ],
     cpp_pch : 'src/db/stdafx.hpp',
-    include_directories : [ db_include, reflect_include, 'src/db' ],
+    include_directories : [ db_include, db_private_include ],
     dependencies : deps
 )
 

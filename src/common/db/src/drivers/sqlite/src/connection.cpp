@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "sqlite.hpp"
+#include "sqlite/sqlite.hpp"
 
 #include "core/memory.hpp"
 #include "core/units.hpp"
