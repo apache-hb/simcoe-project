@@ -5,8 +5,6 @@
 using namespace sm;
 using namespace sm::db;
 
-namespace sqlite = sm::db::detail::sqlite;
-
 static int getStatusType(int err) {
     switch (err) {
     case SQLITE_OK:

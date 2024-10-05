@@ -132,7 +132,7 @@ struct Column {
     std::string name;
     Type type;
     bool optional:1;
-    bool autoIncrement:1;
+    sm::dao::AutoIncrement autoIncrement;
 };
 
 struct Table {
@@ -232,6 +232,22 @@ static const std::map<std::string_view, ColumnType> kTypeMap = {
     {"datetime", eDateTime}
 };
 
+static const std::map<std::string_view, sm::dao::AutoIncrement> kAutoIncrementMap = {
+    {"never", sm::dao::AutoIncrement::eNever},
+    {"always", sm::dao::AutoIncrement::eAlways},
+    {"default", sm::dao::AutoIncrement::eDefault}
+};
+
+static std::string_view getAutoIncrementName(sm::dao::AutoIncrement value) {
+    switch (value) {
+    STRCASE(sm::dao::AutoIncrement::eNever);
+    STRCASE(sm::dao::AutoIncrement::eAlways);
+    STRCASE(sm::dao::AutoIncrement::eDefault);
+
+    default: CT_NEVER("Invalid auto-increment value %d", (int)value);
+    }
+}
+
 static Properties getNodeProperties(xmlNodePtr node) {
     Properties properties;
     for (xmlAttrPtr attr = node->properties; attr; attr = attr->next) {
@@ -269,6 +285,16 @@ static std::string expectProperty(const Properties &props, std::string_view key,
 
     postError("Missing property: {}", key);
     return std::string{def};
+}
+
+static sm::dao::AutoIncrement getAutoIncrement(const Properties &props, std::string_view def = "never") {
+    auto value = getOrDefault(props, "autoIncrement", def);
+    if (auto it = kAutoIncrementMap.find(value); it != kAutoIncrementMap.end()) {
+        return it->second;
+    }
+
+    postError("Invalid autoIncrement value: {}", value);
+    return sm::dao::AutoIncrement::eNever;
 }
 
 static void checkNameValid(std::string_view name) {
@@ -380,7 +406,7 @@ static Column buildDaoColumn(Table& parent, xmlNodePtr node) {
         .name = name,
         .type = buildType(props),
         .optional = getOrDefault(props, "nullable", "false") == "true",
-        .autoIncrement = getOrDefault(props, "autoIncrement", "false") == "true"
+        .autoIncrement = getAutoIncrement(props)
     };
 
     if (column.type.isBlob() && column.type.nullable) {
@@ -510,7 +536,7 @@ static Table buildDaoTable(xmlNodePtr node) {
             .name = "id",
             .type = {eUlong, false, 0},
             .optional = false,
-            .autoIncrement = true
+            .autoIncrement = getAutoIncrement(props, "default")
         });
         table.syntheticPrimaryKey = true;
     }
@@ -685,9 +711,9 @@ static void emitCxxBody(
             source.indent();
             source.writeln(".name = \"{}\",", column.name);
             source.writeln(".offset = offsetof(ClassType, {}),", camelCase(column.name));
-            source.writeln(".type = ColumnType::{},", colType);
             source.writeln(".length = {},", column.type.size);
-            source.writeln(".autoIncrement = {},", column.autoIncrement ? "true" : "false");
+            source.writeln(".type = ColumnType::{},", colType);
+            source.writeln(".autoIncrement = {},", getAutoIncrementName(column.autoIncrement));
             source.writeln(".nullable = {},", column.type.nullable ? "true" : "false");
             source.dedent();
             source.writeln("}},");

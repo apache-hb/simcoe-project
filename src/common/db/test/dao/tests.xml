@@ -36,7 +36,7 @@
     </table>
 
     <table name="test_insert_returning" primaryKey="id">
-        <column name="id" type="int" />
+        <column name="id" type="int" autoIncrement="always" />
         <column name="name" type="text" length="255" />
 
         <column name="x" type="float" />

@@ -14,7 +14,7 @@ namespace sm::dao {
     struct ColumnInfo;
     struct TableInfo;
 
-    enum class ColumnType {
+    enum class ColumnType : uint_least8_t {
         eInt, // int32
         eUint, // uint32,
         eLong, // int64
@@ -30,14 +30,22 @@ namespace sm::dao {
         eCount
     };
 
+    enum class AutoIncrement : uint_least8_t {
+        eNever, // never auto-increment
+        eAlways, // always auto-increment, prevents manual setting
+        eDefault, // auto-increment if not set
+
+        eCount
+    };
+
     std::string_view toString(ColumnType type) noexcept;
 
     struct ColumnInfo {
         std::string_view name;
         size_t offset;
-        ColumnType type;
         size_t length;
-        bool autoIncrement;
+        ColumnType type;
+        AutoIncrement autoIncrement;
         bool nullable;
     };
 

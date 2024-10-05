@@ -14,6 +14,14 @@ using namespace sm::db;
 /// statement
 ///
 
+DbError PreparedStatement::prepareIntReturn(std::string_view name) noexcept(false) {
+    return mImpl->prepareIntReturnByName(name);
+}
+
+DbError PreparedStatement::prepareStringReturn(std::string_view name) noexcept(false) {
+    return mImpl->prepareStringReturnByName(name);
+}
+
 BindPoint PreparedStatement::bind(std::string_view name) noexcept {
     return BindPoint{mImpl.get(), name};
 }
@@ -88,14 +96,25 @@ static DbError bindIndex(PreparedStatement& stmt, const dao::TableInfo& info, si
 }
 
 DbError db::bindRowToStatement(PreparedStatement& stmt, const dao::TableInfo& info, bool returning, const void *data) noexcept {
-    size_t primaryKey = detail::primaryKeyIndex(info);
-
-    for (size_t i = 0; i < info.columns.size(); i++) {
+    for (size_t i = 0; i < info.columns.size(); i++)
         if (DbError error = bindIndex(stmt, info, i, returning, data))
             return error;
 
-        if (returning && primaryKey == i) {
+    if (returning && info.hasPrimaryKey()) {
+        size_t pkIndex = detail::primaryKeyIndex(info);
+        const auto& column = info.columns[pkIndex];
 
+        switch (column.type) {
+        case dao::ColumnType::eInt:
+        case dao::ColumnType::eUint:
+        case dao::ColumnType::eLong:
+        case dao::ColumnType::eUlong:
+            return stmt.prepareIntReturn(column.name);
+        case dao::ColumnType::eString:
+            return stmt.prepareStringReturn(column.name);
+
+        default:
+            return DbError::unsupported(fmt::format("returning primary key of type {}", toString(column.type)));
         }
     }
 

@@ -6,7 +6,6 @@ using namespace sm;
 using namespace sm::db;
 
 namespace chrono = std::chrono;
-namespace sqlite = sm::db::detail::sqlite;
 
 using SqliteStatement = sqlite::SqliteStatement;
 

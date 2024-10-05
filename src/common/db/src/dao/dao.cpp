@@ -44,5 +44,5 @@ const ColumnInfo& TableInfo::getPrimaryKey() const noexcept {
 }
 
 bool TableInfo::hasAutoIncrementPrimaryKey() const noexcept {
-    return hasPrimaryKey() && getPrimaryKey().autoIncrement;
+    return hasPrimaryKey() && getPrimaryKey().autoIncrement != AutoIncrement::eNever;
 }

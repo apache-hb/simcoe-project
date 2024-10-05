@@ -6,6 +6,16 @@ using namespace sm;
 using namespace sm::db;
 using namespace sm::db::detail;
 
+DbError IStatement::isNullByName(std::string_view column, bool& value) noexcept {
+    int index = -1;
+    if (DbError error = getColumnIndex(column, index))
+        return error;
+
+    return isNullByIndex(index, value);
+}
+
+/** Getting results */
+
 DbError IStatement::getIntByName(std::string_view column, int64& value) noexcept {
     return getValue(column, value, &IStatement::getIntByIndex);
 }

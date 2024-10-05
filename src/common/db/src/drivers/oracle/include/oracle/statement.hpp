@@ -41,6 +41,15 @@ namespace sm::db::oracle {
 
     using BindValue = std::variant<std::string, OraDateTime, int64_t, double, Blob>;
 
+    struct OraBindInfo {
+        OraBind bind;
+        ub2 type;
+        sb2 indicator;
+        ub2 result;
+        ub4 size;
+        BindValue& value;
+    };
+
     class OraStatement final : public detail::IStatement {
         OraEnvironment& mEnvironment;
         OraConnection& mConnection;
@@ -50,11 +59,16 @@ namespace sm::db::oracle {
 
         std::forward_list<BindValue> mBindValues;
         std::vector<OraColumnInfo> mColumnInfo;
+        std::vector<OraBindInfo> mBindInfo;
 
-        template<typename T>
-        auto addBindValue(T value) {
-            auto& result = mBindValues.emplace_front(std::move(value));
-            return &std::get<T>(result);
+        template<typename T> requires (std::is_nothrow_move_constructible_v<T>)
+        BindValue& newBind(T value) noexcept {
+            return mBindValues.emplace_front(std::move(value));
+        }
+
+        template<typename T> requires (std::is_nothrow_move_constructible_v<T>)
+        auto addBindValue(T value) noexcept {
+            return &std::get<T>(newBind(std::move(value)));
         }
 
         bool hasDataReady() const noexcept override { return mHasData; }
@@ -70,6 +84,21 @@ namespace sm::db::oracle {
         DbError initDateTime(DateTime initial, OraDateTime &result) noexcept;
         DbError extractDateTime(const OraDateTime& datetime, DateTime& result) noexcept;
 
+        sb4 bindInCallback(OCIBind *bind, ub4 iter, ub4 index, void **bufpp, ub4 *alenp, ub1 *piecep, void **idnp) noexcept;
+        sb4 bindOutCallback(OCIBind *bind, ub4 iter, ub4 index, void **bufpp, ub4 **alenp, ub1 *piecep, void **idnp, ub2 **rcodep) noexcept;
+
+        static sb4 bindDynamicInCallback(
+            void *ictxp, OCIBind *bindp, ub4 iter,
+            ub4 index, void **bufpp, ub4 *alenp,
+            ub1 *piecep, void **indp
+        ) noexcept;
+
+        static sb4 bindDynamicOutCallback(
+            void *octxp, OCIBind *bindp, ub4 iter,
+            ub4 index, void **bufpp, ub4 **alenp,
+            ub1 *piecep, void **indp, ub2 **rcodep
+        ) noexcept;
+
     public:
         DbError finalize() noexcept override;
         DbError start(bool autoCommit, StatementType type) noexcept override;
@@ -78,7 +107,6 @@ namespace sm::db::oracle {
 
 
         int getBindCount() const noexcept override;
-        DbError getBindIndex(std::string_view name, int& index) const noexcept override;
 
         DbError bindIntByIndex(int index, int64 value) noexcept override;
         DbError bindBooleanByIndex(int index, bool value) noexcept override;
@@ -97,13 +125,18 @@ namespace sm::db::oracle {
         DbError bindNullByName(std::string_view name) noexcept override;
 
         DbError isNullByIndex(int index, bool& value) noexcept override;
-        DbError isNullByName(std::string_view column, bool& value) noexcept override;
 
         int getColumnCount() const noexcept override;
         DbError getColumnIndex(std::string_view name, int& index) const noexcept override;
 
         DbError getColumnInfo(int index, ColumnInfo& info) const noexcept override;
         DbError getColumnInfo(std::string_view name, ColumnInfo& info) const noexcept override;
+
+        DbError prepareIntReturnByName(std::string_view name) noexcept(false) override;
+        DbError prepareStringReturnByName(std::string_view name) noexcept(false) override;
+
+        int64_t getIntReturnByIndex(int index) noexcept(false) override;
+        std::string_view getStringReturnByIndex(int index) noexcept(false) override;
 
         DbError getIntByIndex(int index, int64& value) noexcept override;
         DbError getBooleanByIndex(int index, bool& value) noexcept override;

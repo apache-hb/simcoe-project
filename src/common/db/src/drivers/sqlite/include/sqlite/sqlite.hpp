@@ -2,7 +2,7 @@
 
 #include "drivers/common.hpp"
 
-namespace sm::db::detail::sqlite {
+namespace sm::db::sqlite {
     std::string setupTableExists() noexcept;
     std::string setupCreateTable(const dao::TableInfo& info) noexcept;
     std::string setupCreateSingletonTrigger(std::string_view name) noexcept;
@@ -57,6 +57,22 @@ namespace sm::db::detail::sqlite {
 
         DbError getColumnInfo(int index, ColumnInfo& info) const noexcept override;
         DbError getColumnInfo(std::string_view name, ColumnInfo& info) const noexcept override;
+
+        /** No-ops on sqlite */
+        DbError prepareIntReturnByName(std::string_view name) noexcept(false) override { return DbError::ok(); }
+        DbError prepareStringReturnByName(std::string_view name) noexcept(false) override { return DbError::ok(); }
+
+        int64_t getIntReturnByIndex(int index) noexcept(false) override {
+            int64_t value = -1;
+            getIntByIndex(index, value).throwIfFailed();
+            return value;
+        }
+
+        std::string_view getStringReturnByIndex(int index) noexcept(false) override {
+            std::string_view value;
+            getStringByIndex(index, value).throwIfFailed();
+            return value;
+        }
 
         DbError getIntByIndex(int index, int64& value) noexcept override;
         DbError getBooleanByIndex(int index, bool& value) noexcept override;

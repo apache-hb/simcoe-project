@@ -92,9 +92,9 @@ namespace sm::db::oracle {
         { }
 
         void operator()(T handle) noexcept {
-            DbError error = handle.close(*this);
-            if (error)
-                fmt::println(stderr, "Error closing handle: {}", error.message());
+            if (DbError error = handle.close(*this)) {
+                LOG_ERROR(DbLog, "Error closing handle: {}", error);
+            }
         }
     };
 

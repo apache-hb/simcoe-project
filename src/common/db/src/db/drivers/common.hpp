@@ -174,9 +174,7 @@ namespace sm::db::detail {
             return DbError::todo("isNullByName");
         }
 
-        virtual DbError isNullByName(std::string_view column, bool& value) noexcept {
-            return DbError::todo("isNullByName");
-        }
+        virtual DbError isNullByName(std::string_view column, bool& value) noexcept;
 
         /** Binding info */
         virtual int getBindCount() const noexcept {
@@ -193,11 +191,21 @@ namespace sm::db::detail {
 
         /** Binding returning output variables */
 
-        virtual DbError bindIntReturnByName(std::string_view name) throws(DbException) {
+        virtual DbError prepareIntReturnByName(std::string_view name) throws(DbException) {
             throw DbException{DbError::todoFn()};
         }
 
-        virtual DbError bindStringReturnByName(std::string_view name) throws(DbException) {
+        virtual DbError prepareStringReturnByName(std::string_view name) throws(DbException) {
+            throw DbException{DbError::todoFn()};
+        }
+
+        /** Fetching returning output variables */
+
+        virtual int64_t getIntReturnByIndex(int index) throws(DbException) {
+            throw DbException{DbError::todoFn()};
+        }
+
+        virtual std::string_view getStringReturnByIndex(int index) throws(DbException) {
             throw DbException{DbError::todoFn()};
         }
 

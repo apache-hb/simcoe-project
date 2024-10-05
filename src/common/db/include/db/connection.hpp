@@ -52,14 +52,14 @@ namespace sm::db {
     public:
         SM_MOVE(PreparedInsertReturning, default);
 
-        DbResult<PrimaryKey> tryInsert(const T& value) noexcept {
+        DbResult<PrimaryKey> tryInsert(const T& value) {
             const auto& info = T::getTableInfo();
             if (DbError error = bindRowToStatement(mStatement, info, true, static_cast<const void*>(&value)))
                 return std::unexpected{error};
 
-            auto result = TRY_UNWRAP(mStatement.start());
+            ResultSet result = TRY_UNWRAP(mStatement.start());
 
-            auto pk = result.get<PrimaryKey>(info.primaryKeyIndex()); // TODO: enforce primary key column
+            auto pk = result.getReturn<PrimaryKey>(info.primaryKeyIndex()); // TODO: enforce primary key column
 
             if (DbError error = result.execute())
                 return error;
@@ -309,7 +309,7 @@ namespace sm::db {
 
         template<dao::HasPrimaryKey T>
         typename T::PrimaryKey insertReturningPrimaryKey(const T& value) throws(DbException) {
-            auto stmt = prepareInsertReturningPrimaryKey<T>();
+            PreparedInsertReturning<T> stmt = prepareInsertReturningPrimaryKey<T>();
             return stmt.insert(value);
         }
 

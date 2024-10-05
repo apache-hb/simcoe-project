@@ -158,6 +158,14 @@ DbResult<DateTime> ResultSet::getDateTime(int index) noexcept {
     return value;
 }
 
+int64_t ResultSet::getIntReturn(int index) {
+    return mImpl->getIntReturnByIndex(index);
+}
+
+std::string_view ResultSet::getStringReturn(int index) {
+    return mImpl->getStringReturnByIndex(index);
+}
+
 DbResult<double> ResultSet::getDouble(std::string_view column) noexcept {
     if (DbError error = checkColumnAccess(column, DataType::eDouble))
         return std::unexpected(error);
@@ -249,7 +257,7 @@ DbResult<bool> ResultSet::isNull(std::string_view column) noexcept {
 template<typename T>
 DbError setColumnField(ResultSet& results, void *dst, std::string_view name, bool nullable) noexcept {
     using Option = std::optional<T>;
-    bool isNull = results.isNull(name).value_or(true);
+    bool isNull = results.isNull(name).value_or(false);
     if (nullable) {
         Option *value = reinterpret_cast<Option*>(dst);
         if (isNull) {

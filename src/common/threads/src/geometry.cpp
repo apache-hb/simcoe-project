@@ -292,7 +292,7 @@ struct ProcessorLayout {
 
     void addCpuSetInfo(const SYSTEM_CPU_SET_INFORMATION &info) noexcept {
         const auto& cpuSet = info.CpuSet;
-        fmt::println(stderr,
+        LOG_INFO(ThreadLog,
             "CpuSet: id={} group={} logicalProcessorIndex={}, "
             "coreIndex={}, lastLevelCacheIndex={}, numaNodeIndex={}, efficiencyClass={},",
             cpuSet.Id, cpuSet.Group, cpuSet.LogicalProcessorIndex, cpuSet.CoreIndex, cpuSet.LastLevelCacheIndex, cpuSet.NumaNodeIndex, cpuSet.EfficiencyClass);

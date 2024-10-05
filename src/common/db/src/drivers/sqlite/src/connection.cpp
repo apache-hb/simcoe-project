@@ -10,7 +10,6 @@
 
 using namespace sm::db;
 
-namespace sqlite = sm::db::detail::sqlite;
 using SqliteConnection = sqlite::SqliteConnection;
 
 DbError SqliteConnection::getConnectionError(int err) const noexcept {

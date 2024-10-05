@@ -227,40 +227,6 @@ int OraStatement::getBindCount() const noexcept {
     return mStatement.getAttribute<ub4>(mError, OCI_ATTR_BIND_COUNT).value_or(-1);
 }
 
-DbError OraStatement::getBindIndex(std::string_view name, int& index) const noexcept {
-    return DbError::todo(fmt::format("getBindIndex({})", name));
-}
-
-DbError OraStatement::bindAtPosition(int index, void *value, ub4 size, ub2 type) noexcept {
-    OraBind bind;
-    sword status = OCIBindByPos(
-        mStatement, &bind, mError, index + 1,
-        value, size, type,
-        nullptr, nullptr, nullptr,
-        0, nullptr, OCI_DEFAULT
-    );
-
-    if (status != OCI_SUCCESS)
-        return oraGetError(mError, status);
-
-    return DbError::ok();
-}
-
-DbError OraStatement::bindAtName(std::string_view name, void *value, ub4 size, ub2 type) noexcept {
-    OraBind bind;
-    sword status = OCIBindByName(
-        mStatement, &bind, mError, (text*)name.data(), name.size(),
-        value, size, type,
-        nullptr, nullptr, nullptr,
-        0, nullptr, OCI_DEFAULT
-    );
-
-    if (status != OCI_SUCCESS)
-        return oraGetError(mError, status);
-
-    return DbError::ok();
-}
-
 DbError OraStatement::finalize() noexcept {
     freeBindValues();
 
@@ -343,6 +309,36 @@ static CellBindInfo getBoolBindingValue(bool value, bool hasBoolType) noexcept {
         static constexpr const char *kValues[] = {"0", "1"};
         return { (void*)kValues[value], 1, SQLT_CHR };
     }
+}
+
+DbError OraStatement::bindAtPosition(int index, void *value, ub4 size, ub2 type) noexcept {
+    OraBind bind;
+    sword status = OCIBindByPos(
+        mStatement, &bind, mError, index + 1,
+        value, size, type,
+        nullptr, nullptr, nullptr,
+        0, nullptr, OCI_DEFAULT
+    );
+
+    if (status != OCI_SUCCESS)
+        return oraGetError(mError, status);
+
+    return DbError::ok();
+}
+
+DbError OraStatement::bindAtName(std::string_view name, void *value, ub4 size, ub2 type) noexcept {
+    OraBind bind;
+    sword status = OCIBindByName(
+        mStatement, &bind, mError, (text*)name.data(), name.size(),
+        value, size, type,
+        nullptr, nullptr, nullptr,
+        0, nullptr, OCI_DEFAULT
+    );
+
+    if (status != OCI_SUCCESS)
+        return oraGetError(mError, status);
+
+    return DbError::ok();
 }
 
 DbError OraStatement::bindBooleanByIndex(int index, bool value) noexcept {
@@ -435,17 +431,166 @@ DbError OraStatement::bindNullByName(std::string_view name) noexcept {
     return bindAtName(name, nullptr, 0, SQLT_STR);
 }
 
-DbError OraStatement::isNullByIndex(int index, bool& value) noexcept {
-    value = mColumnInfo[index].indicator;
+static const OCIInd kNullInd = OCI_IND_NULL;
+
+sb4 OraStatement::bindInCallback(
+    OCIBind *bind, ub4 iter, ub4 index,
+    void **bufpp, ub4 *alenp,
+    ub1 *piecep, void **indpp
+) noexcept {
+    *bufpp = nullptr;
+    *alenp = 0;
+    *indpp = (void*)&kNullInd;
+    *piecep = OCI_ONE_PIECE;
+
+    return OCI_CONTINUE;
+}
+
+sb4 OraStatement::bindOutCallback(
+    OCIBind *bind, ub4 iter, ub4 index,
+    void **bufpp, ub4 **alenp,
+    ub1 *piecep, void **indpp,
+    ub2 **rcodep
+) noexcept {
+    OraBind handle{bind};
+
+    auto maybeSize = handle.getAttribute<ub4>(mError, OCI_ATTR_DATA_SIZE);
+    if (!maybeSize) {
+        return OCI_ERROR;
+    }
+
+    ub4 size = *maybeSize;
+
+    auto& info = mBindInfo[index];
+
+    *rcodep = &info.result;
+    *indpp = (void*)&info.indicator;
+    *alenp = &info.size;
+    *piecep = OCI_ONE_PIECE;
+
+    switch (info.type) {
+    case SQLT_INT:
+        *bufpp = &std::get<int64_t>(info.value);
+        break;
+    case SQLT_STR: {
+        auto& value = std::get<std::string>(info.value);
+        value.resize(size);
+        *bufpp = value.data();
+        break;
+    }
+
+    default:
+        return OCI_ERROR;
+    }
+
+    return OCI_CONTINUE;
+}
+
+sb4 OraStatement::bindDynamicInCallback(
+    void *ictxp, OCIBind *bindp, ub4 iter,
+    ub4 index, void **bufpp, ub4 *alenp,
+    ub1 *piecep, void **indp
+) noexcept {
+    OraStatement *self = reinterpret_cast<OraStatement*>(ictxp);
+    return self->bindInCallback(bindp, iter, index, bufpp, alenp, piecep, indp);
+}
+
+sb4 OraStatement::bindDynamicOutCallback(
+    void *octxp, OCIBind *bindp, ub4 iter,
+    ub4 index, void **bufpp, ub4 **alenp,
+    ub1 *piecep, void **indp, ub2 **rcodep
+) noexcept {
+    OraStatement *self = reinterpret_cast<OraStatement*>(octxp);
+    return self->bindOutCallback(bindp, iter, index, bufpp, alenp, piecep, indp, rcodep);
+}
+
+DbError OraStatement::prepareIntReturnByName(std::string_view name) noexcept(false) {
+    BindValue& value = newBind(int64_t(0));
+    OraBind bind;
+    sword status = 0;
+
+    status = OCIBindByName(
+        mStatement, &bind, mError, (text*)name.data(), name.size(),
+        nullptr, sizeof(int64_t), SQLT_INT,
+        nullptr, nullptr, nullptr,
+        0, nullptr, OCI_DATA_AT_EXEC
+    );
+
+    if (status != OCI_SUCCESS)
+        return oraGetError(mError, status);
+
+    status = OCIBindDynamic(
+        bind, mError,
+        this, &OraStatement::bindDynamicInCallback,
+        this, &OraStatement::bindDynamicOutCallback
+    );
+
+    if (status != OCI_SUCCESS)
+        return oraGetError(mError, status);
+
+    mBindInfo.emplace_back(OraBindInfo {
+        .bind = bind,
+        .type = SQLT_INT,
+        .indicator = 0,
+        .result = 0,
+        .size = sizeof(int64_t),
+        .value = value
+    });
+
     return DbError::ok();
 }
 
-DbError OraStatement::isNullByName(std::string_view column, bool& value) noexcept {
-    int index = -1;
-    if (DbError error = getColumnIndex(column, index))
-        return error;
+DbError OraStatement::prepareStringReturnByName(std::string_view name) noexcept(false) {
+    OraBind bind;
+    sword status = 0;
 
-    return isNullByIndex(index, value);
+    status = OCIBindByName(
+        mStatement, &bind, mError, (text*)name.data(), name.size(),
+        nullptr, OCI_STRING_MAXLEN, SQLT_STR,
+        nullptr, nullptr, nullptr,
+        0, nullptr, OCI_DATA_AT_EXEC
+    );
+
+    if (status != OCI_SUCCESS)
+        return oraGetError(mError, status);
+
+    status = OCIBindDynamic(
+        bind, mError,
+        this, &OraStatement::bindDynamicInCallback,
+        this, &OraStatement::bindDynamicOutCallback
+    );
+
+    if (status != OCI_SUCCESS)
+        return oraGetError(mError, status);
+
+    BindValue& value = newBind(std::string());
+    mBindInfo.emplace_back(OraBindInfo {
+        .bind = bind,
+        .type = SQLT_STR,
+        .indicator = 0,
+        .result = 0,
+        .size = OCI_STRING_MAXLEN,
+        .value = value
+    });
+
+    return DbError::ok();
+}
+
+int64_t OraStatement::getIntReturnByIndex(int index) noexcept(false) {
+    const auto& info = mBindInfo[index];
+
+    return std::get<int64_t>(info.value);
+}
+
+std::string_view OraStatement::getStringReturnByIndex(int index) noexcept(false) {
+    const auto& info = mBindInfo[index];
+
+    return std::get<std::string>(info.value);
+}
+
+DbError OraStatement::isNullByIndex(int index, bool& value) noexcept {
+    value = mColumnInfo[index].indicator;
+    return DbError::ok();
 }
 
 int OraStatement::getColumnCount() const noexcept {
@@ -514,44 +659,24 @@ DbError OraStatement::getIntByIndex(int index, int64& value) noexcept {
 
 DbError OraStatement::getBooleanByIndex(int index, bool& value) noexcept {
     const OraColumnInfo& column = mColumnInfo[index];
-    if (column.indicator) {
-        value = false;
-        return DbError::ok();
-    }
-
     value = getCellBoolean(column);
     return DbError::ok();
 }
 
 DbError OraStatement::getStringByIndex(int index, std::string_view& value) noexcept {
     const OraColumnInfo& column = mColumnInfo[index];
-    if (column.indicator) {
-        value = {};
-        return DbError::ok();
-    }
-
     value = {(const char*)column.value.text, column.valueLength};
     return DbError::ok();
 }
 
 DbError OraStatement::getDoubleByIndex(int index, double& value) noexcept {
     const OraColumnInfo& column = mColumnInfo[index];
-    if (column.indicator) {
-        value = 0.0;
-        return DbError::ok();
-    }
-
     value = column.value.bdouble;
     return DbError::ok();
 }
 
 DbError OraStatement::getBlobByIndex(int index, Blob& value) noexcept {
     const OraColumnInfo& column = mColumnInfo[index];
-    if (column.indicator) {
-        value = {};
-        return DbError::ok();
-    }
-
     const CellValue& cell = column.value;
     const std::uint8_t *bytes = (const std::uint8_t*)cell.lob;
 
@@ -578,10 +703,5 @@ DbError OraStatement::extractDateTime(const OraDateTime& datetime, DateTime& res
 
 DbError OraStatement::getDateTimeByIndex(int index, DateTime& value) noexcept {
     const OraColumnInfo& column = mColumnInfo[index];
-    if (column.indicator) {
-        value = {};
-        return DbError::ok();
-    }
-
     return extractDateTime(column.value.date, value);
 }

@@ -1,6 +1,5 @@
 #include "core/win32.hpp" // IWYU pragma: export
 
-#include "logs/logs.hpp"
 #include "core/format.hpp" // IWYU pragma: export
 #include "system/system.hpp"
 

@@ -99,7 +99,7 @@ PreparedStatement Connection::prepareInsertOrUpdateImpl(const dao::TableInfo& ta
 }
 
 PreparedStatement Connection::prepareInsertReturningPrimaryKeyImpl(const dao::TableInfo& table) noexcept(false) {
-    CTASSERTF(table.hasPrimaryKey(), "Table `%s` has no primary key", table.name.data());
+    CTASSERTF(table.hasAutoIncrementPrimaryKey(), "Table `%s` has no auto-increment primary key", table.name.data());
     std::string sql = mImpl->setupInsertReturningPrimaryKey(table);
     return prepareUpdate(sql);
 }

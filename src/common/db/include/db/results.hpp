@@ -78,6 +78,9 @@ namespace sm::db {
         DbResult<Blob> getBlob(int index) noexcept;
         DbResult<DateTime> getDateTime(int index) noexcept;
 
+        int64_t getIntReturn(int index);
+        std::string_view getStringReturn(int index);
+
         DbResult<double> getDouble(std::string_view column) noexcept;
         DbResult<int64> getInt(std::string_view column) noexcept;
         DbResult<bool> getBool(std::string_view column) noexcept;
@@ -87,6 +90,19 @@ namespace sm::db {
 
         DbResult<bool> isNull(int index) noexcept;
         DbResult<bool> isNull(std::string_view column) noexcept;
+
+        template<typename T>
+        T getReturn(int index) = delete;
+
+        template<std::integral T>
+        T getReturn(int index) {
+            return static_cast<T>(getIntReturn(index));
+        }
+
+        template<>
+        std::string_view getReturn(int index) {
+            return getStringReturn(index);
+        }
 
         template<dao::DaoInterface T>
         DbResult<T> getRow() noexcept {

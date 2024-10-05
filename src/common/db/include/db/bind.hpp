@@ -25,7 +25,7 @@ namespace sm::db {
         void to(bool value) throws(DbException) { toBool(value); }
         void to(std::string_view value) throws(DbException) { toString(value); }
         void to(double value) throws(DbException) { toDouble(value); }
-        void to(Blob value) throws(DbException) { toBlob(value); }
+        void to(Blob value) throws(DbException) { toBlob(std::move(value)); }
         void to(DateTime value) throws(DbException) { toDateTime(value); }
         void to(std::nullptr_t) throws(DbException) { toNull(); }
 
@@ -34,7 +34,7 @@ namespace sm::db {
         void toBool(bool value) throws(DbException) { return tryBindBool(value).throwIfFailed(); }
         void toString(std::string_view value) throws(DbException) { return tryBindString(value).throwIfFailed(); }
         void toDouble(double value) throws(DbException) { return tryBindDouble(value).throwIfFailed(); }
-        void toBlob(Blob value) throws(DbException) { return tryBindBlob(value).throwIfFailed(); }
+        void toBlob(Blob value) throws(DbException) { return tryBindBlob(std::move(value)).throwIfFailed(); }
         void toDateTime(DateTime value) throws(DbException) { return tryBindDateTime(value).throwIfFailed(); }
         void toNull() throws(DbException) { return tryBindNull().throwIfFailed(); }
 
@@ -58,7 +58,7 @@ namespace sm::db {
 
         DbError tryBind(bool value) noexcept { return tryBindBool(value); }
         DbError tryBind(std::string_view value) noexcept { return tryBindString(value); }
-        DbError tryBind(Blob value) noexcept { return tryBindBlob(value); }
+        DbError tryBind(Blob value) noexcept { return tryBindBlob(std::move(value)); }
         DbError tryBind(DateTime value) noexcept { return tryBindDateTime(value); }
         DbError tryBind(std::nullptr_t) noexcept { return tryBindNull(); }
 
@@ -66,7 +66,7 @@ namespace sm::db {
         void operator=(bool value) throws(DbException) { to(value); }
         void operator=(std::string_view value) throws(DbException) { to(value); }
         void operator=(double value) throws(DbException) { to(value); }
-        void operator=(Blob value) throws(DbException) { to(value); }
+        void operator=(Blob value) throws(DbException) { to(std::move(value)); }
         void operator=(DateTime value) throws(DbException) { to(value); }
         void operator=(std::nullptr_t) throws(DbException) { to(nullptr); }
     };
