@@ -87,3 +87,19 @@ render = declare_dependency(
     include_directories : [ render_include, librender.private_dir_include() ],
     dependencies : deps
 )
+
+
+testcases = {
+    'Setup Instance': 'test/instance.cpp'
+}
+
+foreach name, source : testcases
+    exe = executable('test-render-' + name, source,
+        dependencies : [ render, coretest ]
+    )
+
+    test('Render ' + name, exe,
+        suite : 'render',
+        kwargs : testkwargs
+    )
+endforeach

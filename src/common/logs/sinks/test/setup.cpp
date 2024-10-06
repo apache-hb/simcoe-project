@@ -25,7 +25,7 @@ static constexpr db::DbType kType = db::DbType::eOracleDB;
 #else
 
 static constexpr db::ConnectionConfig kConfig = {
-    .host = "testdb.db"
+    .host = "testlogs.db"
 };
 
 static constexpr db::DbType kType = db::DbType::eSqlite3;

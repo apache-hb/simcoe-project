@@ -223,7 +223,6 @@ public:
 };
 
 static DefaultSystemError gDefaultError{};
-// static logs::FileChannel gFileChannel{};
 
 static void commonInit(void) {
     gLogging = sm::makeUnique<LoggingDb>();
@@ -254,23 +253,6 @@ static void commonInit(void) {
 
         std::exit(CT_EXIT_INTERNAL); // NOLINT
     };
-
-#if 0
-    auto& logger = logs::getGlobalLogger();
-
-    if (structured::isConsoleAvailable())
-        logger.addChannel(structured::console());
-
-    if (structured::isDebugConsoleAvailable())
-        logger.addChannel(logs::getDebugConsole());
-
-    if (auto file = logs::FileChannel::open("editor.log"); file) {
-        gFileChannel = std::move(file.value());
-        logger.addChannel(gFileChannel);
-    } else {
-        LOG_ERROR(GlobalLog, "failed to open log file: {}", file.error());
-    }
-#endif
 
     threads::init();
 }
