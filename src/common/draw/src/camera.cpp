@@ -23,7 +23,7 @@ void Camera::accept(const input::InputState& state, InputService& service) {
     constexpr auto key = input::Button::eTilde;
     if (mCameraActive.update(state.buttons[(size_t)key])) {
         service.capture_cursor(mCameraActive.is_active());
-        sys::mouse::set_visible(!mCameraActive.is_active());
+        system::mouse::set_visible(!mCameraActive.is_active());
     }
 
     if (!mCameraActive.is_active()) {

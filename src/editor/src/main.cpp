@@ -9,8 +9,6 @@
 #include "system/system.hpp"
 #include "core/timer.hpp"
 
-#include "threads/threads.hpp"
-
 #include "editor/editor.hpp"
 
 #include "config/config.hpp"
@@ -23,11 +21,10 @@
 
 #include "db/connection.hpp"
 
-#include "core/defer.hpp"
+#include "logs/structured/channels.hpp"
 
-#include "logs/structured/channels.hpp"
-#include "logs/structured/logger.hpp"
-#include "logs/structured/channels.hpp"
+#include "archive/archive.hpp"
+#include "launch/launch.hpp"
 
 #include "archive.dao.hpp"
 
@@ -60,71 +57,16 @@ static sm::opt<bool> gBundlePacked {
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
                                                              LPARAM lParam);
 
-struct LoggingDb {
-    db::Environment sqlite = db::Environment::create(db::DbType::eSqlite3);
-};
 
-static sm::UniquePtr<LoggingDb> gLogging;
-
-static fmt_backtrace_t print_options_make(io_t *io) {
-    fmt_backtrace_t print = {
-        .options = {
-            .arena = get_default_arena(),
-            .io = io,
-            .pallete = &kColourDefault,
-        },
-        .header = eHeadingGeneric,
-        .config = eBtZeroIndexedLines,
-        .project_source_path = SMC_SOURCE_DIR,
-    };
-
-    return print;
-}
-
-class DefaultSystemError final : public ISystemError {
-    bt_report_t *mReport = nullptr;
-
-    void error_begin(OsError error) override {
-        bt_update();
-
-        mReport = bt_report_new(get_default_arena());
-        io_t *io = io_stderr();
-        io_printf(io, "System error detected: (%s)\n", error.toString().c_str());
-    }
-
-    void error_frame(bt_address_t it) override {
-        bt_report_add(mReport, it);
-    }
-
-    void error_end() override {
-        const fmt_backtrace_t kPrintOptions = print_options_make(io_stderr());
-        fmt_backtrace(kPrintOptions, mReport);
-        std::exit(CT_EXIT_INTERNAL); // NOLINT
-    }
-};
-
-class DefaultWindowEvents final : public sys::IWindowEvents {
+class DefaultWindowEvents final : public system::IWindowEvents {
     db::Connection& mConnection;
     render::IDeviceContext *mContext = nullptr;
-    sys::DesktopInput *mInput = nullptr;
+    system::DesktopInput *mInput = nullptr;
 
     static constexpr math::int2 kMinWindowSize = { 128, 128 };
 
     void saveWindowPlacement(const WINDOWPLACEMENT& placement) noexcept {
-        sm::dao::archive::WindowPlacement dao {
-            .flags = placement.flags,
-            .showCmd = placement.showCmd,
-            .minPositionX = placement.ptMinPosition.x,
-            .minPositionY = placement.ptMinPosition.y,
-            .maxPositionX = placement.ptMaxPosition.x,
-            .maxPositionY = placement.ptMaxPosition.y,
-            .normalPosLeft = placement.rcNormalPosition.left,
-            .normalPosTop = placement.rcNormalPosition.top,
-            .normalPosRight = placement.rcNormalPosition.right,
-            .normalPosBottom = placement.rcNormalPosition.bottom,
-        };
-
-        if (db::DbError error = mConnection.tryInsert(dao)) {
+        if (db::DbError error = mConnection.tryInsert(archive::fromWindowPlacement(placement))) {
             LOG_WARN(GlobalLog, "update failed: {}", error);
         }
     }
@@ -138,25 +80,7 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
 
         auto select = result.value();
 
-        WINDOWPLACEMENT placement = {
-            .length = sizeof(WINDOWPLACEMENT),
-            .flags = select.flags,
-            .showCmd = select.showCmd,
-            .ptMinPosition = {
-                .x = (LONG)select.minPositionX,
-                .y = (LONG)select.minPositionY,
-            },
-            .ptMaxPosition = {
-                .x = (LONG)select.maxPositionX,
-                .y = (LONG)select.maxPositionY,
-            },
-            .rcNormalPosition = {
-                .left = (LONG)select.normalPosLeft,
-                .top = (LONG)select.normalPosTop,
-                .right = (LONG)select.normalPosRight,
-                .bottom = (LONG)select.normalPosBottom,
-            },
-        };
+        WINDOWPLACEMENT placement = archive::toWindowPlacement(select);
 
         if (LONG width = placement.rcNormalPosition.right - placement.rcNormalPosition.left; width < kMinWindowSize.x) {
             LOG_WARN(GlobalLog, "window placement width too small {}, ignoring possibly corrupted data", width);
@@ -171,12 +95,12 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
         return placement;
     }
 
-    LRESULT event(sys::Window &window, UINT message, WPARAM wparam, LPARAM lparam) override {
+    LRESULT event(system::Window &window, UINT message, WPARAM wparam, LPARAM lparam) override {
         if (mInput) mInput->window_event(message, wparam, lparam);
         return ImGui_ImplWin32_WndProcHandler(window.getHandle(), message, wparam, lparam);
     }
 
-    void resize(sys::Window &window, math::int2 size) override {
+    void resize(system::Window &window, math::int2 size) override {
         if (size.x < kMinWindowSize.x || size.y < kMinWindowSize.y) {
             LOG_WARN(GlobalLog, "resize too small {}/{}, ignoring", size.x, size.y);
             return;
@@ -189,17 +113,17 @@ class DefaultWindowEvents final : public sys::IWindowEvents {
         saveWindowPlacement(window.getPlacement());
     }
 
-    void create(sys::Window &window) override {
+    void create(system::Window &window) override {
         if (auto placement = loadWindowPlacement()) {
             LOG_INFO(GlobalLog, "create window with placement");
             window.setPlacement(*placement);
         } else {
             LOG_INFO(GlobalLog, "create window without placement");
-            window.centerWindow(sys::MultiMonitor::ePrimary);
+            window.centerWindow(system::MultiMonitor::ePrimary);
         }
     }
 
-    bool close(sys::Window &window) override {
+    bool close(system::Window &window) override {
         saveWindowPlacement(window.getPlacement());
         return true;
     }
@@ -217,45 +141,10 @@ public:
         mContext = context;
     }
 
-    void attachInput(sys::DesktopInput *input) {
+    void attachInput(system::DesktopInput *input) {
         mInput = input;
     }
 };
-
-static DefaultSystemError gDefaultError{};
-
-static void commonInit(void) {
-    gLogging = sm::makeUnique<LoggingDb>();
-
-    bt_init();
-    os_init();
-    logs::structured::setup(gLogging->sqlite.connect({ .host = "editor-logs.db" }));
-
-    std::unique_ptr<logs::structured::ILogChannel> console{logs::structured::console()};
-    logs::structured::Logger::instance().addChannel(std::move(console));
-
-    // TODO: popup window for panics and system errors
-    gSystemError = gDefaultError;
-
-    gPanicHandler = [](source_info_t info, const char *msg, va_list args) {
-        bt_update();
-        io_t *io = io_stderr();
-        arena_t *arena = get_default_arena();
-
-        const fmt_backtrace_t kPrintOptions = print_options_make(io);
-
-        auto message = sm::vformat(msg, args);
-
-        fmt::println(stderr, "{}", message);
-
-        bt_report_t *report = bt_report_collect(arena);
-        fmt_backtrace(kPrintOptions, report);
-
-        std::exit(CT_EXIT_INTERNAL); // NOLINT
-    };
-
-    threads::init();
-}
 
 static void init_imgui() {
     IMGUI_CHECKVERSION();
@@ -290,9 +179,9 @@ static sm::IFileSystem *mountArchive(bool isPacked, const fs::path &path) {
     }
 }
 
-static void messageLoop(sys::ShowWindow show) {
-    sys::WindowConfig window_config = {
-        .mode = sys::WindowMode::eWindowed,
+static void messageLoop(system::ShowWindow show) {
+    system::WindowConfig window_config = {
+        .mode = system::WindowMode::eWindowed,
         .width = 1280,
         .height = 720,
         .title = "Priority Zero",
@@ -303,8 +192,8 @@ static void messageLoop(sys::ShowWindow show) {
 
     DefaultWindowEvents events{connection};
 
-    sys::Window window{window_config, events};
-    sys::DesktopInput desktop_input{window};
+    system::Window window{window_config, events};
+    system::DesktopInput desktop_input{window};
     events.attachInput(&desktop_input);
 
     window.show_window(show);
@@ -412,7 +301,7 @@ static void messageLoop(sys::ShowWindow show) {
         const auto& state = context.input.getState();
         if (cameraActive.update(state.buttons[(size_t)input::Button::eTilde])) {
             context.input.capture_cursor(cameraActive.is_active());
-            sys::mouse::set_visible(!cameraActive.is_active());
+            system::mouse::set_visible(!cameraActive.is_active());
             world.set<ed::ecs::MouseCaptured>({ cameraActive.is_active() });
         }
 
@@ -439,7 +328,7 @@ static void messageLoop(sys::ShowWindow show) {
     // game.shutdown();
 }
 
-static int editorMain(sys::ShowWindow show) {
+static int editorMain(system::ShowWindow show) {
     ecs_os_set_api_defaults();
     ecs_os_api_t api = ecs_os_get_api();
     api.abort_ = [] {
@@ -454,7 +343,7 @@ static int editorMain(sys::ShowWindow show) {
     return 0;
 }
 
-static int commonMain(sys::ShowWindow show) noexcept try {
+static int commonMain(system::ShowWindow show) noexcept try {
     LOG_INFO(GlobalLog, "SMC_DEBUG = {}", SMC_DEBUG);
     LOG_INFO(GlobalLog, "CTU_DEBUG = {}", CTU_DEBUG);
 
@@ -472,23 +361,23 @@ static int commonMain(sys::ShowWindow show) noexcept try {
     return -1;
 }
 
+static const launch::LaunchInfo kLaunchInfo {
+    .logDbType = db::DbType::eSqlite3,
+    .logDbConfig = { .host = "editor-logs.db" },
+    .logPath = "editor.log",
+};
+
 int main(int argc, const char **argv) noexcept try {
-    commonInit();
-    defer { logs::structured::shutdown(); };
+    auto _ = launch::commonInit(GetModuleHandleA(nullptr), kLaunchInfo);
 
     sm::Span<const char*> args{argv, size_t(argc)};
     LOG_INFO(GlobalLog, "args = [{}]", fmt::join(args, ", "));
 
-    int result = [&] {
-        sys::create(GetModuleHandleA(nullptr));
-        defer { sys::destroy(); };
+    if (int err = sm::parseCommandLine(argc, argv)) {
+        return (err == -1) ? 0 : err; // TODO: this is a little silly, should wrap in a type
+    }
 
-        if (int err = sm::parseCommandLine(argc, argv)) {
-            return (err == -1) ? 0 : err; // TODO: this is a little silly, should wrap in a type
-        }
-
-        return commonMain(sys::ShowWindow::eShow);
-    }();
+    int result = commonMain(system::ShowWindow::eShow);
 
     LOG_INFO(GlobalLog, "editor exiting with {}", result);
 
@@ -504,22 +393,25 @@ int main(int argc, const char **argv) noexcept try {
     return -1;
 }
 
-int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
-    commonInit();
-    defer { logs::structured::shutdown(); };
+int WINAPI WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) try {
+    auto _ = launch::commonInit(hInstance, kLaunchInfo);
 
     LOG_INFO(GlobalLog, "lpCmdLine = {}", lpCmdLine);
     LOG_INFO(GlobalLog, "nShowCmd = {}", nShowCmd);
     // TODO: parse lpCmdLine
 
-    int result = [&] {
-        sys::create(hInstance);
-        defer { sys::destroy(); };
-
-        return commonMain(sys::ShowWindow{nShowCmd});
-    }();
+    int result = commonMain(system::ShowWindow{nShowCmd});
 
     LOG_INFO(GlobalLog, "editor exiting with {}", result);
 
     return result;
+} catch (const db::DbException& err) {
+    LOG_ERROR(GlobalLog, "database error: {}", err.error());
+    return -1;
+} catch (const std::exception& err) {
+    LOG_ERROR(GlobalLog, "unhandled exception: {}", err.what());
+    return -1;
+} catch (...) {
+    LOG_ERROR(GlobalLog, "unknown unhandled exception");
+    return -1;
 }

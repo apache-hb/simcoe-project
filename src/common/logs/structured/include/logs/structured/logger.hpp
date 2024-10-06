@@ -9,7 +9,7 @@ namespace sm::logs::structured {
     public:
         void addChannel(std::unique_ptr<ILogChannel>&& channel);
 
-        void shutdown() noexcept;
+        void destroy() noexcept;
 
         void postMessage(const MessageInfo& message, ArgStore args) noexcept;
 

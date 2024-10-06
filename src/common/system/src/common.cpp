@@ -9,11 +9,11 @@ using namespace sm;
 HINSTANCE gInstance = nullptr;
 LPTSTR gWindowClass = nullptr;
 
-OsError sys::getLastError() {
+OsError system::getLastError() {
     return GetLastError();
 }
 
 CT_NORETURN
-sys::assertLastError(source_info_t panic, const char *expr) {
+system::assertLastError(source_info_t panic, const char *expr) {
     sm::vpanic(panic, "win32 {}: {}", getLastError(), expr);
 }

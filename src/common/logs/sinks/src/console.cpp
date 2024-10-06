@@ -6,6 +6,8 @@
 #include "logs/structured/channel.hpp"
 #include "logs/structured/channels.hpp"
 
+#include "core/win32.hpp"
+
 namespace os = sm::os;
 namespace logs = sm::logs;
 namespace structured = sm::logs::structured;
@@ -35,6 +37,10 @@ class ConsoleChannel final : public structured::ILogChannel {
 public:
     ConsoleChannel() noexcept = default;
 };
+
+bool structured::isConsoleAvailable() noexcept {
+    return !!GetConsoleCP();
+}
 
 structured::ILogChannel *sm::logs::structured::console() {
     return new ConsoleChannel;

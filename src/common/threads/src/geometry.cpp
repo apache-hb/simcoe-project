@@ -108,18 +108,18 @@ struct ProcessorInfoEx {
 
         DWORD size = 0;
         if (pfnGetLogicalProcessorInformationEx(relation, nullptr, &size)) {
-            LOG_WARN(ThreadLog, "GetLogicalProcessorInformationEx failed with error {}", sys::getLastError());
+            LOG_WARN(ThreadLog, "GetLogicalProcessorInformationEx failed with error {}", system::getLastError());
             return std::nullopt;
         }
 
-        if (OsError err = sys::getLastError(); err != OsError(ERROR_INSUFFICIENT_BUFFER)) {
+        if (OsError err = system::getLastError(); err != OsError(ERROR_INSUFFICIENT_BUFFER)) {
             LOG_WARN(ThreadLog, "GetLogicalProcessorInformationEx failed with error {}", err);
             return std::nullopt;
         }
 
         auto memory = sm::UniquePtr<std::byte[]>(size);
         if (!pfnGetLogicalProcessorInformationEx(relation, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)memory.get(), &size)) {
-            LOG_WARN(ThreadLog, "GetLogicalProcessorInformationEx failed with error {}", sys::getLastError());
+            LOG_WARN(ThreadLog, "GetLogicalProcessorInformationEx failed with error {}", system::getLastError());
             return std::nullopt;
         }
 
@@ -190,18 +190,18 @@ struct CpuSetInfo {
         HANDLE process = GetCurrentProcess();
         ULONG size = 0;
         if (pfnGetSystemCpuSetInformation(nullptr, 0, &size, process, 0)) {
-            LOG_WARN(ThreadLog, "GetSystemCpuSetInformation failed with error {}", sys::getLastError());
+            LOG_WARN(ThreadLog, "GetSystemCpuSetInformation failed with error {}", system::getLastError());
             return std::nullopt;
         }
 
-        if (OsError err = sys::getLastError(); err != OsError(ERROR_INSUFFICIENT_BUFFER)) {
+        if (OsError err = system::getLastError(); err != OsError(ERROR_INSUFFICIENT_BUFFER)) {
             LOG_WARN(ThreadLog, "GetSystemCpuSetInformation failed with error {}", err);
             return std::nullopt;
         }
 
         auto memory = sm::UniquePtr<std::byte[]>(size);
         if (!pfnGetSystemCpuSetInformation((PSYSTEM_CPU_SET_INFORMATION)memory.get(), size, &size, process, 0)) {
-            LOG_WARN(ThreadLog, "GetSystemCpuSetInformation failed with error {}", sys::getLastError());
+            LOG_WARN(ThreadLog, "GetSystemCpuSetInformation failed with error {}", system::getLastError());
             return std::nullopt;
         }
 
@@ -365,7 +365,11 @@ threads::ICpuGeometry *threads::getCpuGeometry() noexcept {
     return nullptr;
 }
 
-void threads::init() noexcept {
+void threads::create(void) {
     CpuInfoLibrary library = CpuInfoLibrary::load();
     detail::buildCpuGeometry(library);
+}
+
+void threads::destroy(void) {
+    // nothing to do for now
 }

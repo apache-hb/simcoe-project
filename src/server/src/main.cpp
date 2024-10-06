@@ -1,15 +1,15 @@
 #include "stdafx.hpp"
 
-#include "db/transaction.hpp"
 #include "db/connection.hpp"
-
-#include "threads/threads.hpp"
 
 #include "logs/structured/channels.hpp"
 
 #include "net/net.hpp"
 
+#include "launch/launch.hpp"
+
 #include "packets/packets.hpp"
+
 #include <random>
 #include <unordered_set>
 
@@ -26,106 +26,6 @@ static sm::opt<bool> gRunAsClient {
     desc = "Run as a client",
     init = false
 };
-
-static fmt_backtrace_t print_options_make(io_t *io) {
-    fmt_backtrace_t print = {
-        .options = {
-            .arena = get_default_arena(),
-            .io = io,
-            .pallete = &kColourDefault,
-        },
-        .header = eHeadingGeneric,
-        .config = eBtZeroIndexedLines,
-        .project_source_path = SMC_SOURCE_DIR,
-    };
-
-    return print;
-}
-
-class DefaultSystemError final : public ISystemError {
-    bt_report_t *mReport = nullptr;
-
-    void error_begin(OsError error) override {
-        bt_update();
-
-        mReport = bt_report_new(get_default_arena());
-        io_t *io = io_stderr();
-        io_printf(io, "System error detected: (%s)\n", error.toString().c_str());
-    }
-
-    void error_frame(bt_address_t it) override {
-        bt_report_add(mReport, it);
-    }
-
-    void error_end() override {
-        const fmt_backtrace_t kPrintOptions = print_options_make(io_stderr());
-        fmt_backtrace(kPrintOptions, mReport);
-        std::exit(CT_EXIT_INTERNAL); // NOLINT
-    }
-};
-
-static DefaultSystemError gDefaultError{};
-// static logs::FileChannel gFileChannel{};
-
-struct LogWrapper {
-    db::Environment env;
-
-    LogWrapper()
-        : env(db::Environment::create(db::DbType::eSqlite3))
-    {
-        sm::logs::structured::setup(env.connect({ .host = "server-logs.db" }));
-    }
-
-    ~LogWrapper() {
-        sm::logs::structured::shutdown();
-    }
-};
-
-sm::UniquePtr<LogWrapper> gLogWrapper;
-
-static void commonInit(void) {
-    // bt_init();
-    os_init();
-
-    // TODO: popup window for panics and system errors
-    gSystemError = gDefaultError;
-
-    gPanicHandler = [](source_info_t info, const char *msg, va_list args) {
-        bt_update();
-        io_t *io = io_stderr();
-        arena_t *arena = get_default_arena();
-
-        const fmt_backtrace_t kPrintOptions = print_options_make(io);
-
-        auto message = sm::vformat(msg, args);
-
-        fmt::println(stderr, "{}", message);
-
-        bt_report_t *report = bt_report_collect(arena);
-        fmt_backtrace(kPrintOptions, report);
-
-        std::exit(CT_EXIT_INTERNAL); // NOLINT
-    };
-
-#if 0
-    auto& logger = logs::getGlobalLogger();
-
-    if (logs::isConsoleHandleAvailable())
-        logger.addChannel(logs::getConsoleHandle());
-
-    if (logs::isDebugConsoleAvailable())
-        logger.addChannel(logs::getDebugConsole());
-
-    if (auto file = logs::FileChannel::open("server.log"); file) {
-        gFileChannel = std::move(file.value());
-        logger.addChannel(gFileChannel);
-    } else {
-        LOG_ERROR(LaunchLog, "failed to open log file: {}", file.error());
-    }
-#endif
-
-    gLogWrapper = sm::makeUnique<LogWrapper>();
-}
 
 static constexpr net::IPv4Address kAddress = net::IPv4Address::loopback();
 static constexpr uint16_t kPort = 9979;
@@ -328,27 +228,25 @@ static int commonMain() noexcept try {
     return -1;
 }
 
+static const launch::LaunchInfo kLaunchInfo {
+    .logDbType = db::DbType::eSqlite3,
+    .logDbConfig = { .host = "server-logs.db" },
+    .logPath = "server.log",
+};
+
 int main(int argc, const char **argv) noexcept try {
-    commonInit();
-    defer { gLogWrapper.reset(); };
+    auto _ = launch::commonInit(GetModuleHandleA(nullptr), kLaunchInfo);
 
     sm::Span<const char*> args{argv, size_t(argc)};
     LOG_INFO(GlobalLog, "args = [{}]", fmt::join(args, ", "));
 
-    int result = [&] {
-        sys::create(GetModuleHandleA(nullptr));
-        defer { sys::destroy(); };
+    if (int err = sm::parseCommandLine(argc, argv)) {
+        return (err == -1) ? 0 : err; // TODO: this is a little silly, should wrap in a type
+    }
 
-        if (int err = sm::parseCommandLine(argc, argv)) {
-            return (err == -1) ? 0 : err; // TODO: this is a little silly, should wrap in a type
-        }
-
-        return commonMain();
-    }();
+    int result = commonMain();
 
     LOG_INFO(LaunchLog, "editor exiting with {}", result);
-
-    // logs::shutdown();
 
     return result;
 } catch (const db::DbException& err) {
@@ -363,23 +261,15 @@ int main(int argc, const char **argv) noexcept try {
 }
 
 int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
-    commonInit();
-    defer { gLogWrapper.reset(); };
+    auto _ = launch::commonInit(GetModuleHandleA(nullptr), kLaunchInfo);
 
     LOG_INFO(LaunchLog, "lpCmdLine = {}", lpCmdLine);
     LOG_INFO(LaunchLog, "nShowCmd = {}", nShowCmd);
     // TODO: parse lpCmdLine
 
-    int result = [&] {
-        sys::create(hInstance);
-        defer { sys::destroy(); };
-
-        return commonMain();
-    }();
+    int result = commonMain();
 
     LOG_INFO(LaunchLog, "editor exiting with {}", result);
-
-    // logs::shutdown();
 
     return result;
 }

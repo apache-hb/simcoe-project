@@ -6,7 +6,8 @@
 #include "resource.h"
 
 using namespace sm;
-using namespace sm::sys;
+
+namespace sys = sm::system;
 
 static constexpr const char *kClassName = "simcoe";
 

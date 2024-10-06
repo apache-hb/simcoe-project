@@ -48,7 +48,7 @@ namespace sm::render {
         uint srvHeapSize;
 
         Bundle& bundle;
-        sys::Window &window;
+        system::Window &window;
     };
 
     struct FrameData {

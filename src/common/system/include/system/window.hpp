@@ -7,7 +7,7 @@
 #include "math/math.hpp"
 #include "core/macros.hpp"
 
-namespace sm::sys {
+namespace sm::system {
     using WindowPlacement = WINDOWPLACEMENT;
     using Point = POINT;
 
@@ -56,11 +56,9 @@ namespace sm::sys {
         Window(const WindowConfig &config, IWindowEvents& events);
         ~Window();
 
-        WindowPlacement get_placement() const;
-        WindowPlacement getPlacement() const { return get_placement(); }
+        WindowPlacement getPlacement() const;
 
-        void set_placement(const WindowPlacement &placement);
-        void setPlacement(const WindowPlacement &placement) { set_placement(placement); }
+        void setPlacement(const WindowPlacement &placement);
 
         void show_window(ShowWindow show);
         void showWindow(ShowWindow show) { show_window(show); }

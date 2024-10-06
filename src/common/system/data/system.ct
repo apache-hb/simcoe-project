@@ -1,4 +1,4 @@
-module sm::sys;
+module sm::system;
 
 import "core/units.hpp";
 

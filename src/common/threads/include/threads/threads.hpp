@@ -166,6 +166,7 @@ namespace sm::threads {
         std::vector<Cache> l1Caches() const;
     };
 
-    void init() noexcept;
+    void create(void);
+    void destroy(void);
     ICpuGeometry *getCpuGeometry() noexcept;
 }

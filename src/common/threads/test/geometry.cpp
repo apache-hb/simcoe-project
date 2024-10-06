@@ -24,7 +24,8 @@ TEST_CASE("CpuSet Geometry") {
 }
 
 TEST_CASE("Processor Geometry") {
-    threads::init();
+    threads::create();
+    threads::destroy();
 }
 
 #if 0

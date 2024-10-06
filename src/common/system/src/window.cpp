@@ -8,19 +8,21 @@
 #include <winbase.h>
 
 using namespace sm;
-using namespace sm::sys;
+
+namespace sys = sm::system;
+using Window = sys::Window;
 
 // like assert but non-fatal if the api call fails
 #define SM_CHECK_WIN32(expr)                                                                       \
     [&]() -> bool {                                                                                \
         if (auto result = (expr); !result) {                                                       \
-            LOG_ERROR(SystemLog, #expr " = {}. {}", result, sm::sys::getLastError());              \
+            LOG_ERROR(SystemLog, #expr " = {}. {}", result, sm::system::getLastError());              \
             return false;                                                                          \
         }                                                                                          \
         return true;                                                                               \
     }()
 
-LRESULT CALLBACK Window::proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam) {
+LRESULT CALLBACK sys::Window::proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam) {
     Window *self = reinterpret_cast<Window*>(GetWindowLongPtrA(window, GWLP_USERDATA));
 
     switch (message) {
@@ -105,14 +107,14 @@ Window::~Window() {
     if (mWindow != nullptr) destroy_window();
 }
 
-WindowPlacement Window::get_placement(void) const {
+sys::WindowPlacement Window::getPlacement(void) const {
     WINDOWPLACEMENT placement{.length = sizeof(WINDOWPLACEMENT)};
     SM_ASSERT_WIN32(GetWindowPlacement(mWindow, &placement));
 
     return placement;
 }
 
-void Window::set_placement(const WindowPlacement &placement) {
+void Window::setPlacement(const WindowPlacement &placement) {
     SM_CHECK_WIN32(SetWindowPlacement(mWindow, &placement));
 }
 
@@ -133,14 +135,14 @@ void Window::set_title(const char *title) {
     SM_CHECK_WIN32(SetWindowTextA(mWindow, title));
 }
 
-WindowCoords Window::get_coords() const {
+sys::WindowCoords Window::get_coords() const {
     RECT rect{};
     SM_ASSERT_WIN32(GetWindowRect(mWindow, &rect));
 
     return rect;
 }
 
-WindowCoords Window::get_client_coords() const {
+sys::WindowCoords Window::get_client_coords() const {
     RECT rect{};
     SM_ASSERT_WIN32(GetClientRect(mWindow, &rect));
 

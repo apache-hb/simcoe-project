@@ -10,8 +10,13 @@ namespace sm::db {
 }
 
 namespace sm::logs::structured {
-    void setup(db::Connection connection);
-    void shutdown();
+    void create(db::Connection connection);
+    void destroy();
+
+    bool addConsoleChannel();
+    bool addDebugChannel();
+    bool addFileChannel(const fs::path& path);
+    bool addDatabaseChannel(db::Connection connection);
 
     bool isConsoleAvailable() noexcept;
     ILogChannel *console();

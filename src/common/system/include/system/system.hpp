@@ -14,7 +14,7 @@
 
 LOG_MESSAGE_CATEGORY(SystemLog, "System");
 
-namespace sm::sys {
+namespace sm::system {
     CT_NORETURN assertLastError(source_info_t panic, const char *expr);
 
     OsError getLastError();
@@ -29,6 +29,6 @@ namespace sm::sys {
 #define SM_ASSERT_WIN32(expr)                                  \
     do {                                                       \
         if (auto result = (expr); !result) {                   \
-            sm::sys::assertLastError(CT_SOURCE_CURRENT, #expr); \
+            sm::system::assertLastError(CT_SOURCE_CURRENT, #expr); \
         }                                                      \
     } while (0)

@@ -247,6 +247,12 @@ subdir('src/common/game')
 
 subdir('src/game/packets')
 
+###
+### top level modules
+###
+
+subdir('src/common/launch')
+
 # windows specific dependencies
 agility = subproject('d3d12')
 warp = subproject('d3dwarp')

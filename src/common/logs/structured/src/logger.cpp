@@ -26,7 +26,7 @@ void structured::Logger::addChannel(std::unique_ptr<ILogChannel>&& channel) {
     mChannels.emplace_back(std::move(channel));
 }
 
-void structured::Logger::shutdown() noexcept {
+void structured::Logger::destroy() noexcept {
     mChannels.clear();
 }
 

@@ -1,7 +1,8 @@
 #include "system/input.hpp"
 
 using namespace sm;
-using namespace sm::sys;
+
+using DesktopInput = system::DesktopInput;
 
 // handling keyboard accuratley is more tricky than it first seems
 // https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input#keystroke-message-flags
@@ -111,7 +112,7 @@ static math::int2 getMousePosition(HWND hwnd) {
     return {p.x, p.y};
 }
 
-static math::int2 getWindowCenter(sys::Window& hwnd) {
+static math::int2 getWindowCenter(system::Window& hwnd) {
     RECT rect;
     SM_ASSERT_WIN32(GetWindowRect(hwnd.get_handle(), &rect));
 
@@ -169,7 +170,7 @@ bool DesktopInput::pollMouseState(input::InputState& state) {
     return true;
 }
 
-DesktopInput::DesktopInput(sys::Window& window)
+DesktopInput::DesktopInput(system::Window& window)
     : ISource(input::DeviceType::eDesktop)
     , mWindow(window)
     , mMousePosition(getMousePosition(window.get_handle()))
@@ -244,6 +245,6 @@ void DesktopInput::capture_cursor(bool capture) {
     }
 }
 
-void mouse::set_visible(bool visible) {
+void system::mouse::set_visible(bool visible) {
     ShowCursor(visible);
 }

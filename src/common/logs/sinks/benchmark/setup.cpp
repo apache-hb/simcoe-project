@@ -22,7 +22,7 @@ LOG_MESSAGE_CATEGORY(TestLog, "Tests");
 TEST_CASE("Setup logging") {
     auto env = db::Environment::create(db::DbType::eSqlite3);
 
-    logs::structured::setup(env.connect({.host="benchlogs.db"}));
+    logs::structured::create(env.connect({.host="benchlogs.db"}));
     SUCCEED();
 
     BENCHMARK("Log plain message") {
@@ -33,5 +33,5 @@ TEST_CASE("Setup logging") {
         LOG_INFO(TestLog, "Benchmark logging message with {arg}", fmt::arg("arg", 42));
     };
 
-    logs::structured::shutdown();
+    logs::structured::destroy();
 }

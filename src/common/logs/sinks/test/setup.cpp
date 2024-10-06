@@ -37,7 +37,7 @@ LOG_MESSAGE_CATEGORY(TestLog, "Tests");
 TEST_CASE("Setup logging") {
     auto env = db::Environment::create(kType, { .logQueries=true });
     try {
-        logs::structured::setup(env.connect(kConfig));
+        logs::structured::create(env.connect(kConfig));
     } catch (db::DbException& e) {
         for (const auto& frame : e.stacktrace()) {
             fmt::println(stderr, "[{}:{}] {}", frame.source_file(), frame.source_line(), frame.description());
@@ -57,5 +57,5 @@ TEST_CASE("Setup logging") {
         }
     }
 
-    logs::structured::shutdown();
+    logs::structured::destroy();
 }

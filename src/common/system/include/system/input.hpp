@@ -4,10 +4,10 @@
 
 #include "system/window.hpp"
 
-namespace sm::sys {
+namespace sm::system {
     // mouse and keyboard input
     class DesktopInput final : public input::ISource {
-        sys::Window& mWindow;
+        system::Window& mWindow;
 
         // keyboard state
         input::ButtonState mButtons{};
@@ -24,7 +24,7 @@ namespace sm::sys {
         void centerMouse();
 
     public:
-        DesktopInput(sys::Window& window);
+        DesktopInput(system::Window& window);
 
         bool poll(input::InputState& state) override;
 
