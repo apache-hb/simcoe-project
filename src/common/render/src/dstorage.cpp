@@ -59,7 +59,7 @@ void CopyStorage::create(DebugFlags flags) {
     mFactory->SetDebugFlags(getDirectStorageDebugFlags(flags));
 }
 
-void CopyStorage::destroy() {
+void CopyStorage::destroy() noexcept {
     mFactory.reset();
 }
 

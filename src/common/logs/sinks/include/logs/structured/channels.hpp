@@ -11,7 +11,7 @@ namespace sm::db {
 
 namespace sm::logs::structured {
     void create(db::Connection connection);
-    void destroy();
+    void destroy(void) noexcept;
 
     bool addConsoleChannel();
     bool addDebugChannel();

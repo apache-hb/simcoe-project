@@ -23,7 +23,7 @@ namespace sm::system {
     fs::path getProgramPath();
 
     void create(HINSTANCE hInstance);
-    void destroy(void);
+    void destroy(void) noexcept;
 }
 
 #define SM_ASSERT_WIN32(expr)                                  \

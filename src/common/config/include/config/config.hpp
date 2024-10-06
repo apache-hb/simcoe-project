@@ -147,10 +147,10 @@ namespace sm::config {
     class UpdateResult {
         std::vector<UpdateError> mErrors;
 
-        void vfmtError(UpdateStatus status, fmt::string_view fmt, fmt::format_args args) noexcept;
+        void vfmtError(UpdateStatus status, fmt::string_view fmt, fmt::format_args args);
 
     public:
-        void addError(UpdateStatus status, std::string message) noexcept;
+        void addError(UpdateStatus status, std::string message);
 
         template<typename... A>
         void fmtError(UpdateStatus status, fmt::format_string<A...> fmt, A&&... args) {

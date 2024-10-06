@@ -41,6 +41,6 @@ bool structured::addDatabaseChannel(db::Connection connection) {
     return true;
 }
 
-void structured::destroy() {
+void structured::destroy(void) noexcept {
     structured::Logger::instance().destroy();
 }

@@ -370,6 +370,6 @@ void threads::create(void) {
     detail::buildCpuGeometry(library);
 }
 
-void threads::destroy(void) {
+void threads::destroy(void) noexcept {
     // nothing to do for now
 }

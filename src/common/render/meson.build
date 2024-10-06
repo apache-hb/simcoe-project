@@ -50,7 +50,9 @@ src = [
     'src/vendor/amd/ags.cpp',
 
     reflect.process('data/render.ct'),
-    reflect.process('data/graph.ct')
+    reflect.process('data/graph.ct'),
+
+    daocc.process('data/render.xml'),
 ]
 
 deps = [
@@ -59,10 +61,10 @@ deps = [
     world, config,
 
     # other vendors
-    tracy,
+    tracy, d3d12ma,
 
     # microsoft
-    d3d12, d3dx12, d3d12ma, dstorage,
+    d3d12, d3dx12, dstorage,
     winpixruntime.partial_dependency(includes : true),
 
     # hardware vendors
@@ -90,11 +92,12 @@ render = declare_dependency(
 
 
 testcases = {
-    'Setup Instance': 'test/instance.cpp'
+    'Setup Instance': 'test/instance.cpp',
+    'Setup Device Context': 'test/context.cpp',
 }
 
 foreach name, source : testcases
-    exe = executable('test-render-' + name, source,
+    exe = executable('test-render-' + name.to_lower().replace(' ', '-'), source,
         dependencies : [ render, coretest ]
     )
 

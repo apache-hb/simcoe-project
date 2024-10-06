@@ -213,6 +213,9 @@ namespace sm::net {
 
         size_t getMaxSockets() const noexcept { return mData.iMaxSockets; }
     };
+
+    void create(void);
+    void destroy(void) noexcept;
 }
 
 template<>

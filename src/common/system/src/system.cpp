@@ -78,7 +78,7 @@ void sys::create(HINSTANCE hInstance) {
     gProgramDir = gProgramPath.parent_path();
 }
 
-void sys::destroy(void) {
+void sys::destroy(void) noexcept {
     CTASSERTF(gInstance != nullptr, "system::destroy() called before system::create()");
     CTASSERTF(gWindowClass != nullptr, "system::destroy() called before system::create()");
 

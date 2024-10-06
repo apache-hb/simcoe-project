@@ -614,8 +614,8 @@ static void createDebugLinePSO(render::IDeviceContext& context, render::Pipeline
     }
 
     {
-        auto ps = context.mConfig.bundle.get_shader_bytecode("jolt_debug.ps");
-        auto vs = context.mConfig.bundle.get_shader_bytecode("jolt_debug.vs");
+        auto ps = context.mConfig.bundle->get_shader_bytecode("jolt_debug.ps");
+        auto vs = context.mConfig.bundle->get_shader_bytecode("jolt_debug.vs");
 
         constexpr D3D12_INPUT_ELEMENT_DESC kInputElements[] = {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(DebugVertex, position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -665,8 +665,8 @@ static void createDebugTrianglePSO(
     }
 
     {
-        auto ps = context.mConfig.bundle.get_shader_bytecode("jolt_debug.ps");
-        auto vs = context.mConfig.bundle.get_shader_bytecode("jolt_debug.vs");
+        auto ps = context.mConfig.bundle->get_shader_bytecode("jolt_debug.ps");
+        auto vs = context.mConfig.bundle->get_shader_bytecode("jolt_debug.vs");
 
         constexpr D3D12_INPUT_ELEMENT_DESC kInputElements[] = {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(DebugVertex, position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },

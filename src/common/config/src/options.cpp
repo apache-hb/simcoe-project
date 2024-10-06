@@ -5,7 +5,6 @@
 #include "config/config.hpp"
 #include "config/parse.hpp"
 
-#include "logs/logs.hpp"
 #include "config/config.hpp"
 
 using namespace sm;
@@ -33,11 +32,11 @@ Group& config::getCommonGroup() noexcept {
     return instance;
 }
 
-void UpdateResult::vfmtError(UpdateStatus status, fmt::string_view fmt, fmt::format_args args) noexcept {
+void UpdateResult::vfmtError(UpdateStatus status, fmt::string_view fmt, fmt::format_args args) {
     addError(status, fmt::vformat(fmt, args));
 }
 
-void UpdateResult::addError(UpdateStatus status, std::string message) noexcept {
+void UpdateResult::addError(UpdateStatus status, std::string message) {
     mErrors.emplace_back(UpdateError{status, std::move(message)});
 }
 

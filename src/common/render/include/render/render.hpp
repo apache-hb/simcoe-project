@@ -47,7 +47,7 @@ namespace sm::render {
         uint dsvHeapSize;
         uint srvHeapSize;
 
-        Bundle& bundle;
+        Bundle *bundle;
         system::Window &window;
     };
 

@@ -167,6 +167,6 @@ namespace sm::threads {
     };
 
     void create(void);
-    void destroy(void);
+    void destroy(void) noexcept;
     ICpuGeometry *getCpuGeometry() noexcept;
 }

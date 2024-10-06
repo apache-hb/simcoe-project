@@ -211,7 +211,7 @@ static void messageLoop(system::ShowWindow show) {
         .dsvHeapSize = 64,
         .srvHeapSize = 1024,
 
-        .bundle = bundle,
+        .bundle = &bundle,
         .window = window,
     };
 

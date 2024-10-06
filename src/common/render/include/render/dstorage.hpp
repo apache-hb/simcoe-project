@@ -30,7 +30,7 @@ namespace sm::render {
 
     public:
         void create(DebugFlags flags);
-        void destroy();
+        void destroy() noexcept;
 
         StorageQueue newQueue(const DSTORAGE_QUEUE_DESC& desc);
 

@@ -59,7 +59,7 @@ static void createLightBinningPipeline(
     }
 
     {
-        auto cs = context.mConfig.bundle.get_shader_bytecode("forward_plus_tiling.cs");
+        auto cs = context.mConfig.bundle->get_shader_bytecode("forward_plus_tiling.cs");
 
         const D3D12_COMPUTE_PIPELINE_STATE_DESC kPipeline = {
             .pRootSignature = pipeline.signature.get(),

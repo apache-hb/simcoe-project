@@ -157,7 +157,7 @@ Instance::Instance(InstanceConfig config)
         enumAdapters();
 }
 
-Instance::~Instance() {
+Instance::~Instance() noexcept {
     if (mDebug) {
         LOG_INFO(GpuLog, "reporting live dxgi/d3d objects");
         mDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);

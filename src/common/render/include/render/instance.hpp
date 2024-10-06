@@ -29,7 +29,7 @@ namespace sm::render {
 
         constexpr operator LUID() const { return {low, high}; }
 
-        constexpr bool operator==(const AdapterLUID&) const = default;
+        constexpr auto operator<=>(const AdapterLUID&) const = default;
     };
 
     class Adapter : public Object<IDXGIAdapter1> {
@@ -106,7 +106,7 @@ namespace sm::render {
 
     public:
         Instance(InstanceConfig config);
-        ~Instance();
+        ~Instance() noexcept;
 
         std::span<Adapter> adapters() noexcept;
         Object<IDXGIFactory4> &factory() noexcept;

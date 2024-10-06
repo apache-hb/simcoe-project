@@ -75,8 +75,8 @@ static void createOpaquePipeline(
     }
 
     {
-        auto vs = context.mConfig.bundle.get_shader_bytecode("forward_plus_opaque.vs");
-        auto ps = context.mConfig.bundle.get_shader_bytecode("forward_plus_opaque.ps");
+        auto vs = context.mConfig.bundle->get_shader_bytecode("forward_plus_opaque.vs");
+        auto ps = context.mConfig.bundle->get_shader_bytecode("forward_plus_opaque.ps");
 
         constexpr D3D12_INPUT_ELEMENT_DESC kInputElements[] = {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(world::Vertex, position) },

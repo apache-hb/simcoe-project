@@ -44,7 +44,7 @@ static void createDepthPassPipeline(
 
     {
         // TODO: need to get the alpha test pass as well
-        auto vs = context.mConfig.bundle.get_shader_bytecode("forward_plus_depth_pass.vs");
+        auto vs = context.mConfig.bundle->get_shader_bytecode("forward_plus_depth_pass.vs");
 
         constexpr D3D12_INPUT_ELEMENT_DESC kInputElements[] = {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(world::Vertex, position) },

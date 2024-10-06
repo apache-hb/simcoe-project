@@ -96,8 +96,8 @@ static void create_primitive_pipeline(render::Pipeline& pipeline, const draw::Vi
     }
 
     {
-        auto ps = context.mConfig.bundle.get_shader_bytecode("primitive.ps");
-        auto vs = context.mConfig.bundle.get_shader_bytecode("primitive.vs");
+        auto ps = context.mConfig.bundle->get_shader_bytecode("primitive.ps");
+        auto vs = context.mConfig.bundle->get_shader_bytecode("primitive.vs");
 
         constexpr D3D12_INPUT_ELEMENT_DESC kInputElements[] = {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(world::Vertex, position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
