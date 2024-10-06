@@ -9,6 +9,9 @@
 
 #include <flecs.h>
 
+LOG_MESSAGE_CATEGORY(PhysicsLog, "Physics");
+LOG_MESSAGE_CATEGORY(GameLog, "Game");
+
 namespace sm::game {
     class Entity;
 

@@ -8,6 +8,8 @@
 #include <string_view>
 #include <source_location>
 
+#define SM_LOGS_HAS_MESSAGE 1
+
 namespace sm::logs::structured {
     struct MessageInfo {
         uint64_t hash;

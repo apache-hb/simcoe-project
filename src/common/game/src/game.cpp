@@ -23,9 +23,6 @@ static const uint kPhysicsThreads = std::thread::hardware_concurrency() - 1;
 static game::GameContextImpl *gContext = nullptr;
 static constexpr float kTimeStep = 1.0f / 60.0f;
 
-LOG_CATEGORY_IMPL(gPhysicsLog, "Physics");
-LOG_CATEGORY_IMPL(gGameLog, "Game");
-
 game::Context game::getContext() {
     return gContext;
 }
@@ -121,11 +118,11 @@ struct CContactListener final : public JPH::ContactListener {
 
 struct CBodyActivationListener final : public JPH::BodyActivationListener {
     void OnBodyActivated(const JPH::BodyID& id, uint64 user) override {
-        gPhysicsLog.info("Body activated: {}", id.GetIndex());
+        LOG_INFO(PhysicsLog, "Body activated: {}", id.GetIndex());
     }
 
     void OnBodyDeactivated(const JPH::BodyID& id, uint64 user) override {
-        gPhysicsLog.info("Body deactivated: {}", id.GetIndex());
+        LOG_INFO(PhysicsLog, "Body deactivated: {}", id.GetIndex());
     }
 };
 
@@ -167,7 +164,7 @@ struct CDebugRenderer final : public JPH::DebugRendererSimple {
     }
 
     void DrawText3D(JPH::RVec3Arg inPosition, const std::string_view& inString, JPH::ColorArg inColor, float inHeight) override {
-        gPhysicsLog.info("DrawText3D: {}", inString);
+        LOG_INFO(PhysicsLog, "DrawText3D: {}", inString);
     }
 
     void begin_frame(flecs::entity camera) {
@@ -188,7 +185,7 @@ static void jph_trace(const char *fmt, ...) { // NOLINT
     str_sprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
 
-    gPhysicsLog.trace("{}", buffer);
+    LOG_TRACE(PhysicsLog, "{}", buffer);
 }
 
 // constexpr static float kTimeStep = 1.0f / 60.0f;
@@ -452,12 +449,12 @@ void game::Context::tick(float dt) {
     }
 
     if (steps > mImpl->mMaxStepsPerTick) {
-        gPhysicsLog.warn("Abnormal amount of physics steps: {} (delta: {})", steps, dt);
+        LOG_WARN(PhysicsLog, "Abnormal amount of physics steps: {} (delta: {})", steps, dt);
     }
 
     while (steps > mImpl->mMaxStepsPerTick) {
         if (JPH::EPhysicsUpdateError err = mImpl->physicsSystem->Update(dt, mImpl->mMaxStepsPerTick, *mImpl->physicsAllocator, *mImpl->physicsThreadPool); err != JPH::EPhysicsUpdateError::None) {
-            gPhysicsLog.warn("Physics update error: {}", std::to_underlying(err));
+            LOG_WARN(PhysicsLog, "Physics update error: {}", std::to_underlying(err));
         }
 
         steps -= mImpl->mMaxStepsPerTick;
@@ -465,7 +462,7 @@ void game::Context::tick(float dt) {
 
     if (steps != 0) {
         if (JPH::EPhysicsUpdateError err = mImpl->physicsSystem->Update(dt, steps, *mImpl->physicsAllocator, *mImpl->physicsThreadPool); err != JPH::EPhysicsUpdateError::None) {
-            gPhysicsLog.warn("Physics update error: {}", std::to_underlying(err));
+            LOG_WARN(PhysicsLog, "Physics update error: {}", std::to_underlying(err));
         }
     }
 

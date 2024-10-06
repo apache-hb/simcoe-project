@@ -2,7 +2,6 @@
 #include "stdafx.hpp"
 
 #include "draw/camera.hpp"
-#include "logs/file.hpp"
 
 #include "system/input.hpp"
 #include "system/system.hpp"
@@ -206,7 +205,7 @@ public:
 };
 
 constinit static DefaultSystemError gDefaultError{};
-static logs::FileChannel gFileChannel{};
+// static logs::FileChannel gFileChannel{};
 
 struct LoggingDb {
     db::Environment sqlite = db::Environment::create(db::DbType::eSqlite3);
@@ -240,6 +239,7 @@ static void commonInit(void) {
         std::exit(CT_EXIT_INTERNAL); // NOLINT
     };
 
+#if 0
     auto& logger = logs::getGlobalLogger();
 
     if (logs::isConsoleHandleAvailable())
@@ -254,6 +254,7 @@ static void commonInit(void) {
     } else {
         LOG_ERROR(GlobalLog, "failed to open log file: {}", file.error());
     }
+#endif
 
     threads::init();
 }

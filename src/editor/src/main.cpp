@@ -4,13 +4,10 @@
 #include "config/parse.hpp"
 #include "editor/panels/viewport.hpp"
 #include "input/toggle.hpp"
-#include "logs/logs.hpp"
 
 #include "system/input.hpp"
 #include "system/system.hpp"
 #include "core/timer.hpp"
-
-#include "logs/file.hpp"
 
 #include "threads/threads.hpp"
 
@@ -29,12 +26,16 @@
 #include "core/defer.hpp"
 
 #include "logs/structured/channels.hpp"
+#include "logs/structured/logger.hpp"
+#include "logs/structured/channels.hpp"
 
 #include "archive.dao.hpp"
 
 using namespace sm;
 using namespace sm::math;
 using namespace sm::math::literals;
+
+namespace structured = sm::logs::structured;
 
 using sm::world::IndexOf;
 
@@ -61,7 +62,6 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 
 struct LoggingDb {
     db::Environment sqlite = db::Environment::create(db::DbType::eSqlite3);
-    db::Connection connection = sqlite.connect({ .host = "editor-logs.db" });
 };
 
 static sm::UniquePtr<LoggingDb> gLogging;
@@ -223,14 +223,17 @@ public:
 };
 
 static DefaultSystemError gDefaultError{};
-static logs::FileChannel gFileChannel{};
+// static logs::FileChannel gFileChannel{};
 
 static void commonInit(void) {
     gLogging = sm::makeUnique<LoggingDb>();
 
     bt_init();
     os_init();
-    logs::structured::setup(std::move(gLogging->connection));
+    logs::structured::setup(gLogging->sqlite.connect({ .host = "editor-logs.db" }));
+
+    std::unique_ptr<logs::structured::ILogChannel> console{logs::structured::console()};
+    logs::structured::Logger::instance().addChannel(std::move(console));
 
     // TODO: popup window for panics and system errors
     gSystemError = gDefaultError;
@@ -252,12 +255,13 @@ static void commonInit(void) {
         std::exit(CT_EXIT_INTERNAL); // NOLINT
     };
 
+#if 0
     auto& logger = logs::getGlobalLogger();
 
-    if (logs::isConsoleHandleAvailable())
-        logger.addChannel(logs::getConsoleHandle());
+    if (structured::isConsoleAvailable())
+        logger.addChannel(structured::console());
 
-    if (logs::isDebugConsoleAvailable())
+    if (structured::isDebugConsoleAvailable())
         logger.addChannel(logs::getDebugConsole());
 
     if (auto file = logs::FileChannel::open("editor.log"); file) {
@@ -266,6 +270,7 @@ static void commonInit(void) {
     } else {
         LOG_ERROR(GlobalLog, "failed to open log file: {}", file.error());
     }
+#endif
 
     threads::init();
 }
@@ -505,8 +510,6 @@ int main(int argc, const char **argv) noexcept try {
 
     LOG_INFO(GlobalLog, "editor exiting with {}", result);
 
-    logs::shutdown();
-
     return result;
 } catch (const db::DbException& err) {
     LOG_ERROR(GlobalLog, "database error: {}", err.error());
@@ -535,8 +538,6 @@ int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdL
     }();
 
     LOG_INFO(GlobalLog, "editor exiting with {}", result);
-
-    logs::shutdown();
 
     return result;
 }

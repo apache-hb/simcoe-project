@@ -1,14 +1,17 @@
 src = [
     'src/channels.cpp',
 
+    'src/common.cpp',
+
     'src/console.cpp',
+    'src/debug.cpp',
     'src/file.cpp',
     'src/database.cpp',
 
     daocc.process('data/logs.xml')
 ]
 
-deps = [ structured_logs, db, dependency('concurrentqueue') ]
+deps = [ structured_logs, db, dependency('concurrentqueue'), cthulhu.get_variable('format_core') ]
 
 libstructured_logs_sinks = library('structured_logs_sinks', src,
     cpp_args : [ '-DSM_STRUCTURED_LOGS_SINKS_BUILD=1' ],

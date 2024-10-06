@@ -19,7 +19,7 @@ namespace structured = sm::logs::structured;
 struct LogEntryPacket {
     uint64_t timestamp;
     const structured::MessageInfo *message;
-    structured::ArgStore args;
+    std::shared_ptr<structured::ArgStore> args;
 };
 
 static uint64_t getTimestamp() noexcept {
@@ -108,7 +108,7 @@ static void registerMessagesWithDb(
     }
 }
 
-class DbChannel final : public structured::IAsyncLogChannel {
+class DbChannel final : public structured::ILogChannel {
     db::Connection mConnection;
     db::PreparedInsertReturning<sm::dao::logs::LogEntry> mInsertEntry = mConnection.prepareInsertReturningPrimaryKey<sm::dao::logs::LogEntry>();
     db::PreparedInsert<sm::dao::logs::LogEntryAttribute> mInsertAttribute = mConnection.prepareInsert<sm::dao::logs::LogEntryAttribute>();
@@ -134,7 +134,7 @@ class DbChannel final : public structured::IAsyncLogChannel {
         mWorkerThread.join();
     }
 
-    void postMessageAsync(structured::AsyncMessagePacket packet) noexcept override {
+    void postMessage(structured::MessagePacket packet) noexcept override {
         // discard messages from the database channel to prevent infinite recursion
         if (structured::detail::gLogCategory<DbLog> == packet.message.category)
             return;
@@ -142,7 +142,7 @@ class DbChannel final : public structured::IAsyncLogChannel {
         mQueue.enqueue(LogEntryPacket {
             .timestamp = packet.timestamp,
             .message = &packet.message,
-            .args = std::move(packet.args)
+            .args = packet.args
         });
     }
 
@@ -161,7 +161,7 @@ class DbChannel final : public structured::IAsyncLogChannel {
                 continue;
             }
 
-            fmt::format_args params{args};
+            fmt::format_args params{*args};
 
             for (int i = 0; i < message->indexAttributeCount; i++) {
                 auto arg = params.get(i);
@@ -217,7 +217,7 @@ public:
     { }
 };
 
-structured::IAsyncLogChannel *sm::logs::structured::database(db::Connection connection) {
+structured::ILogChannel *sm::logs::structured::database(db::Connection connection) {
     auto [categories, messages] = getMessages();
     registerMessagesWithDb(connection, categories, messages);
     return new DbChannel(std::move(connection));

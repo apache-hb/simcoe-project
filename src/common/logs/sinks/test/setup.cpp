@@ -4,12 +4,10 @@
 
 #include "logs/structured/channels.hpp"
 
-#include "logs.dao.hpp"
-
 using namespace sm;
 using namespace std::chrono_literals;
 
-#define USE_ORACLE 1
+#define USE_ORACLE 0
 
 #if USE_ORACLE
 
@@ -60,7 +58,4 @@ TEST_CASE("Setup logging") {
     }
 
     logs::structured::shutdown();
-
-    auto conn = env.connect(kConfig);
-
 }

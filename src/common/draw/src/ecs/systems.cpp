@@ -7,8 +7,6 @@
 
 using namespace sm;
 
-LOG_MESSAGE_CATEGORY(DrawLog, "Draw");
-
 flecs::query<
     const world::ecs::Position,
     const world::ecs::Intensity,

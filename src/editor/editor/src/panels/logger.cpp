@@ -12,28 +12,24 @@ LoggerPanel& LoggerPanel::get() {
 }
 
 LoggerPanel::LoggerPanel() {
-    auto& instance = logs::getGlobalLogger();
-    instance.addChannel(*this);
+    // auto& instance = structured::Logger::instance();
+    // instance.addChannel(*this);
 }
 
 LoggerPanel::~LoggerPanel() {
-    auto& instance = logs::getGlobalLogger();
-    instance.removeChannel(*this);
+    // auto& instance = logs::getGlobalLogger();
+    // instance.removeChannel(*this);
 }
 
-void LoggerPanel::acceptMessage(const logs::Message &message) noexcept {
+void LoggerPanel::postMessage(structured::MessagePacket packet) noexcept {
     Message msg = {
-        .severity = message.severity,
-        .timestamp = message.timestamp,
-        .thread = message.thread,
-        .message = sm::String{message.message}
+        .severity = packet.message.level,
+        .timestamp = uint32_t(packet.timestamp),
+        // .thread = message.thread,
+        .message = fmt::vformat(packet.message.message, *packet.args)
     };
 
-    mMessages[&message.category].push_back(msg);
-}
-
-void LoggerPanel::closeChannel() noexcept {
-    // nothing to do
+    mMessages[&packet.message.category].push_back(msg);
 }
 
 static ImVec4 getSeverityColour(logs::Severity severity) {
@@ -69,7 +65,7 @@ static constexpr ImGuiTableFlags kFlags
 
 using ReflectSeverity = ctu::TypeInfo<logs::Severity>;
 
-void LoggerPanel::drawLogCategory(const logs::LogCategory& category) const {
+void LoggerPanel::drawLogCategory(const structured::CategoryInfo& category) const {
     const LogMessages &messages = mMessages.at(&category);
 
     if (ImGui::BeginTable("Messages", 3, kFlags)) {
@@ -103,7 +99,7 @@ void LoggerPanel::draw_window() {
             for (const auto& [category, messages] : mMessages) {
                 if (messages.empty()) continue;
 
-                if (ImGui::BeginTabItem(category->name().data())) {
+                if (ImGui::BeginTabItem(category->name.data())) {
                     drawLogCategory(*category);
                     ImGui::EndTabItem();
                 }

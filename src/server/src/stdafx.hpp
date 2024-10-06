@@ -23,7 +23,6 @@
 #include "fmt/ranges.h"
 
 #include "logs/logs.hpp"
-#include "logs/file.hpp"
 
 #include "config/config.hpp"
 #include "config/parse.hpp"

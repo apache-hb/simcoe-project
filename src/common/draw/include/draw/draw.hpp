@@ -6,6 +6,8 @@
 #include "render/render.hpp"
 #include "world/ecs.hpp"
 
+LOG_MESSAGE_CATEGORY(DrawLog, "Draw");
+
 namespace sm::draw {
     class Camera;
 

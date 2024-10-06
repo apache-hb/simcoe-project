@@ -13,8 +13,6 @@ using enum render::ResourceState::Inner;
 using PassBuilder = FrameGraph::PassBuilder;
 using AccessBuilder = FrameGraph::AccessBuilder;
 
-LOG_CATEGORY_IMPL(gRenderLog, "Render");
-
 math::float4 Clear::getClearColour() const {
     CTASSERTF(mClearType == ClearType::eColour, "Clear value is not a colour (%d)", std::to_underlying(mClearType));
     return mClearColour;
@@ -1125,7 +1123,7 @@ void FrameGraph::execute() {
         std::visit(overloaded {
             [&](events::DeviceSync sync) {
 #if SMC_RENDER_FRAMEGRAPH_TRACE
-                gRenderLog.info("Sync(signal: {}, wait: {})", sync.signal, sync.wait);
+                LOG_INFO(RenderLog, "Sync(signal: {}, wait: {})", sync.signal, sync.wait);
 #endif
                 ID3D12CommandQueue *signal = mContext.getQueue(sync.signal);
                 ID3D12CommandQueue *wait = mContext.getQueue(sync.wait);
@@ -1138,7 +1136,7 @@ void FrameGraph::execute() {
             },
             [&](events::ResourceBarrier& event) {
 #if SMC_RENDER_FRAMEGRAPH_TRACE
-                gRenderLog.info("ResourceBarrier({}) - {}", mFrameData[event.handle.index].type, event.handle.index);
+                LOG_INFO(RenderLog, "ResourceBarrier({}) - {}", mFrameData[event.handle.index].type, event.handle.index);
 #endif
                 ID3D12GraphicsCommandList1 *commands = getCommandList(event.handle);
                 event.build(*this);
@@ -1147,7 +1145,7 @@ void FrameGraph::execute() {
             [&](events::OpenCommands open) {
 #if SMC_RENDER_FRAMEGRAPH_TRACE
                 auto& list = mFrameData[open.handle.index];
-                gRenderLog.info("OpenCommands({}) - {}", list.type, open.handle.index);
+                LOG_INFO(RenderLog, "OpenCommands({}) - {}", list.type, open.handle.index);
 #endif
 
                 resetCommandBuffer(open.handle);
@@ -1155,17 +1153,17 @@ void FrameGraph::execute() {
             [&](events::RecordCommands record) {
                 auto& pass = mRenderPasses[record.pass.index];
 #if SMC_RENDER_FRAMEGRAPH_TRACE
-                gRenderLog.info("RecordCommands({}) - {}", pass.name, record.pass.index);
+                LOG_INFO(RenderLog, "RecordCommands({}) - {}", pass.name, record.pass.index);
                 for (auto& access : pass.reads) {
-                    gRenderLog.info("  | read {} ({})", access.name, getStateFromUsage(access.usage));
+                    LOG_INFO(RenderLog, "  | read {} ({})", access.name, getStateFromUsage(access.usage));
                 }
 
                 for (auto& access : pass.writes) {
-                    gRenderLog.info("  | write {} ({})", access.name, getStateFromUsage(access.usage));
+                    LOG_INFO(RenderLog, "  | write {} ({})", access.name, getStateFromUsage(access.usage));
                 }
 
                 for (auto& access : pass.creates) {
-                    gRenderLog.info("  | create {} ({})", access.name, getStateFromUsage(access.usage));
+                    LOG_INFO(RenderLog, "  | create {} ({})", access.name, getStateFromUsage(access.usage));
                 }
 #endif
 
@@ -1180,7 +1178,7 @@ void FrameGraph::execute() {
                 auto& list = mFrameData[submit.handle.index];
 
 #if SMC_RENDER_FRAMEGRAPH_TRACE
-                gRenderLog.info("SubmitCommands({}) - {}", list.type, submit.handle.index);
+                LOG_INFO(RenderLog, "SubmitCommands({}) - {}", list.type, submit.handle.index);
 #endif
 
                 closeCommandBuffer(submit.handle);

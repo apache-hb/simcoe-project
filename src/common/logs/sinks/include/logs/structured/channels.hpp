@@ -13,7 +13,12 @@ namespace sm::logs::structured {
     void setup(db::Connection connection);
     void shutdown();
 
+    bool isConsoleAvailable() noexcept;
     ILogChannel *console();
+
+    bool isDebugConsoleAvailable() noexcept;
+    ILogChannel *debugConsole();
+
     ILogChannel *file(const fs::path& path);
-    IAsyncLogChannel *database(db::Connection connection);
+    ILogChannel *database(db::Connection connection);
 }

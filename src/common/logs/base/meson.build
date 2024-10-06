@@ -1,22 +1,12 @@
 src = [
-    'src/logs.cpp',
-    'src/file.cpp',
-    'src/debug.cpp',
-    'src/console.cpp',
-
     metacc.process('include/logs/logs.hpp')
 ]
 
-deps = [
-    cthulhu.get_variable('format_core'),
-    core,
-    meta,
-]
+deps = [ core, meta ]
 
 liblogs = library('logs', src,
     cpp_args : [ '-DSM_LOGS_BUILD=1' ],
-    cpp_pch : 'src/stdafx.hpp',
-    include_directories : [ '.', 'include', 'src' ],
+    include_directories : [ '.', 'include' ],
     dependencies : deps
 )
 

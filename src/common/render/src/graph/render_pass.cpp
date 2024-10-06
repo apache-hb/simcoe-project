@@ -19,7 +19,7 @@ void events::ResourceBarrier::build(FrameGraph& graph) {
 
 #if SMC_RENDER_FRAMEGRAPH_TRACE
         auto name = render::getObjectDebugName(resource);
-        gRenderLog.info(" - {} (before: {}, after: {})", name, transition.before, transition.after);
+        LOG_INFO(RenderLog, " - {} (before: {}, after: {})", name, transition.before, transition.after);
 #endif
     }
 
@@ -30,7 +30,7 @@ void events::ResourceBarrier::build(FrameGraph& graph) {
 
 #if SMC_RENDER_FRAMEGRAPH_TRACE
         auto name = render::getObjectDebugName(resource);
-        gRenderLog.info(" - {} (UAV)", name);
+        LOG_INFO(RenderLog, " - {} (UAV)", name);
 #endif
     }
 }

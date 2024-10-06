@@ -65,7 +65,7 @@ class DefaultSystemError final : public ISystemError {
 };
 
 static DefaultSystemError gDefaultError{};
-static logs::FileChannel gFileChannel{};
+// static logs::FileChannel gFileChannel{};
 
 struct LogWrapper {
     db::Environment env;
@@ -107,6 +107,7 @@ static void commonInit(void) {
         std::exit(CT_EXIT_INTERNAL); // NOLINT
     };
 
+#if 0
     auto& logger = logs::getGlobalLogger();
 
     if (logs::isConsoleHandleAvailable())
@@ -121,6 +122,7 @@ static void commonInit(void) {
     } else {
         LOG_ERROR(LaunchLog, "failed to open log file: {}", file.error());
     }
+#endif
 
     gLogWrapper = sm::makeUnique<LogWrapper>();
 }
@@ -346,7 +348,7 @@ int main(int argc, const char **argv) noexcept try {
 
     LOG_INFO(LaunchLog, "editor exiting with {}", result);
 
-    logs::shutdown();
+    // logs::shutdown();
 
     return result;
 } catch (const db::DbException& err) {
@@ -377,7 +379,7 @@ int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdL
 
     LOG_INFO(LaunchLog, "editor exiting with {}", result);
 
-    logs::shutdown();
+    // logs::shutdown();
 
     return result;
 }

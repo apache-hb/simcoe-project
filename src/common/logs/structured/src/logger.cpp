@@ -21,14 +21,9 @@ static uint64_t getTimestamp() noexcept {
     return std::chrono::duration_cast<std::chrono::milliseconds>(timeSinceStart.time_since_epoch()).count();
 }
 
-void structured::Logger::addChannel(std::unique_ptr<ILogChannel> channel) {
+void structured::Logger::addChannel(std::unique_ptr<ILogChannel>&& channel) {
     channel->attach();
     mChannels.emplace_back(std::move(channel));
-}
-
-void structured::Logger::addAsyncChannel(std::unique_ptr<IAsyncLogChannel> channel) {
-    channel->attach();
-    mAsyncChannel = std::move(channel);
 }
 
 void structured::Logger::shutdown() noexcept {
@@ -37,23 +32,15 @@ void structured::Logger::shutdown() noexcept {
 
 void structured::Logger::postMessage(const MessageInfo& message, ArgStore args) noexcept {
     uint64_t timestamp = getTimestamp();
+    std::shared_ptr<ArgStore> store = std::make_shared<ArgStore>(std::move(args));
 
     for (auto& channel : mChannels) {
         MessagePacket packet = {
             .message = message,
             .timestamp = timestamp,
-            .args = args
+            .args = store
         };
         channel->postMessage(packet);
-    }
-
-    if (mAsyncChannel) {
-        AsyncMessagePacket packet = {
-            .message = message,
-            .timestamp = timestamp,
-            .args = std::move(args)
-        };
-        mAsyncChannel->postMessageAsync(std::move(packet));
     }
 }
 

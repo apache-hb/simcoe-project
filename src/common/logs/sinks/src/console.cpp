@@ -1,31 +1,35 @@
 #include "stdafx.hpp"
 
+#include "common.hpp"
+
 #include "logs/structured/logging.hpp"
 #include "logs/structured/channel.hpp"
 #include "logs/structured/channels.hpp"
 
+namespace os = sm::os;
+namespace logs = sm::logs;
 namespace structured = sm::logs::structured;
 
 class ConsoleChannel final : public structured::ILogChannel {
-    std::unordered_map<uint64_t, const structured::MessageInfo*> mMessages;
+    char mBuffer[2048];
+    os::Console mConsole = os::Console::get();
+    std::mutex mMutex;
 
-    void attach() override {
-        auto config = structured::getMessages();
-        for (const auto& message : config.messages) {
-            mMessages[message.hash] = &message;
-        }
-    }
+    void attach() override { }
 
     void postMessage(structured::MessagePacket packet) noexcept override {
-        uint64_t hash = packet.message.hash;
-        if (!mMessages.contains(hash)) {
-            fmt::println(stderr, "Unknown message: {}", hash);
-            return;
-        }
+        auto message = fmt::vformat(packet.message.message, *packet.args);
 
-        auto it = mMessages.at(hash);
+        std::lock_guard guard(mMutex);
 
-        fmt::vprintln(stderr, it->message, packet.args);
+        size_t length = logs::detail::buildMessageHeaderWithColour(mBuffer, packet.timestamp, packet.message, kColourDefault);
+        char *start = mBuffer + length;
+        size_t remaining = sizeof(mBuffer) - length;
+
+        logs::detail::splitMessage(message, [&](std::string_view line) {
+            auto [_, extra] = fmt::format_to_n(start, remaining, " {}\n", line);
+            mConsole.print({ mBuffer, size_t(length + extra) });
+        });
     }
 
 public:
