@@ -77,16 +77,16 @@ void draw::ecs::depthPrePass(
     graph::Handle &depthTarget
 )
 {
-    const world::ecs::Camera *info = wd.camera.get<world::ecs::Camera>();
+    const world::ecs::Camera& info = wd.camera;
 
-    const graph::ResourceInfo depthTargetInfo = graph::ResourceInfo::tex2d(info->window, render::getDepthTextureFormat(info->depth))
-        .clearDepthStencil(1.f, 0, info->depth);
+    const graph::ResourceInfo depthTargetInfo = graph::ResourceInfo::tex2d(info.window, render::getDepthTextureFormat(info.depth))
+        .clearDepthStencil(1.f, 0, info.depth);
 
-    graph::PassBuilder pass = dd.graph.graphics(fmt::format("Forward+ Depth Prepass ({})", wd.camera.name().c_str()));
+    graph::PassBuilder pass = dd.graph.graphics(fmt::format("Forward+ Depth Prepass ({})", wd.name));
 
     depthTarget = pass.create(depthTargetInfo, "Depth", graph::Usage::eDepthWrite)
         .override_srv({
-            .Format = render::getShaderViewFormat(info->depth),
+            .Format = render::getShaderViewFormat(info.depth),
             .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
             .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
             .Texture2D = {
@@ -95,11 +95,11 @@ void draw::ecs::depthPrePass(
             },
         })
         .override_dsv({
-            .Format = info->depth,
+            .Format = info.depth,
             .ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
         });
 
-    auto& data = dd.graph.newDeviceData([depth = info->depth](render::IDeviceContext& context) {
+    auto& data = dd.graph.newDeviceData([depth = info.depth](render::IDeviceContext& context) {
         struct {
             render::Pipeline pipeline;
         } info;
@@ -109,16 +109,13 @@ void draw::ecs::depthPrePass(
         return info;
     });
 
-    pass.bind([depthTarget, objectDrawData = wd.objectDrawData, camera = wd.camera, &data](graph::RenderContext& ctx) {
+    pass.bind([depthTarget, objectDrawData = wd.objectDrawData, camera = wd.camera, vpd = &wd.viewport, &data](graph::RenderContext& ctx) {
         auto& [context, graph, _, commands] = ctx;
 
         auto dsv = graph.dsv(depthTarget);
         auto dsvHostHandle = context.mDsvPool.cpu_handle(dsv);
 
-        const ecs::ViewportDeviceData *vpd = camera.get<ecs::ViewportDeviceData>();
-
-        const world::ecs::Camera *info = camera.get<world::ecs::Camera>();
-        render::Viewport vp{info->window};
+        render::Viewport vp{camera.window};
 
         commands->SetGraphicsRootSignature(data.pipeline.signature.get());
         commands->SetPipelineState(data.pipeline.pso.get());

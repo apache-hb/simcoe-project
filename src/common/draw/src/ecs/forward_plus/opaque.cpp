@@ -119,15 +119,15 @@ void ecs::forwardPlusOpaque(
     graph::Handle& depth
 )
 {
-    const world::ecs::Camera *info = wd.camera.get<world::ecs::Camera>();
+    const world::ecs::Camera& info = wd.camera;
 
-    const graph::ResourceInfo targetInfo = graph::ResourceInfo::tex2d(info->window, info->colour)
+    const graph::ResourceInfo targetInfo = graph::ResourceInfo::tex2d(info.window, info.colour)
         .clearColour(render::kClearColour);
 
-    const graph::ResourceInfo depthInfo = graph::ResourceInfo::tex2d(info->window, info->depth)
+    const graph::ResourceInfo depthInfo = graph::ResourceInfo::tex2d(info.window, info.depth)
         .clearDepthStencil(1.f, 0);
 
-    graph::PassBuilder pass = dd.graph.graphics(fmt::format("Forward+ Opaque ({})", wd.camera.name().c_str()))
+    graph::PassBuilder pass = dd.graph.graphics(fmt::format("Forward+ Opaque ({})", wd.name))
         .hasSideEffects();
 
     target = pass.create(targetInfo, "Target", graph::Usage::eRenderTarget);
@@ -144,7 +144,7 @@ void ecs::forwardPlusOpaque(
     pass.read(spotLightData, "Spot Light Data", graph::Usage::ePixelShaderResource)
         .withStates(D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
 
-    auto& data = dd.graph.newDeviceData([colour = info->colour, depth = info->depth](render::IDeviceContext& context) {
+    auto& data = dd.graph.newDeviceData([colour = info.colour, depth = info.depth](render::IDeviceContext& context) {
         struct {
             render::Pipeline pipeline;
         } info;
@@ -154,11 +154,10 @@ void ecs::forwardPlusOpaque(
         return info;
     });
 
-    pass.bind([=, objectDrawData = wd.objectDrawData, camera = wd.camera, &data](graph::RenderContext& ctx) {
+    pass.bind([=, objectDrawData = wd.objectDrawData, camera = wd.camera, dd = &wd.viewport, &data](graph::RenderContext& ctx) {
         auto& [context, graph, _, commands] = ctx;
 
-        const world::ecs::Camera *it = camera.get<world::ecs::Camera>();
-        const ecs::ViewportDeviceData *dd = camera.get<ecs::ViewportDeviceData>();
+        const world::ecs::Camera& it = camera;
 
         auto rtv = graph.rtv(target);
         auto dsv = graph.dsv(depth);
@@ -174,7 +173,7 @@ void ecs::forwardPlusOpaque(
 
         D3D12_GPU_DESCRIPTOR_HANDLE lightIndicesHandle = context.mSrvPool.gpu_handle(graph.srv(lightIndices));
 
-        render::Viewport viewport{it->window};
+        render::Viewport viewport{it.window};
 
         commands->SetGraphicsRootSignature(*data.pipeline.signature);
         commands->SetPipelineState(*data.pipeline.pso);

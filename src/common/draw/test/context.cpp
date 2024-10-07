@@ -5,6 +5,7 @@
 #include "draw/draw.hpp"
 
 using namespace sm;
+using namespace sm::math::literals;
 
 static constexpr system::WindowConfig kWindowConfig = {
     .mode = system::WindowMode::eWindowed,
@@ -27,8 +28,20 @@ struct TestContext final : public render::IDeviceContext {
 
     flecs::world world;
 
+    draw::ecs::ViewportDeviceData viewportData;
+
     void setup_framegraph(graph::FrameGraph& graph) override {
-        draw::ecs::WorldData wd { world, flecs::entity{} };
+        viewportData = render::newConstBuffer<sm::draw::ViewportData>(*this);
+        world::ecs::Camera cameraData {
+            .colour = viewport.colour,
+            .depth = viewport.depth,
+            .window = viewport.size,
+            .fov = 75._rad,
+        };
+        draw::ecs::WorldData wd {
+            world,
+            "0", cameraData, viewportData,
+        };
         draw::ecs::DrawData dd { draw::DepthBoundsMode::eEnabled, graph };
 
         graph::Handle spotLightVolumes, pointLightVolumes, spotLightData, pointLightData;
@@ -47,7 +60,13 @@ struct TestContext final : public render::IDeviceContext {
 };
 
 class TestWindowEvents final : public system::IWindowEvents {
+    void resize(system::Window& window, math::int2 size) override {
+        if (context != nullptr)
+            context->resize_swapchain(math::uint2(size));
+    }
 
+public:
+    render::IDeviceContext *context = nullptr;
 };
 
 TEST_CASE("Creating a device context") {
@@ -79,6 +98,7 @@ TEST_CASE("Creating a device context") {
     };
 
     TestContext context{renderConfig};
+    events.context = &context;
     context.create();
 
     bool done = false;
@@ -96,6 +116,10 @@ TEST_CASE("Creating a device context") {
         if (done) break;
 
         context.render();
+
+        if (iters == 4) {
+            window.resize({ 800, 600 });
+        }
 
         if (--iters == 0) {
             done = true;

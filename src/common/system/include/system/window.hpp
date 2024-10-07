@@ -63,6 +63,8 @@ namespace sm::system {
         void show_window(ShowWindow show);
         void showWindow(ShowWindow show) { show_window(show); }
 
+        void resize(math::int2 size);
+
         void set_title(const char *title);
         void setTitle(const char *title) { set_title(title); }
 

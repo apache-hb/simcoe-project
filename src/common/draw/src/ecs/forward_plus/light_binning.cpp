@@ -82,9 +82,9 @@ void ecs::lightBinning(
     graph::Handle spotLightData
 )
 {
-    const world::ecs::Camera *info = wd.camera.get<world::ecs::Camera>();
+    const world::ecs::Camera& info = wd.camera;
 
-    uint tileCount = draw::computeTileCount(info->window, TILE_SIZE);
+    uint tileCount = draw::computeTileCount(info.window, TILE_SIZE);
     uint tileIndexCount = tileCount * LIGHT_INDEX_BUFFER_STRIDE;
 
     const graph::ResourceInfo lightIndexInfo = graph::ResourceInfo::arrayOf<light_index_t>(tileIndexCount);
@@ -116,7 +116,7 @@ void ecs::lightBinning(
         return info;
     });
 
-    pass.bind([=, camera = wd.camera, &data](graph::RenderContext& ctx) {
+    pass.bind([=, vpd = &wd.viewport, &data](graph::RenderContext& ctx) {
         auto& [context, graph, _, commands] = ctx;
 
         ID3D12Resource *pointLightHandle = graph.resource(pointLightData);
@@ -128,7 +128,6 @@ void ecs::lightBinning(
         auto lightIndices = graph.uav(indices);
         auto lightIndicesHandle = context.mSrvPool.gpu_handle(lightIndices);
 
-        const ecs::ViewportDeviceData *vpd = camera.get<ecs::ViewportDeviceData>();
         // LOG_INFO(GlobalLog, "window size: {}", ((ViewportData*)vpd->mapped)->windowSize);
 
         commands->SetComputeRootSignature(data.pipeline.signature.get());
@@ -143,7 +142,7 @@ void ecs::lightBinning(
 
         commands->SetComputeRootDescriptorTable(eLightIndexBuffer, lightIndicesHandle);
 
-        uint2 gridSize = computeGridSize(info->window, TILE_SIZE);
+        uint2 gridSize = computeGridSize(info.window, TILE_SIZE);
         commands->Dispatch(gridSize.x, gridSize.y, 1);
     });
 }

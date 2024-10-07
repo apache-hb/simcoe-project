@@ -124,6 +124,12 @@ void Window::show_window(ShowWindow show) {
     ::ShowWindow(mWindow, show.as_integral());
 }
 
+void Window::resize(math::int2 size) {
+    CTASSERTF(mWindow != nullptr, "Window::resize() called before Window::create()");
+
+    SM_CHECK_WIN32(SetWindowPos(mWindow, nullptr, 0, 0, size.x, size.y, SWP_NOMOVE | SWP_NOZORDER));
+}
+
 void Window::destroy_window() {
     SM_CHECK_WIN32(DestroyWindow(mWindow));
     mWindow = nullptr;

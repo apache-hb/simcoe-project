@@ -64,7 +64,10 @@ namespace sm::draw {
     namespace ecs {
         struct WorldData {
             flecs::world& world;
-            flecs::entity camera;
+
+            std::string name;
+            world::ecs::Camera camera;
+            const ecs::ViewportDeviceData& viewport;
 
             flecs::query<
                 const ecs::ObjectDeviceData,
@@ -75,6 +78,20 @@ namespace sm::draw {
                 const render::ecs::IndexBuffer,
                 const render::ecs::VertexBuffer
             >();
+
+            WorldData(flecs::world& world, flecs::entity entity)
+                : world(world)
+                , name(std::string{entity.name()})
+                , camera(*entity.get<world::ecs::Camera>())
+                , viewport(*entity.get<ecs::ViewportDeviceData>())
+            { }
+
+            WorldData(flecs::world& world, const std::string& name, const world::ecs::Camera& camera, const ecs::ViewportDeviceData& viewport)
+                : world(world)
+                , name(name)
+                , camera(camera)
+                , viewport(viewport)
+            { }
         };
 
         struct DrawData {
