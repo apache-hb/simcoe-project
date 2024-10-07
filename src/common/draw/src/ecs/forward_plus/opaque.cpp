@@ -108,6 +108,7 @@ static void createOpaquePipeline(
 }
 
 void ecs::forwardPlusOpaque(
+    WorldData& wd,
     DrawData& dd,
     graph::Handle lightIndices,
     graph::Handle pointLightVolumeData,
@@ -118,7 +119,7 @@ void ecs::forwardPlusOpaque(
     graph::Handle& depth
 )
 {
-    const world::ecs::Camera *info = dd.camera.get<world::ecs::Camera>();
+    const world::ecs::Camera *info = wd.camera.get<world::ecs::Camera>();
 
     const graph::ResourceInfo targetInfo = graph::ResourceInfo::tex2d(info->window, info->colour)
         .clearColour(render::kClearColour);
@@ -126,7 +127,7 @@ void ecs::forwardPlusOpaque(
     const graph::ResourceInfo depthInfo = graph::ResourceInfo::tex2d(info->window, info->depth)
         .clearDepthStencil(1.f, 0);
 
-    graph::PassBuilder pass = dd.graph.graphics(fmt::format("Forward+ Opaque ({})", dd.camera.name().c_str()))
+    graph::PassBuilder pass = dd.graph.graphics(fmt::format("Forward+ Opaque ({})", wd.camera.name().c_str()))
         .hasSideEffects();
 
     target = pass.create(targetInfo, "Target", graph::Usage::eRenderTarget);
@@ -153,7 +154,7 @@ void ecs::forwardPlusOpaque(
         return info;
     });
 
-    pass.bind([=, objectDrawData = dd.objectDrawData, camera = dd.camera, &data](graph::RenderContext& ctx) {
+    pass.bind([=, objectDrawData = wd.objectDrawData, camera = wd.camera, &data](graph::RenderContext& ctx) {
         auto& [context, graph, _, commands] = ctx;
 
         const world::ecs::Camera *it = camera.get<world::ecs::Camera>();

@@ -72,16 +72,17 @@ static void createDepthPassPipeline(
 }
 
 void draw::ecs::depthPrePass(
+    WorldData& wd,
     DrawData& dd,
     graph::Handle &depthTarget
 )
 {
-    const world::ecs::Camera *info = dd.camera.get<world::ecs::Camera>();
+    const world::ecs::Camera *info = wd.camera.get<world::ecs::Camera>();
 
     const graph::ResourceInfo depthTargetInfo = graph::ResourceInfo::tex2d(info->window, render::getDepthTextureFormat(info->depth))
         .clearDepthStencil(1.f, 0, info->depth);
 
-    graph::PassBuilder pass = dd.graph.graphics(fmt::format("Forward+ Depth Prepass ({})", dd.camera.name().c_str()));
+    graph::PassBuilder pass = dd.graph.graphics(fmt::format("Forward+ Depth Prepass ({})", wd.camera.name().c_str()));
 
     depthTarget = pass.create(depthTargetInfo, "Depth", graph::Usage::eDepthWrite)
         .override_srv({
@@ -108,7 +109,7 @@ void draw::ecs::depthPrePass(
         return info;
     });
 
-    pass.bind([depthTarget, objectDrawData = dd.objectDrawData, camera = dd.camera, &data](graph::RenderContext& ctx) {
+    pass.bind([depthTarget, objectDrawData = wd.objectDrawData, camera = wd.camera, &data](graph::RenderContext& ctx) {
         auto& [context, graph, _, commands] = ctx;
 
         auto dsv = graph.dsv(depthTarget);

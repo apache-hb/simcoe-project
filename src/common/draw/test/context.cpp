@@ -23,33 +23,26 @@ struct TestContext final : public render::IDeviceContext {
         .depth = DXGI_FORMAT_D32_FLOAT,
     };
 
-    graph::Handle mSceneTargetHandle;
     draw::Camera camera{"client", viewport};
 
     flecs::world world;
 
     void setup_framegraph(graph::FrameGraph& graph) override {
-        draw::ecs::DrawData dd {
-            draw::DepthBoundsMode::eEnabled,
-            graph,
-            world,
-            flecs::entity{}
-        };
+        draw::ecs::WorldData wd { world, flecs::entity{} };
+        draw::ecs::DrawData dd { draw::DepthBoundsMode::eEnabled, graph };
 
         graph::Handle spotLightVolumes, pointLightVolumes, spotLightData, pointLightData;
         graph::Handle depthPrePassTarget;
         graph::Handle lightIndices;
         graph::Handle forwardPlusOpaqueTarget, forwardPlusOpaqueDepth;
         draw::ecs::copyLightData(dd, spotLightVolumes, pointLightVolumes, spotLightData, pointLightData);
-        draw::ecs::depthPrePass(dd, depthPrePassTarget);
-        draw::ecs::lightBinning(dd, lightIndices, depthPrePassTarget, pointLightVolumes, spotLightVolumes);
-        draw::ecs::forwardPlusOpaque(dd, lightIndices, pointLightVolumes, spotLightVolumes, pointLightData, spotLightData, forwardPlusOpaqueTarget, forwardPlusOpaqueDepth);
+        draw::ecs::depthPrePass(wd, dd, depthPrePassTarget);
+        draw::ecs::lightBinning(wd, dd, lightIndices, depthPrePassTarget, pointLightVolumes, spotLightVolumes);
+        draw::ecs::forwardPlusOpaque(wd, dd, lightIndices, pointLightVolumes, spotLightVolumes, pointLightData, spotLightData, forwardPlusOpaqueTarget, forwardPlusOpaqueDepth);
 
         render::Viewport vp = render::Viewport::letterbox(getSwapChainSize(), viewport.size);
 
-        graph::Handle depth;
-        draw::opaque(graph, mSceneTargetHandle, depth, camera);
-        draw::blit(graph, mSwapChainHandle, mSceneTargetHandle, vp);
+        draw::blit(graph, mSwapChainHandle, forwardPlusOpaqueTarget, vp);
     }
 };
 

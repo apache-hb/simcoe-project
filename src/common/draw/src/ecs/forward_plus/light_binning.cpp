@@ -74,6 +74,7 @@ static void createLightBinningPipeline(
 }
 
 void ecs::lightBinning(
+    WorldData& wd,
     DrawData& dd,
     graph::Handle &indices,
     graph::Handle depth,
@@ -81,7 +82,7 @@ void ecs::lightBinning(
     graph::Handle spotLightData
 )
 {
-    const world::ecs::Camera *info = dd.camera.get<world::ecs::Camera>();
+    const world::ecs::Camera *info = wd.camera.get<world::ecs::Camera>();
 
     uint tileCount = draw::computeTileCount(info->window, TILE_SIZE);
     uint tileIndexCount = tileCount * LIGHT_INDEX_BUFFER_STRIDE;
@@ -115,7 +116,7 @@ void ecs::lightBinning(
         return info;
     });
 
-    pass.bind([=, camera = dd.camera, &data](graph::RenderContext& ctx) {
+    pass.bind([=, camera = wd.camera, &data](graph::RenderContext& ctx) {
         auto& [context, graph, _, commands] = ctx;
 
         ID3D12Resource *pointLightHandle = graph.resource(pointLightData);

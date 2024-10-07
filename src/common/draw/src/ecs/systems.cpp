@@ -139,11 +139,3 @@ void draw::ecs::initSystems(flecs::world& world, render::IDeviceContext &context
             }
         });
 }
-
-void draw::ecs::DrawData::init() {
-    objectDrawData = world.query<
-        const ecs::ObjectDeviceData,
-        const render::ecs::IndexBuffer,
-        const render::ecs::VertexBuffer
-    >();
-}

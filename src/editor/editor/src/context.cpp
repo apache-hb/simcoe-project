@@ -102,24 +102,20 @@ void EditorContext::on_setup() {
 
 void EditorContext::setup_framegraph(graph::FrameGraph& graph) {
     static flecs::query q = mSystem.query<world::ecs::Camera>();
+    draw::ecs::DrawData dd { draw::DepthBoundsMode::eEnabled, graph };
 
     mSystem.defer([&] {
         q.each([&](flecs::entity entity, world::ecs::Camera& camera) {
-            draw::ecs::DrawData dd {
-                draw::DepthBoundsMode::eEnabled,
-                graph,
-                getWorld(),
-                entity,
-            };
+            draw::ecs::WorldData wd { getWorld(), entity };
 
             graph::Handle spotLightVolumes, pointLightVolumes, spotLightData, pointLightData;
             graph::Handle depthPrePassTarget;
             graph::Handle lightIndices;
             graph::Handle forwardPlusOpaqueTarget, forwardPlusOpaqueDepth;
             draw::ecs::copyLightData(dd, spotLightVolumes, pointLightVolumes, spotLightData, pointLightData);
-            draw::ecs::depthPrePass(dd, depthPrePassTarget);
-            draw::ecs::lightBinning(dd, lightIndices, depthPrePassTarget, pointLightVolumes, spotLightVolumes);
-            draw::ecs::forwardPlusOpaque(dd, lightIndices, pointLightVolumes, spotLightVolumes, pointLightData, spotLightData, forwardPlusOpaqueTarget, forwardPlusOpaqueDepth);
+            draw::ecs::depthPrePass(wd, dd, depthPrePassTarget);
+            draw::ecs::lightBinning(wd, dd, lightIndices, depthPrePassTarget, pointLightVolumes, spotLightVolumes);
+            draw::ecs::forwardPlusOpaque(wd, dd, lightIndices, pointLightVolumes, spotLightVolumes, pointLightData, spotLightData, forwardPlusOpaqueTarget, forwardPlusOpaqueDepth);
 
             entity.set<ecs::CameraData>({ forwardPlusOpaqueTarget, forwardPlusOpaqueDepth });
         });

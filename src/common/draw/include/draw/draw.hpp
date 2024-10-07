@@ -62,9 +62,7 @@ namespace sm::draw {
     }
 
     namespace ecs {
-        struct DrawData {
-            DepthBoundsMode depthBoundsMode;
-            graph::FrameGraph& graph;
+        struct WorldData {
             flecs::world& world;
             flecs::entity camera;
 
@@ -72,23 +70,16 @@ namespace sm::draw {
                 const ecs::ObjectDeviceData,
                 const render::ecs::IndexBuffer,
                 const render::ecs::VertexBuffer
-            > objectDrawData;
+            > objectDrawData = world.query<
+                const ecs::ObjectDeviceData,
+                const render::ecs::IndexBuffer,
+                const render::ecs::VertexBuffer
+            >();
+        };
 
-            DrawData(
-                DepthBoundsMode depthBoundsMode,
-                graph::FrameGraph& graph,
-                flecs::world& world,
-                flecs::entity inCamera)
-                : depthBoundsMode(depthBoundsMode)
-                , graph(graph)
-                , world(world)
-                , camera(inCamera)
-            {
-                init();
-            }
-
-        private:
-            void init();
+        struct DrawData {
+            DepthBoundsMode depthBoundsMode;
+            graph::FrameGraph& graph;
         };
 
         extern flecs::query<
@@ -115,11 +106,13 @@ namespace sm::draw {
         );
 
         void depthPrePass(
+            WorldData& wd,
             DrawData& dd,
             graph::Handle& depthTarget
         );
 
         void lightBinning(
+            WorldData& wd,
             DrawData& dd,
             graph::Handle& indices,
             graph::Handle depth,
@@ -128,6 +121,7 @@ namespace sm::draw {
         );
 
         void forwardPlusOpaque(
+            WorldData& wd,
             DrawData& dd,
             graph::Handle lightIndices,
             graph::Handle pointLightVolumeData,
