@@ -6,7 +6,7 @@
 namespace sm {
     class IFileSystem {
     public:
-        virtual ~IFileSystem() = default;
+        virtual ~IFileSystem() noexcept = default;
 
         virtual sm::View<byte> readFileData(const fs::path& path) = 0;
     };

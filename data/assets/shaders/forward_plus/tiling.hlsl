@@ -229,7 +229,6 @@ void csCullLights(
     uint groupIdIndex = gCameraData.getGroupTileIndex(groupId, TILE_SIZE);
     uint startOffset = groupIdIndex * LIGHT_INDEX_BUFFER_STRIDE;
 
-#if 0
     // copy the light indices to the buffer
     {
         for (uint i = 0; i < pointLightsInTile; i += THREADS_PER_TILE) {
@@ -242,9 +241,13 @@ void csCullLights(
             gLightIndexBuffer[startOffset + LIGHT_INDEX_BUFFER_HEADER + MAX_POINT_LIGHTS_PER_TILE + j] = gLightIndex[j + pointLightsInTile];
         }
     }
-#endif
 
+#if 0
     uint2 gridSize = getWindowGridSize();
+    gLightIndexBuffer[startOffset + 0] = gridSize.x;
+    gLightIndexBuffer[startOffset + 1] = gridSize.y;
+    gLightIndexBuffer[startOffset + 2] = gCameraData.windowSize.x;
+    gLightIndexBuffer[startOffset + 3] = gCameraData.windowSize.y;
 
     if (startOffset >= 3497256) {
         gLightIndexBuffer[(groupIdIndex * 16) + 0] = 0xFFFFFFFF;
@@ -264,6 +267,7 @@ void csCullLights(
         gLightIndexBuffer[(groupIdIndex * 16) + 10] = 0xFFFFFFFF;
         return;
     }
+#endif
 
     // save the light counts for this tile
     if (localIndex == 0) {

@@ -38,7 +38,6 @@ namespace sm::draw {
 
             void updateViewportData(ecs::ViewportDeviceData& data, uint pointLightCount, uint spotLightCount) const noexcept;
 
-        private:
             CameraData(flecs::string_view name, const world::ecs::Camera& camera, world::ecs::Position position, world::ecs::Direction direction)
                 : name(std::move(name))
                 , camera(camera)

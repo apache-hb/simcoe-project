@@ -82,6 +82,7 @@ struct ArchiveFileSystem final : sm::IFileSystem {
             archive_read_data(archive, data.data(), data.size());
 
             cache.emplace(path, std::move(data));
+            fmt::println(stderr, "read file: {} ({})", path.string(), size);
 
             archive_read_data_skip(archive);
         }
@@ -101,7 +102,7 @@ struct ArchiveFileSystem final : sm::IFileSystem {
         init();
     }
 
-    ~ArchiveFileSystem() {
+    ~ArchiveFileSystem() noexcept override {
         archive_read_free(archive);
     }
 };

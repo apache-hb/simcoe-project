@@ -14,6 +14,6 @@ foreach name, source : testcases
 
     test('Draw ' + name, exe,
         suite : 'draw',
-        kwargs : testkwargs
+        kwargs : testkwargs + { 'timeout' : 30 }
     )
 endforeach
