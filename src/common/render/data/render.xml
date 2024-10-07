@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <root name="render">
+    <typealias name="luid" to="ulong" />
+
     <table name="adapter" primaryKey="luid">
-        <column name="luid" type="ulong" />
+        <column name="luid" type="luid" />
         <column name="description" type="text" length="128" />
         <column name="flags" type="uint" />
 
@@ -13,5 +15,38 @@
         <column name="device_id" type="uint" />
         <column name="subsystem_id" type="uint" />
         <column name="revision_id" type="uint" />
+    </table>
+
+    <table name="output" syntheticPrimaryKey="ulong">
+        <column name="name" type="text" length="32" />
+
+        <column name="left" type="int" />
+        <column name="top" type="int" />
+        <column name="right" type="int" />
+        <column name="bottom" type="int" />
+
+        <column name="attached_to_desktop" type="bool" />
+
+        <column name="rotation" type="uint" />
+
+        <column name="adapter" type="luid">
+            <constraint references="adapter.luid" />
+        </column>
+    </table>
+
+    <table name="mode" syntheticPrimaryKey="ulong">
+        <column name="output" type="ulong">
+            <constraint references="output.id" />
+        </column>
+
+        <column name="width" type="uint" />
+        <column name="height" type="uint" />
+
+        <column name="refresh_rate_numerator" type="uint" />
+        <column name="refresh_rate_denominator" type="uint" />
+
+        <column name="format" type="uint" />
+        <column name="scanline_ordering" type="uint" />
+        <column name="scaling" type="uint" />
     </table>
 </root>

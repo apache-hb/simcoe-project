@@ -59,7 +59,7 @@ TEST_CASE("Setup rendering instance") {
                 std::set<render::AdapterLUID> luids;
                 for (const auto& adapter : adapters) {
                     CHECK(adapter.isValid());
-                    CHECK(luids.insert(adapter.luid()).second);
+                    CHECK(!luids.contains(adapter.luid()));
                 }
             }
         }

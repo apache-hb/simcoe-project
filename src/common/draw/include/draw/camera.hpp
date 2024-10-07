@@ -52,10 +52,11 @@ namespace sm::draw {
         Camera(sm::StringView name, const ViewportConfig& config);
 
         void tick(float dt);
-        sm::StringView name() const;
+        std::string_view name() const;
 
         const ViewportConfig& config() const { return mConfig; }
         const render::Viewport& viewport() const { return mViewport; }
+        math::radf fov() const { return mFieldOfView; }
 
         // is the camera currently capturing input
         bool is_active() const;

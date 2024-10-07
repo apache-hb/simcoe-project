@@ -27,3 +27,5 @@ draw = declare_dependency(
     include_directories : draw_include,
     dependencies : deps
 )
+
+subdir('test')

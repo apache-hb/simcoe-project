@@ -6,6 +6,8 @@
 #include "render/render.hpp"
 #include "world/ecs.hpp"
 
+#include "draw/camera.hpp"
+
 LOG_MESSAGE_CATEGORY(DrawLog, "Draw");
 
 namespace sm::draw {
@@ -14,7 +16,52 @@ namespace sm::draw {
     namespace ecs {
         using ObjectDeviceData = render::ConstBuffer<ObjectData>;
         using ViewportDeviceData = render::ConstBuffer<ViewportData>;
+    }
 
+    namespace host {
+        struct ModelData {
+            float4x4 model;
+            render::ecs::VertexBuffer vbo;
+            render::ecs::IndexBuffer ibo;
+            ecs::ObjectDeviceData data;
+        };
+
+        struct CameraData {
+            std::string name;
+            world::ecs::Camera camera;
+            float3 position;
+            float3 direction;
+
+            CameraData(flecs::entity entity)
+                : CameraData(entity.name(), *entity.get<world::ecs::Camera>(), *entity.get<world::ecs::Position>(), *entity.get<world::ecs::Direction>())
+            { }
+
+            void updateViewportData(ecs::ViewportDeviceData& data, uint pointLightCount, uint spotLightCount) const noexcept;
+
+        private:
+            CameraData(flecs::string_view name, const world::ecs::Camera& camera, world::ecs::Position position, world::ecs::Direction direction)
+                : name(std::move(name))
+                , camera(camera)
+                , position(position.position)
+                , direction(direction.direction)
+            { }
+        };
+
+        struct PointLightData {
+            float3 position;
+            float intensity;
+            float3 colour;
+        };
+
+        struct SpotLightData {
+            float3 position;
+            float3 direction;
+            float intensity;
+            float3 colour;
+        };
+    }
+
+    namespace ecs {
         struct DrawData {
             DepthBoundsMode depthBoundsMode;
             graph::FrameGraph& graph;
@@ -31,11 +78,11 @@ namespace sm::draw {
                 DepthBoundsMode depthBoundsMode,
                 graph::FrameGraph& graph,
                 flecs::world& world,
-                flecs::entity camera)
+                flecs::entity inCamera)
                 : depthBoundsMode(depthBoundsMode)
                 , graph(graph)
                 , world(world)
-                , camera(camera)
+                , camera(inCamera)
             {
                 init();
             }

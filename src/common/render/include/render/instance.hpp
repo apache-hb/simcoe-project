@@ -30,6 +30,10 @@ namespace sm::render {
         constexpr operator LUID() const { return {low, high}; }
 
         constexpr auto operator<=>(const AdapterLUID&) const = default;
+
+        friend std::ostream& operator<<(std::ostream& os, const AdapterLUID& luid) {
+            return os << std::hex << luid.high << ':' << luid.low << std::dec;
+        }
     };
 
     class Adapter : public Object<IDXGIAdapter1> {

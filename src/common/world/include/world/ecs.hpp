@@ -58,6 +58,7 @@ namespace sm::world::ecs {
     void initSystems(flecs::world& world);
 
     math::float4x4 getViewMatrix(Position position, Direction direction);
+    math::float4x4 getViewMatrix(math::float3 position, math::float3 direction);
 
     AABB bounds(world::Cube cube);
     AABB bounds(world::Sphere sphere);

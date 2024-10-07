@@ -41,7 +41,11 @@ void ecs::initSystems(flecs::world& world) {
 }
 
 math::float4x4 ecs::getViewMatrix(ecs::Position position, ecs::Direction direction) {
-    return math::float4x4::lookToRH(position.position, direction.direction, world::kVectorUp);
+    return ecs::getViewMatrix(position.position, direction.direction);
+}
+
+math::float4x4 ecs::getViewMatrix(math::float3 position, math::float3 direction) {
+    return math::float4x4::lookToRH(position, direction, world::kVectorUp);
 }
 
 math::float4x4 ecs::Camera::getProjectionMatrix() const {

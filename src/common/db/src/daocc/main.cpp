@@ -13,16 +13,19 @@ using namespace std::string_view_literals;
 using sm::dao::ColumnType;
 using enum ColumnType;
 
-struct Type {
-    ColumnType kind;
-    bool nullable = false;
-    size_t size;
+static std::vector<std::string> splitString(std::string_view text, char sep) {
+    std::vector<std::string> result;
+    size_t start = 0;
+    for (size_t i = 0; i < text.size(); i++) {
+        if (text[i] == sep) {
+            result.push_back(std::string{text.substr(start, i - start)});
+            start = i + 1;
+        }
+    }
 
-    bool isString() const { return kind == eString; }
-    bool isBlob() const { return kind == eBlob; }
-    bool isInteger() const { return kind == eInt || kind == eUint || kind == eLong || kind == eUlong; }
-    bool isMoveConstructed() const { return isString() || isBlob(); }
-};
+    result.push_back(std::string{text.substr(start)});
+    return result;
+}
 
 static std::string pascalCase(std::string_view text) {
     std::string result;
@@ -65,6 +68,17 @@ static std::string singular(std::string_view text) {
 
     return std::string{text};
 }
+
+struct Type {
+    ColumnType kind;
+    bool nullable = false;
+    size_t size;
+
+    bool isString() const { return kind == eString; }
+    bool isBlob() const { return kind == eBlob; }
+    bool isInteger() const { return kind == eInt || kind == eUint || kind == eLong || kind == eUlong; }
+    bool isMoveConstructed() const { return isString() || isBlob(); }
+};
 
 static std::string makeCxxType(const Type& type, bool optional) {
     auto base = [&] -> std::string {
@@ -206,48 +220,11 @@ struct Root {
     std::vector<Table> tables;
 };
 
+static bool nodeIs(xmlNodePtr node, std::string_view name) {
+    return name == (const char*)node->name;
+}
+
 using Properties = std::map<std::string, std::string>;
-
-static int gError = 0;
-
-template<typename... A>
-static void postError(fmt::format_string<A...> msg, A&&... args) {
-    fmt::println(stderr, msg, std::forward<A>(args)...);
-    gError = 1;
-}
-
-static const std::string_view kBannedNames[] = {
-    "bool", "blob", "table", "column", "when"
-};
-
-static const std::map<std::string_view, ColumnType> kTypeMap = {
-    {"int", eInt},
-    {"uint", eUint},
-    {"long", eLong},
-    {"ulong", eUlong},
-    {"bool", eBool},
-    {"text", eString},
-    {"float", eFloat},
-    {"double", eDouble},
-    {"blob", eBlob},
-    {"datetime", eDateTime}
-};
-
-static const std::map<std::string_view, sm::dao::AutoIncrement> kAutoIncrementMap = {
-    {"never", sm::dao::AutoIncrement::eNever},
-    {"always", sm::dao::AutoIncrement::eAlways},
-    {"default", sm::dao::AutoIncrement::eDefault}
-};
-
-static std::string_view getAutoIncrementName(sm::dao::AutoIncrement value) {
-    switch (value) {
-    STRCASE(sm::dao::AutoIncrement::eNever);
-    STRCASE(sm::dao::AutoIncrement::eAlways);
-    STRCASE(sm::dao::AutoIncrement::eDefault);
-
-    default: CT_NEVER("Invalid auto-increment value %d", (int)value);
-    }
-}
 
 static Properties getNodeProperties(xmlNodePtr node) {
     Properties properties;
@@ -258,8 +235,20 @@ static Properties getNodeProperties(xmlNodePtr node) {
     return properties;
 }
 
-static bool nodeIs(xmlNodePtr node, std::string_view name) {
-    return name == (const char*)node->name;
+static std::string getOrDefault(const Properties &props, std::string_view key, std::string_view def) {
+    if (auto it = props.find(std::string{key}); it != props.end()) {
+        return it->second;
+    }
+
+    return std::string{def};
+}
+
+static int gError = 0;
+
+template<typename... A>
+static void postError(fmt::format_string<A...> msg, A&&... args) {
+    fmt::println(stderr, msg, std::forward<A>(args)...);
+    gError = 1;
 }
 
 static bool expectNode(xmlNodePtr node, std::string_view name) {
@@ -271,14 +260,6 @@ static bool expectNode(xmlNodePtr node, std::string_view name) {
     return true;
 }
 
-static std::string getOrDefault(const Properties &props, std::string_view key, std::string_view def) {
-    if (auto it = props.find(std::string{key}); it != props.end()) {
-        return it->second;
-    }
-
-    return std::string{def};
-}
-
 static std::string expectProperty(const Properties &props, std::string_view key, std::string_view def) {
     if (auto it = props.find(std::string{key}); it != props.end()) {
         return it->second;
@@ -288,15 +269,9 @@ static std::string expectProperty(const Properties &props, std::string_view key,
     return std::string{def};
 }
 
-static sm::dao::AutoIncrement getAutoIncrement(const Properties &props, std::string_view def = "never") {
-    auto value = getOrDefault(props, "autoIncrement", def);
-    if (auto it = kAutoIncrementMap.find(value); it != kAutoIncrementMap.end()) {
-        return it->second;
-    }
-
-    postError("Invalid autoIncrement value: {}", value);
-    return sm::dao::AutoIncrement::eNever;
-}
+static const std::string_view kBannedNames[] = {
+    "bool", "blob", "table", "column", "when"
+};
 
 static void checkNameValid(std::string_view name) {
     std::string lower{name};
@@ -317,12 +292,57 @@ static void checkNameValid(std::string_view name) {
     }
 }
 
+static const std::map<std::string_view, ColumnType> kTypeMap = {
+    {"int", eInt},
+    {"uint", eUint},
+    {"long", eLong},
+    {"ulong", eUlong},
+    {"bool", eBool},
+    {"text", eString},
+    {"float", eFloat},
+    {"double", eDouble},
+    {"blob", eBlob},
+    {"datetime", eDateTime}
+};
+
+static std::map<std::string, ColumnType> gAliasMap;
+
 static std::optional<ColumnType> findType(const std::string& name) {
     if (auto it = kTypeMap.find(name); it != kTypeMap.end()) {
         return it->second;
     }
 
+    if (auto it = gAliasMap.find(name); it != gAliasMap.end()) {
+        return it->second;
+    }
+
     return std::nullopt;
+}
+
+static const std::map<std::string_view, sm::dao::AutoIncrement> kAutoIncrementMap = {
+    {"never", sm::dao::AutoIncrement::eNever},
+    {"always", sm::dao::AutoIncrement::eAlways},
+    {"default", sm::dao::AutoIncrement::eDefault}
+};
+
+static std::string_view getAutoIncrementName(sm::dao::AutoIncrement value) {
+    switch (value) {
+    STRCASE(sm::dao::AutoIncrement::eNever);
+    STRCASE(sm::dao::AutoIncrement::eAlways);
+    STRCASE(sm::dao::AutoIncrement::eDefault);
+
+    default: CT_NEVER("Invalid auto-increment value %d", (int)value);
+    }
+}
+
+static sm::dao::AutoIncrement getAutoIncrement(const Properties &props, std::string_view def = "never") {
+    auto value = getOrDefault(props, "autoIncrement", def);
+    if (auto it = kAutoIncrementMap.find(value); it != kAutoIncrementMap.end()) {
+        return it->second;
+    }
+
+    postError("Invalid autoIncrement value: {}", value);
+    return sm::dao::AutoIncrement::eNever;
 }
 
 static Type buildType(const Properties &props) {
@@ -349,20 +369,6 @@ static Type buildType(const Properties &props) {
         .nullable = nullable,
         .size = 0
     };
-}
-
-static std::vector<std::string> splitString(std::string_view text, char sep) {
-    std::vector<std::string> result;
-    size_t start = 0;
-    for (size_t i = 0; i < text.size(); i++) {
-        if (text[i] == sep) {
-            result.push_back(std::string{text.substr(start, i - start)});
-            start = i + 1;
-        }
-    }
-
-    result.push_back(std::string{text.substr(start)});
-    return result;
 }
 
 static void buildDaoConstraint(Table& parent, Column& column, xmlNodePtr node) {
@@ -575,6 +581,20 @@ static std::vector<Table> buildRootElement(xmlNodePtr node) {
         }
 
         return tables;
+    }
+
+    if (nodeIs(node, "typealias")) {
+        auto props = getNodeProperties(node);
+        auto name = expectProperty(props, "name", "");
+        auto type = expectProperty(props, "to", "");
+
+        if (auto it = findType(type); it.has_value()) {
+            gAliasMap[name] = it.value();
+        } else {
+            postError("Invalid type alias: {}", type);
+        }
+
+        return {};
     }
 
     return { buildDaoTable(node) };

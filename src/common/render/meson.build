@@ -108,14 +108,8 @@ render = declare_dependency(
     dependencies : [ deps, render_core ]
 )
 
-# awful
-fs.copyfile(dstorage.get_variable('bindir') / 'dstorage.dll')
-subdir('redist')
-subdir('redist/d3d12')
-
 testcases = {
     'Setup Instance': 'test/instance.cpp',
-    'Setup Device Context': 'test/context.cpp',
 }
 
 foreach name, source : testcases

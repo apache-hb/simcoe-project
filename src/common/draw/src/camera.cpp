@@ -72,7 +72,7 @@ void Camera::tick(float dt) {
     mPosition.z += -z * scaled;
 }
 
-sm::StringView Camera::name() const {
+std::string_view Camera::name() const {
     return mName;
 }
 

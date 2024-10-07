@@ -9,6 +9,8 @@ Checks:
   # catch2 uses operator overloading to build its error messages
   # which triggers this check
   - '-bugprone-chained-comparison'
+  # this is really aggressive and produces a lot of false positives
+  - '-performance-enum-size'
 CheckOptions:
   - { key: readability-identifier-naming.VariableCase, value: lower_case }
   - { key: readability-identifier-naming.ParameterCase, value: aNy_CasE }
