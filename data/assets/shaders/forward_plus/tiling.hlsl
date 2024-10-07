@@ -44,35 +44,35 @@ uint2 getWindowGridSize() {
     return gCameraData.getGridSize(TILE_SIZE);
 }
 
-float3 convert_projection_to_view(float4 p) {
+float3 convertProjectionToView(float4 p) {
     float4 v = mul(p, gCameraData.invProjection);
     v /= v.w;
     return v.xyz;
 }
 
-float convert_projection_depth_to_view(float depth) {
+float convertProjectionDepthToView(float depth) {
     return 1.f / (depth * gCameraData.invProjection._34 + gCameraData.invProjection._44);
 }
 
-float3 create_plane_equation(float3 b, float3 c) {
+float3 createPlaneEquation(float3 b, float3 c) {
     return normalize(cross(b, c));
 }
 
-float4 create_projection(uint2 window_size, uint px, uint py) {
+float4 createProjection(uint2 window_size, uint px, uint py) {
     float x = px / float(window_size.x) * 2 - 1;
     float y = (window_size.y - py) / float(window_size.y) * 2 - 1;
     return float4(x, y, 1, 1);
 }
 
-float signed_distance_from_plane(float3 plane, float3 eqn) {
+float signedDistanceFromPlane(float3 plane, float3 eqn) {
     return dot(plane, eqn);
 }
 
 #if DEPTH_BOUNDS_MODE == DEPTH_BOUNDS_ENABLED
 
-void compute_depth_bounds(uint3 globalId) {
+void computeDepthBounds(uint3 globalId) {
     float depth = gDepthTexture.Load(uint3(globalId.xy, 0)).x;
-    float viewPositionZ = convert_projection_depth_to_view(depth);
+    float viewPositionZ = convertProjectionDepthToView(depth);
     uint z = asuint(viewPositionZ);
     if (depth != 0.f) {
         InterlockedMax(ldsZMax, z);
@@ -82,12 +82,12 @@ void compute_depth_bounds(uint3 globalId) {
 
 #elif DEPTH_BOUNDS_MODE == DEPTH_BOUNDS_MSAA
 
-void compute_depth_bounds_msaa(uint3 globalId, uint depthSampleCount) {
+void computeDepthBounds_msaa(uint3 globalId, uint depthSampleCount) {
     float pixelMinZ = FLOAT_MAX;
     float pixelMaxZ = 0.f;
 
     float depth = gDepthTexture.Load(globalId.xy, 0).x;
-    float viewPositionZ0 = convert_projection_depth_to_view(depth);
+    float viewPositionZ0 = convertProjectionDepthToView(depth);
     if (depth != 0.f) {
         pixelMaxZ = max(pixelMaxZ, viewPositionZ0);
         pixelMinZ = min(pixelMinZ, viewPositionZ0);
@@ -95,7 +95,7 @@ void compute_depth_bounds_msaa(uint3 globalId, uint depthSampleCount) {
 
     for (uint i = 1; i < depthSampleCount; i++) {
         depth = gDepthTexture.Load(globalId.xy, i).x;
-        float viewPositionZ = convert_projection_depth_to_view(depth);
+        float viewPositionZ = convertProjectionDepthToView(depth);
         if (depth != 0.f) {
             pixelMaxZ = max(pixelMaxZ, viewPositionZ);
             pixelMinZ = min(pixelMinZ, viewPositionZ);
@@ -121,18 +121,18 @@ struct FrustumData {
     float minZ;
     float maxZ;
 
-    void update_from_lds() {
+    void updateFromLDS() {
         GroupMemoryBarrierWithGroupSync();
         minZ = asfloat(ldsZMin);
         maxZ = asfloat(ldsZMax);
     }
 #endif
 
-    bool test_frustum_sides(float3 position, float radius) {
-        bool inside0 = signed_distance_from_plane(position, plane0) < radius;
-        bool inside1 = signed_distance_from_plane(position, plane1) < radius;
-        bool inside2 = signed_distance_from_plane(position, plane2) < radius;
-        bool inside3 = signed_distance_from_plane(position, plane3) < radius;
+    bool testFrustrumSides(float3 position, float radius) {
+        bool inside0 = signedDistanceFromPlane(position, plane0) < radius;
+        bool inside1 = signedDistanceFromPlane(position, plane1) < radius;
+        bool inside2 = signedDistanceFromPlane(position, plane2) < radius;
+        bool inside3 = signedDistanceFromPlane(position, plane3) < radius;
 
         return all(bool4(inside0, inside1, inside2, inside3));
     }
@@ -145,13 +145,13 @@ struct FrustumData {
 #endif
     }
 
-    void cull_lights(uint localIndex, uint count, StructuredBuffer<LightVolumeData> data) {
+    void cullLights(uint localIndex, uint count, StructuredBuffer<LightVolumeData> data) {
         for (uint i = localIndex; i < count; i += THREADS_PER_TILE) {
             LightVolumeData light = data[i];
 
             float3 center = mul(float4(light.position, 1), gCameraData.worldView).xyz;
 
-            if (test_frustum_sides(center, light.radius)) {
+            if (testFrustrumSides(center, light.radius)) {
                 if (depth_test(center.z, light.radius)) {
                     uint index = 0;
                     InterlockedAdd(gLightIndexCount, 1, index);
@@ -192,35 +192,35 @@ void csCullLights(
 
         uint2 windowSize = gCameraData.getWindowTiledSize(TILE_SIZE);
 
-        float3 frustum0 = convert_projection_to_view(create_projection(windowSize, pxm, pym));
-        float3 frustum1 = convert_projection_to_view(create_projection(windowSize, pxp, pym));
-        float3 frustum2 = convert_projection_to_view(create_projection(windowSize, pxp, pyp));
-        float3 frustum3 = convert_projection_to_view(create_projection(windowSize, pxm, pyp));
+        float3 frustum0 = convertProjectionToView(createProjection(windowSize, pxm, pym));
+        float3 frustum1 = convertProjectionToView(createProjection(windowSize, pxp, pym));
+        float3 frustum2 = convertProjectionToView(createProjection(windowSize, pxp, pyp));
+        float3 frustum3 = convertProjectionToView(createProjection(windowSize, pxm, pyp));
 
-        frustum.plane0 = create_plane_equation(frustum0, frustum1);
-        frustum.plane1 = create_plane_equation(frustum1, frustum2);
-        frustum.plane2 = create_plane_equation(frustum2, frustum3);
-        frustum.plane3 = create_plane_equation(frustum3, frustum0);
+        frustum.plane0 = createPlaneEquation(frustum0, frustum1);
+        frustum.plane1 = createPlaneEquation(frustum1, frustum2);
+        frustum.plane2 = createPlaneEquation(frustum2, frustum3);
+        frustum.plane3 = createPlaneEquation(frustum3, frustum0);
     }
 
     GroupMemoryBarrierWithGroupSync();
 
 #if DEPTH_BOUNDS_MODE == DEPTH_BOUNDS_ENABLED
-    compute_depth_bounds(globalId);
+    computeDepthBounds(globalId);
 
-    frustum.update_from_lds();
+    frustum.updateFromLDS();
 #elif DEPTH_BOUNDS_MODE == DEPTH_BOUNDS_MSAA
-    compute_depth_bounds_msaa(globalId, gCameraData.depthBufferSampleCount);
+    computeDepthBounds_msaa(globalId, gCameraData.depthBufferSampleCount);
 
-    frustum.update_from_lds();
+    frustum.updateFromLDS();
 #endif
 
     // cull point lights for this tile
-    frustum.cull_lights(localIndex, gCameraData.pointLightCount, gPointLightData);
+    frustum.cullLights(localIndex, gCameraData.pointLightCount, gPointLightData);
     light_index_t pointLightsInTile = gLightIndexCount;
 
     // cull spot lights for this tile
-    frustum.cull_lights(localIndex, gCameraData.spotLightCount, gSpotLightData);
+    frustum.cullLights(localIndex, gCameraData.spotLightCount, gSpotLightData);
     light_index_t spotLightsInTile = gLightIndexCount - pointLightsInTile;
 
     GroupMemoryBarrierWithGroupSync();
