@@ -4,6 +4,7 @@
 #include <string_view>
 #include <charconv>
 
+#include "fmtlib/format.h"
 #include "fmt/compile.h"
 #include "fmt/args.h"
 

@@ -22,6 +22,24 @@ render_config = configure_file(
 )
 
 src = [
+    reflect.process('data/render.ct'),
+    reflect.process('data/graph.ct'),
+
+    daocc.process('data/render.xml'),
+]
+
+librender_meta = library('render-meta', src,
+    include_directories : [ render_include, reflect_include ],
+    dependencies : [ core, logs, system, math, archive, config ]
+)
+
+render_meta = declare_dependency(
+    link_with : librender_meta,
+    include_directories : [ render_include, librender_meta.private_dir_include() ],
+    dependencies : [ core, logs, system, math, archive, config ]
+)
+
+src = [
     render_config,
 
     # utils
@@ -48,17 +66,12 @@ src = [
     # vendor
     'src/vendor/nvidia/nvapi.cpp',
     'src/vendor/amd/ags.cpp',
-
-    reflect.process('data/render.ct'),
-    reflect.process('data/graph.ct'),
-
-    daocc.process('data/render.xml'),
 ]
 
 deps = [
     # internal libraries
     core, logs, system, math, archive,
-    world, config,
+    world, config, render_meta,
 
     # other vendors
     tracy, d3d12ma,
@@ -75,21 +88,30 @@ if pix_feature.allowed()
     deps += [ winpixruntime ]
 endif
 
-librender = library('render', src,
+librender_core = library('rendercore', src,
     cpp_pch : 'src/stdafx.hpp',
     include_directories : [ render_include, reflect_include, 'src' ],
+    dependencies : deps
+)
+
+render_core = declare_dependency(
+    link_with : librender_core,
+    include_directories : [ render_include ],
     dependencies : deps
 )
 
 libvendor = shared_module('vendor', 'src/vendor.cpp', dependencies : core)
 
 render = declare_dependency(
-    link_with : librender,
     objects : libvendor.extract_all_objects(recursive : true),
-    include_directories : [ render_include, librender.private_dir_include() ],
-    dependencies : deps
+    include_directories : [ render_include ],
+    dependencies : [ deps, render_core ]
 )
 
+# awful
+fs.copyfile(dstorage.get_variable('bindir') / 'dstorage.dll')
+subdir('redist')
+subdir('redist/d3d12')
 
 testcases = {
     'Setup Instance': 'test/instance.cpp',

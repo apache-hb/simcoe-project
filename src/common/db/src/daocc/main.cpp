@@ -1,6 +1,7 @@
+#include "stdafx.hpp"
+
 #include "core/string.hpp"
 #include "fmt/ranges.h"
-#include "stdafx.hpp"
 
 #include "writer.hpp"
 #include "dao/dao.hpp"

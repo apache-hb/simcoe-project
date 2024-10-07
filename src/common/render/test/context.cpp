@@ -55,7 +55,6 @@ TEST_CASE("Creating a device context") {
     context.create();
 
     bool done = false;
-    int iters = 10;
     while (!done) {
         MSG msg = {};
         while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)) {
@@ -66,11 +65,10 @@ TEST_CASE("Creating a device context") {
             }
         }
 
-        if (iters-- == 0) break;
-
         if (done) break;
 
         context.render();
+        PostQuitMessage(0);
     }
 
     context.destroy();

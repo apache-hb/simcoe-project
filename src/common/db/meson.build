@@ -1,4 +1,20 @@
 db_include = include_directories('include')
+
+src = [
+    metacc.process('include/db/core.hpp'),
+]
+
+libdb_meta = library('db-meta', src,
+    include_directories : [ db_include ],
+    dependencies : [ core, meta, structured_logs ]
+)
+
+db_meta = declare_dependency(
+    link_with : libdb_meta,
+    include_directories : [ db_include, libdb_meta.private_dir_include() ],
+    dependencies : [ core, meta ]
+)
+
 db_private_include = [ include_directories('src/db', 'src/db/drivers') ]
 
 src = [
@@ -16,8 +32,6 @@ src = [
     # shared driver utilities
     'src/db/drivers/common.cpp',
     'src/db/drivers/utils.cpp',
-
-    metacc.process('include/db/core.hpp')
 ]
 
 cfg = configuration_data()
@@ -39,7 +53,7 @@ cfg.set10('SMC_DB_HAS_MYSQL', devapi.found())
 cfg.set10('SMC_DB_HAS_MSSQL', has_mssql)
 cfg.set10('SMC_DB_HAS_ODBC', has_odbc)
 
-deps = [ core, sqlite3, tlsf, meta, structured_logs ]
+deps = [ core, sqlite3, tlsf, meta, structured_logs, db_meta ]
 
 # sqlite3 is always enabled
 src += [
@@ -97,8 +111,8 @@ libdb = library('orm', [ src, db_config ],
 
 db = declare_dependency(
     link_with : libdb,
-    include_directories : [ '.', db_include, libdb.private_dir_include() ],
-    dependencies : [ core, meta, structured_logs ]
+    include_directories : [ '.', db_include ],
+    dependencies : [ core, meta, structured_logs, db_meta ]
 )
 
 src = [ 'src/daocc/main.cpp' ]

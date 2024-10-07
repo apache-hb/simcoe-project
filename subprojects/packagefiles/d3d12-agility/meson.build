@@ -43,7 +43,12 @@ d3d12 = declare_dependency(
         libd3d12,
         cpp.find_library('dxgi', required : os == 'windows'),
         cpp.find_library('dxguid', required : os == 'windows')
-    ]
+    ],
+    variables : {
+        'd3d12core': meson.current_source_dir() / bindir / 'D3D12Core.dll',
+        'd3d12sdklayers': meson.current_source_dir() / bindir / 'd3d12SDKLayers.dll',
+        'bindir' : bindir,
+    }
 )
 
 meson.override_find_program('d3dconfig', d3dconfig)

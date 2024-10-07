@@ -33,7 +33,11 @@ inc = include_directories('native/include')
 
 dstorage_dep = declare_dependency(
     dependencies : lib,
-    include_directories : inc
+    include_directories : inc,
+    variables : {
+        'bindir' : bindir,
+        'libdir' : libdir,
+    }
 )
 
 meson.override_dependency('dstorage', dstorage_dep)

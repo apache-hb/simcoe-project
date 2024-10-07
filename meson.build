@@ -26,7 +26,8 @@ project('simcoe', [ 'c', 'cpp' ],
         # 'harfbuzz:cpp_std=c++20',
         # 'harfbuzz:tests=disabled',
         # 'harfbuzz:freetype=enabled',
-    ]
+    ],
+    meson_version : '>=1.3.0',
 )
 
 cpp = meson.get_compiler('cpp')
