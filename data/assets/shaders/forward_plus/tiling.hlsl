@@ -44,35 +44,21 @@ uint2 getWindowGridSize() {
     return gCameraData.getGridSize(TILE_SIZE);
 }
 
-float3 convertProjectionToView(float4 p) {
-    float4 v = mul(p, gCameraData.invProjection);
+float3 convertProjectionToView(float4 p, float4x4 invProjection) {
+    float4 v = mul(p, invProjection);
     v /= v.w;
     return v.xyz;
 }
 
-float convertProjectionDepthToView(float depth) {
-    return 1.f / (depth * gCameraData.invProjection._34 + gCameraData.invProjection._44);
-}
-
-float3 createPlaneEquation(float3 b, float3 c) {
-    return normalize(cross(b, c));
-}
-
-float4 createProjection(uint2 window_size, uint px, uint py) {
-    float x = px / float(window_size.x) * 2 - 1;
-    float y = (window_size.y - py) / float(window_size.y) * 2 - 1;
-    return float4(x, y, 1, 1);
-}
-
-float signedDistanceFromPlane(float3 plane, float3 eqn) {
-    return dot(plane, eqn);
+float convertProjectionDepthToView(float depth, float4x4 invProjection) {
+    return 1.f / (depth * invProjection._34 + invProjection._44);
 }
 
 #if DEPTH_BOUNDS_MODE == DEPTH_BOUNDS_ENABLED
 
 void computeDepthBounds(uint3 globalId) {
     float depth = gDepthTexture.Load(uint3(globalId.xy, 0)).x;
-    float viewPositionZ = convertProjectionDepthToView(depth);
+    float viewPositionZ = convertProjectionDepthToView(depth, gCameraData.invProjection);
     uint z = asuint(viewPositionZ);
     if (depth != 0.f) {
         InterlockedMax(ldsZMax, z);
@@ -82,12 +68,12 @@ void computeDepthBounds(uint3 globalId) {
 
 #elif DEPTH_BOUNDS_MODE == DEPTH_BOUNDS_MSAA
 
-void computeDepthBounds_msaa(uint3 globalId, uint depthSampleCount) {
+void computeDepthBoundsMSAA(uint3 globalId, uint depthSampleCount) {
     float pixelMinZ = FLOAT_MAX;
     float pixelMaxZ = 0.f;
 
     float depth = gDepthTexture.Load(globalId.xy, 0).x;
-    float viewPositionZ0 = convertProjectionDepthToView(depth);
+    float viewPositionZ0 = convertProjectionDepthToView(depth, gCameraData.invProjection);
     if (depth != 0.f) {
         pixelMaxZ = max(pixelMaxZ, viewPositionZ0);
         pixelMinZ = min(pixelMinZ, viewPositionZ0);
@@ -95,7 +81,7 @@ void computeDepthBounds_msaa(uint3 globalId, uint depthSampleCount) {
 
     for (uint i = 1; i < depthSampleCount; i++) {
         depth = gDepthTexture.Load(globalId.xy, i).x;
-        float viewPositionZ = convertProjectionDepthToView(depth);
+        float viewPositionZ = convertProjectionDepthToView(depth, gCameraData.invProjection);
         if (depth != 0.f) {
             pixelMaxZ = max(pixelMaxZ, viewPositionZ);
             pixelMinZ = min(pixelMinZ, viewPositionZ);
@@ -137,7 +123,7 @@ struct FrustumData {
         return all(bool4(inside0, inside1, inside2, inside3));
     }
 
-    bool depth_test(float dist, float radius) {
+    bool depthTest(float dist, float radius) {
 #if DEPTH_BOUNDS_MODE != DEPTH_BOUNDS_DISABLED
         return -dist + minZ < radius && dist - maxZ < radius;
 #else
@@ -152,7 +138,7 @@ struct FrustumData {
             float3 center = mul(float4(light.position, 1), gCameraData.worldView).xyz;
 
             if (testFrustrumSides(center, light.radius)) {
-                if (depth_test(center.z, light.radius)) {
+                if (depthTest(center.z, light.radius)) {
                     uint index = 0;
                     InterlockedAdd(gLightIndexCount, 1, index);
                     gLightIndex[index] = i;
@@ -164,15 +150,28 @@ struct FrustumData {
     }
 };
 
-// light culling and binning compute shader
+FrustumData createFrustumData(uint2 groupId) {
+    uint pxm = TILE_SIZE * groupId.x;
+    uint pym = TILE_SIZE * groupId.y;
+    uint pxp = TILE_SIZE * (groupId.x + 1);
+    uint pyp = TILE_SIZE * (groupId.y + 1);
 
-[numthreads(CS_THREADS_X, CS_THREADS_Y, 1)]
-void csCullLights(
-    uint3 globalId : SV_DispatchThreadID,
-    uint3 localId : SV_GroupThreadID,
-    uint3 groupId : SV_GroupID
-)
-{
+    uint2 windowSize = gCameraData.getWindowTiledSize(TILE_SIZE);
+
+    float3 frustum0 = convertProjectionToView(createProjection(windowSize, pxm, pym), gCameraData.invProjection);
+    float3 frustum1 = convertProjectionToView(createProjection(windowSize, pxp, pym), gCameraData.invProjection);
+    float3 frustum2 = convertProjectionToView(createProjection(windowSize, pxp, pyp), gCameraData.invProjection);
+    float3 frustum3 = convertProjectionToView(createProjection(windowSize, pxm, pyp), gCameraData.invProjection);
+
+    FrustumData frustum;
+    frustum.plane0 = createPlaneEquation(frustum0, frustum1);
+    frustum.plane1 = createPlaneEquation(frustum1, frustum2);
+    frustum.plane2 = createPlaneEquation(frustum2, frustum3);
+    frustum.plane3 = createPlaneEquation(frustum3, frustum0);
+    return frustum;
+}
+
+void doLightCulling(uint3 globalId, uint3 localId, uint3 groupId) {
     uint localIndex = localId.x + localId.y * CS_THREADS_X;
 
     if (localIndex == 0) {
@@ -183,25 +182,7 @@ void csCullLights(
         gLightIndexCount = 0;
     }
 
-    FrustumData frustum;
-    {
-        uint pxm = TILE_SIZE * groupId.x;
-        uint pym = TILE_SIZE * groupId.y;
-        uint pxp = TILE_SIZE * (groupId.x + 1);
-        uint pyp = TILE_SIZE * (groupId.y + 1);
-
-        uint2 windowSize = gCameraData.getWindowTiledSize(TILE_SIZE);
-
-        float3 frustum0 = convertProjectionToView(createProjection(windowSize, pxm, pym));
-        float3 frustum1 = convertProjectionToView(createProjection(windowSize, pxp, pym));
-        float3 frustum2 = convertProjectionToView(createProjection(windowSize, pxp, pyp));
-        float3 frustum3 = convertProjectionToView(createProjection(windowSize, pxm, pyp));
-
-        frustum.plane0 = createPlaneEquation(frustum0, frustum1);
-        frustum.plane1 = createPlaneEquation(frustum1, frustum2);
-        frustum.plane2 = createPlaneEquation(frustum2, frustum3);
-        frustum.plane3 = createPlaneEquation(frustum3, frustum0);
-    }
+    FrustumData frustum = createFrustumData(groupId.xy);
 
     GroupMemoryBarrierWithGroupSync();
 
@@ -210,7 +191,7 @@ void csCullLights(
 
     frustum.updateFromLDS();
 #elif DEPTH_BOUNDS_MODE == DEPTH_BOUNDS_MSAA
-    computeDepthBounds_msaa(globalId, gCameraData.depthBufferSampleCount);
+    computeDepthBoundsMSAA(globalId, gCameraData.depthBufferSampleCount);
 
     frustum.updateFromLDS();
 #endif
@@ -229,6 +210,39 @@ void csCullLights(
     uint groupIdIndex = gCameraData.getGroupTileIndex(groupId, TILE_SIZE);
     uint startOffset = groupIdIndex * LIGHT_INDEX_BUFFER_STRIDE;
 
+#if 1
+
+    if (startOffset >= 2621400) {
+        const int scale = 32;
+        uint2 gridSize = getWindowGridSize();
+        gLightIndexBuffer[(groupIdIndex * scale) + 0] = 0xFFFFFFFF;
+
+        gLightIndexBuffer[(groupIdIndex * scale) + 1] = groupId.x;
+        gLightIndexBuffer[(groupIdIndex * scale) + 2] = groupId.y;
+        gLightIndexBuffer[(groupIdIndex * scale) + 3] = groupId.z;
+
+        gLightIndexBuffer[(groupIdIndex * scale) + 4] = localId.x;
+        gLightIndexBuffer[(groupIdIndex * scale) + 5] = localId.y;
+        gLightIndexBuffer[(groupIdIndex * scale) + 6] = localId.z;
+
+        gLightIndexBuffer[(groupIdIndex * scale) + 7] = globalId.x;
+        gLightIndexBuffer[(groupIdIndex * scale) + 8] = globalId.y;
+        gLightIndexBuffer[(groupIdIndex * scale) + 9] = globalId.z;
+
+        gLightIndexBuffer[(groupIdIndex * scale) + 10] = gCameraData.windowSize.x;
+        gLightIndexBuffer[(groupIdIndex * scale) + 11] = gCameraData.windowSize.y;
+        gLightIndexBuffer[(groupIdIndex * scale) + 12] = gridSize.x;
+        gLightIndexBuffer[(groupIdIndex * scale) + 13] = gridSize.y;
+
+        gLightIndexBuffer[(groupIdIndex * scale) + 14] = TILE_SIZE;
+        gLightIndexBuffer[(groupIdIndex * scale) + 15] = THREADS_PER_TILE;
+        gLightIndexBuffer[(groupIdIndex * scale) + 16] = LIGHT_INDEX_BUFFER_STRIDE;
+
+        gLightIndexBuffer[(groupIdIndex * scale) + scale - 1] = 0xFFFFFFFF;
+        return;
+    }
+#endif
+
     // copy the light indices to the buffer
     {
         for (uint i = 0; i < pointLightsInTile; i += THREADS_PER_TILE) {
@@ -242,36 +256,22 @@ void csCullLights(
         }
     }
 
-#if 0
-    uint2 gridSize = getWindowGridSize();
-    gLightIndexBuffer[startOffset + 0] = gridSize.x;
-    gLightIndexBuffer[startOffset + 1] = gridSize.y;
-    gLightIndexBuffer[startOffset + 2] = gCameraData.windowSize.x;
-    gLightIndexBuffer[startOffset + 3] = gCameraData.windowSize.y;
-
-    if (startOffset >= 3497256) {
-        gLightIndexBuffer[(groupIdIndex * 16) + 0] = 0xFFFFFFFF;
-
-        gLightIndexBuffer[(groupIdIndex * 16) + 1] = groupId.x;
-        gLightIndexBuffer[(groupIdIndex * 16) + 2] = groupId.y;
-        gLightIndexBuffer[(groupIdIndex * 16) + 3] = groupIdIndex;
-        gLightIndexBuffer[(groupIdIndex * 16) + 4] = startOffset;
-
-        gLightIndexBuffer[(groupIdIndex * 16) + 5] = gCameraData.windowSize.x;
-        gLightIndexBuffer[(groupIdIndex * 16) + 6] = gCameraData.windowSize.y;
-        gLightIndexBuffer[(groupIdIndex * 16) + 7] = gridSize.x;
-        gLightIndexBuffer[(groupIdIndex * 16) + 8] = gridSize.y;
-
-        gLightIndexBuffer[(groupIdIndex * 16) + 9] = LIGHT_INDEX_BUFFER_STRIDE;
-
-        gLightIndexBuffer[(groupIdIndex * 16) + 10] = 0xFFFFFFFF;
-        return;
-    }
-#endif
 
     // save the light counts for this tile
     if (localIndex == 0) {
-        gLightIndexBuffer[startOffset + 0] = 1; // pointLightsInTile;
-        gLightIndexBuffer[startOffset + 1] = 1; // spotLightsInTile;
+        gLightIndexBuffer[startOffset + 0] = pointLightsInTile;
+        gLightIndexBuffer[startOffset + 1] = spotLightsInTile;
     }
+}
+
+// light culling and binning compute shader
+
+[numthreads(CS_THREADS_X, CS_THREADS_Y, 1)]
+void csCullLights(
+    uint3 globalId : SV_DispatchThreadID,
+    uint3 localId : SV_GroupThreadID,
+    uint3 groupId : SV_GroupID
+)
+{
+    doLightCulling(globalId, localId, groupId);
 }

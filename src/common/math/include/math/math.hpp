@@ -85,6 +85,10 @@ namespace sm::math {
     static_assert(sizeof(uint32x2) == sizeof(uint32) * 2);
     static_assert(sizeof(uint32x3) == sizeof(uint32) * 3);
     static_assert(sizeof(uint32x4) == sizeof(uint32) * 4);
+
+    using bool2 = Vec2<bool>;
+    using bool3 = Vec3<bool>;
+    using bool4 = Vec4<bool>;
     // NOLINTEND
 }
 

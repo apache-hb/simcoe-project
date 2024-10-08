@@ -105,14 +105,15 @@ void EditorContext::setup_framegraph(graph::FrameGraph& graph) {
     draw::ecs::DrawData dd { draw::DepthBoundsMode::eEnabled, graph };
 
     mSystem.defer([&] {
+        graph::Handle spotLightVolumes, pointLightVolumes, spotLightData, pointLightData;
+        draw::ecs::copyLightData(dd, spotLightVolumes, pointLightVolumes, spotLightData, pointLightData);
+
         q.each([&](flecs::entity entity, world::ecs::Camera& camera) {
             draw::ecs::WorldData wd { getWorld(), entity };
 
-            graph::Handle spotLightVolumes, pointLightVolumes, spotLightData, pointLightData;
             graph::Handle depthPrePassTarget;
             graph::Handle lightIndices;
             graph::Handle forwardPlusOpaqueTarget, forwardPlusOpaqueDepth;
-            draw::ecs::copyLightData(dd, spotLightVolumes, pointLightVolumes, spotLightData, pointLightData);
             draw::ecs::depthPrePass(wd, dd, depthPrePassTarget);
             draw::ecs::lightBinning(wd, dd, lightIndices, depthPrePassTarget, pointLightVolumes, spotLightVolumes);
             draw::ecs::forwardPlusOpaque(wd, dd, lightIndices, pointLightVolumes, spotLightVolumes, pointLightData, spotLightData, forwardPlusOpaqueTarget, forwardPlusOpaqueDepth);

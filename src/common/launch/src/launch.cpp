@@ -75,6 +75,7 @@ launch::LaunchCleanup::~LaunchCleanup() noexcept {
 }
 
 launch::LaunchCleanup launch::commonInit(HINSTANCE hInstance, const LaunchInfo& info) {
+    SetProcessAffinityMask(GetCurrentProcess(), 0b1111'1111'1111'1111);
     bt_init();
     os_init();
 

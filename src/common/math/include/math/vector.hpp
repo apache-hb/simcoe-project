@@ -371,6 +371,44 @@ namespace sm::math {
         return c + (a * b);
     }
 
+    template<IsVector T>
+    constexpr typename T::Type length(T x) {
+        return x.length();
+    }
+
+    template<IsVector T>
+    constexpr T normalize(T x) {
+        return x / length(x);
+    }
+
+    template<typename T>
+    constexpr Vec3<T> cross(Vec3<T> lhs, Vec3<T> rhs) {
+        return Vec3<T>::cross(lhs, rhs);
+    }
+
+    template<IsVector T>
+    constexpr typename T::Type dot(T lhs, T rhs) {
+        return T::dot(lhs, rhs);
+    }
+
+    constexpr bool any(Vec4<bool> vec) {
+        for (size_t i = 0; i < Vec4<bool>::kSize; i++) {
+            if (vec[i]) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    constexpr bool all(Vec4<bool> vec) {
+        for (size_t i = 0; i < Vec4<bool>::kSize; i++) {
+            if (!vec[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     enum Channel {
         X = 0,
         Y = 1,

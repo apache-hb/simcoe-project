@@ -86,6 +86,13 @@ void ecs::lightBinning(
 
     uint tileCount = draw::computeTileCount(info.window, TILE_SIZE);
     uint tileIndexCount = tileCount * LIGHT_INDEX_BUFFER_STRIDE;
+    uint2 gridSize = computeGridSize(info.window, TILE_SIZE);
+
+    LOG_INFO(DrawLog,
+        "window size: {}, tile count: {}, tile index count: {}, grid size: {}, max grid index: {}",
+        info.window, tileCount, tileIndexCount,
+        gridSize, (gridSize.x * gridSize.y) * LIGHT_INDEX_BUFFER_STRIDE
+    );
 
     const graph::ResourceInfo lightIndexInfo = graph::ResourceInfo::arrayOf<light_index_t>(tileIndexCount);
 
@@ -142,7 +149,7 @@ void ecs::lightBinning(
 
         commands->SetComputeRootDescriptorTable(eLightIndexBuffer, lightIndicesHandle);
 
-        uint2 gridSize = computeGridSize(info.window, TILE_SIZE);
+        LOG_INFO(DrawLog, "dispatching {}x{}x1 for tile buffer ({})", gridSize.x, gridSize.y, tileIndexCount);
         commands->Dispatch(gridSize.x, gridSize.y, 1);
     });
 }

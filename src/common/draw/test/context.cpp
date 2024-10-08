@@ -97,14 +97,13 @@ TEST_CASE("Creating a device context") {
         .flags = render::DebugFlags::eDeviceDebugLayer
                | render::DebugFlags::eFactoryDebug
                | render::DebugFlags::eInfoQueue
-               | render::DebugFlags::eGpuValidation
-               | render::DebugFlags::eWarpAdapter,
+               | render::DebugFlags::eGpuValidation,
         .preference = render::AdapterPreference::eMinimumPower,
         .minFeatureLevel = render::FeatureLevel::eLevel_11_0,
 
         .swapchain = {
             .size = math::uint2(client),
-            .length = 2,
+            .length = 8,
             .format = DXGI_FORMAT_R8G8B8A8_UNORM,
         },
 
@@ -146,7 +145,7 @@ TEST_CASE("Creating a device context") {
     world.progress(1.f);
 
     bool done = false;
-    const int totalIters = 20;
+    const int totalIters = 60;
     int iters = totalIters;
     while (!done) {
         MSG msg = {};

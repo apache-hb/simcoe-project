@@ -24,11 +24,14 @@ bool structured::addConsoleChannel() {
 }
 
 bool structured::addDebugChannel() {
+    return false;
+#if 0
     if (!isDebugConsoleAvailable())
         return false;
 
     addChannel(debugConsole());
     return true;
+#endif
 }
 
 bool structured::addFileChannel(const fs::path& path) {

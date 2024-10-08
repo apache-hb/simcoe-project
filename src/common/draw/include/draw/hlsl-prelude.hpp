@@ -12,6 +12,8 @@
 #   define CXX(...) __VA_ARGS__
 #   define INTEROP_BEGIN(ns) namespace ns { using namespace sm::math;
 #   define INTEROP_END(ns) }
+#   define InterlockedMax(x, y) do { x = max(x, y); } while (0)
+#   define InterlockedMin(x, y) do { x = min(x, y); } while (0)
 #endif
 
 #define constexpr CXX(constexpr)

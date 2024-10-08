@@ -236,6 +236,7 @@ namespace sm::graph {
         sm::HashMap<uint32, sm::UniquePtr<IDeviceData>> mDeviceData;
 
         uint mFrameIndex;
+        int mFrameGraphVersion = 0;
 
         FrameSchedule mFrameSchedule;
 

@@ -178,11 +178,25 @@ struct MaterialData {
     texture_index_t normalTextureIndex;
 };
 
+constexpr float signedDistanceFromPlane(float3 plane, float3 eqn) {
+    return dot(plane, eqn);
+}
+
+constexpr float3 createPlaneEquation(float3 b, float3 c) {
+    return normalize(cross(b, c));
+}
+
+constexpr float4 createProjection(uint2 windowSize, uint px, uint py) {
+    float x = px / float(windowSize.x) * 2 - 1;
+    float y = (windowSize.y - py) / float(windowSize.y) * 2 - 1;
+    return float4(x, y, 1, 1);
+}
+
 #ifdef __cplusplus
 // simple case:
 // - window size: (1920, 1080)
 // - tile size: 16
-struct TestCase0 {
+constexpr void test1() {
     static constexpr uint2 kWindowSize = uint2(1920, 1080);
     static constexpr uint kTileSize = 16;
 
@@ -209,7 +223,7 @@ struct TestCase0 {
 // case 1:
 // - window size: (2119, 860)
 // - tile size: 16
-struct TestCase1 {
+constexpr void test2() {
     static constexpr uint2 kWindowSize = uint2(2119, 860);
     static constexpr uint kTileSize = 16;
 
@@ -233,7 +247,7 @@ struct TestCase1 {
 // case 2:
 // - window size: (2119, 902)
 // - tile size: 16
-struct TestCase2 {
+constexpr void test3() {
     static constexpr uint2 kWindowSize = uint2(2119, 902);
     static constexpr uint kTileSize = 16;
 
@@ -255,6 +269,37 @@ struct TestCase2 {
 
     static_assert(computeTileCount(kWindowSize, kTileSize) * LIGHT_INDEX_BUFFER_STRIDE == 3896634);
 };
+
+// case 3:
+// - window size: (2520, 1133)
+// - tile size: 16
+// - dispatch size: (100, 51, 1)
+// - SV_GroupID: (52, 32, 0)
+// - SV_GroupThreadID: (15, 7, 0)
+// - SV_DispatchThreadID: (847, 523, 0)
+constexpr void test4() {
+    static constexpr uint2 kWindowSize = uint2(2520, 1133);
+    static constexpr uint kTileSize = 16;
+    // static constexpr uint2 kGridSize = uint2(158, 71);
+
+    static constexpr uint3 SV_GroupId = uint3(52, 32, 0);
+    // static constexpr uint3 SV_GroupThreadId = uint3(15, 7, 0);
+    // static constexpr uint3 SV_DispatchThreadId = uint3(847, 523, 0);
+
+    constexpr ViewportData vpd {
+        .windowSize = kWindowSize,
+    };
+
+    constexpr uint tileCount = computeTileCount(kWindowSize, kTileSize);
+    constexpr uint tileIndexCount = tileCount * LIGHT_INDEX_BUFFER_STRIDE;
+    // constexpr uint2 gridSize = computeGridSize(kWindowSize, kTileSize);
+
+    constexpr uint groupIdIndex = vpd.getGroupTileIndex(SV_GroupId, kTileSize);
+    constexpr uint startOffset = groupIdIndex * LIGHT_INDEX_BUFFER_STRIDE;
+
+    static_assert(startOffset < tileIndexCount);
+
+}
 #endif
 
 INTEROP_END(sm::draw)

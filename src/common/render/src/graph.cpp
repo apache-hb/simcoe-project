@@ -1062,6 +1062,9 @@ void FrameGraph::schedule_graph() {
 
     // submit the last command list
     schedule.submitCommandBuffer(list);
+
+    mFrameGraphVersion += 1;
+    LOG_INFO(RenderLog, "Frame graph scheduled (generation {})", mFrameGraphVersion);
 }
 
 void DescriptorPack::release(render::IDeviceContext& context) {
@@ -1096,6 +1099,7 @@ void FrameGraph::resize_frame_data(uint size) {
 }
 
 void FrameGraph::reset() {
+    LOG_INFO(RenderLog, "Resetting frame graph (generation {})", mFrameGraphVersion);
     mFrameSchedule.clear();
     reset_frame_commands();
     clearFences();
@@ -1118,6 +1122,8 @@ struct overloaded : T... {
 
 void FrameGraph::execute() {
     SM_UNUSED BYTE colour = PIX_COLOR_DEFAULT;
+
+    LOG_INFO(RenderLog, "Executing frame graph (generation {})", mFrameGraphVersion);
 
     for (auto& step : mFrameSchedule) {
         std::visit(overloaded {
