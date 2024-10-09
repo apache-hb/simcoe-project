@@ -207,6 +207,8 @@ if not is_windows
     subdir_done()
 endif
 
+subdir('src/plugins/ryzenmaster')
+
 subdir('src/common/math')
 subdir('src/common/archive')
 

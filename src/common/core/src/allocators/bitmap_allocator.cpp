@@ -16,8 +16,7 @@ bool BitMapIndexIterator::operator==(const BitMapIndexIterator& other) const noe
 
 size_t BitMapIndexAllocator::acquireFirstFreeIndex() noexcept {
     for (size_t i = 0; i < mBitSet.getBitCapacity(); ++i) {
-        if (!mBitSet.test(i)) {
-            mBitSet.set(i);
+        if (!mBitSet.testAndSet(i)) {
             return i;
         }
     }

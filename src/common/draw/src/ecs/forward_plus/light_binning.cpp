@@ -10,12 +10,15 @@ using namespace sm::draw;
 enum {
     eViewportBuffer, // register(b0)
 
+    eDispatchInfo, // register(b1)
+
     ePointLightData, // register(t0)
     eSpotLightData, // register(t1)
 
     eDepthTexture, // register(t2)
 
     eLightIndexBuffer, // register(u0)
+    eDebugData, // register(u1)
 
     eBindingCount
 };
@@ -38,6 +41,7 @@ static void createLightBinningPipeline(
     {
         CD3DX12_ROOT_PARAMETER1 params[eBindingCount];
         params[eViewportBuffer].InitAsConstantBufferView(0);
+        params[eDispatchInfo].InitAsConstants(3, 1, 0, D3D12_SHADER_VISIBILITY_ALL);
 
         params[ePointLightData].InitAsShaderResourceView(0);
         params[eSpotLightData].InitAsShaderResourceView(1);
@@ -51,6 +55,11 @@ static void createLightBinningPipeline(
         indices[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
 
         params[eLightIndexBuffer].InitAsDescriptorTable(_countof(indices), indices);
+
+        CD3DX12_DESCRIPTOR_RANGE1 debug[1];
+        debug[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 1);
+
+        params[eDebugData].InitAsDescriptorTable(_countof(debug), debug);
 
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
         desc.Init_1_1(_countof(params), params, 0, nullptr, kBinningPassRootFlags);
@@ -84,13 +93,12 @@ void ecs::lightBinning(
 {
     const world::ecs::Camera& info = wd.camera;
 
-    uint tileCount = draw::computeTileCount(info.window, TILE_SIZE);
-    uint tileIndexCount = tileCount * LIGHT_INDEX_BUFFER_STRIDE;
+    uint tileIndexCount = getTileIndexCount(info.window, TILE_SIZE);
     uint2 gridSize = computeGridSize(info.window, TILE_SIZE);
 
     LOG_INFO(DrawLog,
-        "window size: {}, tile count: {}, tile index count: {}, grid size: {}, max grid index: {}",
-        info.window, tileCount, tileIndexCount,
+        "window size: {}, tile index count: {}, grid size: {}, max grid index: {}",
+        info.window, tileIndexCount,
         gridSize, (gridSize.x * gridSize.y) * LIGHT_INDEX_BUFFER_STRIDE
     );
 
@@ -123,6 +131,30 @@ void ecs::lightBinning(
         return info;
     });
 
+    static bool firstInit = false;
+    static render::Resource debugData;
+    static render::SrvPool::Index debugDataIndex;
+    if (!firstInit) {
+        firstInit = true;
+        auto& ctx = dd.graph.getContext();
+        uint count = 0x1000 * 128;
+        uint size = count * sizeof(uint);
+        ctx.createBufferResource(debugData, D3D12_HEAP_TYPE_DEFAULT, size, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+        debugData.rename("Light Binning Debug Data");
+        debugDataIndex = ctx.mSrvPool.allocate();
+        D3D12_UNORDERED_ACCESS_VIEW_DESC desc = {
+            .Format = DXGI_FORMAT_R32_UINT,
+            .ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
+            .Buffer = {
+                .FirstElement = 0,
+                .NumElements = count,
+                .StructureByteStride = 0,
+                .CounterOffsetInBytes = 0,
+            },
+        };
+        ctx.mDevice->CreateUnorderedAccessView(debugData.get(), nullptr, &desc, ctx.mSrvPool.cpu_handle(debugDataIndex));
+    }
+
     pass.bind([=, vpd = &wd.viewport, &data](graph::RenderContext& ctx) {
         auto& [context, graph, _, commands] = ctx;
 
@@ -142,6 +174,9 @@ void ecs::lightBinning(
 
         commands->SetComputeRootConstantBufferView(eViewportBuffer, vpd->getDeviceAddress());
 
+        UINT32 dispatchInfo[] = { gridSize.x, gridSize.y, tileIndexCount };
+        commands->SetComputeRoot32BitConstants(eDispatchInfo, sizeof(dispatchInfo) / sizeof(UINT32), dispatchInfo, 0);
+
         commands->SetComputeRootShaderResourceView(ePointLightData, pointLightHandle->GetGPUVirtualAddress());
         commands->SetComputeRootShaderResourceView(eSpotLightData, spotLightHandle->GetGPUVirtualAddress());
 
@@ -149,7 +184,115 @@ void ecs::lightBinning(
 
         commands->SetComputeRootDescriptorTable(eLightIndexBuffer, lightIndicesHandle);
 
+        auto debugHandle = context.mSrvPool.gpu_handle(debugDataIndex);
+        commands->SetComputeRootDescriptorTable(eDebugData, debugHandle);
+
         LOG_INFO(DrawLog, "dispatching {}x{}x1 for tile buffer ({})", gridSize.x, gridSize.y, tileIndexCount);
         commands->Dispatch(gridSize.x, gridSize.y, 1);
     });
 }
+
+#ifdef __cplusplus
+// simple case:
+// - window size: (1920, 1080)
+// - tile size: 16
+constexpr void test1() {
+    static constexpr uint2 kWindowSize = uint2(1920, 1080);
+    static constexpr uint kTileSize = 16;
+
+    static constexpr uint2 kExpectedGridSize = uint2(120, 68);
+    static constexpr uint kExpectedTileCount = 8160;
+
+    static_assert(computeGridSize(kWindowSize, kTileSize) == uint2(120, 68));
+    static_assert(computeTileCount(kWindowSize, kTileSize) == kExpectedTileCount);
+
+    static_assert(computeWindowTiledSize(kWindowSize, kTileSize) == kExpectedGridSize * kTileSize);
+
+    static_assert(computePixelTileIndex(kWindowSize, float2(0, 0), kTileSize) == 0);
+    static_assert(computePixelTileIndex(kWindowSize, float2(kWindowSize), kTileSize) == kExpectedTileCount);
+
+    static_assert(computeGroupTileIndex(uint3(0, 0, 0), kWindowSize, kTileSize) == 0);
+    static_assert(computeGroupTileIndex(uint3(1, 0, 0), kWindowSize, kTileSize) == 1);
+    static_assert(computeGroupTileIndex(uint3(0, 1, 0), kWindowSize, kTileSize) == kExpectedGridSize.x);
+    static_assert(computeGroupTileIndex(uint3(16, 16, 0), kWindowSize, kTileSize) == 1936);
+
+    // TODO: the <= comparison is technically wrong, it means we may skip the bottom right tile
+    static_assert(computeGroupTileIndex(uint3(kExpectedGridSize - 1, 0), kWindowSize, kTileSize) <= kExpectedTileCount);
+};
+
+// case 1:
+// - window size: (2119, 860)
+// - tile size: 16
+constexpr void test2() {
+    static constexpr uint2 kWindowSize = uint2(2119, 860);
+    static constexpr uint kTileSize = 16;
+
+    static constexpr uint2 kExpectedGridSize = uint2(133, 54);
+    static constexpr uint kExpectedTileCount = 7182;
+
+    static_assert(computeGridSize(kWindowSize, kTileSize) == kExpectedGridSize);
+    static_assert(computeTileCount(kWindowSize, kTileSize) == kExpectedTileCount);
+
+    static_assert(computeWindowTiledSize(kWindowSize, kTileSize) == kExpectedGridSize * kTileSize);
+
+    static_assert(computePixelTileIndex(kWindowSize, float2(0, 0), kTileSize) == 0);
+    static_assert(computePixelTileIndex(kWindowSize, float2(kWindowSize), kTileSize) <= kExpectedTileCount);
+
+    static_assert(computeGroupTileIndex(uint3(0, 0, 0), kWindowSize, kTileSize) == 0);
+    static_assert(computeGroupTileIndex(uint3(1, 0, 0), kWindowSize, kTileSize) == 1);
+    static_assert(computeGroupTileIndex(uint3(0, 1, 0), kWindowSize, kTileSize) == kExpectedGridSize.x);
+    static_assert(computeGroupTileIndex(uint3(kExpectedGridSize - 1, 0), kWindowSize, kTileSize) <= kExpectedTileCount);
+};
+
+// case 2:
+// - window size: (2119, 902)
+// - tile size: 16
+constexpr void test3() {
+    static constexpr uint2 kWindowSize = uint2(2119, 902);
+    static constexpr uint kTileSize = 16;
+
+    static constexpr uint2 kExpectedGridSize = uint2(133, 57);
+    static constexpr uint kExpectedTileCount = 7581;
+
+    static_assert(computeGridSize(kWindowSize, kTileSize) == kExpectedGridSize);
+    static_assert(computeTileCount(kWindowSize, kTileSize) == kExpectedTileCount);
+
+    static_assert(computeWindowTiledSize(kWindowSize, kTileSize) == kExpectedGridSize * kTileSize);
+
+    static_assert(computePixelTileIndex(kWindowSize, float2(0, 0), kTileSize) == 0);
+    static_assert(computePixelTileIndex(kWindowSize, float2(kWindowSize), kTileSize) <= kExpectedTileCount);
+
+    static_assert(computeGroupTileIndex(uint3(0, 0, 0), kWindowSize, kTileSize) == 0);
+    static_assert(computeGroupTileIndex(uint3(1, 0, 0), kWindowSize, kTileSize) == 1);
+    static_assert(computeGroupTileIndex(uint3(0, 1, 0), kWindowSize, kTileSize) == kExpectedGridSize.x);
+    static_assert(computeGroupTileIndex(uint3(kExpectedGridSize - 1, 0), kWindowSize, kTileSize) <= kExpectedTileCount);
+
+    static_assert(computeTileCount(kWindowSize, kTileSize) * LIGHT_INDEX_BUFFER_STRIDE == 3896634);
+};
+
+constexpr void test4() {
+    static constexpr uint2 kWindowSize = uint2(732, 801);
+    static constexpr uint kTileSize = 16;
+    // static constexpr uint2 kGridSize = uint2(158, 71);
+    constexpr uint tileIndexCount = getTileIndexCount(kWindowSize, kTileSize);
+    constexpr uint2 gridSize = computeGridSize(kWindowSize, kTileSize);
+
+    static constexpr uint3 SV_GroupId = uint3(gridSize.x - 1, gridSize.y - 1, 0);
+    // static constexpr uint3 SV_GroupThreadId = uint3(kTileSize - 1, kTileSize - 1, 0);
+    // static constexpr uint3 SV_DispatchThreadId = uint3(
+    //     SV_GroupId.x * gridSize.x + SV_GroupThreadId.x,
+    //     SV_GroupId.y * gridSize.y + SV_GroupThreadId.y,
+    //     0
+    // );
+
+    constexpr ViewportData vpd {
+        .windowSize = kWindowSize,
+    };
+
+    // constexpr uint localIndex = getLocalIndex(SV_GroupThreadId, kTileSize);
+    constexpr uint groupIdIndex = vpd.getGroupTileIndex(SV_GroupId, kTileSize);
+    constexpr uint startOffset = groupIdIndex * LIGHT_INDEX_BUFFER_STRIDE;
+
+    static_assert((startOffset + LIGHT_INDEX_BUFFER_STRIDE) < tileIndexCount);
+}
+#endif

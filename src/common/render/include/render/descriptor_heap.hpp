@@ -4,6 +4,41 @@
 
 #include "render/object.hpp"
 
+namespace sm::render::next {
+    class DescriptorPoolBase {
+        static constexpr inline size_t kInitialAllocatorSize = 64;
+        sm::BitMapIndexAllocator mAllocator{kInitialAllocatorSize};
+
+        Object<ID3D12DescriptorHeap> mHeap;
+        uint mDescriptorSize;
+        bool mIsShaderVisible;
+
+        D3D12_CPU_DESCRIPTOR_HANDLE mHostHandle;
+        D3D12_GPU_DESCRIPTOR_HANDLE mDeviceHandle;
+
+    protected:
+        DescriptorPoolBase(ID3D12DescriptorHeap *heap, uint descriptorSize, bool isShaderVisible) noexcept
+            : mHeap(heap)
+            , mDescriptorSize(descriptorSize)
+            , mIsShaderVisible(isShaderVisible)
+        { }
+
+        DescriptorPoolBase(ID3D12Device1 *device, D3D12_DESCRIPTOR_HEAP_DESC desc);
+
+    public:
+        uint getDescriptorSize() const noexcept { return mDescriptorSize; }
+        bool isShaderVisible() const noexcept { return mIsShaderVisible; }
+
+        ~DescriptorPoolBase() noexcept;
+    };
+
+    template<D3D12_DESCRIPTOR_HEAP_TYPE H>
+    class DescriptorPool : public DescriptorPoolBase {
+        using Super = DescriptorPoolBase;
+    public:
+    };
+}
+
 namespace sm::render {
     using HostDescriptorHandle = D3D12_CPU_DESCRIPTOR_HANDLE;
     using DeviceDescriptorHandle = D3D12_GPU_DESCRIPTOR_HANDLE;
@@ -50,7 +85,7 @@ namespace sm::render {
         uint countUsedHandles() const noexcept { return mAllocator.popcount(); }
     };
 
-    template<D3D12_DESCRIPTOR_HEAP_TYPE THeapType>
+    template<D3D12_DESCRIPTOR_HEAP_TYPE H>
     class DescriptorPool : public DescriptorPoolBase {
         using Super = DescriptorPoolBase;
     public:
@@ -59,7 +94,7 @@ namespace sm::render {
 
         Result init(ID3D12Device1 *device, uint capacity, D3D12_DESCRIPTOR_HEAP_FLAGS flags) {
             const D3D12_DESCRIPTOR_HEAP_DESC kDesc = {
-                .Type = THeapType,
+                .Type = H,
                 .NumDescriptors = capacity,
                 .Flags = flags,
                 .NodeMask = 0,

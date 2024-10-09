@@ -84,13 +84,13 @@ namespace sm::render {
     };
 
     class Instance {
+        bool mTearingSupport = false;
         DebugFlags mFlags;
         AdapterPreference mAdapterSearch;
 
         Object<IDXGIFactory4> mFactory;
         Object<IDXGIDebug1> mDebug;
-        sm::Vector<Adapter> mAdapters;
-        bool mTearingSupport = false;
+        std::vector<Adapter> mAdapters;
 
         Adapter mWarpAdapter;
 

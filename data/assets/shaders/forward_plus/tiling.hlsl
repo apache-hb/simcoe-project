@@ -28,6 +28,8 @@ Texture2D<float> gDepthTexture : register(t2);
 // };
 RWBuffer<light_index_t> gLightIndexBuffer : register(u0);
 
+RWBuffer<uint> gDebugData : register(u1);
+
 // shared memory for light culling
 
 #if DEPTH_BOUNDS_MODE != DEPTH_BOUNDS_DISABLED
@@ -37,6 +39,11 @@ groupshared uint ldsZMin;
 
 groupshared light_index_t gLightIndexCount;
 groupshared light_index_t gLightIndex[MAX_LIGHTS_PER_TILE];
+
+cbuffer DispatchInfo : register(b1) {
+    uint2 dispatchSize;
+    uint tileIndexCount;
+};
 
 // helper functions
 
@@ -150,13 +157,13 @@ struct FrustumData {
     }
 };
 
-FrustumData createFrustumData(uint2 groupId) {
-    uint pxm = TILE_SIZE * groupId.x;
-    uint pym = TILE_SIZE * groupId.y;
-    uint pxp = TILE_SIZE * (groupId.x + 1);
-    uint pyp = TILE_SIZE * (groupId.y + 1);
+FrustumData createFrustumData(uint2 groupId, uint tileSize) {
+    uint pxm = tileSize * groupId.x;
+    uint pym = tileSize * groupId.y;
+    uint pxp = tileSize * (groupId.x + 1);
+    uint pyp = tileSize * (groupId.y + 1);
 
-    uint2 windowSize = gCameraData.getWindowTiledSize(TILE_SIZE);
+    uint2 windowSize = gCameraData.getWindowTiledSize(tileSize);
 
     float3 frustum0 = convertProjectionToView(createProjection(windowSize, pxm, pym), gCameraData.invProjection);
     float3 frustum1 = convertProjectionToView(createProjection(windowSize, pxp, pym), gCameraData.invProjection);
@@ -171,10 +178,31 @@ FrustumData createFrustumData(uint2 groupId) {
     return frustum;
 }
 
-void doLightCulling(uint3 globalId, uint3 localId, uint3 groupId) {
-    uint localIndex = localId.x + localId.y * CS_THREADS_X;
+void writeLightIndexCount(uint groupThreadIndex, uint pointLightsInTile, uint spotLightsInTile, uint startOffset) {
+    if (groupThreadIndex == 0) {
+        gLightIndexBuffer[startOffset + 0] = pointLightsInTile;
+        gLightIndexBuffer[startOffset + 1] = spotLightsInTile;
+    }
+}
 
-    if (localIndex == 0) {
+void writeLightIndices(uint pointLightsInTile, uint spotLightsInTile, uint startOffset) {
+    // copy the light indices to the buffer
+    uint pointLightStart = startOffset + LIGHT_INDEX_BUFFER_HEADER;
+    uint spotLightStart = pointLightStart + MAX_POINT_LIGHTS_PER_TILE;
+
+    for (uint i = 0; i < pointLightsInTile; i += THREADS_PER_TILE) {
+        gLightIndexBuffer[pointLightStart + i] = gLightIndex[startOffset + i];
+    }
+
+    for (uint i = 0; i < spotLightsInTile; i += THREADS_PER_TILE) {
+        gLightIndexBuffer[spotLightStart + i] = gLightIndex[startOffset + i + pointLightsInTile];
+    }
+}
+
+void doLightCulling(uint3 dispatchThreadId, uint3 groupThreadId, uint3 groupId) {
+    uint groupThreadIndex = getLocalIndex(groupThreadId, CS_THREADS_X);
+
+    if (groupThreadIndex == 0) {
 #if DEPTH_BOUNDS_MODE != DEPTH_BOUNDS_DISABLED
         ldsZMax = 0;
         ldsZMin = 0x7f7fffff;
@@ -182,96 +210,91 @@ void doLightCulling(uint3 globalId, uint3 localId, uint3 groupId) {
         gLightIndexCount = 0;
     }
 
-    FrustumData frustum = createFrustumData(groupId.xy);
+    FrustumData frustum = createFrustumData(groupId.xy, TILE_SIZE);
 
     GroupMemoryBarrierWithGroupSync();
 
+
 #if DEPTH_BOUNDS_MODE == DEPTH_BOUNDS_ENABLED
-    computeDepthBounds(globalId);
+    computeDepthBounds(dispatchThreadId);
 
     frustum.updateFromLDS();
 #elif DEPTH_BOUNDS_MODE == DEPTH_BOUNDS_MSAA
-    computeDepthBoundsMSAA(globalId, gCameraData.depthBufferSampleCount);
+    computeDepthBoundsMSAA(dispatchThreadId, gCameraData.depthBufferSampleCount);
 
     frustum.updateFromLDS();
 #endif
 
+
     // cull point lights for this tile
-    frustum.cullLights(localIndex, gCameraData.pointLightCount, gPointLightData);
+    frustum.cullLights(groupThreadIndex, gCameraData.pointLightCount, gPointLightData);
     light_index_t pointLightsInTile = gLightIndexCount;
 
     // cull spot lights for this tile
-    frustum.cullLights(localIndex, gCameraData.spotLightCount, gSpotLightData);
+    frustum.cullLights(groupThreadIndex, gCameraData.spotLightCount, gSpotLightData);
     light_index_t spotLightsInTile = gLightIndexCount - pointLightsInTile;
 
     GroupMemoryBarrierWithGroupSync();
 
     // write the light indices to the buffer
-    uint groupIdIndex = gCameraData.getGroupTileIndex(groupId, TILE_SIZE);
-    uint startOffset = groupIdIndex * LIGHT_INDEX_BUFFER_STRIDE;
+    uint2 gridSize = gCameraData.getGridSize(TILE_SIZE);
+    uint tileIndexFlattened = groupId.x + groupId.y * gridSize.x;
+    uint startOffset = tileIndexFlattened * LIGHT_INDEX_BUFFER_STRIDE;
 
-#if 1
+    gDebugData[0] = gCameraData.windowSize.x;
+    gDebugData[1] = gCameraData.windowSize.y;
 
-    if (startOffset >= 2621400) {
+    if (startOffset + 1 >= tileIndexCount) {
         const int scale = 32;
+        const uint start = (tileIndexFlattened + 1) * scale;
         uint2 gridSize = getWindowGridSize();
-        gLightIndexBuffer[(groupIdIndex * scale) + 0] = 0xFFFFFFFF;
+        gDebugData[start + 0] = 0xFFFFFFFF;
 
-        gLightIndexBuffer[(groupIdIndex * scale) + 1] = groupId.x;
-        gLightIndexBuffer[(groupIdIndex * scale) + 2] = groupId.y;
-        gLightIndexBuffer[(groupIdIndex * scale) + 3] = groupId.z;
+        gDebugData[start + 1] = groupId.x;
+        gDebugData[start + 2] = groupId.y;
+        gDebugData[start + 3] = groupId.z;
 
-        gLightIndexBuffer[(groupIdIndex * scale) + 4] = localId.x;
-        gLightIndexBuffer[(groupIdIndex * scale) + 5] = localId.y;
-        gLightIndexBuffer[(groupIdIndex * scale) + 6] = localId.z;
+        gDebugData[start + 4] = groupThreadId.x;
+        gDebugData[start + 5] = groupThreadId.y;
+        gDebugData[start + 6] = groupThreadId.z;
 
-        gLightIndexBuffer[(groupIdIndex * scale) + 7] = globalId.x;
-        gLightIndexBuffer[(groupIdIndex * scale) + 8] = globalId.y;
-        gLightIndexBuffer[(groupIdIndex * scale) + 9] = globalId.z;
+        gDebugData[start + 7] = dispatchThreadId.x;
+        gDebugData[start + 8] = dispatchThreadId.y;
+        gDebugData[start + 9] = dispatchThreadId.z;
 
-        gLightIndexBuffer[(groupIdIndex * scale) + 10] = gCameraData.windowSize.x;
-        gLightIndexBuffer[(groupIdIndex * scale) + 11] = gCameraData.windowSize.y;
-        gLightIndexBuffer[(groupIdIndex * scale) + 12] = gridSize.x;
-        gLightIndexBuffer[(groupIdIndex * scale) + 13] = gridSize.y;
+        gDebugData[start + 10] = gCameraData.windowSize.x;
+        gDebugData[start + 11] = gCameraData.windowSize.y;
+        gDebugData[start + 12] = gridSize.x;
+        gDebugData[start + 13] = gridSize.y;
 
-        gLightIndexBuffer[(groupIdIndex * scale) + 14] = TILE_SIZE;
-        gLightIndexBuffer[(groupIdIndex * scale) + 15] = THREADS_PER_TILE;
-        gLightIndexBuffer[(groupIdIndex * scale) + 16] = LIGHT_INDEX_BUFFER_STRIDE;
+        gDebugData[start + 14] = TILE_SIZE;
+        gDebugData[start + 15] = THREADS_PER_TILE;
+        gDebugData[start + 16] = LIGHT_INDEX_BUFFER_STRIDE;
 
-        gLightIndexBuffer[(groupIdIndex * scale) + scale - 1] = 0xFFFFFFFF;
+        gDebugData[start + 17] = startOffset;
+        gDebugData[start + 18] = tileIndexCount;
+        gDebugData[start + 19] = pointLightsInTile;
+        gDebugData[start + 20] = spotLightsInTile;
+
+        gDebugData[start + scale - 1] = 0xFFFFFFFF;
         return;
     }
-#endif
 
-    // copy the light indices to the buffer
-    {
-        for (uint i = 0; i < pointLightsInTile; i += THREADS_PER_TILE) {
-            gLightIndexBuffer[startOffset + LIGHT_INDEX_BUFFER_HEADER + i] = gLightIndex[i];
-        }
-    }
-
-    {
-        for (uint j = 0; j < gLightIndexCount; j += THREADS_PER_TILE) {
-            gLightIndexBuffer[startOffset + LIGHT_INDEX_BUFFER_HEADER + MAX_POINT_LIGHTS_PER_TILE + j] = gLightIndex[j + pointLightsInTile];
-        }
-    }
-
-
-    // save the light counts for this tile
-    if (localIndex == 0) {
-        gLightIndexBuffer[startOffset + 0] = pointLightsInTile;
-        gLightIndexBuffer[startOffset + 1] = spotLightsInTile;
-    }
+    writeLightIndexCount(groupThreadIndex, pointLightsInTile, spotLightsInTile, startOffset);
+    writeLightIndices(pointLightsInTile, spotLightsInTile, startOffset);
 }
 
 // light culling and binning compute shader
 
 [numthreads(CS_THREADS_X, CS_THREADS_Y, 1)]
 void csCullLights(
-    uint3 globalId : SV_DispatchThreadID,
-    uint3 localId : SV_GroupThreadID,
+    uint3 dispatchThreadId : SV_DispatchThreadID,
+    uint3 groupThreadId : SV_GroupThreadID,
     uint3 groupId : SV_GroupID
 )
 {
-    doLightCulling(globalId, localId, groupId);
+    // if (gDebugData[0] == 0xFFFFFFFF)
+    //     return;
+
+    doLightCulling(dispatchThreadId, groupThreadId, groupId);
 }

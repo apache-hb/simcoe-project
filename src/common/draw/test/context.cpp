@@ -1,7 +1,7 @@
-#include "draw/camera.hpp"
 #include "test/common.hpp"
 
 #include "render/render.hpp"
+#include "draw/camera.hpp"
 #include "draw/draw.hpp"
 
 using namespace sm;

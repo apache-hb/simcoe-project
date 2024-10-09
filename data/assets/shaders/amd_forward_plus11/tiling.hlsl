@@ -166,19 +166,22 @@ void CalculateMinMaxDepthInLdsMSAA( uint3 globalThreadIdx, uint depthBufferNumSa
 //-----------------------------------------------------------------------------------------
 // Parameters for the light culling shader
 //-----------------------------------------------------------------------------------------
-#define NUM_THREADS_X TILE_RES
-#define NUM_THREADS_Y TILE_RES
-#define NUM_THREADS_PER_TILE (NUM_THREADS_X*NUM_THREADS_Y)
+#define CS_THREADS_X TILE_RES
+#define CS_THREADS_Y TILE_RES
+#define THREADS_PER_TILE (CS_THREADS_X*CS_THREADS_Y)
 
 //-----------------------------------------------------------------------------------------
 // Light culling shader
 //-----------------------------------------------------------------------------------------
-[numthreads(NUM_THREADS_X, NUM_THREADS_Y, 1)]
-void CullLightsCS( uint3 globalIdx : SV_DispatchThreadID, uint3 localIdx : SV_GroupThreadID, uint3 groupIdx : SV_GroupID )
+[numthreads(CS_THREADS_X, CS_THREADS_Y, 1)]
+void CullLightsCS(
+    uint3 dispatchThreadId : SV_DispatchThreadID,
+    uint3 groupThreadId : SV_GroupThreadID,
+    uint3 groupId : SV_GroupID )
 {
-    uint localIdxFlattened = localIdx.x + localIdx.y*NUM_THREADS_X;
+    uint groupThreadIndex = groupThreadId.x + groupThreadId.y*CS_THREADS_X;
 
-    if( localIdxFlattened == 0 )
+    if( groupThreadIndex == 0 )
     {
 #if ( USE_DEPTH_BOUNDS == 1 || USE_DEPTH_BOUNDS == 2 )
         ldsZMin = 0x7f7fffff;  // FLT_MAX as a uint
@@ -189,10 +192,10 @@ void CullLightsCS( uint3 globalIdx : SV_DispatchThreadID, uint3 localIdx : SV_Gr
 
     float3 frustumEqn0, frustumEqn1, frustumEqn2, frustumEqn3;
     {   // construct frustum for this tile
-        uint pxm = TILE_RES*groupIdx.x;
-        uint pym = TILE_RES*groupIdx.y;
-        uint pxp = TILE_RES*(groupIdx.x+1);
-        uint pyp = TILE_RES*(groupIdx.y+1);
+        uint pxm = TILE_RES*groupId.x;
+        uint pym = TILE_RES*groupId.y;
+        uint pxp = TILE_RES*(groupId.x+1);
+        uint pyp = TILE_RES*(groupId.y+1);
 
         uint uWindowWidthEvenlyDivisibleByTileRes = TILE_RES*GetNumTilesX();
         uint uWindowHeightEvenlyDivisibleByTileRes = TILE_RES*GetNumTilesY();
@@ -223,11 +226,11 @@ void CullLightsCS( uint3 globalIdx : SV_DispatchThreadID, uint3 localIdx : SV_Gr
     float maxZ = 0.f;
 
 #if ( USE_DEPTH_BOUNDS == 1 )   // non-MSAA
-    CalculateMinMaxDepthInLds( globalIdx );
+    CalculateMinMaxDepthInLds( dispatchThreadId );
 #elif ( USE_DEPTH_BOUNDS == 2 ) // MSAA
     uint depthBufferWidth, depthBufferHeight, depthBufferNumSamples;
     g_DepthTexture.GetDimensions( depthBufferWidth, depthBufferHeight, depthBufferNumSamples );
-    CalculateMinMaxDepthInLdsMSAA( globalIdx, depthBufferNumSamples );
+    CalculateMinMaxDepthInLdsMSAA( dispatchThreadId, depthBufferNumSamples );
 #endif
 
     GroupMemoryBarrierWithGroupSync();
@@ -237,7 +240,7 @@ void CullLightsCS( uint3 globalIdx : SV_DispatchThreadID, uint3 localIdx : SV_Gr
 
     // loop over the lights and do a sphere vs. frustum intersection test
     uint uNumPointLights = g_uNumLights & 0xFFFFu;
-    for(uint i=localIdxFlattened; i<uNumPointLights; i+=NUM_THREADS_PER_TILE)
+    for(uint i=groupThreadIndex; i<uNumPointLights; i+=THREADS_PER_TILE)
     {
         float4 center = g_PointLightBufferCenterAndRadius[i];
         float r = center.w;
@@ -266,7 +269,7 @@ void CullLightsCS( uint3 globalIdx : SV_DispatchThreadID, uint3 localIdx : SV_Gr
     // and again for spot lights
     uint uNumPointLightsInThisTile = ldsLightIdxCounter;
     uint uNumSpotLights = (g_uNumLights & 0xFFFF0000u) >> 16;
-    for(uint j=localIdxFlattened; j<uNumSpotLights; j+=NUM_THREADS_PER_TILE)
+    for(uint j=groupThreadIndex; j<uNumSpotLights; j+=THREADS_PER_TILE)
     {
         float4 center = g_SpotLightBufferCenterAndRadius[j];
         float r = center.w;
@@ -293,22 +296,22 @@ void CullLightsCS( uint3 globalIdx : SV_DispatchThreadID, uint3 localIdx : SV_Gr
     GroupMemoryBarrierWithGroupSync();
 
     {   // write back
-        uint tileIdxFlattened = groupIdx.x + groupIdx.y*GetNumTilesX();
+        uint tileIdxFlattened = groupId.x + groupId.y*GetNumTilesX();
         uint startOffset = g_uMaxNumLightsPerTile*tileIdxFlattened;
 
-        for(uint i=localIdxFlattened; i<uNumPointLightsInThisTile; i+=NUM_THREADS_PER_TILE)
+        for(uint i=groupThreadIndex; i<uNumPointLightsInThisTile; i+=THREADS_PER_TILE)
         {
             // per-tile list of light indices
             g_PerTileLightIndexBufferOut[startOffset+i] = ldsLightIdx[i];
         }
 
-        for(uint j=(localIdxFlattened+uNumPointLightsInThisTile); j<ldsLightIdxCounter; j+=NUM_THREADS_PER_TILE)
+        for(uint j=(groupThreadIndex+uNumPointLightsInThisTile); j<ldsLightIdxCounter; j+=THREADS_PER_TILE)
         {
             // per-tile list of light indices
             g_PerTileLightIndexBufferOut[startOffset+j+1] = ldsLightIdx[j];
         }
 
-        if( localIdxFlattened == 0 )
+        if( groupThreadIndex == 0 )
         {
             // mark the end of each per-tile list with a sentinel (point lights)
             g_PerTileLightIndexBufferOut[startOffset+uNumPointLightsInThisTile] = LIGHT_INDEX_BUFFER_SENTINEL;

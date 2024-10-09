@@ -125,6 +125,8 @@ void draw::ecs::initSystems(flecs::world& world, render::IDeviceContext &context
                 float4x4 v = world::ecs::getViewMatrix(pos[i], dir[i]);
                 float4x4 p = camera[i].getProjectionMatrix();
 
+                LOG_INFO(DrawLog, "Window size {}: {}", i, camera[i].window);
+
                 data[i].update(draw::ViewportData {
                     .viewProjection = float4x4::identity(),
                     .worldView = v.transpose(),

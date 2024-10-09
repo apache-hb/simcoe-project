@@ -1176,6 +1176,7 @@ void FrameGraph::execute() {
                 ID3D12GraphicsCommandList1 *commands = getCommandList(record.handle);
                 RenderContext ctx{getContext(), *this, pass, commands};
 
+                LOG_INFO(RenderLog, "Executing pass: {}", pass.name);
                 PIXBeginEvent(commands, PIX_COLOR_INDEX(colour++), "%s", pass.name.c_str());
                 pass.execute(ctx);
                 PIXEndEvent(commands);
@@ -1190,6 +1191,7 @@ void FrameGraph::execute() {
                 closeCommandBuffer(submit.handle);
                 ID3D12CommandQueue *queue = mContext.getQueue(list.type);
 
+                LOG_INFO(RenderLog, "Executing command list on queue: {}", list.type);
                 ID3D12CommandList *lists[] = { list.commands.get() };
                 queue->ExecuteCommandLists(1, lists);
             }

@@ -241,6 +241,7 @@ void IDeviceContext::enable_dred(bool enabled) {
     if (Result hr = D3D12GetDebugInterface(IID_PPV_ARGS(&dred))) {
         dred->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
         dred->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+        LOG_INFO(GpuLog, "dred enabled");
     } else {
         LOG_WARN(GpuLog, "failed to query dred settings: {}", hr);
     }

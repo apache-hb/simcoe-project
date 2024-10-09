@@ -125,8 +125,8 @@ namespace sm::render {
 
         /// device creation and physical adapters
         Adapter *mCurrentAdapter;
-        DeviceHandle mDevice;
     public:
+        DeviceHandle mDevice;
         CD3DX12FeatureSupport mFeatureSupport;
     private:
         RootSignatureVersion mRootSignatureVersion;
