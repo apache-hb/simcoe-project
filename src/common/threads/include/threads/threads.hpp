@@ -14,6 +14,10 @@
 
 LOG_MESSAGE_CATEGORY(ThreadLog, "Threads");
 
+namespace sm::db {
+    class Connection;
+}
+
 namespace sm::threads {
     static constexpr size_t kMaxThreads = 512;
 
@@ -169,4 +173,6 @@ namespace sm::threads {
     void create(void);
     void destroy(void) noexcept;
     ICpuGeometry *getCpuGeometry() noexcept;
+
+    void saveThreadInfo(db::Connection& connection);
 }

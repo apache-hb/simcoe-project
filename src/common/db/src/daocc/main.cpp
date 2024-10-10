@@ -284,8 +284,13 @@ static void checkNameValid(std::string_view name) {
         return;
     }
 
+    if (std::isdigit(name[0])) {
+        postError("Name cannot start with a digit: {}", name);
+        return;
+    }
+
     for (char c : name) {
-        if (!std::isalpha(c) && c != '_') {
+        if (!std::isalnum(c) && c != '_') {
             postError("Invalid character in name: {}", name);
             return;
         }
@@ -797,7 +802,7 @@ static void emitCxxBody(
         source.writeln("}};");
         source.writeln();
 
-        source.writeln("const sm::dao::TableInfo& sm::dao::{}::{}::getTableInfo() noexcept {{", dao.name, className);
+        source.writeln("const sm::dao::TableInfo& sm::dao::{}::{}::table() noexcept {{", dao.name, className);
         source.indent();
         source.writeln("return sm::dao::detail::TableInfoImpl<sm::dao::{}::{}>::kTableInfo;", dao.name, className);
         source.dedent();
@@ -813,7 +818,7 @@ static void emitCxxBody(
             header.writeln("using PrimaryKey = {};", cxxType);
         }
 
-        header.writeln("static const sm::dao::TableInfo& getTableInfo() noexcept;");
+        header.writeln("static const sm::dao::TableInfo& table() noexcept;");
         header.writeln();
 
         for (const auto& column : table.columns) {

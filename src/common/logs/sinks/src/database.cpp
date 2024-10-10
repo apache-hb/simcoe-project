@@ -44,13 +44,13 @@ static void registerMessagesWithDb(
     std::span<const structured::CategoryInfo> categories,
     std::span<const structured::MessageInfo> messages
 ) {
-    connection.createTable(sm::dao::logs::LogSession::getTableInfo());
-    connection.createTable(sm::dao::logs::LogSeverity::getTableInfo());
-    connection.createTable(sm::dao::logs::LogCategory::getTableInfo());
-    connection.createTable(sm::dao::logs::LogMessage::getTableInfo());
-    connection.createTable(sm::dao::logs::LogMessageAttribute::getTableInfo());
-    connection.createTable(sm::dao::logs::LogEntry::getTableInfo());
-    connection.createTable(sm::dao::logs::LogEntryAttribute::getTableInfo());
+    connection.createTable(sm::dao::logs::LogSession::table());
+    connection.createTable(sm::dao::logs::LogSeverity::table());
+    connection.createTable(sm::dao::logs::LogCategory::table());
+    connection.createTable(sm::dao::logs::LogMessage::table());
+    connection.createTable(sm::dao::logs::LogMessageAttribute::table());
+    connection.createTable(sm::dao::logs::LogEntry::table());
+    connection.createTable(sm::dao::logs::LogEntryAttribute::table());
 
     db::Transaction tx(&connection);
     sm::dao::logs::LogSession session {

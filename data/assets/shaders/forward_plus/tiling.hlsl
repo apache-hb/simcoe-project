@@ -28,8 +28,6 @@ Texture2D<float> gDepthTexture : register(t2);
 // };
 RWBuffer<light_index_t> gLightIndexBuffer : register(u0);
 
-RWBuffer<uint> gDebugData : register(u1);
-
 // shared memory for light culling
 
 #if DEPTH_BOUNDS_MODE != DEPTH_BOUNDS_DISABLED
@@ -241,42 +239,7 @@ void doLightCulling(uint3 dispatchThreadId, uint3 groupThreadId, uint3 groupId) 
     uint tileIndexFlattened = groupId.x + groupId.y * gridSize.x;
     uint startOffset = tileIndexFlattened * LIGHT_INDEX_BUFFER_STRIDE;
 
-    gDebugData[0] = gCameraData.windowSize.x;
-    gDebugData[1] = gCameraData.windowSize.y;
-
     if (startOffset + 1 >= tileIndexCount) {
-        const int scale = 32;
-        const uint start = (tileIndexFlattened + 1) * scale;
-        uint2 gridSize = getWindowGridSize();
-        gDebugData[start + 0] = 0xFFFFFFFF;
-
-        gDebugData[start + 1] = groupId.x;
-        gDebugData[start + 2] = groupId.y;
-        gDebugData[start + 3] = groupId.z;
-
-        gDebugData[start + 4] = groupThreadId.x;
-        gDebugData[start + 5] = groupThreadId.y;
-        gDebugData[start + 6] = groupThreadId.z;
-
-        gDebugData[start + 7] = dispatchThreadId.x;
-        gDebugData[start + 8] = dispatchThreadId.y;
-        gDebugData[start + 9] = dispatchThreadId.z;
-
-        gDebugData[start + 10] = gCameraData.windowSize.x;
-        gDebugData[start + 11] = gCameraData.windowSize.y;
-        gDebugData[start + 12] = gridSize.x;
-        gDebugData[start + 13] = gridSize.y;
-
-        gDebugData[start + 14] = TILE_SIZE;
-        gDebugData[start + 15] = THREADS_PER_TILE;
-        gDebugData[start + 16] = LIGHT_INDEX_BUFFER_STRIDE;
-
-        gDebugData[start + 17] = startOffset;
-        gDebugData[start + 18] = tileIndexCount;
-        gDebugData[start + 19] = pointLightsInTile;
-        gDebugData[start + 20] = spotLightsInTile;
-
-        gDebugData[start + scale - 1] = 0xFFFFFFFF;
         return;
     }
 
@@ -293,8 +256,5 @@ void csCullLights(
     uint3 groupId : SV_GroupID
 )
 {
-    // if (gDebugData[0] == 0xFFFFFFFF)
-    //     return;
-
     doLightCulling(dispatchThreadId, groupThreadId, groupId);
 }

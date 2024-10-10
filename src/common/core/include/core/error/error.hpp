@@ -16,9 +16,6 @@ namespace sm::errors {
     template<typename T>
     concept IsError = std::is_base_of_v<AnyError, T>;
 
-    template<typename T>
-    concept IsException = std::is_base_of_v<AnyException, T>;
-
     class [[nodiscard("Ignoring error value")]] AnyError {
         using Self = AnyError;
 
@@ -31,7 +28,7 @@ namespace sm::errors {
     public:
         static constexpr int kSuccess = 0;
 
-        [[nodiscard]] sm::ZStringView message() const noexcept { return mMessage; }
+        [[nodiscard]] std::string_view message() const noexcept { return mMessage; }
         [[nodiscard]] const char *what() const noexcept { return mMessage.c_str(); }
         [[nodiscard]] const std::stacktrace& stacktrace() const noexcept { return mStacktrace; }
     };
@@ -45,12 +42,12 @@ namespace sm::errors {
 
         constexpr T& self() noexcept { return static_cast<T&>(*this); }
         constexpr const T& self() const noexcept { return static_cast<const T&>(*this); }
-    public:
 
-        bool isSuccess() const noexcept {
-            return self().isSuccessImpl();
+        constexpr bool isSuccessImpl() const noexcept {
+            return self().isSuccess();
         }
 
+    public:
         CT_NORETURN raise() const throws(typename T::Exception) {
             throw (typename T::Exception){ *this };
         }
@@ -72,23 +69,8 @@ namespace sm::errors {
         }
     };
 
-    class AnyException : public std::exception {
-        std::string mMessage;
-        std::stacktrace mStacktrace;
-
-    protected:
-        AnyException(std::string message, std::stacktrace stacktrace) noexcept
-            : mMessage(std::move(message))
-            , mStacktrace(std::move(stacktrace))
-        { }
-
-    public:
-        [[nodiscard]] const char *what() const noexcept override { return mMessage.c_str(); }
-        [[nodiscard]] const std::stacktrace& stacktrace() const noexcept { return mStacktrace; }
-    };
-
-    template<typename T>
-    class Exception : public AnyException {
+    template<IsError T>
+    class Exception : public std::exception {
         T mError;
 
     public:
@@ -97,22 +79,9 @@ namespace sm::errors {
             , mError(std::move(error))
         { }
 
+        [[nodiscard]] const char *what() const noexcept override { return mError.what(); }
+
         [[nodiscard]] const T& error() const noexcept { return mError; }
-    };
-
-    class DbError : public Error<DbError> {
-    public:
-    };
-
-    class DbException : public Exception<DbError> {
-
-    };
-
-    class NetError : public Error<NetError> {
-    public:
-    };
-
-    class NetException : public Exception<NetError> {
-
+        [[nodiscard]] const std::stacktrace& stacktrace() const noexcept { return mError.stacktrace(); }
     };
 }

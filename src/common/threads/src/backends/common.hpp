@@ -10,6 +10,11 @@ namespace sm::threads::detail {
     using FnGetSystemCpuSetInformation = decltype(&GetSystemCpuSetInformation);
     using FnGetLogicalProcessorInformationEx = decltype(&GetLogicalProcessorInformationEx);
 
+    struct DataBuffer {
+        std::unique_ptr<uint8_t[]> data;
+        DWORD size;
+    };
+
     struct CpuInfoLibrary {
         sm::Library library;
         FnGetSystemCpuSetInformation pfnGetSystemCpuSetInformation;
@@ -17,6 +22,9 @@ namespace sm::threads::detail {
 
         static CpuInfoLibrary load();
     };
+
+    DataBuffer readSystemCpuSetInformation(FnGetSystemCpuSetInformation fn);
+    DataBuffer readLogicalProcessorInformationEx(FnGetLogicalProcessorInformationEx fn, LOGICAL_PROCESSOR_RELATIONSHIP relation);
 
     ICpuGeometry *buildCpuGeometry(const CpuInfoLibrary& library);
 

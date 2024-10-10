@@ -1,38 +1,6 @@
-db_include = include_directories('include')
-
-src = [
-    metacc.process('include/db/core.hpp'),
-]
-
-libdb_meta = library('db-meta', src,
-    include_directories : [ db_include ],
-    dependencies : [ core, meta, structured_logs ]
-)
-
-db_meta = declare_dependency(
-    link_with : libdb_meta,
-    include_directories : [ db_include, libdb_meta.private_dir_include() ],
-    dependencies : [ core, meta ]
-)
-
-db_private_include = [ include_directories('src/db', 'src/db/drivers') ]
-
-src = [
-    # dao support structures
-    'src/dao/dao.cpp',
-
-    # public api
-    'src/db/error.cpp',
-    'src/db/bind.cpp',
-    'src/db/results.cpp',
-    'src/db/statement.cpp',
-    'src/db/connection.cpp',
-    'src/db/transaction.cpp',
-
-    # shared driver utilities
-    'src/db/drivers/common.cpp',
-    'src/db/drivers/utils.cpp',
-]
+###
+### configuration and driver detection
+###
 
 cfg = configuration_data()
 
@@ -53,6 +21,55 @@ cfg.set10('SMC_DB_HAS_MYSQL', devapi.found())
 cfg.set10('SMC_DB_HAS_MSSQL', has_mssql)
 cfg.set10('SMC_DB_HAS_ODBC', has_odbc)
 
+db_config = configure_file(
+    output : 'simcoe_db_config.h',
+    configuration : cfg
+)
+
+###
+### reflection data
+###
+
+db_include = include_directories('include')
+
+src = [
+    metacc.process('include/db/core.hpp'),
+]
+
+libdb_meta = library('db-meta', [ src, db_config ],
+    include_directories : db_include,
+    dependencies : [ core, meta, structured_logs ]
+)
+
+db_meta = declare_dependency(
+    link_with : libdb_meta,
+    include_directories : [ db_include, libdb_meta.private_dir_include() ],
+    dependencies : [ core, meta ]
+)
+
+###
+### private impl and public api
+###
+
+db_private_include = [ include_directories('src/db', 'src/db/drivers') ]
+
+src = [
+    # dao support structures
+    'src/dao/dao.cpp',
+
+    # public api
+    'src/db/error.cpp',
+    'src/db/bind.cpp',
+    'src/db/results.cpp',
+    'src/db/statement.cpp',
+    'src/db/connection.cpp',
+    'src/db/transaction.cpp',
+
+    # shared driver utilities
+    'src/db/drivers/common.cpp',
+    'src/db/drivers/utils.cpp',
+]
+
 deps = [ core, sqlite3, tlsf, meta, structured_logs, db_meta ]
 
 # sqlite3 is always enabled
@@ -61,6 +78,7 @@ src += [
     'src/drivers/sqlite/src/statement.cpp',
     'src/drivers/sqlite/src/connection.cpp',
 ]
+
 db_private_include += [ include_directories('src/drivers/sqlite/include') ]
 
 if oci.found()
@@ -97,11 +115,6 @@ if has_odbc
     src += 'src/db/drivers/odbc.cpp'
 endif
 
-db_config = configure_file(
-    output : 'simcoe_db_config.h',
-    configuration : cfg
-)
-
 libdb = library('orm', [ src, db_config ],
     cpp_args : [ '-DSM_DB_BUILD=1', args, cpp.get_supported_arguments('-Wno-c99-designator') ],
     cpp_pch : 'src/db/stdafx.hpp',
@@ -114,6 +127,10 @@ db = declare_dependency(
     include_directories : [ '.', db_include ],
     dependencies : [ core, meta, structured_logs, db_meta ]
 )
+
+###
+### dao code generation
+###
 
 src = [ 'src/daocc/main.cpp' ]
 
@@ -135,6 +152,10 @@ daocc = generator(daocc_exe,
     output : [ '@BASENAME@.dao.hpp', '@BASENAME@.dao.cpp' ],
     depfile : '@BASENAME@.d'
 )
+
+###
+### tests
+###
 
 tests = {
     'sqlite3': 'test/db/sqlite.cpp',

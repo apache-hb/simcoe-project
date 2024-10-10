@@ -105,8 +105,8 @@ namespace sm::dao {
 
     template<typename T>
     concept DaoInterface = requires {
-        noexcept(T::getTableInfo());
-        { T::getTableInfo() } -> std::same_as<const TableInfo&>;
+        noexcept(T::table());
+        { T::table() } -> std::same_as<const TableInfo&>;
     };
 
     template<typename T>

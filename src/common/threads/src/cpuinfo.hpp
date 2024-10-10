@@ -38,7 +38,7 @@ namespace sm::threads::detail {
     struct ProcessorInfoEx {
         static std::optional<ProcessorInfoEx> create(LOGICAL_PROCESSOR_RELATIONSHIP relation, detail::FnGetLogicalProcessorInformationEx pfnGetLogicalProcessorInformationEx) noexcept;
 
-        static ProcessorInfoEx fromMemory(sm::UniquePtr<std::byte[]> memory, DWORD size) noexcept;
+        static ProcessorInfoEx fromMemory(std::unique_ptr<uint8_t[]> memory, DWORD size) noexcept;
 
         ProcessorInfoExIterator begin() const noexcept {
             return ProcessorInfoExIterator(getBuffer(), mRemaining);
@@ -53,12 +53,12 @@ namespace sm::threads::detail {
             return reinterpret_cast<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *>(mMemory.get());
         }
 
-        ProcessorInfoEx(sm::UniquePtr<std::byte[]> memory, DWORD size) noexcept
+        ProcessorInfoEx(std::unique_ptr<uint8_t[]> memory, DWORD size) noexcept
             : mMemory(std::move(memory))
             , mRemaining(size)
         { }
 
-        sm::UniquePtr<std::byte[]> mMemory;
+        std::unique_ptr<uint8_t[]> mMemory;
 
         DWORD mRemaining = 0;
     };

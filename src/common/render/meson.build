@@ -23,9 +23,10 @@ render_config = configure_file(
 
 src = [
     reflect.process('data/render.ct'),
-    reflect.process('data/graph.ct'),
 
     daocc.process('data/render.xml'),
+
+    metacc.process('include/render/graph/graph.hpp'),
 ]
 
 librender_meta = library('render-meta', src,
@@ -42,22 +43,25 @@ render_meta = declare_dependency(
 src = [
     render_config,
 
+    # core render classes
+    'src/core/object.cpp',
+    'src/core/instance.cpp',
+    'src/core/error.cpp',
+    'src/core/resource.cpp',
+    'src/core/format.cpp',
+
     # utils
     'src/result.cpp',
-    'src/object.cpp',
 
     # base render classes
-    'src/instance.cpp',
     'src/dstorage.cpp',
 
     # core render context
     'src/render.cpp',
 
     'src/descriptor_heap.cpp',
-    'src/resource.cpp',
 
     'src/viewport.cpp',
-    'src/format.cpp',
 
     # render graph
     'src/graph/render_pass.cpp',
@@ -71,7 +75,7 @@ src = [
 deps = [
     # internal libraries
     core, logs, system, math, archive,
-    world, config, render_meta,
+    world, config, render_meta, db,
 
     # other vendors
     tracy, d3d12ma,
@@ -110,6 +114,7 @@ render = declare_dependency(
 
 testcases = {
     'Setup Instance': 'test/instance.cpp',
+    'Save device info': 'test/store.cpp',
 }
 
 foreach name, source : testcases

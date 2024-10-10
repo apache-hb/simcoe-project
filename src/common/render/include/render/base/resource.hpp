@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/span.hpp"
-#include "render/object.hpp"
+#include "render/base/object.hpp"
 
 #include <D3D12MemAlloc.h>
 

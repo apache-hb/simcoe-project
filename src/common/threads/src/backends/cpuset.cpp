@@ -1,8 +1,6 @@
 #include "common.hpp"
 #include "cpuinfo.hpp"
 
-#include "core/defer.hpp"
-
 namespace threads = sm::threads;
 namespace detail = sm::threads::detail;
 

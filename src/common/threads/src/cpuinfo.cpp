@@ -18,32 +18,14 @@ SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *ProcessorInfoExIterator::operator++() n
     return mBuffer;
 }
 
-std::optional<ProcessorInfoEx> ProcessorInfoEx::create(LOGICAL_PROCESSOR_RELATIONSHIP relation, detail::FnGetLogicalProcessorInformationEx pfnGetLogicalProcessorInformationEx) noexcept {
-    if (pfnGetLogicalProcessorInformationEx == nullptr) {
-        LOG_WARN(ThreadLog, "GetLogicalProcessorInformationEx not available");
+std::optional<ProcessorInfoEx> ProcessorInfoEx::create(LOGICAL_PROCESSOR_RELATIONSHIP relation, detail::FnGetLogicalProcessorInformationEx fn) noexcept {
+    auto memory = detail::readLogicalProcessorInformationEx(fn, relation);
+    if (memory.data == nullptr)
         return std::nullopt;
-    }
 
-    DWORD size = 0;
-    if (pfnGetLogicalProcessorInformationEx(relation, nullptr, &size)) {
-        LOG_WARN(ThreadLog, "GetLogicalProcessorInformationEx failed with error {}", OsError(GetLastError()));
-        return std::nullopt;
-    }
-
-    if (OsError err = OsError(GetLastError()); err != OsError(ERROR_INSUFFICIENT_BUFFER)) {
-        LOG_WARN(ThreadLog, "GetLogicalProcessorInformationEx failed with error {}", err);
-        return std::nullopt;
-    }
-
-    auto memory = sm::UniquePtr<std::byte[]>(size);
-    if (!pfnGetLogicalProcessorInformationEx(relation, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)memory.get(), &size)) {
-        LOG_WARN(ThreadLog, "GetLogicalProcessorInformationEx failed with error {}", OsError(GetLastError()));
-        return std::nullopt;
-    }
-
-    return ProcessorInfoEx{std::move(memory), size};
+    return ProcessorInfoEx::fromMemory(std::move(memory.data), memory.size);
 }
 
-ProcessorInfoEx ProcessorInfoEx::fromMemory(sm::UniquePtr<std::byte[]> memory, DWORD size) noexcept {
+ProcessorInfoEx ProcessorInfoEx::fromMemory(std::unique_ptr<uint8_t[]> memory, DWORD size) noexcept {
     return ProcessorInfoEx{std::move(memory), size};
 }

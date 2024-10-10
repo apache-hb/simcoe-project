@@ -18,7 +18,6 @@ enum {
     eDepthTexture, // register(t2)
 
     eLightIndexBuffer, // register(u0)
-    eDebugData, // register(u1)
 
     eBindingCount
 };
@@ -55,11 +54,6 @@ static void createLightBinningPipeline(
         indices[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
 
         params[eLightIndexBuffer].InitAsDescriptorTable(_countof(indices), indices);
-
-        CD3DX12_DESCRIPTOR_RANGE1 debug[1];
-        debug[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 1);
-
-        params[eDebugData].InitAsDescriptorTable(_countof(debug), debug);
 
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
         desc.Init_1_1(_countof(params), params, 0, nullptr, kBinningPassRootFlags);
@@ -131,30 +125,6 @@ void ecs::lightBinning(
         return info;
     });
 
-    static bool firstInit = false;
-    static render::Resource debugData;
-    static render::SrvPool::Index debugDataIndex;
-    if (!firstInit) {
-        firstInit = true;
-        auto& ctx = dd.graph.getContext();
-        uint count = 0x1000 * 128;
-        uint size = count * sizeof(uint);
-        ctx.createBufferResource(debugData, D3D12_HEAP_TYPE_DEFAULT, size, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-        debugData.rename("Light Binning Debug Data");
-        debugDataIndex = ctx.mSrvPool.allocate();
-        D3D12_UNORDERED_ACCESS_VIEW_DESC desc = {
-            .Format = DXGI_FORMAT_R32_UINT,
-            .ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
-            .Buffer = {
-                .FirstElement = 0,
-                .NumElements = count,
-                .StructureByteStride = 0,
-                .CounterOffsetInBytes = 0,
-            },
-        };
-        ctx.mDevice->CreateUnorderedAccessView(debugData.get(), nullptr, &desc, ctx.mSrvPool.cpu_handle(debugDataIndex));
-    }
-
     pass.bind([=, vpd = &wd.viewport, &data](graph::RenderContext& ctx) {
         auto& [context, graph, _, commands] = ctx;
 
@@ -183,9 +153,6 @@ void ecs::lightBinning(
         commands->SetComputeRootDescriptorTable(eDepthTexture, depthTextureHandle);
 
         commands->SetComputeRootDescriptorTable(eLightIndexBuffer, lightIndicesHandle);
-
-        auto debugHandle = context.mSrvPool.gpu_handle(debugDataIndex);
-        commands->SetComputeRootDescriptorTable(eDebugData, debugHandle);
 
         LOG_INFO(DrawLog, "dispatching {}x{}x1 for tile buffer ({})", gridSize.x, gridSize.y, tileIndexCount);
         commands->Dispatch(gridSize.x, gridSize.y, 1);

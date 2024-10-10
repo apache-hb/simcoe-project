@@ -4,7 +4,6 @@
 #include "render/graph/render_pass.hpp"
 
 #include "render/graph.hpp"
-#include "render/format.hpp"
 
 using namespace sm;
 using namespace sm::graph;

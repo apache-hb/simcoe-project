@@ -26,7 +26,7 @@ namespace sm::db {
         SM_MOVE(PreparedInsert, default);
 
         DbError tryInsert(const T& value) noexcept {
-            if (DbError error = bindRowToStatement(mStatement, T::getTableInfo(), false, static_cast<const void*>(&value)))
+            if (DbError error = bindRowToStatement(mStatement, T::table(), false, static_cast<const void*>(&value)))
                 return error;
 
             return mStatement.execute();
@@ -53,7 +53,7 @@ namespace sm::db {
         SM_MOVE(PreparedInsertReturning, default);
 
         DbResult<PrimaryKey> tryInsert(const T& value) {
-            const auto& info = T::getTableInfo();
+            const auto& info = T::table();
             if (DbError error = bindRowToStatement(mStatement, info, true, static_cast<const void*>(&value)))
                 return std::unexpected{error};
 
@@ -120,7 +120,7 @@ namespace sm::db {
         SM_MOVE(PreparedUpdate, default);
 
         DbError tryUpdate(const T& value) noexcept {
-            if (DbError error = bindRowToStatement(mStatement, T::getTableInfo(), false, static_cast<const void*>(&value)))
+            if (DbError error = bindRowToStatement(mStatement, T::table(), false, static_cast<const void*>(&value)))
                 return error;
             return mStatement.execute();
         }
@@ -238,7 +238,7 @@ namespace sm::db {
 
         template<dao::DaoInterface T>
         PreparedInsert<T> prepareInsert() throws(DbException) {
-            auto stmt = prepareInsertImpl(T::getTableInfo());
+            auto stmt = prepareInsertImpl(T::table());
             return PreparedInsert<T>{std::move(stmt)};
         }
 
@@ -251,7 +251,7 @@ namespace sm::db {
 
         template<dao::DaoInterface T>
         PreparedInsert<T> prepareInsertOrUpdate() throws(DbException) {
-            auto stmt = prepareInsertOrUpdateImpl(T::getTableInfo());
+            auto stmt = prepareInsertOrUpdateImpl(T::table());
             return PreparedInsert<T>{std::move(stmt)};
         }
 
@@ -264,7 +264,7 @@ namespace sm::db {
 
         template<dao::HasPrimaryKey T>
         PreparedInsertReturning<T> prepareInsertReturningPrimaryKey() throws(DbException) {
-            auto stmt = prepareInsertReturningPrimaryKeyImpl(T::getTableInfo());
+            auto stmt = prepareInsertReturningPrimaryKeyImpl(T::table());
             return PreparedInsertReturning<T>{std::move(stmt)};
         }
 
@@ -326,7 +326,7 @@ namespace sm::db {
 
         template<dao::DaoInterface T>
         PreparedTruncate<T> prepareTruncate() throws(DbException) {
-            auto stmt = prepareTruncateImpl(T::getTableInfo());
+            auto stmt = prepareTruncateImpl(T::table());
             return PreparedTruncate<T>{std::move(stmt)};
         }
 
@@ -359,7 +359,7 @@ namespace sm::db {
 
         template<dao::DaoInterface T>
         PreparedDrop<T> prepareDrop() throws(DbException) {
-            auto stmt = prepareDropImpl(T::getTableInfo());
+            auto stmt = prepareDropImpl(T::table());
             return PreparedDrop<T>{std::move(stmt)};
         }
 
@@ -390,7 +390,7 @@ namespace sm::db {
 
         template<dao::DaoInterface T>
         DbResult<PreparedUpdate<T>> tryPrepareUpdateAll() noexcept {
-            auto stmt = TRY_RESULT(prepareUpdateAllImpl(T::getTableInfo()));
+            auto stmt = TRY_RESULT(prepareUpdateAllImpl(T::table()));
             return PreparedUpdate<T>{std::move(stmt)};
         }
 
@@ -427,7 +427,7 @@ namespace sm::db {
 
         template<dao::DaoInterface T>
         PreparedSelect<T> prepareSelectAll() throws(DbException) {
-            auto stmt = prepareSelectAllImpl(T::getTableInfo());
+            auto stmt = prepareSelectAllImpl(T::table());
             return PreparedSelect<T>{std::move(stmt)};
         }
 

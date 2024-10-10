@@ -3,6 +3,12 @@
 #include "backends/common.hpp"
 #include <unordered_map>
 
+#include "db/connection.hpp"
+
+#include <immintrin.h>
+
+#include "topology.dao.hpp"
+
 using namespace sm::threads;
 
 ThreadHandle::ThreadHandle(HANDLE handle, DWORD threadId) noexcept
@@ -61,5 +67,76 @@ void ICpuGeometry::createCoreGroups() {
 
     for (auto& [id, group] : groups) {
         mCoreGroups.push_back(group);
+    }
+}
+
+namespace topology = sm::dao::topology;
+
+static std::string getUniqueComputerId() {
+    const char *key = "SOFTWARE\\Microsoft\\Cryptography";
+    const char *value = "MachineGuid";
+
+    char buffer[256];
+    DWORD size = sizeof(buffer);
+    if (RegGetValueA(HKEY_LOCAL_MACHINE, key, value, RRF_RT_REG_SZ, nullptr, buffer, &size) != ERROR_SUCCESS) {
+        return "";
+    }
+
+    return buffer;
+}
+
+static std::string getProcessorString() {
+    union {
+        int data[12];
+        uint32_t regs[12];
+    };
+
+    __cpuid(data, 0x80000000);
+
+    if (regs[0] < 0x80000004)
+        return "";
+
+    __cpuid(data + 0, 0x80000002);
+    __cpuid(data + 4, 0x80000003);
+    __cpuid(data + 8, 0x80000004);
+
+    char buffer[sizeof(regs) + 1];
+    memcpy(buffer, regs, sizeof(regs));
+    buffer[sizeof(buffer) - 1] = '\0';
+
+    return buffer;
+}
+
+void sm::threads::saveThreadInfo(db::Connection& connection) {
+    connection.createTable(topology::CpuSetInfo::table());
+    connection.createTable(topology::LogicalProcessorInfo::table());
+
+    detail::CpuInfoLibrary library = detail::CpuInfoLibrary::load();
+    auto [cpuSetData, cpuSetSize] = detail::readSystemCpuSetInformation(library.pfnGetSystemCpuSetInformation);
+    auto [layoutData, layoutSize] = detail::readLogicalProcessorInformationEx(library.pfnGetLogicalProcessorInformationEx, RelationAll);
+
+    auto computerId = getUniqueComputerId();
+    auto processor = getProcessorString();
+
+    if (cpuSetData != nullptr) {
+        std::vector<uint8_t> data { cpuSetData.get(), cpuSetData.get() + cpuSetSize };
+        topology::CpuSetInfo dao {
+            .cpu = processor,
+            .os = computerId,
+            .data = data,
+        };
+
+        connection.insert(dao);
+    }
+
+    if (layoutData != nullptr) {
+        std::vector<uint8_t> data { layoutData.get(), layoutData.get() + layoutSize };
+        topology::LogicalProcessorInfo dao {
+            .cpu = processor,
+            .os = computerId,
+            .data = data,
+        };
+
+        connection.insert(dao);
     }
 }

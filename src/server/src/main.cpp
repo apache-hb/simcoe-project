@@ -125,8 +125,8 @@ static int serverMain() {
     db::Environment sqlite = db::Environment::create(db::DbType::eSqlite3);
 
     db::Connection users = sqlite.connect({ .host = "server-users.db" });
-    users.createTable(sm::dao::server::User::getTableInfo());
-    users.createTable(sm::dao::server::Message::getTableInfo());
+    users.createTable(sm::dao::server::User::table());
+    users.createTable(sm::dao::server::Message::table());
 
     bool running = true;
 

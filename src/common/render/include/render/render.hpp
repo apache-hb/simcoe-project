@@ -7,9 +7,10 @@
 #include "core/adt/array.hpp"
 #include "core/adt/queue.hpp"
 
-#include "render/instance.hpp"
+#include "render/base/instance.hpp"
+#include "render/base/resource.hpp"
+
 #include "render/descriptor_heap.hpp"
-#include "render/resource.hpp"
 #include "render/dstorage.hpp"
 
 #include "render/graph.hpp"

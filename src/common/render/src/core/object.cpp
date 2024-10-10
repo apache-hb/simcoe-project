@@ -1,12 +1,12 @@
 #include "stdafx.hpp"
 
-#include "render/object.hpp"
+#include "render/base/object.hpp"
 #include "render/render.hpp"
 
 using namespace sm;
 using namespace sm::render;
 
-std::string_view Blob::as_string() const {
+std::string_view Blob::asString() const {
     return {reinterpret_cast<const char*>(data()), size()};
 }
 

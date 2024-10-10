@@ -2,10 +2,15 @@
 
 #include <simcoe_config.h>
 
-#include "core/adt/vector.hpp"
 #include "core/memory.hpp"
 
+#include "render/base/object.hpp"
+
 #include "render.reflect.h"
+
+namespace sm::db {
+    class Connection;
+}
 
 namespace sm::render {
     struct InstanceConfig {
@@ -30,14 +35,10 @@ namespace sm::render {
         constexpr operator LUID() const { return {low, high}; }
 
         constexpr auto operator<=>(const AdapterLUID&) const = default;
-
-        friend std::ostream& operator<<(std::ostream& os, const AdapterLUID& luid) {
-            return os << std::hex << luid.high << ':' << luid.low << std::dec;
-        }
     };
 
     class Adapter : public Object<IDXGIAdapter1> {
-        sm::String mName;
+        std::string mName;
         sm::Memory mVideoMemory{0};
         sm::Memory mSystemMemory{0};
         sm::Memory mSharedMemory{0};
@@ -50,7 +51,7 @@ namespace sm::render {
 
         Adapter(IDXGIAdapter1 *adapter);
 
-        constexpr sm::StringView name() const {
+        constexpr std::string_view name() const {
             return mName;
         }
 
@@ -112,11 +113,12 @@ namespace sm::render {
         Instance(InstanceConfig config);
         ~Instance() noexcept;
 
-        std::span<Adapter> adapters() noexcept;
-        Object<IDXGIFactory4> &factory() noexcept;
-        const DebugFlags &flags() const noexcept;
+        std::span<Adapter> adapters() noexcept { return mAdapters; }
+        std::span<const Adapter> adapters() const noexcept { return mAdapters; }
+        Object<IDXGIFactory4> &factory() noexcept { return mFactory; }
+        const DebugFlags &flags() const noexcept { return mFlags; }
+        bool isTearingSupported() const noexcept { return mTearingSupport; }
 
-        bool isTearingSupported() const noexcept;
         bool isDebugEnabled() const noexcept;
         bool hasViableAdapter() const noexcept;
 
@@ -124,4 +126,15 @@ namespace sm::render {
         Adapter& getWarpAdapter() noexcept;
         Adapter& getDefaultAdapter() noexcept;
     };
+
+    void saveAdapterInfo(const Instance& instance, DXGI_FORMAT format, db::Connection& connection);
 } // namespace sm::render
+
+template<>
+struct fmt::formatter<sm::render::AdapterLUID> {
+    constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+
+    constexpr auto format(const sm::render::AdapterLUID& luid, fmt::format_context& ctx) const {
+        return format_to(ctx.out(), "{:x}:{:x}", luid.high, luid.low);
+    }
+};

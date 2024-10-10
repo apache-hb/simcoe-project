@@ -8,16 +8,16 @@
 
 #include "math/math.hpp"
 
+#include "render/base/resource.hpp"
+#include "render/base/format.hpp"
+
 #include "render/descriptor_heap.hpp"
-#include "render/resource.hpp"
-#include "render/format.hpp"
 
 #include "render/graph/handle.hpp"
 #include "render/graph/events.hpp"
 #include "render/graph/render_pass.hpp"
 
 #include "render.reflect.h"
-#include "graph.reflect.h"
 
 namespace sm::render {
     struct IDeviceContext;

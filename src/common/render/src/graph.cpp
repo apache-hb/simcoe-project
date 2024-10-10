@@ -3,7 +3,6 @@
 #include "render/graph.hpp"
 
 #include "render/render.hpp"
-#include "render/format.hpp"
 
 using namespace sm;
 using namespace sm::graph;
@@ -370,12 +369,12 @@ AccessBuilder& AccessBuilder::withSyncPoint(D3D12_BARRIER_SYNC value) {
 }
 
 static bool isUavRead(Usage usage) {
-    using enum Usage::Inner;
+    using enum Usage;
     return usage == eTextureRead || usage == eBufferRead;
 }
 
 static bool isUavWrite(Usage usage) {
-    using enum Usage::Inner;
+    using enum Usage;
     return usage == eTextureWrite || usage == eBufferWrite;
 }
 
@@ -398,7 +397,7 @@ struct UsageTracker {
     }
 
     void recordResourceAccess(uint resource, Usage usage) {
-        using enum Usage::Inner;
+        using enum Usage;
         auto& state = states[resource];
         switch (usage) {
         case ePixelShaderResource:

@@ -124,7 +124,7 @@ public:
     DefaultWindowEvents(db::Connection& connection)
         : mConnection(connection)
     {
-        if (db::DbError error = connection.tryCreateTable(sm::dao::archive::WindowPlacement::getTableInfo())) {
+        if (db::DbError error = connection.tryCreateTable(sm::dao::archive::WindowPlacement::table())) {
             LOG_WARN(GlobalLog, "update failed: {}", error.message());
         }
     }

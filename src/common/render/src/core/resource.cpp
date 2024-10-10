@@ -1,7 +1,7 @@
 #include "stdafx.hpp"
 
+#include "render/base/resource.hpp"
 #include "render/render.hpp"
-#include "render/resource.hpp"
 
 using namespace sm;
 using namespace sm::render;

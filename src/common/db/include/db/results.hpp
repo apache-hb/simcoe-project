@@ -107,7 +107,7 @@ namespace sm::db {
         template<dao::DaoInterface T>
         DbResult<T> getRow() noexcept {
             T value;
-            if (DbError error = getRowData(T::getTableInfo(), static_cast<void*>(&value)))
+            if (DbError error = getRowData(T::table(), static_cast<void*>(&value)))
                 return std::unexpected{error};
 
             return value;

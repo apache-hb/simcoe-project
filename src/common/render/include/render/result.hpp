@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/adt/small_string.hpp"
-#include "core/error.hpp"
+#include "render/base/error.hpp"
 
 #include "core/win32.hpp" // IWYU pragma: export
 

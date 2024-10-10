@@ -158,38 +158,141 @@ rm::DriverHandle::DriverHandle() {
     }
 }
 
-rm::PCIConfigParam rm::DriverHandle::readPciConfig() {
+rm::PCIConfigParam rm::DriverHandle::readPciConfig(uint32_t action, uint32_t size, uint32_t word1, uint32_t word2, uint32_t dataSize) {
     rm::PCIConfigParam param = {
-        .control = 0,
-        .size = sizeof(rm::PCIConfigParam),
-        .word1 = 0,
-        .word2 = 200,
-        .word3 = 4,
-        .word4 = 0,
+        .action = action,
+        .size = size,
+        .word1 = word1,
+        .word2 = word2,
+        .dataSize = dataSize,
     };
 
-    DWORD dwBytesReturned;
-    BOOL bSuccess = DeviceIoControl(handle, kIoControl0, &param, sizeof(param), &param, sizeof(param), &dwBytesReturned, nullptr);
+    std::unique_ptr<std::byte[]> buffer = std::make_unique<std::byte[]>(dataSize + sizeof(rm::PCIConfigParam));
+    memcpy(buffer.get(), &param, sizeof(rm::PCIConfigParam));
+    memset(buffer.get() + sizeof(rm::PCIConfigParam), 0, dataSize);
+
+    DWORD returned;
+    BOOL bSuccess = DeviceIoControl(handle, kIoControl0, &param, sizeof(rm::PCIConfigParam), buffer.get(), 20 + dataSize, &returned, nullptr);
     if (!bSuccess) {
         throw std::runtime_error("Failed to read PCI config. " + lastErrorMessage());
     }
 
-    std::cout << std::format("readPciConfig: (control={}, size={}, word1={}, word2={}, word3={}, word4={})\n", param.control, param.size, param.word1, param.word2, param.word3, param.word4);
+    std::cout << std::format("readPciConfig: {} (action={}, size={}, word1={}, word2={}, dataSize={})\n",
+        returned, param.action,
+        param.size, param.word1,
+        param.word2, param.dataSize
+    );
+
+    for (uint32_t i = 0; i < dataSize; i++) {
+        std::cout << std::format("  (buffer[{}]={})\n", i, (uint8_t)buffer[i + sizeof(rm::PCIConfigParam)]);
+    }
 
     return param;
 }
 
-uint32_t rm::DriverHandle::readMomentaryMemory() {
-    uint32_t input = 0;
-    uint64_t result;
+void rm::DriverHandle::readMomentaryMemory(uint32_t size) {
+    uint32_t header = size;
+    std::unique_ptr<std::byte[]> buffer = std::make_unique<std::byte[]>(size + sizeof(uint32_t));
+    memcpy(buffer.get(), &header, sizeof(uint32_t));
+    memset(buffer.get() + sizeof(uint32_t), 0, size);
 
-    DWORD dwBytesReturned;
-    BOOL bSuccess = DeviceIoControl(handle, kIoControl1, &input, sizeof(input), &result, sizeof(result), &dwBytesReturned, nullptr);
+    DWORD returned;
+    BOOL bSuccess = DeviceIoControl(handle, kReadMomentaryMemory, buffer.get(), sizeof(uint32_t), buffer.get(), size + sizeof(uint32_t), &returned, nullptr);
     if (!bSuccess) {
         throw std::runtime_error("Failed to read momentary memory. " + lastErrorMessage());
     }
 
-    std::cout << std::format("readMomentaryMemory: {}\n", result);
+    std::cout << std::format("readMomentaryMemory: {}\n", size);
 
-    return result;
+    for (uint32_t i = 0; i < size; i++) {
+        std::cout << std::format("  (buffer[{}]={})\n", i, (uint8_t)buffer[i + sizeof(rm::PCIConfigParam)]);
+    }
+}
+
+struct Param {
+    uint32_t header;
+    uint32_t first;
+    uint32_t second;
+};
+
+uint32_t rm::DriverHandle::readMsrData(uint32_t index) {
+    Param param{};
+    param.header = index;
+
+    DWORD returned;
+    BOOL bSuccess = DeviceIoControl(handle, kIoReadMsr, &param, sizeof(param), &param, sizeof(param), &returned, nullptr);
+    if (!bSuccess) {
+        throw std::runtime_error("Failed to read msr data. " + lastErrorMessage());
+    }
+
+    std::cout << std::format("readMsrData: (header={}, first={}, second={})\n", param.header, param.first, param.second);
+
+    return param.header;
+}
+
+struct PciConfigData {
+    uint32_t bus;
+    uint32_t device;
+    uint32_t function;
+    char buffer[40];
+};
+
+struct MmioConfigParam {
+    uint32_t count0;
+    uint32_t count1;
+    uint32_t count2;
+    uint32_t count3;
+
+    PciConfigData data[256];
+};
+
+// needs to be at least 28 bytes large
+struct MmioSizeRequest {
+    uint32_t count;
+    char padding[24];
+};
+
+void rm::DriverHandle::readMmioConfig() {
+    MmioSizeRequest request{};
+    DWORD returned;
+    BOOL bSuccess = DeviceIoControl(handle, kIoControl5, &request, sizeof(MmioSizeRequest), &request, sizeof(MmioSizeRequest), &returned, nullptr);
+    if (!bSuccess) {
+        throw std::runtime_error("Failed to read mmio config size. " + lastErrorMessage());
+    }
+
+    std::cout << "readMmioConfig: " << request.count << '\n';
+#if 0
+    std::unique_ptr<MmioConfigParam> param = std::make_unique<MmioConfigParam>();
+    param->count0 = count;
+    param->count1 = count;
+    param->count2 = count;
+    param->count3 = count;
+
+    DWORD dwBytesReturned;
+    BOOL bSuccess = DeviceIoControl(handle, kIoControl5, param.get(), sizeof(MmioConfigParam), param.get(), sizeof(MmioConfigParam), &dwBytesReturned, nullptr);
+    if (!bSuccess) {
+        throw std::runtime_error("Failed to read mmio config. " + lastErrorMessage());
+    }
+
+    std::cout << "readMmioConfig: " << param->count0 << ", " << param->count1 << ", " << param->count2 << ", " << param->count3 << '\n';
+    for (uint32_t i = 0; i < count; i++) {
+        std::cout << std::format("  (bus={}, device={}, function={}, buffer={})\n", param->data[i].bus, param->data[i].device, param->data[i].function, param->data[i].buffer);
+    }
+#endif
+}
+
+void rm::DriverHandle::readMemory() {
+    struct SetupInfo {
+        uint32_t size;
+        std::byte buffer[0x5d0];
+    };
+    SetupInfo value { .size = 0x5d0 };
+    DWORD returned;
+    BOOL bSuccess = DeviceIoControl(handle, kReadMemory, &value, 4, &value, sizeof(value), &returned, nullptr);
+    if (!bSuccess) {
+        throw std::runtime_error("Failed to do setup. " + lastErrorMessage());
+    }
+
+    std::cout << "readMemory: " << value.size << '\n';
+    std::cout << "readMemory: " << value.buffer << '\n';
 }

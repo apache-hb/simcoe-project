@@ -85,11 +85,11 @@ TEST_CASE("DAO") {
 
         THEN("Create table is idempotent") {
             // should be idempotent
-            conn.createTable(Example::getTableInfo());
-            conn.createTable(Example::getTableInfo());
-            conn.createTable(Example::getTableInfo());
+            conn.createTable(Example::table());
+            conn.createTable(Example::table());
+            conn.createTable(Example::table());
 
-            conn.replaceTable(Example::getTableInfo());
+            conn.replaceTable(Example::table());
         }
 
         THEN("Inserting a dao record succeeds") {
@@ -146,7 +146,7 @@ TEST_CASE("DAO") {
         }
 
         THEN("insert or update behaves correctly") {
-            conn.replaceTable(ExampleUpsert::getTableInfo());
+            conn.replaceTable(ExampleUpsert::table());
             {
                 db::Transaction tx(&conn);
                 for (const auto& row : kExampleUpsertRowsFirst) {
@@ -179,7 +179,7 @@ TEST_CASE("DAO") {
         }
 
         THEN("insert returning behaves correctly") {
-            conn.replaceTable(TestInsertReturning::getTableInfo());
+            conn.replaceTable(TestInsertReturning::table());
 
             std::map<int, std::string> rows;
             const int totalCount = 10;

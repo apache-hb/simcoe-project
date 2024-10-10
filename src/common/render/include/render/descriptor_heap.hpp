@@ -2,7 +2,7 @@
 
 #include "core/allocators/bitmap_allocator.hpp"
 
-#include "render/object.hpp"
+#include "render/base/object.hpp"
 
 namespace sm::render::next {
     class DescriptorPoolBase {

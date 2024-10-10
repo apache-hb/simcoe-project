@@ -7,31 +7,43 @@
         <column name="description" type="text" length="128" />
         <column name="flags" type="uint" />
 
-        <column name="video_memory" type="ulong" />
+        <column name="video_memory"  type="ulong" />
         <column name="system_memory" type="ulong" />
         <column name="shared_memory" type="ulong" />
 
-        <column name="vendor_id" type="uint" />
-        <column name="device_id" type="uint" />
+        <column name="vendor_id" type="uint"    />
+        <column name="device_id" type="uint"    />
         <column name="subsystem_id" type="uint" />
-        <column name="revision_id" type="uint" />
+        <column name="revision" type="uint"  />
     </table>
 
     <table name="output" syntheticPrimaryKey="ulong">
         <column name="name" type="text" length="32" />
 
-        <column name="left" type="int" />
-        <column name="top" type="int" />
-        <column name="right" type="int" />
+        <column name="left" type="int"   />
+        <column name="top" type="int"    />
+        <column name="right" type="int"  />
         <column name="bottom" type="int" />
 
         <column name="attached_to_desktop" type="bool" />
 
-        <column name="rotation" type="uint" />
+        <column name="rotation" type="uint">
+            <constraint references="rotation.id" />
+        </column>
 
         <column name="adapter" type="luid">
             <constraint references="adapter.luid" />
         </column>
+
+        <unique>
+            <column>name</column>
+            <column>adapter</column>
+        </unique>
+    </table>
+
+    <table name="rotation" primaryKey="id">
+        <column name="id" type="uint" />
+        <column name="description" type="text" length="32" />
     </table>
 
     <table name="mode" syntheticPrimaryKey="ulong">
@@ -39,14 +51,14 @@
             <constraint references="output.id" />
         </column>
 
-        <column name="width" type="uint" />
+        <column name="width" type="uint"  />
         <column name="height" type="uint" />
 
-        <column name="refresh_rate_numerator" type="uint" />
+        <column name="refresh_rate_numerator" type="uint"   />
         <column name="refresh_rate_denominator" type="uint" />
 
-        <column name="format" type="uint" />
+        <column name="format" type="uint"            />
         <column name="scanline_ordering" type="uint" />
-        <column name="scaling" type="uint" />
+        <column name="scaling" type="uint"           />
     </table>
 </root>

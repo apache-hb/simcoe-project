@@ -257,7 +257,7 @@ void IDeviceContext::serialize_root_signature(Object<ID3D12RootSignature>& signa
     Blob error;
     if (Result hr = D3DX12SerializeVersionedRootSignature(&desc, mRootSignatureVersion.as_facade(), &serialized, &error); !hr) {
         LOG_ERROR(GpuLog, "failed to serialize root signature: {}", hr);
-        LOG_ERROR(GpuLog, "| error: {}", error.as_string());
+        LOG_ERROR(GpuLog, "| error: {}", error.asString());
         SM_ASSERT_HR(hr);
     }
 

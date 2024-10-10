@@ -1,5 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <root name="topology">
+    <table name="cpu_set_info" syntheticPrimaryKey="ulong">
+        <column name="cpu" type="text" length="128" />
+        <column name="os" type="text" length="128" />
+        <column name="data" type="blob" />
+
+        <unique>
+            <column>cpu</column>
+            <column>os</column>
+        </unique>
+    </table>
+
+    <table name="logical_processor_info" syntheticPrimaryKey="ulong">
+        <column name="cpu" type="text" length="128" />
+        <column name="os" type="text" length="128" />
+        <column name="data" type="blob" />
+
+        <unique>
+            <column>cpu</column>
+            <column>os</column>
+        </unique>
+    </table>
+
     <table name="logical_core" syntheticPrimaryKey="ulong">
         <column name="cpuset_id" type="ulong">
             <unique />

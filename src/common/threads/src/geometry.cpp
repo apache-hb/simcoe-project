@@ -182,30 +182,11 @@ private:
 
 struct CpuSetInfo {
     static std::optional<CpuSetInfo> create(detail::FnGetSystemCpuSetInformation pfnGetSystemCpuSetInformation) noexcept {
-        if (pfnGetSystemCpuSetInformation == nullptr) {
-            LOG_WARN(ThreadLog, "GetSystemCpuSetInformation not available");
+        auto memory = detail::readSystemCpuSetInformation(pfnGetSystemCpuSetInformation);
+        if (memory.data == nullptr)
             return std::nullopt;
-        }
 
-        HANDLE process = GetCurrentProcess();
-        ULONG size = 0;
-        if (pfnGetSystemCpuSetInformation(nullptr, 0, &size, process, 0)) {
-            LOG_WARN(ThreadLog, "GetSystemCpuSetInformation failed with error {}", system::getLastError());
-            return std::nullopt;
-        }
-
-        if (OsError err = system::getLastError(); err != OsError(ERROR_INSUFFICIENT_BUFFER)) {
-            LOG_WARN(ThreadLog, "GetSystemCpuSetInformation failed with error {}", err);
-            return std::nullopt;
-        }
-
-        auto memory = sm::UniquePtr<std::byte[]>(size);
-        if (!pfnGetSystemCpuSetInformation((PSYSTEM_CPU_SET_INFORMATION)memory.get(), size, &size, process, 0)) {
-            LOG_WARN(ThreadLog, "GetSystemCpuSetInformation failed with error {}", system::getLastError());
-            return std::nullopt;
-        }
-
-        return CpuSetInfo{std::move(memory), size};
+        return CpuSetInfo{std::move(memory.data), memory.size};
     }
 
     CpuSetIterator begin() const noexcept {
@@ -217,7 +198,7 @@ struct CpuSetInfo {
     }
 
 private:
-    CpuSetInfo(sm::UniquePtr<std::byte[]> memory, ULONG size) noexcept
+    CpuSetInfo(std::unique_ptr<uint8_t[]> memory, ULONG size) noexcept
         : mMemory(std::move(memory))
         , mRemaining(size)
     { }
@@ -226,7 +207,7 @@ private:
         return reinterpret_cast<SYSTEM_CPU_SET_INFORMATION *>(mMemory.get());
     }
 
-    sm::UniquePtr<std::byte[]> mMemory;
+    std::unique_ptr<uint8_t[]> mMemory;
 
     ULONG mRemaining = 0;
 };

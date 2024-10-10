@@ -1,13 +1,13 @@
 #pragma once
 
 #include "render/graph/handle.hpp"
+#include "render/graph/graph.hpp"
 
 #include "core/adt/small_vector.hpp"
 
 #include <functional>
 
 #include "render.reflect.h"
-#include "graph.reflect.h"
 
 namespace sm::render {
     struct IDeviceContext;
@@ -55,7 +55,7 @@ namespace sm::graph {
     }
 
     constexpr D3D12_RESOURCE_STATES getStateFromUsage(Usage usage) {
-        using enum Usage::Inner;
+        using enum Usage;
         switch (usage) {
         case ePresent: return D3D12_RESOURCE_STATE_PRESENT;
         case eUnknown:

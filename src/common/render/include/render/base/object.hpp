@@ -27,7 +27,7 @@ namespace sm::render {
     void setObjectDebugName(ID3D12Object *object, std::string_view name);
     std::string getObjectDebugName(ID3D12Object *object);
 
-    template <ComObject T>
+    template<ComObject T>
     class Object : public sm::UniquePtr<T, decltype(kComRelease)> {
         using Super = sm::UniquePtr<T, decltype(kComRelease)>;
 
@@ -49,7 +49,7 @@ namespace sm::render {
     };
 
     struct Blob : public Object<ID3DBlob> {
-        std::string_view as_string() const;
+        std::string_view asString() const;
 
         const void *data() const;
         size_t size() const;

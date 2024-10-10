@@ -1,5 +1,29 @@
 threads_include = include_directories('.', 'include')
 
+###
+### reflection data
+###
+
+src = [
+    daocc.process('data/topology.xml'),
+    metacc.process('include/threads/threads.hpp'),
+]
+
+libthreads_meta = library('threads-meta', src,
+    include_directories : threads_include,
+    dependencies : [ core, meta, structured_logs, db ],
+)
+
+threads_meta = declare_dependency(
+    link_with : libthreads_meta,
+    include_directories : [ threads_include, libthreads_meta.private_dir_include() ],
+    dependencies : [ core, meta, structured_logs, db ],
+)
+
+###
+### thread api
+###
+
 src = [
     'src/threads.cpp',
     'src/geometry.cpp',
@@ -7,14 +31,13 @@ src = [
 
     'src/cpuinfo.cpp',
 
+    'src/backends/common.cpp',
     'src/backends/cpuset.cpp',
     'src/backends/logical.cpp',
     'src/backends/default.cpp',
-
-    metacc.process('include/threads/threads.hpp')
 ]
 
-deps = [ core, config, logs, structured_logs, system, meta ]
+deps = [ core, config, logs, structured_logs, system, threads_meta ]
 
 libthreads = library('threads', src,
     cpp_args : [ '-DSM_THREADS_BUILD=1' ],
@@ -24,13 +47,13 @@ libthreads = library('threads', src,
 
 threads = declare_dependency(
     link_with : libthreads,
-    include_directories : [ threads_include, libthreads.private_dir_include() ],
+    include_directories : [ threads_include ],
     dependencies : deps
 )
 
-# TODO: re-enable tests
 testcases = {
     'Processor geometry': 'test/geometry.cpp',
+    'Save topology info': 'test/topology.cpp',
 }
 
 foreach name, source : testcases
