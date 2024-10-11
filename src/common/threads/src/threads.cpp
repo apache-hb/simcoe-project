@@ -107,6 +107,16 @@ static std::string getProcessorString() {
     return buffer;
 }
 
+static uint64_t hashBlob(std::span<const uint8_t> data) {
+    uint64_t hash = 0x84222325;
+    for (uint8_t byte : data) {
+        hash ^= byte;
+        hash *= 0x100000001b3;
+    }
+
+    return hash;
+}
+
 void sm::threads::saveThreadInfo(db::Connection& connection) {
     connection.createTable(topology::CpuSetInfo::table());
     connection.createTable(topology::LogicalProcessorInfo::table());
@@ -123,10 +133,11 @@ void sm::threads::saveThreadInfo(db::Connection& connection) {
         topology::CpuSetInfo dao {
             .cpu = processor,
             .os = computerId,
+            .hash = hashBlob(data),
             .data = data,
         };
 
-        connection.insert(dao);
+        connection.insertReturningPrimaryKey(dao);
     }
 
     if (layoutData != nullptr) {
@@ -134,9 +145,10 @@ void sm::threads::saveThreadInfo(db::Connection& connection) {
         topology::LogicalProcessorInfo dao {
             .cpu = processor,
             .os = computerId,
+            .hash = hashBlob(data),
             .data = data,
         };
 
-        connection.insert(dao);
+        connection.insertReturningPrimaryKey(dao);
     }
 }

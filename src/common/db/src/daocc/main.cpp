@@ -145,6 +145,7 @@ struct List {
 
 struct Column {
     std::string name;
+    std::string comment;
     Type type;
     bool optional:1;
     sm::dao::AutoIncrement autoIncrement;
@@ -152,6 +153,7 @@ struct Column {
 
 struct Table {
     std::string name;
+    std::string comment;
     std::string primaryKey;
     std::string schema;
     std::vector<Column> columns;
@@ -416,6 +418,7 @@ static Column buildDaoColumn(Table& parent, xmlNodePtr node) {
     auto name = expectProperty(props, "name", "");
     Column column = {
         .name = name,
+        .comment = getOrDefault(props, "comment", ""),
         .type = buildType(props),
         .optional = getOrDefault(props, "nullable", "false") == "true",
         .autoIncrement = getAutoIncrement(props)
@@ -525,6 +528,7 @@ static Table buildDaoTable(xmlNodePtr node) {
 
     Table table = {
         .name = expectProperty(props, "name", ""),
+        .comment = getOrDefault(props, "comment", ""),
         .primaryKey = getOrDefault(props, "primaryKey", ""),
         .singleton = getOrDefault(props, "singleton", "false") == "true"
     };
@@ -546,6 +550,7 @@ static Table buildDaoTable(xmlNodePtr node) {
         table.primaryKey = "id";
         table.columns.push_back({
             .name = "id",
+            .comment = fmt::format("Synthetic primary key for {}", table.name),
             .type = {eUlong, false, 0},
             .optional = false,
             .autoIncrement = getAutoIncrement(props, "default")

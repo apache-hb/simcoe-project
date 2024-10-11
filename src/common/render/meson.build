@@ -113,8 +113,8 @@ render = declare_dependency(
 )
 
 testcases = {
-    'Setup Instance': 'test/instance.cpp',
-    'Save device info': 'test/store.cpp',
+    'Setup render instance': 'test/instance.cpp',
+    'Save render device data': 'test/store.cpp',
 }
 
 foreach name, source : testcases
@@ -122,7 +122,7 @@ foreach name, source : testcases
         dependencies : [ render, coretest ]
     )
 
-    test('Render ' + name, exe,
+    test(name, exe,
         suite : 'render',
         kwargs : testkwargs
     )

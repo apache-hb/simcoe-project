@@ -52,8 +52,8 @@ threads = declare_dependency(
 )
 
 testcases = {
-    'Processor geometry': 'test/geometry.cpp',
-    'Save topology info': 'test/topology.cpp',
+    'Processor geometry parsing': 'test/geometry.cpp',
+    'Save processor topology data': 'test/topology.cpp',
 }
 
 foreach name, source : testcases

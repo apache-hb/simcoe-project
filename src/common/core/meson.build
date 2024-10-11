@@ -64,13 +64,13 @@ coretest = declare_dependency(
 )
 
 testcases = {
-    'string' : 'test/string.cpp',
-    'zstring view' : 'test/adt/zstring_view.cpp',
-    'vector' : 'test/adt/vector.cpp',
-    'small vector': 'test/adt/small_vector.cpp',
-    'bitset' : 'test/adt/bitset.cpp',
-    'priority queue' : 'test/adt/priority_queue.cpp',
-    'symbol names' : 'test/symbols.cpp',
+    'String' : 'test/string.cpp',
+    'Null terminated string view' : 'test/adt/zstring_view.cpp',
+    'Vector' : 'test/adt/vector.cpp',
+    'Small vector': 'test/adt/small_vector.cpp',
+    'Bit set' : 'test/adt/bitset.cpp',
+    'Priority queue' : 'test/adt/priority_queue.cpp',
+    'Symbol names' : 'test/symbols.cpp',
 }
 
 foreach name, source : testcases

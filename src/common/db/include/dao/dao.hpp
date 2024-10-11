@@ -42,6 +42,7 @@ namespace sm::dao {
 
     struct ColumnInfo {
         std::string_view name;
+        std::string_view comment;
         size_t offset;
         size_t length;
         ColumnType type;
@@ -84,6 +85,7 @@ namespace sm::dao {
     struct TableInfo {
         std::string_view schema;
         std::string_view name;
+        std::string_view comment;
         const ColumnInfo *primaryKey;
 
         std::span<const ColumnInfo> columns;

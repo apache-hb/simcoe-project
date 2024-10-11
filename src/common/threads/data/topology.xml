@@ -3,23 +3,39 @@
     <table name="cpu_set_info" syntheticPrimaryKey="ulong">
         <column name="cpu" type="text" length="128" />
         <column name="os" type="text" length="128" />
+        <column name="hash" type="ulong" />
+
         <column name="data" type="blob" />
 
         <unique>
             <column>cpu</column>
             <column>os</column>
+            <column>hash</column>
         </unique>
     </table>
 
     <table name="logical_processor_info" syntheticPrimaryKey="ulong">
         <column name="cpu" type="text" length="128" />
         <column name="os" type="text" length="128" />
+        <column name="hash" type="ulong" />
+
         <column name="data" type="blob" />
 
         <unique>
             <column>cpu</column>
             <column>os</column>
+            <column>hash</column>
         </unique>
+    </table>
+
+    <table name="system_cpu_set" primaryKey="cpu_set_id">
+        <column name="cpu_set_id" type="uint" />
+        <column name="group" type="uint" />
+        <column name="logical_processor_index" type="uint" />
+        <column name="core_index" type="uint" />
+        <column name="last_level_cache_index" type="uint" />
+        <column name="numa_node_index" type="uint" />
+        <column name="efficiency_class" type="uint" />
     </table>
 
     <table name="logical_core" syntheticPrimaryKey="ulong">
