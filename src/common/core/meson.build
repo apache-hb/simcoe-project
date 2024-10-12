@@ -24,7 +24,10 @@ src = [
 
     'src/adt/zstring_view.cpp',
 
-    'src/allocators/bitmap_allocator.cpp'
+    'src/allocators/bitmap.cpp',
+    'src/allocators/slab.cpp',
+
+    'src/error/error.cpp',
 ]
 
 if is_windows

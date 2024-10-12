@@ -139,7 +139,7 @@ namespace sm {
         { }
 
         // TODO: arena aware allocation
-        constexpr UniquePtr(size_t size) noexcept
+        constexpr UniquePtr(size_t size)
             : UniquePtr(new T[size], size)
         { }
 
@@ -164,7 +164,7 @@ namespace sm {
     }
 
     template<typename T, typename TDelete = DefaultDelete<T>>
-    constexpr UniquePtr<T, TDelete> makeUnique(auto&&... args) noexcept(noexcept(T(std::forward<decltype(args)>(args)...))) {
+    constexpr UniquePtr<T, TDelete> makeUnique(auto&&... args) {
         return UniquePtr<T, TDelete>(new T(std::forward<decltype(args)>(args)...));
     }
 
@@ -174,7 +174,7 @@ namespace sm {
     }
 
     template<IsArray T, typename TDelete = DefaultDelete<T>>
-    constexpr UniquePtr<T, TDelete> makeUnique(size_t size) noexcept {
+    constexpr UniquePtr<T, TDelete> makeUnique(size_t size) {
         using ElementType = std::remove_extent_t<T>;
         return UniquePtr<T, TDelete>(new ElementType[size], size);
     }

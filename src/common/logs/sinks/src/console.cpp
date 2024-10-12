@@ -20,7 +20,7 @@ class ConsoleChannel final : public structured::ILogChannel {
     void attach() override { }
 
     void postMessage(structured::MessagePacket packet) noexcept override {
-        auto message = fmt::vformat(packet.message.message, *packet.args);
+        auto message = ""; // fmt::vformat(packet.message.message, packet.args);
 
         std::lock_guard guard(mMutex);
 

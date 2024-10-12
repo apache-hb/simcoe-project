@@ -17,16 +17,16 @@ namespace chrono = std::chrono;
 
 LOG_MESSAGE_CATEGORY(NetLog, "Net");
 
-static NetError lastNetError() noexcept {
+static NetError lastNetError() {
     return NetError{WSAGetLastError()};
 }
 
-std::string net::toString(const IPv4Address& addr) noexcept {
+std::string net::toString(IPv4Address addr) {
     const uint8_t *bytes = addr.address();
     return fmt::format("{}.{}.{}.{}", bytes[0], bytes[1], bytes[2], bytes[3]);
 }
 
-static std::string fmtOsError(int code) noexcept {
+static std::string fmtOsError(int code) {
     switch (code) {
     case SNET_READ_TIMEOUT:
         return "Read timeout (" CT_STR(SNET_READ_TIMEOUT) ")";
@@ -39,19 +39,10 @@ static std::string fmtOsError(int code) noexcept {
     }
 }
 
-NetError::NetError(int code) noexcept
-    : mCode(code)
-    , mMessage(fmtOsError(code))
+NetError::NetError(int code)
+    : Super(fmtOsError(code))
+    , mCode(code)
 { }
-
-void NetError::raise() const noexcept(false) {
-    throw NetException{*this};
-}
-
-void NetError::throwIfFailed() const noexcept(false) {
-    if (mCode != 0)
-        raise();
-}
 
 ///
 /// socket

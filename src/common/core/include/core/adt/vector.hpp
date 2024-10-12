@@ -1,7 +1,9 @@
 #pragma once
 
-#include "core/adt/range.hpp"
 #include "core/core.hpp"
+#include "core/throws.hpp"
+
+#include "core/adt/range.hpp"
 
 #include "base/panic.h"
 
@@ -16,6 +18,8 @@ namespace sm {
     template<typename T> requires (std::is_object_v<T> && std::is_move_constructible_v<T>)
     class VectorBase final : public core::detail::Collection<T> {
         using Super = core::detail::Collection<T>;
+
+        static_assert(SafeObject<T>);
 
         using SizeType = ssize_t;
         using Self = VectorBase;
@@ -40,7 +44,7 @@ namespace sm {
             updateData(front, used, capacity);
         }
 
-        constexpr void init(SizeType capacity, SizeType used = 0) noexcept {
+        constexpr void init(SizeType capacity, SizeType used = 0) throws(std::bad_alloc) {
             CTASSERTF(capacity >= 0, "Capacity must be non-negative: %zd", capacity);
             CTASSERTF(used >= 0, "Used must be non-negative: %zd", used);
             CTASSERTF(used <= capacity, "Used must be less than or equal to capacity: %zd <= %zd", used, capacity);
@@ -51,7 +55,7 @@ namespace sm {
         }
 
         // only ever grows the backing data
-        constexpr void ensureGrowth(SizeType size) noexcept {
+        constexpr void ensureGrowth(SizeType size) throws(std::bad_alloc) {
             if (size > capacity()) {
                 SizeType newCapacity = (std::max)(capacity() * 2, size);
                 SizeType oldSize = this->ssize();
@@ -65,24 +69,8 @@ namespace sm {
             }
         }
 
-        // ensure the internal capacity is exactly size
-        constexpr void ensureCapacity(SizeType size) noexcept {
-            CTASSERTF(size >= 0, "Size must be non-negative: %zd", size);
-
-            if (size != capacity()) {
-                SizeType oldSize = this->ssize();
-
-                // copy over the old data
-                T *newData = new T[size];
-                std::uninitialized_move(this->begin(), this->begin() + oldSize, newData);
-
-                // release old data and update the pointers
-                replaceData(newData, oldSize, size);
-            }
-        }
-
         // ensure extra space is available
-        constexpr void ensureExtra(SizeType extra) noexcept {
+        constexpr void ensureExtra(SizeType extra) {
             ensureGrowth(this->ssize() + extra);
         }
 
@@ -97,7 +85,7 @@ namespace sm {
         }
 
         // shrink the backing data and release extra memory
-        constexpr void shrinkCapacity(SizeType size) noexcept {
+        constexpr void shrinkCapacity(SizeType size) throws(std::bad_alloc) {
             CTASSERTF(size >= 0, "Size must be non-negative: %zd", size);
 
             if (size < capacity()) {
@@ -114,7 +102,7 @@ namespace sm {
             }
         }
 
-        constexpr void setCapacity(SizeType cap) noexcept {
+        constexpr void setCapacity(SizeType cap) throws(std::bad_alloc) {
             CTASSERTF(cap >= 0, "Capacity must be non-negative: %zd", cap);
 
             if (cap != capacity()) {
@@ -148,15 +136,15 @@ namespace sm {
             delete[] this->mFront;
         }
 
-        constexpr VectorBase(SizeType initialSize, noinit) noexcept
+        constexpr VectorBase(SizeType initialSize, noinit)
             : VectorBase(initialSize, initialSize)
         { }
 
-        constexpr VectorBase() noexcept
+        constexpr VectorBase()
             : VectorBase(4, 0)
         { }
 
-        explicit constexpr VectorBase(const VectorBase &other) noexcept
+        explicit constexpr VectorBase(const VectorBase &other)
             : VectorBase(other.size(), other.size())
         {
             std::uninitialized_copy(other.begin(), other.end(), this->begin());
@@ -169,7 +157,7 @@ namespace sm {
             swap(*this, other);
         }
 
-        constexpr VectorBase(std::initializer_list<T> init) noexcept
+        constexpr VectorBase(std::initializer_list<T> init)
             : VectorBase(init.begin(), init.end())
         { }
 
@@ -194,14 +182,14 @@ namespace sm {
             return Self(*this);
         }
 
-        constexpr VectorBase(const T *first, const T *last) noexcept
+        constexpr VectorBase(const T *first, const T *last)
             : VectorBase(last - first, last - first)
         {
             std::uninitialized_copy(first, last, this->begin());
         }
 
         template<size_t N>
-        constexpr VectorBase(const T (&array)[N]) noexcept
+        constexpr VectorBase(const T (&array)[N])
             : VectorBase(array, array + N)
         { }
 
@@ -225,19 +213,19 @@ namespace sm {
         }
 
         // reserve space for at least size elements
-        constexpr void reserve(SizeType count) noexcept {
+        constexpr void reserve(SizeType count) {
             CTASSERTF(count >= 0, "Size must be non-negative: %zd", count);
             ensureGrowth(count);
         }
 
         // reserve space for exactly size elements
-        constexpr void reserve_exact(SizeType count) noexcept {
+        constexpr void reserveExact(SizeType count) {
             CTASSERTF(count >= 0, "Size must be non-negative: %zd", count);
-            ensureCapacity(count);
+            setCapacity(count);
         }
 
         // only change the size, dont change the capacity
-        constexpr void resize(SizeType count) noexcept {
+        constexpr void resize(SizeType count) {
             CTASSERTF(count >= 0, "Size must be non-negative: %zd", count);
 
             if (count > this->ssize()) {
@@ -251,7 +239,7 @@ namespace sm {
         }
 
         // change the size and capacity
-        constexpr void resizeExact(SizeType count) noexcept {
+        constexpr void resizeExact(SizeType count) {
             CTASSERTF(count >= 0, "Size must be non-negative: %zd", count);
 
             if (count > this->ssize()) {
@@ -266,27 +254,27 @@ namespace sm {
 
         // appending
 
-        constexpr T& emplace_back(auto&&... args) noexcept {
+        constexpr T& emplace_back(auto&&... args) {
             ensureExtra(1);
             return *new (this->mBack++) T(std::forward<decltype(args)>(args)...);
         }
 
-        constexpr T& emplace_back(T &&value) noexcept requires (std::is_move_constructible_v<T>) {
+        constexpr T& emplace_back(T &&value) requires (std::is_move_constructible_v<T>) {
             ensureExtra(1);
             return (*this->mBack++ = std::move(value));
         }
 
-        constexpr void push_back(const T &value) noexcept {
+        constexpr void push_back(const T &value) {
             ensureExtra(1);
             new (this->mBack++) T{value};
         }
 
-        constexpr void push_back(T &&value) noexcept requires (std::is_move_constructible_v<T>) {
+        constexpr void push_back(T &&value) requires (std::is_move_constructible_v<T>) {
             ensureExtra(1);
             new (this->mBack++) T{std::move(value)};
         }
 
-        constexpr void assign(const T *first, const T *last) noexcept {
+        constexpr void assign(const T *first, const T *last) {
             SizeType count = last - first;
             ensureExtra(count);
             std::move(first, last, this->mBack);

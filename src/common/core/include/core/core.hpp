@@ -31,6 +31,15 @@ namespace sm {
     struct init { };
     // NOLINTEND
 
+    // basic checks on elements in a container to make them
+    // somewhat sane to work with. I require noexcept move and destruct
+    // because not having these makes writing exception safe
+    // containers nearly impossible.
+    template<typename T>
+    concept SafeObject = std::is_nothrow_move_assignable_v<T>
+                      && std::is_nothrow_move_constructible_v<T>
+                      && std::is_nothrow_destructible_v<T>;
+
     template<typename T>
     struct Empty {
         constexpr Empty() noexcept = default;

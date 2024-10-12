@@ -14,18 +14,24 @@ namespace sm::logs::structured {
     MessageStore getMessages() noexcept;
 
     namespace detail {
-        void postLogMessage(const MessageInfo& message, ArgStore args) noexcept;
+        void postLogMessage(const MessageInfo& message, std::unique_ptr<DynamicArgStore> args) noexcept;
 
         template<LogMessageFn F, typename... A>
         void fmtMessage(A&&... args) noexcept {
             const MessageId& message = gTagInfo<F, A...>;
             const MessageInfo& info = message.data;
 
+            using Data = ArgStoreData<A...>;
+            std::unique_ptr<Data> data = std::make_unique<Data>(std::forward<A>(args)...);
+            postLogMessage(info, std::move(data));
+
+#if 0
             ArgStore store;
             store.reserve(info.attributeCount(), info.namedAttributes.size());
             ((store.push_back(std::forward<A>(args))), ...);
 
             postLogMessage(info, std::move(store));
+#endif
         }
     }
 } // namespace sm::logs
@@ -37,13 +43,16 @@ namespace sm::logs::structured {
         { } \
     }
 
+#define BUILD_MESSAGE_DATA_IMPL(message, severity, category, location, info) \
+    sm::logs::structured::MessageInfo { message, severity, sm::logs::structured::detail::gLogCategory<category>.data, location, (info).indices, (info).namedAttributes() }
+
 #define LOG_MESSAGE(category, severity, message, ...) \
     do { \
-        static constexpr std::source_location loc = std::source_location::current(); \
-        static constexpr auto attrs = BUILD_MESSAGE_ATTRIBUTES_IMPL(message, __VA_ARGS__); \
+        static constexpr std::source_location kSourceLocation = std::source_location::current(); \
+        static constexpr auto kMessageInfo = BUILD_MESSAGE_ATTRIBUTES_IMPL(message, __VA_ARGS__); \
         struct LogMessageImpl { \
-            constexpr sm::logs::structured::MessageInfo operator()() const noexcept { \
-                return { message, severity, sm::logs::structured::detail::gLogCategory<category>.data, loc, attrs.indices, attrs.namedAttributes() }; \
+            constexpr auto operator()() const noexcept { \
+                return BUILD_MESSAGE_DATA_IMPL(message, severity, category, kSourceLocation, kMessageInfo); \
             } \
         }; \
         sm::logs::structured::detail::fmtMessage<LogMessageImpl>(__VA_ARGS__); \

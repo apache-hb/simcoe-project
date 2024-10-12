@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/allocators/bitmap_allocator.hpp"
+#include "core/allocators/bitmap.hpp"
 
 #include "render/base/object.hpp"
 

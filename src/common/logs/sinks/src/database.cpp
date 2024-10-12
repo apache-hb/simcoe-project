@@ -19,7 +19,7 @@ namespace structured = sm::logs::structured;
 struct LogEntryPacket {
     uint64_t timestamp;
     const structured::MessageInfo *message;
-    std::shared_ptr<structured::ArgStore> args;
+    std::unique_ptr<structured::DynamicArgStore> args;
 };
 
 static uint64_t getTimestamp() noexcept {
@@ -108,7 +108,7 @@ static void registerMessagesWithDb(
     }
 }
 
-class DbChannel final : public structured::ILogChannel {
+class DbChannel final : public structured::IAsyncLogChannel {
     db::Connection mConnection;
     db::PreparedInsertReturning<sm::dao::logs::LogEntry> mInsertEntry = mConnection.prepareInsertReturningPrimaryKey<sm::dao::logs::LogEntry>();
     db::PreparedInsert<sm::dao::logs::LogEntryAttribute> mInsertAttribute = mConnection.prepareInsert<sm::dao::logs::LogEntryAttribute>();
@@ -134,7 +134,7 @@ class DbChannel final : public structured::ILogChannel {
         mWorkerThread.join();
     }
 
-    void postMessage(structured::MessagePacket packet) noexcept override {
+    void postMessageAsync(structured::AsyncMessagePacket packet) noexcept override {
         // discard messages from the database channel to prevent infinite recursion
         if (structured::detail::gLogCategory<DbLog> == packet.message.category)
             return;
@@ -142,14 +142,14 @@ class DbChannel final : public structured::ILogChannel {
         mQueue.enqueue(LogEntryPacket {
             .timestamp = packet.timestamp,
             .message = &packet.message,
-            .args = packet.args
+            .args = std::move(packet.args)
         });
     }
 
     void commit(std::span<const LogEntryPacket> packets) noexcept {
         db::Transaction tx(&mConnection);
 
-        for (const auto& [timestamp, message, args] : packets) {
+        for (const auto& [timestamp, message, params] : packets) {
             sm::dao::logs::LogEntry entry {
                 .timestamp = timestamp,
                 .messageHash = message->hash
@@ -161,10 +161,8 @@ class DbChannel final : public structured::ILogChannel {
                 continue;
             }
 
-            fmt::format_args params{*args};
-
             for (int i = 0; i < message->indexAttributeCount; i++) {
-                auto arg = params.get(i);
+                auto arg = params->get(i);
                 fmt::format_args args{&arg, 1};
 
                 sm::dao::logs::LogEntryAttribute entryAttribute {
@@ -178,13 +176,13 @@ class DbChannel final : public structured::ILogChannel {
                 }
             }
 
-            for (const auto& name : message->namedAttributes) {
-                auto arg = params.get(fmt::string_view{name.name});
+            for (const auto& [name] : message->namedAttributes) {
+                auto arg = params->get(name);
                 fmt::format_args args{&arg, 1};
 
                 sm::dao::logs::LogEntryAttribute entryAttribute {
                     .entryId = id.value(),
-                    .key = fmt::to_string(name.name),
+                    .key = fmt::to_string(name),
                     .value = fmt::vformat("{}", args)
                 };
 
@@ -217,7 +215,7 @@ public:
     { }
 };
 
-structured::ILogChannel *sm::logs::structured::database(db::Connection connection) {
+structured::IAsyncLogChannel *sm::logs::structured::database(db::Connection connection) {
     auto [categories, messages] = getMessages();
     registerMessagesWithDb(connection, categories, messages);
     return new DbChannel(std::move(connection));

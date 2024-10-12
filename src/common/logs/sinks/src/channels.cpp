@@ -40,7 +40,8 @@ bool structured::addFileChannel(const fs::path& path) {
 }
 
 bool structured::addDatabaseChannel(db::Connection connection) {
-    addChannel(database(std::move(connection)));
+    std::unique_ptr<structured::IAsyncLogChannel> ptr{database(std::move(connection))};
+    structured::Logger::instance().setAsyncChannel(std::move(ptr));
     return true;
 }
 

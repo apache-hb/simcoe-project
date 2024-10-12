@@ -1,8 +1,36 @@
 #include "stdafx.hpp"
 
+#include "base/panic.h"
+
 #include "core/macros.hpp"
 
 using namespace std::string_view_literals;
+
+void *operator new(size_t size) throw() {
+    void *ptr = std::malloc(size);
+    CTASSERTF(ptr != nullptr, "Failed to allocate %zu bytes", size);
+    return ptr;
+}
+
+void operator delete(void *ptr) noexcept {
+    if (ptr == nullptr)
+        return;
+
+    std::free(ptr);
+}
+
+void *operator new(size_t size, std::align_val_t align) throw() {
+    void *ptr = _aligned_malloc(size, (size_t)align);
+    CTASSERTF(ptr != nullptr, "Failed to allocate %zu bytes with alignment %zu", size, align);
+    return ptr;
+}
+
+void operator delete(void *ptr, std::align_val_t align) noexcept {
+    if (ptr == nullptr)
+        return;
+
+    _aligned_free(ptr);
+}
 
 static void trimPrefix(std::string_view &name, std::string_view prefix) {
     if (name.starts_with(prefix)) {

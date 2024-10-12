@@ -5,6 +5,8 @@
 
 #include "logs/structured/channels.hpp"
 
+#include "core/win32.hpp"
+
 using namespace sm;
 using namespace std::chrono_literals;
 
@@ -20,6 +22,7 @@ using namespace std::chrono_literals;
 LOG_MESSAGE_CATEGORY(TestLog, "Tests");
 
 TEST_CASE("Setup logging") {
+    SetProcessAffinityMask(GetCurrentProcess(), 0b1111'1111'1111'1111);
     auto env = db::Environment::create(db::DbType::eSqlite3);
 
     logs::structured::create(env.connect({.host="benchlogs.db"}));

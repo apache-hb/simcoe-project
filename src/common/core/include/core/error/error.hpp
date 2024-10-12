@@ -48,12 +48,12 @@ namespace sm::errors {
         }
 
     public:
-        CT_NORETURN raise() const throws(typename T::Exception) {
-            throw (typename T::Exception){ *this };
+        [[noreturn]] void raise() const throws(typename T::Exception) {
+            throw (typename T::Exception){ self() };
         }
 
         void throwIfFailed() const throws(typename T::Exception) {
-            if (!isSuccess())
+            if (!isSuccessImpl())
                 raise();
         }
 
@@ -70,12 +70,12 @@ namespace sm::errors {
     };
 
     template<IsError T>
-    class Exception : public std::exception {
+    class Exception : public std::runtime_error {
         T mError;
 
     public:
         Exception(T error)
-            : AnyException(error.message(), error.stacktrace())
+            : std::runtime_error(error.what())
             , mError(std::move(error))
         { }
 

@@ -5,6 +5,7 @@
 #include <charconv>
 
 #include "fmtlib/format.h"
+#include "fmt/base.h"
 #include "fmt/compile.h"
 #include "fmt/args.h"
 
@@ -24,6 +25,84 @@ namespace sm::logs::structured {
     };
 
     using ArgStore = fmt::dynamic_format_arg_store<fmt::format_context>;
+
+    using FormatArg = fmt::basic_format_arg<fmt::format_context>;
+    using NamedArg = std::pair<std::string_view, FormatArg>;
+
+    class DynamicArgStore {
+        virtual FormatArg getArg(int index) const noexcept = 0;
+        virtual FormatArg getArg(std::string_view name) const noexcept = 0;
+    public:
+        virtual ~DynamicArgStore() = default;
+
+        FormatArg get(int index) const noexcept {
+            return getArg(index);
+        }
+
+        FormatArg get(std::string_view name) const noexcept {
+            return getArg(name);
+        }
+    };
+
+    template<typename T>
+    struct IsNamedArg : std::false_type { };
+
+    template<typename T>
+    struct IsNamedArg<fmt::detail::named_arg<char, T>> : std::true_type { };
+
+    template<typename T>
+    consteval bool isNamedArg() noexcept {
+        return IsNamedArg<T>::value;
+    }
+
+    template<typename... A>
+    class ArgStoreData final : public DynamicArgStore {
+        std::tuple<A...> args;
+
+        template<size_t N>
+        using ArgType = std::tuple_element_t<N, std::tuple<A...>>;
+
+        template<size_t N = 0>
+        FormatArg getArgByIndex(int index) const noexcept {
+            if (index == N)
+                return fmt::detail::make_arg<fmt::format_context>(std::get<N>(args));
+
+            return getArgByIndex<N + 1>(index);
+        }
+
+        template<>
+        FormatArg getArgByIndex<sizeof...(A)>(int) const noexcept {
+            return {};
+        }
+
+        FormatArg getArg(int index) const noexcept override {
+            return getArgByIndex(index);
+        }
+
+        template<size_t N = 0>
+        FormatArg getArgByName(std::string_view name) const noexcept {
+            if constexpr (isNamedArg<ArgType<N>>()) {
+                if (std::get<N>(args).name == name)
+                    return fmt::detail::make_arg<fmt::format_context>(std::get<N>(args).value);
+            }
+
+            return getArgByName<N + 1>(name);
+        }
+
+        template<>
+        FormatArg getArgByName<sizeof...(A)>(std::string_view) const noexcept {
+            return {};
+        }
+
+        FormatArg getArg(std::string_view name) const noexcept override {
+            return getArgByName(name);
+        }
+
+    public:
+        ArgStoreData(A... args) noexcept
+            : args(args...)
+        { }
+    };
 
     struct MessageAttributeInfo {
         std::string_view name;

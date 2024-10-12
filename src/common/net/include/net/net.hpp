@@ -2,6 +2,7 @@
 
 #include "core/macros.hpp"
 #include "core/throws.hpp"
+#include "core/error/error.hpp"
 
 #include <expected>
 #include <string>
@@ -21,29 +22,25 @@
 #define SNET_LAST_STATUS 12999
 
 namespace sm::net {
-    class NetError {
-        int mCode;
-        std::string mMessage;
+    class NetException;
+    class NetError;
 
+    class NetError : public errors::Error<NetError> {
+        using Super = errors::Error<NetError>;
+
+        int mCode;
     public:
-        NetError(int code) noexcept;
+        using Exception = NetException;
+
+        NetError(int code);
 
         template<typename... A>
         NetError(int code, fmt::format_string<A...> fmt, A&&... args)
-            : mCode(code)
-            , mMessage(fmt::vformat(fmt, fmt::make_format_args(args...)))
+            : Super(fmt::vformat(fmt, fmt::make_format_args(args...)))
+            , mCode(code)
         { }
 
         int code() const noexcept { return mCode; }
-        std::string_view message() const noexcept { return mMessage; }
-        const char *what() const noexcept { return mMessage.c_str(); }
-
-        [[noreturn]]
-        void raise() const throws(NetException);
-
-        void throwIfFailed() const throws(NetException);
-
-        operator bool() const noexcept { return mCode != 0; }
         bool isSuccess() const noexcept { return mCode == 0; }
 
         bool cancelled() const noexcept { return mCode == WSAEINTR; }
@@ -53,20 +50,14 @@ namespace sm::net {
         static NetError ok() noexcept { return NetError{0}; }
     };
 
-    class NetException : public std::exception {
-        NetError mError;
-
+    class NetException : public errors::Exception<NetError> {
+        using Super = errors::Exception<NetError>;
     public:
-        NetException(NetError error) noexcept
-            : mError(std::move(error))
-        { }
-
-        NetError error() const noexcept { return mError; }
-        const char *what() const noexcept override { return mError.what(); }
+        using Super::Super;
     };
 
     template<typename T>
-    using NetResult = std::expected<T, NetError>;
+    using NetResult = NetError::Result<T>;
 
     template<typename T>
     T throwIfFailed(NetResult<T> result) throws(NetException) {
@@ -91,7 +82,7 @@ namespace sm::net {
         }
     };
 
-    std::string toString(const IPv4Address& addr) noexcept;
+    std::string toString(IPv4Address addr);
 
     struct [[nodiscard]] ReadResult {
         size_t size;

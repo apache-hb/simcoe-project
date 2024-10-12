@@ -25,5 +25,5 @@ namespace sm::logs::structured {
     ILogChannel *debugConsole();
 
     ILogChannel *file(const fs::path& path);
-    ILogChannel *database(db::Connection connection);
+    IAsyncLogChannel *database(db::Connection connection);
 }

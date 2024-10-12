@@ -47,6 +47,6 @@ structured::MessageStore structured::getMessages() noexcept {
     return result;
 }
 
-void structured::detail::postLogMessage(const MessageInfo& message, ArgStore args) noexcept {
+void structured::detail::postLogMessage(const MessageInfo& message, std::unique_ptr<DynamicArgStore> args) noexcept {
     Logger::instance().postMessage(message, std::move(args));
 }

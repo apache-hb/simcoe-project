@@ -26,7 +26,7 @@ void LoggerPanel::postMessage(structured::MessagePacket packet) noexcept {
         .severity = packet.message.level,
         .timestamp = uint32_t(packet.timestamp),
         // .thread = message.thread,
-        .message = fmt::vformat(packet.message.message, *packet.args)
+        .message = "" // fmt::vformat(packet.message.message, packet.args)
     };
 
     mMessages[&packet.message.category].push_back(msg);

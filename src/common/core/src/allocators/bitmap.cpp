@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "core/allocators/bitmap_allocator.hpp"
+#include "core/allocators/bitmap.hpp"
 
 using namespace sm;
 

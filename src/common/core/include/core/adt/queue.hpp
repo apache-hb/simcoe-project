@@ -10,10 +10,12 @@ namespace sm {
         using Storage = sm::Vector<T>;
         Storage mStorage;
 
+        static_assert(SafeObject<T>);
+
     public:
         using ConstIterator = typename Storage::const_iterator;
 
-        constexpr void emplace(auto&&... args) noexcept {
+        constexpr void emplace(auto&&... args) {
             mStorage.emplace_back(std::forward<decltype(args)>(args)...);
             std::push_heap(mStorage.begin(), mStorage.end(), C{});
         }
