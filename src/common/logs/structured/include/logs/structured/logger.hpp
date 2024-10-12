@@ -3,6 +3,19 @@
 #include "logs/structured/channel.hpp"
 
 namespace sm::logs::structured {
+    enum class TimerSource {
+        eAutoDetect, // defaults to invariant TSC if available, otherwise high resolution clock
+
+        eHighResolutionClock, // force high resolution clock
+        eInvariantTsc, // force invariant TSC, not recommended
+    };
+
+    struct LoggingConfig {
+        TimerSource timer = TimerSource::eAutoDetect;
+    };
+
+    void create(LoggingConfig config = {});
+
     class Logger {
         std::vector<std::unique_ptr<ILogChannel>> mChannels;
         std::unique_ptr<IAsyncLogChannel> mAsyncChannel;

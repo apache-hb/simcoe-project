@@ -1,3 +1,4 @@
+#include "logs/structured/logger.hpp"
 #include "test/common.hpp"
 
 #include "db/connection.hpp"
@@ -35,6 +36,8 @@ static constexpr db::DbType kType = db::DbType::eSqlite3;
 LOG_MESSAGE_CATEGORY(TestLog, "Tests");
 
 TEST_CASE("Setup logging") {
+    logs::structured::create(logs::structured::LoggingConfig { });
+
     auto env = db::Environment::create(kType, { .logQueries=true });
     try {
         logs::structured::create(env.connect(kConfig));
