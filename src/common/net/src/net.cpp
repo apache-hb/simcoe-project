@@ -4,7 +4,7 @@
 
 #include "core/defer.hpp"
 
-#include "logs/structured/logging.hpp"
+#include "logs/logging.hpp"
 
 #include "net/net.hpp"
 

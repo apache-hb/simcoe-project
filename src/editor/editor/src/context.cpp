@@ -1,7 +1,7 @@
 #include "stdafx.hpp"
 
 #include "editor/panels/viewport.hpp"
-#include "logs/structured/logging.hpp"
+#include "logs/logging.hpp"
 
 #include "editor/draw.hpp"
 

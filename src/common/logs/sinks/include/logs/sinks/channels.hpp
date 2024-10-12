@@ -1,6 +1,6 @@
 #pragma once
 
-#include "logs/structured/channel.hpp"
+#include "logs/channel.hpp"
 #include "db/connection.hpp"
 
 #include "core/fs.hpp"
@@ -9,7 +9,7 @@ namespace sm::db {
     class Connection;
 }
 
-namespace sm::logs::structured {
+namespace sm::logs::sinks {
     void create(db::Connection connection);
     void destroy(void) noexcept;
 

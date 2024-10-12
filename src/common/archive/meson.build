@@ -12,7 +12,7 @@ src = [
 ]
 
 deps = [
-    core, logs, math, dao, structured_logs,
+    core, logs, math, dao, logs,
     cthulhu.get_variable('io')
 ]
 

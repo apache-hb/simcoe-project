@@ -1,15 +1,15 @@
 #include "stdafx.hpp"
 
-#include "logs/structured/logging.hpp"
-#include "logs/structured/logger.hpp"
+#include "logs/logging.hpp"
+#include "logs/logger.hpp"
 
-namespace structured = sm::logs::structured;
+namespace logs = sm::logs;
 
-using CategoryInfo = sm::logs::structured::CategoryInfo;
-using MessageInfo = sm::logs::structured::MessageInfo;
+using CategoryInfo = sm::logs::CategoryInfo;
+using MessageInfo = sm::logs::MessageInfo;
 
-using CategoryId = sm::logs::structured::detail::CategoryId;
-using MessageId = sm::logs::structured::detail::MessageId;
+using CategoryId = sm::logs::detail::CategoryId;
+using MessageId = sm::logs::detail::MessageId;
 
 static_assert(BUILD_MESSAGE_ATTRIBUTES_IMPL("just text").size() == 0);
 static_assert(BUILD_MESSAGE_ATTRIBUTES_IMPL("thing {0}", 1).size() == 1);
@@ -38,8 +38,8 @@ CategoryId::CategoryId(CategoryInfo info) noexcept
     getLogCategories().emplace_back(data);
 }
 
-structured::MessageStore structured::getMessages() noexcept {
-    structured::MessageStore result {
+logs::MessageStore logs::getMessages() noexcept {
+    logs::MessageStore result {
         .categories = getLogCategories(),
         .messages = getLogMessages(),
     };
@@ -47,6 +47,6 @@ structured::MessageStore structured::getMessages() noexcept {
     return result;
 }
 
-void structured::detail::postLogMessage(const MessageInfo& message, std::unique_ptr<DynamicArgStore> args) noexcept {
+void logs::detail::postLogMessage(const MessageInfo& message, std::unique_ptr<DynamicArgStore> args) noexcept {
     Logger::instance().postMessage(message, std::move(args));
 }

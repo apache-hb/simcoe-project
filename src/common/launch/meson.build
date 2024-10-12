@@ -5,7 +5,7 @@ src = [
 ]
 
 deps = [
-    core, structured_logs, structured_logs_sinks,
+    core, logs, log_sinks,
     threads, system, db,
     cthulhu.get_variable('backtrace'),
     cthulhu.get_variable('format_core'),

@@ -3,7 +3,8 @@
 
 #include "db/connection.hpp"
 
-#include "logs/structured/channels.hpp"
+#include "logs/sinks/channels.hpp"
+#include "logs/logger.hpp"
 
 #include "core/win32.hpp"
 
@@ -23,9 +24,11 @@ LOG_MESSAGE_CATEGORY(TestLog, "Tests");
 
 TEST_CASE("Setup logging") {
     SetProcessAffinityMask(GetCurrentProcess(), 0b1111'1111'1111'1111);
+    logs::create(logs::LoggingConfig { });
+
     auto env = db::Environment::create(db::DbType::eSqlite3);
 
-    logs::structured::create(env.connect({.host="benchlogs.db"}));
+    logs::sinks::create(env.connect({.host="benchlogs.db"}));
     SUCCEED();
 
     BENCHMARK("Log plain message") {
@@ -36,5 +39,5 @@ TEST_CASE("Setup logging") {
         LOG_INFO(TestLog, "Benchmark logging message with {arg}", fmt::arg("arg", 42));
     };
 
-    logs::structured::destroy();
+    logs::sinks::destroy();
 }

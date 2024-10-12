@@ -1,8 +1,8 @@
 #pragma once
 
-#include "logs/structured/channel.hpp"
+#include "logs/channel.hpp"
 
-namespace sm::logs::structured {
+namespace sm::logs {
     enum class TimerSource {
         eAutoDetect, // defaults to invariant TSC if available, otherwise high resolution clock
 

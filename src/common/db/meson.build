@@ -38,7 +38,7 @@ src = [
 
 libdb_meta = library('db-meta', [ src, db_config ],
     include_directories : db_include,
-    dependencies : [ core, meta, structured_logs ]
+    dependencies : [ core, meta, logs ]
 )
 
 db_meta = declare_dependency(
@@ -70,7 +70,7 @@ src = [
     'src/db/drivers/utils.cpp',
 ]
 
-deps = [ core, sqlite3, tlsf, meta, structured_logs, db_meta ]
+deps = [ core, sqlite3, tlsf, meta, logs, db_meta ]
 
 # sqlite3 is always enabled
 src += [
@@ -125,7 +125,7 @@ libdb = library('orm', [ src, db_config ],
 db = declare_dependency(
     link_with : libdb,
     include_directories : [ '.', db_include ],
-    dependencies : [ core, meta, structured_logs, db_meta ]
+    dependencies : [ core, meta, logs, db_meta ]
 )
 
 ###

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "logs/structured/category.hpp"
-#include "logs/structured/params.hpp"
+#include "logs/category.hpp"
+#include "logs/params.hpp"
 
 #include "logs/logs.hpp"
 
@@ -10,7 +10,7 @@
 
 #define SM_LOGS_HAS_MESSAGE 1
 
-namespace sm::logs::structured {
+namespace sm::logs {
     struct MessageInfo {
         uint64_t hash;
         logs::Severity level;

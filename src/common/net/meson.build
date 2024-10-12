@@ -5,7 +5,7 @@ src = [
 ]
 
 ws2 = cc.find_library('ws2_32', required : is_windows)
-deps = [ core, structured_logs, ws2, cthulhu.get_variable('os') ]
+deps = [ core, logs, ws2, cthulhu.get_variable('os') ]
 
 libnet = library('net', src,
     include_directories : [ net_include ],

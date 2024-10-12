@@ -21,8 +21,6 @@
 
 #include "db/connection.hpp"
 
-#include "logs/structured/channels.hpp"
-
 #include "archive/archive.hpp"
 #include "launch/launch.hpp"
 
@@ -31,8 +29,6 @@
 using namespace sm;
 using namespace sm::math;
 using namespace sm::math::literals;
-
-namespace structured = sm::logs::structured;
 
 using sm::world::IndexOf;
 

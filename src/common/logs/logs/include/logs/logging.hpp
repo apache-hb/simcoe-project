@@ -2,10 +2,10 @@
 
 #include <simcoe_config.h>
 
-#include "logs/structured/category.hpp"
-#include "logs/structured/message.hpp"
+#include "logs/category.hpp"
+#include "logs/message.hpp"
 
-namespace sm::logs::structured {
+namespace sm::logs {
     struct MessageStore {
         std::span<const CategoryInfo> categories;
         std::span<const MessageInfo> messages;
@@ -24,27 +24,19 @@ namespace sm::logs::structured {
             using Data = ArgStoreData<A...>;
             std::unique_ptr<Data> data = std::make_unique<Data>(std::forward<A>(args)...);
             postLogMessage(info, std::move(data));
-
-#if 0
-            ArgStore store;
-            store.reserve(info.attributeCount(), info.namedAttributes.size());
-            ((store.push_back(std::forward<A>(args))), ...);
-
-            postLogMessage(info, std::move(store));
-#endif
         }
     }
 } // namespace sm::logs
 
 #define LOG_MESSAGE_CATEGORY(id, name) \
-    struct id final : public sm::logs::structured::CategoryInfo { \
+    struct id final : public sm::logs::CategoryInfo { \
         constexpr id() noexcept \
-            : CategoryInfo(sm::logs::structured::CategoryInfo{name}) \
+            : CategoryInfo(sm::logs::CategoryInfo{name}) \
         { } \
     }
 
 #define BUILD_MESSAGE_DATA_IMPL(message, severity, category, location, info) \
-    sm::logs::structured::MessageInfo { message, severity, sm::logs::structured::detail::gLogCategory<category>.data, location, (info).indices, (info).namedAttributes() }
+    sm::logs::MessageInfo { message, severity, sm::logs::detail::gLogCategory<category>.data, location, (info).indices, (info).namedAttributes() }
 
 #define LOG_MESSAGE(category, severity, message, ...) \
     do { \
@@ -55,7 +47,7 @@ namespace sm::logs::structured {
                 return BUILD_MESSAGE_DATA_IMPL(message, severity, category, kSourceLocation, kMessageInfo); \
             } \
         }; \
-        sm::logs::structured::detail::fmtMessage<LogMessageImpl>(__VA_ARGS__); \
+        sm::logs::detail::fmtMessage<LogMessageImpl>(__VA_ARGS__); \
     } while (false)
 
 #define LOG_TRACE(category, ...) LOG_MESSAGE(category, sm::logs::Severity::eTrace,   __VA_ARGS__)

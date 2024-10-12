@@ -8,7 +8,7 @@
 
 #include "core/win32.hpp" // IWYU pragma: keep
 
-#include "logs/structured/logging.hpp"
+#include "logs/logging.hpp"
 
 #include "threads.meta.hpp"
 

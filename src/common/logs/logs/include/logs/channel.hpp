@@ -1,8 +1,8 @@
 #pragma once
 
-#include "logs/structured/message.hpp"
+#include "logs/message.hpp"
 
-namespace sm::logs::structured {
+namespace sm::logs {
     struct MessagePacket {
         const MessageInfo& message;
         uint64_t timestamp;

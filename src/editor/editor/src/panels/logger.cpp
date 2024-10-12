@@ -21,7 +21,7 @@ LoggerPanel::~LoggerPanel() {
     // instance.removeChannel(*this);
 }
 
-void LoggerPanel::postMessage(structured::MessagePacket packet) noexcept {
+void LoggerPanel::postMessage(logs::MessagePacket packet) noexcept {
     Message msg = {
         .severity = packet.message.level,
         .timestamp = uint32_t(packet.timestamp),
@@ -65,7 +65,7 @@ static constexpr ImGuiTableFlags kFlags
 
 using ReflectSeverity = ctu::TypeInfo<logs::Severity>;
 
-void LoggerPanel::drawLogCategory(const structured::CategoryInfo& category) const {
+void LoggerPanel::drawLogCategory(const logs::CategoryInfo& category) const {
     const LogMessages &messages = mMessages.at(&category);
 
     if (ImGui::BeginTable("Messages", 3, kFlags)) {

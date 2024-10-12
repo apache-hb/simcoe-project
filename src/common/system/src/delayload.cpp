@@ -15,9 +15,9 @@ static FARPROC WINAPI dllDelayLoadHook(unsigned notify, PDelayLoadInfo info) {
     delayload::LoadNotify it{notify};
 
     if (it == delayload::LoadNotify::eFailLoadLibrary) {
-        auto path = sm::system::getProgramFolder() / "redist" / info->szDll;
+        fs::path path = sm::system::getProgramFolder() / "redist" / info->szDll;
 
-        auto library = LoadLibrary(path.string().c_str());
+        HMODULE library = LoadLibrary(path.string().c_str());
 
         if (library != nullptr) {
             LOG_INFO(SystemLog, "dllDelayLoadHook: loaded: {}", path);

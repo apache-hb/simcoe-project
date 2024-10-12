@@ -2,7 +2,7 @@
 
 #include <chrono>
 
-namespace sm::logs::structured::detail {
+namespace sm::logs::detail {
     using SystemTimePoint = std::chrono::system_clock::time_point;
     using PreciseTimePoint = std::chrono::high_resolution_clock::time_point;
 

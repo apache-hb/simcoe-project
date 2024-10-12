@@ -1,11 +1,11 @@
 #include "stdafx.hpp"
 
-#include "logs/structured/logging.hpp"
-#include "logs/structured/message.hpp"
+#include "logs/logging.hpp"
+#include "logs/message.hpp"
 
-#include "logs/structured/category.hpp"
-#include "logs/structured/channel.hpp"
-#include "logs/structured/channels.hpp"
+#include "logs/category.hpp"
+#include "logs/channel.hpp"
+#include "logs/sinks/channels.hpp"
 
 #include "db/transaction.hpp"
 #include "db/connection.hpp"
@@ -14,12 +14,12 @@
 
 namespace db = sm::db;
 namespace logs = sm::logs;
-namespace structured = sm::logs::structured;
+namespace sinks = sm::logs::sinks;
 
 struct LogEntryPacket {
     uint64_t timestamp;
-    const structured::MessageInfo *message;
-    std::unique_ptr<structured::DynamicArgStore> args;
+    const logs::MessageInfo *message;
+    std::unique_ptr<logs::DynamicArgStore> args;
 };
 
 static uint64_t getTimestamp() noexcept {
@@ -41,8 +41,8 @@ static std::atomic<bool> gHasErrors = false;
 
 static void registerMessagesWithDb(
     db::Connection& connection,
-    std::span<const structured::CategoryInfo> categories,
-    std::span<const structured::MessageInfo> messages
+    std::span<const logs::CategoryInfo> categories,
+    std::span<const logs::MessageInfo> messages
 ) {
     connection.createTable(sm::dao::logs::LogSession::table());
     connection.createTable(sm::dao::logs::LogSeverity::table());
@@ -66,7 +66,7 @@ static void registerMessagesWithDb(
     for (auto& severity : kLogSeverityOptions)
         insertSeverity.insert(severity);
 
-    for (const structured::CategoryInfo& category : categories) {
+    for (const logs::CategoryInfo& category : categories) {
         sm::dao::logs::LogCategory daoCategory {
             .hash = category.hash,
             .name = std::string{category.name},
@@ -75,7 +75,7 @@ static void registerMessagesWithDb(
         insertCategory.insert(daoCategory);
     }
 
-    for (const structured::MessageInfo& message : messages) {
+    for (const logs::MessageInfo& message : messages) {
         sm::dao::logs::LogMessage daoMessage {
             .hash = message.hash,
             .message = std::string{message.message},
@@ -108,7 +108,7 @@ static void registerMessagesWithDb(
     }
 }
 
-class DbChannel final : public structured::IAsyncLogChannel {
+class DbChannel final : public logs::IAsyncLogChannel {
     db::Connection mConnection;
     db::PreparedInsertReturning<sm::dao::logs::LogEntry> mInsertEntry = mConnection.prepareInsertReturningPrimaryKey<sm::dao::logs::LogEntry>();
     db::PreparedInsert<sm::dao::logs::LogEntryAttribute> mInsertAttribute = mConnection.prepareInsert<sm::dao::logs::LogEntryAttribute>();
@@ -134,9 +134,9 @@ class DbChannel final : public structured::IAsyncLogChannel {
         mWorkerThread.join();
     }
 
-    void postMessageAsync(structured::AsyncMessagePacket packet) noexcept override {
+    void postMessageAsync(logs::AsyncMessagePacket packet) noexcept override {
         // discard messages from the database channel to prevent infinite recursion
-        if (structured::detail::gLogCategory<DbLog> == packet.message.category)
+        if (logs::detail::gLogCategory<DbLog> == packet.message.category)
             return;
 
         mQueue.enqueue(LogEntryPacket {
@@ -215,7 +215,7 @@ public:
     { }
 };
 
-structured::IAsyncLogChannel *sm::logs::structured::database(db::Connection connection) {
+logs::IAsyncLogChannel *sm::logs::sinks::database(db::Connection connection) {
     auto [categories, messages] = getMessages();
     registerMessagesWithDb(connection, categories, messages);
     return new DbChannel(std::move(connection));

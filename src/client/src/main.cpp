@@ -19,8 +19,6 @@
 
 #include "db/connection.hpp"
 
-#include "logs/structured/channels.hpp"
-
 #include "launch/launch.hpp"
 
 #include "archive.dao.hpp"

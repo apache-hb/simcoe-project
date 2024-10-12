@@ -4,7 +4,7 @@
 
 #include "core/win32.hpp"
 
-namespace detail = sm::logs::structured::detail;
+namespace detail = sm::logs::detail;
 namespace chrono = std::chrono;
 
 static uint64_t getCounterFrequency() {

@@ -1,8 +1,10 @@
 #include "launch/launch.hpp"
 
+#include "logs/logger.hpp"
+#include "logs/sinks/channels.hpp"
+
 #include "threads/threads.hpp"
 #include "system/system.hpp"
-#include "logs/structured/channels.hpp"
 
 #include "core/macros.h"
 #include "core/memory.h"
@@ -71,7 +73,7 @@ static DefaultSystemError gDefaultError{};
 launch::LaunchCleanup::~LaunchCleanup() noexcept {
     threads::destroy();
     system::destroy();
-    logs::structured::destroy();
+    logs::sinks::destroy();
 }
 
 launch::LaunchCleanup launch::commonInit(HINSTANCE hInstance, const LaunchInfo& info) {
@@ -101,15 +103,20 @@ launch::LaunchCleanup launch::commonInit(HINSTANCE hInstance, const LaunchInfo& 
         os_exit(CT_EXIT_INTERNAL); // NOLINT
     };
 
-    gLogging = sm::makeUnique<LoggingDb>(info.logDbType);
-    logs::structured::create(gLogging->connect(info.logDbConfig));
+    logs::create(logs::LoggingConfig { });
 
-    logs::structured::addConsoleChannel();
-    logs::structured::addDebugChannel();
-    logs::structured::addFileChannel(info.logPath);
+    gLogging = sm::makeUnique<LoggingDb>(info.logDbType);
+    logs::sinks::create(gLogging->connect(info.logDbConfig));
+
+    logs::sinks::addConsoleChannel();
+    logs::sinks::addDebugChannel();
+    logs::sinks::addFileChannel(info.logPath);
 
     system::create(hInstance);
     threads::create();
+
+    db::Connection infoDb = gLogging->connect({ .host = "info.db" });
+    threads::saveThreadInfo(infoDb);
 
     return LaunchCleanup {};
 }

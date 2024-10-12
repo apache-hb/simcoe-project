@@ -1,8 +1,8 @@
 #pragma once
 
-#include "logs/structured/detail.hpp"
+#include "logs/detail.hpp"
 
-namespace sm::logs::structured {
+namespace sm::logs {
     struct CategoryInfo {
         std::string_view name;
         uint64_t hash;

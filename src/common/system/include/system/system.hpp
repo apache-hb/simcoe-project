@@ -8,7 +8,7 @@
 #include "core/fs.hpp"
 #include "logs/logs.hpp" // IWYU pragma: export
 
-#include "logs/structured/logging.hpp"
+#include "logs/logging.hpp"
 
 #include "system.reflect.h" // IWYU pragma: export
 

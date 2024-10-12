@@ -3,12 +3,11 @@
 #include "core/map.hpp"
 #include "logs/logs.hpp"
 
-#include "logs/structured/logger.hpp"
+#include "logs/logger.hpp"
 
 namespace sm::ed {
-    namespace structured = logs::structured;
 
-    class LoggerPanel final : public logs::structured::ILogChannel {
+    class LoggerPanel final : public logs::ILogChannel {
 
         struct Message {
             logs::Severity severity;
@@ -20,13 +19,13 @@ namespace sm::ed {
 
         using LogMessages = std::vector<Message>;
 
-        sm::Map<const structured::CategoryInfo*, LogMessages> mMessages;
+        sm::Map<const logs::CategoryInfo*, LogMessages> mMessages;
 
-        void drawLogCategory(const structured::CategoryInfo& category) const;
+        void drawLogCategory(const logs::CategoryInfo& category) const;
 
         // structured::ILogChannel
         void attach() override { }
-        void postMessage(structured::MessagePacket packet) noexcept override;
+        void postMessage(logs::MessagePacket packet) noexcept override;
 
         LoggerPanel();
         ~LoggerPanel();

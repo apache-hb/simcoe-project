@@ -2,25 +2,25 @@
 
 #include "common.hpp"
 
-#include "logs/structured/logging.hpp"
-#include "logs/structured/channel.hpp"
-#include "logs/structured/channels.hpp"
+#include "logs/logging.hpp"
+#include "logs/channel.hpp"
+#include "logs/sinks/channels.hpp"
 
 #include "core/win32.hpp"
 
 namespace os = sm::os;
 namespace logs = sm::logs;
-namespace structured = sm::logs::structured;
+namespace sinks = sm::logs::sinks;
 
-class ConsoleChannel final : public structured::ILogChannel {
+class ConsoleChannel final : public logs::ILogChannel {
     char mBuffer[2048];
     os::Console mConsole = os::Console::get();
     std::mutex mMutex;
 
     void attach() override { }
 
-    void postMessage(structured::MessagePacket packet) noexcept override {
-        auto message = ""; // fmt::vformat(packet.message.message, packet.args);
+    void postMessage(logs::MessagePacket packet) noexcept override {
+        auto message = fmt::vformat(packet.message.message, packet.args.asDynamicArgStore());
 
         std::lock_guard guard(mMutex);
 
@@ -38,10 +38,10 @@ public:
     ConsoleChannel() noexcept = default;
 };
 
-bool structured::isConsoleAvailable() noexcept {
+bool sinks::isConsoleAvailable() noexcept {
     return !!GetConsoleCP();
 }
 
-structured::ILogChannel *sm::logs::structured::console() {
+logs::ILogChannel *sm::logs::sinks::console() {
     return new ConsoleChannel;
 }

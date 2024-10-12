@@ -2,8 +2,6 @@
 
 #include "db/connection.hpp"
 
-#include "logs/structured/channels.hpp"
-
 #include "net/net.hpp"
 
 #include "launch/launch.hpp"
@@ -29,26 +27,6 @@ static sm::opt<bool> gRunAsClient {
 
 static constexpr net::IPv4Address kAddress = net::IPv4Address::loopback();
 static constexpr uint16_t kPort = 9979;
-
-#if 0
-__attribute__((target("crc32")))
-static uint32_t crc32(const std::byte *data, size_t size) {
-    uint32_t crc = 0;
-    while (size > sizeof(uint64_t)) {
-        crc = _mm_crc32_u64(crc, *reinterpret_cast<const uint64_t *>(data));
-        data += sizeof(uint64_t);
-        size -= sizeof(uint64_t);
-    }
-
-    while (size >= sizeof(uint8_t)) {
-        crc = _mm_crc32_u8(crc, *reinterpret_cast<const uint8_t *>(data));
-        data += sizeof(uint8_t);
-        size -= sizeof(uint8_t);
-    }
-
-    return crc;
-}
-#endif
 
 static int clientMain() noexcept try {
     net::Network network = net::Network::create();

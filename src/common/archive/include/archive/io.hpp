@@ -7,7 +7,7 @@
 
 #include "core/memory/unique.hpp"
 
-#include "logs/structured/logging.hpp"
+#include "logs/logging.hpp"
 
 #include "io.reflect.h"
 

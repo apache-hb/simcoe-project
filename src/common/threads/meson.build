@@ -11,13 +11,13 @@ src = [
 
 libthreads_meta = library('threads-meta', src,
     include_directories : threads_include,
-    dependencies : [ core, meta, structured_logs, db ],
+    dependencies : [ core, meta, logs, db ],
 )
 
 threads_meta = declare_dependency(
     link_with : libthreads_meta,
     include_directories : [ threads_include, libthreads_meta.private_dir_include() ],
-    dependencies : [ core, meta, structured_logs, db ],
+    dependencies : [ core, meta, logs, db ],
 )
 
 ###
@@ -37,7 +37,7 @@ src = [
     'src/backends/default.cpp',
 ]
 
-deps = [ core, config, logs, structured_logs, system, threads_meta ]
+deps = [ core, config, logs, logs, system, threads_meta ]
 
 libthreads = library('threads', src,
     cpp_args : [ '-DSM_THREADS_BUILD=1' ],

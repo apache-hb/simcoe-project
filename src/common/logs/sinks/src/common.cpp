@@ -33,17 +33,17 @@ static constexpr TimeUnits getTimeUnits(uint32_t timestamp) {
     };
 }
 
-static size_t buildMessageInner(sm::Span<char> buffer, uint32_t timestamp, const structured::MessageInfo& message, const char *colour, const char *reset) {
+static size_t buildMessageInner(sm::Span<char> buffer, uint32_t timestamp, const logs::MessageInfo& message, const char *colour, const char *reset) {
     auto [h, m, s, ms] = getTimeUnits(timestamp);
 
     return fmt::format_to_n(buffer.data(), buffer.size(), "{}[{}]{}[{:02}:{:02}:{:02}.{:03}] {}:", colour, message.level, reset, h, m, s, ms, message.category.name).size;
 }
 
-size_t logs::detail::buildMessageHeader(sm::Span<char> buffer, uint32_t timestamp, const structured::MessageInfo& message) noexcept {
+size_t logs::detail::buildMessageHeader(sm::Span<char> buffer, uint32_t timestamp, const logs::MessageInfo& message) noexcept {
     return buildMessageInner(buffer, timestamp, message, "", "");
 }
 
-size_t logs::detail::buildMessageHeaderWithColour(sm::Span<char> buffer, uint32_t timestamp, const structured::MessageInfo& message, const colour_pallete_t& pallete) noexcept {
+size_t logs::detail::buildMessageHeaderWithColour(sm::Span<char> buffer, uint32_t timestamp, const logs::MessageInfo& message, const colour_pallete_t& pallete) noexcept {
     const char *colour = colour_get(&pallete, getSeverityColour(message.level));
     const char *reset = colour_reset(&pallete);
 

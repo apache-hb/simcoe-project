@@ -1,21 +1,22 @@
 #include "stdafx.hpp"
 
-#include "logs/structured/logger.hpp"
-#include "logs/structured/channels.hpp"
+#include "logs/logger.hpp"
+#include "logs/sinks/channels.hpp"
 
-namespace structured = sm::logs::structured;
+namespace logs = sm::logs;
+namespace sinks = sm::logs::sinks;
 
 template<typename T>
 void addChannel(T *channel) {
-    std::unique_ptr<structured::ILogChannel> ptr{channel};
-    structured::Logger::instance().addChannel(std::move(ptr));
+    std::unique_ptr<logs::ILogChannel> ptr{channel};
+    logs::Logger::instance().addChannel(std::move(ptr));
 }
 
-void structured::create(db::Connection connection) {
+void sinks::create(db::Connection connection) {
     addDatabaseChannel(std::move(connection));
 }
 
-bool structured::addConsoleChannel() {
+bool sinks::addConsoleChannel() {
     if (!isConsoleAvailable())
         return false;
 
@@ -23,7 +24,7 @@ bool structured::addConsoleChannel() {
     return true;
 }
 
-bool structured::addDebugChannel() {
+bool sinks::addDebugChannel() {
     return false;
 #if 0
     if (!isDebugConsoleAvailable())
@@ -34,17 +35,17 @@ bool structured::addDebugChannel() {
 #endif
 }
 
-bool structured::addFileChannel(const fs::path& path) {
+bool sinks::addFileChannel(const fs::path& path) {
     addChannel(file(path));
     return true;
 }
 
-bool structured::addDatabaseChannel(db::Connection connection) {
-    std::unique_ptr<structured::IAsyncLogChannel> ptr{database(std::move(connection))};
-    structured::Logger::instance().setAsyncChannel(std::move(ptr));
+bool sinks::addDatabaseChannel(db::Connection connection) {
+    std::unique_ptr<logs::IAsyncLogChannel> ptr{database(std::move(connection))};
+    logs::Logger::instance().setAsyncChannel(std::move(ptr));
     return true;
 }
 
-void structured::destroy(void) noexcept {
-    structured::Logger::instance().destroy();
+void sinks::destroy(void) noexcept {
+    logs::Logger::instance().destroy();
 }

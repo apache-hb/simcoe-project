@@ -1,11 +1,11 @@
 #pragma once
 
 #include "core/span.hpp"
-#include "logs/structured/message.hpp"
+#include "logs/message.hpp"
 
 namespace sm::logs::detail {
-    CT_LOCAL size_t buildMessageHeader(sm::Span<char> buffer, uint32_t timestamp, const structured::MessageInfo& message) noexcept;
-    CT_LOCAL size_t buildMessageHeaderWithColour(sm::Span<char> buffer, uint32_t timestamp, const structured::MessageInfo& message, const colour_pallete_t& pallete) noexcept;
+    CT_LOCAL size_t buildMessageHeader(sm::Span<char> buffer, uint32_t timestamp, const logs::MessageInfo& message) noexcept;
+    CT_LOCAL size_t buildMessageHeaderWithColour(sm::Span<char> buffer, uint32_t timestamp, const logs::MessageInfo& message, const colour_pallete_t& pallete) noexcept;
 
     void splitMessage(std::string_view message, auto fn) noexcept {
         size_t start = 0;

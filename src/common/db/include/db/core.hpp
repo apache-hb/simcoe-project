@@ -8,7 +8,7 @@
 #include <string>
 #include <chrono>
 
-#include "logs/structured/logging.hpp"
+#include "logs/logging.hpp"
 
 #include "core.meta.hpp"
 

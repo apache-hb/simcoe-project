@@ -3,13 +3,15 @@
 #include <span>
 #include <string_view>
 #include <charconv>
+#include <array>
 
 #include "fmtlib/format.h"
 #include "fmt/base.h"
 #include "fmt/compile.h"
 #include "fmt/args.h"
+#include "fmt/std.h"
 
-namespace sm::logs::structured {
+namespace sm::logs {
     template<int N> requires (N >= 0)
     struct NumberToString {
         static constexpr size_t kBufferSize = (N / 10) + 1;
@@ -32,6 +34,7 @@ namespace sm::logs::structured {
     class DynamicArgStore {
         virtual FormatArg getArg(int index) const noexcept = 0;
         virtual FormatArg getArg(std::string_view name) const noexcept = 0;
+        virtual ArgStore buildArgStore() const = 0;
     public:
         virtual ~DynamicArgStore() = default;
 
@@ -41,6 +44,10 @@ namespace sm::logs::structured {
 
         FormatArg get(std::string_view name) const noexcept {
             return getArg(name);
+        }
+
+        ArgStore asDynamicArgStore() const {
+            return buildArgStore();
         }
     };
 
@@ -56,11 +63,55 @@ namespace sm::logs::structured {
     }
 
     template<typename... A>
+    constexpr int kNamedArgCount = 0;
+
+    template<typename... A> requires (sizeof...(A) > 0)
+    constexpr int kNamedArgCount<A...> = ((int)isNamedArg<A>() + ...);
+
+    namespace detail {
+        // c++ has some strange type rules around lvalue references to arrays
+        // std::is_array_v doesnt handle them in the way i want, so i do it
+        // manually here. note the T(&)[] cases
+        template<typename>
+        constexpr bool IsArray = false;
+
+        template<typename T, size_t N>
+        constexpr bool IsArray<T[N]> = true;
+
+        template<typename T, size_t N>
+        constexpr bool IsArray<T(&)[N]> = true;
+
+        template<typename T>
+        constexpr bool IsArray<T[]> = true;
+
+        template<typename T>
+        constexpr bool IsArray<T(&)[]> = true;
+
+        template<typename T>
+        struct ArgData : std::remove_cvref<T> { };
+
+        // while this does not cover all array cases, i only
+        // use char[] as arrays, so string covers all usecases.
+        // more specializations can be added as needed.
+        template<typename T> requires (IsArray<T>)
+        struct ArgData<T> {
+            using type = std::string;
+        };
+
+        template<typename T>
+        using ArgDataT = typename ArgData<T>::type;
+    }
+
+    template<typename... A>
+    using ArgTuple = std::tuple<detail::ArgDataT<A>...>;
+
+    template<typename... A>
     class ArgStoreData final : public DynamicArgStore {
-        std::tuple<A...> args;
+        using InnerData = ArgTuple<A...>;
+        InnerData args;
 
         template<size_t N>
-        using ArgType = std::tuple_element_t<N, std::tuple<A...>>;
+        using ArgType = std::tuple_element_t<N, InnerData>;
 
         template<size_t N = 0>
         FormatArg getArgByIndex(int index) const noexcept {
@@ -98,8 +149,19 @@ namespace sm::logs::structured {
             return getArgByName(name);
         }
 
+        ArgStore buildArgStore() const override {
+            constexpr int kNamedCount = kNamedArgCount<A...>;
+
+            ArgStore store;
+            store.reserve(sizeof...(A) - kNamedCount, kNamedCount);
+            std::apply([&store](const auto&... args) {
+                (store.push_back(args), ...);
+            }, args);
+            return store;
+        }
+
     public:
-        ArgStoreData(A... args) noexcept
+        ArgStoreData(A&&... args) noexcept
             : args(args...)
         { }
     };
@@ -268,6 +330,6 @@ namespace sm::logs::structured {
 
 #define BUILD_MESSAGE_ATTRIBUTES_IMPL(message, ...) \
     []() constexpr { \
-        using Wrapper = decltype(sm::logs::structured::compileTupleArgs(__VA_ARGS__)); \
+        using Wrapper = decltype(sm::logs::compileTupleArgs(__VA_ARGS__)); \
         return (Wrapper{})(FMT_COMPILE(message)); \
     }()

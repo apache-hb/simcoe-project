@@ -2,20 +2,21 @@
 
 #include "common.hpp"
 
-#include "logs/structured/channels.hpp"
-#include "logs/structured/logging.hpp"
-#include "logs/structured/message.hpp"
+#include "logs/sinks/channels.hpp"
+#include "logs/logging.hpp"
+#include "logs/message.hpp"
 
-using namespace sm;
-namespace structured = sm::logs::structured;
+namespace os = sm::os;
+namespace logs = sm::logs;
+namespace sinks = sm::logs::sinks;
 
-class DebugChannel final : public structured::ILogChannel {
+class DebugChannel final : public logs::ILogChannel {
     char mBuffer[2048];
     std::mutex mMutex;
 
     void attach() override { }
 
-    void postMessage(structured::MessagePacket packet) noexcept override {
+    void postMessage(logs::MessagePacket packet) noexcept override {
         auto message = ""; // fmt::vformat(packet.message.message, packet.args);
 
         std::lock_guard guard(mMutex);
@@ -31,10 +32,10 @@ class DebugChannel final : public structured::ILogChannel {
     }
 };
 
-bool structured::isDebugConsoleAvailable() noexcept {
+bool sinks::isDebugConsoleAvailable() noexcept {
     return os::isDebuggerAttached();
 }
 
-structured::ILogChannel *structured::debugConsole() {
+logs::ILogChannel *sinks::debugConsole() {
     return new DebugChannel;
 }

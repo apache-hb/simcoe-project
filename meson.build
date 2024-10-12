@@ -191,11 +191,8 @@ subdir('src/meta')
 subdir('src/vendor/reflect')
 subdir('src/common/core')
 
-# simple file/console logging
-subdir('src/common/logs/base')
-
 # structured logging
-subdir('src/common/logs/structured')
+subdir('src/common/logs/logs')
 
 subdir('src/common/db')
 

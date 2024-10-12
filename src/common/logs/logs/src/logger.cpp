@@ -1,14 +1,14 @@
 #include "stdafx.hpp"
 
-#include "logs/structured/logger.hpp"
+#include "logs/logger.hpp"
 
 #include "timer.hpp"
 
-namespace structured = sm::logs::structured;
-namespace detail = sm::logs::structured::detail;
+namespace logs = sm::logs;
+namespace detail = sm::logs::detail;
 namespace chrono = std::chrono;
 
-using MessageInfo = sm::logs::structured::MessageInfo;
+using MessageInfo = sm::logs::MessageInfo;
 
 using SystemTimePoint = chrono::system_clock::time_point;
 using PreciseTimePoint = chrono::high_resolution_clock::time_point;
@@ -56,7 +56,7 @@ static detail::HighResolutionSource gHighResolutionSource;
 static detail::InvariantTscSource gInvariantTscSource;
 static detail::ITimeSource *gTimeSource = &gHighResolutionSource;
 
-void structured::create(LoggingConfig config) {
+void logs::create(LoggingConfig config) {
     // if invariant TSC is available, use it
     if (config.timer == TimerSource::eAutoDetect && hasInvariantTsc())
         config.timer = TimerSource::eInvariantTsc;
@@ -68,21 +68,21 @@ void structured::create(LoggingConfig config) {
     }
 }
 
-void structured::Logger::addChannel(std::unique_ptr<ILogChannel>&& channel) {
+void logs::Logger::addChannel(std::unique_ptr<ILogChannel>&& channel) {
     channel->attach();
     mChannels.emplace_back(std::move(channel));
 }
 
-void structured::Logger::setAsyncChannel(std::unique_ptr<IAsyncLogChannel>&& channel) {
+void logs::Logger::setAsyncChannel(std::unique_ptr<IAsyncLogChannel>&& channel) {
     channel->attach();
     mAsyncChannel = std::move(channel);
 }
 
-void structured::Logger::destroy() noexcept {
+void logs::Logger::destroy() noexcept {
     mChannels.clear();
 }
 
-void structured::Logger::postMessage(const MessageInfo& message, std::unique_ptr<DynamicArgStore> args) noexcept {
+void logs::Logger::postMessage(const MessageInfo& message, std::unique_ptr<DynamicArgStore> args) noexcept {
     uint64_t timestamp = getCurrentTime(*gTimeSource).count();
 
     for (auto& channel : mChannels) {
@@ -105,7 +105,7 @@ void structured::Logger::postMessage(const MessageInfo& message, std::unique_ptr
     mAsyncChannel->postMessageAsync(std::move(packet));
 }
 
-structured::Logger& structured::Logger::instance() noexcept {
+logs::Logger& logs::Logger::instance() noexcept {
     static Logger sInstance;
     return sInstance;
 }

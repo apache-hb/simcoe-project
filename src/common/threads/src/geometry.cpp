@@ -220,6 +220,7 @@ struct ProcessorLayout {
     std::vector<threads::NumaNode> numaNodes;
     std::vector<threads::ProcessorModule> modules;
 
+#if 0
     void addCoreInfo(const PROCESSOR_RELATIONSHIP &info) noexcept {
         LOG_INFO(ThreadLog, "Core: {:064b} {} {}", info.Flags, info.EfficiencyClass, info.GroupCount);
         for (WORD i = 0; i < info.GroupCount; i++) {
@@ -281,12 +282,14 @@ struct ProcessorLayout {
         LOG_INFO(ThreadLog, "  Parked={}, Allocated={}, AllocatedToTargetProcess={}, RealTime={}", cpuSet.Parked, cpuSet.Allocated, cpuSet.AllocatedToTargetProcess, cpuSet.RealTime);
         LOG_INFO(ThreadLog, "  SchedulingClass={}, AllocationTag={}", cpuSet.SchedulingClass, cpuSet.AllocationTag);
     }
+#endif
 };
 }
 
 threads::ICpuGeometry *detail::buildCpuGeometry(const CpuInfoLibrary& library) {
     ProcessorLayout processorLayout{};
 
+#if 0
     if (auto maybeCpuSetInfo = CpuSetInfo::create(library.pfnGetSystemCpuSetInformation)) {
         CpuSetInfo cpusetInfo = std::move(*maybeCpuSetInfo);
 
@@ -338,6 +341,7 @@ threads::ICpuGeometry *detail::buildCpuGeometry(const CpuInfoLibrary& library) {
 
         return nullptr;
     }
+#endif
 
     return nullptr;
 }

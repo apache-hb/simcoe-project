@@ -2,9 +2,9 @@
 
 #include "common.hpp"
 
-#include "logs/structured/channel.hpp"
-#include "logs/structured/logging.hpp"
-#include "logs/structured/channels.hpp"
+#include "logs/channel.hpp"
+#include "logs/logging.hpp"
+#include "logs/sinks/channels.hpp"
 
 #include "core/fs.hpp"
 
@@ -13,9 +13,8 @@
 namespace fs = sm::fs;
 namespace os = sm::os;
 namespace logs = sm::logs;
-namespace structured = sm::logs::structured;
 
-class FileChannel final : public structured::ILogChannel {
+class FileChannel final : public logs::ILogChannel {
     char mBuffer[2048];
 
     std::ofstream mStream;
@@ -27,7 +26,7 @@ class FileChannel final : public structured::ILogChannel {
         mStream.close();
     }
 
-    void postMessage(structured::MessagePacket packet) noexcept override {
+    void postMessage(logs::MessagePacket packet) noexcept override {
         auto message = ""; // fmt::vformat(packet.message.message, packet.args);
 
         std::lock_guard guard(mMutex);
@@ -48,6 +47,6 @@ public:
     { }
 };
 
-structured::ILogChannel *sm::logs::structured::file(const fs::path& path) {
+logs::ILogChannel *sm::logs::sinks::file(const fs::path& path) {
     return new FileChannel(path);
 }
