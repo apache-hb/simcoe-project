@@ -352,3 +352,11 @@ std::string oracle::setupTruncate(std::string_view name) {
 std::string oracle::setupTableExists() {
     return "SELECT COUNT(*) FROM user_tables WHERE table_name = UPPER(:name)";
 }
+
+std::string oracle::setupCommentOnTable(std::string_view name, std::string_view comment) {
+    return fmt::format("COMMENT ON TABLE {} IS q'[{}]'", name, fmt::join(detail::splitComment(comment), "\n"));
+}
+
+std::string oracle::setupCommentOnColumn(std::string_view table, std::string_view column, std::string_view comment) {
+    return fmt::format("COMMENT ON COLUMN {}.{} IS q'[{}]'", table, column, fmt::join(detail::splitComment(comment), "\n"));
+}

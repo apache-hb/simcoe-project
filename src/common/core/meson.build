@@ -56,14 +56,22 @@ testargs = [ '--reporter=TAP', '--allow-running-no-tests' ]
 testkwargs = { 'protocol' : 'tap', 'args' : testargs, 'timeout': 5 }
 benchkwargs = { 'timeout': 60 }
 
-coretest = declare_dependency(
-    include_directories : '.',
+deps = [ core, catch2 ]
+
+libtest = library('test-core', 'test/common.cpp',
+    include_directories : [ core_include ],
     dependencies : [
-        catch2,
+        deps,
         cthulhu.get_variable('backtrace'),
         cthulhu.get_variable('format_core'),
         cthulhu.get_variable('io'),
     ]
+)
+
+coretest = declare_dependency(
+    include_directories : '.',
+    link_with : libtest,
+    dependencies : deps
 )
 
 testcases = {

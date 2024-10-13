@@ -15,6 +15,7 @@ namespace sm::logs {
     };
 
     void create(LoggingConfig config = {});
+    uint64_t getCurrentTime() noexcept;
 
     class Logger {
         std::vector<std::unique_ptr<ILogChannel>> mChannels;

@@ -73,13 +73,21 @@ namespace sm::db::detail {
             throw DbException{DbError::todoFn()};
         }
 
-        /** Tables */
+        /** Create */
 
         virtual std::string setupTableExists() throws(DbException) {
             throw DbException{DbError::todoFn()};
         }
 
         virtual std::string setupCreateTable(const dao::TableInfo& table) throws(DbException) {
+            throw DbException{DbError::todoFn()};
+        }
+
+        virtual std::string setupCommentOnTable(std::string_view table, std::string_view comment) throws(DbException) {
+            throw DbException{DbError::todoFn()};
+        }
+
+        virtual std::string setupCommentOnColumn(std::string_view table, std::string_view column, std::string_view comment) throws(DbException) {
             throw DbException{DbError::todoFn()};
         }
 
@@ -95,6 +103,10 @@ namespace sm::db::detail {
 
         virtual DataType dateTimeEquivalentType() const noexcept {
             return DataType::eDateTime;
+        }
+
+        virtual bool hasCommentOn() const noexcept {
+            return false;
         }
     };
 
@@ -276,4 +288,7 @@ namespace sm::db::detail {
     DbError getOracleEnv(IEnvironment **env, const EnvConfig& config) noexcept;
     DbError getMsSqlEnv(IEnvironment **env) noexcept;
     DbError getDb2Env(IEnvironment **env) noexcept;
+
+    // removes any empty lines and trims whitespace
+    std::vector<std::string_view> splitComment(std::string_view comment);
 }

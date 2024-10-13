@@ -1,3 +1,4 @@
+#include "core/string.hpp"
 #include "stdafx.hpp"
 
 #include "common.hpp"
@@ -80,4 +81,27 @@ DbError IStatement::findColumnIndex(std::string_view name, int& index) const noe
 
 DbError IStatement::findBindIndex(std::string_view name, int& index) const noexcept {
     return getBindIndex(name, index);
+}
+
+static bool isWhitespace(std::string_view str) noexcept {
+    for (char c : str) {
+        if (!std::isspace(c))
+            return false;
+    }
+
+    return true;
+}
+
+std::vector<std::string_view> detail::splitComment(std::string_view comment) {
+    std::vector<std::string_view> result;
+
+    for (auto lines : sm::splitAll(comment, '\n')) {
+        if (isWhitespace(lines))
+            continue;
+
+        trimWhitespaceFromView(lines);
+        result.push_back(lines);
+    }
+
+    return result;
 }

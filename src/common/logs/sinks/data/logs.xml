@@ -1,37 +1,83 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <root name="logs">
-    <table name="log_severity" primaryKey="severity">
-        <column name="name" type="text" length="255">
+    <table name="log_severity"
+           primaryKey="severity"
+           comment="
+           Log severity levels. Severity is ordered on the `severity` column&#xA;
+           from lowest to highest. The `name` column is a human-readable&#xA;
+           representation of the severity level.
+           ">
+
+        <column name="name" type="text" length="255"
+                comment="Human readable severity name">
             <unique />
         </column>
 
-        <column name="severity" type="uint" />
+        <column name="severity" type="uint"
+                comment="Severity of an event" />
     </table>
 
-    <table name="log_category" primaryKey="hash">
-        <column name="hash" type="ulong" />
+    <table name="log_category"
+           primaryKey="hash"
+           comment="
+           The category of a log message. The `name` column is a human-readable&#xA;
+           representation of the category. The `hash` column is a unique identifier&#xA;
+           for the category. These categories are used to filter log messages, and&#xA;
+           identify the source of a log message.
+           ">
+        <column name="hash" type="ulong"
+                comment="A hash of the name, used to save space when creating foreign keys." />
 
-        <column name="name" type="text" length="255">
+        <column name="name" type="text" length="255" comment="The name of the category.">
             <unique />
         </column>
     </table>
 
-    <table name="log_message" primaryKey="hash">
-        <column name="hash" type="ulong" />
+    <table name="log_message"
+            primaryKey="hash"
+            comment="
+            A structured log message template. Stores a message template&#xA;
+            along with the metadata required to locate the source of the message.
+            ">
+        <column name="hash" type="ulong"
+                comment="A unique hash of the log message" />
 
-        <column name="message"  type="text" length="1024" nullable="true" />
+        <column name="message"
+                type="text" length="1024" nullable="true"
+                comment="
+                The body of the message, NULL when built for release to reduce&#xA;
+                the size of the message table, improve startup time, and prevent&#xA;
+                leaking of implementation details.
+                " />
 
-        <column name="severity" type="uint">
+        <column name="severity" type="uint" comment="The severity this message carries.">
             <constraint references="log_severity.severity" />
         </column>
 
-        <column name="category" type="ulong">
+        <column name="category" type="ulong" comment="Which category this message is associated with.">
             <constraint references="log_category.hash" />
         </column>
 
-        <column name="path"     type="text" length="1024" />
-        <column name="line"     type="uint"               />
-        <column name="function" type="text" length="3072" />
+        <column name="path"
+                type="text" length="1024" nullable="true"
+                comment="
+                Path to the souce file this message was declared at.&#xA;
+                NULL when built for release for the same reasons as `message`.
+                " />
+
+        <column name="line"
+                type="uint" nullable="true"
+                comment="
+                The line in `path` that this message was declared at.&#xA;
+                NULL when built for release for the same reasons as `message`.
+                " />
+
+        <column name="function"
+                type="text" length="3072" nullable="true"
+                comment="
+                The possibly mangled name of the function this log message was declared in.&#xA;
+                NULL when built for release for the same reasons as `message`.
+                " />
 
         <unique>
             <column>message</column>
@@ -41,10 +87,17 @@
         </unique>
     </table>
 
-    <table name="log_message_attribute">
-        <column name="key" type="text" length="31" />
+    <table name="log_message_attribute"
+            comment="
+            Attribute information derived from a message.&#xA;
+            Used for associating runtime data with log messages.
+            ">
 
-        <column name="message_hash" type="ulong">
+        <column name="key" type="text" length="31"
+                comment="The name of this attribute." />
+
+        <column name="message_hash" type="ulong"
+                comment="The message this attribute is associated with.">
             <constraint references="log_message.hash" />
         </column>
 
@@ -54,26 +107,41 @@
         </unique>
     </table>
 
-    <table name="log_session" primaryKey="start">
+    <table name="log_session" primaryKey="start"
+           comment="Marks the start of a log session.">
         <column name="start_time" type="ulong" />
     </table>
 
-    <table name="log_entry" syntheticPrimaryKey="ulong">
-        <column name="timestamp" type="ulong" />
+    <table name="log_entry" syntheticPrimaryKey="ulong"
+           comment="
+           A log entry recorded during execution, contains all information&#xA;
+           required to reconstruct a complete log.
+           ">
+        <column name="timestamp" type="ulong"
+                comment="
+                Timestamp stored in ms since unix epoch. It was decided to store&#xA;
+                this as an integer to increase performance and reduce storage size.
+                " />
 
-        <column name="message_hash" type="ulong">
+        <column name="message_hash" type="ulong"
+                comment="The log message this entry was generated from.">
             <constraint references="log_message.hash" />
         </column>
     </table>
 
-    <table name="log_entry_attribute">
-        <column name="entry_id" type="ulong">
+    <table name="log_entry_attribute"
+           comment="Runtime data associated with a log entry.">
+
+        <column name="entry_id" type="ulong"
+                comment="The entry this attribute is associated with.">
             <constraint references="log_entry.id" />
         </column>
 
-        <column name="key" type="text" length="31" />
+        <column name="key" type="text" length="31"
+                comment="The attribute on the entry that this contains a value for." />
 
-        <column name="value" type="text" length="2048" />
+        <column name="value" type="text" length="2048"
+                comment="The value of this attribute." />
 
         <unique>
             <column>entry_id</column>

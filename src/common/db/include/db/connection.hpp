@@ -217,11 +217,10 @@ namespace sm::db {
         [[nodiscard]]
         bool autoCommit() const noexcept { return mAutoCommit; }
 
-        DbError tryCreateTable(const dao::TableInfo& table) noexcept;
-
-        void createTable(const dao::TableInfo& table) throws(DbException) {
-            tryCreateTable(table).throwIfFailed();
-        }
+        /// @brief create a table
+        /// @param table table to create
+        /// @return true if the table was created, false if it already exists
+        bool createTable(const dao::TableInfo& table) throws(DbException);
 
         DbError tryDropTable(const dao::TableInfo& table) noexcept;
 

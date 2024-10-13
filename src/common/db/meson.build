@@ -157,6 +157,17 @@ daocc = generator(daocc_exe,
 ### tests
 ###
 
+libdbtest = library('dbtest', 'test/db_test_common.cpp',
+    include_directories : 'test',
+    dependencies : [ coretest, db ]
+)
+
+dbtest = declare_dependency(
+    link_with : libdbtest,
+    include_directories : '.',
+    dependencies : [ coretest, db ]
+)
+
 tests = {
     'sqlite3': 'test/db/sqlite.cpp',
     'Oracle DB': 'test/db/orcl.cpp',
@@ -167,10 +178,10 @@ tests = {
 foreach name, source : tests
     exe = executable('test-db-' + name.to_lower().replace(' ', '-'), source,
         include_directories : 'test',
-        dependencies : [ db, coretest ]
+        dependencies : [ db, dbtest ]
     )
 
-    test(name + ' DB', exe,
+    test(name, exe,
         suite : 'db',
         kwargs : testkwargs
     )

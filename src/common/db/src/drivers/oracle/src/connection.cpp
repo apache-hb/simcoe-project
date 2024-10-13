@@ -121,6 +121,14 @@ std::string OraConnection::setupCreateTable(const dao::TableInfo& table) noexcep
     return oracle::setupCreateTable(table, hasBoolType());
 }
 
+std::string OraConnection::setupCommentOnTable(std::string_view table, std::string_view comment) noexcept(false) {
+    return oracle::setupCommentOnTable(table, comment);
+}
+
+std::string OraConnection::setupCommentOnColumn(std::string_view table, std::string_view column, std::string_view comment) noexcept(false) {
+    return oracle::setupCommentOnColumn(table, column, comment);
+}
+
 DbError OraConnection::clientVersion(Version& version) const noexcept {
     version = getClientVersion();
     return DbError::ok();

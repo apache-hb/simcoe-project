@@ -128,13 +128,13 @@ namespace sm::db {
         REFLECT_BODY(ConnectionConfig)
 
         // connection string, if set will override other connection parameters
-        std::string_view connection;
+        std::string connection;
 
         uint16 port;
-        std::string_view host;
-        std::string_view user;
-        std::string_view password;
-        std::string_view database;
+        std::string host;
+        std::string user;
+        std::string password;
+        std::string database;
 
         std::chrono::seconds timeout{5};
 

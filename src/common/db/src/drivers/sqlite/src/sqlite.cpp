@@ -63,20 +63,14 @@ static std::string_view makeSqlType(const dao::ColumnInfo& info) noexcept {
 }
 
 static void sqlTableComment(std::ostream& os, std::string_view comment) {
-    for (std::string_view part : sm::splitAll(comment, '\n')) {
-        std::string line{part};
-        sm::trimWhitespace(line);
-        if (!line.empty())
-            os << "-- " << line << "\n";
+    for (std::string_view part : detail::splitComment(comment)) {
+        os << "-- " << part << "\n";
     }
 }
 
 static void sqlColumnComment(std::ostream& os, std::string_view comment) {
-    for (std::string_view part : sm::splitAll(comment, '\n')) {
-        std::string line{part};
-        sm::trimWhitespace(line);
-        if (!line.empty())
-            os << "\t-- " << line << "\n";
+    for (std::string_view part : detail::splitComment(comment)) {
+        os << "\t-- " << part << "\n";
     }
 }
 

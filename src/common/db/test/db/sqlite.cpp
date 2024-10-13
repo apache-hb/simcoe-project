@@ -1,16 +1,12 @@
-#include "orm_test_common.hpp"
+#include "db_test_common.hpp"
 #include <filesystem>
-
-static constexpr ConnectionConfig kConfig = {
-    .host = "testdb.db"
-};
 
 TEST_CASE("sqlite updates") {
     REQUIRE(Environment::isSupported(DbType::eSqlite3));
 
     auto env = Environment::create(DbType::eSqlite3);
 
-    auto conn = env.connect(kConfig);
+    auto conn = env.connect(makeSqliteTestDb("testdb"));
 
     if (conn.tableExists("test").value_or(false))
         checkError(conn.tryUpdateSql("DROP TABLE test"));
@@ -139,19 +135,16 @@ TEST_CASE("sqlite connection creation") {
         LockingMode::eExclusive
     };
 
-    std::filesystem::create_directory("sqlite_test");
-
     // ensure all permutations of journal, synchronous, and locking modes can be connected to
     for (JournalMode journalMode : kJournalModes) {
         for (Synchronous synchronous : kSynchronousModes) {
             for (LockingMode lockingMode : kLockingModes) {
-                std::string name = fmt::format("sqlite_test/test-{}-{}-{}.db", toString(journalMode), toString(synchronous), toString(lockingMode));
-                ConnectionConfig config = {
-                    .host = name,
+                std::string name = fmt::format("sqlite/test-{}-{}-{}.db", toString(journalMode), toString(synchronous), toString(lockingMode));
+                ConnectionConfig config = makeSqliteTestDb(name, {
                     .journalMode = journalMode,
                     .synchronous = synchronous,
                     .lockingMode = lockingMode
-                };
+                });
 
                 getValue(env.tryConnect(config), fmt::format("{}, {}, {}", toString(journalMode), toString(synchronous), toString(lockingMode)));
             }

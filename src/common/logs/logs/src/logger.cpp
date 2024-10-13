@@ -68,6 +68,10 @@ void logs::create(LoggingConfig config) {
     }
 }
 
+uint64_t logs::getCurrentTime() noexcept {
+    return getCurrentTime(*gTimeSource).count();
+}
+
 void logs::Logger::addChannel(std::unique_ptr<ILogChannel>&& channel) {
     channel->attach();
     mChannels.emplace_back(std::move(channel));
@@ -83,7 +87,7 @@ void logs::Logger::destroy() noexcept {
 }
 
 void logs::Logger::postMessage(const MessageInfo& message, std::unique_ptr<DynamicArgStore> args) noexcept {
-    uint64_t timestamp = getCurrentTime(*gTimeSource).count();
+    uint64_t timestamp = logs::getCurrentTime();
 
     for (auto& channel : mChannels) {
         MessagePacket packet = {

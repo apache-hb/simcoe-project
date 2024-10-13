@@ -1,3 +1,5 @@
+#pragma once
+
 #include "test/common.hpp"
 
 // IWYU pragma: begin_exports
@@ -29,14 +31,7 @@ static constexpr ConnectionConfig kPostgresConfig = {
     .autoCommit = true,
 };
 
-void checkError(const DbError& err) {
-    if (!err.isSuccess()) {
-        for (const auto& frame : err.stacktrace()) {
-            fmt::println(stderr, "[{}:{}] {}", frame.source_file(), frame.source_line(), frame.description());
-        }
-        FAIL(err.message() << " (" << err.code() << ")");
-    }
-}
+void checkError(const DbError& err);
 
 template<typename T>
 auto getValue(DbResult<T> result, std::string_view msg = "") {
@@ -48,3 +43,5 @@ auto getValue(DbResult<T> result, std::string_view msg = "") {
     checkError(result.error());
     throw std::runtime_error("unexpected error");
 }
+
+ConnectionConfig makeSqliteTestDb(const std::string& name, const ConnectionConfig& extra = {});

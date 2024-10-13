@@ -1,5 +1,6 @@
 #include "stdafx.hpp"
 
+#include "logs/logger.hpp"
 #include "logs/logging.hpp"
 #include "logs/message.hpp"
 
@@ -21,11 +22,6 @@ struct LogEntryPacket {
     const logs::MessageInfo *message;
     std::unique_ptr<logs::DynamicArgStore> args;
 };
-
-static uint64_t getTimestamp() noexcept {
-    auto now = std::chrono::system_clock::now();
-    return uint64_t(now.time_since_epoch().count());
-}
 
 static constexpr auto kLogSeverityOptions = std::to_array<sm::dao::logs::LogSeverity>({
     { "trace",   uint32_t(sm::logs::Severity::eTrace)   },
@@ -54,7 +50,7 @@ static void registerMessagesWithDb(
 
     db::Transaction tx(&connection);
     sm::dao::logs::LogSession session {
-        .startTime = getTimestamp(),
+        .startTime = logs::getCurrentTime()
     };
 
     auto insertSeverity = connection.prepareInsertOrUpdate<sm::dao::logs::LogSeverity>();

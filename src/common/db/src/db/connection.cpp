@@ -124,21 +124,29 @@ PreparedStatement Connection::prepareDropImpl(const dao::TableInfo& table) noexc
     return prepareUpdate(sql);
 }
 
-DbError Connection::tryCreateTable(const dao::TableInfo& table) noexcept {
+bool Connection::createTable(const dao::TableInfo& table) noexcept(false) {
     if (tableExists(table.name).value_or(false))
-        return DbError::ok();
+        return false;
 
-    std::string sql = mImpl->setupCreateTable(table);
-    if (DbError error = tryUpdateSql(sql))
-        return error;
+    updateSql(mImpl->setupCreateTable(table));
 
-    if (table.isSingleton()) {
-        std::string sql = mImpl->setupSingletonTrigger(table);
-        if (DbError error = tryUpdateSql(sql))
-            return error;
+    if (mImpl->hasCommentOn()) {
+        if (!table.comment.empty())
+            updateSql(mImpl->setupCommentOnTable(table.name, table.comment));
+
+        for (const auto& column : table.columns) {
+            if (column.comment.empty())
+                continue;
+
+            updateSql(mImpl->setupCommentOnColumn(table.name, column.name, column.comment));
+        }
     }
 
-    return DbError::ok();
+    if (table.isSingleton()) {
+        updateSql(mImpl->setupSingletonTrigger(table));
+    }
+
+    return true;
 }
 
 DbResult<ResultSet> Connection::trySelectSql(std::string_view sql) noexcept {

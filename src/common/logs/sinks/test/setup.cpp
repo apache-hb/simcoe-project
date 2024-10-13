@@ -1,4 +1,5 @@
 #include "test/common.hpp"
+#include "test/db_test_common.hpp"
 
 #include "logs/logger.hpp"
 
@@ -29,9 +30,7 @@ static constexpr db::DbType kType = db::DbType::eOracleDB;
 
 #else
 
-static constexpr db::ConnectionConfig kConfig = {
-    .host = "testlogs.db"
-};
+static const db::ConnectionConfig kConfig = makeSqliteTestDb("testlogs");
 
 static constexpr db::DbType kType = db::DbType::eSqlite3;
 

@@ -39,6 +39,10 @@ namespace sm::db::oracle {
 
         std::string setupCreateTable(const dao::TableInfo& table) noexcept(false) override;
 
+        std::string setupCommentOnTable(std::string_view table, std::string_view comment) noexcept(false) override;
+
+        std::string setupCommentOnColumn(std::string_view table, std::string_view column, std::string_view comment) noexcept(false) override;
+
         DbError clientVersion(Version& version) const noexcept override;
         DbError serverVersion(Version& version) const noexcept override;
 
@@ -46,6 +50,10 @@ namespace sm::db::oracle {
             // if boolean types arent available, we use a string of length 1
             // where '0' is false, and everything else is true (but we prefer '1')
             return hasBoolType() ? DataType::eBoolean : DataType::eString;
+        }
+
+        bool hasCommentOn() const noexcept override {
+            return true;
         }
 
     public:

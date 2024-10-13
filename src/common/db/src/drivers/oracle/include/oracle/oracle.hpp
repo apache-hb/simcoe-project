@@ -16,6 +16,8 @@ namespace sm::db::oracle {
     std::string setupInsertOrUpdate(const dao::TableInfo& info);
     std::string setupInsertReturningPrimaryKey(const dao::TableInfo& info);
     std::string setupCreateTable(const dao::TableInfo& info, bool hasBoolType);
+    std::string setupCommentOnTable(std::string_view name, std::string_view comment);
+    std::string setupCommentOnColumn(std::string_view table, std::string_view column, std::string_view comment);
     std::string setupSelect(const dao::TableInfo& info);
     std::string setupUpdate(const dao::TableInfo& info);
     std::string setupSingletonTrigger(std::string_view name);

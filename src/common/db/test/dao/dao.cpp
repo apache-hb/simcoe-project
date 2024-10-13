@@ -1,7 +1,7 @@
 #include <catch2/generators/catch_generators.hpp>
 #include <catch2/generators/catch_generators_adapters.hpp>
 #include <catch2/generators/catch_generators_range.hpp>
-#include "orm_test_common.hpp"
+#include "db_test_common.hpp"
 
 #include <thread>
 
@@ -19,7 +19,7 @@ struct TestCaseData {
     DbType type;
 };
 
-static constexpr TestCaseData kBackends[] = {
+static TestCaseData kBackends[] = {
     TestCaseData {
         .config = kOracleConfig,
         .type = DbType::eOracleDB
@@ -29,9 +29,7 @@ static constexpr TestCaseData kBackends[] = {
         .type = DbType::ePostgreSQL
     },
     TestCaseData {
-        .config = {
-            .host = "testdao.db"
-        },
+        .config = makeSqliteTestDb("testdao"),
         .type = DbType::eSqlite3
     }
 };

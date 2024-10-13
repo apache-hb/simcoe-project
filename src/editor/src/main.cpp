@@ -128,8 +128,10 @@ public:
     DefaultWindowEvents(db::Connection& connection)
         : mConnection(connection)
     {
-        if (db::DbError error = connection.tryCreateTable(sm::dao::archive::WindowPlacement::table())) {
-            LOG_WARN(GlobalLog, "update failed: {}", error);
+        try {
+            connection.createTable(sm::dao::archive::WindowPlacement::table());
+        } catch (const db::DbException& e) {
+            LOG_WARN(GlobalLog, "failed to create table: {}", e.error());
         }
     }
 

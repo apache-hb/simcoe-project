@@ -26,21 +26,41 @@ log_sinks = declare_dependency(
     dependencies : [ logs, db ]
 )
 
-exe = executable('test-logs-setup', 'test/setup.cpp',
-    include_directories : liblog_sinks.private_dir_include(),
-    dependencies : [ log_sinks, coretest, db ]
-)
+###
+### tests
+###
 
-test('Structured logs setup', exe,
-    suite : 'logs',
-    kwargs : testkwargs
-)
+testcases = {
+    'Structured logging database setup': 'test/setup.cpp',
+}
 
-exe = executable('benchmark-logs-setup', 'benchmark/setup.cpp',
-    dependencies : [ log_sinks, coretest ]
-)
+foreach name, sources : testcases
+    exe = executable('test-logs-' + name.to_lower().replace(' ', '-'), sources,
+        dependencies : [ log_sinks, dbtest ]
+    )
 
-benchmark('Structured logs messages', exe,
-    suite : 'logs',
-    kwargs : benchkwargs
-)
+    test(name, exe,
+        suite : 'logs',
+        kwargs : testkwargs
+    )
+endforeach
+
+###
+### benchmarks
+###
+
+benchcases = {
+    'Structured logging database throughput': 'benchmark/setup.cpp',
+}
+
+foreach name, sources : benchcases
+    exe = executable('bench-logs-' + name.to_lower().replace(' ', '-'), sources,
+        include_directories : liblog_sinks.private_dir_include(),
+        dependencies : [ log_sinks, dbtest ]
+    )
+
+    benchmark(name, exe,
+        suite : 'logs',
+        kwargs : benchkwargs
+    )
+endforeach

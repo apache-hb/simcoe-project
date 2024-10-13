@@ -138,6 +138,16 @@ void sm::trimWhitespace(std::string &str) noexcept {
     }
 }
 
+void sm::trimWhitespaceFromView(std::string_view &str) noexcept {
+    while (!str.empty() && isspace(str.front())) {
+        str.remove_prefix(1);
+    }
+
+    while (!str.empty() && isspace(str.back())) {
+        str.remove_suffix(1);
+    }
+}
+
 void sm::replaceAll(std::string &str, std::string_view search, std::string_view replace) {
     size_t pos = 0;
     while ((pos = str.find(search, pos)) != std::string::npos) {
