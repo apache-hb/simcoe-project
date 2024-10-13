@@ -1,8 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <root name="tests">
-    <table name="example" syntheticPrimaryKey="ulong">
+    <table name="example"
+           syntheticPrimaryKey="ulong"
+           comment="
+           multiline table comment&#xA;
+           second line&#xA;
+           third line&#xA;
+           ">
         <column name="name" type="text" length="255" />
-        <column name="yesno" type="bool" />
+        <column name="yesno" type="bool" comment="a boolean value" />
 
         <column name="x" type="int" />
         <column name="y" type="int" />

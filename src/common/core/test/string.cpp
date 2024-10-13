@@ -3,6 +3,15 @@
 #include "core/string.hpp"
 
 TEST_CASE("string split") {
+    GIVEN("An empty string") {
+        std::string str = "";
+
+        THEN("it splits into an empty list") {
+            auto result = sm::splitAll(str, ',');
+            REQUIRE(result.empty());
+        }
+    }
+
     GIVEN("a string with no delimiters") {
         std::string str = "test";
 

@@ -123,8 +123,8 @@ static math::int2 getWindowCenter(system::Window& hwnd) {
 }
 
 void DesktopInput::setKeyValue(WORD key, size_t value) {
-    if (auto button = kButtons[key]) {
-        mButtons[button] = value;
+    if (auto button = kButtons[key]; button != input::Button::eInvalid) {
+        mButtons[std::to_underlying(button)] = value;
     }
 }
 
@@ -180,8 +180,8 @@ bool DesktopInput::poll(input::InputState& state) {
     bool dirty = pollMouseState(state);
 
     for (unsigned i = 0; i < kButtons.length(); ++i) {
-        if (auto button = kButtons[i]; button.is_valid()) {
-            dirty |= update(state.buttons[button], mButtons[button]);
+        if (auto button = kButtons[i]; button != input::Button::eInvalid) {
+            dirty |= update(state.buttons[std::to_underlying(button)], mButtons[std::to_underlying(button)]);
         }
     }
 

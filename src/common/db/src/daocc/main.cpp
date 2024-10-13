@@ -683,6 +683,26 @@ static void endArray(Writer& writer) {
     writer.writeln("}};");
 }
 
+static std::string escapeString(std::string_view text) {
+    std::string result;
+    result.reserve(text.size());
+    for (char c : text) {
+        switch (c) {
+        case '\n': result.append("\\n");  break;
+        case '\r': result.append("\\r");  break;
+        case '\t': result.append("\\t");  break;
+        case '\v': result.append("\\v");  break;
+        case '\f': result.append("\\f");  break;
+        case '\b': result.append("\\b");  break;
+        case '\\': result.append("\\\\"); break;
+        case '"': result.append("\\\"");  break;
+        default: result.push_back(c);     break;
+        }
+    }
+
+    return result;
+}
+
 static void emitCxxBody(
     const Root& dao, const fs::path& inputPath,
     std::ostream& headerStream, const fs::path& headerPath,
@@ -741,6 +761,7 @@ static void emitCxxBody(
             source.writeln("ColumnInfo {{");
             source.indent();
             source.writeln(".name = \"{}\",", column.name);
+            source.writeln(".comment = \"{}\",", escapeString(column.comment));
             source.writeln(".offset = offsetof(ClassType, {}),", camelCase(column.name));
             source.writeln(".length = {},", column.type.size);
             source.writeln(".type = ColumnType::{},", colType);
@@ -791,6 +812,7 @@ static void emitCxxBody(
         source.indent();
         source.writeln(".schema      = \"{}\",", dao.name);
         source.writeln(".name        = \"{}\",", table.name);
+        source.writeln(".comment     = \"{}\",", escapeString(table.comment));
         if (table.hasPrimaryKey()) {
             source.writeln(".primaryKey  = &kColumns[{}],", table.getPrimaryKeyIndex());
         } else {

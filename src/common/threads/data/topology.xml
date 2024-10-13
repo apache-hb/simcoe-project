@@ -1,11 +1,45 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE docs [
+    <!ENTITY info_comment_body "
+        This is correlated with a copy of windows, the currently&#xA;
+        installed processor, and the current version of windows.&#xA;
+        This data is collected to drive optimization decisions, aid in debugging,&#xA;
+        and to assist in optimal thread placement during game runtime."
+    >
+    <!ENTITY cpu_comment "
+        The vendor string of the currently installed processor.&#xA;
+        This data is collected via CPUID leafs 0x80000002-0x80000004.&#xA;
+        More information can be found in the Intel Software Developer's Manual.&#xA;
+        Vol. 2A 3-246 Table 1-17."
+    >
+    <!ENTITY os_comment "
+        This is a unique identifier for the currently installed copy of windows.&#xA;
+        This cannot be used to identify the user or the machine, and serves&#xA;
+        to prevent duplicate submissions from the same machine.&#xA;
+        The value is queried from the registry key HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Cryptography\MachineGuid."
+    >
+    <!ENTITY hash_comment "A hash of the data column, used to create a unique constraint.">
+]>
 <root name="topology">
-    <table name="cpu_set_info" syntheticPrimaryKey="ulong">
-        <column name="cpu" type="text" length="128" />
-        <column name="os" type="text" length="128" />
-        <column name="hash" type="ulong" />
+    <table name="cpu_set_info"
+           syntheticPrimaryKey="ulong"
+           comment="
+           This table stores the result of GetSystemCpuSetInformation.&#xA;
+           This is correlated with a copy of windows, the currently&#xA;
+           installed processor, and the current version of windows.&#xA;
+           This data is collected to drive optimization decisions, aid in debugging,&#xA;
+           and to assist in optimal thread placement during game runtime.
+           ">
 
-        <column name="data" type="blob" />
+        <column name="cpu" type="text" length="128" comment="&cpu_comment;" />
+
+        <column name="os" type="text" length="128" comment="&os_comment;" />
+
+        <column name="hash" type="ulong"
+                comment="&hash_comment;" />
+
+        <column name="data" type="blob"
+                comment="The output of GetSystemCpuSetInformation." />
 
         <unique>
             <column>cpu</column>
@@ -14,12 +48,24 @@
         </unique>
     </table>
 
-    <table name="logical_processor_info" syntheticPrimaryKey="ulong">
-        <column name="cpu" type="text" length="128" />
-        <column name="os" type="text" length="128" />
-        <column name="hash" type="ulong" />
+    <table name="logical_processor_info"
+           syntheticPrimaryKey="ulong"
+           comment="
+           This table stores the result of GetLogicalProcessorInformationEx.&#xA;
+           This is correlated with a copy of windows, the currently&#xA;
+           installed processor, and the current version of windows.&#xA;
+           This data is collected to drive optimization decisions, aid in debugging,&#xA;
+           and to assist in optimal thread placement during game runtime.
+           ">
 
-        <column name="data" type="blob" />
+        <column name="cpu" type="text" length="128" comment="&cpu_comment;" />
+        <column name="os" type="text" length="128" comment="&os_comment;" />
+
+        <column name="hash" type="ulong"
+                comment="&hash_comment;" />
+
+        <column name="data" type="blob"
+                comment="The output of GetLogicalProcessorInformationEx." />
 
         <unique>
             <column>cpu</column>

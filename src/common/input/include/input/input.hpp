@@ -5,11 +5,91 @@
 
 #include "math/math.hpp"
 
-#include "input.reflect.h"
+#include "input.meta.hpp"
 
 namespace sm::input {
-    using ButtonState = sm::Array<size_t, Button::kCount>;
-    using AxisState = sm::Array<float, Axis::kCount>;
+    REFLECT_ENUM(DeviceType)
+    enum class DeviceType : uint8_t {
+        eNone,
+        eXInput,
+        eDesktop,
+        ePlayback,
+
+        eCount
+    };
+
+    REFLECT_ENUM(Axis)
+    enum class Axis : uint8_t {
+        eMouseX, eMouseY,
+
+        eGamepadLeftX, eGamepadLeftY,
+        eGamepadRightX, eGamepadRightY,
+        eGamepadTriggerL, eGamepadTriggerR,
+
+        eCount
+    };
+
+    REFLECT_ENUM(Button)
+    enum class Button {
+        ePadButtonUp,
+        ePadButtonDown,
+        ePadButtonLeft,
+        ePadButtonRight,
+
+        ePadDirectionUp,
+        ePadDirectionDown,
+        ePadDirectionLeft,
+        ePadDirectionRight,
+
+        ePadBumperL,
+        ePadBumperR,
+
+        ePadStickL,
+        ePadStickR,
+
+        eA, eB, eC, eD,
+        eE, eF, eG, eH,
+        eI, eJ, eK, eL,
+        eM, eN, eO, eP,
+        eQ, eR, eS, eT,
+        eU, eV, eW, eX,
+        eY, eZ,
+
+        eKey0, eKey1, eKey2, eKey3, eKey4,
+        eKey5, eKey6, eKey7, eKey8, eKey9,
+
+        eShiftL,
+        eShiftR,
+        eCtrlL,
+        eCtrlR,
+        eAltL,
+        eAltR,
+        eSpace,
+        eEnter,
+        eBackspace,
+        eTab,
+        eEscape,
+        eTilde,
+
+        eMouseLeft,
+        eMouseRight,
+        eMouseMiddle,
+
+        eMouseExtra1,
+        eMouseExtra2,
+
+        eKeyLeft,
+        eKeyRight,
+        eKeyUp,
+        eKeyDown,
+
+        eInvalid,
+
+        eCount
+    };
+
+    using ButtonState = sm::Array<size_t, (int)Button::eCount>;
+    using AxisState = sm::Array<float, (int)Axis::eCount>;
 
     class InputService;
 

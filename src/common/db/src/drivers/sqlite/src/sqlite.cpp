@@ -1,3 +1,4 @@
+#include "core/string.hpp"
 #include "stdafx.hpp"
 
 #include "sqlite/sqlite.hpp"
@@ -61,16 +62,51 @@ static std::string_view makeSqlType(const dao::ColumnInfo& info) noexcept {
     }
 }
 
+static void sqlTableComment(std::ostream& os, std::string_view comment) {
+    for (std::string_view part : sm::splitAll(comment, '\n')) {
+        std::string line{part};
+        sm::trimWhitespace(line);
+        if (!line.empty())
+            os << "-- " << line << "\n";
+    }
+}
+
+static void sqlColumnComment(std::ostream& os, std::string_view comment) {
+    for (std::string_view part : sm::splitAll(comment, '\n')) {
+        std::string line{part};
+        sm::trimWhitespace(line);
+        if (!line.empty())
+            os << "\t-- " << line << "\n";
+    }
+}
+
+static bool isWhitespace(std::string_view str) noexcept {
+    for (char c : str) {
+        if (!std::isspace(c))
+            return false;
+    }
+
+    return true;
+}
+
 std::string sqlite::setupCreateTable(const dao::TableInfo& info) noexcept {
     std::ostringstream ss;
     bool hasConstraints = info.hasPrimaryKey() || info.hasForeignKeys();
 
-    ss << "CREATE TABLE";
+    ss << "CREATE TABLE " << info.name;
 
-    ss << " " << info.name << " (\n";
+    if (!isWhitespace(info.comment)) {
+        ss << "\n";
+        sqlTableComment(ss, info.comment);
+        ss << "(\n";
+    } else {
+        ss << " (\n";
+    }
+
     for (size_t i = 0; i < info.columns.size(); i++) {
         const auto& column = info.columns[i];
 
+        sqlColumnComment(ss, column.comment);
         ss << "\t" << column.name << " " << makeSqlType(column);
         if (!column.nullable)
             ss << " NOT NULL";
@@ -86,8 +122,9 @@ std::string sqlite::setupCreateTable(const dao::TableInfo& info) noexcept {
     }
 
     if (info.hasPrimaryKey()) {
+        const auto& pk = info.getPrimaryKey();
         ss << "\tCONSTRAINT pk_" << info.name
-        << " PRIMARY KEY (" << info.getPrimaryKey().name
+        << " PRIMARY KEY (" << pk.name
         << ")";
 
         if (info.hasForeignKeys() || info.hasUniqueKeys()) {

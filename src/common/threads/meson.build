@@ -57,7 +57,7 @@ testcases = {
 }
 
 foreach name, source : testcases
-    exe = executable('test-threads-' + name, source,
+    exe = executable('test-threads-' + name.to_lower().replace(' ', '-'), source,
         include_directories : 'src',
         dependencies : [ threads, coretest ]
     )

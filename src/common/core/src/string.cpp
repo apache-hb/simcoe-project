@@ -112,6 +112,9 @@ StringPair sm::split(std::string_view str, char delim) {
 }
 
 std::vector<std::string_view> sm::splitAll(std::string_view str, char delim) {
+    if (str.empty())
+        return {};
+
     std::vector<std::string_view> result;
     size_t start = 0;
     size_t index = 0;
@@ -125,6 +128,15 @@ std::vector<std::string_view> sm::splitAll(std::string_view str, char delim) {
     return result;
 }
 
+void sm::trimWhitespace(std::string &str) noexcept {
+    while (!str.empty() && isspace(str.front())) {
+        str.erase(0, 1);
+    }
+
+    while (!str.empty() && isspace(str.back())) {
+        str.pop_back();
+    }
+}
 
 void sm::replaceAll(std::string &str, std::string_view search, std::string_view replace) {
     size_t pos = 0;

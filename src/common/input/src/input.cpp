@@ -4,14 +4,14 @@ using namespace sm;
 using namespace sm::input;
 
 bool InputState::update_button(Button button, size_t next) {
-    bool updated = buttons[button] != next;
-    buttons[button] = next;
+    bool updated = buttons[std::to_underlying(button)] != next;
+    buttons[std::to_underlying(button)] = next;
     return updated;
 }
 
 float InputState::button_axis(ButtonAxis pair) const {
-    size_t n = buttons[pair.negative];
-    size_t p = buttons[pair.positive];
+    size_t n = buttons[std::to_underlying(pair.negative)];
+    size_t p = buttons[std::to_underlying(pair.positive)];
 
     if (n > p) return -1.f;
     if (p > n) return 1.f;
@@ -32,7 +32,7 @@ math::float3 InputState::button_axis3d(ButtonAxis horizontal, ButtonAxis vertica
 }
 
 float InputState::axis(Axis id) const {
-    return axes[id.as_integral()];
+    return axes[std::to_underlying(id)];
 }
 
 math::float2 InputState::axis2d(Axis horizontal, Axis vertical) const {
@@ -42,7 +42,7 @@ math::float2 InputState::axis2d(Axis horizontal, Axis vertical) const {
 }
 
 bool InputState::is_button_down(Button button) const {
-    return buttons[button] != 0;
+    return buttons[std::to_underlying(button)] != 0;
 }
 
 void InputService::add_source(ISource* source) {

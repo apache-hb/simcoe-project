@@ -7,13 +7,13 @@ using namespace sm::input;
 // only accept a new value if it is greater than the last value
 
 bool Debounce::isPressed(const InputState& state) {
-    if (state.buttons[mButton] == 0) {
+    if (state.buttons[std::to_underlying(mButton)] == 0) {
         mAcceptedValue = 0;
         return false;
     }
 
-    if (state.buttons[mButton] != mAcceptedValue) {
-        mAcceptedValue = state.buttons[mButton];
+    if (state.buttons[std::to_underlying(mButton)] != mAcceptedValue) {
+        mAcceptedValue = state.buttons[std::to_underlying(mButton)];
         return true;
     }
 

@@ -35,5 +35,7 @@ namespace sm {
 
     std::vector<std::string_view> splitAll(std::string_view str, char delim);
 
+    void trimWhitespace(std::string &str) noexcept;
+
     void replaceAll(std::string &str, std::string_view search, std::string_view replace);
 }
