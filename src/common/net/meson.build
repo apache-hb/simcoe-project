@@ -24,7 +24,7 @@ testcases = {
 }
 
 foreach name, source : testcases
-    exe = executable('test-net-' + name, source,
+    exe = executable('test-net-' + name.to_lower().replace(' ', '-'), source,
         dependencies : [ net, coretest ]
     )
 

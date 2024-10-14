@@ -17,10 +17,9 @@ namespace sm::render {
     public:
         using Exception = RenderException;
 
-        RenderError(HRESULT value)
-            : Super(errorString(value), FAILED(value))
-            , mValue(value)
-        { }
+        RenderError(HRESULT value);
+
+        RenderError(HRESULT value, std::string_view expr);
 
         HRESULT value() const { return mValue; }
         bool isSuccess() const { return SUCCEEDED(mValue); }
@@ -30,5 +29,14 @@ namespace sm::render {
         using Super = errors::Exception<RenderError>;
     public:
         using Super::Super;
+
+        RenderException(HRESULT value, std::string_view expr);
     };
 }
+
+#define SM_THROW_HR(expr) \
+    do { \
+        if (HRESULT hr = (expr); FAILED(hr)) { \
+            throw sm::render::RenderException{hr, #expr}; \
+        } \
+    } while (false)

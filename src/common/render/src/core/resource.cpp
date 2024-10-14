@@ -6,6 +6,7 @@
 using namespace sm;
 using namespace sm::render;
 
+#if 0
 void BufferResource::reset() noexcept {
     mAllocation.reset();
     mDeviceAddress = 0;
@@ -50,3 +51,4 @@ BufferResource::BufferResource(
     ID3D12Resource *resource = getResource();
     mDeviceAddress = resource->GetGPUVirtualAddress();
 }
+#endif

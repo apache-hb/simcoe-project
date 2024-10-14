@@ -5,39 +5,21 @@
 
 #include <D3D12MemAlloc.h>
 
-namespace sm::render {
-    struct IDeviceContext;
-
-    class BufferResource {
+namespace sm::render::next {
+    class AnyResource {
         Object<D3D12MA::Allocation> mAllocation;
-        D3D12_GPU_VIRTUAL_ADDRESS mDeviceAddress = 0;
 
     public:
-        BufferResource() = default;
+        AnyResource(D3D12MA::Allocation *allocation) noexcept;
 
-        BufferResource(
-            IDeviceContext& context,
-            const D3D12_RESOURCE_DESC& desc,
-            const D3D12MA::ALLOCATION_DESC& alloc,
-            D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_COMMON
-        ) noexcept;
-
-        void reset() noexcept;
-        void rename(std::string_view name) noexcept;
-
-        D3D12_GPU_VIRTUAL_ADDRESS getDeviceAddress() const noexcept { return mDeviceAddress; }
-        ID3D12Resource *getResource() const noexcept { return mAllocation->GetResource(); }
-        D3D12MA::Allocation *getAllocation() const noexcept { return mAllocation.get(); }
-
-        void *mapWriteOnly() noexcept;
-        void unmap(D3D12_RANGE written) noexcept;
-        void unmap() noexcept;
-
-        template<StandardLayout T>
-        T *mapWriteOnly() noexcept {
-            return static_cast<T*>(mapWriteOnly());
-        }
+        ID3D12Resource *getResource() const noexcept;
+        D3D12MA::Allocation *getAllocation() const noexcept;
+        D3D12_GPU_VIRTUAL_ADDRESS getDeviceAddress() const noexcept;
     };
+}
+
+namespace sm::render {
+    struct IDeviceContext;
 
     struct Resource {
         Object<ID3D12Resource> mResource;

@@ -10,14 +10,14 @@ namespace sm::render::next {
         sm::BitMapIndexAllocator mAllocator{kInitialAllocatorSize};
 
         Object<ID3D12DescriptorHeap> mHeap;
-        uint mDescriptorSize;
+        UINT mDescriptorSize;
         bool mIsShaderVisible;
 
         D3D12_CPU_DESCRIPTOR_HANDLE mHostHandle;
         D3D12_GPU_DESCRIPTOR_HANDLE mDeviceHandle;
 
     protected:
-        DescriptorPoolBase(ID3D12DescriptorHeap *heap, uint descriptorSize, bool isShaderVisible) noexcept
+        DescriptorPoolBase(ID3D12DescriptorHeap *heap, UINT descriptorSize, bool isShaderVisible) noexcept
             : mHeap(heap)
             , mDescriptorSize(descriptorSize)
             , mIsShaderVisible(isShaderVisible)
@@ -26,7 +26,7 @@ namespace sm::render::next {
         DescriptorPoolBase(ID3D12Device1 *device, D3D12_DESCRIPTOR_HEAP_DESC desc);
 
     public:
-        uint getDescriptorSize() const noexcept { return mDescriptorSize; }
+        UINT getDescriptorSize() const noexcept { return mDescriptorSize; }
         bool isShaderVisible() const noexcept { return mIsShaderVisible; }
 
         ~DescriptorPoolBase() noexcept;

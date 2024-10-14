@@ -70,6 +70,8 @@ src = [
     # vendor
     'src/vendor/nvidia/nvapi.cpp',
     'src/vendor/amd/ags.cpp',
+
+    'src/next/render.cpp',
 ]
 
 deps = [
@@ -119,7 +121,7 @@ testcases = {
 
 foreach name, source : testcases
     exe = executable('test-render-' + name.to_lower().replace(' ', '-'), source,
-        dependencies : [ render, coretest ]
+        dependencies : [ render, coretest, dbtest ]
     )
 
     test(name, exe,

@@ -110,7 +110,7 @@ namespace sm::render {
         void loadPIXRuntime();
 
     public:
-        Instance(InstanceConfig config);
+        Instance(InstanceConfig config) throws(RenderException);
         ~Instance() noexcept;
 
         std::span<Adapter> adapters() noexcept { return mAdapters; }

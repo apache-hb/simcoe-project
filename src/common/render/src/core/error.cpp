@@ -15,3 +15,17 @@ std::string render::errorString(HRESULT hr) {
     buffer[std::min(size, sizeof(buffer) - 1)] = '\0';
     return buffer;
 }
+
+render::RenderError::RenderError(HRESULT value)
+    : Super(errorString(value), FAILED(value))
+    , mValue(value)
+{ }
+
+render::RenderError::RenderError(HRESULT value, std::string_view expr)
+    : Super(fmt::format("{}: {}", expr, errorString(value)), FAILED(value))
+    , mValue(value)
+{ }
+
+render::RenderException::RenderException(HRESULT value, std::string_view expr)
+    : Super(RenderError(value, expr))
+{ }

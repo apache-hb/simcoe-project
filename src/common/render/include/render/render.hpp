@@ -21,6 +21,34 @@
 #include <directx/d3dx12_barriers.h>
 #include <directx/d3dx12_check_feature_support.h>
 
+namespace sm::render::next {
+    struct ContextConfig {
+        DebugFlags flags;
+        D3D_FEATURE_LEVEL minFeatureLevel;
+    };
+
+    class CoreDevice {
+        Object<ID3D12Device1> mDevice;
+        Object<ID3D12Debug1> mDebug;
+        Object<ID3D12InfoQueue1> mInfoQueue;
+        DWORD mCookie = ULONG_MAX;
+
+    public:
+        CoreDevice(Adapter& adapter, D3D_FEATURE_LEVEL level, DebugFlags flags) throws(RenderException);
+    };
+
+    class CoreContext {
+        Instance mInstance;
+        AdapterLUID mAdapterLUID;
+        D3D_FEATURE_LEVEL mFeatureLevel;
+
+        CoreDevice mDevice;
+
+    public:
+        CoreContext(ContextConfig config) throws(RenderException);
+    };
+}
+
 namespace sm::render {
     using DeviceHandle = Object<ID3D12Device1>;
 

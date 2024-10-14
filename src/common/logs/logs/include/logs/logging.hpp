@@ -40,7 +40,7 @@ namespace sm::logs {
 
 #define LOG_MESSAGE(category, severity, message, ...) \
     do { \
-        static constexpr std::source_location kSourceLocation = std::source_location::current(); \
+        static constexpr std::source_location kSourceLocation = SM_CURRENT_SOURCE_LOCATION(); \
         static constexpr auto kMessageInfo = BUILD_MESSAGE_ATTRIBUTES_IMPL(message, __VA_ARGS__); \
         struct LogMessageImpl { \
             constexpr auto operator()() const noexcept { \

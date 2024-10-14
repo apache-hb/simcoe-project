@@ -73,13 +73,17 @@ static void registerMessagesWithDb(
 
     for (const logs::MessageInfo& message : messages) {
         sm::dao::logs::LogMessage daoMessage {
-            .hash = message.hash,
-            .message = std::string{message.message},
-            .severity = uint32_t(message.level),
-            .category = message.category.hash,
-            .path = std::string{message.location.file_name()},
-            .line = message.location.line(),
-            .function = std::string{message.location.function_name()},
+            .hash = message.getHash(),
+#if SM_LOGS_INCLUDE_INFO
+            .message = std::string{message.getMessage()},
+#endif
+            .severity = uint32_t(message.getSeverity()),
+            .category = message.getCategory().hash,
+#if SM_LOGS_INCLUDE_INFO
+            .path = std::string{message.getFileName()},
+            .line = message.getLine(),
+            .function = std::string{message.getFunction()},
+#endif
         };
 
         insertMessage.insert(daoMessage);
@@ -87,7 +91,7 @@ static void registerMessagesWithDb(
         for (int i = 0; i < message.indexAttributeCount; i++) {
             sm::dao::logs::LogMessageAttribute daoAttribute {
                 .key = fmt::to_string(i),
-                .messageHash = message.hash
+                .messageHash = message.getHash()
             };
 
             insertAttribute.insert(daoAttribute);
@@ -96,7 +100,7 @@ static void registerMessagesWithDb(
         for (const auto& attribute : message.namedAttributes) {
             sm::dao::logs::LogMessageAttribute daoAttribute {
                 .key = std::string{attribute.name},
-                .messageHash = message.hash
+                .messageHash = message.getHash()
             };
 
             insertAttribute.insert(daoAttribute);
@@ -132,7 +136,7 @@ class DbChannel final : public logs::IAsyncLogChannel {
 
     void postMessageAsync(logs::AsyncMessagePacket packet) noexcept override {
         // discard messages from the database channel to prevent infinite recursion
-        if (logs::detail::gLogCategory<DbLog> == packet.message.category)
+        if (logs::detail::gLogCategory<DbLog> == packet.message.getCategory())
             return;
 
         mQueue.enqueue(LogEntryPacket {
@@ -148,7 +152,7 @@ class DbChannel final : public logs::IAsyncLogChannel {
         for (const auto& [timestamp, message, params] : packets) {
             sm::dao::logs::LogEntry entry {
                 .timestamp = timestamp,
-                .messageHash = message->hash
+                .messageHash = message->getHash()
             };
 
             auto id = mInsertEntry.tryInsert(entry);

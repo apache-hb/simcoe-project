@@ -23,13 +23,13 @@ LoggerPanel::~LoggerPanel() {
 
 void LoggerPanel::postMessage(logs::MessagePacket packet) noexcept {
     Message msg = {
-        .severity = packet.message.level,
+        .severity = packet.message.getSeverity(),
         .timestamp = uint32_t(packet.timestamp),
         // .thread = message.thread,
         .message = "" // fmt::vformat(packet.message.message, packet.args)
     };
 
-    mMessages[&packet.message.category].push_back(msg);
+    mMessages[&packet.message.getCategory()].push_back(msg);
 }
 
 static ImVec4 getSeverityColour(logs::Severity severity) {

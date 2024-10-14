@@ -8,33 +8,63 @@
 #include <string_view>
 #include <source_location>
 
-#define SM_LOGS_HAS_MESSAGE 1
+/// toggles the inclusion of source info,
+/// filename, line, function name, message body, etc
+#define SM_LOGS_INCLUDE_INFO 1
+
+#if SM_LOGS_INCLUDE_INFO
+#   define SM_CURRENT_SOURCE_LOCATION() std::source_location::current()
+#else
+#   define SM_CURRENT_SOURCE_LOCATION() std::source_location{}
+#endif
 
 namespace sm::logs {
-    struct MessageInfo {
+    class MessageInfo {
         uint64_t hash;
         logs::Severity level;
         const CategoryInfo& category;
         std::string_view message;
+#if SM_LOGS_INCLUDE_INFO
         std::source_location location;
+#endif
+    public:
 
         int indexAttributeCount;
         std::span<const MessageAttributeInfo> namedAttributes;
 
         consteval MessageInfo(
-            std::string_view message, logs::Severity level,
-            const CategoryInfo& category, std::source_location location,
-            int indexAttributeCount, std::span<const MessageAttributeInfo> namedAttributes
+            std::string_view message,
+            logs::Severity level,
+            const CategoryInfo& category,
+            [[maybe_unused]] std::source_location location,
+            int indexAttributeCount,
+            std::span<const MessageAttributeInfo> namedAttributes
         ) noexcept
             : hash(detail::hashMessage(message))
             , level(level)
             , category(category)
             , message(message)
+#if SM_LOGS_INCLUDE_INFO
             , location(location)
+#endif
             , indexAttributeCount(indexAttributeCount)
             , namedAttributes(namedAttributes)
         { }
 
+        logs::Severity getSeverity() const noexcept { return level; }
+        uint64_t getHash() const noexcept { return hash; }
+        const CategoryInfo& getCategory() const noexcept { return category; }
+        std::string_view getMessage() const noexcept { return message; }
+
+#if SM_LOGS_INCLUDE_INFO
+        uint_least32_t getLine() const noexcept { return location.line(); }
+        const char *getFunction() const noexcept { return location.function_name(); }
+        const char *getFileName() const noexcept { return location.file_name(); }
+#else
+        uint_least32_t getLine() const noexcept { return 0; }
+        const char *getFunction() const noexcept { return ""; }
+        const char *getFileName() const noexcept { return ""; }
+#endif
         size_t attributeCount() const noexcept { return indexAttributeCount + namedAttributes.size(); }
     };
 

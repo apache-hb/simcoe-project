@@ -12,8 +12,6 @@ DbError::DbError(int code, int status, std::string message, bool enableStackTrac
 {
     if (!isSuccess() && enableStackTrace) {
         mStacktrace = std::stacktrace::current();
-
-        LOG_WARN(DbLog, "DbError {}: {}", mMessage, mCode);
     }
 }
 

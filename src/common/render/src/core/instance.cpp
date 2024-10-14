@@ -9,26 +9,11 @@
 using namespace sm;
 using namespace sm::render;
 
-static void logAdapterInfo(const Adapter &adapter) {
-    LOG_INFO(GpuLog, "|| video memory: {}", adapter.vidmem());
-    LOG_INFO(GpuLog, "|| system memory: {}", adapter.sysmem());
-    LOG_INFO(GpuLog, "|| shared memory: {}", adapter.sharedmem());
-
-    auto [high, low] = adapter.luid();
-    LOG_INFO(GpuLog, "|| luid: high: {}, low: {}", high, low);
-
-    auto [vendor, device, subsystem, revision] = adapter.info();
-    LOG_INFO(GpuLog, "|| device info: vendor: {}, device: {}, subsystem: {}, revision: {}",
-                 vendor, device, subsystem, revision);
-
-    LOG_INFO(GpuLog, "|| flags: {}", adapter.flags());
-}
-
 Adapter::Adapter(IDXGIAdapter1 *adapter)
     : Object(adapter)
 {
     DXGI_ADAPTER_DESC1 desc;
-    SM_ASSERT_HR(adapter->GetDesc1(&desc));
+    SM_THROW_HR(adapter->GetDesc1(&desc));
 
     mName = sm::narrow(desc.Description);
     mVideoMemory = desc.DedicatedVideoMemory;
@@ -54,24 +39,22 @@ bool Instance::enumAdaptersByPreference() {
 
     LOG_INFO(GpuLog, "querying for {} adapter", mAdapterSearch);
 
+    auto enumAdapter = [&](UINT i, IDXGIAdapter1 **adapter) {
+        return factory6->EnumAdapterByGpuPreference(i, mAdapterSearch.as_facade(), IID_PPV_ARGS(adapter)) != DXGI_ERROR_NOT_FOUND;
+    };
+
     IDXGIAdapter1 *adapter;
-    for (UINT i = 0;
-         factory6->EnumAdapterByGpuPreference(i, mAdapterSearch.as_facade(),
-                                              IID_PPV_ARGS(&adapter)) != DXGI_ERROR_NOT_FOUND;
-         ++i) {
-        auto &it = mAdapters.emplace_back(adapter);
-        LOG_INFO(GpuLog, "| adapter {}: {}", i, it.name());
-        logAdapterInfo(it);
+    for (UINT i = 0; enumAdapter(i, &adapter); i++) {
+        mAdapters.emplace_back(adapter);
     }
+
     return true;
 }
 
 void Instance::enumAdapters() {
     IDXGIAdapter1 *adapter;
     for (UINT i = 0; mFactory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; ++i) {
-        auto &it = mAdapters.emplace_back(adapter);
-        LOG_INFO(GpuLog, "| adapter {}: {}", i, it.name());
-        logAdapterInfo(it);
+        mAdapters.emplace_back(adapter);
     }
 }
 
@@ -83,13 +66,12 @@ void Instance::findWarpAdapter() {
     }
 
     mWarpAdapter = Adapter(adapter);
-    LOG_INFO(GpuLog, "warp adapter: {}", mWarpAdapter.name());
-    logAdapterInfo(mWarpAdapter);
 }
 
 void Instance::enableDebugLeakTracking() {
     if (Result hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&mDebug))) {
         mDebug->EnableLeakTrackingForThread();
+        LOG_INFO(GpuLog, "enabled dxgi debug interface");
     } else {
         LOG_ERROR(GpuLog, "failed to enable dxgi debug interface: {}", hr);
     }
@@ -132,13 +114,13 @@ void Instance::loadPIXRuntime() {
 #endif
 }
 
-Instance::Instance(InstanceConfig config)
+Instance::Instance(InstanceConfig config) noexcept(false)
     : mFlags(config.flags)
     , mAdapterSearch(config.preference)
 {
     bool debug = mFlags.test(DebugFlags::eFactoryDebug);
     const UINT flags = debug ? DXGI_CREATE_FACTORY_DEBUG : 0;
-    SM_ASSERT_HR(CreateDXGIFactory2(flags, IID_PPV_ARGS(&mFactory)));
+    SM_THROW_HR(CreateDXGIFactory2(flags, IID_PPV_ARGS(&mFactory)));
 
     queryTearingSupport();
     LOG_INFO(GpuLog, "tearing support: {}", mTearingSupport);
@@ -146,14 +128,10 @@ Instance::Instance(InstanceConfig config)
     if (debug)
         enableDebugLeakTracking();
 
-    LOG_INFO(GpuLog, "instance config");
-    LOG_INFO(GpuLog, "| flags: {}", mFlags);
-
     loadWarpRedist();
 
-    if (mFlags.test(DebugFlags::eWinPixEventRuntime)) {
+    if (mFlags.test(DebugFlags::eWinPixEventRuntime))
         loadPIXRuntime();
-    }
 
     findWarpAdapter();
 
@@ -215,7 +193,7 @@ static void addMode(DXGI_MODE_DESC desc, uint64_t output, db::Connection& connec
 
 static void addOutput(IDXGIOutput *output, uint64_t luid, DXGI_FORMAT format, db::Connection& connection) {
     DXGI_OUTPUT_DESC desc;
-    SM_ASSERT_HR(output->GetDesc(&desc));
+    SM_THROW_HR(output->GetDesc(&desc));
 
     renderdao::Output dao {
         .name = sm::narrow(desc.DeviceName),
@@ -230,21 +208,22 @@ static void addOutput(IDXGIOutput *output, uint64_t luid, DXGI_FORMAT format, db
 
     uint64_t pk = connection.insertReturningPrimaryKey(dao);
 
+    const UINT flags = DXGI_ENUM_MODES_INTERLACED;
+
     UINT count = 0;
-    output->GetDisplayModeList(format, DXGI_ENUM_MODES_INTERLACED, &count, nullptr);
+    output->GetDisplayModeList(format, flags, &count, nullptr);
 
     std::unique_ptr<DXGI_MODE_DESC[]> modes(new DXGI_MODE_DESC[count]);
-    SM_ASSERT_HR(output->GetDisplayModeList(format, DXGI_ENUM_MODES_INTERLACED, &count, modes.get()));
+    SM_THROW_HR(output->GetDisplayModeList(format, flags, &count, modes.get()));
 
-
-    for (UINT i = 0; i < count; ++i) {
+    for (UINT i = 0; i < count; i++) {
         addMode(modes[i], pk, connection);
     }
 }
 
 static void addAdapter(const Adapter& adapter, DXGI_FORMAT format, db::Connection& connection) {
     DXGI_ADAPTER_DESC1 desc;
-    SM_ASSERT_HR(adapter->GetDesc1(&desc));
+    SM_THROW_HR(adapter->GetDesc1(&desc));
 
     uint64_t luid = packLuid(desc.AdapterLuid);
 

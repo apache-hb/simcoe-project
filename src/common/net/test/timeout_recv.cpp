@@ -54,10 +54,5 @@ TEST_CASE("Network client server connection") {
     char buffer[kBufferSize * 16];
     auto [read, err] = client.recvBytesTimeout(buffer, sizeof(buffer), 256ms);
 
-    std::ofstream of("timeout_recv.bin", std::ios::binary | std::ios::out);
-    of.write(buffer, sizeof(buffer));
-    of.close();
-
     errors.expect(err.timeout(), "Expected timeout, got: {}. read {} bytes", err.message(), read);
-
 }

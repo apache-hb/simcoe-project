@@ -2,32 +2,101 @@
 <root name="render">
     <typealias name="luid" to="ulong" />
 
-    <table name="adapter" primaryKey="luid">
-        <column name="luid" type="luid" />
-        <column name="description" type="text" length="128" />
-        <column name="flags" type="uint" />
+    <table name="adapter" primaryKey="luid"
+           comment="
+           Information about a physical adapter enumerated via DXGI.&#xA;
+           Also contains its associated description queried from IDXGIAdapter1::GetDesc1.&#xA;
+           This data is collected to drive optimization decisions, aid in debugging,&#xA;
+           and to assist in determining minimum and average system requirements.
+           ">
 
-        <column name="video_memory"  type="ulong" />
-        <column name="system_memory" type="ulong" />
-        <column name="shared_memory" type="ulong" />
+        <column name="luid" type="luid"
+                comment="The locally unique ID of the adapter, from DXGI_ADAPTER_DESC1::AdapterLuid." />
 
-        <column name="vendor_id" type="uint"    />
-        <column name="device_id" type="uint"    />
-        <column name="subsystem_id" type="uint" />
-        <column name="revision" type="uint"  />
+        <column name="description" type="text" length="128"
+                comment="The description string of this adapter, from DXGI_ADAPTER_DESC1::Description" />
+
+        <column name="flags" type="uint"
+                comment="Flags associated with this adapter, from DXGI_ADAPTER_DESC1::Flags" />
+
+        <column name="video_memory"  type="ulong"
+                comment="
+                Size of dedicated video memory, in bytes, not accessable&#xA;
+                on the CPU. From DXGI_ADAPTER_DESC1::DedicatedVideoMemory.
+                " />
+
+        <column name="system_memory" type="ulong"
+                comment="
+                Size of system memory, in bytes, allocated to the device.&#xA;
+                From DXGI_ADAPTER_DESC1::DedicatedSystemMemory.
+                " />
+
+        <column name="shared_memory" type="ulong"
+                comment="
+                Maximum size, in bytes, of shared memory region that is accessible&#xA;
+                on both host and device. From DXGI_ADAPTER_DESC1::SharedSystemMemory.
+                " />
+
+        <column name="vendor_id" type="uint"
+                comment="
+                PCI or APIC ID associated with this devices hardware vendor.&#xA;
+                From DXGI_ADAPTER_DESC1::VendorId.
+                " />
+
+        <column name="device_id" type="uint"
+                comment="
+                PCI or APIC ID associated with this devices hardware.&#xA;
+                From DXGI_ADAPTER_DESC1::DeviceId.
+                "/>
+
+        <column name="subsystem_id" type="uint"
+                comment="
+                PCI or APIC ID associated with this devices subsystem.&#xA;
+                From DXGI_ADAPTER_DESC1::SubSysId.
+                "/>
+
+        <column name="revision" type="uint"
+                comment="
+                The PCI or APIC revision number of the device.&#xA;
+                From DXGI_ADAPTER_DESC1::Revision.
+                "/>
     </table>
 
-    <table name="output" syntheticPrimaryKey="ulong">
-        <column name="name" type="text" length="32" />
+    <table name="output" syntheticPrimaryKey="ulong"
+           comment="
+           A physical output device connected to an adapter.&#xA;
+           Enumerated from IDXGIAdapter::EnumOutputs and IDXGIOutput::GetDesc.
+           ">
 
-        <column name="left" type="int"   />
-        <column name="top" type="int"    />
-        <column name="right" type="int"  />
-        <column name="bottom" type="int" />
+        <column name="name" type="text" length="32"
+                comment="The name of the connected display, from DXGI_OUTPUT_DESC::DeviceName." />
 
-        <column name="attached_to_desktop" type="bool" />
+        <column name="left" type="int"
+                comment="
+                The left edge of the output on the virtual canvas,&#xA;
+                from DXGI_OUTPUT_DESC::DesktopCoordinates.
+                " />
+        <column name="top" type="int"
+                comment="
+                The top edge of the output on the virtual canvas,&#xA;
+                from DXGI_OUTPUT_DESC::DesktopCoordinates.
+                " />
+        <column name="right" type="int"
+                comment="
+                The right edge of the output on the virtual canvas,&#xA;
+                from DXGI_OUTPUT_DESC::DesktopCoordinates.
+                " />
+        <column name="bottom" type="int"
+                comment="
+                The bottom edge of the output on the virtual canvas,&#xA;
+                from DXGI_OUTPUT_DESC::DesktopCoordinates.
+                " />
 
-        <column name="rotation" type="uint">
+        <column name="attached_to_desktop" type="bool"
+                comment="Is this output attached to a desktop, from DXGI_OUTPUT_DESC::AttachedToDesktop." />
+
+        <column name="rotation" type="uint"
+                comment="The reported rotation of this display, from DXGI_OUTPUT_DESC::Rotation.">
             <constraint references="rotation.id" />
         </column>
 
@@ -41,17 +110,26 @@
         </unique>
     </table>
 
-    <table name="rotation" primaryKey="id">
-        <column name="id" type="uint" />
-        <column name="description" type="text" length="32" />
+    <table name="rotation" primaryKey="id"
+           comment="Values of DXGI_MODE_ROTATION.">
+
+        <column name="id" type="uint"
+                comment="The underlying enum value." />
+        <column name="description" type="text" length="32"
+                comment="The enum name." />
     </table>
 
-    <table name="mode" syntheticPrimaryKey="ulong">
+    <table name="mode" syntheticPrimaryKey="ulong"
+           comment="
+           A display mode available on an output in a given format.&#xA;
+           Retrieved from IDXGIOutput::GetDisplayModeList with DXGI_ENUM_MODES_INTERLACED.
+           ">
+
         <column name="output" type="ulong">
             <constraint references="output.id" />
         </column>
 
-        <column name="width" type="uint"  />
+        <column name="width" type="uint" />
         <column name="height" type="uint" />
 
         <column name="refresh_rate_numerator" type="uint"   />

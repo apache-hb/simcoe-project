@@ -20,7 +20,7 @@ class ConsoleChannel final : public logs::ILogChannel {
     void attach() override { }
 
     void postMessage(logs::MessagePacket packet) noexcept override {
-        auto message = fmt::vformat(packet.message.message, packet.args.asDynamicArgStore());
+        auto message = fmt::vformat(packet.message.getMessage(), packet.args.asDynamicArgStore());
 
         std::lock_guard guard(mMutex);
 

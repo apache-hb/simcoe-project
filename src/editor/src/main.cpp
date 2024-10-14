@@ -137,6 +137,7 @@ public:
 
     void attachRenderContext(render::IDeviceContext *context) {
         mContext = context;
+        render::saveAdapterInfo(mContext->mInstance, mContext->mConfig.swapchain.format, mConnection);
     }
 
     void attachInput(system::DesktopInput *input) {
