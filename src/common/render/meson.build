@@ -133,6 +133,9 @@ src = [
     'src/next/render.cpp',
     'src/next/context.cpp',
 
+    # components
+    'src/next/components/fence.cpp',
+
     # swapchain factories
     'src/next/surface/surface.cpp',
     'src/next/surface/virtual.cpp',

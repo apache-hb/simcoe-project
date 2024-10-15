@@ -3,6 +3,31 @@ fs.copyfile(dstorage.get_variable('bindir') / 'dstorage.dll')
 subdir('redist')
 subdir('redist/d3d12')
 
+###
+### common render tests
+###
+
+src = [
+    'render_test_common.cpp',
+]
+
+deps = [ render, dbtest ]
+
+librendertest = library('render-test', src,
+    include_directories : [ render_include, reflect_include ],
+    dependencies : deps
+)
+
+rendertest = declare_dependency(
+    link_with : librendertest,
+    include_directories : [ render_include ],
+    dependencies : deps
+)
+
+###
+### testcases
+###
+
 testcases = {
     'Setup render instance': 'instance.cpp',
     'Save render device data': 'store.cpp',
@@ -16,7 +41,7 @@ testcases = {
 
 foreach name, source : testcases
     exe = executable('test-render-' + name.to_lower().replace(' ', '-'), source,
-        dependencies : [ render, coretest, dbtest ]
+        dependencies : [ rendertest ]
     )
 
     test(name, exe,

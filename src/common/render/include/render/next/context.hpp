@@ -1,10 +1,11 @@
 #pragma once
 
+#include "render/base/instance.hpp"
+
 #include "render/next/render.hpp"
 #include "render/next/device.hpp"
 #include "render/next/surface.hpp"
-
-#include "render/base/instance.hpp"
+#include "render/next/components.hpp"
 
 namespace sm::render::next {
     struct ContextConfig {
@@ -20,12 +21,15 @@ namespace sm::render::next {
     };
 
     class CoreContext {
-        /// device management
         struct DeviceSearchOptions {
             FeatureLevel level;
             DebugFlags flags;
             bool allowSoftwareAdapter;
         };
+
+        using SurfaceList = std::vector<Object<ID3D12Resource>>;
+
+        /// device management
 
         DebugFlags mDebugFlags;
         Instance mInstance;
@@ -55,8 +59,23 @@ namespace sm::render::next {
         SurfaceInfo mSwapChainInfo;
         void createSwapChain(ISwapChainFactory *factory, SurfaceInfo info);
 
+        /// swapchain backbuffers
+        SurfaceList mBackBuffers;
+        UINT mCurrentBackBuffer = 0;
+        void createBackBuffers(UINT initialValue);
+        SurfaceList getSwapChainSurfaces() const;
+
+        /// device queue fence
+        std::unique_ptr<Fence> mPresentFence;
+        std::vector<uint64_t> mFenceValues;
+        void createPresentFence();
+
         /// lifetime management
         void createDeviceState();
+
+        /// gpu timeline
+        void advanceFrame();
+        void flushDevice();
 
     public:
         CoreContext(ContextConfig config) throws(RenderException);
@@ -65,5 +84,7 @@ namespace sm::render::next {
         void setAdapter(AdapterLUID luid);
 
         void updateSwapChain(SurfaceInfo info);
+
+        void present();
     };
 }

@@ -2,11 +2,18 @@
 
 #include "render/next/surface.hpp"
 
-using sm::render::next::WindowSwapChainFactory;
+using sm::render::next::ISwapChainFactory;
 using sm::render::next::ISwapChain;
 using sm::render::next::SwapChainLimits;
+using sm::render::next::SurfaceInfo;
+using sm::render::next::WindowSwapChainFactory;
 using sm::render::Object;
-using sm::render::Instance;
+
+#pragma region Utils
+
+static UINT getSwapChainFlags(bool tearing) {
+    return tearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
+}
 
 #pragma region SwapChain
 
@@ -20,9 +27,15 @@ class WindowSwapChain final : public ISwapChain {
         return surface;
     }
 
+    void updateSurfaces(SurfaceInfo info) override {
+        auto [width, height] = info.size;
+        UINT flags = getSwapChainFlags(mTearingSupport);
+        SM_THROW_HR(mSwapChain->ResizeBuffers(info.length, width, height, info.format, flags));
+    }
+
 public:
-    WindowSwapChain(Object<IDXGISwapChain3> swapchain, UINT length, bool tearing)
-        : ISwapChain(length)
+    WindowSwapChain(ISwapChainFactory *factory, Object<IDXGISwapChain3> swapchain, UINT length, bool tearing)
+        : ISwapChain(factory, length)
         , mSwapChain(std::move(swapchain))
         , mTearingSupport(tearing)
     { }
@@ -45,10 +58,6 @@ static constexpr SwapChainLimits kSwapChainLimits {
     .minSize = { 16, 16 },
     .maxSize = { 8192 * 2, 8192 * 2 },
 };
-
-static UINT getSwapChainFlags(bool tearing) {
-    return tearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
-}
 
 WindowSwapChainFactory::WindowSwapChainFactory(HWND window)
     : ISwapChainFactory(kSwapChainLimits)
@@ -81,5 +90,5 @@ ISwapChain *WindowSwapChainFactory::createSwapChain(SurfaceCreateObjects objects
     Object<IDXGISwapChain3> swapchain3;
     SM_THROW_HR(swapchain.query(&swapchain3));
 
-    return new WindowSwapChain(std::move(swapchain3), info.length, tearing);
+    return new WindowSwapChain(this, std::move(swapchain3), info.length, tearing);
 }

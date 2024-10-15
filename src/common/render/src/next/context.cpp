@@ -135,11 +135,58 @@ void CoreContext::createSwapChain(ISwapChainFactory *factory, SurfaceInfo info) 
     mSwapChainInfo = info;
 }
 
+CoreContext::SurfaceList CoreContext::getSwapChainSurfaces() const {
+    UINT length = mSwapChain->length();
+
+    SurfaceList surfaces{length};
+    for (UINT i = 0; i < length; i++) {
+        surfaces[i] = mSwapChain->getSurface(i);
+    }
+
+    return surfaces;
+}
+
+void CoreContext::createBackBuffers(UINT initialValue) {
+    mBackBuffers = getSwapChainSurfaces();
+    mCurrentBackBuffer = mSwapChain->currentSurfaceIndex();
+
+    mFenceValues.resize(mBackBuffers.size());
+    std::fill(mFenceValues.begin(), mFenceValues.end(), initialValue);
+}
+
+#pragma region Present Fence
+
+void CoreContext::createPresentFence() {
+    mPresentFence = std::make_unique<Fence>(mDevice);
+    mFenceValues[mCurrentBackBuffer] += 1;
+}
+
 #pragma region Lifetime
 
 void CoreContext::createDeviceState() {
     createAllocator();
     createDirectQueue();
+}
+
+#pragma region Device Timeline
+
+void CoreContext::advanceFrame() {
+    uint64_t current = mFenceValues[mCurrentBackBuffer];
+    SM_THROW_HR(mDirectQueue->Signal(mPresentFence->get(), current));
+
+    mCurrentBackBuffer = mSwapChain->currentSurfaceIndex();
+
+    uint64_t value = mFenceValues[mCurrentBackBuffer];
+    mPresentFence->wait(value);
+
+    mFenceValues[mCurrentBackBuffer] = current + 1;
+}
+
+void CoreContext::flushDevice() {
+    uint64_t current = mFenceValues[mCurrentBackBuffer]++;
+    SM_THROW_HR(mDirectQueue->Signal(mPresentFence->get(), current));
+
+    mPresentFence->wait(current);
 }
 
 #pragma region Constructor
@@ -152,6 +199,8 @@ CoreContext::CoreContext(ContextConfig config) noexcept(false)
 {
     createDeviceState();
     createSwapChain(config.swapChainFactory, config.swapChainInfo);
+    createBackBuffers(0);
+    createPresentFence();
 }
 
 void CoreContext::setAdapter(AdapterLUID luid) {
@@ -162,6 +211,8 @@ void CoreContext::setAdapter(AdapterLUID luid) {
 
     CoreDevice newDevice = createDevice(luid, level, mDebugFlags);
 
+    flushDevice();
+
     mSwapChain.reset();
     mDirectQueue.reset();
     mAllocator.reset();
@@ -169,8 +220,22 @@ void CoreContext::setAdapter(AdapterLUID luid) {
     mDevice = std::move(newDevice);
     createDeviceState();
     createSwapChain(mSwapChainFactory, mSwapChainInfo);
+    createBackBuffers(0);
+    createPresentFence();
 }
 
 void CoreContext::updateSwapChain(SurfaceInfo info) {
+    flushDevice();
 
+    mBackBuffers.clear();
+    mSwapChain->updateSurfaceInfo(info);
+    mSwapChainInfo = info;
+    createBackBuffers(mFenceValues[mCurrentBackBuffer]);
+}
+
+void CoreContext::present() {
+    mSwapChain->present(0);
+    mCurrentBackBuffer = mSwapChain->currentSurfaceIndex();
+
+    advanceFrame();
 }

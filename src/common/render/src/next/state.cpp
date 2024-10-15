@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "render/next/context.hpp"
+#include "render/next/device.hpp"
 
 using CoreDebugState = sm::render::next::CoreDebugState;
 

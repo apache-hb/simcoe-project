@@ -3,6 +3,9 @@
 #include "render/next/device.hpp"
 
 namespace sm::render::next {
+    class ISwapChain;
+    class ISwapChainFactory;
+
     struct SurfaceCreateObjects {
         Instance& instance;
         CoreDevice& device;
@@ -25,13 +28,17 @@ namespace sm::render::next {
     };
 
     class ISwapChain {
+        ISwapChainFactory *mFactory;
         UINT mLength;
 
         virtual Object<ID3D12Resource> getSurfaceAt(UINT index) = 0;
 
+        virtual void updateSurfaces(SurfaceInfo info) = 0;
+
     protected:
-        ISwapChain(UINT length) noexcept
-            : mLength(length)
+        ISwapChain(ISwapChainFactory *factory, UINT length) noexcept
+            : mFactory(factory)
+            , mLength(length)
         { }
 
     public:
@@ -39,6 +46,8 @@ namespace sm::render::next {
 
         Object<ID3D12Resource> getSurface(UINT index);
         UINT length() const noexcept { return mLength; }
+
+        void updateSurfaceInfo(SurfaceInfo info);
 
         virtual UINT currentSurfaceIndex() = 0;
         virtual void present(UINT sync) = 0;
@@ -59,6 +68,10 @@ namespace sm::render::next {
 
         SwapChainLimits limits() const noexcept { return mLimits; }
     };
+
+    ///
+    /// implementation
+    ///
 
     class WindowSwapChainFactory final : public ISwapChainFactory {
         HWND mWindow;
