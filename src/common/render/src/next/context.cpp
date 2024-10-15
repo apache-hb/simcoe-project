@@ -148,7 +148,7 @@ CoreContext::SurfaceList CoreContext::getSwapChainSurfaces() const {
 
 void CoreContext::createBackBuffers(UINT initialValue) {
     mBackBuffers = getSwapChainSurfaces();
-    mCurrentBackBuffer = mSwapChain->currentSurfaceIndex();
+    setFrameIndex(mSwapChain->currentSurfaceIndex());
 
     mFenceValues.resize(mBackBuffers.size());
     std::fill(mFenceValues.begin(), mFenceValues.end(), initialValue);
@@ -174,7 +174,7 @@ void CoreContext::advanceFrame() {
     uint64_t current = mFenceValues[mCurrentBackBuffer];
     SM_THROW_HR(mDirectQueue->Signal(mPresentFence->get(), current));
 
-    mCurrentBackBuffer = mSwapChain->currentSurfaceIndex();
+    setFrameIndex(mSwapChain->currentSurfaceIndex());
 
     uint64_t value = mFenceValues[mCurrentBackBuffer];
     mPresentFence->wait(value);
@@ -187,6 +187,11 @@ void CoreContext::flushDevice() {
     SM_THROW_HR(mDirectQueue->Signal(mPresentFence->get(), current));
 
     mPresentFence->wait(current);
+}
+
+void CoreContext::setFrameIndex(UINT index) {
+    mCurrentBackBuffer = index;
+    mAllocator->SetCurrentFrameIndex(index);
 }
 
 #pragma region Constructor
@@ -237,7 +242,6 @@ void CoreContext::updateSwapChain(SurfaceInfo info) {
 
 void CoreContext::present() {
     mSwapChain->present(0);
-    mCurrentBackBuffer = mSwapChain->currentSurfaceIndex();
 
     advanceFrame();
 }

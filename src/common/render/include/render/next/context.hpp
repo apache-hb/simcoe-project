@@ -76,6 +76,7 @@ namespace sm::render::next {
         /// gpu timeline
         void advanceFrame();
         void flushDevice();
+        void setFrameIndex(UINT index);
 
     public:
         CoreContext(ContextConfig config) throws(RenderException);
