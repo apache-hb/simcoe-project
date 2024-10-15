@@ -37,13 +37,13 @@ void StorageQueue::submit() {
 
 static constexpr UINT32 getDirectStorageDebugFlags(DebugFlags flags) {
     UINT32 result = DSTORAGE_DEBUG_NONE;
-    if (flags.test(DebugFlags::eDirectStorageDebug)) {
+    if (bool(flags & DebugFlags::eDirectStorageDebug)) {
         result |= DSTORAGE_DEBUG_SHOW_ERRORS;
     }
-    if (flags.test(DebugFlags::eDirectStorageBreak)) {
+    if (bool(flags & DebugFlags::eDirectStorageBreak)) {
         result |= DSTORAGE_DEBUG_BREAK_ON_ERROR;
     }
-    if (flags.test(DebugFlags::eDirectStorageNames)) {
+    if (bool(flags & DebugFlags::eDirectStorageNames)) {
         result |= DSTORAGE_DEBUG_RECORD_OBJECT_NAMES;
     }
     return result;

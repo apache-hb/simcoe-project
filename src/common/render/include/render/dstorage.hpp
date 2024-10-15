@@ -1,5 +1,6 @@
 #pragma once
 
+#include "base/instance.hpp"
 #include "render/base/object.hpp"
 
 #include "render.reflect.h"

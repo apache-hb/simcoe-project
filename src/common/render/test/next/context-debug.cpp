@@ -4,13 +4,14 @@
 #include "db/connection.hpp"
 
 #include "render/base/instance.hpp"
-#include "render/render.hpp"
+#include "render/next/context.hpp"
 
 using namespace sm;
 
 namespace next = sm::render::next;
 
-using render::DebugFlags;
+using render::next::DebugFlags;
+using render::next::FeatureLevel;
 
 TEST_CASE("Create next::CoreContext with debug features enabled") {
     next::ContextConfig config {
@@ -24,7 +25,7 @@ TEST_CASE("Create next::CoreContext with debug features enabled") {
                | DebugFlags::eDirectStorageBreak
                | DebugFlags::eDirectStorageNames
                | DebugFlags::eWinPixEventRuntime,
-        .targetLevel = render::FeatureLevel::eLevel_11_0
+        .targetLevel = FeatureLevel::eLevel_11_0
     };
 
     next::CoreContext context{config};

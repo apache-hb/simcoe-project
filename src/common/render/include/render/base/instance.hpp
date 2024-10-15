@@ -8,11 +8,16 @@
 
 #include "render.reflect.h"
 
+#include "render/next/render.hpp"
+
 namespace sm::db {
     class Connection;
 }
 
 namespace sm::render {
+    using DebugFlags = next::DebugFlags;
+    using FeatureLevel = next::FeatureLevel;
+
     struct InstanceConfig {
         DebugFlags flags;
         AdapterPreference preference;

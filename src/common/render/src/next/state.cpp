@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "render/render.hpp"
+#include "render/next/context.hpp"
 
 using CoreDebugState = sm::render::next::CoreDebugState;
 
@@ -67,9 +67,9 @@ bool CoreDebugState::setupDebugLayer(bool enabled) {
 }
 
 CoreDebugState::CoreDebugState(DebugFlags flags) noexcept(false) {
-    bool gpuValidation = flags.test(DebugFlags::eGpuValidation);
-    bool nameObjects = flags.test(DebugFlags::eAutoName);
-    bool deviceRemovedInfo = flags.test(DebugFlags::eDeviceRemovedInfo);
+    bool gpuValidation = bool(flags & DebugFlags::eGpuValidation);
+    bool nameObjects = bool(flags & DebugFlags::eAutoName);
+    bool deviceRemovedInfo = bool(flags & DebugFlags::eDeviceRemovedInfo);
 
     bool enableDebugLayer = gpuValidation || nameObjects || deviceRemovedInfo;
 

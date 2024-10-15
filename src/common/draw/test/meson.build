@@ -4,7 +4,7 @@ subdir('redist')
 subdir('redist/d3d12')
 
 testcases = {
-    'Setup Context': 'context.cpp',
+    'Setup Draw Context': 'context.cpp',
 }
 
 foreach name, source : testcases
@@ -12,7 +12,7 @@ foreach name, source : testcases
         dependencies : [ render, draw, coretest ]
     )
 
-    test('Draw ' + name, exe,
+    test(name, exe,
         suite : 'draw',
         kwargs : testkwargs + { 'timeout' : 30 }
     )

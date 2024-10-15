@@ -12,15 +12,6 @@ using ILogger = opaque("sm::logs::ILogger")
 ///
 
 [[facade]]
-variant FeatureLevel : opaque(D3D_FEATURE_LEVEL) {
-    [[format("level 11.0")]] case Level_11_0 = opaque(D3D_FEATURE_LEVEL_11_0)
-    [[format("level 11.1")]] case Level_11_1 = opaque(D3D_FEATURE_LEVEL_11_1)
-    [[format("level 12.0")]] case Level_12_0 = opaque(D3D_FEATURE_LEVEL_12_0)
-    [[format("level 12.1")]] case Level_12_1 = opaque(D3D_FEATURE_LEVEL_12_1)
-    [[format("level 12.2")]] case Level_12_2 = opaque(D3D_FEATURE_LEVEL_12_2)
-}
-
-[[facade]]
 variant AdapterPreference : opaque(DXGI_GPU_PREFERENCE) {
     [[format("any")]] default Default = opaque(DXGI_GPU_PREFERENCE_UNSPECIFIED)
     [[format("low power")]] case MinimumPower = opaque(DXGI_GPU_PREFERENCE_MINIMUM_POWER)
@@ -190,22 +181,6 @@ variant TriState : opaque(D3D12_TRI_STATE) {
     [[format("unknown")]] default Unknown = opaque(D3D12_TRI_STATE_UNKNOWN)
     [[format("true")]] case True = opaque(D3D12_TRI_STATE_TRUE)
     [[format("false")]] case False = opaque(D3D12_TRI_STATE_FALSE)
-}
-
-[[bitflags]]
-variant DebugFlags {
-    [[format("none")]] default None = 0
-    [[format("device")]] case DeviceDebugLayer = (1 << 0) // d3d12 debug layer
-    [[format("factory")]] case FactoryDebug = (1 << 1) // dxgi debug layer
-    [[format("dred")]] case DeviceRemovedInfo = (1 << 2) // dred
-    [[format("queue")]] case InfoQueue = (1 << 3) // d3d12 debug layer
-    [[format("auto name")]] case AutoName = (1 << 4) // automatically name objects
-    [[format("warp adapter")]] case WarpAdapter = (1 << 5) // use software renderer
-    [[format("gpu validation")]] case GpuValidation = (1 << 6) // gpu validation
-    [[format("dstorage debug")]] case DirectStorageDebug = (1 << 7) // DSTORAGE_DEBUG_SHOW_ERRORS
-    [[format("dstorage break on error")]] case DirectStorageBreak = (1 << 8) // DSTORAGE_DEBUG_BREAK_ON_ERROR
-    [[format("dstorage object names")]] case DirectStorageNames = (1 << 9) // DSTORAGE_DEBUG_RECORD_OBJECT_NAMES
-    [[format("enable pix runtime")]] case WinPixEventRuntime = (1 << 10) // try to load the pix redist and enable the pix runtime
 }
 
 [[facade, bitflags]]

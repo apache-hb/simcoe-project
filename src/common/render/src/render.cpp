@@ -46,7 +46,7 @@ static sm::opt<bool> gDebugEnabled {
 };
 
 static render::DebugFlags getDebugFlags() {
-    render::DebugFlags flags = render::DebugFlags::none();
+    render::DebugFlags flags = render::DebugFlags::eNone;
 
     if (gWarpEnabled.getValue()) {
         flags |= render::DebugFlags::eWarpAdapter;
@@ -265,33 +265,33 @@ void IDeviceContext::serialize_root_signature(Object<ID3D12RootSignature>& signa
 }
 
 void IDeviceContext::create_device(Adapter& adapter) {
-    if (auto flags = adapter.flags(); flags.test(AdapterFlag::eSoftware) && mDebugFlags.test(DebugFlags::eGpuValidation)) {
+    if (auto flags = adapter.flags(); flags.test(AdapterFlag::eSoftware) && bool(mDebugFlags & DebugFlags::eGpuValidation)) {
         LOG_WARN(GpuLog, "adapter `{}` is a software adapter, enabling gpu validation has major performance implications", adapter.name());
     }
 
-    if (mDebugFlags.test(DebugFlags::eDeviceDebugLayer))
-        enable_debug_layer(mDebugFlags.test(DebugFlags::eGpuValidation), mDebugFlags.test(DebugFlags::eAutoName));
+    if (bool(mDebugFlags & DebugFlags::eDeviceDebugLayer))
+        enable_debug_layer(bool(mDebugFlags & DebugFlags::eGpuValidation), bool(mDebugFlags & DebugFlags::eAutoName));
     else
         disable_debug_layer();
 
-    enable_dred(mDebugFlags.test(DebugFlags::eDeviceRemovedInfo));
+    enable_dred(bool(mDebugFlags & DebugFlags::eDeviceRemovedInfo));
 
     FeatureLevel fl = getMinFeatureLevel();
 
     set_current_adapter(adapter);
-    if (Result hr = D3D12CreateDevice(adapter.get(), fl.as_facade(), IID_PPV_ARGS(&mDevice)); !hr) {
+    if (Result hr = D3D12CreateDevice(adapter.get(), D3D_FEATURE_LEVEL(fl), IID_PPV_ARGS(&mDevice)); !hr) {
         LOG_ERROR(GpuLog, "failed to create device `{}` at feature level `{}`", adapter.name(), fl, hr);
         LOG_ERROR(GpuLog, "| hresult: {}", hr);
         LOG_ERROR(GpuLog, "falling back to warp adapter...");
 
         Adapter& warp = mInstance.getWarpAdapter();
         set_current_adapter(warp);
-        SM_ASSERT_HR(D3D12CreateDevice(warp.get(), fl.as_facade(), IID_PPV_ARGS(&mDevice)));
+        SM_ASSERT_HR(D3D12CreateDevice(warp.get(), D3D_FEATURE_LEVEL(fl), IID_PPV_ARGS(&mDevice)));
     }
 
     LOG_INFO(GpuLog, "device created: {}", mCurrentAdapter->name());
 
-    if (mDebugFlags.test(DebugFlags::eInfoQueue))
+    if (bool(mDebugFlags & DebugFlags::eInfoQueue))
         enable_info_queue();
 
     SM_ASSERT_HR(mFeatureSupport.Init(*mDevice));
@@ -915,7 +915,7 @@ void IDeviceContext::create() {
                 return *adapter;
             }
             LOG_WARN(GpuLog, "adapter with luid {:x}:{:x} not found, falling back to default adapter", luid.HighPart, luid.LowPart);
-        } else if (mDebugFlags.test(DebugFlags::eWarpAdapter)) {
+        } else if (bool(mDebugFlags & DebugFlags::eWarpAdapter)) {
             return mInstance.getWarpAdapter();
         }
 

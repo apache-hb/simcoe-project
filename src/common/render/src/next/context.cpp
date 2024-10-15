@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "render/render.hpp"
+#include "render/next/context.hpp"
 
 namespace render = sm::render;
 
@@ -31,7 +31,7 @@ RenderResult<CoreDevice> CoreContext::createDevice(Adapter& adapter, FeatureLeve
 CoreDevice CoreContext::selectAutoDevice(DeviceSearchOptions options) {
     const auto& [level, flags, allowSoftwareAdapter] = options;
 
-    bool warpAdapter = flags.test(DebugFlags::eWarpAdapter);
+    bool warpAdapter = bool(flags & DebugFlags::eWarpAdapter);
     if (warpAdapter) {
         LOG_INFO(RenderLog, "WARP adapter specified.");
         return CoreDevice{mInstance.getWarpAdapter(), level, flags};

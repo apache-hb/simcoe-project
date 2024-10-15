@@ -10,11 +10,10 @@ using namespace sm::ed;
 static constexpr int kMaxLength = DXGI_MAX_SWAP_CHAIN_BUFFERS;
 
 namespace MyGui {
-template<ctu::Reflected T>
-    requires (ctu::is_enum<T>())
+template<typename T>
 static bool CheckboxFlags(const char *label, T &flags, T flag) {
-    unsigned val = flags.as_integral();
-    if (ImGui::CheckboxFlags(label, &val, flag.as_integral())) {
+    unsigned val = std::to_underlying(flags);
+    if (ImGui::CheckboxFlags(label, &val, std::to_underlying(flag))) {
         flags = T(val);
         return true;
     }
@@ -141,13 +140,13 @@ bool RenderConfig::draw_debug_flags() const {
     auto& flags = mContext.mDebugFlags;
     bool dirty = false;
 
-    bool disabled = !flags.test(DebugFlags::eFactoryDebug);
+    bool disabled = !bool(flags & DebugFlags::eFactoryDebug);
     ImGui::BeginDisabled(disabled);
     ImGui::BeginGroup();
     dirty |= MyGui::CheckboxFlags<render::DebugFlags>("Debug layer", flags, DebugFlags::eDeviceDebugLayer);
     ImGui::SameLine();
 
-    ImGui::BeginDisabled(!flags.test(DebugFlags::eDeviceDebugLayer));
+    ImGui::BeginDisabled(!bool(flags & DebugFlags::eDeviceDebugLayer));
     dirty |= MyGui::CheckboxFlags<render::DebugFlags>("Info queue", flags, DebugFlags::eInfoQueue);
     ImGui::SameLine();
     dirty |= MyGui::CheckboxFlags<render::DebugFlags>("GPU Validation", flags, DebugFlags::eGpuValidation);

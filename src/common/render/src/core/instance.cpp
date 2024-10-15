@@ -118,7 +118,7 @@ Instance::Instance(InstanceConfig config) noexcept(false)
     : mFlags(config.flags)
     , mAdapterSearch(config.preference)
 {
-    bool debug = mFlags.test(DebugFlags::eFactoryDebug);
+    bool debug = bool(mFlags & DebugFlags::eFactoryDebug);
     const UINT flags = debug ? DXGI_CREATE_FACTORY_DEBUG : 0;
     SM_THROW_HR(CreateDXGIFactory2(flags, IID_PPV_ARGS(&mFactory)));
 
@@ -130,7 +130,7 @@ Instance::Instance(InstanceConfig config) noexcept(false)
 
     loadWarpRedist();
 
-    if (mFlags.test(DebugFlags::eWinPixEventRuntime))
+    if (bool(mFlags & DebugFlags::eWinPixEventRuntime))
         loadPIXRuntime();
 
     findWarpAdapter();
@@ -179,7 +179,7 @@ Adapter& Instance::getDefaultAdapter() noexcept {
 }
 
 bool Instance::isDebugEnabled() const noexcept {
-    return mFlags.test(DebugFlags::eFactoryDebug);
+    return bool(mFlags & DebugFlags::eFactoryDebug);
 }
 
 namespace renderdao = sm::dao::render;

@@ -8,7 +8,7 @@ using namespace sm;
 using namespace sm::ed;
 
 bool PixPanel::is_pix_enabled() const {
-    return mContext.mDebugFlags.test(render::DebugFlags::eWinPixEventRuntime);
+    return bool(mContext.mDebugFlags & render::DebugFlags::eWinPixEventRuntime);
 }
 
 void PixPanel::draw_content() {

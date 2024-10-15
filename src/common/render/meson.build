@@ -33,6 +33,11 @@ render_config = configure_file(
 
 render_include = include_directories('.', 'include')
 
+deps = [
+    core, logs, system, math, archive, config,
+    d3d12, d3dx12,
+]
+
 src = [
     reflect.process('data/render.ct'),
 
@@ -45,13 +50,13 @@ src = [
 
 librender_meta = library('render-meta', src,
     include_directories : [ render_include, reflect_include ],
-    dependencies : [ core, logs, system, math, archive, config ]
+    dependencies : deps
 )
 
 render_meta = declare_dependency(
     link_with : librender_meta,
     include_directories : [ render_include, librender_meta.private_dir_include() ],
-    dependencies : [ core, logs, system, math, archive, config ]
+    dependencies : deps
 )
 
 ###
@@ -133,21 +138,4 @@ render = declare_dependency(
     dependencies : [ deps, render_core ]
 )
 
-testcases = {
-    'Setup render instance': 'test/instance.cpp',
-    'Save render device data': 'test/store.cpp',
-
-    'Create render next CoreContext': 'test/next/context.cpp',
-    'Create render next CoreContext with debug features': 'test/next/context-debug.cpp',
-}
-
-foreach name, source : testcases
-    exe = executable('test-render-' + name.to_lower().replace(' ', '-'), source,
-        dependencies : [ render, coretest, dbtest ]
-    )
-
-    test(name, exe,
-        suite : 'render',
-        kwargs : testkwargs
-    )
-endforeach
+subdir('test')

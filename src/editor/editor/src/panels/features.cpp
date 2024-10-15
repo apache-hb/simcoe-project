@@ -16,6 +16,13 @@ namespace MyGui {
         ImGui::TextUnformatted(Reflect::to_string(value, base).c_str());
     }
 
+    template<typename T>
+    void TextReflect(const char *name, const T &value, int base = 10) {
+        ImGui::Text("%s: ", name);
+        ImGui::SameLine();
+        ImGui::TextUnformatted(fmt::to_string(value).c_str());
+    }
+
     static void TextFeature(const char *name, bool value) {
         ImGui::Text("%s: ", name);
         ImGui::SameLine();
@@ -30,7 +37,7 @@ namespace MyGui {
 void FeatureSupportPanel::draw_content() {
     const auto& feat = mContext.mFeatureSupport;
 
-    MyGui::TextReflect<render::FeatureLevel>("Feature Level", feat.MaxSupportedFeatureLevel());
+    MyGui::TextReflect<render::FeatureLevel>("Feature Level", render::FeatureLevel(feat.MaxSupportedFeatureLevel()));
     MyGui::TextReflect<render::ShaderModel>("Shader Model", feat.HighestShaderModel());
     MyGui::TextReflect<render::RootSignatureVersion>("Root Signature Version", feat.HighestRootSignatureVersion());
     MyGui::TextReflect<render::ProtectedResourceSessionSupport>("Protected Resource Session Support", feat.ProtectedResourceSessionSupport());

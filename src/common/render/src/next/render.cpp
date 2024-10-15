@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "render/render.hpp"
+#include "render/next/context.hpp"
 
 namespace render = sm::render;
 
@@ -10,7 +10,7 @@ using RenderError = render::RenderError;
 using render::Object;
 
 void CoreDevice::setupCoreDevice(Adapter& adapter, FeatureLevel level) {
-    SM_THROW_HR(D3D12CreateDevice(adapter.get(), level.as_facade(), IID_PPV_ARGS(&mDevice)));
+    SM_THROW_HR(D3D12CreateDevice(adapter.get(), D3D_FEATURE_LEVEL(level), IID_PPV_ARGS(&mDevice)));
 }
 
 static void onQueueMessage(D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID id, LPCSTR desc, void *user) {
@@ -57,7 +57,7 @@ CoreDevice::CoreDevice(Adapter& adapter, FeatureLevel level, DebugFlags flags) n
     : mFeatureLevel(level)
     , mAdapterLUID(adapter.luid())
 {
-    bool enableInfoQueue = flags.test(DebugFlags::eInfoQueue);
+    bool enableInfoQueue = bool(flags & DebugFlags::eInfoQueue);
 
     setupCoreDevice(adapter, level);
     setupInfoQueue(enableInfoQueue);
