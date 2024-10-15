@@ -231,6 +231,7 @@ void CoreContext::updateSwapChain(SurfaceInfo info) {
     mBackBuffers.clear();
     mSwapChain->updateSurfaceInfo(info);
     mSwapChainInfo = info;
+
     createBackBuffers(mFenceValues[mCurrentBackBuffer]);
 }
 

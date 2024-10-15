@@ -50,4 +50,5 @@ void ISwapChain::updateSurfaceInfo(SurfaceInfo info) {
     checkSurfaceLimits(limits, info);
 
     updateSurfaces(info);
+    mLength = info.length;
 }

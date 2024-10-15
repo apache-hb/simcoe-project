@@ -13,11 +13,11 @@ namespace next = sm::render::next;
 using render::next::DebugFlags;
 using render::next::FeatureLevel;
 
-static next::SurfaceInfo newSurfaceInfo(math::uint2 size) {
+static next::SurfaceInfo newSurfaceInfo(math::uint2 size, UINT length = 2) {
     return next::SurfaceInfo {
         .format = DXGI_FORMAT_R8G8B8A8_UNORM,
         .size = size,
-        .length = 2,
+        .length = length,
         .clearColour = { 0.0f, 0.0f, 0.0f, 1.0f },
     };
 }
@@ -66,12 +66,7 @@ TEST_CASE("Create next::CoreContext with window swapchain") {
                | DebugFlags::eWinPixEventRuntime,
         .targetLevel = FeatureLevel::eLevel_11_0,
         .swapChainFactory = &swapChainFactory,
-        .swapChainInfo = {
-            .format = DXGI_FORMAT_R8G8B8A8_UNORM,
-            .size = client,
-            .length = 2,
-            .clearColour = { 0.0f, 0.0f, 0.0f, 1.0f },
-        },
+        .swapChainInfo = newSurfaceInfo(client, 8),
     };
 
     next::CoreContext context{config};
@@ -107,6 +102,10 @@ TEST_CASE("Create next::CoreContext with window swapchain") {
 
         if (iters == 40) {
             context.setAdapter(warpAdapter);
+        }
+
+        if (iters == 35) {
+            context.updateSwapChain(newSurfaceInfo(client, 4));
         }
 
         if (--iters == 0) {
