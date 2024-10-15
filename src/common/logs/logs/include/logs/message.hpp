@@ -1,5 +1,7 @@
 #pragma once
 
+#include <simcoe_logs_config.h>
+
 #include "logs/category.hpp"
 #include "logs/params.hpp"
 
@@ -8,11 +10,7 @@
 #include <string_view>
 #include <source_location>
 
-/// toggles the inclusion of source info,
-/// filename, line, function name, message body, etc
-#define SM_LOGS_INCLUDE_INFO 1
-
-#if SM_LOGS_INCLUDE_INFO
+#if SMC_LOGS_INCLUDE_SOURCE_INFO
 #   define SM_CURRENT_SOURCE_LOCATION() std::source_location::current()
 #else
 #   define SM_CURRENT_SOURCE_LOCATION() std::source_location{}
@@ -24,9 +22,11 @@ namespace sm::logs {
         logs::Severity level;
         const CategoryInfo& category;
         std::string_view message;
-#if SM_LOGS_INCLUDE_INFO
+
+#if SMC_LOGS_INCLUDE_SOURCE_INFO
         std::source_location location;
 #endif
+
     public:
 
         int indexAttributeCount;
@@ -44,7 +44,7 @@ namespace sm::logs {
             , level(level)
             , category(category)
             , message(message)
-#if SM_LOGS_INCLUDE_INFO
+#if SMC_LOGS_INCLUDE_SOURCE_INFO
             , location(location)
 #endif
             , indexAttributeCount(indexAttributeCount)
@@ -56,7 +56,7 @@ namespace sm::logs {
         const CategoryInfo& getCategory() const noexcept { return category; }
         std::string_view getMessage() const noexcept { return message; }
 
-#if SM_LOGS_INCLUDE_INFO
+#if SMC_LOGS_INCLUDE_SOURCE_INFO
         uint_least32_t getLine() const noexcept { return location.line(); }
         const char *getFunction() const noexcept { return location.function_name(); }
         const char *getFileName() const noexcept { return location.file_name(); }

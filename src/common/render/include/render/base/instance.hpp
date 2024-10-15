@@ -35,6 +35,10 @@ namespace sm::render {
         constexpr operator LUID() const { return {low, high}; }
 
         constexpr auto operator<=>(const AdapterLUID&) const = default;
+
+        constexpr bool isPresent() const noexcept {
+            return high != 0 || low != 0;
+        }
     };
 
     class Adapter : public Object<IDXGIAdapter1> {
@@ -82,6 +86,10 @@ namespace sm::render {
         constexpr bool operator==(const Adapter& other) const {
             return mAdapterLuid == other.mAdapterLuid;
         }
+
+        constexpr bool operator==(AdapterLUID luid) const {
+            return mAdapterLuid == luid;
+        }
     };
 
     class Instance {
@@ -117,12 +125,14 @@ namespace sm::render {
         std::span<const Adapter> adapters() const noexcept { return mAdapters; }
         Object<IDXGIFactory4> &factory() noexcept { return mFactory; }
         const DebugFlags &flags() const noexcept { return mFlags; }
+        AdapterPreference preference() const noexcept { return mAdapterSearch; }
         bool isTearingSupported() const noexcept { return mTearingSupport; }
 
         bool isDebugEnabled() const noexcept;
         bool hasViableAdapter() const noexcept;
 
         Adapter *getAdapterByLUID(LUID luid) noexcept;
+        Adapter *findAdapterByLUID(AdapterLUID luid) noexcept;
         Adapter& getWarpAdapter() noexcept;
         Adapter& getDefaultAdapter() noexcept;
     };

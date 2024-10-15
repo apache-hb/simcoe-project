@@ -35,7 +35,7 @@ namespace sm::render {
         using Super::Super;
 
         template <ComObject O>
-        Result query(O **out) const {
+        HRESULT query(O **out) const {
             return Super::get()->QueryInterface(IID_PPV_ARGS(out));
         }
 

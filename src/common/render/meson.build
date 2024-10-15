@@ -1,9 +1,15 @@
-render_include = include_directories('.', 'include')
+###
+### rendering dependencies
+###
 
 dstorage = dependency('dstorage')
 winpixruntime = dependency('winpixruntime')
 nvapi = dependency('nvapi', required : get_option('nvapi_enable'))
 ags = dependency('amd_ags', required : get_option('amd_ags_enable'))
+
+###
+### render feature configuration
+###
 
 framegraph_trace_feature = get_option('framegraph_trace').disable_auto_if(is_release)
 warp_feature = get_option('warp_enable').disable_auto_if(is_release)
@@ -21,10 +27,18 @@ render_config = configure_file(
     configuration : render_cdata
 )
 
+###
+### reflection data
+###
+
+render_include = include_directories('.', 'include')
+
 src = [
     reflect.process('data/render.ct'),
 
     daocc.process('data/render.xml'),
+
+    metacc.process('include/render/next/render.hpp'),
 
     metacc.process('include/render/graph/graph.hpp'),
 ]
@@ -40,9 +54,11 @@ render_meta = declare_dependency(
     dependencies : [ core, logs, system, math, archive, config ]
 )
 
-src = [
-    render_config,
+###
+### monolithic render core
+###
 
+src = [
     # core render classes
     'src/core/object.cpp',
     'src/core/instance.cpp',
@@ -71,7 +87,10 @@ src = [
     'src/vendor/nvidia/nvapi.cpp',
     'src/vendor/amd/ags.cpp',
 
+    # render next
+    'src/next/state.cpp',
     'src/next/render.cpp',
+    'src/next/context.cpp',
 ]
 
 deps = [
@@ -117,6 +136,9 @@ render = declare_dependency(
 testcases = {
     'Setup render instance': 'test/instance.cpp',
     'Save render device data': 'test/store.cpp',
+
+    'Create render next CoreContext': 'test/next/context.cpp',
+    'Create render next CoreContext with debug features': 'test/next/context-debug.cpp',
 }
 
 foreach name, source : testcases

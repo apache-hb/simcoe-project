@@ -2,10 +2,23 @@
 ### reflection data
 ###
 
-logs_include = include_directories('include')
+opt = get_option('logs_include_source_info').disable_auto_if(is_release)
+
+log_cdata = configuration_data()
+log_cdata.set10('SMC_LOGS_INCLUDE_SOURCE_INFO', opt.allowed(),
+    description : 'Include source information and log message content in the game binary.'
+)
+
+log_config = configure_file(
+    output : 'simcoe_logs_config.h',
+    configuration : log_cdata
+)
+
+logs_include = include_directories('include', '.')
 
 src = [
     metacc.process('include/logs/logs.hpp'),
+    log_config,
 ]
 
 deps = [ core, meta ]
@@ -18,7 +31,7 @@ liblogs_meta = library('logs-meta', src,
 logs_meta = declare_dependency(
     link_with : liblogs_meta,
     include_directories : [ logs_include, liblogs_meta.private_dir_include() ],
-    dependencies : [ core, meta ]
+    dependencies : deps
 )
 
 ###

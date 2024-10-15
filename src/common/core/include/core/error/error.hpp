@@ -1,12 +1,12 @@
 #pragma once
 
-#include "core/adt/zstring_view.hpp"
 #include "core/throws.hpp"
 
-#include <exception>
 #include <expected>
 #include <stacktrace>
 #include <string>
+
+#include "fmtlib/format.h"
 
 namespace sm::errors {
     class AnyError;
@@ -67,6 +67,17 @@ namespace sm::errors {
 
             return std::move(result.value());
         }
+
+        /// evaluates to true if an error is present
+        /// decided to do this to get the short error handling syntax
+        /// @code{.cpp}
+        /// if (Error err = maybe()) {
+        ///     // handle error
+        /// }
+        /// @endcode
+        constexpr operator bool() const noexcept {
+            return !isSuccessImpl();
+        }
     };
 
     template<IsError T>
@@ -85,3 +96,14 @@ namespace sm::errors {
         [[nodiscard]] const std::stacktrace& stacktrace() const noexcept { return mError.stacktrace(); }
     };
 }
+
+template<typename T> requires (std::is_base_of_v<sm::errors::AnyError, T>)
+struct fmt::formatter<T> {
+    constexpr auto parse(fmt::format_parse_context& ctx) const noexcept {
+        return ctx.begin();
+    }
+
+    constexpr auto format(const T& error, fmt::format_context& ctx) const {
+        return fmt::format_to(ctx.out(), "{}", error.message());
+    }
+};

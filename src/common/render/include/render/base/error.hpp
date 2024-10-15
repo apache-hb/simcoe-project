@@ -32,6 +32,9 @@ namespace sm::render {
 
         RenderException(HRESULT value, std::string_view expr);
     };
+
+    template<typename V>
+    using RenderResult = RenderError::Result<V>;
 }
 
 #define SM_THROW_HR(expr) \

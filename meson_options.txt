@@ -25,6 +25,15 @@ option('freetype_logging', type : 'boolean',
 )
 
 ###
+### structured logging features
+###
+
+option('logs_include_source_info', type : 'feature',
+    description : 'Include source info in the built logdb',
+    value : 'auto'
+)
+
+###
 ### render debug features
 ###
 
@@ -62,35 +71,35 @@ option('tracy_enable', type : 'boolean',
 )
 
 ###
-### extra orm features
+### extra db features
 ###
-
-option('psql', type : 'feature',
-    description : 'Enable PostgreSQL support',
-    value : 'auto'
-)
-
-option('mysql', type : 'feature',
-    description : 'Enable MySQL support',
-    value : 'auto'
-)
 
 option('orcl', type : 'feature',
     description : 'Enable OracleDB support',
     value : 'auto'
 )
 
+option('psql', type : 'feature',
+    description : 'Enable PostgreSQL support (partial)',
+    value : 'auto'
+)
+
+option('mysql', type : 'feature',
+    description : 'Enable MySQL support (placeholder)',
+    value : 'auto'
+)
+
 option('mssql', type : 'feature',
-    description : 'Enable Microsoft SQL Server support',
+    description : 'Enable Microsoft SQL Server support (placeholder)',
     value : 'auto'
 )
 
 option('db2', type : 'feature',
-    description : 'Enable IBM DB2 support',
+    description : 'Enable IBM DB2 support (placeholder)',
     value : 'auto'
 )
 
 option('odbc', type : 'feature',
-    description : 'Enable generic ODBC support',
+    description : 'Enable generic ODBC support (placeholder)',
     value : 'auto'
 )

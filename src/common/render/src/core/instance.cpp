@@ -151,10 +151,22 @@ bool Instance::hasViableAdapter() const noexcept {
 }
 
 Adapter *Instance::getAdapterByLUID(LUID luid) noexcept {
-    for (auto &adapter : mAdapters) {
-        if (adapter.luid() == luid)
+    for (Adapter &adapter : mAdapters) {
+        if (adapter.luid() == luid) {
             return std::addressof(adapter);
+        }
     }
+
+    return nullptr;
+}
+
+Adapter *Instance::findAdapterByLUID(AdapterLUID luid) noexcept {
+    for (Adapter &adapter : mAdapters) {
+        if (adapter == luid) {
+            return std::addressof(adapter);
+        }
+    }
+
     return nullptr;
 }
 
