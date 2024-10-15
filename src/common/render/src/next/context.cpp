@@ -208,6 +208,14 @@ CoreContext::CoreContext(ContextConfig config) noexcept(false)
     createPresentFence();
 }
 
+CoreContext::~CoreContext() noexcept try {
+    flushDevice();
+} catch (const render::RenderException& e) {
+    LOG_ERROR(RenderLog, "Failed to flush device: {}", e);
+} catch (...) {
+    LOG_ERROR(RenderLog, "Failed to flush device: unknown error");
+}
+
 void CoreContext::setAdapter(AdapterLUID luid) {
     if (luid == mDevice.luid())
         return;
