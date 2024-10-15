@@ -65,10 +65,20 @@ CoreDevice::CoreDevice(Adapter& adapter, FeatureLevel level, DebugFlags flags) n
 
 #pragma region Public API
 
+static constexpr D3D12MA::ALLOCATION_CALLBACKS kAllocCallbacks {
+    .pAllocate = [](size_t size, size_t alignment, void *user) -> void * {
+        return _aligned_malloc(size, alignment);
+    },
+    .pFree = [](void *ptr, void *user) {
+        _aligned_free(ptr);
+    },
+};
+
 Object<D3D12MA::Allocator> CoreDevice::newAllocator(D3D12MA::ALLOCATOR_FLAGS flags) noexcept(false) {
     D3D12MA::ALLOCATOR_DESC desc {
         .Flags = flags,
         .pDevice = mDevice.get(),
+        .pAllocationCallbacks = &kAllocCallbacks,
         .pAdapter = mAdapter->get(),
     };
 
