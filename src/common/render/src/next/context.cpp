@@ -213,6 +213,7 @@ void CoreContext::setAdapter(AdapterLUID luid) {
 
     flushDevice();
 
+    mBackBuffers.clear();
     mSwapChain.reset();
     mDirectQueue.reset();
     mAllocator.reset();

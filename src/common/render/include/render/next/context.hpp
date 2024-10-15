@@ -81,6 +81,7 @@ namespace sm::render::next {
         CoreContext(ContextConfig config) throws(RenderException);
 
         std::span<const Adapter> adapters() const noexcept { return mInstance.adapters(); }
+        const Adapter& getWarpAdapter() noexcept { return mInstance.getWarpAdapter(); }
         void setAdapter(AdapterLUID luid);
 
         void updateSwapChain(SurfaceInfo info);

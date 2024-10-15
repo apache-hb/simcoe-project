@@ -78,6 +78,8 @@ TEST_CASE("Create next::CoreContext with window swapchain") {
     SUCCEED("Created CoreContext successfully");
     events.context = &context;
 
+    render::AdapterLUID warpAdapter = context.getWarpAdapter().luid();
+
     bool done = false;
     const int totalIters = 60;
     int iters = totalIters;
@@ -95,8 +97,16 @@ TEST_CASE("Create next::CoreContext with window swapchain") {
 
         context.present();
 
-        if (iters == (totalIters / 2)) {
+        if (iters == 30) {
             window.resize({ 400, 300 });
+        }
+
+        if (iters == 45) {
+            CHECK_THROWS_AS(context.setAdapter(render::AdapterLUID(0x1000, 0x1234)), render::RenderException);
+        }
+
+        if (iters == 40) {
+            context.setAdapter(warpAdapter);
         }
 
         if (--iters == 0) {
