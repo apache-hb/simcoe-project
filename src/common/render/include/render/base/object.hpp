@@ -46,6 +46,12 @@ namespace sm::render {
         std::string getName() const requires D3DObject<T> {
             return getObjectDebugName(Super::get());
         }
+
+        Object clone() noexcept {
+            T *object = Super::get();
+            object->AddRef();
+            return Object{object};
+        }
     };
 
     struct Blob : public Object<ID3DBlob> {

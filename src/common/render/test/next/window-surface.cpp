@@ -13,8 +13,27 @@ namespace next = sm::render::next;
 using render::next::DebugFlags;
 using render::next::FeatureLevel;
 
-TEST_CASE("Create next::CoreContext with debug features enabled") {
-    next::VirtualSwapChainFactory swapChainFactory { };
+class TestWindowEvents final : public system::IWindowEvents {
+
+};
+
+TEST_CASE("Create next::CoreContext with window swapchain") {
+    system::create(GetModuleHandle(nullptr));
+
+    TestWindowEvents events { };
+    system::Window window {
+        system::WindowConfig {
+            .mode = system::WindowMode::eWindowed,
+            .width = 800, .height = 600,
+            .title = "Test"
+        },
+        events
+    };
+    window.showWindow(system::ShowWindow::eShow);
+
+    auto client = window.getClientCoords().size();
+
+    next::WindowSwapChainFactory swapChainFactory { window.getHandle() };
 
     next::ContextConfig config {
         .flags = DebugFlags::eDeviceDebugLayer
@@ -31,7 +50,7 @@ TEST_CASE("Create next::CoreContext with debug features enabled") {
         .swapChainFactory = &swapChainFactory,
         .swapChainInfo = {
             .format = DXGI_FORMAT_R8G8B8A8_UNORM,
-            .size = { 1920, 1080 },
+            .size = client,
             .length = 2,
             .clearColour = { 0.0f, 0.0f, 0.0f, 1.0f },
         },

@@ -60,17 +60,53 @@ render_meta = declare_dependency(
 )
 
 ###
-### monolithic render core
+### core render objects
 ###
 
 src = [
-    # core render classes
     'src/core/object.cpp',
     'src/core/instance.cpp',
     'src/core/error.cpp',
     'src/core/resource.cpp',
     'src/core/format.cpp',
+]
 
+deps = [
+    # reflection
+    render_meta,
+
+    # internal libraries
+    core, logs, math, db, world,
+
+    # microsoft
+    d3d12, d3dx12,
+    dstorage,
+    winpixruntime.partial_dependency(includes : true),
+
+    # hardware vendors
+    nvapi, ags,
+
+    # other vendors
+    tracy, d3d12ma,
+]
+
+librender_base = library('render-base', src,
+    cpp_pch : 'src/stdafx.hpp',
+    include_directories : [ render_include, 'src' ],
+    dependencies : deps,
+)
+
+render_base = declare_dependency(
+    link_with : librender_base,
+    include_directories : [ render_include ],
+    dependencies : deps
+)
+
+###
+### monolithic render core
+###
+
+src = [
     # utils
     'src/result.cpp',
 
@@ -96,12 +132,19 @@ src = [
     'src/next/state.cpp',
     'src/next/render.cpp',
     'src/next/context.cpp',
+
+    # swapchain factories
+    'src/next/surface/surface.cpp',
+    'src/next/surface/virtual.cpp',
+    'src/next/surface/swapchain.cpp',
 ]
 
 deps = [
     # internal libraries
     core, logs, system, math, archive,
-    world, config, render_meta, db,
+    world, config,
+
+    render_base,
 
     # other vendors
     tracy, d3d12ma,

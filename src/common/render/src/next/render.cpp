@@ -9,10 +9,6 @@ using RenderError = render::RenderError;
 
 using render::Object;
 
-void CoreDevice::setupCoreDevice(Adapter& adapter, FeatureLevel level) {
-    SM_THROW_HR(D3D12CreateDevice(adapter.get(), D3D_FEATURE_LEVEL(level), IID_PPV_ARGS(&mDevice)));
-}
-
 static void onQueueMessage(D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID id, LPCSTR desc, void *user) {
     render::MessageCategory c{category};
     render::MessageSeverity s{severity};
@@ -53,12 +49,38 @@ void CoreDevice::setupInfoQueue(bool enabled) {
     LOG_INFO(GpuLog, "info queue enabled with cookie {}", mCookie);
 }
 
+void CoreDevice::setupCoreDevice(Adapter& adapter, FeatureLevel level) {
+    SM_THROW_HR(D3D12CreateDevice(adapter.get(), D3D_FEATURE_LEVEL(level), IID_PPV_ARGS(&mDevice)));
+}
+
 CoreDevice::CoreDevice(Adapter& adapter, FeatureLevel level, DebugFlags flags) noexcept(false)
     : mFeatureLevel(level)
-    , mAdapterLUID(adapter.luid())
+    , mAdapter(std::addressof(adapter))
 {
     bool enableInfoQueue = bool(flags & DebugFlags::eInfoQueue);
 
     setupCoreDevice(adapter, level);
     setupInfoQueue(enableInfoQueue);
+}
+
+#pragma region Public API
+
+Object<D3D12MA::Allocator> CoreDevice::newAllocator(D3D12MA::ALLOCATOR_FLAGS flags) noexcept(false) {
+    D3D12MA::ALLOCATOR_DESC desc {
+        .Flags = flags,
+        .pDevice = mDevice.get(),
+        .pAdapter = mAdapter->get(),
+    };
+
+    Object<D3D12MA::Allocator> allocator;
+    SM_THROW_HR(D3D12MA::CreateAllocator(&desc, &allocator));
+
+    return allocator;
+}
+
+Object<ID3D12CommandQueue> CoreDevice::newCommandQueue(D3D12_COMMAND_QUEUE_DESC desc) noexcept(false) {
+    Object<ID3D12CommandQueue> queue;
+    SM_THROW_HR(mDevice->CreateCommandQueue(&desc, IID_PPV_ARGS(&queue)));
+
+    return queue;
 }

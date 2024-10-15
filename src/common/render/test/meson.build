@@ -9,6 +9,9 @@ testcases = {
 
     'Create render next CoreContext': 'next/context.cpp',
     'Create render next CoreContext with debug features': 'next/context-debug.cpp',
+
+    'Virtual swapchain': 'next/virtual-surface.cpp',
+    'Window swapchain': 'next/window-surface.cpp',
 }
 
 foreach name, source : testcases

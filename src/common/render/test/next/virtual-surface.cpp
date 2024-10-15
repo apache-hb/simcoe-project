@@ -10,13 +10,23 @@ using namespace sm;
 
 namespace next = sm::render::next;
 
+using render::next::DebugFlags;
 using render::next::FeatureLevel;
-using render::AdapterLUID;
 
-TEST_CASE("Create next::CoreContext") {
+TEST_CASE("Create next::CoreContext virtual swapchain") {
     next::VirtualSwapChainFactory swapChainFactory { };
 
     next::ContextConfig config {
+        .flags = DebugFlags::eDeviceDebugLayer
+               | DebugFlags::eFactoryDebug
+               | DebugFlags::eDeviceRemovedInfo
+               | DebugFlags::eInfoQueue
+               | DebugFlags::eAutoName
+               | DebugFlags::eGpuValidation
+               | DebugFlags::eDirectStorageDebug
+               | DebugFlags::eDirectStorageBreak
+               | DebugFlags::eDirectStorageNames
+               | DebugFlags::eWinPixEventRuntime,
         .targetLevel = FeatureLevel::eLevel_11_0,
         .swapChainFactory = &swapChainFactory,
         .swapChainInfo = {
@@ -29,6 +39,4 @@ TEST_CASE("Create next::CoreContext") {
 
     next::CoreContext context{config};
     SUCCEED("Created CoreContext successfully");
-
-    CHECK_THROWS_AS(context.setAdapter(AdapterLUID(0x1000, 0x1234)), render::RenderException);
 }

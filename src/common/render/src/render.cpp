@@ -373,7 +373,7 @@ void IDeviceContext::create_pipeline() {
         .Flags = getSwapChainFlags(mInstance),
     };
 
-    auto& factory = mInstance.factory();
+    IDXGIFactory4 *factory = mInstance.factory();
     HWND hwnd = mConfig.window.get_handle();
 
     Object<IDXGISwapChain1> swapchain1;

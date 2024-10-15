@@ -35,6 +35,7 @@ namespace sm::render {
         uint low;
 
         AdapterLUID() = default;
+        AdapterLUID(long high, uint low) : high(high), low(low) { }
         AdapterLUID(LUID luid) : high(luid.HighPart), low(luid.LowPart) { }
 
         constexpr operator LUID() const { return {low, high}; }
@@ -113,7 +114,7 @@ namespace sm::render {
 #endif
 
         void enableDebugLeakTracking();
-        void queryTearingSupport();
+        bool queryTearingSupport() const;
 
         bool enumAdaptersByPreference();
         void findWarpAdapter();
@@ -128,7 +129,7 @@ namespace sm::render {
 
         std::span<Adapter> adapters() noexcept { return mAdapters; }
         std::span<const Adapter> adapters() const noexcept { return mAdapters; }
-        Object<IDXGIFactory4> &factory() noexcept { return mFactory; }
+        IDXGIFactory4 *factory() noexcept { return mFactory.get(); }
         const DebugFlags &flags() const noexcept { return mFlags; }
         AdapterPreference preference() const noexcept { return mAdapterSearch; }
         bool isTearingSupported() const noexcept { return mTearingSupport; }

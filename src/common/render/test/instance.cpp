@@ -35,7 +35,7 @@ TEST_CASE("Setup rendering instance") {
         render::Instance instance{config};
 
         WHEN("The instance is created") {
-            CHECK(instance.factory().isValid());
+            CHECK(instance.factory() != nullptr);
             CHECK(instance.flags() == config.flags);
 
             THEN("It has a warp adapter") {

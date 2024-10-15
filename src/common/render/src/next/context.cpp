@@ -9,6 +9,9 @@ using CoreDevice = render::next::CoreDevice;
 using ContextConfig = render::next::ContextConfig;
 
 using render::RenderResult;
+using render::RenderError;
+
+#pragma region Instance
 
 static render::Instance newInstance(const ContextConfig& ctxConfig) {
     render::InstanceConfig config {
@@ -17,6 +20,16 @@ static render::Instance newInstance(const ContextConfig& ctxConfig) {
     };
 
     return render::Instance{config};
+}
+
+#pragma region Device
+
+CoreDevice CoreContext::createDevice(AdapterLUID luid, FeatureLevel level, DebugFlags flags) {
+    if (Adapter *adapter = mInstance.findAdapterByLUID(luid)) {
+        return CoreDevice{*adapter, level, flags};
+    }
+
+    throw RenderException{E_FAIL, fmt::format("Adapter {} not found.", luid)};
 }
 
 RenderResult<CoreDevice> CoreContext::createDevice(Adapter& adapter, FeatureLevel level, DebugFlags flags) {
@@ -88,10 +101,76 @@ CoreDevice CoreContext::selectDevice(const ContextConfig& config) {
     return selectPreferredDevice(config.adapterOverride, options);
 }
 
+#pragma region Allocator
+
+static constexpr D3D12MA::ALLOCATOR_FLAGS kAllocatorFlags
+    = D3D12MA::ALLOCATOR_FLAG_DEFAULT_POOLS_NOT_ZEROED
+    | D3D12MA::ALLOCATOR_FLAG_SINGLETHREADED;
+
+void CoreContext::createAllocator() {
+    mAllocator = mDevice.newAllocator(kAllocatorFlags);
+}
+
+#pragma region Direct Queue
+
+void CoreContext::createDirectQueue() {
+    mDirectQueue = mDevice.newCommandQueue({ .Type = D3D12_COMMAND_LIST_TYPE_DIRECT });
+}
+
+#pragma region SwapChain
+
+void CoreContext::createSwapChain(ISwapChainFactory *factory, SurfaceInfo info) {
+    CTASSERT(factory != nullptr);
+
+    mSwapChainFactory = factory;
+    SurfaceCreateObjects objects {
+        .instance = mInstance,
+        .device = mDevice,
+        .queue = mDirectQueue,
+    };
+
+    mSwapChain = std::unique_ptr<ISwapChain>(mSwapChainFactory->newSwapChain(objects, info));
+    CTASSERT(mSwapChain != nullptr);
+
+    mSwapChainInfo = info;
+}
+
+#pragma region Lifetime
+
+void CoreContext::createDeviceState() {
+    createAllocator();
+    createDirectQueue();
+}
+
+#pragma region Constructor
+
 CoreContext::CoreContext(ContextConfig config) noexcept(false)
-    : mInstance(newInstance(config))
+    : mDebugFlags(config.flags)
+    , mInstance(newInstance(config))
     , mDebugState(config.flags)
     , mDevice(selectDevice(config))
 {
+    createDeviceState();
+    createSwapChain(config.swapChainFactory, config.swapChainInfo);
+}
+
+void CoreContext::setAdapter(AdapterLUID luid) {
+    if (luid == mDevice.luid())
+        return;
+
+    FeatureLevel level = mDevice.level();
+
+    CoreDevice newDevice = createDevice(luid, level, mDebugFlags);
+
+    mSwapChain.reset();
+    mDirectQueue.reset();
+    mAllocator.reset();
+
+    mDevice = std::move(newDevice);
+    createDeviceState();
+    createSwapChain(mSwapChainFactory, mSwapChainInfo);
+}
+
+void CoreContext::updateSwapChain(SurfaceInfo info) {
 
 }

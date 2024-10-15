@@ -4,6 +4,8 @@
 
 #include "render/render.hpp"
 
+#include "render/vendor/microsoft/pix.hpp"
+
 using namespace sm;
 using namespace sm::graph;
 

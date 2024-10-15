@@ -77,20 +77,20 @@ void Instance::enableDebugLeakTracking() {
     }
 }
 
-void Instance::queryTearingSupport() {
+bool Instance::queryTearingSupport() const {
     Object<IDXGIFactory5> factory;
     if (Result hr = mFactory.query(&factory); !hr) {
         LOG_WARN(GpuLog, "failed to query factory5: {}", hr);
-        return;
+        return false;
     }
 
     BOOL tearing = FALSE;
     if (Result hr = factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &tearing, sizeof(tearing)); !hr) {
         LOG_WARN(GpuLog, "failed to query tearing support: {}", hr);
-        return;
+        return false;
     }
 
-    mTearingSupport = tearing;
+    return tearing;
 }
 
 void Instance::loadWarpRedist() {
@@ -122,7 +122,7 @@ Instance::Instance(InstanceConfig config) noexcept(false)
     const UINT flags = debug ? DXGI_CREATE_FACTORY_DEBUG : 0;
     SM_THROW_HR(CreateDXGIFactory2(flags, IID_PPV_ARGS(&mFactory)));
 
-    queryTearingSupport();
+    mTearingSupport = queryTearingSupport();
     LOG_INFO(GpuLog, "tearing support: {}", mTearingSupport);
 
     if (debug)

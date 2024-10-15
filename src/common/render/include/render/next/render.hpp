@@ -6,6 +6,12 @@
 
 #include "render.meta.hpp"
 
+#define REFLECT_ENUM_BITFLAGS_EX(ENUM) \
+    REFLECT_ENUM_BITFLAGS(ENUM, __underlying_type(ENUM)) \
+    constexpr inline ENUM operator|=(ENUM& a, ENUM b) { return a = a | b; } \
+    constexpr inline ENUM operator&=(ENUM& a, ENUM b) { return a = a & b; } \
+    constexpr inline ENUM operator^=(ENUM& a, ENUM b) { return a = a ^ b; }
+
 namespace sm::render::next {
     REFLECT_ENUM(DebugFlags)
     enum class DebugFlags {
@@ -23,15 +29,7 @@ namespace sm::render::next {
         eWinPixEventRuntime = (1 << 10),
     };
 
-    REFLECT_ENUM_BITFLAGS(DebugFlags, __underlying_type(DebugFlags))
-
-    constexpr inline DebugFlags operator|=(DebugFlags& a, DebugFlags b) {
-        return a = a | b;
-    }
-
-    constexpr inline DebugFlags operator&=(DebugFlags& a, DebugFlags b) {
-        return a = a & b;
-    }
+    REFLECT_ENUM_BITFLAGS_EX(DebugFlags)
 
     REFLECT_ENUM(FeatureLevel)
     enum class FeatureLevel {
