@@ -9,9 +9,13 @@ project(
 
 simdjson_inc = include_directories('singleheader')
 
-simdjson_args_public = []
+cpp = meson.get_compiler('cpp')
+
+simdjson_args_public = cpp.get_supported_arguments([
+  '-Wno-deprecated-literal-operator'
+])
 simdjson_args_private = []
-if meson.get_compiler('cpp').get_id() == 'msvc'
+if cpp.get_id() == 'msvc'
   simdjson_args_public += '-DSIMDJSON_VISUAL_STUDIO'
   simdjson_args_private += [ '-DSIMDJSON_VISUAL_STUDIO', '-DSIMDJSON_BUILDING_WINDOWS_DYNAMIC_LIBRARY' ]
 endif

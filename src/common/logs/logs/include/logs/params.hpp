@@ -52,21 +52,12 @@ namespace sm::logs {
     };
 
     template<typename T>
-    struct IsNamedArg : std::false_type { };
-
-    template<typename T>
-    struct IsNamedArg<fmt::detail::named_arg<char, T>> : std::true_type { };
-
-    template<typename T>
     consteval bool isNamedArg() noexcept {
-        return IsNamedArg<T>::value;
+        return fmt::detail::is_named_arg<T>::value;
     }
 
     template<typename... A>
-    constexpr int kNamedArgCount = 0;
-
-    template<typename... A> requires (sizeof...(A) > 0)
-    constexpr int kNamedArgCount<A...> = ((int)isNamedArg<A>() + ...);
+    constexpr int kNamedArgCount = fmt::detail::count_named_args<A...>();
 
     namespace detail {
         // c++ has some strange type rules around lvalue references to arrays
@@ -116,7 +107,7 @@ namespace sm::logs {
         template<size_t N = 0>
         FormatArg getArgByIndex(int index) const noexcept {
             if (index == N)
-                return fmt::detail::make_arg<fmt::format_context>(std::get<N>(args));
+                return FormatArg(std::get<N>(args));
 
             return getArgByIndex<N + 1>(index);
         }
@@ -134,7 +125,7 @@ namespace sm::logs {
         FormatArg getArgByName(std::string_view name) const noexcept {
             if constexpr (isNamedArg<ArgType<N>>()) {
                 if (std::get<N>(args).name == name)
-                    return fmt::detail::make_arg<fmt::format_context>(std::get<N>(args).value);
+                    return FormatArg(std::get<N>(args).value);
             }
 
             return getArgByName<N + 1>(name);

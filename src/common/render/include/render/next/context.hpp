@@ -53,6 +53,10 @@ namespace sm::render::next {
         Object<ID3D12CommandQueue> mDirectQueue;
         void createDirectQueue();
 
+        /// direct command list
+        std::unique_ptr<CommandBufferSet> mCommandBufferSet;
+        void createDirectCommandList();
+
         /// swapchain
         ISwapChainFactory *mSwapChainFactory;
         std::unique_ptr<ISwapChain> mSwapChain;
@@ -82,12 +86,19 @@ namespace sm::render::next {
         CoreContext(ContextConfig config) throws(RenderException);
         ~CoreContext() noexcept;
 
+        /// state queries
+
         std::span<const Adapter> adapters() const noexcept { return mInstance.adapters(); }
         const Adapter& getWarpAdapter() noexcept { return mInstance.getWarpAdapter(); }
-        void setAdapter(AdapterLUID luid);
 
+        /// update rendering device state
+
+        void setAdapter(AdapterLUID luid);
         void updateSwapChain(SurfaceInfo info);
 
+        /// submit work
+
         void present();
+
     };
 }

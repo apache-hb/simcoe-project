@@ -33,10 +33,10 @@ testcases = {
     'Save render device data': 'store.cpp',
 
     'Create render next CoreContext': 'next/context.cpp',
-    'Create render next CoreContext with debug features': 'next/context-debug.cpp',
+    'Create render next CoreContext with debug features': 'next/context_debug.cpp',
 
-    'Virtual swapchain': 'next/virtual-surface.cpp',
-    'Window swapchain': 'next/window-surface.cpp',
+    'Virtual swapchain': 'next/virtual_surface.cpp',
+    'Window swapchain': 'next/window_surface.cpp',
 }
 
 foreach name, source : testcases

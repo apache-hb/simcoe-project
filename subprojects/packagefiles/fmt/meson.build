@@ -1,6 +1,6 @@
 project('fmt', 'cpp',
   default_options: ['cpp_std=c++14'],
-  version: '10.1.1',
+  version: '11.0.99',
   license: 'BSD',
   license_files: ['LICENSE'],
   meson_version : '>=1.1.0',

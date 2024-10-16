@@ -36,7 +36,7 @@ is_windows = host_machine.system() == 'windows'
 
 add_global_arguments('-D_ITERATOR_DEBUG_LEVEL=0', language : 'cpp')
 
-add_global_arguments(cpp.get_supported_arguments('-Wno-assume'), language : [ 'c', 'cpp' ])
+add_global_arguments(cpp.get_supported_arguments('-Wno-assume', '-Wno-deprecated-literal-operator'), language : [ 'c', 'cpp' ])
 
 if cpp.get_id() == 'clang-cl' and get_option('b_sanitize').contains('address')
     libs = [

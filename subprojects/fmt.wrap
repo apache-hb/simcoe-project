@@ -1,9 +1,9 @@
 [wrap-file]
-directory = fmt-11.0.2
+directory = fmt-cc2ba8f9ede4e5ae3262f43f3e4d07a22a9acdfc
 
-source_url = https://github.com/fmtlib/fmt/releases/download/11.0.2/fmt-11.0.2.zip
-source_filename = fmt-11.0.2.zip
-source_hash = 40fc58bebcf38c759e11a7bd8fdc163507d2423ef5058bba7f26280c5b9c5465
+source_url = https://github.com/fmtlib/fmt/archive/cc2ba8f9ede4e5ae3262f43f3e4d07a22a9acdfc.zip
+source_filename = fmt-cc2ba8f9ede4e5ae3262f43f3e4d07a22a9acdfc.zip
+source_hash = 28f3d75071c01c6e73c5e84ab26bd257b5948cd842df5ebc9ed466ff7788fe9b
 
 patch_directory = fmt
 

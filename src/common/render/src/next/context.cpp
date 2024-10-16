@@ -117,6 +117,12 @@ void CoreContext::createDirectQueue() {
     mDirectQueue = mDevice.newCommandQueue({ .Type = D3D12_COMMAND_LIST_TYPE_DIRECT });
 }
 
+#pragma region Direct Command List
+
+void CoreContext::createDirectCommandList() {
+    mCommandBufferSet = std::make_unique<CommandBufferSet>(mDevice, D3D12_COMMAND_LIST_TYPE_DIRECT, mBackBuffers.size());
+}
+
 #pragma region SwapChain
 
 void CoreContext::createSwapChain(ISwapChainFactory *factory, SurfaceInfo info) {

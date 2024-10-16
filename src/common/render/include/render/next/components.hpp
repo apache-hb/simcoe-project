@@ -4,6 +4,7 @@
 
 namespace sm::render::next {
     class Fence;
+    class CoreContext;
 
     class Fence {
         constexpr static auto kCloseHandle = [](HANDLE handle) { CloseHandle(handle); };
@@ -20,5 +21,22 @@ namespace sm::render::next {
         void wait(uint64_t value);
 
         ID3D12Fence *get() noexcept { return mFence.get(); }
+    };
+
+    /// @brief A command list thats buffered per frame.
+    class CommandBufferSet {
+        UINT mCurrentBuffer;
+        std::vector<Object<ID3D12CommandAllocator>> mAllocators;
+        Object<ID3D12GraphicsCommandList> mCommandList;
+
+        UINT getNextIndex() noexcept { return (mCurrentBuffer + 1) % mAllocators.size(); }
+        ID3D12CommandAllocator *currentAllocator() noexcept { return mAllocators[mCurrentBuffer].get(); }
+
+    public:
+        CommandBufferSet(CoreDevice& device, D3D12_COMMAND_LIST_TYPE type, UINT frameCount) throws(RenderException);
+
+        void reset();
+
+        ID3D12GraphicsCommandList *close();
     };
 }
