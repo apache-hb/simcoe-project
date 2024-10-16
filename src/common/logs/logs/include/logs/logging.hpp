@@ -42,9 +42,10 @@ namespace sm::logs {
     do { \
         static constexpr std::source_location kSourceLocation = SM_CURRENT_SOURCE_LOCATION(); \
         static constexpr auto kMessageInfo = BUILD_MESSAGE_ATTRIBUTES_IMPL(message, __VA_ARGS__); \
+        static constexpr auto kMessageText = BUILD_MESSAGE_IMPL(kMessageInfo, message); \
         struct LogMessageImpl { \
             constexpr auto operator()() const noexcept { \
-                return BUILD_MESSAGE_DATA_IMPL(message, severity, category, kSourceLocation, kMessageInfo); \
+                return BUILD_MESSAGE_DATA_IMPL(kMessageText, severity, category, kSourceLocation, kMessageInfo); \
             } \
         }; \
         sm::logs::detail::fmtMessage<LogMessageImpl>(__VA_ARGS__); \

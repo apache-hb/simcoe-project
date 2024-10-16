@@ -317,6 +317,40 @@ namespace sm::logs {
 
     template<typename... A>
     constexpr FormatWrapper<A...> compileTupleArgs(A... args);
+
+    struct Result {
+        std::array<char, 128> result;
+        size_t size;
+
+        constexpr char *data() noexcept { return result.data(); }
+        constexpr const char *data() const noexcept { return result.data(); }
+        constexpr void setSize(char *end) noexcept { size = end - result.data(); }
+
+        constexpr operator std::string_view() const noexcept { return { result.data(), size }; }
+    };
+
+    template<typename T>
+    constexpr auto cleanFormatString(T compiled) {
+        Result result{};
+        char *end = result.data() + result.result.size();
+
+        char *dst = result.data();
+        for (auto i = 0; i < compiled.indices; i++) {
+            *dst++ = '{';
+            dst = std::to_chars(dst, end, i).ptr;
+            *dst++ = '}';
+        }
+        for (const auto& attr : compiled.namedAttributes()) {
+            *dst++ = '{';
+            for (const char c : attr.name) {
+                *dst++ = c;
+            }
+            *dst++ = '}';
+        }
+        *dst = '\0';
+        result.setSize(dst);
+        return result;
+    }
 }
 
 #define BUILD_MESSAGE_ATTRIBUTES_IMPL(message, ...) \
@@ -324,3 +358,10 @@ namespace sm::logs {
         using Wrapper = decltype(sm::logs::compileTupleArgs(__VA_ARGS__)); \
         return (Wrapper{})(FMT_COMPILE(message)); \
     }()
+
+
+#if SMC_LOGS_INCLUDE_SOURCE_INFO
+#   define BUILD_MESSAGE_IMPL(info, message) message
+#else
+#   define BUILD_MESSAGE_IMPL(info, message) sm::logs::cleanFormatString(info)
+#endif
