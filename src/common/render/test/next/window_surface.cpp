@@ -18,7 +18,7 @@ static next::SurfaceInfo newSurfaceInfo(math::uint2 size, UINT length = 2) {
         .format = DXGI_FORMAT_R8G8B8A8_UNORM,
         .size = size,
         .length = length,
-        .clearColour = { 0.0f, 0.0f, 0.0f, 1.0f },
+        .clearColour = { 0.0f, 0.2f, 0.4f, 1.0f },
     };
 }
 

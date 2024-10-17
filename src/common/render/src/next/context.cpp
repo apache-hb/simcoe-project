@@ -220,6 +220,10 @@ uint64_t& CoreContext::fenceValueAt(UINT index) {
     return mBackBuffers[index].value;
 }
 
+D3D12_CPU_DESCRIPTOR_HANDLE CoreContext::rtvHandleAt(UINT index) {
+    return mBackBuffers[index].rtvHandle;
+}
+
 #pragma region Present Fence
 
 void CoreContext::createPresentFence() {
@@ -319,7 +323,31 @@ void CoreContext::updateSwapChain(SurfaceInfo info) {
 
 void CoreContext::present() {
     CommandBufferSet& commands = *mCommandBufferSet;
-    // commands->ClearRenderTargetView();
+    const D3D12_RESOURCE_BARRIER intoRenderTarget[] = {
+        CD3DX12_RESOURCE_BARRIER::Transition(
+            mBackBuffers[mCurrentBackBuffer].surface.get(),
+            D3D12_RESOURCE_STATE_PRESENT,
+            D3D12_RESOURCE_STATE_RENDER_TARGET
+        )
+    };
+
+    const D3D12_RESOURCE_BARRIER intoPresent[] = {
+        CD3DX12_RESOURCE_BARRIER::Transition(
+            mBackBuffers[mCurrentBackBuffer].surface.get(),
+            D3D12_RESOURCE_STATE_RENDER_TARGET,
+            D3D12_RESOURCE_STATE_PRESENT
+        )
+    };
+
+    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = { rtvHandleAt(mCurrentBackBuffer) };
+
+    commands->ResourceBarrier(_countof(intoRenderTarget), intoRenderTarget);
+
+    commands->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+
+    commands->ClearRenderTargetView(rtvHandle, mSwapChainInfo.clearColour.data(), 0, nullptr);
+
+    commands->ResourceBarrier(_countof(intoPresent), intoPresent);
 
     ID3D12CommandList *lists[] = { commands.close() };
     mDirectQueue->ExecuteCommandLists(_countof(lists), lists);
