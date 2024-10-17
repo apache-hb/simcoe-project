@@ -37,8 +37,6 @@ namespace sm::render::next {
 
         using BackBufferList = std::vector<BackBuffer>;
 
-        using SurfaceList = std::vector<Object<ID3D12Resource>>;
-
         /// extra limits data
         UINT mExtraRtvHeapSize = 0;
 

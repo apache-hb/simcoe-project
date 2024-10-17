@@ -9,12 +9,11 @@ CommandBufferSet::CommandBufferSet(CoreDevice& device, D3D12_COMMAND_LIST_TYPE t
     : mCurrentBuffer(0)
     , mAllocators(frameCount)
 {
-    ID3D12Device* it = device.get();
     for (UINT i = 0; i < frameCount; i++) {
-        SM_THROW_HR(it->CreateCommandAllocator(type, IID_PPV_ARGS(&mAllocators[i])));
+        SM_THROW_HR(device->CreateCommandAllocator(type, IID_PPV_ARGS(&mAllocators[i])));
     }
 
-    SM_THROW_HR(it->CreateCommandList(0, type, currentAllocator(), nullptr, IID_PPV_ARGS(&mCommandList)));
+    SM_THROW_HR(device->CreateCommandList(0, type, currentAllocator(), nullptr, IID_PPV_ARGS(&mCommandList)));
 }
 
 void CommandBufferSet::reset(UINT index) {

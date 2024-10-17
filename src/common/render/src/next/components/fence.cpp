@@ -5,7 +5,7 @@
 using sm::render::next::CoreDevice;
 using sm::render::next::Fence;
 
-static ID3D12Fence *newFence(ID3D12Device1 *device, uint64_t value) {
+static ID3D12Fence *newFence(CoreDevice& device, uint64_t value) {
     ID3D12Fence *fence;
     SM_THROW_HR(device->CreateFence(value, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
     return fence;
@@ -20,7 +20,7 @@ Fence::GuardHandle Fence::newEvent(LPCSTR name) {
 }
 
 Fence::Fence(CoreDevice& device, uint64_t initialValue) noexcept(false)
-    : mFence(newFence(device.get(), initialValue))
+    : mFence(newFence(device, initialValue))
     , mEvent(Fence::newEvent("FenceEvent"))
 { }
 

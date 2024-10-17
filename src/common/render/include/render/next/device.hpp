@@ -48,5 +48,7 @@ namespace sm::render::next {
         FeatureLevel level() const { return mFeatureLevel; }
         AdapterLUID luid() const { return mAdapter->luid(); }
         ID3D12Device1 *get() const { return mDevice.get(); }
+
+        ID3D12Device1 *operator->() const { return mDevice.get(); }
     };
 }
