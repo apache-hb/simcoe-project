@@ -29,6 +29,14 @@ namespace sm::render::next {
             bool allowSoftwareAdapter;
         };
 
+        struct BackBuffer {
+            Object<ID3D12Resource> surface;
+            D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle;
+            uint64_t value;
+        };
+
+        using BackBufferList = std::vector<BackBuffer>;
+
         using SurfaceList = std::vector<Object<ID3D12Resource>>;
 
         /// extra limits data
@@ -83,15 +91,14 @@ namespace sm::render::next {
         void createSwapChain(ISwapChainFactory *factory, SurfaceInfo info);
 
         /// swapchain backbuffers
-        SurfaceList mBackBuffers;
-        std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> mBackBufferRtvHandles;
+        BackBufferList mBackBuffers;
         UINT mCurrentBackBuffer = 0;
-        void createBackBuffers(UINT initialValue);
-        SurfaceList getSwapChainSurfaces() const;
+        void createBackBuffers(uint64_t initialValue);
+        BackBufferList getSwapChainSurfaces(uint64_t initialValue) const;
+        uint64_t& fenceValueAt(UINT index);
 
         /// device queue fence
         std::unique_ptr<Fence> mPresentFence;
-        std::vector<uint64_t> mFenceValues;
         void createPresentFence();
 
         /// lifetime management

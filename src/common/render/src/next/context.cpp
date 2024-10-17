@@ -191,30 +191,36 @@ void CoreContext::createSwapChain(ISwapChainFactory *factory, SurfaceInfo info) 
     mSwapChainInfo = info;
 }
 
-CoreContext::SurfaceList CoreContext::getSwapChainSurfaces() const {
+CoreContext::BackBufferList CoreContext::getSwapChainSurfaces(uint64_t initialValue) const {
     UINT length = mSwapChain->length();
 
-    SurfaceList surfaces{length};
+    BackBufferList buffers{length};
     for (UINT i = 0; i < length; i++) {
-        surfaces[i] = mSwapChain->getSurface(i);
+        Object<ID3D12Resource> surface = mSwapChain->getSurface(i);
+
+        buffers[i] = BackBuffer {
+            .surface = std::move(surface),
+            .value = initialValue,
+        };
     }
 
-    return surfaces;
+    return buffers;
 }
 
-void CoreContext::createBackBuffers(UINT initialValue) {
-    mBackBuffers = getSwapChainSurfaces();
+void CoreContext::createBackBuffers(uint64_t initialValue) {
+    mBackBuffers = getSwapChainSurfaces(initialValue);
     setFrameIndex(mSwapChain->currentSurfaceIndex());
+}
 
-    mFenceValues.resize(mBackBuffers.size());
-    std::fill(mFenceValues.begin(), mFenceValues.end(), initialValue);
+uint64_t& CoreContext::fenceValueAt(UINT index) {
+    return mBackBuffers[index].value;
 }
 
 #pragma region Present Fence
 
 void CoreContext::createPresentFence() {
     mPresentFence = std::make_unique<Fence>(mDevice);
-    mFenceValues[mCurrentBackBuffer] += 1;
+    fenceValueAt(mCurrentBackBuffer) += 1;
 }
 
 #pragma region Lifetime
@@ -227,19 +233,19 @@ void CoreContext::createDeviceState() {
 #pragma region Device Timeline
 
 void CoreContext::advanceFrame() {
-    uint64_t current = mFenceValues[mCurrentBackBuffer];
+    uint64_t current = fenceValueAt(mCurrentBackBuffer);
     SM_THROW_HR(mDirectQueue->Signal(mPresentFence->get(), current));
 
     setFrameIndex(mSwapChain->currentSurfaceIndex());
 
-    uint64_t value = mFenceValues[mCurrentBackBuffer];
+    uint64_t value = fenceValueAt(mCurrentBackBuffer);
     mPresentFence->wait(value);
 
-    mFenceValues[mCurrentBackBuffer] = current + 1;
+    fenceValueAt(mCurrentBackBuffer) = current + 1;
 }
 
 void CoreContext::flushDevice() {
-    uint64_t current = mFenceValues[mCurrentBackBuffer]++;
+    uint64_t current = fenceValueAt(mCurrentBackBuffer)++;
     SM_THROW_HR(mDirectQueue->Signal(mPresentFence->get(), current));
 
     mPresentFence->wait(current);
@@ -303,7 +309,7 @@ void CoreContext::updateSwapChain(SurfaceInfo info) {
     mSwapChain->updateSurfaceInfo(info);
     mSwapChainInfo = info;
 
-    createBackBuffers(mFenceValues[mCurrentBackBuffer]);
+    createBackBuffers(fenceValueAt(mCurrentBackBuffer));
     createDirectCommandList();
 }
 
