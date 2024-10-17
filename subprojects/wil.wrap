@@ -1,0 +1,9 @@
+[wrap-file]
+directory = wil-1.0.240803.1
+
+source_url = https://github.com/microsoft/wil/archive/refs/tags/v1.0.240803.1.zip
+source_filename = wil-1.0.240803.1.zip
+source_hash = 353d2d7f2acea5642689a1ba85213c1ac6816457038b54ac02158b893e0f389f
+
+[provide]
+dependency_names = wil
