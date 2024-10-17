@@ -14,10 +14,10 @@
 namespace sm::render {
     using Format = DXGI_FORMAT;
 
-    template <typename T>
+    template<typename T>
     concept ComObject = std::is_base_of_v<IUnknown, T>;
 
-    template <typename T>
+    template<typename T>
     concept D3DObject = std::is_base_of_v<ID3D12Object, T>;
 
     constexpr auto kComRelease = [](IUnknown *object) {
@@ -34,8 +34,8 @@ namespace sm::render {
     public:
         using Super::Super;
 
-        template <ComObject O>
-        HRESULT query(O **out) const {
+        template<ComObject O>
+        HRESULT query(O **out) const noexcept {
             return Super::get()->QueryInterface(IID_PPV_ARGS(out));
         }
 

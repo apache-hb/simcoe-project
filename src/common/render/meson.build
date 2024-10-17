@@ -136,6 +136,7 @@ src = [
     # components
     'src/next/components/fence.cpp',
     'src/next/components/commands.cpp',
+    'src/next/components/descriptors.cpp',
 
     # swapchain factories
     'src/next/surface/surface.cpp',

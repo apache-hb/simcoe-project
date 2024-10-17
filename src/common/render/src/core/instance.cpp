@@ -140,10 +140,10 @@ Instance::Instance(InstanceConfig config) noexcept(false)
 }
 
 Instance::~Instance() noexcept {
-    if (mDebug) {
-        LOG_INFO(GpuLog, "reporting live dxgi/d3d objects");
-        mDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
-    }
+    if (!mDebug) return;
+
+    LOG_INFO(GpuLog, "reporting live dxgi/d3d objects");
+    reportLiveObjects();
 }
 
 bool Instance::hasViableAdapter() const noexcept {
@@ -180,6 +180,15 @@ Adapter& Instance::getDefaultAdapter() noexcept {
 
 bool Instance::isDebugEnabled() const noexcept {
     return bool(mFlags & DebugFlags::eFactoryDebug);
+}
+
+bool Instance::reportLiveObjects(DXGI_DEBUG_RLO_FLAGS flags) noexcept {
+    if (mDebug) {
+        mDebug->ReportLiveObjects(DXGI_DEBUG_ALL, flags);
+        return true;
+    }
+
+    return false;
 }
 
 namespace renderdao = sm::dao::render;

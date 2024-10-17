@@ -67,6 +67,7 @@ namespace sm::render::next {
         ISwapChain *newSwapChain(SurfaceCreateObjects objects, const SurfaceInfo& info);
 
         SwapChainLimits limits() const noexcept { return mLimits; }
+        UINT maxSwapChainLength() const noexcept { return mLimits.maxLength; }
     };
 
     ///

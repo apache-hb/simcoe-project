@@ -134,6 +134,8 @@ namespace sm::render {
         AdapterPreference preference() const noexcept { return mAdapterSearch; }
         bool isTearingSupported() const noexcept { return mTearingSupport; }
 
+        bool reportLiveObjects(DXGI_DEBUG_RLO_FLAGS flags = DXGI_DEBUG_RLO_ALL) noexcept;
+
         bool isDebugEnabled() const noexcept;
         bool hasViableAdapter() const noexcept;
 

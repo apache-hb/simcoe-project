@@ -18,6 +18,8 @@ namespace sm::render::next {
 
         ISwapChainFactory *swapChainFactory = nullptr;
         SurfaceInfo swapChainInfo;
+
+        UINT rtvHeapSize = 0;
     };
 
     class CoreContext {
@@ -28,6 +30,11 @@ namespace sm::render::next {
         };
 
         using SurfaceList = std::vector<Object<ID3D12Resource>>;
+
+        /// extra limits data
+        UINT mExtraRtvHeapSize = 0;
+
+        UINT getRequiredRtvHeapSize() const;
 
         /// device management
 
@@ -44,6 +51,18 @@ namespace sm::render::next {
         CoreDevice selectPreferredDevice(AdapterLUID luidOverride, DeviceSearchOptions options);
 
         CoreDevice selectDevice(const ContextConfig& config);
+
+        void resetDeviceResources();
+
+        // recreate the current device
+        void recreateCurrentDevice();
+
+        // move to a new device
+        void moveToNewDevice(AdapterLUID luid);
+
+        /// rtv descriptor heap
+        std::unique_ptr<DescriptorPool> mRtvHeap;
+        void createRtvHeap();
 
         /// allocator
         Object<D3D12MA::Allocator> mAllocator;
@@ -65,6 +84,7 @@ namespace sm::render::next {
 
         /// swapchain backbuffers
         SurfaceList mBackBuffers;
+        std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> mBackBufferRtvHandles;
         UINT mCurrentBackBuffer = 0;
         void createBackBuffers(UINT initialValue);
         SurfaceList getSwapChainSurfaces() const;
@@ -89,6 +109,7 @@ namespace sm::render::next {
         /// state queries
 
         std::span<const Adapter> adapters() const noexcept { return mInstance.adapters(); }
+        AdapterLUID getAdapter() const noexcept { return mDevice.luid(); }
         const Adapter& getWarpAdapter() noexcept { return mInstance.getWarpAdapter(); }
 
         /// update rendering device state
@@ -100,5 +121,8 @@ namespace sm::render::next {
 
         void present();
 
+        /// debugging functions
+
+        bool removeDevice() noexcept;
     };
 }

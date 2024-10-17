@@ -8,6 +8,8 @@ using CoreContext = render::next::CoreContext;
 using CoreDevice = render::next::CoreDevice;
 using ContextConfig = render::next::ContextConfig;
 
+using sm::render::next::SurfaceInfo;
+
 using render::RenderResult;
 using render::RenderError;
 
@@ -20,6 +22,11 @@ static render::Instance newInstance(const ContextConfig& ctxConfig) {
     };
 
     return render::Instance{config};
+}
+
+UINT CoreContext::getRequiredRtvHeapSize() const {
+    UINT maxSwapChainLength = mSwapChainFactory->maxSwapChainLength();
+    return maxSwapChainLength + mExtraRtvHeapSize;
 }
 
 #pragma region Device
@@ -99,6 +106,49 @@ CoreDevice CoreContext::selectDevice(const ContextConfig& config) {
     };
 
     return selectPreferredDevice(config.adapterOverride, options);
+}
+
+void CoreContext::resetDeviceResources() {
+    mPresentFence.reset();
+    mBackBuffers.clear();
+    mSwapChain.reset();
+    mDirectQueue.reset();
+    mCommandBufferSet.reset();
+    mRtvHeap.reset();
+    mAllocator.reset();
+    mDevice.reset();
+
+    mInstance.reportLiveObjects();
+}
+
+void CoreContext::recreateCurrentDevice() {
+    AdapterLUID luid = mDevice.luid();
+    FeatureLevel level = mDevice.level();
+
+    // when recreating the device, we reset all resources first
+    // as we will be using the same device and preserving the resources
+    // will cause d3d12 to give us the same (still removed) device handle.
+    resetDeviceResources();
+    mDevice = createDevice(luid, level, mDebugFlags);
+}
+
+void CoreContext::moveToNewDevice(AdapterLUID luid) {
+    // when moving to a new device, we create the device first
+    // and then reset all resources.
+    // this is to ensure we don't leave ourselves in an invalid state
+    // if the new device creation fails.
+    FeatureLevel level = mDevice.level();
+    CoreDevice device = createDevice(luid, level, mDebugFlags);
+
+    resetDeviceResources();
+    mDevice = std::move(device);
+}
+
+#pragma region RTV Pool
+
+void CoreContext::createRtvHeap() {
+    UINT size = getRequiredRtvHeapSize();
+    mRtvHeap = std::make_unique<DescriptorPool>(mDevice, size, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, false);
 }
 
 #pragma region Allocator
@@ -203,14 +253,17 @@ void CoreContext::setFrameIndex(UINT index) {
 #pragma region Constructor
 
 CoreContext::CoreContext(ContextConfig config) noexcept(false)
-    : mDebugFlags(config.flags)
+    : mExtraRtvHeapSize(config.rtvHeapSize)
+    , mDebugFlags(config.flags)
     , mInstance(newInstance(config))
     , mDebugState(config.flags)
     , mDevice(selectDevice(config))
 {
     createDeviceState();
     createSwapChain(config.swapChainFactory, config.swapChainInfo);
+    createRtvHeap();
     createBackBuffers(0);
+    createDirectCommandList();
     createPresentFence();
 }
 
@@ -223,24 +276,23 @@ CoreContext::~CoreContext() noexcept try {
 }
 
 void CoreContext::setAdapter(AdapterLUID luid) {
-    if (luid == mDevice.luid())
-        return;
+    try {
+        flushDevice();
+    } catch (const render::RenderException& e) {
+        LOG_WARN(GpuLog, "Flushing device during adapter change failed: {}. This is OK when recovering from a device removal.", e);
+    }
 
-    FeatureLevel level = mDevice.level();
+    if (luid == mDevice.luid()) {
+        recreateCurrentDevice();
+    } else {
+        moveToNewDevice(luid);
+    }
 
-    CoreDevice newDevice = createDevice(luid, level, mDebugFlags);
-
-    flushDevice();
-
-    mBackBuffers.clear();
-    mSwapChain.reset();
-    mDirectQueue.reset();
-    mAllocator.reset();
-
-    mDevice = std::move(newDevice);
     createDeviceState();
     createSwapChain(mSwapChainFactory, mSwapChainInfo);
+    createRtvHeap();
     createBackBuffers(0);
+    createDirectCommandList();
     createPresentFence();
 }
 
@@ -252,10 +304,23 @@ void CoreContext::updateSwapChain(SurfaceInfo info) {
     mSwapChainInfo = info;
 
     createBackBuffers(mFenceValues[mCurrentBackBuffer]);
+    createDirectCommandList();
 }
 
 void CoreContext::present() {
+    CommandBufferSet& commands = *mCommandBufferSet;
+    // commands->ClearRenderTargetView();
+
+    ID3D12CommandList *lists[] = { commands.close() };
+    mDirectQueue->ExecuteCommandLists(_countof(lists), lists);
+
     mSwapChain->present(0);
 
     advanceFrame();
+
+    mCommandBufferSet->reset(mCurrentBackBuffer);
+}
+
+bool CoreContext::removeDevice() noexcept {
+    return mDevice.setDeviceRemoved();
 }

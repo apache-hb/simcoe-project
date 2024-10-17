@@ -82,7 +82,7 @@ namespace sm::logs {
         };
 
         template<LogMessageFn F, typename... A>
-        MessageInfo& getMessage() noexcept {
+        const MessageInfo& getMessage() noexcept {
             F fn{};
             static MessageInfo message{fn()};
             return message;

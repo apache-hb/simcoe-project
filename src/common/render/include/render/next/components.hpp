@@ -1,10 +1,35 @@
 #pragma once
 
+#include "core/allocators/bitmap.hpp"
+
 #include "render/next/device.hpp"
 
 namespace sm::render::next {
     class Fence;
-    class CoreContext;
+    class CommandBufferSet;
+
+    class DescriptorPool {
+        UINT mDescriptorSize;
+        bool mIsShaderVisible;
+
+        D3D12_CPU_DESCRIPTOR_HANDLE mFirstHostHandle;
+        D3D12_GPU_DESCRIPTOR_HANDLE mFirstDeviceHandle;
+
+        sm::BitMapIndexAllocator mAllocator;
+        Object<ID3D12DescriptorHeap> mHeap;
+
+    public:
+        DescriptorPool(CoreDevice& device, UINT size, D3D12_DESCRIPTOR_HEAP_TYPE type, bool shaderVisible) throws(RenderException);
+
+        UINT getDescriptorSize() const noexcept { return mDescriptorSize; }
+        bool isShaderVisible() const noexcept { return mIsShaderVisible; }
+
+        D3D12_CPU_DESCRIPTOR_HANDLE getFirstHostHandle() const noexcept { return mFirstHostHandle; }
+        D3D12_GPU_DESCRIPTOR_HANDLE getFirstDeviceHandle() const noexcept { return mFirstDeviceHandle; }
+
+        D3D12_CPU_DESCRIPTOR_HANDLE getHostDescriptorHandle(size_t index) const noexcept;
+        D3D12_GPU_DESCRIPTOR_HANDLE getDeviceDescriptorHandle(size_t index) const noexcept;
+    };
 
     class Fence {
         constexpr static auto kCloseHandle = [](HANDLE handle) { CloseHandle(handle); };
@@ -29,14 +54,15 @@ namespace sm::render::next {
         std::vector<Object<ID3D12CommandAllocator>> mAllocators;
         Object<ID3D12GraphicsCommandList> mCommandList;
 
-        UINT getNextIndex() noexcept { return (mCurrentBuffer + 1) % mAllocators.size(); }
         ID3D12CommandAllocator *currentAllocator() noexcept { return mAllocators[mCurrentBuffer].get(); }
 
     public:
         CommandBufferSet(CoreDevice& device, D3D12_COMMAND_LIST_TYPE type, UINT frameCount) throws(RenderException);
 
-        void reset();
+        void reset(UINT index);
 
         ID3D12GraphicsCommandList *close();
+
+        ID3D12GraphicsCommandList *operator->() noexcept { return mCommandList.get(); }
     };
 }

@@ -21,6 +21,7 @@ namespace sm::render::next {
         CoreDebugState(DebugFlags flags) throws(RenderException);
     };
 
+
     class CoreDevice {
         FeatureLevel mFeatureLevel;
         Adapter *mAdapter;
@@ -38,6 +39,11 @@ namespace sm::render::next {
         Object<D3D12MA::Allocator> newAllocator(D3D12MA::ALLOCATOR_FLAGS flags) throws(RenderException);
 
         Object<ID3D12CommandQueue> newCommandQueue(D3D12_COMMAND_QUEUE_DESC desc) throws(RenderException);
+
+        void reset() noexcept;
+
+        bool setDeviceRemoved() noexcept;
+        bool isDeviceRemoved() const noexcept;
 
         FeatureLevel level() const { return mFeatureLevel; }
         AdapterLUID luid() const { return mAdapter->luid(); }

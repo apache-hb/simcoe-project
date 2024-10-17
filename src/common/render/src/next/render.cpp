@@ -94,3 +94,23 @@ Object<ID3D12CommandQueue> CoreDevice::newCommandQueue(D3D12_COMMAND_QUEUE_DESC 
 
     return queue;
 }
+
+void CoreDevice::reset() noexcept {
+    mInfoQueue.reset();
+    mDevice.reset();
+}
+
+bool CoreDevice::setDeviceRemoved() noexcept {
+    Object<ID3D12Device5> device;
+    if (RenderError error = mDevice.query(&device)) {
+        LOG_WARN(GpuLog, "failed to get ID3D12Device5: {}", error);
+        return false;
+    }
+
+    device->RemoveDevice();
+    return true;
+}
+
+bool CoreDevice::isDeviceRemoved() const noexcept {
+    return mDevice->GetDeviceRemovedReason() != S_OK;
+}

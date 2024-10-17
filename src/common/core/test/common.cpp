@@ -52,27 +52,25 @@ static const int kInstallTerminateHandler = [] noexcept {
     return 0;
 }();
 
-struct RunListener : public Catch::EventListenerBase {
-    using Catch::EventListenerBase::EventListenerBase;
+void RunListener::testRunStarting(Catch::TestRunInfo const& testRunInfo) {
+    bt_init();
+    os_init();
 
-    void testRunStarting(Catch::TestRunInfo const& testRunInfo) override {
-        bt_init();
-        os_init();
+    gSystemError = gDefaultError;
 
-        gSystemError = gDefaultError;
+    gPanicHandler = [](source_info_t info, const char *msg, va_list args) {
+        io_t *io = io_stderr();
+        arena_t *arena = get_default_arena();
 
-        gPanicHandler = [](source_info_t info, const char *msg, va_list args) {
-            io_t *io = io_stderr();
-            arena_t *arena = get_default_arena();
+        const fmt_backtrace_t kPrintOptions = print_options_make(io);
 
-            const fmt_backtrace_t kPrintOptions = print_options_make(io);
+        bt_report_t *report = bt_report_collect(arena);
+        fmt_backtrace(kPrintOptions, report);
 
-            bt_report_t *report = bt_report_collect(arena);
-            fmt_backtrace(kPrintOptions, report);
+        auto err = sm::vformat(msg, args);
 
-            FAIL(sm::vformat(msg, args));
-        };
-    }
-};
+        fmt::println(stderr, "{}", err);
 
-CATCH_REGISTER_LISTENER(RunListener) // NOLINT
+        FAIL(err);
+    };
+}

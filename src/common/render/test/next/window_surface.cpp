@@ -100,6 +100,14 @@ TEST_CASE("Create next::CoreContext with window swapchain") {
             CHECK_THROWS_AS(context.setAdapter(render::AdapterLUID(0x1000, 0x1234)), render::RenderException);
         }
 
+        // remove the device first to ensure the context is in a bad state
+        // if setAdapter leaks any device resources then the test will fail
+        if (iters == 43) {
+            render::AdapterLUID currentAdapter = context.getAdapter();
+            context.removeDevice();
+            context.setAdapter(currentAdapter);
+        }
+
         if (iters == 40) {
             context.setAdapter(warpAdapter);
         }

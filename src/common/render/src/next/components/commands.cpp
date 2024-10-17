@@ -15,11 +15,10 @@ CommandBufferSet::CommandBufferSet(CoreDevice& device, D3D12_COMMAND_LIST_TYPE t
     }
 
     SM_THROW_HR(it->CreateCommandList(0, type, currentAllocator(), nullptr, IID_PPV_ARGS(&mCommandList)));
-    SM_THROW_HR(mCommandList->Close());
 }
 
-void CommandBufferSet::reset() {
-    mCurrentBuffer = getNextIndex();
+void CommandBufferSet::reset(UINT index) {
+    mCurrentBuffer = index;
     SM_THROW_HR(currentAllocator()->Reset());
     SM_THROW_HR(mCommandList->Reset(currentAllocator(), nullptr));
 }
