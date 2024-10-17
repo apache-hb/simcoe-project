@@ -224,6 +224,10 @@ D3D12_CPU_DESCRIPTOR_HANDLE CoreContext::rtvHandleAt(UINT index) {
     return mBackBuffers[index].rtvHandle;
 }
 
+ID3D12Resource *CoreContext::surfaceAt(UINT index) {
+    return mBackBuffers[index].surface.get();
+}
+
 #pragma region Present Fence
 
 void CoreContext::createPresentFence() {
@@ -323,9 +327,11 @@ void CoreContext::updateSwapChain(SurfaceInfo info) {
 
 void CoreContext::present() {
     CommandBufferSet& commands = *mCommandBufferSet;
+
+    ID3D12Resource *surface = surfaceAt(mCurrentBackBuffer);
     const D3D12_RESOURCE_BARRIER intoRenderTarget[] = {
         CD3DX12_RESOURCE_BARRIER::Transition(
-            mBackBuffers[mCurrentBackBuffer].surface.get(),
+            surface,
             D3D12_RESOURCE_STATE_PRESENT,
             D3D12_RESOURCE_STATE_RENDER_TARGET
         )
@@ -333,7 +339,7 @@ void CoreContext::present() {
 
     const D3D12_RESOURCE_BARRIER intoPresent[] = {
         CD3DX12_RESOURCE_BARRIER::Transition(
-            mBackBuffers[mCurrentBackBuffer].surface.get(),
+            surface,
             D3D12_RESOURCE_STATE_RENDER_TARGET,
             D3D12_RESOURCE_STATE_PRESENT
         )

@@ -95,6 +95,7 @@ namespace sm::render::next {
         BackBufferList getSwapChainSurfaces(uint64_t initialValue) const;
         uint64_t& fenceValueAt(UINT index);
         D3D12_CPU_DESCRIPTOR_HANDLE rtvHandleAt(UINT index);
+        ID3D12Resource *surfaceAt(UINT index);
 
         /// device queue fence
         std::unique_ptr<Fence> mPresentFence;
