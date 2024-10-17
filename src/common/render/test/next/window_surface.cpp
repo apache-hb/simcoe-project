@@ -94,6 +94,7 @@ TEST_CASE("Create next::CoreContext with window swapchain") {
 
         if (iters == 30) {
             window.resize({ 400, 300 });
+            SUCCEED("Shrank swapchain resolution");
         }
 
         if (iters == 45) {
@@ -106,14 +107,17 @@ TEST_CASE("Create next::CoreContext with window swapchain") {
             render::AdapterLUID currentAdapter = context.getAdapter();
             context.removeDevice();
             context.setAdapter(currentAdapter);
+            SUCCEED("recovered from device lost");
         }
 
         if (iters == 40) {
             context.setAdapter(warpAdapter);
+            SUCCEED("Moved to warp adapter");
         }
 
         if (iters == 35) {
             context.updateSwapChain(newSurfaceInfo(client, 4));
+            SUCCEED("Updated swapchain size");
         }
 
         if (--iters == 0) {

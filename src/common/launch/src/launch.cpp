@@ -6,6 +6,8 @@
 #include "threads/threads.hpp"
 #include "system/system.hpp"
 
+#include "config/config.hpp"
+
 #include "core/macros.h"
 #include "core/memory.h"
 
@@ -15,8 +17,28 @@
 #include "format/backtrace.h"
 #include "format/colour.h"
 
+using namespace sm;
+
 namespace launch = sm::launch;
 namespace db = sm::db;
+namespace config = sm::config;
+
+static config::Group kLoggingGroup {
+    name = "Logging",
+    desc = "Logging configuration",
+};
+
+static const opt<logs::TimerSource> kLoggingTimerSource {
+    name = "log-timer",
+    desc = "Detection method to use when creating the logger timestamp source",
+    group = kLoggingGroup,
+    init = logs::TimerSource::eAutoDetect,
+    choices = {
+        val(logs::TimerSource::eAutoDetect) = "auto",
+        val(logs::TimerSource::eHighResolutionClock) = "qpc",
+        val(logs::TimerSource::eInvariantTsc) = "rdtsc",
+    }
+};
 
 struct LoggingDb {
     db::Environment env;
@@ -100,10 +122,14 @@ launch::LaunchCleanup launch::commonInit(HINSTANCE hInstance, const LaunchInfo& 
         bt_report_t *report = bt_report_collect(arena);
         fmt_backtrace(kPrintOptions, report);
 
+        // TODO: block until logs are flushed
+
         os_exit(CT_EXIT_INTERNAL); // NOLINT
     };
 
-    logs::create(logs::LoggingConfig { });
+    logs::create(logs::LoggingConfig {
+        .timer = kLoggingTimerSource.getValue()
+    });
 
     gLogging = sm::makeUnique<LoggingDb>(info.logDbType);
     logs::sinks::create(gLogging->connect(info.logDbConfig));
