@@ -56,13 +56,13 @@ namespace sm::logs {
         uint64_t getHash() const noexcept { return hash; }
         const CategoryInfo& getCategory() const noexcept { return category; }
 
-#if SMC_LOGS_INCLUDE_SOURCE_INFO
         std::string_view getMessage() const noexcept { return message; }
+
+#if SMC_LOGS_INCLUDE_SOURCE_INFO
         uint_least32_t getLine() const noexcept { return location.line(); }
         const char *getFunction() const noexcept { return location.function_name(); }
         const char *getFileName() const noexcept { return location.file_name(); }
 #else
-        std::string_view getMessage() const noexcept { return ""; }
         uint_least32_t getLine() const noexcept { return 0; }
         const char *getFunction() const noexcept { return ""; }
         const char *getFileName() const noexcept { return ""; }

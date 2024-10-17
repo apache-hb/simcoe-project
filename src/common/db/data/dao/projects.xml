@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<root name="editor">
-    <table name="projects" primaryKey="id">
-        <column name="id"   type="int" autoIncrement="true" />
-        <column name="name" type="text" length="255" unique="true" />
-        <column name="path" type="text" length="255" unique="true" />
-    </table>
-</root>
