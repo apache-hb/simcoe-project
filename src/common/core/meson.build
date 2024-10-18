@@ -82,6 +82,7 @@ testcases = {
     'Bit set' : 'test/adt/bitset.cpp',
     'Priority queue' : 'test/adt/priority_queue.cpp',
     'Symbol names' : 'test/symbols.cpp',
+    'Sync primitives' : 'test/sync.cpp',
 }
 
 foreach name, source : testcases
