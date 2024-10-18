@@ -48,7 +48,6 @@ TEST_CASE("Create next::CoreContext virtual swapchain") {
 
     const int totalIters = 60;
     for (int iters = 0; iters < totalIters; iters++) {
-
         context.present();
 
         if (iters == 30) {
