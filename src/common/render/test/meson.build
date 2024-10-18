@@ -7,11 +7,13 @@ subdir('redist/d3d12')
 ### common render tests
 ###
 
+stb_image_write = dependency('stb_image_write')
+
 src = [
     'render_test_common.cpp',
 ]
 
-deps = [ render, dbtest ]
+deps = [ render, dbtest, stb_image_write ]
 
 librendertest = library('render-test', src,
     include_directories : [ render_include, reflect_include ],
@@ -46,6 +48,6 @@ foreach name, source : testcases
 
     test(name, exe,
         suite : 'render',
-        kwargs : testkwargs
+        kwargs : testkwargs + { 'timeout': 10 }
     )
 endforeach

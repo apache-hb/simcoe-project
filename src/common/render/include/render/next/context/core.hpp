@@ -118,6 +118,7 @@ namespace sm::render::next {
         std::span<const Adapter> adapters() const noexcept { return mInstance.adapters(); }
         AdapterLUID getAdapter() const noexcept { return mDevice.luid(); }
         const Adapter& getWarpAdapter() noexcept { return mInstance.getWarpAdapter(); }
+        ID3D12Device *getDevice() const noexcept { return mDevice.get(); }
 
         /// update rendering device state
 

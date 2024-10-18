@@ -3,6 +3,8 @@
 #include "render/next/context/core.hpp"
 #include "render/next/surface/virtual.hpp"
 
+#include <stb_image_write.h>
+
 using namespace sm;
 
 namespace next = sm::render::next;
@@ -21,6 +23,8 @@ static next::SurfaceInfo newSurfaceInfo(math::uint2 size, UINT length = 2, math:
 
 TEST_CASE("Create next::CoreContext virtual swapchain") {
     next::VirtualSwapChainFactory swapChainFactory { };
+
+    std::filesystem::create_directories("test-data/render/frames");
 
     next::ContextConfig config {
         .flags = DebugFlags::eDeviceDebugLayer
@@ -43,34 +47,41 @@ TEST_CASE("Create next::CoreContext virtual swapchain") {
 
     render::AdapterLUID warpAdapter = context.getWarpAdapter().luid();
 
-    const int totalIters = 60;
+    const int totalIters = 15;
     for (int iters = 0; iters < totalIters; iters++) {
+        next::VirtualSwapChain *swapchain = swapChainFactory.getSwapChain(context.getDevice());
+        std::span<const uint32_t> image = swapchain->getImage();
+        next::SurfaceInfo info = swapchain->getSurfaceInfo();
+
         context.present();
 
-        if (iters == 30) {
+        std::string path = fmt::format("test-data/render/frames/frame-{}.png", iters);
+        stbi_write_png(path.c_str(), info.size.width, info.size.height, 4, image.data(), 4 * info.size.width);
+
+        if (iters == 10) {
             context.updateSwapChain(newSurfaceInfo(math::uint2(800, 600), 4));
             SUCCEED("Shrank swapchain resolution");
         }
 
-        if (iters == 45) {
+        if (iters == 14) {
             CHECK_THROWS_AS(context.setAdapter(render::AdapterLUID(0x1000, 0x1234)), render::RenderException);
         }
 
         // remove the device first to ensure the context is in a bad state
         // if setAdapter leaks any device resources then the test will fail
-        if (iters == 43) {
+        if (iters == 13) {
             render::AdapterLUID currentAdapter = context.getAdapter();
             context.removeDevice();
             context.setAdapter(currentAdapter);
             SUCCEED("recovered from device lost");
         }
 
-        if (iters == 40) {
+        if (iters == 4) {
             context.setAdapter(warpAdapter);
             SUCCEED("Moved to warp adapter");
         }
 
-        if (iters == 35) {
+        if (iters == 2) {
             context.updateSwapChain(newSurfaceInfo(math::uint2(1920, 1080), 4));
             SUCCEED("Updated swapchain size");
         }

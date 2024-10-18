@@ -47,10 +47,27 @@ static D3D12MA::Allocation *newReadbackBuffer(D3D12MA::Allocator *allocator, Sur
     return newComittedResource(allocator, D3D12_HEAP_TYPE_READBACK, &cBufferInfo, D3D12_RESOURCE_STATE_COPY_DEST, nullptr);
 }
 
+static std::span<const uint32_t> mapBuffer(D3D12MA::Allocation *readback, SurfaceInfo info) {
+    auto [format, size, _, _] = info;
+    uint64_t bytes = size.width * size.height * 4ULL; // NOLINT
+    ID3D12Resource *resource = readback->GetResource();
+
+    const D3D12_RANGE cReadRange = { 0, bytes };
+    void *data = nullptr;
+    SM_THROW_HR(resource->Map(0, &cReadRange, &data));
+
+    return std::span<const uint32_t>(static_cast<const uint32_t*>(data), bytes);
+}
+
 static VirtualSurface newVirtualSurface(D3D12MA::Allocator *allocator, SurfaceInfo info) {
+    D3D12MA::Allocation *target = newSurfaceTexture(allocator, info);
+    D3D12MA::Allocation *readback = newReadbackBuffer(allocator, info);
+    std::span<const uint32_t> image = mapBuffer(readback, info);
+
     return VirtualSurface {
-        .target = newSurfaceTexture(allocator, info),
-        .readback = newReadbackBuffer(allocator, info),
+        .target = target,
+        .readback = readback,
+        .image = image
     };
 }
 
@@ -67,17 +84,20 @@ static SurfaceList newSurfaceList(D3D12MA::Allocator *allocator, SurfaceInfo inf
 #pragma region SwapChain
 
 ID3D12Resource *VirtualSwapChain::getSurfaceAt(UINT index) {
-    return mSurfaces[index].getTarget();
+    return mSurfaces[index].getRenderTarget();
 }
 
 void VirtualSwapChain::updateSurfaces(SurfaceInfo info) {
     mCommandList = CommandBufferSet(mDevice, D3D12_COMMAND_LIST_TYPE_DIRECT, info.length);
     mSurfaces = newSurfaceList(mAllocator, info);
+    mSurfaceInfo = info;
+    mIndex = 0;
 }
 
-VirtualSwapChain::VirtualSwapChain(VirtualSwapChainFactory *factory, SurfaceList surfaces, SurfaceCreateObjects objects)
+VirtualSwapChain::VirtualSwapChain(VirtualSwapChainFactory *factory, SurfaceInfo info, SurfaceList surfaces, SurfaceCreateObjects objects)
     : ISwapChain(factory, surfaces.size())
     , mSurfaces(std::move(surfaces))
+    , mSurfaceInfo(info)
     , mDevice(objects.device)
     , mAllocator(objects.allocator.get())
     , mCommandQueue(objects.queue.get())
@@ -93,7 +113,50 @@ UINT VirtualSwapChain::currentSurfaceIndex() {
 }
 
 void VirtualSwapChain::present(UINT sync) {
+    /// gather all required resources to do readback copy
+    ID3D12Resource *source = getSurfaceAt(mIndex);
+    ID3D12Resource *readback = getCopyTarget(mIndex);
+
+    // we expect the source to be in the present state
+    const D3D12_RESOURCE_BARRIER cIntoCopySource[] = {
+        CD3DX12_RESOURCE_BARRIER::Transition(source, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_SOURCE),
+    };
+
+    const D3D12_RESOURCE_BARRIER cIntoPresent[] = {
+        CD3DX12_RESOURCE_BARRIER::Transition(source, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_PRESENT),
+    };
+
+    const D3D12_PLACED_SUBRESOURCE_FOOTPRINT cBufferInfo {
+        .Footprint = {
+            .Format = mSurfaceInfo.format,
+            .Width = mSurfaceInfo.size.width,
+            .Height = mSurfaceInfo.size.height,
+            .Depth = 1,
+            .RowPitch = mSurfaceInfo.size.width * 4,
+        },
+    };
+
+    const CD3DX12_TEXTURE_COPY_LOCATION cCopySource { source, 0 };
+    const CD3DX12_TEXTURE_COPY_LOCATION cCopyDest { readback, cBufferInfo };
+
+    // prepare the commands
+
+    mCommandList->ResourceBarrier(_countof(cIntoCopySource), cIntoCopySource);
+
+    mCommandList->CopyTextureRegion(&cCopyDest, 0, 0, 0, &cCopySource, nullptr);
+
+    mCommandList->ResourceBarrier(_countof(cIntoPresent), cIntoPresent);
+
+    // submit
+
+    ID3D12CommandList *lists[] = { mCommandList.close() };
+    mCommandQueue->ExecuteCommandLists(_countof(lists), lists);
+
+    // prepare for the next frame
+
     mIndex = (mIndex + 1) % length();
+
+    mCommandList.reset(mIndex);
 }
 
 #pragma region Factory
@@ -115,7 +178,7 @@ ISwapChain *VirtualSwapChainFactory::createSwapChain(SurfaceCreateObjects object
 
     SurfaceList surfaces = newSurfaceList(allocator, info);
 
-    VirtualSwapChain *swapchain = new VirtualSwapChain(this, std::move(surfaces), objects);
+    VirtualSwapChain *swapchain = new VirtualSwapChain(this, info, std::move(surfaces), objects);
     mSwapChains[device] = swapchain;
 
     return swapchain;
