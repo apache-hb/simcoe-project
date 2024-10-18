@@ -71,18 +71,21 @@ ID3D12Resource *VirtualSwapChain::getSurfaceAt(UINT index) {
 }
 
 void VirtualSwapChain::updateSurfaces(SurfaceInfo info) {
+    mCommandList = CommandBufferSet(mDevice, D3D12_COMMAND_LIST_TYPE_DIRECT, info.length);
     mSurfaces = newSurfaceList(mAllocator, info);
 }
 
-VirtualSwapChain::VirtualSwapChain(VirtualSwapChainFactory *factory, SurfaceList surfaces, ID3D12Device1 *device, D3D12MA::Allocator *allocator)
+VirtualSwapChain::VirtualSwapChain(VirtualSwapChainFactory *factory, SurfaceList surfaces, SurfaceCreateObjects objects)
     : ISwapChain(factory, surfaces.size())
     , mSurfaces(std::move(surfaces))
-    , mDevice(device)
-    , mAllocator(allocator)
+    , mDevice(objects.device)
+    , mAllocator(objects.allocator.get())
+    , mCommandQueue(objects.queue.get())
+    , mCommandList(objects.device, D3D12_COMMAND_LIST_TYPE_DIRECT, mSurfaces.size())
 { }
 
 VirtualSwapChain::~VirtualSwapChain() noexcept {
-    static_cast<VirtualSwapChainFactory*>(parent())->removeSwapChain(mDevice);
+    static_cast<VirtualSwapChainFactory*>(parent())->removeSwapChain(mDevice.get());
 }
 
 UINT VirtualSwapChain::currentSurfaceIndex() {
@@ -112,7 +115,7 @@ ISwapChain *VirtualSwapChainFactory::createSwapChain(SurfaceCreateObjects object
 
     SurfaceList surfaces = newSurfaceList(allocator, info);
 
-    VirtualSwapChain *swapchain = new VirtualSwapChain(this, std::move(surfaces), device, allocator);
+    VirtualSwapChain *swapchain = new VirtualSwapChain(this, std::move(surfaces), objects);
     mSwapChains[device] = swapchain;
 
     return swapchain;

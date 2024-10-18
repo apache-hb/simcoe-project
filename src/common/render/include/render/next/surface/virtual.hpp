@@ -1,5 +1,6 @@
 #pragma once
 
+#include "render/next/components.hpp"
 #include "render/next/surface/surface.hpp"
 
 namespace sm::render::next {
@@ -18,14 +19,17 @@ namespace sm::render::next {
     class VirtualSwapChain final : public ISwapChain {
         UINT mIndex = 0;
         SurfaceList mSurfaces;
-        ID3D12Device1 *mDevice;
+        CoreDevice& mDevice;
         D3D12MA::Allocator *mAllocator;
+        ID3D12CommandQueue *mCommandQueue;
+
+        CommandBufferSet mCommandList;
 
         ID3D12Resource *getSurfaceAt(UINT index) override;
         void updateSurfaces(SurfaceInfo info) override;
 
     public:
-        VirtualSwapChain(VirtualSwapChainFactory *factory, SurfaceList surfaces, ID3D12Device1 *device, D3D12MA::Allocator *allocator);
+        VirtualSwapChain(VirtualSwapChainFactory *factory, SurfaceList surfaces, SurfaceCreateObjects objects);
         ~VirtualSwapChain() noexcept;
 
         UINT currentSurfaceIndex() override;
