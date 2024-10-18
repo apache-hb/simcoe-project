@@ -2,6 +2,8 @@
 
 #include "render/next/surface.hpp"
 
+namespace math = sm::math;
+
 using sm::render::next::ISwapChainFactory;
 using sm::render::next::ISwapChain;
 using sm::render::next::SwapChainLimits;
@@ -11,22 +13,36 @@ using sm::render::Object;
 
 using SurfaceList = std::vector<Object<ID3D12Resource>>;
 
-#pragma region Utils
+struct VirtualSurface {
+    Object<ID3D12Resource> target;
+    Object<ID3D12Resource> readback;
+};
 
 static const D3D12_HEAP_PROPERTIES kDefaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+static const D3D12_HEAP_PROPERTIES kReadbackHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
 
-static SurfaceList newSurfaceList(ID3D12Device1 *device, SurfaceInfo info) {
+#pragma region Utils
+
+static ID3D12Resource *newSurfaceTexture(ID3D12Device1 *device, SurfaceInfo info) {
+    auto [format, size, _, clear] = info;
     const D3D12_RESOURCE_DESC kTextureInfo = CD3DX12_RESOURCE_DESC::Tex2D(
-        info.format, info.size.width, info.size.height,
-        1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
+        format, size.width, size.height,
+        1, 0, 1, 0,
+        D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
     );
 
-    const D3D12_CLEAR_VALUE kClearValue = CD3DX12_CLEAR_VALUE(info.format, info.clearColour.data());
+    const D3D12_CLEAR_VALUE kClearValue = CD3DX12_CLEAR_VALUE(format, clear.data());
 
+    ID3D12Resource *resource = nullptr;
+    SM_THROW_HR(device->CreateCommittedResource(&kDefaultHeap, D3D12_HEAP_FLAG_NONE, &kTextureInfo, D3D12_RESOURCE_STATE_PRESENT, &kClearValue, IID_PPV_ARGS(&resource)));
+    return resource;
+}
+
+static SurfaceList newSurfaceList(ID3D12Device1 *device, SurfaceInfo info) {
     SurfaceList surfaces{info.length};
 
     for (UINT i = 0; i < info.length; i++) {
-        SM_THROW_HR(device->CreateCommittedResource(&kDefaultHeap, D3D12_HEAP_FLAG_NONE, &kTextureInfo, D3D12_RESOURCE_STATE_PRESENT, &kClearValue, IID_PPV_ARGS(&surfaces[i])));
+        surfaces[i] = newSurfaceTexture(device, info);
     }
 
     return surfaces;
