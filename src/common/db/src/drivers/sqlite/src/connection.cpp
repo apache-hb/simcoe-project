@@ -107,14 +107,12 @@ static Version getSqliteVersion() noexcept {
     return Version{name, major, minor, patch};
 }
 
-DbError SqliteConnection::clientVersion(Version& version) const noexcept {
-    version = getSqliteVersion();
-    return DbError::ok();
+Version SqliteConnection::clientVersion() const noexcept {
+    return getSqliteVersion();
 }
 
-DbError SqliteConnection::serverVersion(Version& version) const noexcept {
-    version = getSqliteVersion();
-    return DbError::ok();
+Version SqliteConnection::serverVersion() const noexcept {
+    return getSqliteVersion();
 }
 
 static bool isBlankString(const char *text) noexcept {

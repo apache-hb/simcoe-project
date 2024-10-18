@@ -93,9 +93,8 @@ namespace sm::db::detail {
 
         /** Version */
 
-        virtual DbError clientVersion(Version& version) const noexcept = 0;
-
-        virtual DbError serverVersion(Version& version) const noexcept = 0;
+        virtual Version clientVersion() const noexcept = 0;
+        virtual Version serverVersion() const noexcept = 0;
 
         virtual DataType boolEquivalentType() const noexcept {
             return DataType::eBoolean;

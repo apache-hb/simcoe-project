@@ -129,14 +129,12 @@ std::string OraConnection::setupCommentOnColumn(std::string_view table, std::str
     return oracle::setupCommentOnColumn(table, column, comment);
 }
 
-DbError OraConnection::clientVersion(Version& version) const noexcept {
-    version = getClientVersion();
-    return DbError::ok();
+Version OraConnection::clientVersion() const noexcept {
+    return getClientVersion();
 }
 
-DbError OraConnection::serverVersion(Version& version) const noexcept {
-    version = mServerVersion;
-    return DbError::ok();
+Version OraConnection::serverVersion() const noexcept {
+    return mServerVersion;
 }
 
 ub2 OraConnection::getBoolType() const noexcept {

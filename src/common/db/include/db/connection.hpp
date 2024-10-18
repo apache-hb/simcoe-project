@@ -514,8 +514,8 @@ namespace sm::db {
             return tableExists(info.name);
         }
 
-        DbResult<Version> clientVersion() const noexcept;
-        DbResult<Version> serverVersion() const noexcept;
+        Version clientVersion() const noexcept;
+        Version serverVersion() const noexcept;
     };
 
     class Environment {

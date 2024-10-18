@@ -60,6 +60,13 @@
                 The PCI or APIC revision number of the device.&#xA;
                 From DXGI_ADAPTER_DESC1::Revision.
                 "/>
+
+        <unique>
+            <column>description</column>
+            <column>flags</column>
+            <column>vendor_id</column>
+            <column>device_id</column>
+        </unique>
     </table>
 
     <table name="output" syntheticPrimaryKey="ulong"

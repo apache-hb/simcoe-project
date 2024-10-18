@@ -103,9 +103,7 @@ namespace sm::db::sqlite {
         DbError prepare(std::string_view sql, detail::IStatement **statement) noexcept override;
 
         DbError begin() noexcept override;
-
         DbError commit() noexcept override;
-
         DbError rollback() noexcept override;
 
         std::string setupInsert(const dao::TableInfo& table) noexcept(false) override;
@@ -124,8 +122,8 @@ namespace sm::db::sqlite {
 
         std::string setupCreateTable(const dao::TableInfo& table) noexcept(false) override;
 
-        DbError clientVersion(Version& version) const noexcept override;
-        DbError serverVersion(Version& version) const noexcept override;
+        Version clientVersion() const noexcept override;
+        Version serverVersion() const noexcept override;
 
         DataType boolEquivalentType() const noexcept override { return DataType::eInteger; }
         DataType dateTimeEquivalentType() const noexcept override { return DataType::eInteger; }

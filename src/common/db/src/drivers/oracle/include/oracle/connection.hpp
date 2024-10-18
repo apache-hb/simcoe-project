@@ -43,8 +43,8 @@ namespace sm::db::oracle {
 
         std::string setupCommentOnColumn(std::string_view table, std::string_view column, std::string_view comment) noexcept(false) override;
 
-        DbError clientVersion(Version& version) const noexcept override;
-        DbError serverVersion(Version& version) const noexcept override;
+        Version clientVersion() const noexcept override;
+        Version serverVersion() const noexcept override;
 
         DataType boolEquivalentType() const noexcept override {
             // if boolean types arent available, we use a string of length 1

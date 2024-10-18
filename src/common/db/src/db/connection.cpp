@@ -48,20 +48,12 @@ DbResult<bool> Connection::tableExists(std::string_view name) noexcept {
     return TRY_RESULT(results.get<int>(0)) > 0;
 }
 
-DbResult<Version> Connection::clientVersion() const noexcept {
-    Version version;
-    if (DbError error = mImpl->clientVersion(version))
-        return std::unexpected(error);
-
-    return version;
+Version Connection::clientVersion() const noexcept {
+    return mImpl->clientVersion();
 }
 
-DbResult<Version> Connection::serverVersion() const noexcept {
-    Version version;
-    if (DbError error = mImpl->serverVersion(version))
-        return std::unexpected(error);
-
-    return version;
+Version Connection::serverVersion() const noexcept {
+    return mImpl->serverVersion();
 }
 
 DbResult<PreparedStatement> Connection::tryPrepareStatement(std::string_view sql, StatementType type) noexcept {

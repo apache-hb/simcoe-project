@@ -329,7 +329,7 @@ void CoreContext::present() {
     CommandBufferSet& commands = *mCommandBufferSet;
 
     ID3D12Resource *surface = surfaceAt(mCurrentBackBuffer);
-    const D3D12_RESOURCE_BARRIER intoRenderTarget[] = {
+    const D3D12_RESOURCE_BARRIER cIntoRenderTarget[] = {
         CD3DX12_RESOURCE_BARRIER::Transition(
             surface,
             D3D12_RESOURCE_STATE_PRESENT,
@@ -337,7 +337,7 @@ void CoreContext::present() {
         )
     };
 
-    const D3D12_RESOURCE_BARRIER intoPresent[] = {
+    const D3D12_RESOURCE_BARRIER cIntoPresent[] = {
         CD3DX12_RESOURCE_BARRIER::Transition(
             surface,
             D3D12_RESOURCE_STATE_RENDER_TARGET,
@@ -347,13 +347,13 @@ void CoreContext::present() {
 
     D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = { rtvHandleAt(mCurrentBackBuffer) };
 
-    commands->ResourceBarrier(_countof(intoRenderTarget), intoRenderTarget);
+    commands->ResourceBarrier(_countof(cIntoRenderTarget), cIntoRenderTarget);
 
     commands->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
     commands->ClearRenderTargetView(rtvHandle, mSwapChainInfo.clearColour.data(), 0, nullptr);
 
-    commands->ResourceBarrier(_countof(intoPresent), intoPresent);
+    commands->ResourceBarrier(_countof(cIntoPresent), cIntoPresent);
 
     ID3D12CommandList *lists[] = { commands.close() };
     mDirectQueue->ExecuteCommandLists(_countof(lists), lists);

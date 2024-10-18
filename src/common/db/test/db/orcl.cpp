@@ -67,11 +67,6 @@ TEST_CASE("updates") {
             REQUIRE(count == 1);
         }
 
-        THEN("it has a version") {
-            getValue(conn.clientVersion());
-            getValue(conn.serverVersion());
-        }
-
         THEN("binding variables") {
             conn.setAutoCommit(true);
 

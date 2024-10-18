@@ -3,6 +3,7 @@
 #include "render/base/instance.hpp"
 
 #include "db/connection.hpp"
+#include "db/transaction.hpp"
 
 #include "render.dao.hpp"
 
@@ -197,98 +198,123 @@ static uint64_t packLuid(LUID luid) {
     return uint64_t(luid.HighPart) << 32 | luid.LowPart;
 }
 
-static void addMode(DXGI_MODE_DESC desc, uint64_t output, db::Connection& connection) {
-    renderdao::Mode dao {
-        .output = output,
-        .width = desc.Width,
-        .height = desc.Height,
-        .refreshRateNumerator = desc.RefreshRate.Numerator,
-        .refreshRateDenominator = desc.RefreshRate.Denominator,
-        .format = uint32_t(desc.Format),
-        .scanlineOrdering = uint32_t(desc.ScanlineOrdering),
-        .scaling = uint32_t(desc.Scaling),
-    };
+class SaveAdapterInfo {
+    sm::db::Connection& mConnection;
 
-    connection.insertReturningPrimaryKey(dao);
-}
+    sm::db::PreparedInsertReturning<renderdao::Mode> mInsertMode = mConnection.prepareInsertReturningPrimaryKey<renderdao::Mode>();
+    sm::db::PreparedInsertReturning<renderdao::Output> mInsertOutput = mConnection.prepareInsertReturningPrimaryKey<renderdao::Output>();
+    sm::db::PreparedInsert<renderdao::Adapter> mInsertAdapter = mConnection.prepareInsertOrUpdate<renderdao::Adapter>();
 
-static void addOutput(IDXGIOutput *output, uint64_t luid, DXGI_FORMAT format, db::Connection& connection) {
-    DXGI_OUTPUT_DESC desc;
-    SM_THROW_HR(output->GetDesc(&desc));
+    void addMode(DXGI_MODE_DESC desc, uint64_t output) {
+        renderdao::Mode dao {
+            .output = output,
+            .width = desc.Width,
+            .height = desc.Height,
+            .refreshRateNumerator = desc.RefreshRate.Numerator,
+            .refreshRateDenominator = desc.RefreshRate.Denominator,
+            .format = uint32_t(desc.Format),
+            .scanlineOrdering = uint32_t(desc.ScanlineOrdering),
+            .scaling = uint32_t(desc.Scaling),
+        };
 
-    renderdao::Output dao {
-        .name = sm::narrow(desc.DeviceName),
-        .left = desc.DesktopCoordinates.left,
-        .top = desc.DesktopCoordinates.top,
-        .right = desc.DesktopCoordinates.right,
-        .bottom = desc.DesktopCoordinates.bottom,
-        .attachedToDesktop = !!desc.AttachedToDesktop,
-        .rotation = uint32_t(desc.Rotation),
-        .adapter = luid,
-    };
-
-    uint64_t pk = connection.insertReturningPrimaryKey(dao);
-
-    const UINT flags = DXGI_ENUM_MODES_INTERLACED;
-
-    UINT count = 0;
-    output->GetDisplayModeList(format, flags, &count, nullptr);
-
-    std::unique_ptr<DXGI_MODE_DESC[]> modes(new DXGI_MODE_DESC[count]);
-    SM_THROW_HR(output->GetDisplayModeList(format, flags, &count, modes.get()));
-
-    for (UINT i = 0; i < count; i++) {
-        addMode(modes[i], pk, connection);
+        mInsertMode.insert(dao);
     }
-}
 
-static void addAdapter(const Adapter& adapter, DXGI_FORMAT format, db::Connection& connection) {
-    DXGI_ADAPTER_DESC1 desc;
-    SM_THROW_HR(adapter->GetDesc1(&desc));
+    void addOutput(IDXGIOutput *output, uint64_t luid, DXGI_FORMAT format) {
+        DXGI_OUTPUT_DESC desc;
+        SM_THROW_HR(output->GetDesc(&desc));
 
-    uint64_t luid = packLuid(desc.AdapterLuid);
+        renderdao::Output dao {
+            .name = sm::narrow(desc.DeviceName),
+            .left = desc.DesktopCoordinates.left,
+            .top = desc.DesktopCoordinates.top,
+            .right = desc.DesktopCoordinates.right,
+            .bottom = desc.DesktopCoordinates.bottom,
+            .attachedToDesktop = !!desc.AttachedToDesktop,
+            .rotation = uint32_t(desc.Rotation),
+            .adapter = luid,
+        };
 
-    renderdao::Adapter dao {
-        .luid = luid,
-        .description = std::string{adapter.name()},
-        .flags = desc.Flags,
-        .videoMemory = adapter.vidmem().asBytes(),
-        .systemMemory = adapter.sysmem().asBytes(),
-        .sharedMemory = adapter.sharedmem().asBytes(),
-        .vendorId = desc.VendorId,
-        .deviceId = desc.DeviceId,
-        .subsystemId = desc.SubSysId,
-        .revision = desc.Revision,
-    };
+        uint64_t pk = mInsertOutput.insert(dao);
 
-    connection.insertOrUpdate(dao);
+        const UINT flags = DXGI_ENUM_MODES_INTERLACED;
 
-    IDXGIOutput *output = nullptr;
-    for (UINT i = 0; adapter->EnumOutputs(i, &output) != DXGI_ERROR_NOT_FOUND; ++i) {
-        addOutput(output, luid, format, connection);
+        UINT count = 0;
+        output->GetDisplayModeList(format, flags, &count, nullptr);
+
+        std::unique_ptr<DXGI_MODE_DESC[]> modes(new DXGI_MODE_DESC[count]);
+        SM_THROW_HR(output->GetDisplayModeList(format, flags, &count, modes.get()));
+
+        for (UINT i = 0; i < count; i++) {
+            addMode(modes[i], pk);
+        }
     }
-}
+
+    void addAdapter(const Adapter& adapter, DXGI_FORMAT format) {
+        DXGI_ADAPTER_DESC1 desc;
+        SM_THROW_HR(adapter->GetDesc1(&desc));
+
+        uint64_t luid = packLuid(desc.AdapterLuid);
+
+        renderdao::Adapter dao {
+            .luid = luid,
+            .description = std::string{adapter.name()},
+            .flags = desc.Flags,
+            .videoMemory = adapter.vidmem().asBytes(),
+            .systemMemory = adapter.sysmem().asBytes(),
+            .sharedMemory = adapter.sharedmem().asBytes(),
+            .vendorId = desc.VendorId,
+            .deviceId = desc.DeviceId,
+            .subsystemId = desc.SubSysId,
+            .revision = desc.Revision,
+        };
+
+        mInsertAdapter.insert(dao);
+
+        IDXGIOutput *output = nullptr;
+        for (UINT i = 0; adapter->EnumOutputs(i, &output) != DXGI_ERROR_NOT_FOUND; ++i) {
+            addOutput(output, luid, format);
+        }
+    }
+
+    void addRotations() {
+        auto stmt = mConnection.prepareInsertOrUpdate<renderdao::Rotation>();
+
+        // add rotations
+        renderdao::Rotation rotations[] = {
+            { DXGI_MODE_ROTATION_UNSPECIFIED, "DXGI_MODE_ROTATION_UNSPECIFIED" },
+            { DXGI_MODE_ROTATION_IDENTITY,    "DXGI_MODE_ROTATION_IDENTITY" },
+            { DXGI_MODE_ROTATION_ROTATE90,    "DXGI_MODE_ROTATION_ROTATE90" },
+            { DXGI_MODE_ROTATION_ROTATE180,   "DXGI_MODE_ROTATION_ROTATE180" },
+            { DXGI_MODE_ROTATION_ROTATE270,   "DXGI_MODE_ROTATION_ROTATE270" },
+        };
+
+        for (const auto& rotation : rotations) {
+            stmt.insert(rotation);
+        }
+    }
+
+public:
+    SaveAdapterInfo(sm::db::Connection& connection)
+        : mConnection(connection)
+    {
+        mConnection.createTable(renderdao::Adapter::table());
+        mConnection.createTable(renderdao::Output::table());
+        mConnection.createTable(renderdao::Mode::table());
+        mConnection.createTable(renderdao::Rotation::table());
+    }
+
+    void submitInfo(const Instance& instance, DXGI_FORMAT format) {
+        db::Transaction tx(&mConnection);
+        addRotations();
+
+        for (const Adapter& adapter : instance.adapters()) {
+            addAdapter(adapter, format);
+        }
+    }
+};
 
 void render::saveAdapterInfo(const Instance& instance, DXGI_FORMAT format, db::Connection& connection) {
-    connection.createTable(renderdao::Adapter::table());
-    connection.createTable(renderdao::Output::table());
-    connection.createTable(renderdao::Mode::table());
-    connection.createTable(renderdao::Rotation::table());
-
-    // add rotations
-    renderdao::Rotation rotations[] = {
-        { DXGI_MODE_ROTATION_UNSPECIFIED, "DXGI_MODE_ROTATION_UNSPECIFIED" },
-        { DXGI_MODE_ROTATION_IDENTITY,    "DXGI_MODE_ROTATION_IDENTITY" },
-        { DXGI_MODE_ROTATION_ROTATE90,    "DXGI_MODE_ROTATION_ROTATE90" },
-        { DXGI_MODE_ROTATION_ROTATE180,   "DXGI_MODE_ROTATION_ROTATE180" },
-        { DXGI_MODE_ROTATION_ROTATE270,   "DXGI_MODE_ROTATION_ROTATE270" },
-    };
-
-    for (const auto& rotation : rotations) {
-        connection.insertOrUpdate(rotation);
-    }
-
-    for (const Adapter& adapter : instance.adapters()) {
-        addAdapter(adapter, format, connection);
-    }
+    SaveAdapterInfo save{connection};
+    save.submitInfo(instance, format);
 }
