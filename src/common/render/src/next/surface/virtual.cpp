@@ -1,25 +1,15 @@
 #include "stdafx.hpp"
 
-#include "render/next/surface.hpp"
+#include "render/next/surface/virtual.hpp"
 
 namespace math = sm::math;
 
-using sm::render::next::ISwapChainFactory;
-using sm::render::next::ISwapChain;
-using sm::render::next::SwapChainLimits;
-using sm::render::next::SurfaceInfo;
-using sm::render::next::VirtualSwapChainFactory;
+using namespace sm::render::next;
+
 using sm::render::Object;
 
-using SurfaceList = std::vector<Object<ID3D12Resource>>;
-
-struct VirtualSurface {
-    Object<ID3D12Resource> target;
-    Object<ID3D12Resource> readback;
-};
-
 static const D3D12_HEAP_PROPERTIES kDefaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-static const D3D12_HEAP_PROPERTIES kReadbackHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
+static const D3D12_HEAP_PROPERTIES kReadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
 
 #pragma region Utils
 
@@ -38,11 +28,30 @@ static ID3D12Resource *newSurfaceTexture(ID3D12Device1 *device, SurfaceInfo info
     return resource;
 }
 
+static ID3D12Resource *newReadbackBuffer(ID3D12Device1 *device, SurfaceInfo info) {
+    auto [format, size, _, _] = info;
+
+    UINT64 pitch = size.width * 4LLU;
+    UINT64 bytes = pitch * size.height;
+    const D3D12_RESOURCE_DESC kBufferInfo = CD3DX12_RESOURCE_DESC::Buffer(bytes);
+
+    ID3D12Resource *resource = nullptr;
+    SM_THROW_HR(device->CreateCommittedResource(&kReadHeap, D3D12_HEAP_FLAG_NONE, &kBufferInfo, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&resource)));
+    return resource;
+}
+
+static VirtualSurface newVirtualSurface(ID3D12Device1 *device, SurfaceInfo info) {
+    return VirtualSurface {
+        .target = newSurfaceTexture(device, info),
+        .readback = newReadbackBuffer(device, info),
+    };
+}
+
 static SurfaceList newSurfaceList(ID3D12Device1 *device, SurfaceInfo info) {
     SurfaceList surfaces{info.length};
 
     for (UINT i = 0; i < info.length; i++) {
-        surfaces[i] = newSurfaceTexture(device, info);
+        surfaces[i] = newVirtualSurface(device, info);
     }
 
     return surfaces;
@@ -50,34 +59,31 @@ static SurfaceList newSurfaceList(ID3D12Device1 *device, SurfaceInfo info) {
 
 #pragma region SwapChain
 
-class VirtualSwapChain final : public ISwapChain {
-    UINT mIndex = 0;
-    SurfaceList mSurfaces;
-    ID3D12Device1 *mDevice;
+Object<ID3D12Resource> VirtualSwapChain::getSurfaceAt(UINT index) {
+    return mSurfaces[index].getTarget();
+}
 
-    Object<ID3D12Resource> getSurfaceAt(UINT index) override {
-        return mSurfaces[index].clone();
-    }
+void VirtualSwapChain::updateSurfaces(SurfaceInfo info) {
+    mSurfaces = newSurfaceList(mDevice, info);
+}
 
-    void updateSurfaces(SurfaceInfo info) override {
-        mSurfaces = newSurfaceList(mDevice, info);
-    }
+VirtualSwapChain::VirtualSwapChain(VirtualSwapChainFactory *factory, SurfaceList surfaces, ID3D12Device1 *device)
+    : ISwapChain(factory, surfaces.size())
+    , mSurfaces(std::move(surfaces))
+    , mDevice(device)
+{ }
 
-public:
-    VirtualSwapChain(ISwapChainFactory *factory, SurfaceList surfaces, ID3D12Device1 *device)
-        : ISwapChain(factory, surfaces.size())
-        , mSurfaces(std::move(surfaces))
-        , mDevice(device)
-    { }
+VirtualSwapChain::~VirtualSwapChain() noexcept {
+    static_cast<VirtualSwapChainFactory*>(parent())->removeSwapChain(mDevice);
+}
 
-    UINT currentSurfaceIndex() override {
-        return mIndex;
-    }
+UINT VirtualSwapChain::currentSurfaceIndex() {
+    return mIndex;
+}
 
-    void present(UINT sync) override {
-        mIndex = (mIndex + 1) % length();
-    }
-};
+void VirtualSwapChain::present(UINT sync) {
+    mIndex = (mIndex + 1) % length();
+}
 
 #pragma region Factory
 
@@ -97,5 +103,12 @@ ISwapChain *VirtualSwapChainFactory::createSwapChain(SurfaceCreateObjects object
 
     SurfaceList surfaces = newSurfaceList(device, info);
 
-    return new VirtualSwapChain(this, std::move(surfaces), device);
+    VirtualSwapChain *swapchain = new VirtualSwapChain(this, std::move(surfaces), device);
+    mSwapChains[device] = swapchain;
+
+    return swapchain;
+}
+
+void VirtualSwapChainFactory::removeSwapChain(ID3D12Device *device) {
+    mSwapChains.erase(device);
 }

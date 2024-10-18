@@ -182,6 +182,7 @@ void CoreContext::createSwapChain(ISwapChainFactory *factory, SurfaceInfo info) 
     SurfaceCreateObjects objects {
         .instance = mInstance,
         .device = mDevice,
+        .allocator = mAllocator,
         .queue = mDirectQueue,
     };
 

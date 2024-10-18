@@ -9,6 +9,7 @@ namespace sm::render::next {
     struct SurfaceCreateObjects {
         Instance& instance;
         CoreDevice& device;
+        Object<D3D12MA::Allocator>& allocator;
         Object<ID3D12CommandQueue>& queue;
     };
 
@@ -41,6 +42,8 @@ namespace sm::render::next {
             , mLength(length)
         { }
 
+        ISwapChainFactory *parent() const noexcept { return mFactory; }
+
     public:
         virtual ~ISwapChain() = default;
 
@@ -68,25 +71,5 @@ namespace sm::render::next {
 
         SwapChainLimits limits() const noexcept { return mLimits; }
         UINT maxSwapChainLength() const noexcept { return mLimits.maxLength; }
-    };
-
-    ///
-    /// implementation
-    ///
-
-    class WindowSwapChainFactory final : public ISwapChainFactory {
-        HWND mWindow;
-
-    public:
-        ISwapChain *createSwapChain(SurfaceCreateObjects objects, const SurfaceInfo& info) override;
-
-        WindowSwapChainFactory(HWND window);
-    };
-
-    class VirtualSwapChainFactory final : public ISwapChainFactory {
-    public:
-        ISwapChain *createSwapChain(SurfaceCreateObjects objects, const SurfaceInfo& info) override;
-
-        VirtualSwapChainFactory();
     };
 }

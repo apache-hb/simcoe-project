@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "render/next/surface.hpp"
+#include "render/next/surface/surface.hpp"
 
 using sm::render::next::ISwapChainFactory;
 using sm::render::next::ISwapChain;

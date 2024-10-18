@@ -60,13 +60,6 @@
                 The PCI or APIC revision number of the device.&#xA;
                 From DXGI_ADAPTER_DESC1::Revision.
                 "/>
-
-        <unique>
-            <column>description</column>
-            <column>flags</column>
-            <column>vendor_id</column>
-            <column>device_id</column>
-        </unique>
     </table>
 
     <table name="output" syntheticPrimaryKey="ulong"
@@ -129,21 +122,21 @@
     <table name="mode" syntheticPrimaryKey="ulong"
            comment="
            A display mode available on an output in a given format.&#xA;
-           Retrieved from IDXGIOutput::GetDisplayModeList with DXGI_ENUM_MODES_INTERLACED.
+           Retrieved from IDXGIOutput::GetDisplayModeList1 with DXGI_ENUM_MODES_INTERLACED.
            ">
 
         <column name="output" type="ulong">
             <constraint references="output.id" />
         </column>
 
-        <column name="width" type="uint" />
-        <column name="height" type="uint" />
+        <column name="width" type="uint"  comment="DXGI_MODE_DESC::Width" />
+        <column name="height" type="uint" comment="DXGI_MODE_DESC::Height" />
 
-        <column name="refresh_rate_numerator" type="uint"   />
-        <column name="refresh_rate_denominator" type="uint" />
+        <column name="refresh_rate_numerator"   type="uint" comment="DXGI_MODE_DESC::RefreshRate::Numerator" />
+        <column name="refresh_rate_denominator" type="uint" comment="DXGI_MODE_DESC::RefreshRate::Denominator" />
 
-        <column name="format" type="uint"            />
-        <column name="scanline_ordering" type="uint" />
-        <column name="scaling" type="uint"           />
+        <column name="format" type="uint"            comment="DXGI_MODE_DESC::Format" />
+        <column name="scanline_ordering" type="uint" comment="DXGI_MODE_DESC::ScanlineOrdering" />
+        <column name="scaling" type="uint"           comment="DXGI_MODE_DESC::Scaling" />
     </table>
 </root>

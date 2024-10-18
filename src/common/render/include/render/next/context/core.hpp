@@ -4,7 +4,7 @@
 
 #include "render/next/render.hpp"
 #include "render/next/device.hpp"
-#include "render/next/surface.hpp"
+#include "render/next/surface/surface.hpp"
 #include "render/next/components.hpp"
 
 namespace sm::render::next {

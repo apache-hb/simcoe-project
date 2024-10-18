@@ -1,6 +1,7 @@
 #include "test/common.hpp"
 
 #include "render/next/context/core.hpp"
+#include "render/next/surface/virtual.hpp"
 
 using namespace sm;
 

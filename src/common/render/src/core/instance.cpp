@@ -298,10 +298,14 @@ public:
     SaveAdapterInfo(sm::db::Connection& connection)
         : mConnection(connection)
     {
+        mConnection.createTable(renderdao::Rotation::table());
         mConnection.createTable(renderdao::Adapter::table());
         mConnection.createTable(renderdao::Output::table());
         mConnection.createTable(renderdao::Mode::table());
-        mConnection.createTable(renderdao::Rotation::table());
+
+        mConnection.truncate<renderdao::Mode>();
+        mConnection.truncate<renderdao::Output>();
+        mConnection.truncate<renderdao::Adapter>();
     }
 
     void submitInfo(const Instance& instance, DXGI_FORMAT format) {
