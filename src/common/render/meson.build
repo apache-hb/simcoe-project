@@ -131,12 +131,9 @@ src = [
     # render next
     'src/next/state.cpp',
     'src/next/render.cpp',
-    'src/next/context.cpp',
 
     # render contexts
-    'src/next/contexts/core.cpp',
-    'src/next/contexts/graphics.cpp',
-    'src/next/contexts/compute.cpp',
+    'src/next/context/core.cpp',
 
     # components
     'src/next/components/fence.cpp',

@@ -4,30 +4,43 @@
 
 #include "render/next/render.hpp"
 #include "render/next/device.hpp"
+#include "render/next/surface.hpp"
+#include "render/next/components.hpp"
 
 namespace sm::render::next {
-    struct DeviceContextConfig {
+    struct ContextConfig {
         DebugFlags flags;
 
         AdapterLUID adapterOverride;
         AdapterPreference autoSearchBehaviour;
         FeatureLevel targetLevel;
         bool allowSoftwareAdapter = false;
+
+        ISwapChainFactory *swapChainFactory = nullptr;
+        SurfaceInfo swapChainInfo;
+
+        UINT rtvHeapSize = 0;
     };
 
-    class IDeviceBound {
-    public:
-        virtual ~IDeviceBound() noexcept = default;
-
-        virtual void resetDeviceResources() = 0;
-    };
-
-    class DeviceContext {
+    class CoreContext {
         struct DeviceSearchOptions {
             FeatureLevel level;
             DebugFlags flags;
             bool allowSoftwareAdapter;
         };
+
+        struct BackBuffer {
+            Object<ID3D12Resource> surface;
+            D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle;
+            uint64_t value;
+        };
+
+        using BackBufferList = std::vector<BackBuffer>;
+
+        /// extra limits data
+        UINT mExtraRtvHeapSize = 0;
+
+        UINT getRequiredRtvHeapSize() const;
 
         /// device management
 
@@ -43,30 +56,80 @@ namespace sm::render::next {
         CoreDevice selectAutoDevice(DeviceSearchOptions options);
         CoreDevice selectPreferredDevice(AdapterLUID luidOverride, DeviceSearchOptions options);
 
-        CoreDevice selectDevice(const DeviceContextConfig& config);
+        CoreDevice selectDevice(const ContextConfig& config);
 
         void resetDeviceResources();
 
+        // recreate the current device
         void recreateCurrentDevice();
 
+        // move to a new device
         void moveToNewDevice(AdapterLUID luid);
 
-        /// allocator management
+        /// rtv descriptor heap
+        std::unique_ptr<DescriptorPool> mRtvHeap;
+        void createRtvHeap();
+
+        /// allocator
         Object<D3D12MA::Allocator> mAllocator;
+        void createAllocator();
 
-        std::set<IDeviceBound*> mDeviceBoundResources;
+        /// direct queue
+        Object<ID3D12CommandQueue> mDirectQueue;
+        void createDirectQueue();
+
+        /// direct command list
+        std::unique_ptr<CommandBufferSet> mCommandBufferSet;
+        void createDirectCommandList();
+
+        /// swapchain
+        ISwapChainFactory *mSwapChainFactory;
+        std::unique_ptr<ISwapChain> mSwapChain;
+        SurfaceInfo mSwapChainInfo;
+        void createSwapChain(ISwapChainFactory *factory, SurfaceInfo info);
+
+        /// swapchain backbuffers
+        BackBufferList mBackBuffers;
+        UINT mCurrentBackBuffer = 0;
+        void createBackBuffers(uint64_t initialValue);
+        BackBufferList getSwapChainSurfaces(uint64_t initialValue) const;
+        uint64_t& fenceValueAt(UINT index);
+        D3D12_CPU_DESCRIPTOR_HANDLE rtvHandleAt(UINT index);
+        ID3D12Resource *surfaceAt(UINT index);
+
+        /// device queue fence
+        std::unique_ptr<Fence> mPresentFence;
+        void createPresentFence();
+
+        /// lifetime management
+        void createDeviceState();
+
+        /// gpu timeline
+        void advanceFrame();
+        void flushDevice();
+        void setFrameIndex(UINT index);
+
     public:
-        DeviceContext(DeviceContextConfig config) throws(RenderException);
+        CoreContext(ContextConfig config) throws(RenderException);
+        ~CoreContext() noexcept;
 
-        Instance& instance() noexcept { return mInstance; }
-        CoreDevice& device() noexcept { return mDevice; }
-        D3D12MA::Allocator *allocator() noexcept { return mAllocator.get(); }
+        /// state queries
+
+        std::span<const Adapter> adapters() const noexcept { return mInstance.adapters(); }
+        AdapterLUID getAdapter() const noexcept { return mDevice.luid(); }
+        const Adapter& getWarpAdapter() noexcept { return mInstance.getWarpAdapter(); }
+
+        /// update rendering device state
 
         void setAdapter(AdapterLUID luid);
+        void updateSwapChain(SurfaceInfo info);
 
-        void bindResource(IDeviceBound *resource) { mDeviceBoundResources.insert(resource); }
-        void unbindResource(IDeviceBound *resource) { mDeviceBoundResources.erase(resource); }
+        /// submit work
 
-        void setDeviceRemoved();
+        void present();
+
+        /// debugging functions
+
+        bool removeDevice() noexcept;
     };
 }

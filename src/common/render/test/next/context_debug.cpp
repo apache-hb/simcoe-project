@@ -1,10 +1,6 @@
 #include "test/common.hpp"
-#include "test/db_test_common.hpp"
 
-#include "db/connection.hpp"
-
-#include "render/base/instance.hpp"
-#include "render/next/context.hpp"
+#include "render/next/context/core.hpp"
 
 using namespace sm;
 
