@@ -32,7 +32,7 @@ namespace sm::render::next {
         ISwapChainFactory *mFactory;
         UINT mLength;
 
-        virtual Object<ID3D12Resource> getSurfaceAt(UINT index) = 0;
+        virtual ID3D12Resource *getSurfaceAt(UINT index) = 0;
 
         virtual void updateSurfaces(SurfaceInfo info) = 0;
 
@@ -47,7 +47,7 @@ namespace sm::render::next {
     public:
         virtual ~ISwapChain() = default;
 
-        Object<ID3D12Resource> getSurface(UINT index);
+        ID3D12Resource *getSurface(UINT index);
         UINT length() const noexcept { return mLength; }
 
         void updateSurfaceInfo(SurfaceInfo info);

@@ -17,26 +17,38 @@ static UINT getSwapChainFlags(bool tearing) {
 
 #pragma region SwapChain
 
+static std::vector<Object<ID3D12Resource>> getSwapChainBuffers(IDXGISwapChain1 *swapchain, UINT length) {
+    std::vector<Object<ID3D12Resource>> surfaces{length};
+    for (UINT i = 0; i < length; i++) {
+        SM_THROW_HR(swapchain->GetBuffer(i, IID_PPV_ARGS(&surfaces[i])));
+    }
+    return surfaces;
+}
+
 class WindowSwapChain final : public ISwapChain {
     Object<IDXGISwapChain3> mSwapChain;
+    std::vector<Object<ID3D12Resource>> mBuffers;
     bool mTearingSupport;
 
-    Object<ID3D12Resource> getSurfaceAt(UINT index) override {
-        Object<ID3D12Resource> surface;
-        SM_THROW_HR(mSwapChain->GetBuffer(index, IID_PPV_ARGS(&surface)));
-        return surface;
+    ID3D12Resource *getSurfaceAt(UINT index) override {
+        return mBuffers[index].get();
     }
 
     void updateSurfaces(SurfaceInfo info) override {
+        mBuffers.clear();
+
         auto [width, height] = info.size;
         UINT flags = getSwapChainFlags(mTearingSupport);
         SM_THROW_HR(mSwapChain->ResizeBuffers(info.length, width, height, info.format, flags));
+
+        mBuffers = getSwapChainBuffers(mSwapChain.get(), info.length);
     }
 
 public:
-    WindowSwapChain(ISwapChainFactory *factory, Object<IDXGISwapChain3> swapchain, UINT length, bool tearing)
-        : ISwapChain(factory, length)
+    WindowSwapChain(ISwapChainFactory *factory, Object<IDXGISwapChain3> swapchain, std::vector<Object<ID3D12Resource>> surfaces, bool tearing)
+        : ISwapChain(factory, surfaces.size())
         , mSwapChain(std::move(swapchain))
+        , mBuffers(std::move(surfaces))
         , mTearingSupport(tearing)
     { }
 
@@ -90,5 +102,5 @@ ISwapChain *WindowSwapChainFactory::createSwapChain(SurfaceCreateObjects objects
     Object<IDXGISwapChain3> swapchain3;
     SM_THROW_HR(swapchain.query(&swapchain3));
 
-    return new WindowSwapChain(this, std::move(swapchain3), info.length, tearing);
+    return new WindowSwapChain(this, std::move(swapchain3), getSwapChainBuffers(swapchain.get(), info.length), tearing);
 }

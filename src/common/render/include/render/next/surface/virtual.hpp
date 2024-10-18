@@ -7,10 +7,10 @@ namespace sm::render::next {
     class VirtualSwapChain;
 
     struct VirtualSurface {
-        Object<ID3D12Resource> target;
-        Object<ID3D12Resource> readback;
+        Object<D3D12MA::Allocation> target;
+        Object<D3D12MA::Allocation> readback;
 
-        Object<ID3D12Resource> getTarget() { return target.clone(); }
+        ID3D12Resource *getTarget() { return target->GetResource(); }
     };
 
     using SurfaceList = std::vector<VirtualSurface>;
@@ -19,12 +19,13 @@ namespace sm::render::next {
         UINT mIndex = 0;
         SurfaceList mSurfaces;
         ID3D12Device1 *mDevice;
+        D3D12MA::Allocator *mAllocator;
 
-        Object<ID3D12Resource> getSurfaceAt(UINT index) override;
+        ID3D12Resource *getSurfaceAt(UINT index) override;
         void updateSurfaces(SurfaceInfo info) override;
 
     public:
-        VirtualSwapChain(VirtualSwapChainFactory *factory, SurfaceList surfaces, ID3D12Device1 *device);
+        VirtualSwapChain(VirtualSwapChainFactory *factory, SurfaceList surfaces, ID3D12Device1 *device, D3D12MA::Allocator *allocator);
         ~VirtualSwapChain() noexcept;
 
         UINT currentSurfaceIndex() override;

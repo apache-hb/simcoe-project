@@ -30,7 +30,7 @@ namespace sm::render::next {
         };
 
         struct BackBuffer {
-            Object<ID3D12Resource> surface;
+            ID3D12Resource *surface;
             D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle;
             uint64_t value;
         };

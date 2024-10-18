@@ -38,7 +38,7 @@ ISwapChain *ISwapChainFactory::newSwapChain(SurfaceCreateObjects objects, const 
     return createSwapChain(objects, info);
 }
 
-Object<ID3D12Resource> ISwapChain::getSurface(UINT index) {
+ID3D12Resource *ISwapChain::getSurface(UINT index) {
     if (index >= mLength)
         throw RenderException{E_INVALIDARG, fmt::format("Invalid swapchain index {}", index)};
 

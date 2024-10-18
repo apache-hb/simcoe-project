@@ -13,45 +13,52 @@ static const D3D12_HEAP_PROPERTIES kReadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEA
 
 #pragma region Utils
 
-static ID3D12Resource *newSurfaceTexture(ID3D12Device1 *device, SurfaceInfo info) {
+static D3D12MA::Allocation *newComittedResource(D3D12MA::Allocator *allocator, D3D12_HEAP_TYPE heap, const D3D12_RESOURCE_DESC *desc, D3D12_RESOURCE_STATES state, const D3D12_CLEAR_VALUE *clear) {
+    const D3D12MA::ALLOCATION_DESC cAllocInfo {
+        .Flags = D3D12MA::ALLOCATION_FLAG_COMMITTED,
+        .HeapType = heap,
+    };
+
+    D3D12MA::Allocation *allocation = nullptr;
+    SM_THROW_HR(allocator->CreateResource(&cAllocInfo, desc, state, clear, &allocation, __uuidof(ID3D12Resource), nullptr));
+    return allocation;
+}
+
+static D3D12MA::Allocation *newSurfaceTexture(D3D12MA::Allocator *allocator, SurfaceInfo info) {
     auto [format, size, _, clear] = info;
-    const D3D12_RESOURCE_DESC kTextureInfo = CD3DX12_RESOURCE_DESC::Tex2D(
+    const D3D12_RESOURCE_DESC cTextureInfo = CD3DX12_RESOURCE_DESC::Tex2D(
         format, size.width, size.height,
         1, 0, 1, 0,
         D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
     );
 
-    const D3D12_CLEAR_VALUE kClearValue = CD3DX12_CLEAR_VALUE(format, clear.data());
+    const D3D12_CLEAR_VALUE cClearValue = CD3DX12_CLEAR_VALUE(format, clear.data());
 
-    ID3D12Resource *resource = nullptr;
-    SM_THROW_HR(device->CreateCommittedResource(&kDefaultHeap, D3D12_HEAP_FLAG_NONE, &kTextureInfo, D3D12_RESOURCE_STATE_PRESENT, &kClearValue, IID_PPV_ARGS(&resource)));
-    return resource;
+    return newComittedResource(allocator, D3D12_HEAP_TYPE_DEFAULT, &cTextureInfo, D3D12_RESOURCE_STATE_PRESENT, &cClearValue);
 }
 
-static ID3D12Resource *newReadbackBuffer(ID3D12Device1 *device, SurfaceInfo info) {
+static D3D12MA::Allocation *newReadbackBuffer(D3D12MA::Allocator *allocator, SurfaceInfo info) {
     auto [format, size, _, _] = info;
 
     UINT64 pitch = size.width * 4LLU;
     UINT64 bytes = pitch * size.height;
-    const D3D12_RESOURCE_DESC kBufferInfo = CD3DX12_RESOURCE_DESC::Buffer(bytes);
+    const D3D12_RESOURCE_DESC cBufferInfo = CD3DX12_RESOURCE_DESC::Buffer(bytes);
 
-    ID3D12Resource *resource = nullptr;
-    SM_THROW_HR(device->CreateCommittedResource(&kReadHeap, D3D12_HEAP_FLAG_NONE, &kBufferInfo, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&resource)));
-    return resource;
+    return newComittedResource(allocator, D3D12_HEAP_TYPE_READBACK, &cBufferInfo, D3D12_RESOURCE_STATE_COPY_DEST, nullptr);
 }
 
-static VirtualSurface newVirtualSurface(ID3D12Device1 *device, SurfaceInfo info) {
+static VirtualSurface newVirtualSurface(D3D12MA::Allocator *allocator, SurfaceInfo info) {
     return VirtualSurface {
-        .target = newSurfaceTexture(device, info),
-        .readback = newReadbackBuffer(device, info),
+        .target = newSurfaceTexture(allocator, info),
+        .readback = newReadbackBuffer(allocator, info),
     };
 }
 
-static SurfaceList newSurfaceList(ID3D12Device1 *device, SurfaceInfo info) {
+static SurfaceList newSurfaceList(D3D12MA::Allocator *allocator, SurfaceInfo info) {
     SurfaceList surfaces{info.length};
 
     for (UINT i = 0; i < info.length; i++) {
-        surfaces[i] = newVirtualSurface(device, info);
+        surfaces[i] = newVirtualSurface(allocator, info);
     }
 
     return surfaces;
@@ -59,18 +66,19 @@ static SurfaceList newSurfaceList(ID3D12Device1 *device, SurfaceInfo info) {
 
 #pragma region SwapChain
 
-Object<ID3D12Resource> VirtualSwapChain::getSurfaceAt(UINT index) {
+ID3D12Resource *VirtualSwapChain::getSurfaceAt(UINT index) {
     return mSurfaces[index].getTarget();
 }
 
 void VirtualSwapChain::updateSurfaces(SurfaceInfo info) {
-    mSurfaces = newSurfaceList(mDevice, info);
+    mSurfaces = newSurfaceList(mAllocator, info);
 }
 
-VirtualSwapChain::VirtualSwapChain(VirtualSwapChainFactory *factory, SurfaceList surfaces, ID3D12Device1 *device)
+VirtualSwapChain::VirtualSwapChain(VirtualSwapChainFactory *factory, SurfaceList surfaces, ID3D12Device1 *device, D3D12MA::Allocator *allocator)
     : ISwapChain(factory, surfaces.size())
     , mSurfaces(std::move(surfaces))
     , mDevice(device)
+    , mAllocator(allocator)
 { }
 
 VirtualSwapChain::~VirtualSwapChain() noexcept {
@@ -100,10 +108,11 @@ VirtualSwapChainFactory::VirtualSwapChainFactory()
 
 ISwapChain *VirtualSwapChainFactory::createSwapChain(SurfaceCreateObjects objects, const SurfaceInfo& info) {
     ID3D12Device1 *device = objects.device.get();
+    D3D12MA::Allocator *allocator = objects.allocator.get();
 
-    SurfaceList surfaces = newSurfaceList(device, info);
+    SurfaceList surfaces = newSurfaceList(allocator, info);
 
-    VirtualSwapChain *swapchain = new VirtualSwapChain(this, std::move(surfaces), device);
+    VirtualSwapChain *swapchain = new VirtualSwapChain(this, std::move(surfaces), device, allocator);
     mSwapChains[device] = swapchain;
 
     return swapchain;

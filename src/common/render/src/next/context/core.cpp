@@ -197,13 +197,13 @@ CoreContext::BackBufferList CoreContext::getSwapChainSurfaces(uint64_t initialVa
 
     BackBufferList buffers{length};
     for (UINT i = 0; i < length; i++) {
-        Object<ID3D12Resource> surface = mSwapChain->getSurface(i);
+        ID3D12Resource *surface = mSwapChain->getSurface(i);
 
         D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = mRtvHeap->getHostDescriptorHandle(i);
-        mDevice->CreateRenderTargetView(surface.get(), nullptr, rtvHandle);
+        mDevice->CreateRenderTargetView(surface, nullptr, rtvHandle);
 
         buffers[i] = BackBuffer {
-            .surface = std::move(surface),
+            .surface = surface,
             .rtvHandle = rtvHandle,
             .value = initialValue,
         };
@@ -226,7 +226,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE CoreContext::rtvHandleAt(UINT index) {
 }
 
 ID3D12Resource *CoreContext::surfaceAt(UINT index) {
-    return mBackBuffers[index].surface.get();
+    return mBackBuffers[index].surface;
 }
 
 #pragma region Present Fence
