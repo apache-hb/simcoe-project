@@ -18,7 +18,6 @@ namespace sm::render::next {
         D3D12_CPU_DESCRIPTOR_HANDLE mFirstHostHandle;
         D3D12_GPU_DESCRIPTOR_HANDLE mFirstDeviceHandle;
 
-
     public:
         DescriptorPool(CoreDevice& device, UINT size, D3D12_DESCRIPTOR_HEAP_TYPE type, bool shaderVisible) throws(RenderException);
 

@@ -21,7 +21,6 @@ namespace sm::render::next {
         CoreDebugState(DebugFlags flags) throws(RenderException);
     };
 
-
     class CoreDevice {
         FeatureLevel mFeatureLevel;
         Adapter *mAdapter;
