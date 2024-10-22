@@ -1,6 +1,6 @@
 #pragma once
 
-#include "db/core.hpp"
+#include "db/db.hpp"
 #include "db/error.hpp"
 
 #include "dao/dao.hpp"

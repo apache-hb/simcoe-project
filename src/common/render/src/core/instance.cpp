@@ -298,11 +298,6 @@ public:
     SaveAdapterInfo(sm::db::Connection& connection)
         : mConnection(connection)
     {
-        mConnection.createTable(renderdao::Rotation::table());
-        mConnection.createTable(renderdao::Adapter::table());
-        mConnection.createTable(renderdao::Output::table());
-        mConnection.createTable(renderdao::Mode::table());
-
         mConnection.truncate<renderdao::Mode>();
         mConnection.truncate<renderdao::Output>();
         mConnection.truncate<renderdao::Adapter>();
@@ -319,6 +314,11 @@ public:
 };
 
 void render::saveAdapterInfo(const Instance& instance, DXGI_FORMAT format, db::Connection& connection) {
+    connection.createTable(renderdao::Rotation::table());
+    connection.createTable(renderdao::Adapter::table());
+    connection.createTable(renderdao::Output::table());
+    connection.createTable(renderdao::Mode::table());
+
     SaveAdapterInfo save{connection};
     save.submitInfo(instance, format);
 }

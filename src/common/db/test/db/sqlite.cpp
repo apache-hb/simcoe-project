@@ -8,14 +8,14 @@ TEST_CASE("sqlite updates") {
 
     auto conn = env.connect(makeSqliteTestDb("testdb"));
 
-    if (conn.tableExists("test").value_or(false))
+    if (conn.tryTableExists("test").value_or(false))
         checkError(conn.tryUpdateSql("DROP TABLE test"));
 
-    REQUIRE(conn.tableExists("test") == DbResult<bool>(false));
+    REQUIRE(conn.tryTableExists("test") == DbResult<bool>(false));
 
     checkError(conn.tryUpdateSql("CREATE TABLE test (id INTEGER, name VARCHAR(100))"));
 
-    REQUIRE(conn.tableExists("test") == DbResult<bool>(true));
+    REQUIRE(conn.tryTableExists("test") == DbResult<bool>(true));
 
     SECTION("updates and rollback") {
         checkError(conn.tryUpdateSql("INSERT INTO test (id, name) VALUES (1, 'test')"));
@@ -84,7 +84,7 @@ TEST_CASE("sqlite updates") {
     }
 
     SECTION("Blob IO") {
-        if (conn.tableExists("blob_test").value_or(false))
+        if (conn.tryTableExists("blob_test").value_or(false))
             checkError(conn.tryUpdateSql("DROP TABLE blob_test"));
 
         checkError(conn.tryUpdateSql("CREATE TABLE blob_test (id INTEGER, data BLOB)"));

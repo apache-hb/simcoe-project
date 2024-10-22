@@ -2,7 +2,7 @@
 
 #include "drivers/common.hpp"
 
-#include "db/core.hpp"
+#include "db/db.hpp"
 #include "db/error.hpp"
 #include "db/connection.hpp"
 
@@ -38,7 +38,7 @@ void detail::destroyConnection(detail::IConnection *impl) noexcept {
 /// connection
 ///
 
-DbResult<bool> Connection::tableExists(std::string_view name) noexcept {
+DbResult<bool> Connection::tryTableExists(std::string_view name) {
     std::string sql = mImpl->setupTableExists();
 
     PreparedStatement stmt = TRY_RESULT(tryPrepareQuery(sql));
@@ -117,7 +117,7 @@ PreparedStatement Connection::prepareDropImpl(const dao::TableInfo& table) noexc
 }
 
 bool Connection::createTable(const dao::TableInfo& table) noexcept(false) {
-    if (tableExists(table.name).value_or(false))
+    if (tryTableExists(table.name).value_or(false))
         return false;
 
     updateSql(mImpl->setupCreateTable(table));
@@ -201,7 +201,7 @@ DbResult<Environment> Environment::tryCreate(DbType type, const EnvConfig& confi
 #endif
 
 #if SMC_DB_HAS_DB2
-        case DbType::eDB2: return detail::db2(&env);
+        case DbType::eDB2: return detail::getDb2Env(&env);
 #endif
 
 #if SMC_DB_HAS_ODBC

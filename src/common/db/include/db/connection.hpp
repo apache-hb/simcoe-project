@@ -2,7 +2,7 @@
 
 #include <simcoe_db_config.h>
 
-#include "db/core.hpp"
+#include "db/db.hpp"
 #include "db/error.hpp"
 #include "db/results.hpp"
 #include "db/statement.hpp"
@@ -345,6 +345,11 @@ namespace sm::db {
             stmt.truncate();
         }
 
+        void truncate(const dao::TableInfo& info) throws(DbException) {
+            auto stmt = prepareTruncateImpl(info);
+            stmt.execute().throwIfFailed();
+        }
+
         ///
         /// prepare drop
         ///
@@ -461,7 +466,7 @@ namespace sm::db {
         ///
 
         void replaceTable(const dao::TableInfo& info) throws(DbException) {
-            if (tableExists(info).value_or(false))
+            if (tryTableExists(info).value_or(false))
                 drop(info);
 
             createTable(info);
@@ -509,9 +514,17 @@ namespace sm::db {
             return throwIfFailed(tryPrepareControl(sql));
         }
 
-        DbResult<bool> tableExists(std::string_view name) noexcept;
-        DbResult<bool> tableExists(const dao::TableInfo& info) noexcept {
-            return tableExists(info.name);
+        DbResult<bool> tryTableExists(std::string_view name);
+        DbResult<bool> tryTableExists(const dao::TableInfo& info) {
+            return tryTableExists(info.name);
+        }
+
+        bool tableExists(std::string_view name) throws(DbException) {
+            return throwIfFailed(tryTableExists(name));
+        }
+
+        bool tableExists(const dao::TableInfo& info) throws(DbException) {
+            return throwIfFailed(tryTableExists(info));
         }
 
         Version clientVersion() const noexcept;

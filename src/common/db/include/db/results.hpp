@@ -2,7 +2,7 @@
 
 #include <simcoe_db_config.h>
 
-#include "db/core.hpp"
+#include "db/db.hpp"
 #include "db/error.hpp"
 
 #include "core/core.hpp"

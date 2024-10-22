@@ -79,6 +79,11 @@ option('orcl', type : 'feature',
     value : 'auto'
 )
 
+option('db2', type : 'feature',
+    description : 'Enable IBM DB2 support (partial)',
+    value : 'auto'
+)
+
 option('psql', type : 'feature',
     description : 'Enable PostgreSQL support (partial)',
     value : 'auto'
@@ -91,11 +96,6 @@ option('mysql', type : 'feature',
 
 option('mssql', type : 'feature',
     description : 'Enable Microsoft SQL Server support (placeholder)',
-    value : 'auto'
-)
-
-option('db2', type : 'feature',
-    description : 'Enable IBM DB2 support (placeholder)',
     value : 'auto'
 )
 

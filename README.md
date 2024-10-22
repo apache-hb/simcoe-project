@@ -7,7 +7,7 @@
 
 2. build this fork of llvm https://github.com/apache-hb/llvm-project/tree/extensions
     * build the extension branch, and the llvm;clang;lld targets
-    * when installing the built clang ensure the bin directory is on the %PATH%
+    * ensure the target bin directory is on the %PATH%
 
 3. install dependencies
     * winflexbison3

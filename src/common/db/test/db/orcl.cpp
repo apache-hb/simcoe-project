@@ -27,14 +27,14 @@ TEST_CASE("updates") {
         }
     }
 
-    if (getValue(conn.tableExists("test"))) {
+    if (getValue(conn.tryTableExists("test"))) {
         checkError(conn.tryUpdateSql("DROP TABLE test"));
-        REQUIRE(!conn.tableExists("test").value_or(true));
+        REQUIRE(!conn.tryTableExists("test").value_or(true));
     }
 
     checkError(conn.tryUpdateSql("CREATE TABLE test (id NUMBER, name VARCHAR2(100))"));
 
-    REQUIRE(conn.tableExists("test").value_or(false));
+    REQUIRE(conn.tryTableExists("test").value_or(false));
 
 
     GIVEN("a connection") {
@@ -94,7 +94,7 @@ TEST_CASE("updates") {
     }
 
     SECTION("Blob IO") {
-        if (conn.tableExists("blob_test").value_or(false))
+        if (conn.tryTableExists("blob_test").value_or(false))
             checkError(conn.tryUpdateSql("DROP TABLE blob_test"));
 
         checkError(conn.tryUpdateSql("CREATE TABLE blob_test (id INTEGER, data BLOB)"));

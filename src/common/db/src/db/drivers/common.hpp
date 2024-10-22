@@ -1,6 +1,6 @@
 #pragma once
 
-#include "db/core.hpp"
+#include "db/db.hpp"
 #include "db/error.hpp"
 
 #include "dao/dao.hpp"
@@ -16,6 +16,14 @@ namespace sm::db::detail {
         /** Connection */
 
         virtual DbError connect(const ConnectionConfig& config, IConnection **connection) noexcept = 0;
+    };
+
+    struct ConnectionAttributes {
+        Version clientVersion;
+        Version serverVersion;
+        DataType boolType;
+        DataType dateTimeType;
+        bool hasCommentOn;
     };
 
     struct IConnection {
@@ -93,8 +101,13 @@ namespace sm::db::detail {
 
         /** Version */
 
-        virtual Version clientVersion() const noexcept = 0;
-        virtual Version serverVersion() const noexcept = 0;
+        virtual Version clientVersion() const noexcept {
+            return Version{"Unknown Client"};
+        }
+
+        virtual Version serverVersion() const noexcept {
+            return Version{"Unknown Server"};
+        }
 
         virtual DataType boolEquivalentType() const noexcept {
             return DataType::eBoolean;
@@ -106,6 +119,10 @@ namespace sm::db::detail {
 
         virtual bool hasCommentOn() const noexcept {
             return false;
+        }
+
+        virtual bool hasNamedPlaceholders() const noexcept {
+            return true;
         }
     };
 

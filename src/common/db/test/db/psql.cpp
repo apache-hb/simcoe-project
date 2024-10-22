@@ -16,14 +16,14 @@ TEST_CASE("sqlite updates") {
 
     auto conn = std::move(connResult.value());
 
-    if (conn.tableExists("test").value_or(false))
+    if (conn.tryTableExists("test").value_or(false))
         checkError(conn.tryUpdateSql("DROP TABLE test"));
 
-    REQUIRE(conn.tableExists("test") == DbResult<bool>(false));
+    REQUIRE(conn.tryTableExists("test") == DbResult<bool>(false));
 
     checkError(conn.tryUpdateSql("CREATE TABLE test (id INTEGER, name VARCHAR(100))"));
 
-    REQUIRE(conn.tableExists("test") == DbResult<bool>(true));
+    REQUIRE(conn.tryTableExists("test") == DbResult<bool>(true));
 
     SECTION("updates and rollback") {
         checkError(conn.tryUpdateSql("INSERT INTO test (id, name) VALUES (1, 'test')"));

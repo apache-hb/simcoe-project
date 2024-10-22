@@ -9,6 +9,7 @@ buildtype = sys.argv[2]
 basedir = 'data/meson'
 
 oracle_home = os.environ.get('ORACLE_HOME')
+has_db2 = os.environ.get('DB2INSTANCE') is not None
 
 meson_path = [ 'meson' ]
 if os.path.exists('K:/github/meson/meson.py'):
@@ -25,6 +26,12 @@ if __name__ == '__main__':
     if oracle_home:
         oracle_home = oracle_home.replace('\\', '/')
         args.append(f'-Doracledb-client:home={oracle_home}')
+
+    # TODO: this is a bit fudged, but db2 doesnt provide either
+    # a redist package i can wrap, or an environment variable
+    # with its base path. so we just assume the default install
+    if has_db2:
+        args.append(f'-Ddb2-client:home=C:/Program Files/IBM/SQLLIB')
 
     args.extend(sys.argv[3:])
 

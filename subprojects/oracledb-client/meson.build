@@ -1,5 +1,5 @@
 project('oradb-oci', 'c',
-    version : '19.0.0'
+    version : '21.0.0'
 )
 
 fs = import('fs')

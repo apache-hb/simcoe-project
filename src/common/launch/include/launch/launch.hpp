@@ -4,7 +4,7 @@
 #include "core/win32.hpp"
 #include "core/fs.hpp"
 
-#include "db/core.hpp"
+#include "db/db.hpp"
 
 namespace sm::launch {
     struct LaunchCleanup {

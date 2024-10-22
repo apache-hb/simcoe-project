@@ -10,7 +10,7 @@
 
 #include "logs/logging.hpp"
 
-#include "core.meta.hpp"
+#include "db.meta.hpp"
 
 LOG_MESSAGE_CATEGORY(DbLog, "DB");
 
@@ -114,6 +114,10 @@ namespace sm::db {
         int revision;
         int increment;
         int ext;
+
+        bool isKnown() const noexcept {
+            return major != 0 || minor != 0 || revision != 0 || increment != 0 || ext != 0;
+        }
     };
 
     REFLECT()
@@ -123,12 +127,23 @@ namespace sm::db {
         bool logQueries = false;
     };
 
+    /// @brief DB connection configuration
+    ///
+    /// Used to connect to a database.
+    /// Some fields may be ignored depending on the driver.
+    /// @a ConnectionConfig::connection will always be used if set.
+    /// @a ConnectionConfig::alias will be used if set and @a ConnectionConfig::connection is not set.
     REFLECT()
     struct ConnectionConfig {
         REFLECT_BODY(ConnectionConfig)
 
-        // connection string, if set will override other connection parameters
+        /// @brief Connection string
+        /// @note if set will override other connection parameters
         std::string connection;
+
+        /// @brief ODBC alias
+        /// @warning Only used if @a connection is not set
+        std::string alias;
 
         uint16 port;
         std::string host;
@@ -140,8 +155,16 @@ namespace sm::db {
 
         bool autoCommit = true;
 
+        /// @brief Journal mode
+        /// @note Only supported by SQLite
         JournalMode journalMode = JournalMode::eDefault;
+
+        /// @brief Synchronous mode
+        /// @note Only supported by SQLite
         Synchronous synchronous = Synchronous::eDefault;
+
+        /// @brief Locking mode
+        /// @note Only supported by SQLite
         LockingMode lockingMode = LockingMode::eDefault;
     };
 

@@ -7,7 +7,7 @@ cfg = configuration_data()
 tlsf = dependency('tlsf')
 sqlite3 = dependency('sqlite3')
 oci = dependency('instantclient', required : get_option('orcl'))
-db2cli = subproject('db2-client', required : get_option('db2'))
+db2 = subproject('db2-client', required : get_option('db2'))
 postgres = dependency('libpq', required : get_option('psql'))
 devapi = dependency('devapi', required : get_option('mysql'))
 has_mssql = get_option('mssql').allowed() and false
@@ -15,7 +15,7 @@ has_odbc = get_option('odbc').allowed() and false
 
 cfg.set10('SMC_DB_HAS_SQLITE3', true)
 cfg.set10('SMC_DB_HAS_ORCL', oci.found())
-cfg.set10('SMC_DB_HAS_DB2', db2cli.found())
+cfg.set10('SMC_DB_HAS_DB2', db2.found())
 cfg.set10('SMC_DB_HAS_POSTGRES', postgres.found())
 cfg.set10('SMC_DB_HAS_MYSQL', devapi.found())
 cfg.set10('SMC_DB_HAS_MSSQL', has_mssql)
@@ -33,7 +33,7 @@ db_config = configure_file(
 db_include = include_directories('include')
 
 src = [
-    metacc.process('include/db/core.hpp'),
+    metacc.process('include/db/db.hpp'),
 ]
 
 libdb_meta = library('db-meta', [ src, db_config ],
@@ -70,7 +70,10 @@ src = [
     'src/db/drivers/utils.cpp',
 ]
 
-deps = [ core, sqlite3, tlsf, meta, logs, db_meta ]
+wil = dependency('wil')
+
+deps = [ core, meta, logs, db_meta ]
+db_private_deps = [ sqlite3, tlsf, wil ]
 
 # sqlite3 is always enabled
 src += [
@@ -86,25 +89,31 @@ if oci.found()
         'src/drivers/oracle/src/oracle.cpp',
         'src/drivers/oracle/src/statement.cpp',
         'src/drivers/oracle/src/connection.cpp',
-        'src/drivers/oracle/src/environment.cpp'
+        'src/drivers/oracle/src/environment.cpp',
     ]
     db_private_include += [ include_directories('src/drivers/oracle/include') ]
-    deps += [ oci ]
+    db_private_deps += [ oci ]
 endif
 
-if db2cli.found()
-    src += 'src/db/drivers/db2.cpp'
-    deps += [ db2cli.get_variable('db2cli') ]
+if db2.found()
+    src += [
+        'src/drivers/db2/src/db2.cpp',
+        'src/drivers/db2/src/statement.cpp',
+        'src/drivers/db2/src/connection.cpp',
+        'src/drivers/db2/src/environment.cpp',
+    ]
+    db_private_include += [ include_directories('src/drivers/db2/include') ]
+    db_private_deps += [ db2.get_variable('db2cli') ]
 endif
 
 if postgres.found()
     src += 'src/db/drivers/postgres.cpp'
-    deps += [ postgres ]
+    db_private_deps += [ postgres ]
 endif
 
 if devapi.found()
     src += 'src/db/drivers/mysql.cpp'
-    deps += [ devapi ]
+    db_private_deps += [ devapi ]
 endif
 
 if has_mssql
@@ -116,16 +125,16 @@ if has_odbc
 endif
 
 libdb = library('orm', [ src, db_config ],
-    cpp_args : [ '-DSM_DB_BUILD=1', args, cpp.get_supported_arguments('-Wno-c99-designator') ],
+    cpp_args : [ '-DSM_DB_BUILD=1', args, cpp.get_supported_arguments('-Wno-c99-designator', '-Wno-cast-function-type-mismatch') ],
     cpp_pch : 'src/db/stdafx.hpp',
     include_directories : [ db_include, db_private_include ],
-    dependencies : deps
+    dependencies : [ deps, db_private_deps ]
 )
 
 db = declare_dependency(
     link_with : libdb,
     include_directories : [ '.', db_include ],
-    dependencies : [ core, meta, logs, db_meta ]
+    dependencies : deps
 )
 
 ###
@@ -169,9 +178,10 @@ dbtest = declare_dependency(
 )
 
 tests = {
-    'sqlite3': 'test/db/sqlite.cpp',
+    'Sqlite3': 'test/db/sqlite.cpp',
     'Oracle DB': 'test/db/orcl.cpp',
     'PostgreSQL': 'test/db/psql.cpp',
+    'IBM DB2': 'test/db/db2.cpp',
     'DAO': [ 'test/dao/dao.cpp', daocc.process('test/dao/tests.xml') ]
 }
 

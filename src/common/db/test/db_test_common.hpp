@@ -18,7 +18,15 @@ static constexpr ConnectionConfig kOracleConfig = {
     .password = "TEST_USER",
     .database = "FREEPDB1",
     .timeout = 1s,
-    .autoCommit = true,
+};
+
+static constexpr ConnectionConfig kDB2Config = {
+    .port = 50000,
+    .host = "localhost",
+    .user = "db2inst1",
+    .password = "db2inst1",
+    .database = "testdb",
+    .timeout = 1s,
 };
 
 static constexpr ConnectionConfig kPostgresConfig = {
@@ -28,7 +36,6 @@ static constexpr ConnectionConfig kPostgresConfig = {
     .password = "TEST_USER",
     .database = "TESTDB",
     .timeout = 1s,
-    .autoCommit = true,
 };
 
 void checkError(const DbError& err);
