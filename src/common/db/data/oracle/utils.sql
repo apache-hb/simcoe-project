@@ -1,0 +1,31 @@
+ALTER SESSION SET CONTAINER = FREEPDB1;
+
+SELECT *
+FROM V$SQL_HISTORY v
+ORDER BY v.LAST_ACTIVE_TIME DESC
+FETCH FIRST 100 ROWS ONLY;
+
+SELECT v.SQL_TEXT,
+       v.MODULE
+FROM V$SQL v
+WHERE v.MODULE = 'Simcoe DB Connector'
+ORDER BY v.LAST_ACTIVE_TIME DESC
+FETCH FIRST 100 ROWS ONLY;
+
+
+SELECT v.SQL_TEXT
+FROM SQL_TRACE
+
+SELECT name,
+       value,
+       default_value,
+       isdefault
+FROM V$PARAMETER
+WHERE name = 'sql_history_enabled';
+
+ALTER SYSTEM SET sql_history_enabled = TRUE;
+
+SELECT name,
+       value
+FROM V$PARAMETER
+WHERE name = 'diagnostic_dest';

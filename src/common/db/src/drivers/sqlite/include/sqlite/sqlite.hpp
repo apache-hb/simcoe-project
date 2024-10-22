@@ -39,6 +39,7 @@ namespace sm::db::sqlite {
         DbError start(bool autoCommit, StatementType type) noexcept override;
         DbError execute() noexcept override;
         DbError next() noexcept override;
+        std::string getSql() const override;
 
         int getBindCount() const noexcept override;
 
@@ -121,12 +122,6 @@ namespace sm::db::sqlite {
         std::string setupTableExists() noexcept(false) override;
 
         std::string setupCreateTable(const dao::TableInfo& table) noexcept(false) override;
-
-        Version clientVersion() const noexcept override;
-        Version serverVersion() const noexcept override;
-
-        DataType boolEquivalentType() const noexcept override { return DataType::eInteger; }
-        DataType dateTimeEquivalentType() const noexcept override { return DataType::eInteger; }
 
     public:
         SqliteConnection(Sqlite3Handle connection) noexcept;

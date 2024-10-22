@@ -1,5 +1,4 @@
 #include "db_test_common.hpp"
-#include <filesystem>
 
 TEST_CASE("sqlite updates") {
     REQUIRE(Environment::isSupported(DbType::eSqlite3));
@@ -8,14 +7,14 @@ TEST_CASE("sqlite updates") {
 
     auto conn = env.connect(makeSqliteTestDb("testdb"));
 
-    if (conn.tryTableExists("test").value_or(false))
+    if (conn.tableExists("test"))
         checkError(conn.tryUpdateSql("DROP TABLE test"));
 
-    REQUIRE(conn.tryTableExists("test") == DbResult<bool>(false));
+    REQUIRE(!conn.tableExists("test"));
 
     checkError(conn.tryUpdateSql("CREATE TABLE test (id INTEGER, name VARCHAR(100))"));
 
-    REQUIRE(conn.tryTableExists("test") == DbResult<bool>(true));
+    REQUIRE(conn.tableExists("test"));
 
     SECTION("updates and rollback") {
         checkError(conn.tryUpdateSql("INSERT INTO test (id, name) VALUES (1, 'test')"));
@@ -84,7 +83,7 @@ TEST_CASE("sqlite updates") {
     }
 
     SECTION("Blob IO") {
-        if (conn.tryTableExists("blob_test").value_or(false))
+        if (conn.tableExists("blob_test"))
             checkError(conn.tryUpdateSql("DROP TABLE blob_test"));
 
         checkError(conn.tryUpdateSql("CREATE TABLE blob_test (id INTEGER, data BLOB)"));

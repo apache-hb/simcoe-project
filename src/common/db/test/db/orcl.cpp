@@ -9,6 +9,8 @@ TEST_CASE("updates") {
 
     auto env = Environment::create(DbType::eOracleDB);
 
+    checkOracleTestUser(env);
+
     auto connResult = env.tryConnect(kOracleConfig);
     if (!connResult.has_value()) {
         SKIP("Failed to connect to database " << connResult.error().message());
@@ -27,15 +29,14 @@ TEST_CASE("updates") {
         }
     }
 
-    if (getValue(conn.tryTableExists("test"))) {
+    if (conn.tableExists("test")) {
         checkError(conn.tryUpdateSql("DROP TABLE test"));
-        REQUIRE(!conn.tryTableExists("test").value_or(true));
+        REQUIRE(!conn.tableExists("test"));
     }
 
     checkError(conn.tryUpdateSql("CREATE TABLE test (id NUMBER, name VARCHAR2(100))"));
 
-    REQUIRE(conn.tryTableExists("test").value_or(false));
-
+    REQUIRE(conn.tableExists("test"));
 
     GIVEN("a connection") {
         THEN("simple sql operations work") {
@@ -94,7 +95,7 @@ TEST_CASE("updates") {
     }
 
     SECTION("Blob IO") {
-        if (conn.tryTableExists("blob_test").value_or(false))
+        if (conn.tableExists("blob_test"))
             checkError(conn.tryUpdateSql("DROP TABLE blob_test"));
 
         checkError(conn.tryUpdateSql("CREATE TABLE blob_test (id INTEGER, data BLOB)"));

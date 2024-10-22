@@ -5,9 +5,11 @@
 #include <oci.h>
 
 namespace sm::db::oracle {
-    std::string oraErrorText(void *handle, sword status, ub4 type) noexcept;
-    DbError oraGetHandleError(void *handle, sword status, ub4 type) noexcept;
+    std::string oraErrorText(void *handle, sword status, ub4 type);
+    DbError oraGetHandleError(void *handle, sword status, ub4 type);
     bool isSuccess(sword status) noexcept;
+
+    std::string getHandleStringAttribute(void *handle, ub4 type, ub4 attr, OCIError *error);
 
     /// @brief a handle to an OCI object
     /// @tparam T the opaque type of the OCI object
@@ -27,8 +29,12 @@ namespace sm::db::oracle {
 
         constexpr bool isDescriptorType() const noexcept { return D; }
 
-        sword setAttribute(OCIError *error, ub4 attr, std::string_view value) const noexcept {
+        sword setString(OCIError *error, ub4 attr, std::string_view value) const noexcept {
             return OCIAttrSet(mHandle, kType, (void*)value.data(), value.size(), attr, error);
+        }
+
+        std::string getString(OCIError *error, ub4 attr) const {
+            return oracle::getHandleStringAttribute(mHandle, kType, attr, error);
         }
 
         sword setAttribute(OCIError *error, ub4 attr, const void *value) const noexcept {

@@ -16,7 +16,7 @@ static DataType getColumnType(int type) noexcept {
     case SQLITE_TEXT: return DataType::eString;
     case SQLITE_BLOB: return DataType::eBlob;
     case SQLITE_NULL: return DataType::eNull;
-    default: CT_NEVER("Invalid column type: %d", type);
+    default: return DataType::eUnknown;
     }
 }
 
@@ -80,6 +80,10 @@ DbError SqliteStatement::execute() noexcept {
 DbError SqliteStatement::next() noexcept {
     mStatus = doStep(mStatement);
     return getStmtError(mStatus);
+}
+
+std::string SqliteStatement::getSql() const {
+    return sqlite3_sql(mStatement);
 }
 
 int SqliteStatement::getBindCount() const noexcept {

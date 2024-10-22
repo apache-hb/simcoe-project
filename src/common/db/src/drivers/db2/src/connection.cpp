@@ -22,8 +22,6 @@ static std::optional<std::string> getServerInfo(SQLHDBC hdbc, SQLUSMALLINT field
 }
 
 static bool hasGetInfoSupport(SQLHDBC hdbc) {
-    fmt::println(stderr, "hasGetInfoSupport HDBC: {}", (void*)hdbc);
-
     SQLUSMALLINT supported;
     if (SqlResult result = SQLGetFunctions(hdbc, SQL_API_SQLGETINFO, &supported)) {
         DbError error = db2::getConnectionErrorInfo(result, hdbc);
@@ -42,7 +40,6 @@ static bool hasGetInfoSupport(SQLHDBC hdbc) {
 static constexpr size_t kVersionTemplateSize = sizeof("xx.yy.zzzz") - 1;
 
 static bool parseVersion(std::string_view version, int& major, int& minor, int& patch) {
-    fmt::println(stderr, "version: {}", version);
     if (version.size() < kVersionTemplateSize) {
         return false;
     }
@@ -92,51 +89,64 @@ static Version getClientVersion(SQLHDBC hdbc) {
     return Version{driverName, major, minor, release, 0, 0};
 }
 
+static detail::ConnectionInfo buildConnectionInfo(SQLHDBC hdbc) {
+    bool hasGetInfo = hasGetInfoSupport(hdbc);
+    Version client = hasGetInfo ? getClientVersion(hdbc) : kUnknownClientVersion;
+    Version server = hasGetInfo ? getServerVersion(hdbc) : kUnknownServerVersion;
+
+    return detail::ConnectionInfo {
+        .clientVersion = client,
+        .serverVersion = server,
+        .hasCommentOn = true,
+        .hasNamedParams = false,
+        .hasUsers = true,
+    };
+}
+
 DbError Db2Connection::close() noexcept {
-    if (SqlResult result = SQLDisconnect(mDbHandle.get()))
-        return getConnectionErrorInfo(result, mDbHandle.get());
+    if (SqlResult result = SQLDisconnect(mDbHandle))
+        return getConnectionErrorInfo(result, mDbHandle);
 
     return DbError::ok();
 }
 
 DbError Db2Connection::prepare(std::string_view sql, detail::IStatement **stmt) noexcept {
-    SqlStmtHandle hstmt;
-    if (SqlResult result = SQLAllocHandle(SQL_HANDLE_STMT, mDbHandle.get(), &hstmt))
-        return getConnectionErrorInfo(result, mDbHandle.get());
+    SqlStmtHandleEx hstmt = SqlStmtHandleEx::create(mDbHandle);
 
-    if (SqlResult result = SQLPrepare(hstmt.get(), (SQLCHAR*)sql.data(), (SQLINTEGER)sql.size()))
-        return getStmtErrorInfo(result, hstmt.get());
+    if (SqlResult result = SQLPrepare(hstmt, (SQLCHAR*)sql.data(), (SQLINTEGER)sql.size()))
+        return getStmtErrorInfo(result, hstmt);
 
     SQLSMALLINT params;
-    if (SqlResult result = SQLNumParams(hstmt.get(), &params))
-        return getStmtErrorInfo(result, hstmt.get());
+    if (SqlResult result = SQLNumParams(hstmt, &params))
+        return getStmtErrorInfo(result, hstmt);
 
+#if 0
     for (SQLSMALLINT i = 1; i <= params; i++) {
         SQLSMALLINT dataType;
         SQLSMALLINT decimalDigits;
         SQLSMALLINT nullable;
         SQLUINTEGER columnSize;
 
-        SQLDescribeParam(hstmt.get(), i, &dataType, &columnSize, &decimalDigits, &nullable);
+        SQLDescribeParam(hstmt, i, &dataType, &columnSize, &decimalDigits, &nullable);
     }
+#endif
 
-
-    *stmt = new Db2Statement(std::move(hstmt));
+    *stmt = new Db2Statement(std::move(hstmt), std::string{sql});
 
     return DbError::ok();
 }
 
 DbError Db2Connection::setAutoCommit(bool autoCommit) noexcept {
     SQLPOINTER enabled = autoCommit ? (SQLPOINTER)SQL_AUTOCOMMIT_ON : (SQLPOINTER)SQL_AUTOCOMMIT_OFF;
-    if (SqlResult result = SQLSetConnectAttr(mDbHandle.get(), SQL_ATTR_AUTOCOMMIT, enabled, 0))
-        return getConnectionErrorInfo(result, mDbHandle.get());
+    if (SqlResult result = SQLSetConnectAttr(mDbHandle, SQL_ATTR_AUTOCOMMIT, enabled, 0))
+        return getConnectionErrorInfo(result, mDbHandle);
 
     return DbError::ok();
 }
 
 DbError Db2Connection::endTransaction(SQLSMALLINT completionType) noexcept {
-    if (SqlResult result = SQLEndTran(SQL_HANDLE_DBC, mDbHandle.get(), completionType))
-        return getConnectionErrorInfo(result, mDbHandle.get());
+    if (SqlResult result = SQLEndTran(SQL_HANDLE_DBC, mDbHandle, completionType))
+        return getConnectionErrorInfo(result, mDbHandle);
 
     return setAutoCommit(true);
 }
@@ -157,26 +167,7 @@ std::string Db2Connection::setupTableExists() noexcept(false) {
     return "SELECT COUNT(*) FROM SYSIBM.SYSTABLES WHERE NAME = ?";
 }
 
-Version Db2Connection::clientVersion() const noexcept {
-    return mClientVersion;
-}
-
-Version Db2Connection::serverVersion() const noexcept {
-    return mServerVersion;
-}
-
-Db2Connection::Db2Connection(SqlDbHandle hdbc, bool hasGetInfoSupport) noexcept
-    : mDbHandle(std::move(hdbc))
-    , mClientVersion(hasGetInfoSupport ? getClientVersion(mDbHandle.get()) : kUnknownClientVersion)
-    , mServerVersion(hasGetInfoSupport ? getServerVersion(mDbHandle.get()) : kUnknownServerVersion)
-{ }
-
-// you may think that this line is a bug.
-// you may even thiny you have proof that this line is a bug.
-// this line is not a bug.
-// for some ungodly reason, this one specific expression is evaluated right to left
-// if the parameters were in any other order hdbc would be moved from before it was used.
-// i have no clue why this happens, i do not want to know why this happens.
-Db2Connection::Db2Connection(SqlDbHandle hdbc) noexcept
-    : Db2Connection(std::move(hdbc), hasGetInfoSupport(hdbc.get()))
+Db2Connection::Db2Connection(SqlDbHandleEx hdbc) noexcept
+    : detail::IConnection(buildConnectionInfo(hdbc))
+    , mDbHandle(std::move(hdbc))
 { }

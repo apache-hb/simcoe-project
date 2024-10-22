@@ -70,16 +70,16 @@ TEST_CASE("DAO") {
 
         auto env = Environment::create(backend.type);
 
+        if (backend.type == DbType::eOracleDB) {
+            checkOracleTestUser(env);
+        }
+
         auto maybeDb = env.tryConnect(backend.config);
         if (!maybeDb.has_value()) {
             SKIP("Failed to connect to database");
         }
 
         auto conn = std::move(maybeDb.value());
-
-        if (backend.type == DbType::eOracleDB) {
-            conn.updateSql("ALTER SESSION SET EVENTS '10046 trace name context forever, level 12'");
-        }
 
         THEN("Create table is idempotent") {
             // should be idempotent

@@ -20,6 +20,11 @@ DbError Db2Statement::next() noexcept {
     return DbError::ok();
 }
 
-Db2Statement::Db2Statement(SqlStmtHandle stmt) noexcept
+std::string Db2Statement::getSql() const {
+    return mSqlString;
+}
+
+Db2Statement::Db2Statement(SqlStmtHandleEx stmt, std::string sql)
     : mStmtHandle(std::move(stmt))
+    , mSqlString(std::move(sql))
 { }

@@ -267,6 +267,10 @@ DbError OraStatement::next() noexcept {
     return oraGetError(mError, result);
 }
 
+std::string OraStatement::getSql() const {
+    return mStatement.getString(mError, OCI_ATTR_STATEMENT);
+}
+
 static std::string toUpper(std::string_view str) noexcept {
     std::string result;
     result.reserve(str.size());

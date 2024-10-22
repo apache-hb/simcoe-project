@@ -24,7 +24,7 @@ namespace sm::db {
 
     namespace detail {
         struct IStatement;
-        struct IConnection;
+        class IConnection;
         struct IEnvironment;
 
         void destroyStatement(detail::IStatement *impl) noexcept;
@@ -46,6 +46,8 @@ namespace sm::db {
 
     REFLECT_ENUM(DataType)
     enum class DataType : uint_least8_t {
+        eUnknown,
+
         eInteger, // int32_t
         eBoolean, // bool
         eString, // std::string
@@ -100,6 +102,21 @@ namespace sm::db {
 
         eRelaxed,
         eExclusive,
+
+        eCount
+    };
+
+    REFLECT_ENUM(AssumeRole)
+    enum class AssumeRole : uint_least8_t {
+        eDefault,
+
+        eSYSDBA,
+        eSYSOPER,
+        eSYSASM,
+        eSYSBKP,
+        eSYSDGD,
+        eSYSKMT,
+        eSYSRAC,
 
         eCount
     };
@@ -166,6 +183,10 @@ namespace sm::db {
         /// @brief Locking mode
         /// @note Only supported by SQLite
         LockingMode lockingMode = LockingMode::eDefault;
+
+        /// @brief Connect as an operator user
+        /// @note Only supported on OracleDB
+        AssumeRole role = AssumeRole::eDefault;
     };
 
     struct ColumnInfo {

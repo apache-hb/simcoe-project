@@ -11,7 +11,6 @@ namespace sm::db::oracle {
         OraServer mServer;
         OraService mService;
         OraSession mSession;
-        Version mServerVersion;
 
         DbResult<OraStatement> newStatement(std::string_view sql) noexcept;
 
@@ -36,6 +35,7 @@ namespace sm::db::oracle {
         std::string setupSingletonTrigger(const dao::TableInfo& table) noexcept(false) override;
 
         std::string setupTableExists() noexcept(false) override;
+        std::string setupUserExists() noexcept(false) override;
 
         std::string setupCreateTable(const dao::TableInfo& table) noexcept(false) override;
 
@@ -43,32 +43,12 @@ namespace sm::db::oracle {
 
         std::string setupCommentOnColumn(std::string_view table, std::string_view column, std::string_view comment) noexcept(false) override;
 
-        Version clientVersion() const noexcept override;
-        Version serverVersion() const noexcept override;
-
-        DataType boolEquivalentType() const noexcept override {
-            // if boolean types arent available, we use a string of length 1
-            // where '0' is false, and everything else is true (but we prefer '1')
-            return hasBoolType() ? DataType::eBoolean : DataType::eString;
-        }
-
-        bool hasCommentOn() const noexcept override {
-            return true;
-        }
-
     public:
         OraConnection(
             OraEnvironment& env, OraError error,
             OraServer server, OraService service,
-            OraSession session, Version serverVersion
-        ) noexcept
-            : mEnvironment(env)
-            , mError(error)
-            , mServer(server)
-            , mService(service)
-            , mSession(session)
-            , mServerVersion(std::move(serverVersion))
-        { }
+            OraSession session
+        );
 
         ub2 getBoolType() const noexcept;
         bool hasBoolType() const noexcept { return getBoolType() == SQLT_BOL; }

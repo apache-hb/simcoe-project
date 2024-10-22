@@ -18,15 +18,25 @@ namespace sm::db::detail {
         virtual DbError connect(const ConnectionConfig& config, IConnection **connection) noexcept = 0;
     };
 
-    struct ConnectionAttributes {
+    struct ConnectionInfo {
         Version clientVersion;
         Version serverVersion;
-        DataType boolType;
-        DataType dateTimeType;
-        bool hasCommentOn;
+        DataType boolType = DataType::eBoolean;
+        DataType dateTimeType = DataType::eDateTime;
+        bool hasCommentOn = false;
+        bool hasNamedParams = false;
+        bool hasUsers = false;
     };
 
-    struct IConnection {
+    class IConnection {
+        ConnectionInfo mInfo;
+
+    protected:
+        IConnection(ConnectionInfo info) noexcept
+            : mInfo(std::move(info))
+        { }
+
+    public:
         virtual ~IConnection() = default;
 
         /** Lifecycle */
@@ -81,11 +91,17 @@ namespace sm::db::detail {
             throw DbException{DbError::todoFn()};
         }
 
-        /** Create */
+        /** DB specific queries */
 
         virtual std::string setupTableExists() throws(DbException) {
             throw DbException{DbError::todoFn()};
         }
+
+        virtual std::string setupUserExists() throws(DbException) {
+            throw DbException{DbError::todoFn()};
+        }
+
+        /** Create */
 
         virtual std::string setupCreateTable(const dao::TableInfo& table) throws(DbException) {
             throw DbException{DbError::todoFn()};
@@ -101,28 +117,32 @@ namespace sm::db::detail {
 
         /** Version */
 
-        virtual Version clientVersion() const noexcept {
-            return Version{"Unknown Client"};
+        Version clientVersion() const noexcept {
+            return mInfo.clientVersion;
         }
 
-        virtual Version serverVersion() const noexcept {
-            return Version{"Unknown Server"};
+        Version serverVersion() const noexcept {
+            return mInfo.serverVersion;
         }
 
-        virtual DataType boolEquivalentType() const noexcept {
-            return DataType::eBoolean;
+        DataType boolEquivalentType() const noexcept {
+            return mInfo.boolType;
         }
 
-        virtual DataType dateTimeEquivalentType() const noexcept {
-            return DataType::eDateTime;
+        DataType dateTimeEquivalentType() const noexcept {
+            return mInfo.dateTimeType;
         }
 
-        virtual bool hasCommentOn() const noexcept {
-            return false;
+        bool hasCommentOn() const noexcept {
+            return mInfo.hasCommentOn;
         }
 
-        virtual bool hasNamedPlaceholders() const noexcept {
-            return true;
+        bool hasNamedParams() const noexcept {
+            return mInfo.hasNamedParams;
+        }
+
+        bool hasUsers() const noexcept {
+            return mInfo.hasUsers;
         }
     };
 
@@ -143,6 +163,9 @@ namespace sm::db::detail {
 
         /** Get next row of data */
         virtual DbError next() noexcept = 0;
+
+        /** Get statements SQL text */
+        virtual std::string getSql() const = 0;
 
         /** Fetch results */
 

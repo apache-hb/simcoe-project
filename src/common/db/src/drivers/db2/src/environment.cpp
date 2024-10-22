@@ -6,17 +6,15 @@ using Db2Environment = sm::db::db2::Db2Environment;
 using Db2Connection = sm::db::db2::Db2Connection;
 
 DbError Db2Environment::connect(const ConnectionConfig& config, detail::IConnection **connection) noexcept {
-    SqlDbHandle hdbc;
-    if (SqlResult result = SQLAllocHandle(SQL_HANDLE_DBC, mEnvHandle.get(), &hdbc))
-        return getEnvErrorInfo(result, mEnvHandle.get());
+    SqlDbHandleEx hdbc = SqlDbHandleEx::create(mEnvHandle);
 
     SQLPOINTER autocommit = config.autoCommit ? (SQLPOINTER)SQL_AUTOCOMMIT_ON : (SQLPOINTER)SQL_AUTOCOMMIT_OFF;
-    if (SqlResult status = SQLSetConnectAttr(hdbc.get(), SQL_AUTOCOMMIT, autocommit, 0))
-        return db2::getConnectionErrorInfo(status, hdbc.get());
+    if (SqlResult status = SQLSetConnectAttr(hdbc, SQL_AUTOCOMMIT, autocommit, 0))
+        return db2::getConnectionErrorInfo(status, hdbc);
 
     uintptr_t timeout = static_cast<uintptr_t>(config.timeout.count());
-    if (SqlResult status = SQLSetConnectAttr(hdbc.get(), SQL_LOGIN_TIMEOUT, (SQLPOINTER)timeout, 0))
-        return db2::getConnectionErrorInfo(status, hdbc.get());
+    if (SqlResult status = SQLSetConnectAttr(hdbc, SQL_LOGIN_TIMEOUT, (SQLPOINTER)timeout, 0))
+        return db2::getConnectionErrorInfo(status, hdbc);
 
     SQLCHAR *szDSN = (SQLCHAR*)config.database.data();
     SQLCHAR *szUID = (SQLCHAR*)config.user.data();
@@ -26,19 +24,17 @@ DbError Db2Environment::connect(const ConnectionConfig& config, detail::IConnect
     SQLSMALLINT cbUID = (SQLSMALLINT)config.user.size();
     SQLSMALLINT cbAuth = (SQLSMALLINT)config.password.size();
 
-    if (SqlResult result = SQLConnect(hdbc.get(), szDSN, cbDSN, szUID, cbUID, szAuth, cbAuth)) {
+    if (SqlResult result = SQLConnect(hdbc, szDSN, cbDSN, szUID, cbUID, szAuth, cbAuth)) {
         return (hdbc != SQL_NULL_HDBC)
-            ? db2::getConnectionErrorInfo(result, hdbc.get())
-            : db2::getEnvErrorInfo(result, mEnvHandle.get());
+            ? db2::getConnectionErrorInfo(result, hdbc)
+            : db2::getEnvErrorInfo(result, mEnvHandle);
     }
-
-    fmt::println(stderr, "HDBC: {}", (void*)hdbc.get());
 
     *connection = new Db2Connection(std::move(hdbc));
 
     return DbError::ok();
 }
 
-Db2Environment::Db2Environment(SqlEnvHandle env) noexcept
+Db2Environment::Db2Environment(SqlEnvHandleEx env) noexcept
     : mEnvHandle(std::move(env))
 { }

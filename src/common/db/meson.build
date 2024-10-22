@@ -163,7 +163,7 @@ daocc = generator(daocc_exe,
 )
 
 ###
-### tests
+### test util library
 ###
 
 libdbtest = library('dbtest', 'test/db_test_common.cpp',
@@ -176,6 +176,27 @@ dbtest = declare_dependency(
     include_directories : '.',
     dependencies : [ coretest, db ]
 )
+
+###
+### tools
+###
+
+dbexec = executable('dbexec', 'src/tools/dbexec.cpp',
+    include_directories : 'include',
+    dependencies : [ core, dbtest ]
+)
+
+run_target('init-oracle-test-user',
+    command : [
+        dbexec, 'oracle', 'localhost', '1521',
+        'sys', 'oracle', 'FREEPDB1', 'sysdba',
+        '@CURRENT_SOURCE_DIR@/data/oracle/create-test-user.sql'
+    ]
+)
+
+###
+### test cases
+###
 
 tests = {
     'Sqlite3': 'test/db/sqlite.cpp',

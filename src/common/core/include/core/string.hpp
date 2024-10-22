@@ -34,6 +34,7 @@ namespace sm {
     StringPair split(std::string_view str, char delim);
 
     std::vector<std::string_view> splitAll(std::string_view str, char delim);
+    std::vector<std::string> splitString(std::string_view str, char delim);
 
     void trimWhitespace(std::string &str) noexcept;
     void trimWhitespaceFromView(std::string_view &str) noexcept;

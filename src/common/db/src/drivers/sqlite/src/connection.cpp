@@ -12,6 +12,32 @@ using namespace sm::db;
 
 using SqliteConnection = sqlite::SqliteConnection;
 
+static Version getSqliteVersion() noexcept {
+    const char *name = sqlite3_libversion();
+    int num = sqlite3_libversion_number();
+
+    int major = (num >> 16) & 0xFF;
+    int minor = (num >> 8) & 0xFF;
+    int patch = num & 0xFF;
+
+    return Version{name, major, minor, patch};
+}
+
+static detail::ConnectionInfo buildConnectionInfo() {
+    Version client = getSqliteVersion();
+    Version server = getSqliteVersion();
+
+    return detail::ConnectionInfo {
+        .clientVersion = client,
+        .serverVersion = server,
+        .boolType = DataType::eInteger,
+        .dateTimeType = DataType::eInteger,
+        .hasCommentOn = false,
+        .hasNamedParams = true,
+        .hasUsers = false,
+    };
+}
+
 DbError SqliteConnection::getConnectionError(int err) const noexcept {
     return sqlite::getError(err, mConnection.get());
 }
@@ -96,25 +122,6 @@ std::string SqliteConnection::setupCreateTable(const dao::TableInfo& table) noex
     return sqlite::setupCreateTable(table);
 }
 
-static Version getSqliteVersion() noexcept {
-    const char *name = sqlite3_libversion();
-    int num = sqlite3_libversion_number();
-
-    int major = (num >> 16) & 0xFF;
-    int minor = (num >> 8) & 0xFF;
-    int patch = num & 0xFF;
-
-    return Version{name, major, minor, patch};
-}
-
-Version SqliteConnection::clientVersion() const noexcept {
-    return getSqliteVersion();
-}
-
-Version SqliteConnection::serverVersion() const noexcept {
-    return getSqliteVersion();
-}
-
 static bool isBlankString(const char *text) noexcept {
     while (*text)
         if (!isspace(*text))
@@ -140,7 +147,8 @@ static void prepareAlways(sqlite3 *connection, const char *sql, sqlite3_stmt **s
 }
 
 SqliteConnection::SqliteConnection(Sqlite3Handle connection) noexcept
-    : mConnection(std::move(connection))
+    : detail::IConnection(buildConnectionInfo())
+    , mConnection(std::move(connection))
 {
     prepareAlways(mConnection.get(), "BEGIN;", &mBeginStmt);
     prepareAlways(mConnection.get(), "COMMIT;", &mCommitStmt);

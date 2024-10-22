@@ -22,12 +22,12 @@ TEST_CASE("updates") {
     CHECK(clientVersion.isKnown());
     CHECK(serverVersion.isKnown());
 
-    if (getValue(conn.tryTableExists("test"))) {
+    if (conn.tableExists("test")) {
         conn.updateSql("DROP TABLE test");
-        REQUIRE(!getValue(conn.tryTableExists("test")));
+        REQUIRE(!conn.tableExists("test"));
     }
 
     conn.updateSql("CREATE TABLE test (id INTEGER, name VARCHAR(100))");
 
-    REQUIRE(getValue(conn.tryTableExists("test")));
+    REQUIRE(conn.tableExists("test"));
 }

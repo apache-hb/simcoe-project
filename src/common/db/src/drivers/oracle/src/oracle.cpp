@@ -12,7 +12,7 @@ namespace detail = sm::db::detail;
 
 #define STRCASE(ID) case ID: return #ID
 
-std::string oracle::oraErrorText(void *handle, sword status, ub4 type) noexcept {
+std::string oracle::oraErrorText(void *handle, sword status, ub4 type) {
     auto result = [&] -> std::string {
         text buffer[OCI_ERROR_MAXMSG_SIZE];
         sb4 error;
@@ -41,7 +41,7 @@ std::string oracle::oraErrorText(void *handle, sword status, ub4 type) noexcept 
     return result;
 }
 
-DbError oracle::oraGetHandleError(void *handle, sword status, ub4 type) noexcept {
+DbError oracle::oraGetHandleError(void *handle, sword status, ub4 type) {
     if (status == OCI_SUCCESS)
         return DbError::ok();
 
@@ -56,11 +56,21 @@ bool oracle::isSuccess(sword status) noexcept {
     return status == OCI_SUCCESS;
 }
 
-DbError oracle::oraGetError(OraError error, sword status) noexcept {
+std::string oracle::getHandleStringAttribute(void *handle, ub4 type, ub4 attr, OCIError *error) {
+    oratext *text = nullptr;
+    ub4 length = 0;
+    sword result = OCIAttrGet(handle, type, &text, &length, attr, error);
+    if (result != OCI_SUCCESS)
+        oraGetHandleError(error, result, OCI_HTYPE_ERROR).raise();
+
+    return std::string{(const char*)text, length};
+}
+
+DbError oracle::oraGetError(OraError error, sword status) {
     return oraGetHandleError(error, status, OCI_HTYPE_ERROR);
 }
 
-DbError oracle::oraNewHandle(OCIEnv *env, void **handle, ub4 type) noexcept {
+DbError oracle::oraNewHandle(OCIEnv *env, void **handle, ub4 type) {
     sword result = OCIHandleAlloc(env, handle, type, 0, nullptr);
     return oraGetHandleError(env, result, OCI_HTYPE_ENV);
 }
@@ -343,14 +353,6 @@ static constexpr std::string_view kCreateSingletonTrigger =
 
 std::string oracle::setupSingletonTrigger(std::string_view name) {
     return fmt::format(kCreateSingletonTrigger, name);
-}
-
-std::string oracle::setupTruncate(std::string_view name) {
-    return fmt::format("TRUNCATE TABLE {}", name);
-}
-
-std::string oracle::setupTableExists() {
-    return "SELECT COUNT(*) FROM user_tables WHERE table_name = UPPER(:name)";
 }
 
 std::string oracle::setupCommentOnTable(std::string_view name, std::string_view comment) {

@@ -111,20 +111,29 @@ StringPair sm::split(std::string_view str, char delim) {
     return {str.substr(0, index), str.substr(index + 1)};
 }
 
-std::vector<std::string_view> sm::splitAll(std::string_view str, char delim) {
-    if (str.empty())
-        return {};
+template<typename T>
+void splitIntoVector(std::vector<T>& dst, std::string_view str, char delim) {
+    if (str.empty()) return;
 
-    std::vector<std::string_view> result;
     size_t start = 0;
     size_t index = 0;
 
     do {
         index = str.find(delim, start);
-        result.push_back(str.substr(start, index - start));
+        dst.push_back(T{str.substr(start, index - start)});
         start = index + 1;
     } while (index != std::string_view::npos);
+}
 
+std::vector<std::string_view> sm::splitAll(std::string_view str, char delim) {
+    std::vector<std::string_view> result;
+    splitIntoVector(result, str, delim);
+    return result;
+}
+
+std::vector<std::string> sm::splitString(std::string_view str, char delim) {
+    std::vector<std::string> result;
+    splitIntoVector(result, str, delim);
     return result;
 }
 

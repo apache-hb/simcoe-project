@@ -9,6 +9,8 @@ namespace chrono = std::chrono;
 
 using OraEnvironment = sm::db::oracle::OraEnvironment;
 
+static constexpr std::string_view kModuleName = "Simcoe DB Connector";
+
 static constexpr std::string_view kConnectionString = R"(
     (DESCRIPTION=
         (CONNECT_TIMEOUT={})
@@ -34,6 +36,21 @@ static DbError getServerVersion(const oracle::OraServer& server, oracle::OraErro
     return DbError::ok();
 }
 
+static constexpr ub4 kRoleMode[(int)AssumeRole::eCount] = {
+    [(int)AssumeRole::eDefault] = OCI_DEFAULT,
+    [(int)AssumeRole::eSYSDBA]  = OCI_SYSDBA,
+    [(int)AssumeRole::eSYSOPER] = OCI_SYSOPER,
+    [(int)AssumeRole::eSYSASM]  = OCI_SYSASM,
+    [(int)AssumeRole::eSYSBKP]  = OCI_SYSBKP,
+    [(int)AssumeRole::eSYSDGD]  = OCI_SYSDGD,
+    [(int)AssumeRole::eSYSKMT]  = OCI_SYSKMT,
+    [(int)AssumeRole::eSYSRAC]  = OCI_SYSRAC,
+};
+
+static ub4 getConnectMode(const ConnectionConfig& config) noexcept {
+    return kRoleMode[(int)config.role] | OCI_STMT_CACHE;
+}
+
 DbError OraEnvironment::connect(const ConnectionConfig& config, detail::IConnection **connection) noexcept {
 
     /** Create base connection objects */
@@ -57,17 +74,19 @@ DbError OraEnvironment::connect(const ConnectionConfig& config, detail::IConnect
 
     OraResource<OraSession> session = TRY_UNWRAP(oraNewResource<OraSession>(mEnv, *error));
 
-    if (sword result = (*session).setAttribute(*error, OCI_ATTR_USERNAME, config.user))
+    if (sword result = (*session).setString(*error, OCI_ATTR_USERNAME, config.user))
         return oraGetError(*error, result);
 
-    if (sword result = (*session).setAttribute(*error, OCI_ATTR_PASSWORD, config.password))
+    if (sword result = (*session).setString(*error, OCI_ATTR_PASSWORD, config.password))
         return oraGetError(*error, result);
 
-    if (sword result = (*session).setAttribute(*error, OCI_ATTR_MODULE, std::string_view("Simcoe DB Connector"))) {
+    if (sword result = (*session).setString(*error, OCI_ATTR_MODULE, kModuleName)) {
         LOG_WARN(DbLog, "Failed to set module name: {}", oraGetError(*error, result));
     }
 
-    if (sword result = OCISessionBegin(*service, *error, *session, OCI_CRED_RDBMS, OCI_STMT_CACHE))
+    ub4 mode = getConnectMode(config);
+
+    if (sword result = OCISessionBegin(*service, *error, *session, OCI_CRED_RDBMS, mode))
         return oraGetError(*error, result);
 
     if (sword result = (*service).setAttribute(*error, OCI_ATTR_SESSION, *session))
@@ -75,11 +94,7 @@ DbError OraEnvironment::connect(const ConnectionConfig& config, detail::IConnect
 
     /** Get version information about the server */
 
-    Version version;
-    if (DbError result = getServerVersion(*server, *error, version))
-        return result;
-
-    *connection = new OraConnection{*this, error.release(), server.release(), service.release(), session.release(), version};
+    *connection = new OraConnection{*this, error.release(), server.release(), service.release(), session.release()};
 
     return DbError::ok();
 }

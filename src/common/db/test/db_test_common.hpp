@@ -1,6 +1,7 @@
 #pragma once
 
 #include "test/common.hpp"
+#include "core/fs.hpp"
 
 // IWYU pragma: begin_exports
 #include "db/connection.hpp"
@@ -18,6 +19,16 @@ static constexpr ConnectionConfig kOracleConfig = {
     .password = "TEST_USER",
     .database = "FREEPDB1",
     .timeout = 1s,
+};
+
+static constexpr ConnectionConfig kOracleSYSDBA = {
+    .port = 1521,
+    .host = "localhost",
+    .user = "sys",
+    .password = "oracle",
+    .database = "FREEPDB1",
+    .timeout = 1s,
+    .role = AssumeRole::eSYSDBA,
 };
 
 static constexpr ConnectionConfig kDB2Config = {
@@ -52,3 +63,6 @@ auto getValue(DbResult<T> result, std::string_view msg = "") {
 }
 
 ConnectionConfig makeSqliteTestDb(const std::string& name, const ConnectionConfig& extra = {});
+void checkOracleTestUser(db::Environment& env);
+
+std::vector<std::string> loadSqlStatements(const fs::path& path);

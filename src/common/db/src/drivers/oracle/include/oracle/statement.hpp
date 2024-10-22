@@ -2,8 +2,8 @@
 
 #include "drivers/common.hpp"
 
-#include "types/datetime.hpp"
-#include "types/object.hpp"
+#include "datetime.hpp"
+#include "object.hpp"
 
 #include <utility>
 #include <variant>
@@ -104,7 +104,7 @@ namespace sm::db::oracle {
         DbError start(bool autoCommit, StatementType type) noexcept override;
         DbError execute() noexcept override;
         DbError next() noexcept override;
-
+        std::string getSql() const override;
 
         int getBindCount() const noexcept override;
 

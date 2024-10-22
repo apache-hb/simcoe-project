@@ -38,21 +38,43 @@ void detail::destroyConnection(detail::IConnection *impl) noexcept {
 /// connection
 ///
 
-DbResult<bool> Connection::tryTableExists(std::string_view name) {
+
+bool Connection::tableExists(std::string_view name) noexcept(false) {
     std::string sql = mImpl->setupTableExists();
 
-    PreparedStatement stmt = TRY_RESULT(tryPrepareQuery(sql));
+    PreparedStatement stmt = prepareQuery(sql);
     stmt.bind("name").to(name);
-    ResultSet results = TRY_RESULT(stmt.start());
+    ResultSet results = db::throwIfFailed(stmt.start());
 
-    return TRY_RESULT(results.get<int>(0)) > 0;
+    return db::throwIfFailed(results.get<int>(0)) > 0;
 }
 
-Version Connection::clientVersion() const noexcept {
+bool Connection::tableExists(const dao::TableInfo& info) noexcept(false) {
+    return tableExists(info.name);
+}
+
+bool Connection::userExists(std::string_view name, bool fallback) noexcept(false) {
+    if (!mImpl->hasUsers())
+        return fallback;
+
+    std::string sql = mImpl->setupUserExists();
+
+    PreparedStatement stmt = prepareQuery(sql);
+    stmt.bind("name").to(name);
+    ResultSet results = db::throwIfFailed(stmt.start());
+
+    return db::throwIfFailed(results.get<int>(0)) > 0;
+}
+
+bool Connection::hasUsers() const noexcept {
+    return mImpl->hasUsers();
+}
+
+Version Connection::clientVersion() const {
     return mImpl->clientVersion();
 }
 
-Version Connection::serverVersion() const noexcept {
+Version Connection::serverVersion() const {
     return mImpl->serverVersion();
 }
 
@@ -111,13 +133,13 @@ PreparedStatement Connection::prepareSelectAllImpl(const dao::TableInfo& table) 
     return prepareQuery(sql);
 }
 
-PreparedStatement Connection::prepareDropImpl(const dao::TableInfo& table) noexcept(false) {
+PreparedStatement Connection::prepareDropTableImpl(const dao::TableInfo& table) noexcept(false) {
     std::string sql = fmt::format("DROP TABLE {}", table.name);
     return prepareUpdate(sql);
 }
 
 bool Connection::createTable(const dao::TableInfo& table) noexcept(false) {
-    if (tryTableExists(table.name).value_or(false))
+    if (tableExists(table.name))
         return false;
 
     updateSql(mImpl->setupCreateTable(table));
@@ -139,6 +161,13 @@ bool Connection::createTable(const dao::TableInfo& table) noexcept(false) {
     }
 
     return true;
+}
+
+void Connection::replaceTable(const dao::TableInfo& info) noexcept(false) {
+    if (tableExists(info))
+        dropTable(info);
+
+    createTable(info);
 }
 
 DbResult<ResultSet> Connection::trySelectSql(std::string_view sql) noexcept {

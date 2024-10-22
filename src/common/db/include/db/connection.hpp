@@ -130,7 +130,6 @@ namespace sm::db {
         }
     };
 
-    template<dao::DaoInterface T>
     class PreparedTruncate {
         friend Connection;
 
@@ -152,7 +151,6 @@ namespace sm::db {
         }
     };
 
-    template<dao::DaoInterface T>
     class PreparedDrop {
         friend Connection;
 
@@ -197,7 +195,7 @@ namespace sm::db {
 
         PreparedStatement prepareSelectAllImpl(const dao::TableInfo& table);
 
-        PreparedStatement prepareDropImpl(const dao::TableInfo& table);
+        PreparedStatement prepareDropTableImpl(const dao::TableInfo& table);
 
         detail::IConnection *impl() noexcept { return mImpl.get(); }
 
@@ -317,16 +315,16 @@ namespace sm::db {
         ///
 
         template<dao::DaoInterface T>
-        DbResult<PreparedTruncate<T>> tryPrepareTruncate() noexcept try {
+        DbResult<PreparedTruncate> tryPrepareTruncate() noexcept try {
             return prepareTruncate<T>();
         } catch (const DbException& e) {
             return std::unexpected{e.error()};
         }
 
         template<dao::DaoInterface T>
-        PreparedTruncate<T> prepareTruncate() throws(DbException) {
+        PreparedTruncate prepareTruncate() throws(DbException) {
             auto stmt = prepareTruncateImpl(T::table());
-            return PreparedTruncate<T>{std::move(stmt)};
+            return PreparedTruncate{std::move(stmt)};
         }
 
         ///
@@ -341,8 +339,7 @@ namespace sm::db {
 
         template<dao::DaoInterface T>
         void truncate() throws(DbException) {
-            auto stmt = prepareTruncate<T>();
-            stmt.truncate();
+            truncate(T::table());
         }
 
         void truncate(const dao::TableInfo& info) throws(DbException) {
@@ -355,16 +352,16 @@ namespace sm::db {
         ///
 
         template<dao::DaoInterface T>
-        DbResult<PreparedDrop<T>> tryPrepareDrop() noexcept try {
+        DbResult<PreparedDrop> tryPrepareDropTable() noexcept try {
             return prepareDrop<T>();
         } catch (const DbException& e) {
             return std::unexpected{e.error()};
         }
 
         template<dao::DaoInterface T>
-        PreparedDrop<T> prepareDrop() throws(DbException) {
+        PreparedDrop prepareDropTable() throws(DbException) {
             auto stmt = prepareDropImpl(T::table());
-            return PreparedDrop<T>{std::move(stmt)};
+            return PreparedDrop{std::move(stmt)};
         }
 
         ///
@@ -372,19 +369,18 @@ namespace sm::db {
         ///
 
         template<dao::DaoInterface T>
-        DbError tryDrop() noexcept {
-            auto stmt = TRY_UNWRAP(tryPrepareDrop<T>());
+        DbError tryDropTable() noexcept {
+            auto stmt = TRY_UNWRAP(tryPrepareDropTable<T>());
             return stmt.execute();
         }
 
         template<dao::DaoInterface T>
-        void drop() throws(DbException) {
-            auto stmt = prepareDrop<T>();
-            stmt.drop();
+        void dropTable() throws(DbException) {
+            dropTable(T::table());
         }
 
-        void drop(const dao::TableInfo& info) throws(DbException) {
-            auto stmt = prepareDropImpl(info);
+        void dropTable(const dao::TableInfo& info) throws(DbException) {
+            auto stmt = prepareDropTableImpl(info);
             stmt.execute().throwIfFailed();
         }
 
@@ -465,12 +461,7 @@ namespace sm::db {
         /// utils
         ///
 
-        void replaceTable(const dao::TableInfo& info) throws(DbException) {
-            if (tryTableExists(info).value_or(false))
-                drop(info);
-
-            createTable(info);
-        }
+        void replaceTable(const dao::TableInfo& info) throws(DbException);
 
         ///
         /// raw access
@@ -514,21 +505,24 @@ namespace sm::db {
             return throwIfFailed(tryPrepareControl(sql));
         }
 
-        DbResult<bool> tryTableExists(std::string_view name);
-        DbResult<bool> tryTableExists(const dao::TableInfo& info) {
-            return tryTableExists(info.name);
-        }
+        bool tableExists(std::string_view name) throws(DbException);
 
-        bool tableExists(std::string_view name) throws(DbException) {
-            return throwIfFailed(tryTableExists(name));
-        }
+        bool tableExists(const dao::TableInfo& info) throws(DbException);
 
-        bool tableExists(const dao::TableInfo& info) throws(DbException) {
-            return throwIfFailed(tryTableExists(info));
-        }
+        /// @brief Check if a user exists
+        /// @param name user name
+        /// @param fallback value to return if the database does not support users
+        /// @return true if the user exists
+        /// @note If the database does not support users, this will always return the value of fallback
+        bool userExists(std::string_view name, bool fallback = false) throws(DbException);
 
-        Version clientVersion() const noexcept;
-        Version serverVersion() const noexcept;
+        /// @brief Does this database support the concept of a user?
+        /// @return true if the database supports users
+        /// @note sqlite does not support users.
+        bool hasUsers() const noexcept;
+
+        Version clientVersion() const;
+        Version serverVersion() const;
     };
 
     class Environment {

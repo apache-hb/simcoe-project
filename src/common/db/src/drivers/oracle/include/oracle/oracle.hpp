@@ -2,8 +2,8 @@
 
 #include "drivers/common.hpp"
 
-#include "types/datetime.hpp"
-#include "types/object.hpp"
+#include "datetime.hpp"
+#include "object.hpp"
 
 #include "statement.hpp"
 
@@ -21,11 +21,9 @@ namespace sm::db::oracle {
     std::string setupSelect(const dao::TableInfo& info);
     std::string setupUpdate(const dao::TableInfo& info);
     std::string setupSingletonTrigger(std::string_view name);
-    std::string setupTruncate(std::string_view name);
-    std::string setupTableExists();
 
-    DbError oraGetError(OraError error, sword status) noexcept;
-    DbError oraNewHandle(OCIEnv *env, void **handle, ub4 type) noexcept;
+    DbError oraGetError(OraError error, sword status);
+    DbError oraNewHandle(OCIEnv *env, void **handle, ub4 type);
 
     template<typename T>
     DbError oraNewHandle(OCIEnv *env, T& handle) noexcept {
