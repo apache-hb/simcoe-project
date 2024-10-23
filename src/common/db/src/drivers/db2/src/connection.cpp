@@ -163,8 +163,12 @@ DbError Db2Connection::rollback() noexcept {
     return endTransaction(SQL_ROLLBACK);
 }
 
+std::string Db2Connection::setupUserExists() noexcept(false) {
+    return "SELECT COUNT(*) FROM SYSIBM.SYSDBAUTH WHERE GRANTEE = UPPER(?)";
+}
+
 std::string Db2Connection::setupTableExists() noexcept(false) {
-    return "SELECT COUNT(*) FROM SYSIBM.SYSTABLES WHERE NAME = ?";
+    return "SELECT COUNT(*) FROM SYSIBM.SYSTABLES WHERE TYPE = 'T' AND NAME = UPPER(?)";
 }
 
 Db2Connection::Db2Connection(SqlDbHandleEx hdbc) noexcept

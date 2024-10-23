@@ -5,11 +5,13 @@ subdir('redist/d3d12')
 
 testcases = {
     'Setup Draw Context': 'context.cpp',
+
+    'Opaque Draw': 'next/opaque.cpp',
 }
 
 foreach name, source : testcases
     exe = executable('test-draw-' + name.to_lower().replace(' ', '-'), source,
-        dependencies : [ render, draw, coretest ]
+        dependencies : [ render, draw, rendertest ]
     )
 
     test(name, exe,

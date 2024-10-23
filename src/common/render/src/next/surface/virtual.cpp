@@ -49,14 +49,15 @@ static D3D12MA::Allocation *newReadbackBuffer(D3D12MA::Allocator *allocator, Sur
 
 static std::span<const uint32_t> mapBuffer(D3D12MA::Allocation *readback, SurfaceInfo info) {
     auto [format, size, _, _] = info;
-    uint64_t bytes = size.width * size.height * 4ULL; // NOLINT
+    uint64_t resolution = size.width * size.height;
+    uint64_t bytes = resolution * 4ULL; // NOLINT
     ID3D12Resource *resource = readback->GetResource();
 
     const D3D12_RANGE cReadRange = { 0, bytes };
     void *data = nullptr;
     SM_THROW_HR(resource->Map(0, &cReadRange, &data));
 
-    return std::span<const uint32_t>(static_cast<const uint32_t*>(data), bytes);
+    return std::span<const uint32_t>(static_cast<const uint32_t*>(data), resolution);
 }
 
 static VirtualSurface newVirtualSurface(D3D12MA::Allocator *allocator, SurfaceInfo info) {

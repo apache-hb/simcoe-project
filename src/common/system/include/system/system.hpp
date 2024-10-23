@@ -21,6 +21,7 @@ namespace sm::system {
 
     fs::path getProgramFolder();
     fs::path getProgramPath();
+    std::string getProgramName();
 
     void create(HINSTANCE hInstance);
     void destroy(void) noexcept;

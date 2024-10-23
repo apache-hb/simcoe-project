@@ -220,16 +220,13 @@ tracy = dependency('tracy')
 
 subdir('src/common/input')
 subdir('src/common/system')
+subdir('src/common/threads')
 
 subdir('src/common/net')
 
 subdir('src/common/world')
-subdir('src/common/threads')
 
 subdir('src/vendor/d3d12ma')
-
-subdir('src/common/render')
-subdir('src/common/draw')
 
 # vendor imgui here to have access to our own math library
 subdir('src/vendor/imgui')
@@ -239,6 +236,8 @@ subdir('src/vendor/imfilebrowser')
 subdir('src/vendor/imnodes')
 subdir('src/vendor/imgui_memory_editor')
 
+subdir('src/common/render')
+subdir('src/common/draw')
 subdir('src/common/game')
 
 ###

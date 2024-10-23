@@ -37,8 +37,11 @@ testcases = {
     'Create render next CoreContext': 'next/context.cpp',
     'Create render next CoreContext with debug features': 'next/context_debug.cpp',
 
-    'Virtual swapchain': 'next/virtual_surface.cpp',
     'Window swapchain': 'next/window_surface.cpp',
+
+    'Swapchain length change': 'next/swapchain/length.cpp',
+    'Swapchain size change': 'next/swapchain/resize.cpp',
+    'Virtual swapchain': 'next/swapchain/virtual.cpp',
 }
 
 foreach name, source : testcases

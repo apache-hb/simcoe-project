@@ -23,6 +23,7 @@
 !*.xml
 !setup.bat
 !setup.sh
+!*.yml
 
 # config files
 !*.ini

@@ -21,6 +21,8 @@ static next::SurfaceInfo newSurfaceInfo(math::uint2 size, UINT length = 2, math:
     };
 }
 
+using FrameEvent = std::function<void()>;
+
 TEST_CASE("Create next::CoreContext virtual swapchain") {
     next::VirtualSwapChainFactory swapChainFactory { };
 
@@ -47,6 +49,30 @@ TEST_CASE("Create next::CoreContext virtual swapchain") {
 
     render::AdapterLUID warpAdapter = context.getWarpAdapter().luid();
 
+    std::map<int, FrameEvent> events = {
+        { 14, [&] {
+            CHECK_THROWS_AS(context.setAdapter(render::AdapterLUID(0x1000, 0x1234)), render::RenderException);
+        } },
+        { 13, [&] {
+            render::AdapterLUID currentAdapter = context.getAdapter();
+            context.removeDevice();
+            context.setAdapter(currentAdapter);
+            SUCCEED("recovered from device lost");
+        } },
+        { 10, [&] {
+            context.updateSwapChain(newSurfaceInfo(math::uint2(800, 600), 4));
+            SUCCEED("Shrank swapchain resolution");
+        } },
+        { 4, [&] {
+            context.setAdapter(warpAdapter);
+            SUCCEED("Moved to warp adapter");
+        } },
+        { 2, [&] {
+            context.updateSwapChain(newSurfaceInfo(math::uint2(1920, 1080), 4));
+            SUCCEED("Updated swapchain size");
+        } },
+    };
+
     const int totalIters = 15;
     for (int iters = 0; iters < totalIters; iters++) {
         next::VirtualSwapChain *swapchain = swapChainFactory.getSwapChain(context.getDevice());
@@ -55,35 +81,23 @@ TEST_CASE("Create next::CoreContext virtual swapchain") {
 
         context.present();
 
-        std::string path = fmt::format("test-data/render/frames/frame-{}.png", iters);
-        stbi_write_png(path.c_str(), info.size.width, info.size.height, 4, image.data(), 4 * info.size.width);
+        // ensure the image is the same as the clear colour
+        REQUIRE(image.size() == (info.size.width * info.size.height));
+        for (size_t i = 0; i < info.size.width * info.size.height; i++) {
 
-        if (iters == 10) {
-            context.updateSwapChain(newSurfaceInfo(math::uint2(800, 600), 4));
-            SUCCEED("Shrank swapchain resolution");
+            // if any pixel isnt cleared, write the image to disk for inspection
+            if (image[i] != 0xff663300) {
+                std::string path = fmt::format("test-data/render/frames/frame-{}.png", iters);
+                stbi_write_png(path.c_str(), info.size.width, info.size.height, 4, image.data(), 4 * info.size.width);
+
+                CHECK(image[i] == 0xff663300);
+                break;
+            }
         }
 
-        if (iters == 14) {
-            CHECK_THROWS_AS(context.setAdapter(render::AdapterLUID(0x1000, 0x1234)), render::RenderException);
-        }
-
-        // remove the device first to ensure the context is in a bad state
-        // if setAdapter leaks any device resources then the test will fail
-        if (iters == 13) {
-            render::AdapterLUID currentAdapter = context.getAdapter();
-            context.removeDevice();
-            context.setAdapter(currentAdapter);
-            SUCCEED("recovered from device lost");
-        }
-
-        if (iters == 4) {
-            context.setAdapter(warpAdapter);
-            SUCCEED("Moved to warp adapter");
-        }
-
-        if (iters == 2) {
-            context.updateSwapChain(newSurfaceInfo(math::uint2(1920, 1080), 4));
-            SUCCEED("Updated swapchain size");
+        auto action = events.find(iters);
+        if (action != events.end()) {
+            action->second();
         }
     }
 

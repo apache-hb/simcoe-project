@@ -29,6 +29,15 @@ UINT CoreContext::getRequiredRtvHeapSize() const {
     return maxSwapChainLength + mExtraRtvHeapSize;
 }
 
+UINT CoreContext::getRequiredDsvHeapSize() const {
+    UINT maxSwapChainLength = mSwapChainFactory->maxSwapChainLength();
+    return maxSwapChainLength + mExtraDsvHeapSize;
+}
+
+UINT CoreContext::getRequiredSrvHeapSize() const {
+    return mExtraSrvHeapSize;
+}
+
 #pragma region Device
 
 CoreDevice CoreContext::createDevice(AdapterLUID luid, FeatureLevel level, DebugFlags flags) {
@@ -113,7 +122,9 @@ void CoreContext::resetDeviceResources() {
     mBackBuffers.clear();
     mSwapChain.reset();
     mDirectQueue.reset();
-    mCommandBufferSet.reset();
+    mDirectCommandSet.reset();
+    mSrvHeap.reset();
+    mDsvHeap.reset();
     mRtvHeap.reset();
     mAllocator.reset();
     mDevice.reset();
@@ -144,11 +155,22 @@ void CoreContext::moveToNewDevice(AdapterLUID luid) {
     mDevice = std::move(device);
 }
 
-#pragma region RTV Pool
+#pragma region Descriptor Pools
 
 void CoreContext::createRtvHeap() {
     UINT size = getRequiredRtvHeapSize();
     mRtvHeap = std::make_unique<DescriptorPool>(mDevice, size, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, false);
+}
+
+void CoreContext::createDsvHeap() {
+    UINT size = getRequiredDsvHeapSize();
+    mDsvHeap = std::make_unique<DescriptorPool>(mDevice, size, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, false);
+}
+
+void CoreContext::createSrvHeap() {
+    if (UINT size = getRequiredSrvHeapSize()) {
+        mSrvHeap = std::make_unique<DescriptorPool>(mDevice, size, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, false);
+    }
 }
 
 #pragma region Allocator
@@ -170,7 +192,7 @@ void CoreContext::createDirectQueue() {
 #pragma region Direct Command List
 
 void CoreContext::createDirectCommandList() {
-    mCommandBufferSet = std::make_unique<CommandBufferSet>(mDevice, D3D12_COMMAND_LIST_TYPE_DIRECT, mBackBuffers.size());
+    mDirectCommandSet = std::make_unique<CommandBufferSet>(mDevice, D3D12_COMMAND_LIST_TYPE_DIRECT, mBackBuffers.size());
 }
 
 #pragma region SwapChain
@@ -238,9 +260,16 @@ void CoreContext::createPresentFence() {
 
 #pragma region Lifetime
 
-void CoreContext::createDeviceState() {
+void CoreContext::createDeviceState(ISwapChainFactory *swapChainFactory, SurfaceInfo swapChainInfo) {
     createAllocator();
     createDirectQueue();
+    createSwapChain(swapChainFactory, swapChainInfo);
+    createRtvHeap();
+    createDsvHeap();
+    createSrvHeap();
+    createBackBuffers(0);
+    createDirectCommandList();
+    createPresentFence();
 }
 
 #pragma region Device Timeline
@@ -273,17 +302,14 @@ void CoreContext::setFrameIndex(UINT index) {
 
 CoreContext::CoreContext(ContextConfig config) noexcept(false)
     : mExtraRtvHeapSize(config.rtvHeapSize)
+    , mExtraDsvHeapSize(config.dsvHeapSize)
+    , mExtraSrvHeapSize(config.srvHeapSize)
     , mDebugFlags(config.flags)
     , mInstance(newInstance(config))
     , mDebugState(config.flags)
     , mDevice(selectDevice(config))
 {
-    createDeviceState();
-    createSwapChain(config.swapChainFactory, config.swapChainInfo);
-    createRtvHeap();
-    createBackBuffers(0);
-    createDirectCommandList();
-    createPresentFence();
+    createDeviceState(config.swapChainFactory, config.swapChainInfo);
 }
 
 CoreContext::~CoreContext() noexcept try {
@@ -307,12 +333,7 @@ void CoreContext::setAdapter(AdapterLUID luid) {
         moveToNewDevice(luid);
     }
 
-    createDeviceState();
-    createSwapChain(mSwapChainFactory, mSwapChainInfo);
-    createRtvHeap();
-    createBackBuffers(0);
-    createDirectCommandList();
-    createPresentFence();
+    createDeviceState(mSwapChainFactory, mSwapChainInfo);
 }
 
 void CoreContext::updateSwapChain(SurfaceInfo info) {
@@ -326,8 +347,8 @@ void CoreContext::updateSwapChain(SurfaceInfo info) {
     createDirectCommandList();
 }
 
-void CoreContext::present() {
-    CommandBufferSet& commands = *mCommandBufferSet;
+void CoreContext::begin() {
+    CommandBufferSet& commands = *mDirectCommandSet;
 
     ID3D12Resource *surface = surfaceAt(mCurrentBackBuffer);
     const D3D12_RESOURCE_BARRIER cIntoRenderTarget[] = {
@@ -355,6 +376,10 @@ void CoreContext::present() {
     commands->ClearRenderTargetView(rtvHandle, mSwapChainInfo.clearColour.data(), 0, nullptr);
 
     commands->ResourceBarrier(_countof(cIntoPresent), cIntoPresent);
+}
+
+void CoreContext::end() {
+    CommandBufferSet& commands = *mDirectCommandSet;
 
     ID3D12CommandList *lists[] = { commands.close() };
     mDirectQueue->ExecuteCommandLists(_countof(lists), lists);
@@ -363,7 +388,12 @@ void CoreContext::present() {
 
     advanceFrame();
 
-    mCommandBufferSet->reset(mCurrentBackBuffer);
+    mDirectCommandSet->reset(mCurrentBackBuffer);
+}
+
+void CoreContext::present() {
+    begin();
+    end();
 }
 
 bool CoreContext::removeDevice() noexcept {

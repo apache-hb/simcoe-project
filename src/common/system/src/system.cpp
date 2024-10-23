@@ -13,6 +13,7 @@ static constexpr const char *kClassName = "simcoe";
 
 static fs::path gProgramPath;
 static fs::path gProgramDir;
+static std::string gProgramName;
 
 fs::path sys::getProgramFolder() {
     return gProgramDir;
@@ -20,6 +21,10 @@ fs::path sys::getProgramFolder() {
 
 fs::path sys::getProgramPath() {
     return gProgramPath;
+}
+
+std::string sys::getProgramName() {
+    return gProgramName;
 }
 
 void sys::create(HINSTANCE hInstance) {
@@ -76,6 +81,7 @@ void sys::create(HINSTANCE hInstance) {
 
     gProgramPath = fs::path{gExecutablePath, gExecutablePath + gExecutablePathLength};
     gProgramDir = gProgramPath.parent_path();
+    gProgramName = gProgramPath.stem().string();
 }
 
 void sys::destroy(void) noexcept {

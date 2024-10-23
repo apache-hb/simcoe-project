@@ -31,7 +31,7 @@ void checkOracleTestUser(db::Environment& env) {
     auto conn = std::move(maybeDb.value());
 
     if (!conn.userExists("TEST_USER")) {
-        FAIL("User TEST_USER does not exist, please run `init-oracle-test-user`");
+        FAIL("User TEST_USER does not exist, please run `create-oracle-test-user`");
     }
 }
 

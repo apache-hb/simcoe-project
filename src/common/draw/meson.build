@@ -15,7 +15,11 @@ src = [
     'src/ecs/forward_plus/opaque.cpp',
 
     # next draw
-    'src/next/imgui.cpp',
+    'src/components/camera.cpp',
+
+    # next draw passes
+    'src/next/blit.cpp',
+    'src/next/opaque.cpp',
 ]
 
 deps = [ render, input, logs ]

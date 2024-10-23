@@ -186,13 +186,27 @@ dbexec = executable('dbexec', 'src/tools/dbexec.cpp',
     dependencies : [ core, dbtest ]
 )
 
-run_target('init-oracle-test-user',
+run_target('create-oracle-test-user',
     command : [
         dbexec, 'oracle', 'localhost', '1521',
         'sys', 'oracle', 'FREEPDB1', 'sysdba',
         '@CURRENT_SOURCE_DIR@/data/oracle/create-test-user.sql'
     ]
 )
+
+docker = find_program('docker', required : false)
+
+if docker.found()
+    compose_cfg = '@CURRENT_SOURCE_DIR@/data/docker/docker-compose.yml'
+
+    run_target('start-oracledb',
+        command : [ docker, 'compose', '-f', compose_cfg, 'up', '-d', 'oracle' ]
+    )
+
+    run_target('start-db2',
+        command : [ docker, 'compose', '-f', compose_cfg, 'up', '-d', 'db2' ]
+    )
+endif
 
 ###
 ### test cases
@@ -202,7 +216,9 @@ tests = {
     'Sqlite3': 'test/db/sqlite.cpp',
     'Oracle DB': 'test/db/orcl.cpp',
     'PostgreSQL': 'test/db/psql.cpp',
-    'IBM DB2': 'test/db/db2.cpp',
+    # TODO: disabled until i figure out a sane way to remap named parameters
+    # onto positional parameters
+    # 'IBM DB2': 'test/db/db2.cpp',
     'DAO': [ 'test/dao/dao.cpp', daocc.process('test/dao/tests.xml') ]
 }
 

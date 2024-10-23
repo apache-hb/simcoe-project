@@ -20,6 +20,16 @@ namespace sm::render::next {
         SurfaceInfo swapChainInfo;
 
         UINT rtvHeapSize = 0;
+        UINT dsvHeapSize = 0;
+        UINT srvHeapSize = 0;
+    };
+
+    class IContextResource {
+    public:
+        virtual ~IContextResource() = default;
+
+        virtual void reset() = 0;
+        virtual void create() = 0;
     };
 
     class CoreContext {
@@ -39,8 +49,12 @@ namespace sm::render::next {
 
         /// extra limits data
         UINT mExtraRtvHeapSize = 0;
+        UINT mExtraDsvHeapSize = 0;
+        UINT mExtraSrvHeapSize = 0;
 
         UINT getRequiredRtvHeapSize() const;
+        UINT getRequiredDsvHeapSize() const;
+        UINT getRequiredSrvHeapSize() const;
 
         /// device management
 
@@ -58,6 +72,9 @@ namespace sm::render::next {
 
         CoreDevice selectDevice(const ContextConfig& config);
 
+        // resources that depend on the device
+        std::vector<std::unique_ptr<IContextResource>> mDeviceResources;
+
         void resetDeviceResources();
 
         // recreate the current device
@@ -70,6 +87,14 @@ namespace sm::render::next {
         std::unique_ptr<DescriptorPool> mRtvHeap;
         void createRtvHeap();
 
+        /// dsv descriptor heap
+        std::unique_ptr<DescriptorPool> mDsvHeap;
+        void createDsvHeap();
+
+        /// srv descriptor heap
+        std::unique_ptr<DescriptorPool> mSrvHeap;
+        void createSrvHeap();
+
         /// allocator
         Object<D3D12MA::Allocator> mAllocator;
         void createAllocator();
@@ -79,8 +104,16 @@ namespace sm::render::next {
         void createDirectQueue();
 
         /// direct command list
-        std::unique_ptr<CommandBufferSet> mCommandBufferSet;
+        std::unique_ptr<CommandBufferSet> mDirectCommandSet;
         void createDirectCommandList();
+
+        /// compute queue
+        Object<ID3D12CommandQueue> mComputeQueue;
+        void createComputeQueue();
+
+        /// compute command list
+        std::unique_ptr<CommandBufferSet> mComputeCommandSet;
+        void createComputeCommandList();
 
         /// swapchain
         ISwapChainFactory *mSwapChainFactory;
@@ -102,7 +135,7 @@ namespace sm::render::next {
         void createPresentFence();
 
         /// lifetime management
-        void createDeviceState();
+        void createDeviceState(ISwapChainFactory *swapChainFactory, SurfaceInfo swapChainInfo);
 
         /// gpu timeline
         void advanceFrame();
@@ -125,8 +158,11 @@ namespace sm::render::next {
         void setAdapter(AdapterLUID luid);
         void updateSwapChain(SurfaceInfo info);
 
-        /// submit work
+        /// split rendering work into begin/end
+        void begin();
+        void end();
 
+        /// submit work
         void present();
 
         /// debugging functions

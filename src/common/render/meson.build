@@ -2,6 +2,7 @@
 ### rendering dependencies
 ###
 
+wil = dependency('wil')
 dstorage = dependency('dstorage')
 winpixruntime = dependency('winpixruntime')
 nvapi = dependency('nvapi', required : get_option('nvapi_enable'))
@@ -78,7 +79,9 @@ deps = [
     # internal libraries
     core, logs, math, db, world,
 
-    # microsoft
+    wil,
+
+    # microsoft d3d12
     d3d12, d3dx12,
     dstorage,
     winpixruntime.partial_dependency(includes : true),
@@ -132,8 +135,9 @@ src = [
     'src/next/state.cpp',
     'src/next/render.cpp',
 
-    # render contexts
+    # render context and resources tied to it
     'src/next/context/core.cpp',
+    'src/next/context/resource.cpp',
 
     # components
     'src/next/components/fence.cpp',

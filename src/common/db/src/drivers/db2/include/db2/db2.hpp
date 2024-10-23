@@ -2,6 +2,7 @@
 
 #include "drivers/common.hpp"
 
+#include <map>
 #include <sqlcli1.h>
 
 #include <wil/resource.h>
@@ -71,6 +72,7 @@ namespace sm::db::db2 {
     class Db2Statement final : public detail::IStatement {
         SqlStmtHandleEx mStmtHandle;
         std::string mSqlString;
+        std::multimap<std::string, int> mBindIndexLayout;
 
         DbError finalize() noexcept override;
 
@@ -105,6 +107,7 @@ namespace sm::db::db2 {
 
         /** Queries */
 
+        std::string setupUserExists() noexcept(false) override;
         std::string setupTableExists() noexcept(false) override;
 
         DbError setAutoCommit(bool autoCommit) noexcept;
