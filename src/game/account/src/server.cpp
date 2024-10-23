@@ -13,8 +13,6 @@ using namespace sm;
 
 namespace acd = sm::dao::account;
 
-// TODO: remove hardcoded timeouts
-
 std::string AccountServer::newSaltString(size_t length) {
     std::lock_guard lock(mSaltMutex);
     return mSalt.getSaltString(length);
@@ -35,7 +33,7 @@ static bool recvDataPacket(std::span<std::byte> dst, net::Socket& socket, game::
 
 static std::optional<acd::User> getUserByName(db::Connection& db, std::string_view name) try {
     // TODO: horrible evil, need to support arbitrary prepared statements
-    std::string query = fmt::format("SELECT * FROM users WHERE name = '{}'", name);
+    std::string query = fmt::format("SELECT * FROM user WHERE name = '{}'", name);
 
     return db.selectOneWhere<acd::User>(query);
 } catch (const db::DbException& e) {
@@ -68,7 +66,6 @@ void AccountServer::handleCreateAccount(sm::net::Socket& socket, game::CreateAcc
     auto oldUser = getUserByName(mAccountDb, packet.username);
     if (oldUser.has_value()) {
         LOG_WARN(GlobalLog, "account already exists: {}", user.name);
-        fmt::println(stderr, "account already exists: {} {}", oldUser->name, user.name);
         sendResponse(CreateAccountStatus::eFailure);
         return;
     }
@@ -81,7 +78,6 @@ void AccountServer::handleCreateAccount(sm::net::Socket& socket, game::CreateAcc
         return;
     }
 
-    fmt::println(stderr, "result: {} {}", result.value(), packet.username);
     LOG_INFO(GlobalLog, "created account: {}", result.value());
     sendResponse(CreateAccountStatus::eSuccess);
 }
@@ -94,9 +90,12 @@ void AccountServer::handleLogin(sm::net::Socket& socket, game::LoginRequestPacke
         socket.send(response).throwIfFailed();
     };
 
+    std::string name = packet.username;
+
     std::lock_guard guard(mDbMutex);
-    std::optional<acd::User> optUser = getUserByName(mAccountDb, packet.username);
+    std::optional<acd::User> optUser = getUserByName(mAccountDb, name);
     if (!optUser.has_value()) {
+        fmt::println(stderr, "user not found: {}", name);
         sendResponse(LoginResult::eFailure);
         return;
     }
@@ -108,6 +107,7 @@ void AccountServer::handleLogin(sm::net::Socket& socket, game::LoginRequestPacke
     if (user.password == password) {
         sendResponse(LoginResult::eSuccess);
     } else {
+        fmt::println(stderr, "password mismatch: {} != {}", user.password, password);
         sendResponse(LoginResult::eFailure);
     }
 } catch (const db::DbException& e) {

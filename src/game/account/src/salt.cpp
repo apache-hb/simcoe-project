@@ -23,7 +23,7 @@ void Salt::newSalt(std::span<char> buffer) {
 }
 
 std::string Salt::getSaltString(size_t length) {
-    std::string buffer(length, '.');
+    std::string buffer(length, '\0');
     newSalt({ buffer.data(), length });
     return buffer;
 }

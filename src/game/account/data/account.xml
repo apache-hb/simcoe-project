@@ -9,7 +9,7 @@
         </column>
 
         <column name="password" type="ulong" />
-        <column name="salt"     type="text" length="16" />
+        <column name="salt"     type="char" length="16" />
     </table>
 
     <table name="message"

@@ -305,7 +305,12 @@ static const std::map<std::string_view, ColumnType> kTypeMap = {
     {"long", eLong},
     {"ulong", eUlong},
     {"bool", eBool},
+
+    // TODO: use char for fixed length and varchar for variable length
     {"text", eString},
+    {"varchar", eString},
+    {"char", eString},
+
     {"float", eFloat},
     {"double", eDouble},
     {"blob", eBlob},

@@ -49,6 +49,21 @@ account = declare_dependency(
 )
 
 ###
+### test utils
+###
+
+libaccounttest = library('account-test', 'test/account_test_common.cpp',
+    include_directories : '.',
+    dependencies : [ dbtest, nettest, account ]
+)
+
+accounttest = declare_dependency(
+    link_with : libaccounttest,
+    include_directories : '.',
+    dependencies : [ dbtest, nettest, account ]
+)
+
+###
 ### tests
 ###
 
@@ -62,7 +77,7 @@ testcases = {
 foreach name, source : testcases
     exe = executable('test-account-' + name.to_lower().replace(' ', '-'), source,
         include_directories : account_include,
-        dependencies : [ dbtest, nettest, account ],
+        dependencies : [ accounttest ],
     )
 
     test(name, exe,
