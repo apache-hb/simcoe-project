@@ -40,7 +40,9 @@ bool AccountClient::login(std::string_view name, std::string_view password) {
 
     mSocket.send(packet).throwIfFailed();
 
-    auto response = net::throwIfFailed(mSocket.recvTimed<LoginResponsePacket>(1s));
+    LoginResponsePacket response = net::throwIfFailed(mSocket.recvTimed<LoginResponsePacket>(1s));
 
-    return response.result == LoginResult::eSuccess;
+    bool success = response.result == LoginResult::eSuccess;
+
+    return success;
 }

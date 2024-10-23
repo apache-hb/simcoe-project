@@ -15,37 +15,22 @@ namespace acd = sm::dao::account;
 TEST_CASE("Account Create & Login") {
     net::create();
 
-    db::Environment env = db::Environment::create(db::DbType::eSqlite3);
-    net::Network network = net::Network::create();
-
-    // drop any existing tables so we can test from a clean slate
-
-    db::ConnectionConfig config = makeSqliteTestDb("account/login");
-    db::Connection db = env.connect(config);
-    db.dropTableIfExists(acd::Message::table());
-    db.dropTableIfExists(acd::User::table());
+    TestServerConfig test{"account/login"};
 
     {
         NetTestStream errors;
 
         // setup account server
-        game::AccountServer server { std::move(db), network, kAddress, kPort, 1234 };
+        game::AccountServer server = test.server(kAddress, kPort, 1234);
 
-        std::jthread serverThread = std::jthread([&](const std::stop_token& stop) {
-            try {
-                std::stop_callback cb(stop, [&] { server.stop(); });
-                server.listen(kClientCount);
-            } catch (const std::exception& e) {
-                errors.add("Server exception: {}", e.what());
-            }
-        });
+        std::jthread serverThread = test.run(server, errors, kClientCount);
 
         // create clients
-        createTestAccounts(network, kAddress, kPort, errors, kClientCount);
+        createTestAccounts(test.network, kAddress, kPort, errors, kClientCount);
 
         // attempt to login with the created accounts
         doParallel(kClientCount, [&](int i, auto stop) {
-            game::AccountClient client { network, kAddress, kPort };
+            game::AccountClient client { test.network, kAddress, kPort };
             std::string name = newClientName(i);
             std::string password = "password";
 
@@ -54,7 +39,7 @@ TEST_CASE("Account Create & Login") {
 
         // login using incorrect password
         doParallel(kClientCount, [&](int i, auto stop) {
-            game::AccountClient client { network, kAddress, kPort };
+            game::AccountClient client { test.network, kAddress, kPort };
             std::string name = newClientName(i);
             std::string password = "wrong";
 
@@ -63,7 +48,7 @@ TEST_CASE("Account Create & Login") {
 
         // login with a non-existent account
         doParallel(kClientCount, [&](int i, auto stop) {
-            game::AccountClient client { network, kAddress, kPort };
+            game::AccountClient client { test.network, kAddress, kPort };
             std::string name = fmt::format("nonexistent{:02}", i);
             std::string password = "password";
 

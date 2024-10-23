@@ -24,7 +24,6 @@ namespace game {
 
         void handleCreateAccount(sm::net::Socket& socket, game::CreateAccountRequestPacket packet);
         void handleLogin(sm::net::Socket& socket, game::LoginRequestPacket packet);
-
         void handleClient(const std::stop_token& stop, sm::net::Socket socket) noexcept;
 
     public:

@@ -11,8 +11,8 @@ static size_t getPacketSize(PacketHeader header) {
     case PacketType::eCreateAccountResponse: return sizeof(CreateAccountResponsePacket);
     case PacketType::eLoginRequest: return sizeof(LoginRequestPacket);
     case PacketType::eLoginResponse: return sizeof(LoginResponsePacket);
-    case PacketType::eMessageRequest: return sizeof(MessageRequestPacket);
-    case PacketType::eMessageResponse: return sizeof(MessageResponsePacket);
+    case PacketType::ePostMessageRequest: return sizeof(PostMessageRequestPacket);
+    case PacketType::ePostMessageResponse: return sizeof(PostMessageResponsePacket);
 
     default: return sizeof(PacketHeader);
     }

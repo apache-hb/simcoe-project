@@ -19,9 +19,11 @@ struct NetTestStream {
         errors.push_back(fmt::vformat(fmt, fmt::make_format_args(args...)));
     }
 
-    void expect(bool condition, std::string_view fmt, auto&&... args) {
+    bool expect(bool condition, std::string_view fmt, auto&&... args) {
         if (!condition)
             add(fmt, std::forward<decltype(args)>(args)...);
+
+        return condition;
     }
 
     ~NetTestStream() noexcept(false);

@@ -15,12 +15,13 @@ namespace game {
         eLoginRequest,
         eLoginResponse,
 
-        eMessageRequest,
-        eMessageResponse,
+        ePostMessageRequest,
+        ePostMessageResponse,
     };
 
     template<size_t N>
     struct StringData {
+        uint32_t length;
         char data[N];
     };
 
@@ -75,8 +76,8 @@ namespace game {
     };
 
     REFLECT()
-    struct MessageRequestPacket {
-        PacketHeader header = {PacketType::eMessageRequest, 0};
+    struct PostMessageRequestPacket {
+        PacketHeader header = {PacketType::ePostMessageRequest, 0};
         char message[256];
     };
 
@@ -87,8 +88,8 @@ namespace game {
     };
 
     REFLECT()
-    struct MessageResponsePacket {
-        PacketHeader header = {PacketType::eMessageResponse, 0};
+    struct PostMessageResponsePacket {
+        PacketHeader header = {PacketType::ePostMessageResponse, 0};
         MessagePostStatus result;
     };
 
