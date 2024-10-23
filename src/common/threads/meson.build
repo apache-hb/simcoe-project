@@ -51,6 +51,10 @@ threads = declare_dependency(
     dependencies : deps
 )
 
+###
+### tests
+###
+
 testcases = {
     'Processor geometry parsing': 'test/geometry.cpp',
     'Save processor topology data': 'test/topology.cpp',
@@ -59,7 +63,7 @@ testcases = {
 foreach name, source : testcases
     exe = executable('test-threads-' + name.to_lower().replace(' ', '-'), source,
         include_directories : 'src',
-        dependencies : [ threads, coretest ]
+        dependencies : [ threads, dbtest ]
     )
 
     test(name, exe,

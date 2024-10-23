@@ -49,4 +49,9 @@
         <column name="y" type="float" />
         <column name="z" type="float" />
     </table>
+
+    <table name="another_table" primaryKey="id">
+        <column name="id" type="int" autoIncrement="always" />
+        <column name="name" type="text" length="255" />
+    </table>
 </root>

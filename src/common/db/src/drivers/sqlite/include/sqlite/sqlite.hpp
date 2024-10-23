@@ -3,7 +3,6 @@
 #include "drivers/common.hpp"
 
 namespace sm::db::sqlite {
-    std::string setupTableExists() noexcept;
     std::string setupCreateTable(const dao::TableInfo& info) noexcept;
     std::string setupCreateSingletonTrigger(std::string_view name) noexcept;
     std::string setupInsert(const dao::TableInfo& info) noexcept;

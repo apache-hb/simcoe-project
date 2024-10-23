@@ -15,6 +15,10 @@ static fs::path gProgramPath;
 static fs::path gProgramDir;
 static std::string gProgramName;
 
+static bool isSystemSetup() noexcept {
+    return gWindowClass != nullptr && gInstance != nullptr;
+}
+
 fs::path sys::getProgramFolder() {
     return gProgramDir;
 }
@@ -29,7 +33,10 @@ std::string sys::getProgramName() {
 
 void sys::create(HINSTANCE hInstance) {
     CTASSERTF(hInstance != nullptr, "system::create() invalid hInstance");
-    CTASSERTF(gWindowClass == nullptr, "system::create() called twice");
+
+    if (isSystemSetup()) {
+        CT_NEVER("system::create() called twice");
+    }
 
     gInstance = hInstance;
 
@@ -85,8 +92,8 @@ void sys::create(HINSTANCE hInstance) {
 }
 
 void sys::destroy(void) noexcept {
-    CTASSERTF(gInstance != nullptr, "system::destroy() called before system::create()");
-    CTASSERTF(gWindowClass != nullptr, "system::destroy() called before system::create()");
+    if (!isSystemSetup())
+        return;
 
     SM_ASSERT_WIN32(UnregisterClassA(gWindowClass, gInstance));
 

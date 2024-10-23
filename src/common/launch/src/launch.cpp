@@ -6,6 +6,10 @@
 #include "threads/threads.hpp"
 #include "system/system.hpp"
 
+#include "db/environment.hpp"
+
+#include "net/net.hpp"
+
 #include "config/config.hpp"
 
 #include "core/macros.h"
@@ -93,6 +97,7 @@ static sm::UniquePtr<LoggingDb> gLogging;
 static DefaultSystemError gDefaultError{};
 
 launch::LaunchCleanup::~LaunchCleanup() noexcept {
+    net::destroy();
     threads::destroy();
     system::destroy();
     logs::sinks::destroy();
@@ -139,10 +144,16 @@ launch::LaunchCleanup launch::commonInit(HINSTANCE hInstance, const LaunchInfo& 
     logs::sinks::addFileChannel(info.logPath);
 
     system::create(hInstance);
-    threads::create();
 
-    db::Connection infoDb = gLogging->connect({ .host = "info.db" });
-    threads::saveThreadInfo(infoDb);
+    if (info.threads) {
+        threads::create();
+        db::Connection infoDb = gLogging->connect({ .host = "info.db" });
+        threads::saveThreadInfo(infoDb);
+    }
+
+    if (info.network) {
+        net::create();
+    }
 
     return LaunchCleanup {};
 }

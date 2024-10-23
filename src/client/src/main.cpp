@@ -17,6 +17,7 @@
 #include "config/config.hpp"
 #include "config/parse.hpp"
 
+#include "db/environment.hpp"
 #include "db/connection.hpp"
 
 #include "launch/launch.hpp"

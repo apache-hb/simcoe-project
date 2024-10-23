@@ -1,10 +1,10 @@
 #include "net_test_common.hpp"
 
 #include <thread>
-#include <fstream>
 
 #include "net/net.hpp"
 
+using namespace sm;
 using namespace sm::net;
 
 using namespace std::chrono_literals;
@@ -12,11 +12,13 @@ using namespace std::chrono_literals;
 static constexpr size_t kBufferSize = 128;
 
 TEST_CASE("Network client server connection") {
+    net::create();
+
     auto network = Network::create();
 
     NetTestStream errors;
 
-    auto server = network.bind(IPv4Address::loopback(), 9989);
+    auto server = network.bind(Address::loopback(), 9989);
 
     REQUIRE(server.setBlocking(false).isSuccess());
     REQUIRE(server.setBlocking(true).isSuccess());
@@ -47,7 +49,7 @@ TEST_CASE("Network client server connection") {
         }
     });
 
-    auto client = network.connect(IPv4Address::loopback(), 9989);
+    auto client = network.connect(Address::loopback(), 9989);
     client.setBlocking(false).throwIfFailed();
 
     // recv a buffer larger than what will ever be sent. this should timeout

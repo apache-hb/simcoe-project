@@ -1,8 +1,9 @@
-src = [ files('src/main.cpp'), daocc.process('data/server.xml') ]
+src = [ files('src/main.cpp') ]
 pch = meson.current_source_dir() / 'src/stdafx.hpp'
 
 deps = [
     cthulhu.get_variable('format_core'),
     core, system, threads, db,
-    packets, net, launch
+    net, launch,
+    account
 ]

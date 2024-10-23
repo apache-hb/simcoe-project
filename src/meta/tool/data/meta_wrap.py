@@ -56,6 +56,16 @@ def get_target_args(builddir, sourcedir, source):
     cpp = [it['parameters'] for it in data['target_sources'] if it.get('language', '') == 'cpp']
     return [sanitize_arg(arg) for arg in itertools.chain(*cpp) if is_used_arg(arg)]
 
+def get_header_name(args):
+    path = args.header
+    rename = os.environ.get("HEADER", None)
+
+    if rename is not None:
+        # replace the last part of the path with the header name + .meta.hpp
+        return os.path.join(os.path.dirname(path), rename + ".meta.hpp")
+
+    return path
+
 def main():
     sourcedir = os.path.realpath(args.sourcedir)
     source = os.path.realpath(args.source)

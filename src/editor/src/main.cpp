@@ -19,6 +19,7 @@
 #include "world/ecs.hpp"
 #include "game/ecs.hpp"
 
+#include "db/environment.hpp"
 #include "db/connection.hpp"
 
 #include "archive/archive.hpp"

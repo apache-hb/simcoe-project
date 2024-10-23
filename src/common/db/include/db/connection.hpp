@@ -1,7 +1,5 @@
 #pragma once
 
-#include <simcoe_db_config.h>
-
 #include "db/db.hpp"
 #include "db/error.hpp"
 #include "db/results.hpp"
@@ -9,169 +7,13 @@
 
 #include "core/macros.hpp"
 
-#include "dao/dao.hpp"
+#include "db/prepared/insert.hpp"
+#include "db/prepared/select.hpp"
+#include "db/prepared/update.hpp"
+#include "db/prepared/truncate.hpp"
+#include "db/prepared/drop.hpp"
 
 namespace sm::db {
-    template<dao::DaoInterface T>
-    class PreparedInsert {
-        friend Connection;
-
-        PreparedStatement mStatement;
-
-        PreparedInsert(PreparedStatement statement) noexcept
-            : mStatement(std::move(statement))
-        { }
-
-    public:
-        SM_MOVE(PreparedInsert, default);
-
-        DbError tryInsert(const T& value) noexcept {
-            if (DbError error = bindRowToStatement(mStatement, T::table(), false, static_cast<const void*>(&value)))
-                return error;
-
-            return mStatement.execute();
-        }
-
-        void insert(const T& value) throws(DbException) {
-            tryInsert(value).throwIfFailed();
-        }
-    };
-
-    template<dao::HasPrimaryKey T>
-    class PreparedInsertReturning {
-        friend Connection;
-
-        using PrimaryKey = typename T::PrimaryKey;
-
-        PreparedStatement mStatement;
-
-        PreparedInsertReturning(PreparedStatement statement) noexcept
-            : mStatement(std::move(statement))
-        { }
-
-    public:
-        SM_MOVE(PreparedInsertReturning, default);
-
-        DbResult<PrimaryKey> tryInsert(const T& value) {
-            const auto& info = T::table();
-            if (DbError error = bindRowToStatement(mStatement, info, true, static_cast<const void*>(&value)))
-                return std::unexpected{error};
-
-            ResultSet result = TRY_UNWRAP(mStatement.start());
-
-            auto pk = result.getReturn<PrimaryKey>(info.primaryKeyIndex()); // TODO: enforce primary key column
-
-            if (DbError error = result.execute())
-                return error;
-
-            return pk;
-        }
-
-        PrimaryKey insert(const T& value) throws(DbException) {
-            return throwIfFailed(tryInsert(value));
-        }
-    };
-
-    template<dao::DaoInterface T>
-    class PreparedSelect {
-        friend Connection;
-
-        PreparedStatement mStatement;
-
-        PreparedSelect(PreparedStatement statement) noexcept
-            : mStatement(std::move(statement))
-        { }
-
-    public:
-        SM_MOVE(PreparedSelect, default);
-
-        DbResult<std::vector<T>> tryFetchAll() noexcept {
-            ResultSet result = TRY_RESULT(mStatement.start());
-
-            std::vector<T> values;
-            do {
-                values.emplace_back(TRY_RESULT(result.getRow<T>()));
-            } while (!result.next().isDone());
-
-            return values;
-        }
-
-        DbResult<T> tryFetchOne() noexcept {
-            ResultSet result = TRY_RESULT(mStatement.start());
-
-            if (result.isDone())
-                return std::unexpected{DbError::noData()};
-
-            return result.getRow<T>();
-        }
-    };
-
-    template<dao::DaoInterface T>
-    class PreparedUpdate {
-        friend Connection;
-
-        PreparedStatement mStatement;
-
-        PreparedUpdate(PreparedStatement statement) noexcept
-            : mStatement(std::move(statement))
-        { }
-
-    public:
-        SM_MOVE(PreparedUpdate, default);
-
-        DbError tryUpdate(const T& value) noexcept {
-            if (DbError error = bindRowToStatement(mStatement, T::table(), false, static_cast<const void*>(&value)))
-                return error;
-            return mStatement.execute();
-        }
-
-        void update(const T& value) throws(DbException) {
-            tryUpdate(value).throwIfFailed();
-        }
-    };
-
-    class PreparedTruncate {
-        friend Connection;
-
-        PreparedStatement mStatement;
-
-        PreparedTruncate(PreparedStatement statement) noexcept
-            : mStatement(std::move(statement))
-        { }
-
-    public:
-        SM_MOVE(PreparedTruncate, default);
-
-        DbError tryTruncate() noexcept {
-            return mStatement.execute();
-        }
-
-        void truncate() throws(DbException) {
-            tryTruncate().throwIfFailed();
-        }
-    };
-
-    class PreparedDrop {
-        friend Connection;
-
-        PreparedStatement mStatement;
-
-        PreparedDrop(PreparedStatement statement) noexcept
-            : mStatement(std::move(statement))
-        { }
-
-    public:
-        SM_MOVE(PreparedDrop, default);
-
-        DbError tryDrop() noexcept {
-            return mStatement.execute();
-        }
-
-        void drop() throws(DbException) {
-            tryDrop().throwIfFailed();
-        }
-    };
-
     class Connection {
         friend Environment;
         friend ResultSet;
@@ -379,10 +221,8 @@ namespace sm::db {
             dropTable(T::table());
         }
 
-        void dropTable(const dao::TableInfo& info) throws(DbException) {
-            auto stmt = prepareDropTableImpl(info);
-            stmt.execute().throwIfFailed();
-        }
+        void dropTable(const dao::TableInfo& info) throws(DbException);
+        void dropTableIfExists(const dao::TableInfo& info) throws(DbException);
 
         ///
         /// prepare update
@@ -457,6 +297,20 @@ namespace sm::db {
             return throwIfFailed(trySelectOne<T>());
         }
 
+        template<dao::DaoInterface T>
+        std::vector<T> selectAllWhere(std::string_view sql) throws(DbException) {
+            auto stmt = prepareQuery(sql);
+            PreparedSelect<T> prepared{std::move(stmt)};
+            return prepared.fetchAll();
+        }
+
+        template<dao::DaoInterface T>
+        T selectOneWhere(std::string_view sql) throws(DbException) {
+            auto stmt = prepareQuery(sql);
+            PreparedSelect<T> prepared{std::move(stmt)};
+            return prepared.fetchOne();
+        }
+
         ///
         /// utils
         ///
@@ -523,38 +377,5 @@ namespace sm::db {
 
         Version clientVersion() const;
         Version serverVersion() const;
-    };
-
-    class Environment {
-        friend Connection;
-
-        detail::EnvHandle mImpl;
-
-        Environment(detail::IEnvironment *impl) noexcept
-            : mImpl(impl)
-        { }
-
-        detail::IEnvironment *impl() noexcept { return mImpl.get(); }
-
-    public:
-        SM_MOVE(Environment, default);
-
-        [[nodiscard]]
-        static bool isSupported(DbType type) noexcept;
-
-        static DbResult<Environment> tryCreate(DbType type, const EnvConfig& config = EnvConfig{}) noexcept;
-
-        static Environment create(DbType type, const EnvConfig& config = EnvConfig{}) {
-            return throwIfFailed(tryCreate(type, config));
-        }
-
-        DbResult<Connection> tryConnect(const ConnectionConfig& config) noexcept;
-        Connection connect(const ConnectionConfig& config) {
-            auto result = tryConnect(config);
-            if (!result.has_value())
-                throw DbConnectionException{result.error(), config};
-
-            return std::move(*result);
-        }
     };
 }

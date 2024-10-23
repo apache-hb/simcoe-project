@@ -164,10 +164,6 @@ std::string sqlite::setupCreateTable(const dao::TableInfo& info) noexcept {
     return ss.str();
 }
 
-std::string sqlite::setupTableExists() noexcept {
-    return "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=:name";
-}
-
 static constexpr std::string_view kCreateSingletonTrigger =
     "CREATE TRIGGER IF NOT EXISTS {0}_singleton\n"
     "BEFORE INSERT ON {0}\n"

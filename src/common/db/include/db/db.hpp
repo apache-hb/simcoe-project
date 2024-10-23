@@ -1,5 +1,7 @@
 #pragma once
 
+#include <simcoe_db_config.h>
+
 #include "core/core.hpp"
 #include "core/memory/unique.hpp"
 

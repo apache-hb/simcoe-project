@@ -6,26 +6,7 @@
 #include "db/error.hpp"
 #include "db/connection.hpp"
 
-namespace dao = sm::dao;
-namespace db = sm::db;
-
 using namespace sm::db;
-
-///
-/// resource cleanup
-///
-
-void detail::destroyEnvironment(detail::IEnvironment *impl) noexcept {
-    if (impl->close())
-        delete impl;
-}
-
-void detail::destroyStatement(detail::IStatement *impl) noexcept {
-    if (DbError err = impl->finalize())
-        CT_NEVER("Failed to close statement: %s (%d)", err.what(), err.code());
-
-    delete impl;
-}
 
 void detail::destroyConnection(detail::IConnection *impl) noexcept {
     if (DbError err = impl->close())
@@ -33,11 +14,6 @@ void detail::destroyConnection(detail::IConnection *impl) noexcept {
 
     delete impl;
 }
-
-///
-/// connection
-///
-
 
 bool Connection::tableExists(std::string_view name) noexcept(false) {
     std::string sql = mImpl->setupTableExists();
@@ -164,10 +140,18 @@ bool Connection::createTable(const dao::TableInfo& table) noexcept(false) {
 }
 
 void Connection::replaceTable(const dao::TableInfo& info) noexcept(false) {
+    dropTableIfExists(info);
+    createTable(info);
+}
+
+void Connection::dropTable(const dao::TableInfo& info) noexcept(false) {
+    auto stmt = prepareDropTableImpl(info);
+    stmt.execute().throwIfFailed();
+}
+
+void Connection::dropTableIfExists(const dao::TableInfo& info) noexcept(false) {
     if (tableExists(info))
         dropTable(info);
-
-    createTable(info);
 }
 
 DbResult<ResultSet> Connection::trySelectSql(std::string_view sql) noexcept {
@@ -192,67 +176,4 @@ DbError Connection::commit() noexcept {
 
 DbError Connection::rollback() noexcept {
     return mImpl->rollback();
-}
-
-///
-/// environment
-///
-
-bool Environment::isSupported(DbType type) noexcept {
-    switch (type) {
-#define DB_TYPE(id, enabled) case DbType::id: return enabled;
-#include "db/orm.inc"
-
-    default: return false;
-    }
-}
-
-DbResult<Environment> Environment::tryCreate(DbType type, const EnvConfig& config) noexcept {
-    detail::IEnvironment *env = nullptr;
-    DbError error = [&] {
-        switch (type) {
-        case DbType::eSqlite3: return detail::getSqliteEnv(&env, config);
-
-#if SMC_DB_HAS_POSTGRES
-        case DbType::ePostgreSQL: return detail::getPostgresEnv(&env);
-#endif
-
-#if SMC_DB_HAS_MYSQL
-        case DbType::eMySQL: return detail::mysql(&env);
-#endif
-
-#if SMC_DB_HAS_ORCL
-        case DbType::eOracleDB: return detail::getOracleEnv(&env, config);
-#endif
-
-#if SMC_DB_HAS_MSSQL
-        case DbType::eMSSQL: return detail::mssql(&env);
-#endif
-
-#if SMC_DB_HAS_DB2
-        case DbType::eDB2: return detail::getDb2Env(&env);
-#endif
-
-#if SMC_DB_HAS_ODBC
-        case DbType::eODBC: return detail::odbc(&env);
-#endif
-
-        default: return DbError::unsupported("environment");
-        }
-    }();
-
-    if (error)
-        return std::unexpected(error);
-
-    return Environment{env};
-}
-
-DbResult<Connection> Environment::tryConnect(const ConnectionConfig& config) noexcept {
-    detail::IConnection *connection = nullptr;
-
-    LOG_INFO(DbLog, "Connecting to database: {}:{}/{} as role `{}`", config.host, config.port, config.database, config.user);
-    if (DbError error = mImpl->connect(config, &connection))
-        return std::unexpected(error);
-
-    return Connection{connection, config};
 }

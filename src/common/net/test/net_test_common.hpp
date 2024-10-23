@@ -2,6 +2,8 @@
 
 #include "test/common.hpp"
 
+#include "net/net.hpp"
+
 #include <mutex>
 #include <vector>
 #include <string>
@@ -22,10 +24,5 @@ struct NetTestStream {
             add(fmt, std::forward<decltype(args)>(args)...);
     }
 
-    ~NetTestStream() {
-        CHECK(errors.empty());
-        for (const auto& error : errors) {
-            FAIL(error);
-        }
-    }
+    ~NetTestStream() noexcept(false);
 };

@@ -5,14 +5,17 @@
 
 #include "net/net.hpp"
 
+using namespace sm;
 using namespace sm::net;
 
 static const char kMessage[] = "Hello, world!";
 static constexpr int kClientCount = 10;
 
 TEST_CASE("Network client server connection") {
-    auto network = Network::create();
-    auto server = network.bind(IPv4Address::loopback(), 9999);
+    net::create();
+
+    Network network = Network::create();
+    ListenSocket server = network.bind(Address::loopback(), 9999);
 
     NetTestStream errors;
     std::atomic<int> clientCount = 0;
@@ -44,7 +47,7 @@ TEST_CASE("Network client server connection") {
 
     std::jthread clientThread = std::jthread([&] {
         for (int i = 0; i < kClientCount; ++i) {
-            auto client = network.connect(IPv4Address::loopback(), 9999);
+            auto client = network.connect(Address::loopback(), 9999);
 
             std::array<char, 1024> buffer;
             size_t received = client.recvBytes(buffer.data(), buffer.size()).value();

@@ -1,29 +1,51 @@
 #include "stdafx.hpp"
 
+#include "common.hpp"
 #include "core/error.hpp"
-
-#include "core/defer.hpp"
-
-#include "logs/logging.hpp"
-
-#include "net/net.hpp"
-
-#include "core/macros.h"
 
 using namespace sm;
 using namespace sm::net;
 
 namespace chrono = std::chrono;
 
-LOG_MESSAGE_CATEGORY(NetLog, "Net");
+static WSADATA gNetData{};
+
+static bool isNetSetup() noexcept {
+    return gNetData.wVersion != 0;
+}
 
 static NetError lastNetError() {
     return NetError{WSAGetLastError()};
 }
 
-std::string net::toString(IPv4Address addr) {
-    const uint8_t *bytes = addr.address();
+static std::string fmtIp4Address(Address::IPv4Bytes bytes) {
     return fmt::format("{}.{}.{}.{}", bytes[0], bytes[1], bytes[2], bytes[3]);
+}
+
+#if 0
+static std::string fmtIp6Address(Address::IPv6Bytes bytes) {
+    std::string buffer{INET6_ADDRSTRLEN};
+    size_t index = 0;
+    for (size_t i = 0; i < bytes.size(); i += 2) {
+        if (i > 0)
+            buffer[index++] = ':';
+
+        uint8_t byte = bytes[i];
+        if (byte != 0) {
+            fmt::format_to_n(buffer.data() + index, buffer.size() - index, "{:02x}", byte);
+        }
+    }
+
+    return buffer;
+}
+#endif
+
+std::string net::toAddressString(Address addr) {
+    return fmtIp4Address(addr.v4address());
+}
+
+std::string net::toString(Address addr) {
+    return fmt::format("IPv4Address({})", fmtIp4Address(addr.v4address()));
 }
 
 static std::string fmtOsError(int code) {
@@ -45,157 +67,42 @@ NetError::NetError(int code)
 { }
 
 ///
-/// socket
-///
-
-void Socket::closeSocket() noexcept {
-    closesocket(mSocket);
-    mSocket = INVALID_SOCKET;
-}
-
-Socket::~Socket() noexcept {
-    closeSocket();
-}
-
-NetResult<size_t> Socket::sendBytes(const void *data, size_t size) noexcept {
-    int sent = ::send(mSocket, static_cast<const char *>(data), size, 0);
-    if (sent == SOCKET_ERROR)
-        return std::unexpected(lastNetError());
-
-    return sent;
-}
-
-NetResult<size_t> Socket::recvBytes(void *data, size_t size) noexcept {
-    int received = ::recv(mSocket, static_cast<char *>(data), size, 0);
-    if (received == SOCKET_ERROR)
-        return std::unexpected(lastNetError());
-
-    if (received == 0)
-        return std::unexpected(NetError{SNET_CONNECTION_CLOSED});
-
-    return received;
-}
-
-ReadResult Socket::recvBytesTimeout(void *data, size_t size, std::chrono::milliseconds timeout) noexcept {
-    const chrono::time_point start = chrono::steady_clock::now();
-    size_t consumed = 0;
-
-    auto timeoutReached = [&] { return start + timeout < chrono::steady_clock::now(); };
-
-    while (!timeoutReached() && consumed < size) {
-        char *ptr = static_cast<char *>(data) + consumed;
-        int remaining = size - consumed;
-
-        int received = ::recv(mSocket, ptr, remaining, 0);
-        if (received > 0) {
-            consumed += received;
-
-            if (consumed >= size)
-                return { consumed, NetError::ok() };
-
-        } else {
-            int lastError = WSAGetLastError();
-            if (lastError != WSAEWOULDBLOCK)
-                return { consumed, NetError{lastError} };
-
-        }
-    }
-
-    return { consumed, NetError{SNET_READ_TIMEOUT} };
-}
-
-NetError Socket::setBlocking(bool blocking) noexcept {
-    u_long mode = blocking ? 0 : 1;
-    if (ioctlsocket(mSocket, FIONBIO, &mode))
-        return lastNetError();
-
-    mBlocking = blocking;
-
-    return NetError::ok();
-}
-
-NetError Socket::setRecvTimeout(std::chrono::milliseconds timeout) noexcept {
-    auto count = timeout.count();
-    struct timeval tv = {
-        .tv_sec = static_cast<long>(count / 1000),
-        .tv_usec = static_cast<long>((count % 1000))
-    };
-
-    if (setsockopt(mSocket, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&tv), sizeof(tv)))
-        return lastNetError();
-
-    return NetError::ok();
-}
-
-NetError Socket::setSendTimeout(std::chrono::milliseconds timeout) noexcept {
-    auto count = timeout.count();
-    struct timeval tv = {
-        .tv_sec = static_cast<long>(count / 1000),
-        .tv_usec = static_cast<long>((count % 1000))
-    };
-
-    if (setsockopt(mSocket, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&tv), sizeof(tv)))
-        return lastNetError();
-
-    return NetError::ok();
-}
-
-
-///
-/// listen socket
-///
-
-NetResult<Socket> ListenSocket::tryAccept() noexcept {
-    SOCKET client = ::accept(mSocket, nullptr, nullptr);
-    if (client == INVALID_SOCKET)
-        return std::unexpected(lastNetError());
-
-    return Socket{client};
-}
-
-void ListenSocket::cancel() noexcept {
-    shutdown(mSocket, SD_BOTH);
-    Socket::closeSocket();
-}
-
-NetError ListenSocket::listen(int backlog) noexcept {
-    if (::listen(mSocket, backlog))
-        return lastNetError();
-
-    return NetError{0};
-}
-
-///
 /// network
 ///
 
-void Network::cleanup() noexcept {
+void net::create(void) {
+    if (isNetSetup()) {
+        CT_NEVER("network already initialized");
+    }
+
+    if (int result = WSAStartup(MAKEWORD(2, 2), &gNetData))
+        throw NetException{result};
+
+    LOG_INFO(NetLog, "WSAStartup successful. {}.{}", gNetData.wVersion, gNetData.wHighVersion);
+
+    LOG_INFO(NetLog, "Description: `{}`, Status: `{}`",
+        std::string_view{gNetData.szDescription},
+        std::string_view{gNetData.szSystemStatus}
+    );
+}
+
+void net::destroy(void) noexcept {
+    if (!isNetSetup())
+        return;
+
     int result = WSACleanup();
     if (result != 0) {
         LOG_ERROR(NetLog, "WSACleanup failed with error: {error}", result);
     }
 
-    mData = WSADATA{};
-}
-
-Network::~Network() noexcept {
-    if (mData.wVersion != 0)
-        cleanup();
+    gNetData = WSADATA{};
 }
 
 NetResult<Network> Network::tryCreate() noexcept {
-    WSADATA data{};
-    if (int result = WSAStartup(MAKEWORD(2, 2), &data))
-        return std::unexpected(NetError{result});
+    if (!isNetSetup())
+        return std::unexpected(NetError{WSANOTINITIALISED});
 
-    LOG_INFO(NetLog, "WSAStartup successful. {wVersion}.{wHighVersion}", data.wVersion, data.wHighVersion);
-
-    LOG_INFO(NetLog, "Description: `{szDescription}`, Status: `{szSystemStatus}`",
-        std::string{data.szDescription},
-        std::string{data.szSystemStatus}
-    );
-
-    return Network{data};
+    return Network{};
 }
 
 static SOCKET findOpenSocket(addrinfo *info) noexcept {
@@ -214,7 +121,7 @@ static SOCKET findOpenSocket(addrinfo *info) noexcept {
     return INVALID_SOCKET;
 }
 
-NetResult<Socket> Network::tryConnect(IPv4Address address, uint16_t port) noexcept {
+NetResult<Socket> Network::tryConnect(Address address, uint16_t port) noexcept {
     addrinfo hints = {
         .ai_family = AF_UNSPEC,
         .ai_socktype = SOCK_STREAM,
@@ -223,10 +130,10 @@ NetResult<Socket> Network::tryConnect(IPv4Address address, uint16_t port) noexce
 
     addrinfo *result = nullptr;
 
-    std::string addr = toString(address);
+    std::string addr = toAddressString(address);
     std::string p = std::to_string(port);
     if (int err = getaddrinfo(addr.c_str(), p.c_str(), &hints, &result)) {
-        return std::unexpected(NetError{err});
+        return std::unexpected(NetError(err, "getaddrinfo({}:{})", addr, p));
     }
 
     SOCKET socket = findOpenSocket(result);
@@ -239,7 +146,7 @@ NetResult<Socket> Network::tryConnect(IPv4Address address, uint16_t port) noexce
     return Socket{socket};
 }
 
-NetResult<ListenSocket> Network::tryBind(IPv4Address address, uint16_t port) noexcept {
+NetResult<ListenSocket> Network::tryBind(Address address, uint16_t port) noexcept {
     addrinfo hints = {
         .ai_flags = AI_PASSIVE,
         .ai_family = AF_INET,
@@ -249,11 +156,11 @@ NetResult<ListenSocket> Network::tryBind(IPv4Address address, uint16_t port) noe
 
     addrinfo *result = nullptr;
 
-    std::string addr = toString(address);
+    std::string addr = toAddressString(address);
     std::string p = std::to_string(port);
 
     if (int err = getaddrinfo(addr.c_str(), p.c_str(), &hints, &result)) {
-        return std::unexpected(NetError(err));
+        return std::unexpected(NetError(err, "getaddrinfo({}:{})", addr, p));
     }
 
     defer { freeaddrinfo(result); };
@@ -268,4 +175,8 @@ NetResult<ListenSocket> Network::tryBind(IPv4Address address, uint16_t port) noe
     }
 
     return ListenSocket{socket};
+}
+
+size_t Network::getMaxSockets() const noexcept {
+    return gNetData.iMaxSockets;
 }

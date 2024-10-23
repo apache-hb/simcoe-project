@@ -244,7 +244,7 @@ subdir('src/common/game')
 ### game modules
 ###
 
-subdir('src/game/packets')
+subdir('src/game/account')
 
 ###
 ### top level modules

@@ -4,6 +4,7 @@
 #include "core/fs.hpp"
 
 // IWYU pragma: begin_exports
+#include "db/environment.hpp"
 #include "db/connection.hpp"
 #include "db/transaction.hpp"
 // IWYU pragma: end_exports

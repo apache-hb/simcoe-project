@@ -11,12 +11,14 @@ TEST_CASE("Opaque draw") {
     WindowContextTest test{30};
     auto& context = test.getContext();
 
+    [[maybe_unused]]
     dn::ViewportInfo viewport {
         .colour = DXGI_FORMAT_R8G8B8A8_UNORM,
         .depth = DXGI_FORMAT_D32_FLOAT,
         .size = test.getClientSize(),
     };
 
+    [[maybe_unused]]
     dn::CameraInfo camera {
         .position = { 0.0f, 0.0f, -5.0f },
         .direction = math::quatf::identity(),

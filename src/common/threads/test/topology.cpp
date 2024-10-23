@@ -1,4 +1,4 @@
-#include "test/common.hpp"
+#include "test/db_test_common.hpp"
 
 #include "db/connection.hpp"
 

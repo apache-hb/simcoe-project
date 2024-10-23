@@ -5,12 +5,15 @@
 #include "core/error/error.hpp"
 
 #include <expected>
+#include <span>
 #include <string>
 #include <chrono>
+#include <array>
 
 #include <fmtlib/format.h>
 
 #include <WinSock2.h>
+#include <ws2ipdef.h>
 
 // 12000 to 12999 are available for use by applications
 #define SNET_FIRST_STATUS 12000
@@ -60,6 +63,16 @@ namespace sm::net {
     using NetResult = NetError::Result<T>;
 
     template<typename T>
+    bool isCancelled(const NetResult<T>& result) noexcept {
+        return !result.has_value() && result.error().cancelled();
+    }
+
+    template<typename T>
+    bool isConnectionClosed(const NetResult<T>& result) noexcept {
+        return !result.has_value() && result.error().connectionClosed();
+    }
+
+    template<typename T>
     T throwIfFailed(NetResult<T> result) throws(NetException) {
         if (result.has_value())
             return std::move(result.value());
@@ -67,22 +80,38 @@ namespace sm::net {
         throw NetException(result.error());
     }
 
-    class IPv4Address {
-        uint8_t mAddress[4];
-
-    public:
-        constexpr IPv4Address(uint8_t a, uint8_t b, uint8_t c, uint8_t d) noexcept
-            : mAddress(a, b, c, d)
-        { }
-
-        const uint8_t *address() const noexcept { return mAddress; }
-
-        static constexpr IPv4Address loopback() noexcept {
-            return { 127, 0, 0, 1 };
-        }
+    enum class AddressType {
+        eIPv4,
+        eIPv6,
     };
 
-    std::string toString(IPv4Address addr);
+    class Address {
+    public:
+        static constexpr inline size_t kIpv4Size = 4;
+
+        using IPv4Bytes = std::span<const uint8_t, kIpv4Size>;
+        using IPv4Data = std::array<uint8_t, kIpv4Size>;
+
+        static constexpr Address ipv4(uint8_t a, uint8_t b, uint8_t c, uint8_t d) noexcept {
+            return IPv4Data {a, b, c, d};
+        }
+
+        IPv4Bytes v4address() const noexcept { return mIpv4Address; }
+
+        static constexpr Address loopback() noexcept {
+            return ipv4(127, 0, 0, 1);
+        }
+
+    private:
+        IPv4Data mIpv4Address;
+
+        constexpr Address(IPv4Data data) noexcept
+            : mIpv4Address(data)
+        { }
+    };
+
+    std::string toAddressString(Address addr);
+    std::string toString(Address addr);
 
     struct [[nodiscard]] ReadResult {
         size_t size;
@@ -135,6 +164,17 @@ namespace sm::net {
         }
 
         template<typename T> requires (std::is_standard_layout_v<T>)
+        NetResult<T> recvTimed(std::chrono::milliseconds timeout) noexcept {
+            T value;
+            ReadResult result = recvBytesTimeout(&value, sizeof(T), timeout);
+
+            if (result.size != sizeof(T))
+                return std::unexpected{NetError(SNET_END_OF_PACKET, "expected {} bytes, received {}", sizeof(T), result.size)};
+
+            return value;
+        }
+
+        template<typename T> requires (std::is_standard_layout_v<T>)
         NetError send(const T& value) noexcept {
             size_t result = TRY_UNWRAP(sendBytes(&value, sizeof(T)));
 
@@ -146,6 +186,7 @@ namespace sm::net {
 
         NetError setBlocking(bool blocking) noexcept;
         bool isBlocking() const noexcept { return mBlocking; }
+        bool isActive() const noexcept { return mSocket != INVALID_SOCKET; }
 
         NetError setRecvTimeout(std::chrono::milliseconds timeout) noexcept;
         NetError setSendTimeout(std::chrono::milliseconds timeout) noexcept;
@@ -153,6 +194,11 @@ namespace sm::net {
 
     class ListenSocket : public Socket {
     public:
+        SM_NOCOPY(ListenSocket);
+        SM_MOVE(ListenSocket, default);
+
+        ~ListenSocket() noexcept;
+
         using Socket::Socket;
 
         static constexpr int kMaxBacklog = SOMAXCONN;
@@ -168,41 +214,25 @@ namespace sm::net {
     };
 
     class Network {
-        WSADATA mData;
-
-        Network(WSADATA data) noexcept
-            : mData(data)
-        { }
-
-        void cleanup() noexcept;
+        Network() = default;
 
     public:
-        ~Network() noexcept;
-
-        SM_NOCOPY(Network);
-
-        Network(Network&& other) noexcept
-            : mData(std::exchange(other.mData, WSADATA{}))
-        { }
-
-        Network& operator=(Network&& other) noexcept = delete;
-
         static NetResult<Network> tryCreate() noexcept;
         static Network create() throws(NetException) {
             return throwIfFailed(tryCreate());
         }
 
-        NetResult<Socket> tryConnect(IPv4Address address, uint16_t port) noexcept;
-        Socket connect(IPv4Address address, uint16_t port) throws(NetException) {
+        NetResult<Socket> tryConnect(Address address, uint16_t port) noexcept;
+        Socket connect(Address address, uint16_t port) throws(NetException) {
             return throwIfFailed(tryConnect(address, port));
         }
 
-        NetResult<ListenSocket> tryBind(IPv4Address address, uint16_t port) noexcept;
-        ListenSocket bind(IPv4Address address, uint16_t port) throws(NetException) {
+        NetResult<ListenSocket> tryBind(Address address, uint16_t port) noexcept;
+        ListenSocket bind(Address address, uint16_t port) throws(NetException) {
             return throwIfFailed(tryBind(address, port));
         }
 
-        size_t getMaxSockets() const noexcept { return mData.iMaxSockets; }
+        size_t getMaxSockets() const noexcept;
     };
 
     void create(void);

@@ -6,12 +6,10 @@
 
 #include "launch/launch.hpp"
 
-#include "packets/packets.hpp"
+#include "account/packets.hpp"
 
 #include <random>
 #include <unordered_set>
-
-#include "server.dao.hpp"
 
 using namespace sm;
 
@@ -19,6 +17,7 @@ using namespace std::chrono_literals;
 
 LOG_MESSAGE_CATEGORY(LaunchLog, "Launch");
 
+#if 0
 static sm::opt<bool> gRunAsClient {
     name = "client",
     desc = "Run as a client",
@@ -188,16 +187,21 @@ static int serverMain() {
 
     return 0;
 }
+#endif
 
 static int commonMain() noexcept try {
     LOG_INFO(GlobalLog, "SMC_DEBUG = {}", SMC_DEBUG);
     LOG_INFO(GlobalLog, "CTU_DEBUG = {}", CTU_DEBUG);
 
+#if 0
     if (gRunAsClient.getValue()) {
         return clientMain();
     } else {
         return serverMain();
     }
+#endif
+
+    return 0;
 } catch (const std::exception& err) {
     LOG_ERROR(LaunchLog, "unhandled exception: {}", err.what());
     return -1;
@@ -210,6 +214,8 @@ static const launch::LaunchInfo kLaunchInfo {
     .logDbType = db::DbType::eSqlite3,
     .logDbConfig = { .host = "server-logs.db" },
     .logPath = "server.log",
+
+    .network = true,
 };
 
 int main(int argc, const char **argv) noexcept try {

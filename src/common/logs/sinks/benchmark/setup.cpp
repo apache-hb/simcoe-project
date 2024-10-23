@@ -1,7 +1,6 @@
 #include <catch2/benchmark/catch_benchmark.hpp>
-#include "test/common.hpp"
 
-#include "db/connection.hpp"
+#include "test/db_test_common.hpp"
 
 #include "logs/sinks/channels.hpp"
 #include "logs/logger.hpp"

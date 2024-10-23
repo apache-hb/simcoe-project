@@ -15,6 +15,9 @@ namespace sm::launch {
         db::DbType logDbType;
         db::ConnectionConfig logDbConfig;
         fs::path logPath;
+
+        bool threads = true;
+        bool network = false;
     };
 
     LaunchCleanup commonInit(HINSTANCE hInstance, const LaunchInfo& info);

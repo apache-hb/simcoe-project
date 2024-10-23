@@ -5,7 +5,9 @@
 namespace game {
     REFLECT_ENUM(PacketType)
     enum class PacketType : uint32_t {
-        eAck = 0,
+        eInvalid = 0,
+
+        eAck,
 
         eCreateAccountRequest,
         eCreateAccountResponse,
@@ -44,7 +46,7 @@ namespace game {
     REFLECT_ENUM(CreateAccountStatus)
     enum class CreateAccountStatus : uint32_t {
         eSuccess = 0,
-        eFailure,
+        eFailure = 1,
     };
 
     REFLECT()
@@ -60,10 +62,16 @@ namespace game {
         char password[32];
     };
 
+    REFLECT_ENUM(LoginResult)
+    enum class LoginResult : uint32_t {
+        eSuccess,
+        eFailure,
+    };
+
     REFLECT()
     struct LoginResponsePacket {
         PacketHeader header = {PacketType::eLoginResponse, 0};
-        uint32_t result;
+        LoginResult result;
     };
 
     REFLECT()
@@ -74,7 +82,7 @@ namespace game {
 
     REFLECT_ENUM(MessagePostStatus)
     enum class MessagePostStatus : uint32_t {
-        eSuccess = 0,
+        eSuccess,
         eFailure,
     };
 
@@ -84,21 +92,5 @@ namespace game {
         MessagePostStatus result;
     };
 
-    static constexpr size_t getPacketDataSize(PacketHeader header) {
-        size_t fullSize = [type = header.type] {
-            switch (type) {
-            case PacketType::eAck: return sizeof(AckPacket);
-            case PacketType::eCreateAccountRequest: return sizeof(CreateAccountRequestPacket);
-            case PacketType::eCreateAccountResponse: return sizeof(CreateAccountResponsePacket);
-            case PacketType::eLoginRequest: return sizeof(LoginRequestPacket);
-            case PacketType::eLoginResponse: return sizeof(LoginResponsePacket);
-            case PacketType::eMessageRequest: return sizeof(MessageRequestPacket);
-            case PacketType::eMessageResponse: return sizeof(MessageResponsePacket);
-
-            default: return sizeof(PacketHeader);
-            }
-        }();
-
-        return fullSize - sizeof(PacketHeader);
-    }
+    size_t getPacketDataSize(PacketHeader header);
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/throws.hpp"
+
 #include "db/db.hpp"
 
 #include <fmtlib/format.h>

@@ -115,7 +115,7 @@ std::string SqliteConnection::setupSingletonTrigger(const dao::TableInfo& table)
 }
 
 std::string SqliteConnection::setupTableExists() noexcept(false) {
-    return sqlite::setupTableExists();
+    return "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=:name";
 }
 
 std::string SqliteConnection::setupCreateTable(const dao::TableInfo& table) noexcept(false) {

@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<root name="server">
-    <table name="user" primaryKey="id">
-        <column name="id" type="ulong" />
+<root name="account">
+    <table name="user"
+           syntheticPrimaryKey="ulong"
+           autoIncrement="always">
 
         <column name="name" type="text" length="32">
             <unique />
@@ -11,7 +12,10 @@
         <column name="salt"     type="text" length="16" />
     </table>
 
-    <table name="message" syntheticPrimaryKey="ulong">
+    <table name="message"
+           syntheticPrimaryKey="ulong"
+           autoIncrement="always">
+
         <column name="author"    type="ulong"             />
         <column name="content"   type="text" length="256" />
         <column name="timestamp" type="ulong"             />

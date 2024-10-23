@@ -10,9 +10,12 @@
 using namespace sm;
 using namespace sm::db;
 
-///
-/// statement
-///
+void detail::destroyStatement(detail::IStatement *impl) noexcept {
+    if (DbError err = impl->finalize())
+        CT_NEVER("Failed to close statement: %s (%d)", err.what(), err.code());
+
+    delete impl;
+}
 
 DbError PreparedStatement::prepareIntReturn(std::string_view name) noexcept(false) {
     return mImpl->prepareIntReturnByName(name);

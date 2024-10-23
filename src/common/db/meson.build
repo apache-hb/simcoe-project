@@ -57,13 +57,16 @@ src = [
     # dao support structures
     'src/dao/dao.cpp',
 
-    # public api
+    # helper classes
     'src/db/error.cpp',
     'src/db/bind.cpp',
     'src/db/results.cpp',
+    'src/db/transaction.cpp',
+
+    # the big three
     'src/db/statement.cpp',
     'src/db/connection.cpp',
-    'src/db/transaction.cpp',
+    'src/db/environment.cpp',
 
     # shared driver utilities
     'src/db/drivers/common.cpp',

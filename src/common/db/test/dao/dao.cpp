@@ -10,9 +10,7 @@
 using namespace std::chrono;
 using namespace std::chrono_literals;
 
-using Example = sm::dao::tests::Example;
-using ExampleUpsert = sm::dao::tests::ExampleUpsert;
-using TestInsertReturning = sm::dao::tests::TestInsertReturning;
+using namespace sm::dao::tests;
 
 struct TestCaseData {
     ConnectionConfig config;
@@ -34,7 +32,7 @@ static TestCaseData kBackends[] = {
     }
 };
 
-static constexpr auto kExampleUpsertRowsFirst = std::to_array<sm::dao::tests::ExampleUpsert>({
+static constexpr auto kExampleUpsertRowsFirst = std::to_array<ExampleUpsert>({
     { 1, "1" },
     { 2, "two" },
     { 3, "three" },
@@ -47,7 +45,7 @@ static constexpr auto kExampleUpsertRowsFirst = std::to_array<sm::dao::tests::Ex
     { 10, "ten" },
 });
 
-static constexpr auto kExampleUpsertRowsSecond = std::to_array<sm::dao::tests::ExampleUpsert>({
+static constexpr auto kExampleUpsertRowsSecond = std::to_array<ExampleUpsert>({
     { 1, "un" },
     { 2, "deux" },
     { 3, "trois" },
@@ -195,6 +193,12 @@ TEST_CASE("DAO") {
             }
 
             CHECK(count == totalCount);
+        }
+
+        THEN("dropping and creating tables works") {
+            conn.createTable(AnotherTable::table());
+            conn.dropTable(AnotherTable::table());
+            CHECK(!conn.tableExists(AnotherTable::table()));
         }
     }
 }

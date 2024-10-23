@@ -1,7 +1,12 @@
+###
+### implementation
+###
+
 net_include = include_directories('.', 'include')
 
 src = [
-    'src/net.cpp'
+    'src/net.cpp',
+    'src/socket.cpp',
 ]
 
 ws2 = cc.find_library('ws2_32', required : is_windows)
@@ -18,6 +23,25 @@ net = declare_dependency(
     dependencies : [ core ]
 )
 
+###
+### test utils
+###
+
+nettest_lib = static_library('nettest', 'test/net_test_common.cpp',
+    include_directories : '.',
+    dependencies : [ net, coretest ]
+)
+
+nettest = declare_dependency(
+    link_with : nettest_lib,
+    include_directories : '.',
+    dependencies : [ coretest, net ]
+)
+
+###
+### tests
+###
+
 testcases = {
     'Client Server communication': 'test/client_server.cpp',
     'Timeout on client recv': 'test/timeout_recv.cpp',
@@ -25,7 +49,7 @@ testcases = {
 
 foreach name, source : testcases
     exe = executable('test-net-' + name.to_lower().replace(' ', '-'), source,
-        dependencies : [ net, coretest ]
+        dependencies : [ nettest ]
     )
 
     test(name, exe,
