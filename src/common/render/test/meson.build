@@ -37,7 +37,7 @@ testcases = {
     'Create render next CoreContext': 'next/context.cpp',
     'Create render next CoreContext with debug features': 'next/context_debug.cpp',
 
-    'Window swapchain': 'next/window_surface.cpp',
+    'Window swapchain': 'next/swapchain/window.cpp',
 
     'Swapchain length change': 'next/swapchain/length.cpp',
     'Swapchain size change': 'next/swapchain/resize.cpp',

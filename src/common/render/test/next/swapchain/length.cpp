@@ -43,12 +43,12 @@ TEST_CASE("swapchain length") {
     std::uniform_int_distribution<int> dist(minLength, maxLength);
 
     for (int i = 0; i < 10; i++) {
-        test.event(i + (maxLength * 2), [&] {
+        test.event(1 + i + (maxLength * 2), [&] {
             setSurfaceLength(dist(rng));
         });
     }
 
-    test.context.run();
+    test.run();
 
     SUCCEED("Ran CoreContext virtual swapchain test");
 }

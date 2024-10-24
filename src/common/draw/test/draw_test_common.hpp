@@ -11,15 +11,11 @@ struct DrawWindowTestContext : WindowBaseTest<> {
 
     DrawWindowTestContext(int frames)
         : WindowBaseTest(frames)
-        , context(frames, window.getClientCoords().size(), &windowSwapChain, window.getHandle())
+        , context(window.getClientCoords().size(), &windowSwapChain, window.getHandle())
     {
         window.showWindow(system::ShowWindow::eShow);
         events.context = &context.context;
     }
 
     DrawContext& getContext() { return context.context; }
-
-    void event(int frame, FrameEvent it) {
-        context.event(frame, std::move(it));
-    }
 };

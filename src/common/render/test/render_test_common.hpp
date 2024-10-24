@@ -19,13 +19,21 @@ struct FrameEvents {
     std::map<int, FrameEvent> events;
     int iters;
 
+    size_t executed = 0;
+
     FrameEvents(int frames)
         : iters(frames)
     { }
 
+    ~FrameEvents() {
+        CHECK(executed == events.size());
+    }
+
     void event(int frame, FrameEvent it) {
-        events[frame] = std::move(it);
+        CTASSERTF(!events.contains(frame), "Frame %d already has an event", frame);
+
         iters = std::max(iters, frame);
+        events[frame] = std::move(it);
     }
 
     int next() {
@@ -40,6 +48,7 @@ struct FrameEvents {
         auto action = events.find(iters);
         if (action != events.end()) {
             action->second();
+            executed += 1;
         }
     }
 };
@@ -49,43 +58,30 @@ struct ContextTest {
     next::ISwapChainFactory *swapChainFactory;
 
     C context;
-    FrameEvents events;
 
-    ContextTest(int frames, math::uint2 size, next::ISwapChainFactory *factory, auto&&... args)
+    ContextTest(math::uint2 size, next::ISwapChainFactory *factory, auto&&... args)
         : swapChainFactory(factory)
         , context(newConfig(swapChainFactory, size), args...)
-        , events(frames)
     { }
-
-    void event(int frame, FrameEvent it) {
-        events.event(frame, std::move(it));
-    }
-
-    int next() {
-        context.present();
-        return events.next();
-    }
-
-    void run() { while (next() > 0); }
-
-    void doEvent()  {
-        events.doEvent();
-    }
 };
 
 struct VirtualContextTest {
     next::VirtualSwapChainFactory virtualSwapChain;
     ContextTest<next::CoreContext> context;
+    FrameEvents frames;
 
-    VirtualContextTest(int frames)
-        : context(frames, { 800, 600 }, &virtualSwapChain)
+    VirtualContextTest(int frameCount)
+        : context({ 800, 600 }, &virtualSwapChain)
+        , frames(frameCount)
     { }
 
     void event(int frame, FrameEvent it) {
-        context.event(frame, std::move(it));
+        frames.event(frame, std::move(it));
     }
 
     next::CoreContext& getContext() { return context.context; }
+    void run() { while (frames.next() > 0); }
+    void doEvent() { frames.doEvent(); }
 };
 
 class TestWindowEvents final : public system::IWindowEvents {
@@ -131,24 +127,27 @@ struct WindowBaseTest {
             }
         }
 
-        return !done && frames.iters-- > 0;
+        return !done && frames.next() > 0;
     }
+
+    void event(int frame, FrameEvent it) {
+        frames.event(frame, std::move(it));
+    }
+
+    void doEvent() { frames.doEvent(); }
 };
 
 struct WindowContextTest : WindowBaseTest<> {
     ContextTest<next::CoreContext> context;
 
-    WindowContextTest(int frames)
-        : WindowBaseTest(frames)
-        , context(frames, window.getClientCoords().size(), &windowSwapChain)
+    WindowContextTest(int frameCount)
+        : WindowBaseTest(frameCount)
+        , context(window.getClientCoords().size(), &windowSwapChain)
     {
         window.showWindow(system::ShowWindow::eShow);
         events.context = &context.context;
     }
 
     next::CoreContext& getContext() { return context.context; }
-
-    void event(int frame, FrameEvent it) {
-        context.event(frame, std::move(it));
-    }
+    void run() { while (next()); }
 };

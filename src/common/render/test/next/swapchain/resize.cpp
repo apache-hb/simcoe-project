@@ -35,7 +35,7 @@ TEST_CASE("swapchain resize") {
         });
     }
 
-    test.context.run();
+    test.run();
 
     SUCCEED("Ran CoreContext virtual swapchain test");
 }

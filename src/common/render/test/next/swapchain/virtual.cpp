@@ -37,8 +37,7 @@ TEST_CASE("Create next::CoreContext virtual swapchain") {
         SUCCEED("Updated swapchain size");
     });
 
-    const int totalIters = 15;
-    for (int iters = 0; iters < totalIters; iters++) {
+    while (test.frames.iters > 0) {
         next::VirtualSwapChain *swapchain = test.virtualSwapChain.getSwapChain(context.getDevice());
         std::span<const uint32_t> image = swapchain->getImage();
         next::SurfaceInfo info = swapchain->getSurfaceInfo();
@@ -51,7 +50,7 @@ TEST_CASE("Create next::CoreContext virtual swapchain") {
 
             // if any pixel isnt cleared, write the image to disk for inspection
             if (image[i] != 0xff663300) {
-                std::string path = fmt::format("test-data/render/frames/frame-{}.png", iters);
+                std::string path = fmt::format("test-data/render/frames/frame-{}.png", test.frames.iters);
                 stbi_write_png(path.c_str(), info.size.width, info.size.height, 4, image.data(), 4 * info.size.width);
 
                 CHECK(image[i] == 0xff663300);
@@ -59,7 +58,8 @@ TEST_CASE("Create next::CoreContext virtual swapchain") {
             }
         }
 
-        test.context.doEvent();
+        test.doEvent();
+        test.frames.iters--;
     }
 
     SUCCEED("Ran CoreContext virtual swapchain test");
