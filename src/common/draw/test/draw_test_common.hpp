@@ -9,9 +9,9 @@ using namespace sm::draw::next;
 struct DrawWindowTestContext : WindowBaseTest<> {
     ContextTest<DrawContext> context;
 
-    DrawWindowTestContext(int frames)
+    DrawWindowTestContext(int frames, bool debug = true)
         : WindowBaseTest(frames)
-        , context(window.getClientCoords().size(), &windowSwapChain, window.getHandle())
+        , context(window.getClientCoords().size(), &windowSwapChain, debug, window.getHandle())
     {
         window.showWindow(system::ShowWindow::eShow);
         events.context = &context.context;

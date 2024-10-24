@@ -12,7 +12,7 @@ using namespace sm::render;
 using FrameEvent = std::function<void()>;
 
 next::SurfaceInfo newSurfaceInfo(math::uint2 size, UINT length = 2, math::float4 clearColour = { 0.0f, 0.2f, 0.4f, 1.0f });
-next::ContextConfig newConfig(next::ISwapChainFactory *factory, math::uint2 size);
+next::ContextConfig newConfig(next::ISwapChainFactory *factory, math::uint2 size, bool debug = true);
 system::WindowConfig newWindowConfig(const char *title);
 
 struct FrameEvents {
@@ -27,6 +27,7 @@ struct FrameEvents {
 
     ~FrameEvents() {
         CHECK(executed == events.size());
+        CHECK(iters <= 0);
     }
 
     void event(int frame, FrameEvent it) {
@@ -59,9 +60,9 @@ struct ContextTest {
 
     C context;
 
-    ContextTest(math::uint2 size, next::ISwapChainFactory *factory, auto&&... args)
+    ContextTest(math::uint2 size, next::ISwapChainFactory *factory, bool debug = true, auto&&... args)
         : swapChainFactory(factory)
-        , context(newConfig(swapChainFactory, size), args...)
+        , context(newConfig(swapChainFactory, size, debug), args...)
     { }
 };
 

@@ -7,7 +7,7 @@ namespace dn = sm::draw::next;
 TEST_CASE("Dear ImGui DrawContext") {
     system::create(GetModuleHandle(nullptr));
 
-    DrawWindowTestContext test{30};
+    DrawWindowTestContext test{30, false};
     auto& context = test.getContext();
 
     test.event(14, [&] {
@@ -22,7 +22,7 @@ TEST_CASE("Dear ImGui DrawContext") {
     });
 
     test.event(10, [&] {
-        context.updateSwapChain(newSurfaceInfo(math::uint2(800, 600), 8));
+        context.updateSwapChain(newSurfaceInfo(math::uint2(800, 600), 2));
         SUCCEED("Shrank swapchain resolution");
     });
 
@@ -32,8 +32,8 @@ TEST_CASE("Dear ImGui DrawContext") {
         SUCCEED("Moved to warp adapter");
     });
 
-    test.event(2, [&] {
-        context.updateSwapChain(newSurfaceInfo(math::uint2(1920, 1080), 4));
+    test.event(8, [&] {
+        context.updateSwapChain(newSurfaceInfo(math::uint2(1920, 1080), 12));
         SUCCEED("Updated swapchain size");
     });
 

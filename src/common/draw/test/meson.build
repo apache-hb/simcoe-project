@@ -4,9 +4,10 @@ subdir('redist')
 subdir('redist/d3d12')
 
 testcases = {
-    'Setup Draw Context': 'context.cpp',
+    'Setup DrawContext': 'context.cpp',
 
-    'Dear ImGui Draw Context Setup': 'next/imgui_context.cpp',
+    'Dear ImGui DrawContext setup': 'next/imgui_context.cpp',
+    'Dear ImGui DrawContext setup without debug layer': 'next/imgui_context_no_debug_layer.cpp',
 }
 
 foreach name, source : testcases

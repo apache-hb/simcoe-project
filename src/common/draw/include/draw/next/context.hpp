@@ -3,29 +3,37 @@
 #include "render/next/context/core.hpp"
 
 namespace sm::draw::next {
-    class ImGuiDrawContext {
+    using IContextResource = render::next::IContextResource;
+    using CoreContext = render::next::CoreContext;
+    using SurfaceInfo = render::next::SurfaceInfo;
+
+    class ImGuiDrawContext final : public IContextResource {
         HWND mWindow;
     public:
-        ImGuiDrawContext(HWND hwnd) noexcept
-            : mWindow(hwnd)
+        ImGuiDrawContext(CoreContext& ctx, HWND hwnd) noexcept
+            : IContextResource(ctx)
+            , mWindow(hwnd)
         { }
 
-        void create();
+        void setup();
         void destroy() noexcept;
         void begin();
         void end(ID3D12GraphicsCommandList *list);
 
         void setupPlatform();
         void setupRender(ID3D12Device *device, DXGI_FORMAT format, UINT frames, render::next::DescriptorPool& srvHeap, size_t srvHeapIndex);
-        void destroyRender();
+
+        // IContextResource
+        void reset() override;
+        void create() override;
+        void update(SurfaceInfo info) override;
+        // ~IContextResource
     };
 
     class DrawContext : public render::next::CoreContext {
         using Super = render::next::CoreContext;
 
-        ImGuiDrawContext mImGui;
-
-        void setupImGuiRenderState();
+        ImGuiDrawContext *mImGui;
 
     public:
         DrawContext(render::next::ContextConfig config, HWND hwnd);
@@ -33,7 +41,5 @@ namespace sm::draw::next {
 
         void begin();
         void end();
-
-        void setAdapter(render::AdapterLUID luid);
     };
 }

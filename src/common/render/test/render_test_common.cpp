@@ -9,18 +9,21 @@ next::SurfaceInfo newSurfaceInfo(math::uint2 size, UINT length, math::float4 cle
     };
 }
 
-next::ContextConfig newConfig(next::ISwapChainFactory *factory, math::uint2 size) {
+next::ContextConfig newConfig(next::ISwapChainFactory *factory, math::uint2 size, bool debug) {
+    const DebugFlags kAllFlags
+        = DebugFlags::eDeviceDebugLayer
+        | DebugFlags::eFactoryDebug
+        | DebugFlags::eDeviceRemovedInfo
+        | DebugFlags::eInfoQueue
+        | DebugFlags::eAutoName
+        | DebugFlags::eGpuValidation
+        | DebugFlags::eDirectStorageDebug
+        | DebugFlags::eDirectStorageBreak
+        | DebugFlags::eDirectStorageNames
+        | DebugFlags::eWinPixEventRuntime;
+
     return next::ContextConfig {
-        .flags = DebugFlags::eDeviceDebugLayer
-               | DebugFlags::eFactoryDebug
-               | DebugFlags::eDeviceRemovedInfo
-               | DebugFlags::eInfoQueue
-               | DebugFlags::eAutoName
-               | DebugFlags::eGpuValidation
-               | DebugFlags::eDirectStorageDebug
-               | DebugFlags::eDirectStorageBreak
-               | DebugFlags::eDirectStorageNames
-               | DebugFlags::eWinPixEventRuntime,
+        .flags = debug ? kAllFlags : DebugFlags::eNone,
         .targetLevel = FeatureLevel::eLevel_11_0,
         .swapChainFactory = factory,
         .swapChainInfo = newSurfaceInfo(size, 2),

@@ -6,8 +6,11 @@
 #include "render/next/device.hpp"
 #include "render/next/surface/surface.hpp"
 #include "render/next/components.hpp"
+#include <unordered_set>
 
 namespace sm::render::next {
+    class CoreContext;
+
     struct ContextConfig {
         DebugFlags flags;
 
@@ -23,6 +26,24 @@ namespace sm::render::next {
         UINT dsvHeapSize = 0;
         UINT srvHeapSize = 0;
     };
+
+    class IContextResource {
+    protected:
+        CoreContext& mContext;
+
+        IContextResource(CoreContext& context) noexcept
+            : mContext(context)
+        { }
+
+    public:
+        virtual ~IContextResource() noexcept = default;
+
+        virtual void reset() = 0;
+        virtual void create() = 0;
+        virtual void update(SurfaceInfo info) = 0;
+    };
+
+    using ResourceSet = std::unordered_set<std::unique_ptr<IContextResource>>;
 
     class CoreContext {
         struct DeviceSearchOptions {
@@ -65,7 +86,19 @@ namespace sm::render::next {
 
         CoreDevice selectDevice(const ContextConfig& config);
 
+        ResourceSet mDeviceResources;
+
+        template<typename T> requires (std::is_base_of_v<IContextResource, T>)
+        T *addResource(auto&&... args) {
+            std::unique_ptr<T> resource = std::make_unique<T>(*this, std::forward<decltype(args)>(args)...);
+            auto [it, _] = mDeviceResources.emplace(std::move(resource));
+            return static_cast<T *>(it->get());
+        }
+
+        void removeResource(const IContextResource *resource);
+
         void resetDeviceResources();
+        void createDeviceResources();
 
         // recreate the current device
         void recreateCurrentDevice();
@@ -120,39 +153,7 @@ namespace sm::render::next {
         void createDeviceState(ISwapChainFactory *swapChainFactory, SurfaceInfo swapChainInfo);
 
         void beginDeviceSetup();
-
-        void recreateCurrentDevice(auto&& fn) {
-            FeatureLevel level = mDevice.level();
-            AdapterLUID luid = mDevice.luid();
-
-            // when recreating the device, we reset all resources first
-            // as we will be using the same device and preserving the resources
-            // will cause d3d12 to give us the same (still removed) device handle.
-            fn();
-            resetDeviceResources();
-            mDevice = createDevice(luid, level, mDebugFlags);
-        }
-
-        void moveToNewDevice(AdapterLUID luid, auto&& fn) {
-            // when moving to a new device, we create the device first
-            // and then reset all resources.
-            // this is to ensure we don't leave ourselves in an invalid state
-            // if the new device creation fails.
-            FeatureLevel level = mDevice.level();
-            CoreDevice device = createDevice(luid, level, mDebugFlags);
-
-            fn();
-            resetDeviceResources();
-            mDevice = std::move(device);
-        }
-
-        void createNewDevice(AdapterLUID luid, auto&& fn) {
-            if (luid == getAdapter()) {
-                recreateCurrentDevice(fn);
-            } else {
-                moveToNewDevice(luid, fn);
-            }
-        }
+        void createNewDevice(AdapterLUID luid);
 
         /// gpu timeline
         void advanceFrame();
@@ -168,8 +169,13 @@ namespace sm::render::next {
         std::span<const Adapter> adapters() const noexcept { return mInstance.adapters(); }
         AdapterLUID getAdapter() const noexcept { return mDevice.luid(); }
         const Adapter& getWarpAdapter() noexcept { return mInstance.getWarpAdapter(); }
-        ID3D12Device *getDevice() const noexcept { return mDevice.get(); }
         SwapChainLimits getSwapChainLimits() const noexcept { return mSwapChainFactory->limits(); }
+        SurfaceInfo getSwapChainInfo() const noexcept { return mSwapChainInfo; }
+
+        /// render object access
+
+        ID3D12Device *getDevice() const noexcept { return mDevice.get(); }
+        DescriptorPool& getSrvHeap() noexcept { return *mSrvHeap; }
 
         /// update rendering device state
 

@@ -5,6 +5,7 @@
 #include <imgui/backends/imgui_impl_dx12.h>
 
 using namespace sm;
+using namespace sm::render::next;
 using namespace sm::draw::next;
 
 static render::next::ContextConfig updateConfig(render::next::ContextConfig current) {
@@ -15,17 +16,17 @@ static render::next::ContextConfig updateConfig(render::next::ContextConfig curr
 
 DrawContext::DrawContext(render::next::ContextConfig config, HWND hwnd)
     : Super(updateConfig(config))
-    , mImGui(hwnd)
+    , mImGui(addResource<ImGuiDrawContext>(hwnd))
 {
-    mImGui.create();
-    setupImGuiRenderState();
+    mImGui->setup();
+    mImGui->create();
 }
 
 DrawContext::~DrawContext() noexcept {
-    mImGui.destroy();
+    mImGui->destroy();
 }
 
-void ImGuiDrawContext::create() {
+void ImGuiDrawContext::setup() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
@@ -53,11 +54,6 @@ void ImGuiDrawContext::setupRender(ID3D12Device *device, DXGI_FORMAT format, UIN
     ImGui_ImplDX12_Init(device, frames, format, srvHeap.get(), cpuHandle, gpuHandle);
 }
 
-void ImGuiDrawContext::destroyRender() {
-    ImGui_ImplDX12_Shutdown();
-    ImGui_ImplWin32_Shutdown();
-}
-
 void ImGuiDrawContext::destroy() noexcept {
     ImGui_ImplDX12_Shutdown();
     ImGui_ImplWin32_Shutdown();
@@ -83,28 +79,33 @@ void ImGuiDrawContext::end(ID3D12GraphicsCommandList *list) {
     }
 }
 
-void DrawContext::setupImGuiRenderState() {
-    mImGui.setupPlatform();
-    mImGui.setupRender(getDevice(), mSwapChainInfo.format, mSwapChainInfo.length, *mSrvHeap, 0);
+void ImGuiDrawContext::reset() {
+    ImGui_ImplDX12_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+}
+
+void ImGuiDrawContext::create() {
+    SurfaceInfo info = mContext.getSwapChainInfo();
+    DescriptorPool &srvHeap = mContext.getSrvHeap();
+
+    setupPlatform();
+    setupRender(mContext.getDevice(), info.format, info.length, srvHeap, 0);
+}
+
+void ImGuiDrawContext::update(SurfaceInfo info) {
+    // TODO: only update when info.length has changed
+    DescriptorPool &srvHeap = mContext.getSrvHeap();
+    ImGui_ImplDX12_InvalidateDeviceObjects();
+    ImGui_ImplDX12_CreateDeviceObjects();
+    setupRender(mContext.getDevice(), info.format, info.length, srvHeap, 0);
 }
 
 void DrawContext::begin() {
     Super::begin();
-    mImGui.begin();
+    mImGui->begin();
 }
 
 void DrawContext::end() {
-    mImGui.end(mDirectCommandSet->get());
+    mImGui->end(mDirectCommandSet->get());
     Super::end();
-}
-
-void DrawContext::setAdapter(render::AdapterLUID luid) {
-    beginDeviceSetup();
-
-    createNewDevice(luid, [&] {
-        mImGui.destroyRender();
-    });
-
-    createDeviceState(mSwapChainFactory, mSwapChainInfo);
-    setupImGuiRenderState();
 }

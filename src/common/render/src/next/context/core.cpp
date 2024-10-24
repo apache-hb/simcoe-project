@@ -117,7 +117,23 @@ CoreDevice CoreContext::selectDevice(const ContextConfig& config) {
     return selectPreferredDevice(config.adapterOverride, options);
 }
 
+void CoreContext::removeResource(const IContextResource *resource) {
+    auto it = std::find_if(
+        mDeviceResources.begin(),
+        mDeviceResources.end(),
+        [resource](const auto& ptr) { return ptr.get() == resource; }
+    );
+
+    if (it != mDeviceResources.end()) {
+        mDeviceResources.erase(it);
+    }
+}
+
 void CoreContext::resetDeviceResources() {
+    for (auto& handle : mDeviceResources) {
+        handle->reset();
+    }
+
     mPresentFence.reset();
     mBackBuffers.clear();
     mSwapChain.reset();
@@ -130,6 +146,12 @@ void CoreContext::resetDeviceResources() {
     mDevice.reset();
 
     mInstance.reportLiveObjects();
+}
+
+void CoreContext::createDeviceResources() {
+    for (auto& handle : mDeviceResources) {
+        handle->create();
+    }
 }
 
 #pragma region Descriptor Pools
@@ -246,6 +268,7 @@ void CoreContext::createDeviceState(ISwapChainFactory *swapChainFactory, Surface
     createBackBuffers(0);
     createDirectCommandList();
     createPresentFence();
+    createDeviceResources();
 }
 
 #pragma region Device Timeline
@@ -274,6 +297,45 @@ void CoreContext::setFrameIndex(UINT index) {
     mAllocator->SetCurrentFrameIndex(index);
 }
 
+void CoreContext::recreateCurrentDevice() {
+    FeatureLevel level = mDevice.level();
+    AdapterLUID luid = mDevice.luid();
+
+    // when recreating the device, we reset all resources first
+    // as we will be using the same device and preserving the resources
+    // will cause d3d12 to give us the same (still removed) device handle.
+    resetDeviceResources();
+    mDevice = createDevice(luid, level, mDebugFlags);
+}
+
+void CoreContext::moveToNewDevice(AdapterLUID luid) {
+    // when moving to a new device, we create the device first
+    // and then reset all resources.
+    // this is to ensure we don't leave ourselves in an invalid state
+    // if the new device creation fails.
+    FeatureLevel level = mDevice.level();
+    CoreDevice device = createDevice(luid, level, mDebugFlags);
+
+    resetDeviceResources();
+    mDevice = std::move(device);
+}
+
+void CoreContext::beginDeviceSetup() {
+    try {
+        flushDevice();
+    } catch (const render::RenderException& e) {
+        LOG_WARN(GpuLog, "Flushing device during adapter change failed: {}. This is OK when recovering from a device removal.", e);
+    }
+}
+
+void CoreContext::createNewDevice(AdapterLUID luid) {
+    if (luid == getAdapter()) {
+        recreateCurrentDevice();
+    } else {
+        moveToNewDevice(luid);
+    }
+}
+
 #pragma region Constructor
 
 CoreContext::CoreContext(ContextConfig config) noexcept(false)
@@ -296,17 +358,9 @@ CoreContext::~CoreContext() noexcept try {
     LOG_ERROR(RenderLog, "Failed to flush device: unknown error");
 }
 
-void CoreContext::beginDeviceSetup() {
-    try {
-        flushDevice();
-    } catch (const render::RenderException& e) {
-        LOG_WARN(GpuLog, "Flushing device during adapter change failed: {}. This is OK when recovering from a device removal.", e);
-    }
-}
-
 void CoreContext::setAdapter(AdapterLUID luid) {
     beginDeviceSetup();
-    createNewDevice(luid, []{ });
+    createNewDevice(luid);
     createDeviceState(mSwapChainFactory, mSwapChainInfo);
 }
 
