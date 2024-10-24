@@ -74,7 +74,11 @@ CoreDebugState::CoreDebugState(DebugFlags flags) noexcept(false) {
     bool enableDebugLayer = gpuValidation || nameObjects || deviceRemovedInfo;
 
     mDebugLayer = setupDebugLayer(enableDebugLayer);
-    mGpuValidation = enableGpuValidation(mDebug, gpuValidation);
-    mAutoNamedObjects = enableAutoName(mDebug, nameObjects);
+
+    if (mDebug) {
+        mGpuValidation = enableGpuValidation(mDebug, gpuValidation);
+        mAutoNamedObjects = enableAutoName(mDebug, nameObjects);
+    }
+
     mDeviceRemovedInfo = setupDeviceRemovedInfo(deviceRemovedInfo);
 }

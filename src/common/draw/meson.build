@@ -1,3 +1,7 @@
+###
+### implementation
+###
+
 draw_include = include_directories('.', 'include')
 
 src = [
@@ -18,11 +22,12 @@ src = [
     'src/components/camera.cpp',
 
     # next draw passes
+    'src/next/context.cpp',
     'src/next/blit.cpp',
     'src/next/opaque.cpp',
 ]
 
-deps = [ render, input, logs ]
+deps = [ render, input, logs, imgui ]
 
 libdraw = library('draw', src,
     cpp_args : [ '-DSM_DRAW_BUILD=1' ],
@@ -36,5 +41,30 @@ draw = declare_dependency(
     include_directories : draw_include,
     dependencies : deps
 )
+
+###
+### tools
+###
+
+subdir('tools')
+
+###
+### test utils
+###
+
+libdrawtest = library('draw-test', 'test/draw_test_common.cpp',
+    include_directories : '.',
+    dependencies : [ draw, rendertest ]
+)
+
+drawtest = declare_dependency(
+    link_with : libdrawtest,
+    include_directories : '.',
+    dependencies : [ draw, rendertest ]
+)
+
+###
+### tests
+###
 
 subdir('test')

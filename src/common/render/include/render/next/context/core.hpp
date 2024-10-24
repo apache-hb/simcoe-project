@@ -24,14 +24,6 @@ namespace sm::render::next {
         UINT srvHeapSize = 0;
     };
 
-    class IContextResource {
-    public:
-        virtual ~IContextResource() = default;
-
-        virtual void reset() = 0;
-        virtual void create() = 0;
-    };
-
     class CoreContext {
         struct DeviceSearchOptions {
             FeatureLevel level;
@@ -58,6 +50,7 @@ namespace sm::render::next {
 
         /// device management
 
+    protected:
         DebugFlags mDebugFlags;
         Instance mInstance;
         CoreDebugState mDebugState;
@@ -71,9 +64,6 @@ namespace sm::render::next {
         CoreDevice selectPreferredDevice(AdapterLUID luidOverride, DeviceSearchOptions options);
 
         CoreDevice selectDevice(const ContextConfig& config);
-
-        // resources that depend on the device
-        std::vector<std::unique_ptr<IContextResource>> mDeviceResources;
 
         void resetDeviceResources();
 
@@ -106,14 +96,6 @@ namespace sm::render::next {
         /// direct command list
         std::unique_ptr<CommandBufferSet> mDirectCommandSet;
         void createDirectCommandList();
-
-        /// compute queue
-        Object<ID3D12CommandQueue> mComputeQueue;
-        void createComputeQueue();
-
-        /// compute command list
-        std::unique_ptr<CommandBufferSet> mComputeCommandSet;
-        void createComputeCommandList();
 
         /// swapchain
         ISwapChainFactory *mSwapChainFactory;
@@ -152,6 +134,7 @@ namespace sm::render::next {
         AdapterLUID getAdapter() const noexcept { return mDevice.luid(); }
         const Adapter& getWarpAdapter() noexcept { return mInstance.getWarpAdapter(); }
         ID3D12Device *getDevice() const noexcept { return mDevice.get(); }
+        SwapChainLimits getSwapChainLimits() const noexcept { return mSwapChainFactory->limits(); }
 
         /// update rendering device state
 

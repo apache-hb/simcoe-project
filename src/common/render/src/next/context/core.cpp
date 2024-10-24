@@ -35,7 +35,7 @@ UINT CoreContext::getRequiredDsvHeapSize() const {
 }
 
 UINT CoreContext::getRequiredSrvHeapSize() const {
-    return mExtraSrvHeapSize;
+    return std::max(mExtraSrvHeapSize, 1u);
 }
 
 #pragma region Device
@@ -168,9 +168,8 @@ void CoreContext::createDsvHeap() {
 }
 
 void CoreContext::createSrvHeap() {
-    if (UINT size = getRequiredSrvHeapSize()) {
-        mSrvHeap = std::make_unique<DescriptorPool>(mDevice, size, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, false);
-    }
+    UINT size = getRequiredSrvHeapSize();
+    mSrvHeap = std::make_unique<DescriptorPool>(mDevice, size, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 }
 
 #pragma region Allocator
@@ -351,6 +350,7 @@ void CoreContext::begin() {
     CommandBufferSet& commands = *mDirectCommandSet;
 
     ID3D12Resource *surface = surfaceAt(mCurrentBackBuffer);
+    ID3D12DescriptorHeap *heaps[] = { mSrvHeap->get() };
     const D3D12_RESOURCE_BARRIER cIntoRenderTarget[] = {
         CD3DX12_RESOURCE_BARRIER::Transition(
             surface,
@@ -359,6 +359,21 @@ void CoreContext::begin() {
         )
     };
 
+    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = { rtvHandleAt(mCurrentBackBuffer) };
+
+    commands->SetDescriptorHeaps(_countof(heaps), heaps);
+
+    commands->ResourceBarrier(_countof(cIntoRenderTarget), cIntoRenderTarget);
+
+    commands->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+
+    commands->ClearRenderTargetView(rtvHandle, mSwapChainInfo.clearColour.data(), 0, nullptr);
+}
+
+void CoreContext::end() {
+    CommandBufferSet& commands = *mDirectCommandSet;
+
+    ID3D12Resource *surface = surfaceAt(mCurrentBackBuffer);
     const D3D12_RESOURCE_BARRIER cIntoPresent[] = {
         CD3DX12_RESOURCE_BARRIER::Transition(
             surface,
@@ -367,19 +382,7 @@ void CoreContext::begin() {
         )
     };
 
-    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = { rtvHandleAt(mCurrentBackBuffer) };
-
-    commands->ResourceBarrier(_countof(cIntoRenderTarget), cIntoRenderTarget);
-
-    commands->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
-
-    commands->ClearRenderTargetView(rtvHandle, mSwapChainInfo.clearColour.data(), 0, nullptr);
-
     commands->ResourceBarrier(_countof(cIntoPresent), cIntoPresent);
-}
-
-void CoreContext::end() {
-    CommandBufferSet& commands = *mDirectCommandSet;
 
     ID3D12CommandList *lists[] = { commands.close() };
     mDirectQueue->ExecuteCommandLists(_countof(lists), lists);

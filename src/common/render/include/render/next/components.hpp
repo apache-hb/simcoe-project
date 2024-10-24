@@ -23,6 +23,7 @@ namespace sm::render::next {
 
         UINT getDescriptorSize() const noexcept { return mDescriptorSize; }
         bool isShaderVisible() const noexcept { return mIsShaderVisible; }
+        ID3D12DescriptorHeap *get() noexcept { return mHeap.get(); }
 
         D3D12_CPU_DESCRIPTOR_HANDLE getFirstHostHandle() const noexcept { return mFirstHostHandle; }
         D3D12_GPU_DESCRIPTOR_HANDLE getFirstDeviceHandle() const noexcept { return mFirstDeviceHandle; }
@@ -63,6 +64,7 @@ namespace sm::render::next {
 
         ID3D12GraphicsCommandList *close();
 
-        ID3D12GraphicsCommandList *operator->() noexcept { return mCommandList.get(); }
+        ID3D12GraphicsCommandList *get() noexcept { return mCommandList.get(); }
+        ID3D12GraphicsCommandList *operator->() noexcept { return get(); }
     };
 }

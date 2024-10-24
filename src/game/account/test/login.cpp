@@ -2,8 +2,6 @@
 
 #include "account/account.hpp"
 
-#include "account.dao.hpp"
-
 using namespace sm;
 
 static constexpr net::Address kAddress = net::Address::loopback();

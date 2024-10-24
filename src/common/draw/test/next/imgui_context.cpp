@@ -1,14 +1,13 @@
-#include "test/render_test_common.hpp"
+#include "test/draw_test_common.hpp"
 
 #include "draw/components/camera.hpp"
-#include "draw/next/opaque.hpp"
-#include "draw/next/blit.hpp"
+#include "draw/next/context.hpp"
 
 namespace dn = sm::draw::next;
 
-TEST_CASE("Opaque draw") {
+TEST_CASE("Dear ImGui DrawContext") {
     system::create(GetModuleHandle(nullptr));
-    WindowContextTest test{30};
+    DrawWindowTestContext test{30};
     auto& context = test.getContext();
 
     [[maybe_unused]]
