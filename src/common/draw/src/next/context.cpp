@@ -15,10 +15,10 @@ static render::next::ContextConfig updateConfig(render::next::ContextConfig curr
 
 DrawContext::DrawContext(render::next::ContextConfig config, HWND hwnd)
     : Super(updateConfig(config))
+    , mImGui(hwnd)
 {
     mImGui.create();
-    mImGui.setupPlatform(hwnd);
-    mImGui.setupRender(getDevice(), mSwapChainInfo.format, mSwapChainInfo.length, *mSrvHeap, 0);
+    setupImGuiRenderState();
 }
 
 DrawContext::~DrawContext() noexcept {
@@ -43,14 +43,19 @@ void ImGuiDrawContext::create() {
     }
 }
 
-void ImGuiDrawContext::setupPlatform(HWND hwnd) {
-    ImGui_ImplWin32_Init(hwnd);
+void ImGuiDrawContext::setupPlatform() {
+    ImGui_ImplWin32_Init(mWindow);
 }
 
 void ImGuiDrawContext::setupRender(ID3D12Device *device, DXGI_FORMAT format, UINT frames, render::next::DescriptorPool& srvHeap, size_t srvHeapIndex) {
     D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = srvHeap.getDeviceDescriptorHandle(srvHeapIndex);
     D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = srvHeap.getHostDescriptorHandle(srvHeapIndex);
     ImGui_ImplDX12_Init(device, frames, format, srvHeap.get(), cpuHandle, gpuHandle);
+}
+
+void ImGuiDrawContext::destroyRender() {
+    ImGui_ImplDX12_Shutdown();
+    ImGui_ImplWin32_Shutdown();
 }
 
 void ImGuiDrawContext::destroy() noexcept {
@@ -78,6 +83,11 @@ void ImGuiDrawContext::end(ID3D12GraphicsCommandList *list) {
     }
 }
 
+void DrawContext::setupImGuiRenderState() {
+    mImGui.setupPlatform();
+    mImGui.setupRender(getDevice(), mSwapChainInfo.format, mSwapChainInfo.length, *mSrvHeap, 0);
+}
+
 void DrawContext::begin() {
     Super::begin();
     mImGui.begin();
@@ -86,4 +96,15 @@ void DrawContext::begin() {
 void DrawContext::end() {
     mImGui.end(mDirectCommandSet->get());
     Super::end();
+}
+
+void DrawContext::setAdapter(render::AdapterLUID luid) {
+    beginDeviceSetup();
+
+    createNewDevice(luid, [&] {
+        mImGui.destroyRender();
+    });
+
+    createDeviceState(mSwapChainFactory, mSwapChainInfo);
+    setupImGuiRenderState();
 }

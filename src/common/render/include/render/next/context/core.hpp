@@ -119,6 +119,41 @@ namespace sm::render::next {
         /// lifetime management
         void createDeviceState(ISwapChainFactory *swapChainFactory, SurfaceInfo swapChainInfo);
 
+        void beginDeviceSetup();
+
+        void recreateCurrentDevice(auto&& fn) {
+            FeatureLevel level = mDevice.level();
+            AdapterLUID luid = mDevice.luid();
+
+            // when recreating the device, we reset all resources first
+            // as we will be using the same device and preserving the resources
+            // will cause d3d12 to give us the same (still removed) device handle.
+            fn();
+            resetDeviceResources();
+            mDevice = createDevice(luid, level, mDebugFlags);
+        }
+
+        void moveToNewDevice(AdapterLUID luid, auto&& fn) {
+            // when moving to a new device, we create the device first
+            // and then reset all resources.
+            // this is to ensure we don't leave ourselves in an invalid state
+            // if the new device creation fails.
+            FeatureLevel level = mDevice.level();
+            CoreDevice device = createDevice(luid, level, mDebugFlags);
+
+            fn();
+            resetDeviceResources();
+            mDevice = std::move(device);
+        }
+
+        void createNewDevice(AdapterLUID luid, auto&& fn) {
+            if (luid == getAdapter()) {
+                recreateCurrentDevice(fn);
+            } else {
+                moveToNewDevice(luid, fn);
+            }
+        }
+
         /// gpu timeline
         void advanceFrame();
         void flushDevice();

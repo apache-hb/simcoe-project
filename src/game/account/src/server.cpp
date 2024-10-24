@@ -95,7 +95,6 @@ void AccountServer::handleLogin(sm::net::Socket& socket, game::LoginRequestPacke
     std::lock_guard guard(mDbMutex);
     std::optional<acd::User> optUser = getUserByName(mAccountDb, name);
     if (!optUser.has_value()) {
-        fmt::println(stderr, "user not found: {}", name);
         sendResponse(LoginResult::eFailure);
         return;
     }
@@ -107,7 +106,6 @@ void AccountServer::handleLogin(sm::net::Socket& socket, game::LoginRequestPacke
     if (user.password == password) {
         sendResponse(LoginResult::eSuccess);
     } else {
-        fmt::println(stderr, "password mismatch: {} != {}", user.password, password);
         sendResponse(LoginResult::eFailure);
     }
 } catch (const db::DbException& e) {
