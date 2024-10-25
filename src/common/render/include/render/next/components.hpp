@@ -41,7 +41,7 @@ namespace sm::render::next {
         Object<ID3D12Fence> mFence;
         GuardHandle mEvent;
     public:
-        Fence(CoreDevice& device, uint64_t initialValue = 0) throws(RenderException);
+        Fence(CoreDevice& device, uint64_t initialValue = 0, const char *name = "Fence") throws(RenderException);
 
         uint64_t value() const;
         void wait(uint64_t value);

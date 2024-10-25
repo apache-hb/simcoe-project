@@ -71,8 +71,8 @@ struct VirtualContextTest {
     ContextTest<next::CoreContext> context;
     FrameEvents frames;
 
-    VirtualContextTest(int frameCount)
-        : context({ 800, 600 }, &virtualSwapChain)
+    VirtualContextTest(int frameCount, bool debug = true)
+        : context({ 800, 600 }, &virtualSwapChain, debug)
         , frames(frameCount)
     { }
 
@@ -106,8 +106,8 @@ struct WindowBaseTest {
     next::WindowSwapChainFactory windowSwapChain;
     FrameEvents frames;
 
-    WindowBaseTest(int frameCount)
-        : name(sm::system::getProgramName())
+    WindowBaseTest(int frameCount, std::string name = sm::system::getProgramName())
+        : name(std::move(name))
         , window(newWindowConfig(name.c_str()), events)
         , windowSwapChain(window.getHandle())
         , frames(frameCount)

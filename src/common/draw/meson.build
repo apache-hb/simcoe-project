@@ -21,6 +21,9 @@ src = [
     # next draw
     'src/components/camera.cpp',
 
+    'src/resources/imgui.cpp',
+    'src/resources/compute.cpp',
+
     # next draw passes
     'src/next/context.cpp',
     'src/next/blit.cpp',

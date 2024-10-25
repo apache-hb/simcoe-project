@@ -38,9 +38,9 @@ namespace sm::render::next {
     public:
         virtual ~IContextResource() noexcept = default;
 
-        virtual void reset() = 0;
+        virtual void reset() noexcept = 0;
         virtual void create() = 0;
-        virtual void update(SurfaceInfo info) = 0;
+        virtual void update(SurfaceInfo info) { }
     };
 
     using ResourceSet = std::unordered_set<std::unique_ptr<IContextResource>>;
@@ -170,10 +170,16 @@ namespace sm::render::next {
         AdapterLUID getAdapter() const noexcept { return mDevice.luid(); }
         const Adapter& getWarpAdapter() noexcept { return mInstance.getWarpAdapter(); }
         SwapChainLimits getSwapChainLimits() const noexcept { return mSwapChainFactory->limits(); }
+
+        /// current swapchain info
+
         SurfaceInfo getSwapChainInfo() const noexcept { return mSwapChainInfo; }
+        UINT getSwapChainLength() const noexcept { return mSwapChainInfo.length; }
+        math::uint2 getSwapChainSize() const noexcept { return mSwapChainInfo.size; }
 
         /// render object access
 
+        CoreDevice& getCoreDevice() noexcept { return mDevice; }
         ID3D12Device *getDevice() const noexcept { return mDevice.get(); }
         DescriptorPool& getSrvHeap() noexcept { return *mSrvHeap; }
 

@@ -5,6 +5,7 @@ subdir('redist/d3d12')
 
 testcases = {
     'Setup DrawContext': 'context.cpp',
+    'DrawContext has correct cleanup': 'next/draw_context_cleanup.cpp',
 
     'Dear ImGui DrawContext setup': 'next/imgui_context.cpp',
     'Dear ImGui DrawContext setup without debug layer': 'next/imgui_context_no_debug_layer.cpp',

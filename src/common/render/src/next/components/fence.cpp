@@ -19,9 +19,9 @@ Fence::GuardHandle Fence::newEvent(LPCSTR name) {
     return GuardHandle{event, kCloseHandle};
 }
 
-Fence::Fence(CoreDevice& device, uint64_t initialValue) noexcept(false)
+Fence::Fence(CoreDevice& device, uint64_t initialValue, const char *name) noexcept(false)
     : mFence(newFence(device, initialValue))
-    , mEvent(Fence::newEvent("FenceEvent"))
+    , mEvent(Fence::newEvent(name))
 { }
 
 uint64_t Fence::value() const {

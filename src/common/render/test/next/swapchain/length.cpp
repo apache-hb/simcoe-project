@@ -1,8 +1,5 @@
 #include "render_test_common.hpp"
 
-#include "render/next/context/core.hpp"
-#include "render/next/surface/virtual.hpp"
-
 #include <random>
 
 using namespace sm;

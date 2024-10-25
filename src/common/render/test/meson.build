@@ -34,8 +34,12 @@ testcases = {
     'Setup render instance': 'instance.cpp',
     'Save render device data': 'store.cpp',
 
-    'Create render next CoreContext': 'next/context.cpp',
-    'Create render next CoreContext with debug features': 'next/context_debug.cpp',
+    'Create render next CoreContext': 'next/context/create.cpp',
+    'Create render next CoreContext with debug features': 'next/context/create_debug.cpp',
+
+    'CoreContext removeDevice is idempotent': 'next/context/remove_device_idempotent.cpp',
+    'CoreContext setAdapter is idempotent': 'next/context/set_adapter_idempotent.cpp',
+    'CoreContext updateSwapChain is idempotent': 'next/context/update_swapchain_idempotent.cpp',
 
     'Window swapchain': 'next/swapchain/window.cpp',
 
