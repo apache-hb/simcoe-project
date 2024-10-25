@@ -21,6 +21,7 @@
 #define SNET_END_OF_PACKET 12001
 #define SNET_READ_TIMEOUT 12002
 #define SNET_CONNECTION_CLOSED 12003
+#define SNET_CONNECTION_FAILED 12004
 
 #define SNET_LAST_STATUS 12999
 
@@ -57,6 +58,11 @@ namespace sm::net {
         using Super = errors::Exception<NetError>;
     public:
         using Super::Super;
+
+        template<typename... A>
+        NetException(int code, fmt::format_string<A...> fmt, A&&... args)
+            : Super(NetError(code, fmt, args...))
+        { }
     };
 
     template<typename T>
@@ -97,21 +103,36 @@ namespace sm::net {
         }
 
         IPv4Bytes v4address() const noexcept { return mIpv4Address; }
+        bool hasHostName() const noexcept { return !mHostName.empty(); }
+        std::string hostName() const noexcept { return mHostName; }
 
         static constexpr Address loopback() noexcept {
             return ipv4(127, 0, 0, 1);
         }
 
+        static constexpr Address any() noexcept {
+            return ipv4(0, 0, 0, 0);
+        }
+
+        static constexpr Address of(std::string host) noexcept {
+            return Address{std::move(host)};
+        }
+
     private:
         IPv4Data mIpv4Address;
+        std::string mHostName;
 
         constexpr Address(IPv4Data data) noexcept
             : mIpv4Address(data)
         { }
+
+        constexpr Address(std::string host) noexcept
+            : mHostName(std::move(host))
+        { }
     };
 
-    std::string toAddressString(Address addr);
-    std::string toString(Address addr);
+    std::string toAddressString(const Address& addr);
+    std::string toString(const Address& addr);
 
     struct [[nodiscard]] ReadResult {
         size_t size;
@@ -222,13 +243,10 @@ namespace sm::net {
             return throwIfFailed(tryCreate());
         }
 
-        NetResult<Socket> tryConnect(Address address, uint16_t port) noexcept;
-        Socket connect(Address address, uint16_t port) throws(NetException) {
-            return throwIfFailed(tryConnect(address, port));
-        }
+        Socket connect(const Address& address, uint16_t port) throws(NetException);
 
-        NetResult<ListenSocket> tryBind(Address address, uint16_t port) noexcept;
-        ListenSocket bind(Address address, uint16_t port) throws(NetException) {
+        NetResult<ListenSocket> tryBind(const Address& address, uint16_t port) noexcept;
+        ListenSocket bind(const Address& address, uint16_t port) throws(NetException) {
             return throwIfFailed(tryBind(address, port));
         }
 

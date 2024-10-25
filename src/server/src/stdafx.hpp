@@ -2,6 +2,8 @@
 
 // IWYU pragma: begin_exports
 
+#include "core/win32.hpp"
+
 #include "backtrace/backtrace.h"
 #include "base/panic.h"
 #include "format/backtrace.h"

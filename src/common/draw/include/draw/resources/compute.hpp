@@ -9,7 +9,7 @@ namespace sm::draw::next {
         render::Object<ID3D12CommandQueue> mComputeQueue;
         void createCommandQueue();
 
-        std::unique_ptr<render::next::CommandBufferSet> mComputeCommandSet;
+        std::unique_ptr<render::next::CommandBufferSet> mCommandSet;
         void createCommandList(UINT length);
 
         std::unique_ptr<render::next::Fence> mComputeFence;
@@ -19,6 +19,9 @@ namespace sm::draw::next {
         ComputeContext(render::next::CoreContext& ctx);
 
         void setup(UINT length);
+
+        void begin();
+        void end();
 
         // IContextResource
         void reset() noexcept override;

@@ -40,11 +40,17 @@ static std::string fmtIp6Address(Address::IPv6Bytes bytes) {
 }
 #endif
 
-std::string net::toAddressString(Address addr) {
+std::string net::toAddressString(const Address& addr) {
+    if (addr.hasHostName())
+        return addr.hostName();
+
     return fmtIp4Address(addr.v4address());
 }
 
-std::string net::toString(Address addr) {
+std::string net::toString(const Address& addr) {
+    if (addr.hasHostName())
+        return fmt::format("HostName({})", addr.hostName());
+
     return fmt::format("IPv4Address({})", fmtIp4Address(addr.v4address()));
 }
 
@@ -56,6 +62,8 @@ static std::string fmtOsError(int code) {
         return "End of packet (" CT_STR(SNET_END_OF_PACKET) ")";
     case SNET_CONNECTION_CLOSED:
         return "Connection closed (" CT_STR(SNET_CONNECTION_CLOSED) ")";
+    case SNET_CONNECTION_FAILED:
+        return "Connection failed (" CT_STR(SNET_CONNECTION_FAILED) ")";
     default:
         return fmt::format("OS error: {} ({})", OsError(code), code);
     }
@@ -92,7 +100,7 @@ void net::destroy(void) noexcept {
 
     int result = WSACleanup();
     if (result != 0) {
-        LOG_ERROR(NetLog, "WSACleanup failed with error: {error}", result);
+        LOG_ERROR(NetLog, "WSACleanup failed with error: {}", result);
     }
 
     gNetData = WSADATA{};
@@ -105,12 +113,15 @@ NetResult<Network> Network::tryCreate() noexcept {
     return Network{};
 }
 
-static SOCKET findOpenSocket(addrinfo *info) noexcept {
+static SOCKET findOpenSocket(addrinfo *info) noexcept(false) {
     for (addrinfo *ptr = info; ptr != nullptr; ptr = ptr->ai_next) {
+
+        // if we fail to even create a socket then throw an exception
         SOCKET socket = ::socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
         if (socket == INVALID_SOCKET)
-            return socket;
+            throw NetException{lastNetError()};
 
+        // failing to connect is acceptable, we can try the next address
         int err = ::connect(socket, ptr->ai_addr, ptr->ai_addrlen);
         if (err != SOCKET_ERROR)
             return socket;
@@ -118,10 +129,11 @@ static SOCKET findOpenSocket(addrinfo *info) noexcept {
         closesocket(socket);
     }
 
-    return INVALID_SOCKET;
+    // if we reach this point then we failed to connect to any address
+    throw NetException{SNET_CONNECTION_FAILED};
 }
 
-NetResult<Socket> Network::tryConnect(Address address, uint16_t port) noexcept {
+Socket Network::connect(const Address& address, uint16_t port) noexcept(false) {
     addrinfo hints = {
         .ai_family = AF_UNSPEC,
         .ai_socktype = SOCK_STREAM,
@@ -133,20 +145,15 @@ NetResult<Socket> Network::tryConnect(Address address, uint16_t port) noexcept {
     std::string addr = toAddressString(address);
     std::string p = std::to_string(port);
     if (int err = getaddrinfo(addr.c_str(), p.c_str(), &hints, &result)) {
-        return std::unexpected(NetError(err, "getaddrinfo({}:{})", addr, p));
+        throw NetException{err, "getaddrinfo({}:{})", addr, p};
     }
 
-    SOCKET socket = findOpenSocket(result);
+    defer { freeaddrinfo(result); };
 
-    freeaddrinfo(result);
-
-    if (socket == INVALID_SOCKET)
-        return std::unexpected(lastNetError());
-
-    return Socket{socket};
+    return Socket{findOpenSocket(result)};
 }
 
-NetResult<ListenSocket> Network::tryBind(Address address, uint16_t port) noexcept {
+NetResult<ListenSocket> Network::tryBind(const Address& address, uint16_t port) noexcept {
     addrinfo hints = {
         .ai_flags = AI_PASSIVE,
         .ai_family = AF_INET,

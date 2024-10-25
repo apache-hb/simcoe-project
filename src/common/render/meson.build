@@ -15,6 +15,7 @@ ags = dependency('amd_ags', required : get_option('amd_ags_enable'))
 framegraph_trace_feature = get_option('framegraph_trace').disable_auto_if(is_release)
 warp_feature = get_option('warp_enable').disable_auto_if(is_release)
 pix_feature = get_option('pix_enable').disable_auto_if(is_release)
+agility_feature = get_option('agility_enable')
 
 render_cdata = configuration_data()
 render_cdata.set10('SMC_RENDER_ENABLE_NVAPI', nvapi.found())
@@ -22,6 +23,7 @@ render_cdata.set10('SMC_RENDER_ENABLE_AMD_AGS', ags.found())
 render_cdata.set10('SMC_RENDER_FRAMEGRAPH_TRACE', framegraph_trace_feature.allowed())
 render_cdata.set10('SMC_RENDER_ENABLE_WINPIXRUNTIME', pix_feature.allowed())
 render_cdata.set10('SMC_RENDER_ENABLE_WARP', warp_feature.allowed())
+render_cdata.set10('SMC_RENDER_ENABLE_AGILITY', agility_feature.allowed())
 
 render_config = configure_file(
     output : 'simcoe_render_config.h',

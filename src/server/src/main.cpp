@@ -17,17 +17,14 @@ using namespace std::chrono_literals;
 
 LOG_MESSAGE_CATEGORY(LaunchLog, "Launch");
 
-#if 0
 static sm::opt<bool> gRunAsClient {
     name = "client",
     desc = "Run as a client",
     init = false
 };
 
-static constexpr net::IPv4Address kAddress = net::IPv4Address::loopback();
-static constexpr uint16_t kPort = 9979;
-
 static int clientMain() noexcept try {
+#if 0
     net::Network network = net::Network::create();
 
     auto socket = network.connect(kAddress, kPort);
@@ -56,7 +53,7 @@ static int clientMain() noexcept try {
     }
 
     LOG_INFO(GlobalLog, "received create account response: {}", response.status);
-
+#endif
     return 0;
 } catch (std::exception& err) {
     LOG_ERROR(GlobalLog, "unhandled exception in client: {}", err.what());
@@ -66,39 +63,8 @@ static int clientMain() noexcept try {
     return -1;
 }
 
-static void recvDataPacket(std::span<std::byte> dst, net::Socket& socket, game::PacketHeader header) {
-    std::memcpy(dst.data(), &header, sizeof(header));
-    size_t size = game::getPacketDataSize(header);
-
-    size_t read = socket.recvBytes(dst.data() + sizeof(header), size).value();
-    if (read != size) {
-        LOG_ERROR(GlobalLog, "failed to receive all packet data: expected {}, got {}", size, read);
-    }
-}
-
-static std::string createSalt(int length) {
-    static constexpr char kChars[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    std::random_device random{};
-    std::mt19937 gen(random());
-
-    std::uniform_int_distribution<int> dist(0, sizeof(kChars) - 1);
-
-    std::string salt;
-    salt.reserve(length);
-
-    for (int i = 0; i < length; i++) {
-        salt.push_back(kChars[dist(gen)]);
-    }
-
-    return salt;
-}
-
-static uint64_t hashWithSalt(const std::string& password, const std::string& salt) {
-    std::string combined = password + salt;
-    return std::hash<std::string>{}(combined);
-}
-
-static int serverMain() {
+static int serverMain() noexcept try {
+#if 0
     db::Environment sqlite = db::Environment::create(db::DbType::eSqlite3);
 
     db::Connection users = sqlite.connect({ .host = "server-users.db" });
@@ -185,21 +151,25 @@ static int serverMain() {
 
     threads.clear();
 
-    return 0;
-}
 #endif
+    return 0;
+} catch (std::exception& err) {
+    LOG_ERROR(GlobalLog, "unhandled exception in server: {}", err.what());
+    return -1;
+} catch (...) {
+    LOG_ERROR(GlobalLog, "unknown unhandled exception in server");
+    return -1;
+}
 
 static int commonMain() noexcept try {
     LOG_INFO(GlobalLog, "SMC_DEBUG = {}", SMC_DEBUG);
     LOG_INFO(GlobalLog, "CTU_DEBUG = {}", CTU_DEBUG);
 
-#if 0
     if (gRunAsClient.getValue()) {
         return clientMain();
     } else {
         return serverMain();
     }
-#endif
 
     return 0;
 } catch (const std::exception& err) {

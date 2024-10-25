@@ -21,13 +21,16 @@ src = [
     # next draw
     'src/components/camera.cpp',
 
+    # draw context resources
     'src/resources/imgui.cpp',
     'src/resources/compute.cpp',
 
     # next draw passes
+    'src/passes/blit.cpp',
+    'src/passes/opaque.cpp',
+
+    # next draw contexts
     'src/next/context.cpp',
-    'src/next/blit.cpp',
-    'src/next/opaque.cpp',
 ]
 
 deps = [ render, input, logs, imgui ]

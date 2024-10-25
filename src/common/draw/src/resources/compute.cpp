@@ -17,7 +17,7 @@ void ComputeContext::createCommandQueue() {
 
 void ComputeContext::createCommandList(UINT length) {
     CoreDevice& device = mContext.getCoreDevice();
-    mComputeCommandSet = std::make_unique<CommandBufferSet>(device, D3D12_COMMAND_LIST_TYPE_COMPUTE, length);
+    mCommandSet = std::make_unique<CommandBufferSet>(device, D3D12_COMMAND_LIST_TYPE_COMPUTE, length);
 }
 
 void ComputeContext::createFence() {
@@ -32,7 +32,7 @@ void ComputeContext::setup(UINT length) {
 }
 
 void ComputeContext::reset() noexcept {
-    mComputeCommandSet.reset();
+    mCommandSet.reset();
     mComputeQueue.reset();
     mComputeFence.reset();
 }
@@ -43,4 +43,12 @@ void ComputeContext::create() {
 
 void ComputeContext::update(render::next::SurfaceInfo info) {
     createCommandList(info.length);
+}
+
+void ComputeContext::begin() {
+
+}
+
+void ComputeContext::end() {
+
 }

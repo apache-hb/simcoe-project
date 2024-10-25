@@ -79,6 +79,8 @@ namespace sm::system {
         WindowCoords getCoords() const { return get_coords(); }
         WindowCoords getClientCoords() const { return get_client_coords(); }
 
+        math::uint2 getClientSize() const { return getClientCoords().size(); }
+
         HWND get_handle() const { return mWindow; }
         HWND getHandle() const { return get_handle(); }
     };

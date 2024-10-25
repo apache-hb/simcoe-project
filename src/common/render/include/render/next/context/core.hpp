@@ -12,11 +12,11 @@ namespace sm::render::next {
     class CoreContext;
 
     struct ContextConfig {
-        DebugFlags flags;
+        DebugFlags flags = DebugFlags::eNone;
 
         AdapterLUID adapterOverride;
-        AdapterPreference autoSearchBehaviour;
-        FeatureLevel targetLevel;
+        AdapterPreference autoSearchBehaviour = AdapterPreference::eMinimumPower;
+        FeatureLevel targetLevel = FeatureLevel::eLevel_11_0;
         bool allowSoftwareAdapter = false;
 
         ISwapChainFactory *swapChainFactory = nullptr;

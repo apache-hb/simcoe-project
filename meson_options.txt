@@ -47,6 +47,11 @@ option('warp_enable', type : 'feature',
     value : 'auto'
 )
 
+option('agility_enable', type : 'feature',
+    description : 'Enable agility SDK support',
+    value : 'auto'
+)
+
 option('framegraph_trace', type : 'feature',
     description : 'Enable framegraph debug tracing',
     value : 'disabled'

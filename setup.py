@@ -8,7 +8,6 @@ builddir = sys.argv[1]
 buildtype = sys.argv[2]
 basedir = 'data/meson'
 
-oracle_home = os.environ.get('ORACLE_HOME')
 has_db2 = os.environ.get('DB2INSTANCE') is not None
 
 meson_path = [ 'meson' ]
@@ -22,10 +21,6 @@ if __name__ == '__main__':
         '--native-file', f'{basedir}/clang-cl.ini',
         '--native-file', f'{basedir}/{buildtype}.ini'
     ]
-
-    if oracle_home:
-        oracle_home = oracle_home.replace('\\', '/')
-        args.append(f'-Doracledb-client:home={oracle_home}')
 
     # TODO: this is a bit fudged, but db2 doesnt provide either
     # a redist package i can wrap, or an environment variable

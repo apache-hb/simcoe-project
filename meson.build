@@ -387,13 +387,13 @@ executable('editor', src, game_bundle,
 
 subdir('src/server')
 
-executable('server', src,
-    cpp_pch : pch,
-    include_directories : inc,
-    install : true,
-    export_dynamic : true,
-    win_subsystem : 'console',
-    link_depends : [ manifest, res ],
-    link_args : link_args,
-    dependencies : deps
-)
+# executable('server', src,
+#     cpp_pch : pch,
+#     include_directories : inc,
+#     install : true,
+#     export_dynamic : true,
+#     win_subsystem : 'console',
+#     link_depends : [ manifest, res ],
+#     link_args : link_args,
+#     dependencies : deps
+# )

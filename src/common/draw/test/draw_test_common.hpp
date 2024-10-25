@@ -6,7 +6,11 @@
 
 using namespace sm::draw::next;
 
-struct DrawWindowTestContext : WindowBaseTest<> {
+struct ImGuiWindowEvents : public TestWindowEvents {
+    LRESULT event(system::Window& window, UINT message, WPARAM wparam, LPARAM lparam) override;
+};
+
+struct DrawWindowTestContext : WindowBaseTest<ImGuiWindowEvents> {
     ContextTest<DrawContext> context;
 
     DrawWindowTestContext(int frames, bool debug = true, std::string name = sm::system::getProgramName())

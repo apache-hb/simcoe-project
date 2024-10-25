@@ -26,10 +26,12 @@ DrawContext::~DrawContext() noexcept {
 
 void DrawContext::begin() {
     Super::begin();
+    mCompute->begin();
     mImGui->begin();
 }
 
 void DrawContext::end() {
+    mCompute->end();
     mImGui->end(mDirectCommandSet->get());
     Super::end();
 }

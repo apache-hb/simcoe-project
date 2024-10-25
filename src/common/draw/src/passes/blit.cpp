@@ -1,3 +1,3 @@
-#include "draw/next/blit.hpp"
+#include "draw/passes/blit.hpp"
 
 using namespace sm::draw::next;

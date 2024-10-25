@@ -85,7 +85,7 @@ struct VirtualContextTest {
     void doEvent() { frames.doEvent(); }
 };
 
-class TestWindowEvents final : public system::IWindowEvents {
+class TestWindowEvents : public system::IWindowEvents {
     void resize(system::Window& window, math::int2 size) override {
         if (context == nullptr)
             return;
@@ -106,8 +106,8 @@ struct WindowBaseTest {
     next::WindowSwapChainFactory windowSwapChain;
     FrameEvents frames;
 
-    WindowBaseTest(int frameCount, std::string name = sm::system::getProgramName())
-        : name(std::move(name))
+    WindowBaseTest(int frameCount, std::string windowName = sm::system::getProgramName())
+        : name(std::move(windowName))
         , window(newWindowConfig(name.c_str()), events)
         , windowSwapChain(window.getHandle())
         , frames(frameCount)

@@ -11,7 +11,9 @@ src = [
     daocc.process('data/logs.xml')
 ]
 
-deps = [ logs, db, dependency('concurrentqueue'), cthulhu.get_variable('format_core') ]
+moodycamel = dependency('concurrentqueue')
+
+deps = [ logs, db, moodycamel, cthulhu.get_variable('format_core') ]
 
 liblog_sinks = library('log-sinks', src,
     cpp_args : [ '-DSM_STRUCTURED_LOGS_SINKS_BUILD=1' ],
