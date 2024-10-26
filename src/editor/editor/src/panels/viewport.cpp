@@ -366,7 +366,7 @@ void ecs::drawViewportWindows(render::IDeviceContext& ctx, flecs::world& world) 
         | ImGuiWindowFlags_NoCollapse;
 
     static constexpr ImGuiChildFlags kOverlayChildFlags
-        = ImGuiChildFlags_Border
+        = ImGuiChildFlags_Borders
         | ImGuiChildFlags_AutoResizeX
         | ImGuiChildFlags_AutoResizeY;
 

@@ -237,6 +237,7 @@ subdir('src/vendor/imnodes')
 subdir('src/vendor/imgui_memory_editor')
 
 subdir('src/common/render')
+subdir('src/common/graph')
 subdir('src/common/draw')
 subdir('src/common/game')
 

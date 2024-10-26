@@ -121,14 +121,14 @@ void RenderConfig::draw_allocator_info() const {
 
         float width = avail.x / 2.f - style.ItemSpacing.x;
 
-        ImGui::BeginChild("Local Budget", ImVec2(width, 150), ImGuiChildFlags_Border);
+        ImGui::BeginChild("Local Budget", ImVec2(width, 150), ImGuiChildFlags_Borders);
         ImGui::SeparatorText("Local");
         display_mem_budget(local);
         ImGui::EndChild();
 
         ImGui::SameLine();
 
-        ImGui::BeginChild("Non-Local Budget", ImVec2(width, 150), ImGuiChildFlags_Border);
+        ImGui::BeginChild("Non-Local Budget", ImVec2(width, 150), ImGuiChildFlags_Borders);
         ImGui::SeparatorText("Non-Local");
         display_mem_budget(nolocal);
         ImGui::EndChild();

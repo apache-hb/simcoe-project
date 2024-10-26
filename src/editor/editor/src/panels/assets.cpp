@@ -176,7 +176,7 @@ static void drawAssetBrowser(AssetBrowser& self) {
     }
 
     {
-        ImGui::BeginChild("AssetList", ImVec2(150, 0), ImGuiChildFlags_Border | ImGuiChildFlags_ResizeX);
+        ImGui::BeginChild("AssetList", ImVec2(150, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX);
         for (int i = world::eNone + 1; i < world::eCount; i++)
         {
             if (ImGui::Selectable(getIndexName((world::IndexType)i), self.activeTab == i))

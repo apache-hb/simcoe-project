@@ -84,6 +84,5 @@ bool MyGui::BeginPopupWindow(const char *title, ImGuiWindowFlags flags) {
         return false;
     }
     flags |= ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings;
-    ImGuiID id = g.CurrentWindow->GetID(title);
-    return ImGui::BeginPopupEx(id, flags, title);
+    return ImGui::BeginPopup(title, flags);
 }
