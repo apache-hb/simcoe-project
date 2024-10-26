@@ -21,6 +21,7 @@ DrawContext::DrawContext(render::next::ContextConfig config, HWND hwnd)
 }
 
 DrawContext::~DrawContext() noexcept {
+    flushDeviceForCleanup();
     mImGui->destroy();
 }
 

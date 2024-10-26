@@ -28,8 +28,15 @@ namespace sm::render::next {
         D3D12_CPU_DESCRIPTOR_HANDLE getFirstHostHandle() const noexcept { return mFirstHostHandle; }
         D3D12_GPU_DESCRIPTOR_HANDLE getFirstDeviceHandle() const noexcept { return mFirstDeviceHandle; }
 
-        D3D12_CPU_DESCRIPTOR_HANDLE getHostDescriptorHandle(size_t index) const noexcept;
-        D3D12_GPU_DESCRIPTOR_HANDLE getDeviceDescriptorHandle(size_t index) const noexcept;
+        D3D12_CPU_DESCRIPTOR_HANDLE host(size_t index) const noexcept;
+        D3D12_GPU_DESCRIPTOR_HANDLE device(size_t index) const noexcept;
+
+        size_t allocate();
+        D3D12_CPU_DESCRIPTOR_HANDLE allocateHost();
+        D3D12_GPU_DESCRIPTOR_HANDLE allocateDevice();
+
+        void free(D3D12_GPU_DESCRIPTOR_HANDLE handle);
+        void free(D3D12_CPU_DESCRIPTOR_HANDLE handle);
     };
 
     class Fence {

@@ -219,7 +219,7 @@ CoreContext::BackBufferList CoreContext::getSwapChainSurfaces(uint64_t initialVa
     for (UINT i = 0; i < length; i++) {
         ID3D12Resource *surface = mSwapChain->getSurface(i);
 
-        D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = mRtvHeap->getHostDescriptorHandle(i);
+        D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = mRtvHeap->host(i);
         mDevice->CreateRenderTargetView(surface, nullptr, rtvHandle);
 
         buffers[i] = BackBuffer {
@@ -274,13 +274,12 @@ void CoreContext::createDeviceState(ISwapChainFactory *swapChainFactory, Surface
 #pragma region Device Timeline
 
 void CoreContext::advanceFrame() {
-    uint64_t current = fenceValueAt(mCurrentBackBuffer);
+    const uint64_t current = fenceValueAt(mCurrentBackBuffer);
     SM_THROW_HR(mDirectQueue->Signal(mPresentFence->get(), current));
 
     setFrameIndex(mSwapChain->currentSurfaceIndex());
 
-    uint64_t value = fenceValueAt(mCurrentBackBuffer);
-    mPresentFence->wait(value);
+    mPresentFence->wait(fenceValueAt(mCurrentBackBuffer));
 
     fenceValueAt(mCurrentBackBuffer) = current + 1;
 }
@@ -320,7 +319,7 @@ void CoreContext::moveToNewDevice(AdapterLUID luid) {
     mDevice = std::move(device);
 }
 
-void CoreContext::beginDeviceSetup() {
+void CoreContext::flushDeviceForCleanup() {
     try {
         flushDevice();
     } catch (const render::RenderException& e) {
@@ -359,7 +358,7 @@ CoreContext::~CoreContext() noexcept try {
 }
 
 void CoreContext::setAdapter(AdapterLUID luid) {
-    beginDeviceSetup();
+    flushDeviceForCleanup();
     createNewDevice(luid);
     createDeviceState(mSwapChainFactory, mSwapChainInfo);
 }

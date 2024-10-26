@@ -6,6 +6,7 @@
 #include "render/next/device.hpp"
 #include "render/next/surface/surface.hpp"
 #include "render/next/components.hpp"
+
 #include <unordered_set>
 
 namespace sm::render::next {
@@ -152,7 +153,7 @@ namespace sm::render::next {
         /// lifetime management
         void createDeviceState(ISwapChainFactory *swapChainFactory, SurfaceInfo swapChainInfo);
 
-        void beginDeviceSetup();
+        void flushDeviceForCleanup();
         void createNewDevice(AdapterLUID luid);
 
         /// gpu timeline
@@ -182,6 +183,9 @@ namespace sm::render::next {
         CoreDevice& getCoreDevice() noexcept { return mDevice; }
         ID3D12Device *getDevice() const noexcept { return mDevice.get(); }
         DescriptorPool& getSrvHeap() noexcept { return *mSrvHeap; }
+        DescriptorPool& getRtvHeap() noexcept { return *mRtvHeap; }
+        DescriptorPool& getDsvHeap() noexcept { return *mDsvHeap; }
+        D3D12MA::Allocator *getAllocator() const noexcept { return mAllocator.get(); }
 
         /// update rendering device state
 

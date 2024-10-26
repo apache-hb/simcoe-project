@@ -5,6 +5,38 @@
 using namespace sm::render;
 using namespace sm::render::next;
 
+static D3D12MA::ALLOCATION_DESC newAllocInfo(bool comitted, D3D12_HEAP_TYPE heap) {
+    return D3D12MA::ALLOCATION_DESC {
+        .Flags = comitted ? D3D12MA::ALLOCATION_FLAG_COMMITTED : D3D12MA::ALLOCATION_FLAG_NONE,
+        .HeapType = heap,
+    };
+}
+
+DeviceResource::DeviceResource(CoreContext& context, D3D12_RESOURCE_STATES state, D3D12_RESOURCE_DESC desc, D3D12MA::ALLOCATION_DESC alloc) {
+    D3D12MA::Allocator *allocator = context.getAllocator();
+
+    SM_THROW_HR(allocator->CreateResource(&alloc, &desc, state, nullptr, &mResource, __uuidof(ID3D12Resource), nullptr));
+}
+
+TextureResource::TextureResource(CoreContext& context, D3D12_RESOURCE_STATES state, D3D12_RESOURCE_DESC desc, bool comitted)
+    : DeviceResource(context, state, desc, newAllocInfo(comitted, D3D12_HEAP_TYPE_DEFAULT))
+{ }
+
+BufferResource::BufferResource(CoreContext& context, D3D12_RESOURCE_STATES state, uint64 width, D3D12_RESOURCE_FLAGS flags, D3D12_HEAP_TYPE heap)
+    : DeviceResource(context, state, CD3DX12_RESOURCE_DESC::Buffer(width, flags), newAllocInfo(false, heap))
+{ }
+
+void BufferResource::write(const void *data, size_t size) {
+    ID3D12Resource *resource = get();
+
+    void *mapped;
+    SM_THROW_HR(resource->Map(0, nullptr, &mapped));
+    memcpy(mapped, data, size);
+
+    D3D12_RANGE written = {0, size};
+    resource->Unmap(0, &written);
+}
+
 static ConstBufferData newConstBuffer(UINT index, size_t size) {
     Object<D3D12MA::Allocation> resource;
     D3D12_GPU_DESCRIPTOR_HANDLE cbvHandle;

@@ -37,8 +37,8 @@ void ImGuiDrawContext::setupPlatform() noexcept {
 }
 
 void ImGuiDrawContext::setupRender(ID3D12Device *device, DXGI_FORMAT format, UINT frames, render::next::DescriptorPool& srvHeap, size_t srvHeapIndex) noexcept {
-    D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = srvHeap.getDeviceDescriptorHandle(srvHeapIndex);
-    D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = srvHeap.getHostDescriptorHandle(srvHeapIndex);
+    D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = srvHeap.device(srvHeapIndex);
+    D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = srvHeap.host(srvHeapIndex);
     ImGui_ImplDX12_Init(device, frames, format, srvHeap.get(), cpuHandle, gpuHandle);
 }
 

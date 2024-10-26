@@ -14,6 +14,8 @@ static void onQueueMessage(D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERI
     render::MessageSeverity s{severity};
     render::MessageID message{id};
 
+    fmt::println(stderr, "{} {}: {}", c, message, desc);
+
     switch (severity) {
     case D3D12_MESSAGE_SEVERITY_CORRUPTION:
         LOG_PANIC(GpuLog, "{} {}: {}", c, message, desc);

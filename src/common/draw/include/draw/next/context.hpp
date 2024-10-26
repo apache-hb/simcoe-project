@@ -2,6 +2,7 @@
 
 #include "draw/resources/compute.hpp"
 #include "draw/resources/imgui.hpp"
+#include "render/next/context/resource.hpp"
 
 namespace sm::draw::next {
     // TODO: make this not reliant on having an HWND

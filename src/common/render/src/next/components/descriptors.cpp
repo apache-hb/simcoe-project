@@ -31,10 +31,38 @@ DescriptorPool::DescriptorPool(CoreDevice& device, UINT size, D3D12_DESCRIPTOR_H
     , mFirstDeviceHandle(isShaderVisible() ? mHeap->GetGPUDescriptorHandleForHeapStart() : D3D12_GPU_DESCRIPTOR_HANDLE{})
 { }
 
-D3D12_CPU_DESCRIPTOR_HANDLE DescriptorPool::getHostDescriptorHandle(size_t index) const noexcept {
+D3D12_CPU_DESCRIPTOR_HANDLE DescriptorPool::host(size_t index) const noexcept {
     return CD3DX12_CPU_DESCRIPTOR_HANDLE(getFirstHostHandle(), index, mDescriptorSize);
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE DescriptorPool::getDeviceDescriptorHandle(size_t index) const noexcept {
+D3D12_GPU_DESCRIPTOR_HANDLE DescriptorPool::device(size_t index) const noexcept {
+    CTASSERT(isShaderVisible());
     return CD3DX12_GPU_DESCRIPTOR_HANDLE(getFirstDeviceHandle(), index, mDescriptorSize);
+}
+
+size_t DescriptorPool::allocate() {
+    size_t index = mAllocator.allocateIndex();
+    if (index == BitMapIndexAllocator::kInvalidIndex) {
+        throw RenderException(HRESULT_FROM_WIN32(ERROR_TOO_MANY_DESCRIPTORS), "Failed to allocate descriptor");
+    }
+
+    return index;
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE DescriptorPool::allocateHost() {
+    return host(allocate());
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE DescriptorPool::allocateDevice() {
+    return device(allocate());
+}
+
+void DescriptorPool::free(D3D12_GPU_DESCRIPTOR_HANDLE handle) {
+    UINT64 offset = (handle.ptr - mFirstDeviceHandle.ptr) / mDescriptorSize;
+    mAllocator.deallocate(offset);
+}
+
+void DescriptorPool::free(D3D12_CPU_DESCRIPTOR_HANDLE handle) {
+    UINT64 offset = (handle.ptr - mFirstHostHandle.ptr) / mDescriptorSize;
+    mAllocator.deallocate(offset);
 }

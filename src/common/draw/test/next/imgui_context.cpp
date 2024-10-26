@@ -10,6 +10,8 @@ TEST_CASE("Dear ImGui DrawContext") {
     DrawWindowTestContext test{30};
     auto& context = test.getContext();
 
+    bt_update();
+
     test.event(14, [&] {
         CHECK_THROWS_AS(context.setAdapter(render::AdapterLUID(0x1000, 0x1234)), render::RenderException);
     });

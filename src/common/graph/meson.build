@@ -48,7 +48,7 @@ graph = declare_dependency(
 ###
 
 testcases = {
-    # 'Graph setup': 'test/create.cpp',
+    'Graph setup': 'test/create.cpp',
 }
 
 foreach name, source : testcases

@@ -8,6 +8,8 @@ void runTestPass(std::string name) {
     DrawWindowTestContext test{30, true, std::move(name)};
     auto& context = test.getContext();
 
+    bt_update();
+
     test.event(14, [&] {
         CHECK_THROWS_AS(context.setAdapter(render::AdapterLUID(0x1000, 0x1234)), render::RenderException);
     });
