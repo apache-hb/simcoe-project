@@ -396,7 +396,7 @@ void CoreContext::begin() {
 
     commands->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
-    commands->ClearRenderTargetView(rtvHandle, mSwapChainInfo.clearColour.data(), 0, nullptr);
+    commands->ClearRenderTargetView(rtvHandle, mSwapChainInfo.clear.data(), 0, nullptr);
 }
 
 void CoreContext::end() {

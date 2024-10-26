@@ -108,6 +108,26 @@ render_base = declare_dependency(
 )
 
 ###
+### symbol exports
+###
+
+lib_export_ihv = shared_module('render-export-ihv', 'src/exports/ihv.cpp', dependencies : core)
+lib_export_dstorage = shared_module('render-export-dstorage', 'src/exports/dstorage.cpp', dependencies : core)
+lib_export_agility = shared_module('render-export-agility', 'src/exports/agility.cpp', dependencies : core)
+
+ihv_export = declare_dependency(
+    objects : lib_export_ihv.extract_all_objects(recursive : true)
+)
+
+dstorage_export = declare_dependency(
+    objects : lib_export_dstorage.extract_all_objects(recursive : true)
+)
+
+agility_export = declare_dependency(
+    objects : lib_export_agility.extract_all_objects(recursive : true)
+)
+
+###
 ### monolithic render core
 ###
 
@@ -132,24 +152,6 @@ src = [
     # vendor
     'src/vendor/nvidia/nvapi.cpp',
     'src/vendor/amd/ags.cpp',
-
-    # render next
-    'src/next/state.cpp',
-    'src/next/render.cpp',
-
-    # render context and resources tied to it
-    'src/next/context/core.cpp',
-    'src/next/context/resource.cpp',
-
-    # components
-    'src/next/components/fence.cpp',
-    'src/next/components/commands.cpp',
-    'src/next/components/descriptors.cpp',
-
-    # swapchain factories
-    'src/next/surface/surface.cpp',
-    'src/next/surface/virtual.cpp',
-    'src/next/surface/swapchain.cpp',
 ]
 
 deps = [
@@ -167,7 +169,10 @@ deps = [
     winpixruntime.partial_dependency(includes : true),
 
     # hardware vendors
-    nvapi, ags
+    nvapi, ags,
+
+    # exports
+    ihv_export, dstorage_export, agility_export,
 ]
 
 if pix_feature.allowed()
@@ -186,12 +191,58 @@ render_core = declare_dependency(
     dependencies : deps
 )
 
-libvendor = shared_module('vendor', 'src/vendor.cpp', dependencies : core)
+###
+### next render
+###
 
-render = declare_dependency(
-    objects : libvendor.extract_all_objects(recursive : true),
+src = [
+    # render next
+    'src/next/state.cpp',
+    'src/next/render.cpp',
+
+    # render context and resources tied to it
+    'src/next/context/core.cpp',
+    'src/next/context/resource.cpp',
+
+    # components
+    'src/next/components/viewport.cpp',
+    'src/next/components/fence.cpp',
+    'src/next/components/commands.cpp',
+    'src/next/components/descriptors.cpp',
+
+    # swapchain factories
+    'src/next/surface/surface.cpp',
+    'src/next/surface/virtual.cpp',
+    'src/next/surface/swapchain.cpp',
+]
+
+deps = [
+    # internal libraries
+    core, logs, system, math, archive,
+    world, config,
+
+    render_base,
+
+    # other vendors
+    d3d12ma,
+
+    # microsoft
+    d3d12, d3dx12,
+
+    # exports
+    ihv_export
+]
+
+librender_next = library('render-next', src,
+    cpp_pch : 'src/stdafx.hpp',
+    include_directories : [ render_include, reflect_include, 'src' ],
+    dependencies : deps
+)
+
+render_next = declare_dependency(
+    link_with : librender_next,
     include_directories : [ render_include ],
-    dependencies : [ deps, render_core ]
+    dependencies : deps
 )
 
 subdir('test')

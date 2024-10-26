@@ -17,7 +17,7 @@ namespace sm::render::next {
         DXGI_FORMAT format;
         math::uint2 size;
         UINT length;
-        math::float4 clearColour;
+        math::float4 clear;
     };
 
     struct SwapChainLimits {

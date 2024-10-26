@@ -19,6 +19,7 @@ namespace sm::math {
         };
     }
 
+    static constexpr float4 kColourClear = {0.0f, 0.0f, 0.0f, 0.0f};
     static constexpr float4 kColourBlack = {0.0f, 0.0f, 0.0f, 1.0f};
     static constexpr float4 kColourWhite = {1.0f, 1.0f, 1.0f, 1.0f};
     static constexpr float4 kColourRed   = {1.0f, 0.0f, 0.0f, 1.0f};

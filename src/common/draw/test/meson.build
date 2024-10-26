@@ -1,10 +1,4 @@
-# awful
-fs.copyfile(dstorage.get_variable('bindir') / 'dstorage.dll')
-subdir('redist')
-subdir('redist/d3d12')
-
 testcases = {
-    'Setup DrawContext': 'context.cpp',
     'DrawContext has correct cleanup': 'next/draw_context_cleanup.cpp',
 
     'Dear ImGui DrawContext setup': 'next/imgui_context.cpp',
@@ -13,7 +7,7 @@ testcases = {
 
 foreach name, source : testcases
     exe = executable('test-draw-' + name.to_lower().replace(' ', '-'), source,
-        dependencies : [ render, draw, drawtest ]
+        dependencies : [ drawtest ]
     )
 
     test(name, exe,

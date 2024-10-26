@@ -13,7 +13,7 @@ src = [
     'render_test_common.cpp',
 ]
 
-deps = [ render, dbtest, stb_image_write ]
+deps = [ render_base, dbtest, stb_image_write ]
 
 librendertest = library('render-test', src,
     include_directories : [ render_include, reflect_include ],
@@ -27,13 +27,30 @@ rendertest = declare_dependency(
 )
 
 ###
-### testcases
+### testcases for current render implementation
 ###
 
 testcases = {
     'Setup render instance': 'instance.cpp',
     'Save render device data': 'store.cpp',
+}
 
+foreach name, source : testcases
+    exe = executable('test-render-' + name.to_lower().replace(' ', '-'), source,
+        dependencies : [ rendertest, render_core ]
+    )
+
+    test(name, exe,
+        suite : 'render',
+        kwargs : testkwargs + { 'timeout': 10 }
+    )
+endforeach
+
+###
+### testcases for next render implementation
+###
+
+testcases = {
     'Create render next CoreContext': 'next/context/create.cpp',
     'Create render next CoreContext with debug features': 'next/context/create_debug.cpp',
 
@@ -50,11 +67,11 @@ testcases = {
 
 foreach name, source : testcases
     exe = executable('test-render-' + name.to_lower().replace(' ', '-'), source,
-        dependencies : [ rendertest ]
+        dependencies : [ rendertest, render_next ]
     )
 
     test(name, exe,
-        suite : 'render',
+        suite : 'render-next',
         kwargs : testkwargs + { 'timeout': 10 }
     )
 endforeach

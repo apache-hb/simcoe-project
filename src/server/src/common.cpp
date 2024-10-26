@@ -11,7 +11,7 @@ static render::next::SurfaceInfo newSurfaceInfo(math::uint2 size) {
         .format = DXGI_FORMAT_R8G8B8A8_UNORM,
         .size = size,
         .length = 2,
-        .clearColour = math::float4(0.0f, 0.0f, 0.0f, 1.0f),
+        .clear = math::float4(0.0f, 0.0f, 0.0f, 1.0f),
     };
 }
 

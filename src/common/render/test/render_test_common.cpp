@@ -1,11 +1,11 @@
 #include "render_test_common.hpp"
 
-next::SurfaceInfo newSurfaceInfo(math::uint2 size, UINT length, math::float4 clearColour) {
+next::SurfaceInfo newSurfaceInfo(math::uint2 size, UINT length, math::float4 clear) {
     return next::SurfaceInfo {
         .format = DXGI_FORMAT_R8G8B8A8_UNORM,
         .size = size,
         .length = length,
-        .clearColour = clearColour,
+        .clear = clear,
     };
 }
 
