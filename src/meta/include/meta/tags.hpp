@@ -16,9 +16,7 @@ namespace sm::reflect {
     annotation Transient {
         bool value = true;
     };
-}
 
-namespace sm::reflect::detail {
     struct AnnotateBase {
         const std::type_info& type;
     };
