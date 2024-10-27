@@ -27,6 +27,8 @@ graph_meta = declare_dependency(
 
 src = [
     'src/graph.cpp',
+    'src/builder.cpp',
+    'src/context.cpp',
 ]
 
 deps = [ graph_meta ]

@@ -13,9 +13,9 @@ namespace sm::render::next {
     protected:
         Object<D3D12MA::Allocation> mResource;
 
+    public:
         DeviceResource(CoreContext& context, D3D12_RESOURCE_STATES state, D3D12_RESOURCE_DESC desc, D3D12MA::ALLOCATION_DESC alloc);
 
-    public:
         ID3D12Resource *get() const noexcept { return mResource->GetResource(); }
         D3D12MA::Allocation *allocation() const noexcept { return mResource.get(); }
         D3D12_GPU_VIRTUAL_ADDRESS deviceAddress() const noexcept { return get()->GetGPUVirtualAddress(); }

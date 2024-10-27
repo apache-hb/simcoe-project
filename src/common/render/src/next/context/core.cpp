@@ -301,8 +301,8 @@ void CoreContext::recreateCurrentDevice() {
     AdapterLUID luid = mDevice.luid();
 
     // when recreating the device, we reset all resources first
-    // as we will be using the same device and preserving the resources
-    // will cause d3d12 to give us the same (still removed) device handle.
+    // as we will be using the same device. preserving the resources
+    // will cause d3d12 to give us the same (still possibly removed) device handle.
     resetDeviceResources();
     mDevice = createDevice(luid, level, mDebugFlags);
 }

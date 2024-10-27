@@ -21,21 +21,21 @@ struct OpaqueHandleData {
     Handle depth;
 };
 
-static OpaqueHandleData opaque(RenderGraph& graph, DXGI_FORMAT colour, DXGI_FORMAT depth, math::uint2 resolution, D3D12_VIEWPORT viewport, D3D12_RECT scissor) {
+static OpaqueHandleData opaque(RenderGraphBuilder& graph, DXGI_FORMAT colour, DXGI_FORMAT depth, math::uint2 resolution, D3D12_VIEWPORT viewport, D3D12_RECT scissor) {
     RenderPassBuilder pass = graph.graphics("Opaque");
-    Handle colourTarget = pass.create("Colour", D3D12_RESOURCE_STATE_RENDER_TARGET, CD3DX12_RESOURCE_DESC::Tex2D(colour, resolution.x, resolution.y));
-    Handle depthTarget = pass.create("Depth", D3D12_RESOURCE_STATE_DEPTH_WRITE, CD3DX12_RESOURCE_DESC::Tex2D(depth, resolution.x, resolution.y));
+    HandleBuilder colourTarget = pass.create("Colour", D3D12_RESOURCE_STATE_RENDER_TARGET, CD3DX12_RESOURCE_DESC::Tex2D(colour, resolution.x, resolution.y));
+    HandleBuilder depthTarget = pass.create("Depth", D3D12_RESOURCE_STATE_DEPTH_WRITE, CD3DX12_RESOURCE_DESC::Tex2D(depth, resolution.x, resolution.y));
+
+    D3D12_CPU_DESCRIPTOR_HANDLE rtv = colourTarget.createRenderTargetView();
+    D3D12_CPU_DESCRIPTOR_HANDLE dsv = depthTarget.createDepthStencilView();
 
     auto& [root, pso] = graph.data([&] {
         return OpaqueDeviceData { };
     });
 
-    pass.bind([&, viewport, scissor](ID3D12GraphicsCommandList* commands) {
-        D3D12_CPU_DESCRIPTOR_HANDLE rtv = graph.rtv(colourTarget);
-        D3D12_CPU_DESCRIPTOR_HANDLE dsv = graph.dsv(depthTarget);
-
-        commands->SetGraphicsRootSignature(root.get());
-        commands->SetPipelineState(pso.get());
+    pass.bind([=, root = root.get(), pso = pso.get()](ID3D12GraphicsCommandList* commands) {
+        commands->SetGraphicsRootSignature(root);
+        commands->SetPipelineState(pso);
 
         commands->RSSetViewports(1, &viewport);
         commands->RSSetScissorRects(1, &scissor);
@@ -57,21 +57,21 @@ struct BlitDeviceData {
     D3D12_VERTEX_BUFFER_VIEW quad;
 };
 
-static void blit(RenderGraph& graph, Handle target, Handle source, D3D12_VIEWPORT viewport, D3D12_RECT scissor) {
+static void blit(RenderGraphBuilder& graph, Handle target, Handle source, D3D12_VIEWPORT viewport, D3D12_RECT scissor) {
     RenderPassBuilder pass = graph.graphics("Blit");
-    pass.write(target, "Target", D3D12_RESOURCE_STATE_RENDER_TARGET);
-    pass.read(source, "Source", D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    HandleUseBuilder targetUse = pass.write(target, "Target", D3D12_RESOURCE_STATE_RENDER_TARGET);
+    HandleUseBuilder sourceUse = pass.read(source, "Source", D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+    D3D12_CPU_DESCRIPTOR_HANDLE rtv = targetUse.createRenderTargetView();
+    D3D12_GPU_DESCRIPTOR_HANDLE srv = sourceUse.createShaderResourceView();
 
     auto& [root, pso, quad] = graph.data([&] {
         return BlitDeviceData { };
     });
 
-    pass.bind([&, viewport, scissor](ID3D12GraphicsCommandList *commands) {
-        D3D12_CPU_DESCRIPTOR_HANDLE rtv = graph.rtv(target);
-        D3D12_GPU_DESCRIPTOR_HANDLE srv = graph.srv(source);
-
-        commands->SetGraphicsRootSignature(root.get());
-        commands->SetPipelineState(pso.get());
+    pass.bind([=, root = root.get(), pso = pso.get()](ID3D12GraphicsCommandList *commands) {
+        commands->SetGraphicsRootSignature(root);
+        commands->SetPipelineState(pso);
 
         commands->RSSetViewports(1, &viewport);
         commands->RSSetScissorRects(1, &scissor);
@@ -91,8 +91,8 @@ TEST_CASE("Create RenderGraph") {
     system::create(GetModuleHandle(nullptr));
 
     WindowContextTest test{30};
-    // auto& context = test.getContext();
-    sm::graph::RenderGraph graph;
+    auto& context = test.getContext();
+    sm::graph::RenderGraphBuilder graph{context};
 
     auto [viewport, scissor] = next::Viewport::letterbox({ 1920, 1080 }, { 1920, 1080 });
     Handle framebuffer = graph.include(nullptr, D3D12_RESOURCE_STATE_PRESENT);

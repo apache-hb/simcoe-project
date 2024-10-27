@@ -5,13 +5,17 @@
 #include <utility>
 #include <typeindex>
 #include <string>
+#include <variant>
 #include <vector>
 #include <functional>
 
 #include <directx/d3d12.h>
 
+#include "render/next/components.hpp"
+#include "render/next/context/resource.hpp"
+
 namespace sm::graph {
-    class RenderGraph;
+    class RenderGraphBuilder;
 
     class Handle {
     public:
@@ -23,26 +27,29 @@ namespace sm::graph {
     class HandleData {
     public:
         std::string mName;
+        render::next::DeviceResource mResource;
         D3D12_RESOURCE_STATES mState;
-        D3D12_RESOURCE_DESC mDesc;
 
-        HandleData(std::string name, D3D12_RESOURCE_STATES state, D3D12_RESOURCE_DESC desc);
+        HandleData(std::string name, render::next::DeviceResource resource, D3D12_RESOURCE_STATES state);
     };
 
-    struct HandleCreateInfo {
-        Handle handle;
+    class HandleUse {
+    public:
+        size_t mIndex;
+
+        HandleUse(size_t index);
     };
 
-    struct HandleReadInfo {
-        Handle handle;
-        std::string name;
-        D3D12_RESOURCE_STATES state;
-    };
+    class HandleUseData {
+    public:
+        std::string mName;
+        Handle mHandle;
+        D3D12_RESOURCE_STATES mState;
+        size_t rtvIndex = SIZE_MAX;
+        size_t dsvIndex = SIZE_MAX;
+        size_t srvIndex = SIZE_MAX;
 
-    struct HandleWriteInfo {
-        Handle handle;
-        std::string name;
-        D3D12_RESOURCE_STATES state;
+        HandleUseData(std::string name, Handle handle, D3D12_RESOURCE_STATES state);
     };
 
     using ExecuteFn = std::function<void(ID3D12GraphicsCommandList*)>;
@@ -50,14 +57,12 @@ namespace sm::graph {
     struct RenderPassInfo {
         std::string name;
         D3D12_COMMAND_LIST_TYPE type;
-        std::vector<HandleCreateInfo> create;
-        std::vector<HandleReadInfo> read;
-        std::vector<HandleWriteInfo> write;
         ExecuteFn execute;
     };
 
     class RenderPass {
     public:
+        RenderPassInfo mInfo;
         RenderPass(RenderPassInfo info);
     };
 
@@ -67,26 +72,64 @@ namespace sm::graph {
         virtual void setup() = 0;
     };
 
+    class HandleBuilder {
+        RenderGraphBuilder& mGraph;
+        Handle mHandle;
+
+    public:
+        HandleBuilder(RenderGraphBuilder& graph, Handle handle)
+            : mGraph(graph)
+            , mHandle(handle)
+        { }
+
+        operator Handle() const { return mHandle; }
+
+        D3D12_CPU_DESCRIPTOR_HANDLE createRenderTargetView();
+        D3D12_CPU_DESCRIPTOR_HANDLE createRenderTargetView(D3D12_RENDER_TARGET_VIEW_DESC desc);
+
+        D3D12_CPU_DESCRIPTOR_HANDLE createDepthStencilView();
+        D3D12_CPU_DESCRIPTOR_HANDLE createDepthStencilView(D3D12_DEPTH_STENCIL_VIEW_DESC desc);
+    };
+
+    class HandleUseBuilder {
+        RenderGraphBuilder& mGraph;
+        HandleUse mHandleUse;
+
+    public:
+        HandleUseBuilder(RenderGraphBuilder& graph, HandleUse handle)
+            : mGraph(graph)
+            , mHandleUse(handle)
+        { }
+
+        operator HandleUse() const { return mHandleUse; }
+
+        D3D12_CPU_DESCRIPTOR_HANDLE createRenderTargetView();
+        D3D12_CPU_DESCRIPTOR_HANDLE createRenderTargetView(D3D12_RENDER_TARGET_VIEW_DESC desc);
+
+        D3D12_CPU_DESCRIPTOR_HANDLE createDepthStencilView();
+        D3D12_CPU_DESCRIPTOR_HANDLE createDepthStencilView(D3D12_DEPTH_STENCIL_VIEW_DESC desc);
+
+        D3D12_GPU_DESCRIPTOR_HANDLE createShaderResourceView();
+        D3D12_GPU_DESCRIPTOR_HANDLE createShaderResourceView(D3D12_SHADER_RESOURCE_VIEW_DESC desc);
+    };
+
     class RenderPassBuilder {
-        RenderGraph& mGraph;
+        RenderGraphBuilder& mGraph;
 
         std::string mName;
         D3D12_COMMAND_LIST_TYPE mType;
-        std::vector<HandleCreateInfo> mCreate;
-        std::vector<HandleReadInfo> mRead;
-        std::vector<HandleWriteInfo> mWrite;
 
         void addToGraph(ExecuteFn fn);
     public:
-        RenderPassBuilder(RenderGraph& graph, std::string name, D3D12_COMMAND_LIST_TYPE type)
+        RenderPassBuilder(RenderGraphBuilder& graph, std::string name, D3D12_COMMAND_LIST_TYPE type)
             : mGraph(graph)
             , mName(std::move(name))
             , mType(type)
         { }
 
-        Handle create(std::string name, D3D12_RESOURCE_STATES state, D3D12_RESOURCE_DESC desc);
-        void read(Handle handle, std::string name, D3D12_RESOURCE_STATES state);
-        void write(Handle handle, std::string name, D3D12_RESOURCE_STATES state);
+        HandleBuilder create(std::string name, D3D12_RESOURCE_STATES state, D3D12_RESOURCE_DESC desc);
+        HandleUseBuilder read(Handle handle, std::string name, D3D12_RESOURCE_STATES state);
+        HandleUseBuilder write(Handle handle, std::string name, D3D12_RESOURCE_STATES state);
 
         template<typename F> requires (std::invocable<F, ID3D12GraphicsCommandList*>)
         void bind(F&& func) {
@@ -94,7 +137,9 @@ namespace sm::graph {
         }
     };
 
-    class RenderGraph {
+    class RenderGraphBuilder {
+        render::next::CoreContext& mContext;
+
         std::map<std::type_index, std::unique_ptr<IDeviceData>> mDeviceData;
         std::vector<HandleData> mHandles;
         std::vector<RenderPass> mRenderPasses;
@@ -116,8 +161,13 @@ namespace sm::graph {
         }
 
     public:
+        RenderGraphBuilder(render::next::CoreContext& context)
+            : mContext(context)
+        { }
+
         void addRenderPass(RenderPassInfo info);
         Handle newResourceHandle(std::string name, D3D12_RESOURCE_STATES state, D3D12_RESOURCE_DESC desc);
+        HandleUse newResourceUsage(std::string name, Handle handle, D3D12_RESOURCE_STATES state);
 
         Handle include(ID3D12Resource *resource, D3D12_RESOURCE_STATES state);
 
@@ -167,9 +217,5 @@ namespace sm::graph {
 
             return addDeviceData<DeviceData>(std::forward<F>(func))->data();
         }
-
-        D3D12_CPU_DESCRIPTOR_HANDLE rtv(Handle handle);
-        D3D12_CPU_DESCRIPTOR_HANDLE dsv(Handle handle);
-        D3D12_GPU_DESCRIPTOR_HANDLE srv(Handle handle);
     };
 }
