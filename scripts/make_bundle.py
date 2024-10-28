@@ -166,7 +166,11 @@ class ShaderCompiler:
 
         # TODO: this include path is a bit of a hack but meson is just so shit
         # at producing build directories with any rigid structure
-        self.args = [ self.dxc, '/WX', '/Ges', '-I' + rootdir + '\\src\\common\\draw\\include\\draw' ]
+        self.args = [
+            self.dxc, '/WX', '/Ges',
+            '-I' + rootdir + '\\src\\common\\draw\\include\\draw',
+            '-I' + rootdir + '\\src\\common\\draw\\include'
+        ]
         if self.debug:
             self.args += [ '/Zi', '/Fd', self.pdb_dir + '\\' ]
 

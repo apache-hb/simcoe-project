@@ -129,10 +129,14 @@ void CoreContext::removeResource(const IContextResource *resource) {
     }
 }
 
-void CoreContext::resetDeviceResources() {
+void CoreContext::resetBoundResources() {
     for (auto& handle : mDeviceResources) {
         handle->reset();
     }
+}
+
+void CoreContext::resetDeviceResources() {
+    resetBoundResources();
 
     mPresentFence.reset();
     mBackBuffers.clear();
@@ -361,11 +365,12 @@ CoreContext::CoreContext(ContextConfig config) noexcept(false)
 }
 
 CoreContext::~CoreContext() noexcept try {
-    flushDevice();
-} catch (const render::RenderException& e) {
-    LOG_ERROR(RenderLog, "Failed to flush device: {}", e);
+    flushDeviceForCleanup();
+    resetBoundResources();
+} catch (const std::exception& e) {
+    LOG_ERROR(RenderLog, "Failed to destroy context: {}", e.what());
 } catch (...) {
-    LOG_ERROR(RenderLog, "Failed to flush device: unknown error");
+    LOG_ERROR(RenderLog, "Failed to destroy context: unknown error");
 }
 
 void CoreContext::setAdapter(AdapterLUID luid) {

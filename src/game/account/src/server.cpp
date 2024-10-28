@@ -195,3 +195,7 @@ void AccountServer::listen(uint16_t connections) {
 void AccountServer::stop() {
     mServer.cancel();
 }
+
+bool AccountServer::isRunning() const {
+    return mServer.isActive();
+}

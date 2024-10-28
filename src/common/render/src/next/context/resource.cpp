@@ -37,7 +37,7 @@ void BufferResource::write(const void *data, size_t size) {
     resource->Unmap(0, &written);
 }
 
-static ConstBufferData newConstBuffer(UINT index, size_t size) {
+static ConstBufferData newConstBuffer(CoreContext& context, UINT index, size_t size) {
     Object<D3D12MA::Allocation> resource;
     D3D12_GPU_DESCRIPTOR_HANDLE cbvHandle;
     void *data = nullptr;
@@ -45,8 +45,8 @@ static ConstBufferData newConstBuffer(UINT index, size_t size) {
     return ConstBufferData {std::move(resource), cbvHandle, data};
 }
 
-ConstBufferResourceBase::ConstBufferResourceBase(UINT frames, size_t size)
-    : Super(frames, [&](UINT index) { return newConstBuffer(index, size); })
+ConstBufferResourceBase::ConstBufferResourceBase(CoreContext& context, size_t size)
+    : Super(context.getSwapChainLength(), [&](UINT index) { return newConstBuffer(context, index, size); })
 { }
 
 void ConstBufferResourceBase::update(UINT frame, const void *data, size_t size) {

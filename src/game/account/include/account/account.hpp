@@ -32,6 +32,8 @@ namespace game {
 
         void listen(uint16_t connections);
         void stop();
+
+        bool isRunning() const;
     };
 
     class AccountClient {

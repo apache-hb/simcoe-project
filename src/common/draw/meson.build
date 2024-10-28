@@ -38,6 +38,12 @@ draw = declare_dependency(
 ### next implementation
 ###
 
+vic20_shader = custom_target('vic20-shader',
+    input : 'data/vic20.hlsl',
+    output : '@BASENAME@.cs.cso',
+    command : [ dxc, '/Wx', '/Ges', '-I@CURRENT_SOURCE_DIR@/include', '-Tcs_6_0', '-EcsMain', '-Fo@OUTPUT@', '@INPUT@' ]
+)
+
 src = [
     # next draw
     'src/components/camera.cpp',
@@ -47,12 +53,15 @@ src = [
     'src/resources/compute.cpp',
 
     # next draw passes
+    'src/passes/vic20.cpp',
     'src/passes/blit.cpp',
     'src/passes/opaque.cpp',
     'src/passes/forwardplus.cpp',
 
     # next draw contexts
     'src/next/context.cpp',
+
+    vic20_shader,
 ]
 
 deps = [ render_next, logs, imgui ]

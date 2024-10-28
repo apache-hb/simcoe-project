@@ -98,6 +98,7 @@ namespace sm::render::next {
 
         void removeResource(const IContextResource *resource);
 
+        void resetBoundResources();
         void resetDeviceResources();
         void createDeviceResources();
         void updateDeviceResources(SurfaceInfo info);

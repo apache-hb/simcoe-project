@@ -66,16 +66,16 @@ int main(int argc, const char **argv) noexcept try {
     WindowSwapChainFactory hwndSwapChain{window.getHandle()};
 
     ContextConfig config {
-        .flags = DebugFlags::eDeviceDebugLayer
-               | DebugFlags::eFactoryDebug
-               | DebugFlags::eDeviceRemovedInfo
-               | DebugFlags::eInfoQueue
-               | DebugFlags::eAutoName
-               | DebugFlags::eGpuValidation
-               | DebugFlags::eDirectStorageDebug
-               | DebugFlags::eDirectStorageBreak
-               | DebugFlags::eDirectStorageNames
-               | DebugFlags::eWinPixEventRuntime,
+        // .flags = DebugFlags::eDeviceDebugLayer
+        //        | DebugFlags::eFactoryDebug
+        //        | DebugFlags::eDeviceRemovedInfo
+        //        | DebugFlags::eInfoQueue
+        //        | DebugFlags::eAutoName
+        //        | DebugFlags::eGpuValidation
+        //        | DebugFlags::eDirectStorageDebug
+        //        | DebugFlags::eDirectStorageBreak
+        //        | DebugFlags::eDirectStorageNames
+        //        | DebugFlags::eWinPixEventRuntime,
         .targetLevel = FeatureLevel::eLevel_11_0,
         .swapChainFactory = &hwndSwapChain,
         .swapChainInfo = {

@@ -68,7 +68,7 @@ namespace sm::render::next {
         using Super = FrameResource<ConstBufferData>;
 
     public:
-        ConstBufferResourceBase(UINT frames, size_t size);
+        ConstBufferResourceBase(CoreContext& context, size_t size);
 
         void update(UINT frame, const void *data, size_t size);
     };
@@ -78,14 +78,13 @@ namespace sm::render::next {
                            && std::is_standard_layout_v<T>
                            && std::is_trivial_v<T>;
 
-
     template<ConstBufferType T>
     class ConstBufferResource : public ConstBufferResourceBase {
         using Super = ConstBufferResourceBase;
 
     public:
-        ConstBufferResource(UINT frames)
-            : ConstBufferResourceBase(frames, sizeof(T))
+        ConstBufferResource(CoreContext& context)
+            : ConstBufferResourceBase(context, sizeof(T))
         { }
 
         void update(UINT frame, const T& value) {

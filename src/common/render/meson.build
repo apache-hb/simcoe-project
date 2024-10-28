@@ -205,6 +205,7 @@ src = [
     'src/next/context/resource.cpp',
 
     # components
+    'src/next/components/components.cpp',
     'src/next/components/viewport.cpp',
     'src/next/components/fence.cpp',
     'src/next/components/commands.cpp',

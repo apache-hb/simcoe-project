@@ -1,7 +1,6 @@
 #include "stdafx.hpp"
 #include "common.hpp"
 
-
 #include "db/environment.hpp"
 #include "db/connection.hpp"
 
@@ -35,6 +34,13 @@ static sm::opt<uint16_t> gServerPort {
     init = 9919
 };
 
+static void serverGui(game::AccountServer &server) {
+    GuiWindow window{"Server"};
+    while (window.next()) {
+        window.present();
+    }
+}
+
 static int serverMain() {
     db::Environment sqlite = db::Environment::create(db::DbType::eSqlite3);
     net::Network network = net::Network::create();
@@ -55,14 +61,7 @@ static int serverMain() {
         });
     });
 
-    if (gRunMode.getValue() == RunMode::eGui) {
-        GuiWindow window{"Server"};
-        while (window.next()) {
-            window.present();
-        }
-    } else {
-        while (true) std::this_thread::sleep_for(1s);
-    }
+    serverGui(server);
 
     return 0;
 }

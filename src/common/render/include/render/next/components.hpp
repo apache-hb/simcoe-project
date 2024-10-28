@@ -75,4 +75,6 @@ namespace sm::render::next {
         ID3D12GraphicsCommandList *get() noexcept { return mCommandList.get(); }
         ID3D12GraphicsCommandList *operator->() noexcept { return get(); }
     };
+
+    void syncDeviceTimeline(ID3D12CommandQueue *dependent, ID3D12CommandQueue *independent, ID3D12Fence *fence, uint64_t value);
 }

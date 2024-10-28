@@ -2,7 +2,7 @@
 
 #include "draw/resources/compute.hpp"
 #include "draw/resources/imgui.hpp"
-#include "render/next/context/resource.hpp"
+#include "draw/passes/vic20.hpp"
 
 namespace sm::draw::next {
     // TODO: make this not reliant on having an HWND
@@ -12,11 +12,12 @@ namespace sm::draw::next {
         using Super = render::next::CoreContext;
 
         ImGuiDrawContext *mImGui;
-        // ComputeContext *mCompute;
+        ComputeContext *mCompute;
+
+        Vic20Display *mVic20;
 
     public:
         DrawContext(render::next::ContextConfig config, HWND hwnd);
-        ~DrawContext() noexcept;
 
         void begin();
         void end();
