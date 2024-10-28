@@ -21,6 +21,11 @@ namespace sm::render {
 
         RenderError(HRESULT value, std::string_view expr);
 
+        template<typename... A>
+        RenderError(HRESULT value, fmt::format_string<A...> fmt, A&&... args)
+            : RenderError{value, fmt::format(fmt, std::forward<A>(args)...)}
+        { }
+
         HRESULT value() const { return mValue; }
         bool isSuccess() const { return SUCCEEDED(mValue); }
     };

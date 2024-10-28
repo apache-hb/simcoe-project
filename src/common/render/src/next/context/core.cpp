@@ -154,6 +154,12 @@ void CoreContext::createDeviceResources() {
     }
 }
 
+void CoreContext::updateDeviceResources(SurfaceInfo info) {
+    for (auto& handle : mDeviceResources) {
+        handle->update(info);
+    }
+}
+
 #pragma region Descriptor Pools
 
 void CoreContext::createRtvHeap() {
@@ -185,12 +191,14 @@ void CoreContext::createAllocator() {
 
 void CoreContext::createDirectQueue() {
     mDirectQueue = mDevice.newCommandQueue({ .Type = D3D12_COMMAND_LIST_TYPE_DIRECT });
+    mDirectQueue.rename("CoreContext Direct Queue");
 }
 
 #pragma region Direct Command List
 
 void CoreContext::createDirectCommandList() {
-    mDirectCommandSet = std::make_unique<CommandBufferSet>(mDevice, D3D12_COMMAND_LIST_TYPE_DIRECT, mBackBuffers.size());
+    mDirectCommandSet = std::make_unique<CommandBufferSet>(mDevice, D3D12_COMMAND_LIST_TYPE_DIRECT, mBackBuffers.size(), mCurrentBackBuffer);
+    mDirectCommandSet->close();
 }
 
 #pragma region SwapChain
@@ -234,7 +242,6 @@ CoreContext::BackBufferList CoreContext::getSwapChainSurfaces(uint64_t initialVa
 
 void CoreContext::createBackBuffers(uint64_t initialValue) {
     mBackBuffers = getSwapChainSurfaces(initialValue);
-    setFrameIndex(mSwapChain->currentSurfaceIndex());
 }
 
 uint64_t& CoreContext::fenceValueAt(UINT index) {
@@ -252,8 +259,7 @@ ID3D12Resource *CoreContext::surfaceAt(UINT index) {
 #pragma region Present Fence
 
 void CoreContext::createPresentFence() {
-    mPresentFence = std::make_unique<Fence>(mDevice);
-    fenceValueAt(mCurrentBackBuffer) += 1;
+    mPresentFence = std::make_unique<Fence>(mDevice, 0, "CoreContext Present Fence");
 }
 
 #pragma region Lifetime
@@ -266,6 +272,7 @@ void CoreContext::createDeviceState(ISwapChainFactory *swapChainFactory, Surface
     createDsvHeap();
     createSrvHeap();
     createBackBuffers(0);
+    setFrameIndex(mSwapChain->currentSurfaceIndex());
     createDirectCommandList();
     createPresentFence();
     createDeviceResources();
@@ -275,23 +282,27 @@ void CoreContext::createDeviceState(ISwapChainFactory *swapChainFactory, Surface
 
 void CoreContext::advanceFrame() {
     const uint64_t current = fenceValueAt(mCurrentBackBuffer);
-    SM_THROW_HR(mDirectQueue->Signal(mPresentFence->get(), current));
+    mPresentFence->signal(mDirectQueue.get(), current);
 
     setFrameIndex(mSwapChain->currentSurfaceIndex());
 
-    mPresentFence->wait(fenceValueAt(mCurrentBackBuffer));
+    uint64_t& value = fenceValueAt(mCurrentBackBuffer);
+
+    mPresentFence->waitForCompetedValue(value);
+    value = current + 1;
+}
+
+void CoreContext::flushDevice() {
+    uint64_t current = fenceValueAt(mCurrentBackBuffer);
+    mPresentFence->signal(mDirectQueue.get(), current);
+
+    mPresentFence->waitForEvent(current);
 
     fenceValueAt(mCurrentBackBuffer) = current + 1;
 }
 
-void CoreContext::flushDevice() {
-    uint64_t current = fenceValueAt(mCurrentBackBuffer)++;
-    SM_THROW_HR(mDirectQueue->Signal(mPresentFence->get(), current));
-
-    mPresentFence->wait(current);
-}
-
 void CoreContext::setFrameIndex(UINT index) {
+    // fmt::println(stderr, "setFrameIndex(old={}, new={})", mCurrentBackBuffer, index);
     mCurrentBackBuffer = index;
     mAllocator->SetCurrentFrameIndex(index);
 }
@@ -366,12 +377,17 @@ void CoreContext::setAdapter(AdapterLUID luid) {
 void CoreContext::updateSwapChain(SurfaceInfo info) {
     flushDevice();
 
+    uint64_t current = fenceValueAt(mCurrentBackBuffer);
+
     mBackBuffers.clear();
     mSwapChain->updateSurfaceInfo(info);
     mSwapChainInfo = info;
 
-    createBackBuffers(fenceValueAt(mCurrentBackBuffer));
+    setFrameIndex(mSwapChain->currentSurfaceIndex());
+
+    createBackBuffers(current);
     createDirectCommandList();
+    updateDeviceResources(mSwapChainInfo);
 }
 
 void CoreContext::begin() {
@@ -388,6 +404,8 @@ void CoreContext::begin() {
     };
 
     D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = { rtvHandleAt(mCurrentBackBuffer) };
+
+    mDirectCommandSet->reset(mCurrentBackBuffer);
 
     commands->SetDescriptorHeaps(_countof(heaps), heaps);
 
@@ -418,8 +436,58 @@ void CoreContext::end() {
     mSwapChain->present(0);
 
     advanceFrame();
+}
+
+void CoreContext::beginCommands() {
+    CommandBufferSet& commands = *mDirectCommandSet;
+
+    ID3D12Resource *surface = surfaceAt(mCurrentBackBuffer);
+    ID3D12DescriptorHeap *heaps[] = { mSrvHeap->get() };
+    const D3D12_RESOURCE_BARRIER cIntoRenderTarget[] = {
+        CD3DX12_RESOURCE_BARRIER::Transition(
+            surface,
+            D3D12_RESOURCE_STATE_PRESENT,
+            D3D12_RESOURCE_STATE_RENDER_TARGET
+        )
+    };
+
+    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = { rtvHandleAt(mCurrentBackBuffer) };
 
     mDirectCommandSet->reset(mCurrentBackBuffer);
+
+    commands->SetDescriptorHeaps(_countof(heaps), heaps);
+
+    commands->ResourceBarrier(_countof(cIntoRenderTarget), cIntoRenderTarget);
+
+    commands->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+
+    commands->ClearRenderTargetView(rtvHandle, mSwapChainInfo.clear.data(), 0, nullptr);
+}
+
+void CoreContext::endCommands() {
+    CommandBufferSet& commands = *mDirectCommandSet;
+
+    ID3D12Resource *surface = surfaceAt(mCurrentBackBuffer);
+    const D3D12_RESOURCE_BARRIER cIntoPresent[] = {
+        CD3DX12_RESOURCE_BARRIER::Transition(
+            surface,
+            D3D12_RESOURCE_STATE_RENDER_TARGET,
+            D3D12_RESOURCE_STATE_PRESENT
+        )
+    };
+
+    commands->ResourceBarrier(_countof(cIntoPresent), cIntoPresent);
+}
+
+void CoreContext::executeCommands() {
+    ID3D12CommandList *lists[] = { mDirectCommandSet->close() };
+    mDirectQueue->ExecuteCommandLists(_countof(lists), lists);
+}
+
+void CoreContext::presentSurface() {
+    mSwapChain->present(0);
+
+    advanceFrame();
 }
 
 void CoreContext::present() {

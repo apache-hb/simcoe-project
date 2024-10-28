@@ -1,0 +1,9 @@
+[wrap-file]
+directory = AppCUI-appcui-meson-1.0.1
+
+source_url = https://github.com/apache-hb/AppCUI/archive/refs/tags/appcui-meson-1.0.1.zip
+source_filename = AppCUI-appcui-meson-1.0.1.zip
+source_hash = 409eb0bb3bbb143d9880fb9d112c57c9ae874e54f36eb05f6d0b08b084f085cf
+
+[provide]
+dependency_names = appcui

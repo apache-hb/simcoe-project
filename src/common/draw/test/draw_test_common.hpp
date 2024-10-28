@@ -22,4 +22,16 @@ struct DrawWindowTestContext : WindowBaseTest<ImGuiWindowEvents> {
     }
 
     DrawContext& getContext() { return context.context; }
+
+    void update() {
+        auto& ctx = getContext();
+        ctx.begin();
+        ctx.end();
+
+        MSG msg = {};
+        while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)) {
+            TranslateMessage(&msg);
+            DispatchMessageA(&msg);
+        }
+    }
 };

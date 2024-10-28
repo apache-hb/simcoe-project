@@ -21,7 +21,7 @@ void ImGuiDrawContext::setup() noexcept {
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+    // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
     ImGui::StyleColorsDark();
 
@@ -58,7 +58,9 @@ void ImGuiDrawContext::end(ID3D12GraphicsCommandList *list) noexcept {
     ImGui::Render();
 
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), list);
+}
 
+void ImGuiDrawContext::updatePlatformViewports(ID3D12GraphicsCommandList *list) noexcept {
     if (hasViewportSupport()) {
         ImGui::UpdatePlatformWindows();
         ImGui::RenderPlatformWindowsDefault(nullptr, (void*)list);
@@ -81,7 +83,8 @@ void ImGuiDrawContext::create() {
 void ImGuiDrawContext::update(SurfaceInfo info) {
     // TODO: only update when info.length has changed
     DescriptorPool &srvHeap = mContext.getSrvHeap();
-    ImGui_ImplDX12_InvalidateDeviceObjects();
-    ImGui_ImplDX12_CreateDeviceObjects();
+
+    reset();
+    setupPlatform();
     setupRender(mContext.getDevice(), info.format, info.length, srvHeap, 0);
 }

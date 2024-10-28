@@ -24,7 +24,7 @@ server_exe = executable('server', 'src/server.cpp',
     install : true,
     cpp_pch : 'src/stdafx.hpp',
     link_with : libserver_common,
-    dependencies : deps
+    dependencies : [ deps, dependency('appcui') ]
 )
 
 run_target('run-client',

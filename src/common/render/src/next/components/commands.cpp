@@ -5,15 +5,17 @@
 using sm::render::next::CoreDevice;
 using sm::render::next::CommandBufferSet;
 
-CommandBufferSet::CommandBufferSet(CoreDevice& device, D3D12_COMMAND_LIST_TYPE type, UINT frameCount) noexcept(false)
-    : mCurrentBuffer(0)
+CommandBufferSet::CommandBufferSet(CoreDevice& device, D3D12_COMMAND_LIST_TYPE type, UINT frameCount, UINT first) noexcept(false)
+    : mCurrentBuffer(first)
     , mAllocators(frameCount)
 {
     for (UINT i = 0; i < frameCount; i++) {
         SM_THROW_HR(device->CreateCommandAllocator(type, IID_PPV_ARGS(&mAllocators[i])));
+        mAllocators[i].rename(fmt::format("CommandAllocator[{}]", i));
     }
 
     SM_THROW_HR(device->CreateCommandList(0, type, currentAllocator(), nullptr, IID_PPV_ARGS(&mCommandList)));
+    mCommandList.rename("CommandList");
 }
 
 void CommandBufferSet::reset(UINT index) {

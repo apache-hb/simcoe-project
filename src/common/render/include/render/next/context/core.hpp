@@ -100,6 +100,7 @@ namespace sm::render::next {
 
         void resetDeviceResources();
         void createDeviceResources();
+        void updateDeviceResources(SurfaceInfo info);
 
         // recreate the current device
         void recreateCurrentDevice();
@@ -195,6 +196,13 @@ namespace sm::render::next {
         /// split rendering work into begin/end
         void begin();
         void end();
+
+        void beginCommands();
+        void endCommands();
+
+        void executeCommands();
+
+        void presentSurface();
 
         /// submit work
         void present();

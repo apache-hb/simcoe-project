@@ -21,35 +21,43 @@ namespace sm::graph {
     public:
         size_t mIndex;
 
-        Handle(size_t index);
+        Handle(size_t index) : mIndex(index) { }
     };
 
     class HandleData {
-    public:
         std::string mName;
-        render::next::DeviceResource mResource;
+        ID3D12Resource *mResource;
         D3D12_RESOURCE_STATES mState;
 
-        HandleData(std::string name, render::next::DeviceResource resource, D3D12_RESOURCE_STATES state);
+    public:
+        HandleData(std::string name, ID3D12Resource *resource, D3D12_RESOURCE_STATES state);
+
+        std::string_view getName() const { return mName; }
+        ID3D12Resource *get() const { return mResource; }
+        D3D12_RESOURCE_STATES getState() const { return mState; }
     };
 
     class HandleUse {
     public:
         size_t mIndex;
 
-        HandleUse(size_t index);
+        HandleUse(size_t index) : mIndex(index) { }
     };
 
     class HandleUseData {
-    public:
         std::string mName;
         Handle mHandle;
         D3D12_RESOURCE_STATES mState;
+
+    public:
         size_t rtvIndex = SIZE_MAX;
         size_t dsvIndex = SIZE_MAX;
         size_t srvIndex = SIZE_MAX;
 
         HandleUseData(std::string name, Handle handle, D3D12_RESOURCE_STATES state);
+
+        Handle getHandle() const { return mHandle; }
+        D3D12_RESOURCE_STATES getState() const { return mState; }
     };
 
     using ExecuteFn = std::function<void(ID3D12GraphicsCommandList*)>;
@@ -72,25 +80,6 @@ namespace sm::graph {
         virtual void setup() = 0;
     };
 
-    class HandleBuilder {
-        RenderGraphBuilder& mGraph;
-        Handle mHandle;
-
-    public:
-        HandleBuilder(RenderGraphBuilder& graph, Handle handle)
-            : mGraph(graph)
-            , mHandle(handle)
-        { }
-
-        operator Handle() const { return mHandle; }
-
-        D3D12_CPU_DESCRIPTOR_HANDLE createRenderTargetView();
-        D3D12_CPU_DESCRIPTOR_HANDLE createRenderTargetView(D3D12_RENDER_TARGET_VIEW_DESC desc);
-
-        D3D12_CPU_DESCRIPTOR_HANDLE createDepthStencilView();
-        D3D12_CPU_DESCRIPTOR_HANDLE createDepthStencilView(D3D12_DEPTH_STENCIL_VIEW_DESC desc);
-    };
-
     class HandleUseBuilder {
         RenderGraphBuilder& mGraph;
         HandleUse mHandleUse;
@@ -101,7 +90,7 @@ namespace sm::graph {
             , mHandleUse(handle)
         { }
 
-        operator HandleUse() const { return mHandleUse; }
+        operator Handle() const;
 
         D3D12_CPU_DESCRIPTOR_HANDLE createRenderTargetView();
         D3D12_CPU_DESCRIPTOR_HANDLE createRenderTargetView(D3D12_RENDER_TARGET_VIEW_DESC desc);
@@ -127,7 +116,7 @@ namespace sm::graph {
             , mType(type)
         { }
 
-        HandleBuilder create(std::string name, D3D12_RESOURCE_STATES state, D3D12_RESOURCE_DESC desc);
+        HandleUseBuilder create(const std::string& name, D3D12_RESOURCE_STATES state, D3D12_RESOURCE_DESC desc);
         HandleUseBuilder read(Handle handle, std::string name, D3D12_RESOURCE_STATES state);
         HandleUseBuilder write(Handle handle, std::string name, D3D12_RESOURCE_STATES state);
 
@@ -137,12 +126,20 @@ namespace sm::graph {
         }
     };
 
+    struct DescriptorIndex {
+        size_t index;
+        D3D12_CPU_DESCRIPTOR_HANDLE host;
+        D3D12_GPU_DESCRIPTOR_HANDLE device;
+    };
+
     class RenderGraphBuilder {
         render::next::CoreContext& mContext;
 
         std::map<std::type_index, std::unique_ptr<IDeviceData>> mDeviceData;
         std::vector<HandleData> mHandles;
+        std::vector<HandleUseData> mHandleUses;
         std::vector<RenderPass> mRenderPasses;
+        std::vector<render::next::DeviceResource> mDeviceResources;
 
         template<typename T, typename... A> requires (std::derived_from<T, IDeviceData>)
         T *addDeviceData(A&&... args) {
@@ -169,7 +166,7 @@ namespace sm::graph {
         Handle newResourceHandle(std::string name, D3D12_RESOURCE_STATES state, D3D12_RESOURCE_DESC desc);
         HandleUse newResourceUsage(std::string name, Handle handle, D3D12_RESOURCE_STATES state);
 
-        Handle include(ID3D12Resource *resource, D3D12_RESOURCE_STATES state);
+        Handle include(std::string name, ID3D12Resource *resource, D3D12_RESOURCE_STATES state);
 
         RenderPassBuilder newRenderPass(std::string name, D3D12_COMMAND_LIST_TYPE type);
         RenderPassBuilder graphics(std::string name);
@@ -217,5 +214,13 @@ namespace sm::graph {
 
             return addDeviceData<DeviceData>(std::forward<F>(func))->data();
         }
+
+        Handle getHandle(HandleUse handle) const;
+        DescriptorIndex createRenderTargetView(Handle handle, const D3D12_RENDER_TARGET_VIEW_DESC *desc);
+        DescriptorIndex createDepthStencilView(Handle handle, const D3D12_DEPTH_STENCIL_VIEW_DESC *desc);
+        DescriptorIndex createShaderResourceView(Handle handle, const D3D12_SHADER_RESOURCE_VIEW_DESC *desc);
+
+        HandleData& getHandleData(Handle handle) { return mHandles[handle.mIndex]; }
+        HandleUseData& getHandleUseData(HandleUse handle) { return mHandleUses[handle.mIndex]; }
     };
 }

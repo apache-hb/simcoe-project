@@ -39,10 +39,9 @@ TEST_CASE("Dear ImGui DrawContext") {
         SUCCEED("Updated swapchain size");
     });
 
-    while (test.next()) {
-        context.begin();
-
-        context.end();
+    while (test.frames.iters-- > 0) {
+        test.doEvent();
+        test.update();
     }
 
     SUCCEED("Ran CoreContext loop");

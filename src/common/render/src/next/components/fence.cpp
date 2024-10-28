@@ -11,26 +11,39 @@ static ID3D12Fence *newFence(CoreDevice& device, uint64_t value) {
     return fence;
 }
 
-Fence::GuardHandle Fence::newEvent(LPCSTR name) {
-    HANDLE event = CreateEventA(nullptr, FALSE, FALSE, name);
+wil::unique_handle Fence::newEvent(LPCSTR name) {
+    HANDLE event = CreateEventA(nullptr, FALSE, FALSE, nullptr);
     if (event == nullptr)
-        sm::system::getLastError().raise();
+        throw OsException{GetLastError()};
 
-    return GuardHandle{event, kCloseHandle};
+    return wil::unique_handle{event};
 }
 
 Fence::Fence(CoreDevice& device, uint64_t initialValue, const char *name) noexcept(false)
     : mFence(newFence(device, initialValue))
     , mEvent(Fence::newEvent(name))
-{ }
+{
+    mFence.rename(name);
+}
 
-uint64_t Fence::value() const {
+uint64_t Fence::completedValue() const {
     return mFence->GetCompletedValue();
 }
 
-void Fence::wait(uint64_t value) {
-    if (mFence->GetCompletedValue() < value) {
-        SM_THROW_HR(mFence->SetEventOnCompletion(value, mEvent.get()));
-        WaitForSingleObject(mEvent.get(), INFINITE);
+void Fence::waitForCompetedValue(uint64_t value) {
+    if (completedValue() < value) {
+        waitForEvent(value);
     }
+}
+
+void Fence::waitForEvent(uint64_t value) {
+    SM_THROW_HR(mFence->SetEventOnCompletion(value, mEvent.get()));
+    DWORD dwResult = WaitForSingleObject(mEvent.get(), INFINITE);
+    if (dwResult != WAIT_OBJECT_0) {
+        throw OsException{GetLastError()};
+    }
+}
+
+void Fence::signal(ID3D12CommandQueue *queue, uint64_t value) {
+    SM_THROW_HR(queue->Signal(mFence.get(), value));
 }

@@ -61,7 +61,8 @@ add_project_arguments(
     cc.get_supported_arguments(
         '/GS-', '/wd4127', '/wd4324',
         '/wd4200', '/wd4505',
-        '-Wno-gnu-anonymous-struct', '-Wno-nested-anon-types'
+        '-Wno-gnu-anonymous-struct', '-Wno-nested-anon-types',
+        '-Wno-cast-function-type-mismatch'
     ),
     language : [ 'c', 'cpp' ]
 )
@@ -237,7 +238,7 @@ subdir('src/vendor/imnodes')
 subdir('src/vendor/imgui_memory_editor')
 
 subdir('src/common/render')
-subdir('src/common/graph')
+# subdir('src/common/graph')
 subdir('src/common/draw')
 subdir('src/common/game')
 

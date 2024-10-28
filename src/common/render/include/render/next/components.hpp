@@ -4,6 +4,8 @@
 
 #include "render/next/device.hpp"
 
+#include <wil/resource.h>
+
 namespace sm::render::next {
     class Fence;
     class CommandBufferSet;
@@ -40,18 +42,17 @@ namespace sm::render::next {
     };
 
     class Fence {
-        constexpr static auto kCloseHandle = [](HANDLE handle) { CloseHandle(handle); };
-        using GuardHandle = std::unique_ptr<std::remove_pointer_t<HANDLE>, decltype(kCloseHandle)>;
-
-        static GuardHandle newEvent(LPCSTR name);
+        static wil::unique_handle newEvent(LPCSTR name);
 
         Object<ID3D12Fence> mFence;
-        GuardHandle mEvent;
+        wil::unique_handle mEvent;
     public:
         Fence(CoreDevice& device, uint64_t initialValue = 0, const char *name = "Fence") throws(RenderException);
 
-        uint64_t value() const;
-        void wait(uint64_t value);
+        uint64_t completedValue() const;
+        void waitForCompetedValue(uint64_t value);
+        void waitForEvent(uint64_t value);
+        void signal(ID3D12CommandQueue *queue, uint64_t value);
 
         ID3D12Fence *get() noexcept { return mFence.get(); }
     };
@@ -65,7 +66,7 @@ namespace sm::render::next {
         ID3D12CommandAllocator *currentAllocator() noexcept { return mAllocators[mCurrentBuffer].get(); }
 
     public:
-        CommandBufferSet(CoreDevice& device, D3D12_COMMAND_LIST_TYPE type, UINT frameCount) throws(RenderException);
+        CommandBufferSet(CoreDevice& device, D3D12_COMMAND_LIST_TYPE type, UINT frameCount, UINT first = 0) throws(RenderException);
 
         void reset(UINT index);
 

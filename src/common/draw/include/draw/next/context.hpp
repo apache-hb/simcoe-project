@@ -12,7 +12,7 @@ namespace sm::draw::next {
         using Super = render::next::CoreContext;
 
         ImGuiDrawContext *mImGui;
-        ComputeContext *mCompute;
+        // ComputeContext *mCompute;
 
     public:
         DrawContext(render::next::ContextConfig config, HWND hwnd);

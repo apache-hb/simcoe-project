@@ -1,0 +1,14 @@
+#include "core/win32.hpp" // IWYU pragma: export
+
+extern "C" {
+{% if agility is defined %}
+	// agility sdk
+	__declspec(dllexport) extern const UINT D3D12SDKVersion = {{ agility.version }}; // NOLINT
+	__declspec(dllexport) extern const char* D3D12SDKPath = "{{ agility.directory }}"; // NOLINT
+{% endif %}
+
+{% if dstorage is defined %}
+	// direct storage
+	__declspec(dllexport) extern const char *DStorageSDKPath = "{{ dstorage.directory }}"; // NOLINT
+{% endif %}
+}

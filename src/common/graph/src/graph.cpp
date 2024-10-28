@@ -9,13 +9,15 @@ using namespace sm::graph;
 /// handles
 ///
 
-Handle::Handle(size_t index)
-    : mIndex(index)
+HandleData::HandleData(std::string name, ID3D12Resource *resource, D3D12_RESOURCE_STATES state)
+    : mName(std::move(name))
+    , mResource(resource)
+    , mState(state)
 { }
 
-HandleData::HandleData(std::string name, render::next::DeviceResource resource, D3D12_RESOURCE_STATES state)
+HandleUseData::HandleUseData(std::string name, Handle handle, D3D12_RESOURCE_STATES state)
     : mName(std::move(name))
-    , mResource(std::move(resource))
+    , mHandle(handle)
     , mState(state)
 { }
 

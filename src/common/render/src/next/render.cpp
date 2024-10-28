@@ -9,6 +9,18 @@ using RenderError = render::RenderError;
 
 using render::Object;
 
+static D3D_ROOT_SIGNATURE_VERSION getHighestRootSignatureVersion(ID3D12Device *device) {
+    D3D12_FEATURE_DATA_ROOT_SIGNATURE feature = {
+        .HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1,
+    };
+
+    if (SUCCEEDED(device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &feature, sizeof(feature)))) {
+        return feature.HighestVersion;
+    }
+
+    return D3D_ROOT_SIGNATURE_VERSION_1_0;
+}
+
 static void onQueueMessage(D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID id, LPCSTR desc, void *user) {
     render::MessageCategory c{category};
     render::MessageSeverity s{severity};
@@ -53,6 +65,8 @@ void CoreDevice::setupInfoQueue(bool enabled) {
 
 void CoreDevice::setupCoreDevice(Adapter& adapter, FeatureLevel level) {
     SM_THROW_HR(D3D12CreateDevice(adapter.get(), D3D_FEATURE_LEVEL(level), IID_PPV_ARGS(&mDevice)));
+    mRootSignatureVersion = getHighestRootSignatureVersion(mDevice.get());
+    mDevice.rename(fmt::format("CoreDevice({})", adapter.name()));
 }
 
 CoreDevice::CoreDevice(Adapter& adapter, FeatureLevel level, DebugFlags flags) noexcept(false)
@@ -115,4 +129,28 @@ bool CoreDevice::setDeviceRemoved() noexcept {
 
 bool CoreDevice::isDeviceRemoved() const noexcept {
     return mDevice->GetDeviceRemovedReason() != S_OK;
+}
+
+HRESULT render::next::serializeRootSignature(const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC *desc, const CoreDevice& device, ID3DBlob **blob, ID3DBlob **error) {
+    return D3DX12SerializeVersionedRootSignature(desc, device.rootSignatureVersion(), blob, error);
+}
+
+render::Blob render::next::rootSignatureToBlob(const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC& desc, const CoreDevice& device) {
+    Blob serialized;
+    Blob error;
+    if (RenderError hr = serializeRootSignature(&desc, device, &serialized, &error)) {
+        RenderError reason{hr.value(), "failed to serialize root signature: {}", error.asString()};
+        throw RenderException{reason};
+    }
+
+    return serialized;
+}
+
+render::Object<ID3D12RootSignature> render::next::createRootSignature(const CoreDevice& device, const CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC& desc) {
+    Blob serialized = rootSignatureToBlob(desc, device);
+
+    Object<ID3D12RootSignature> signature;
+    SM_THROW_HR(device->CreateRootSignature(0, serialized.data(), serialized.size(), IID_PPV_ARGS(&signature)));
+
+    return signature;
 }

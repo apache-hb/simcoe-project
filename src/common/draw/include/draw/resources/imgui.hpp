@@ -20,6 +20,8 @@ namespace sm::draw::next {
         void begin() noexcept;
         void end(ID3D12GraphicsCommandList *list) noexcept;
 
+        void updatePlatformViewports(ID3D12GraphicsCommandList *list) noexcept;
+
         void setupPlatform() noexcept;
         void setupRender(ID3D12Device *device, DXGI_FORMAT format, UINT frames, render::next::DescriptorPool& srvHeap, size_t srvHeapIndex) noexcept;
 

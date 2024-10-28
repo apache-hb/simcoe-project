@@ -1,3 +1,8 @@
+# awful
+fs.copyfile(dstorage.get_variable('bindir') / 'dstorage.dll')
+subdir('redist')
+subdir('redist/d3d12')
+
 testcases = {
     'DrawContext has correct cleanup': 'next/draw_context_cleanup.cpp',
 
@@ -7,7 +12,7 @@ testcases = {
 
 foreach name, source : testcases
     exe = executable('test-draw-' + name.to_lower().replace(' ', '-'), source,
-        dependencies : [ drawtest ]
+        dependencies : [ drawtest, agility_export ]
     )
 
     test(name, exe,

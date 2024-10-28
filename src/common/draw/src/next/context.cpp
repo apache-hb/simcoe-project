@@ -13,26 +13,32 @@ static render::next::ContextConfig updateConfig(render::next::ContextConfig curr
 DrawContext::DrawContext(render::next::ContextConfig config, HWND hwnd)
     : Super(updateConfig(config))
     , mImGui(addResource<ImGuiDrawContext>(hwnd))
-    , mCompute(addResource<ComputeContext>())
 {
     mImGui->setup();
     mImGui->create();
-    mCompute->setup(getSwapChainLength());
 }
 
-DrawContext::~DrawContext() noexcept {
+DrawContext::~DrawContext() noexcept try {
     flushDeviceForCleanup();
     mImGui->destroy();
+} catch (...) {
+    LOG_ERROR(RenderLog, "Failed to destroy DrawContext");
 }
 
 void DrawContext::begin() {
-    Super::begin();
-    mCompute->begin();
+    beginCommands();
+
     mImGui->begin();
 }
 
 void DrawContext::end() {
-    mCompute->end();
-    mImGui->end(mDirectCommandSet->get());
-    Super::end();
+    ID3D12GraphicsCommandList *list = mDirectCommandSet->get();
+    mImGui->end(list);
+
+    endCommands();
+    executeCommands();
+
+    mImGui->updatePlatformViewports(list);
+
+    presentSurface();
 }

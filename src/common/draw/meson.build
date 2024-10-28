@@ -49,6 +49,7 @@ src = [
     # next draw passes
     'src/passes/blit.cpp',
     'src/passes/opaque.cpp',
+    'src/passes/forwardplus.cpp',
 
     # next draw contexts
     'src/next/context.cpp',
@@ -90,8 +91,5 @@ drawtest = declare_dependency(
     dependencies : [ draw_next, rendertest ]
 )
 
-###
-### tests
-###
-
 subdir('test')
+subdir('benchmark')
