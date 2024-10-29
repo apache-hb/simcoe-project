@@ -60,8 +60,6 @@ src = [
 
     # next draw contexts
     'src/next/context.cpp',
-
-    vic20_shader,
 ]
 
 deps = [ render_next, logs, imgui ]
@@ -70,7 +68,8 @@ libdraw_next = library('draw-next', src,
     cpp_args : [ '-DSM_DRAW_BUILD=1' ],
     cpp_pch : 'src/stdafx.hpp',
     include_directories : [ draw_include, 'src' ],
-    dependencies : deps
+    dependencies : deps,
+    link_depends : vic20_shader
 )
 
 draw_next = declare_dependency(

@@ -11,11 +11,20 @@ RWTexture2D<float4> gPresentTexture : register(u0);
 
 // this is dispatched based on the size of `gTextureSize` rather than the framebuffer size
 [numthreads(VIC20_THREADS_X, VIC20_THREADS_Y, 1)]
-void csMain(uint3 dispatchId : SV_DispatchThreadID) {
+void csMain(
+    uint3 groupId : SV_GroupID,
+    uint3 groupThreadId : SV_GroupThreadID,
+    uint3 dispatchId : SV_DispatchThreadID
+) {
     Vic20Info info = gDrawInfo[0];
 
-    // index into the framebuffer array as if it was an array of uint8_t
-    uint index = dispatchId.y * VIC20_SCREEN_WIDTH + dispatchId.x; // getFrameBufferIndex(dispatchId.xy, info.dispatchSize);
+    // index into the framebuffer array, multiple threads may index
+    // the same pixel as one thread is created for each pixel in gPresentTexture
+    // rather than the framebuffer
+    // Map the texture coordinates to the framebuffer coordinates
+    uint fbX = dispatchId.x % VIC20_SCREEN_WIDTH;
+    uint fbY = dispatchId.y % VIC20_SCREEN_HEIGHT;
+    uint index = fbY * VIC20_SCREEN_WIDTH + fbX;
 
     uint paletteIndex = 0;
 

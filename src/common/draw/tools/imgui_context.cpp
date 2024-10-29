@@ -66,16 +66,16 @@ int main(int argc, const char **argv) noexcept try {
     WindowSwapChainFactory hwndSwapChain{window.getHandle()};
 
     ContextConfig config {
-        // .flags = DebugFlags::eDeviceDebugLayer
-        //        | DebugFlags::eFactoryDebug
-        //        | DebugFlags::eDeviceRemovedInfo
-        //        | DebugFlags::eInfoQueue
-        //        | DebugFlags::eAutoName
-        //        | DebugFlags::eGpuValidation
-        //        | DebugFlags::eDirectStorageDebug
-        //        | DebugFlags::eDirectStorageBreak
-        //        | DebugFlags::eDirectStorageNames
-        //        | DebugFlags::eWinPixEventRuntime,
+        .flags = DebugFlags::eDeviceDebugLayer
+               | DebugFlags::eFactoryDebug
+               | DebugFlags::eDeviceRemovedInfo
+               | DebugFlags::eInfoQueue
+               | DebugFlags::eAutoName
+               | DebugFlags::eGpuValidation
+               | DebugFlags::eDirectStorageDebug
+               | DebugFlags::eDirectStorageBreak
+               | DebugFlags::eDirectStorageNames
+               | DebugFlags::eWinPixEventRuntime,
         .targetLevel = FeatureLevel::eLevel_11_0,
         .swapChainFactory = &hwndSwapChain,
         .swapChainInfo = {
@@ -85,7 +85,7 @@ int main(int argc, const char **argv) noexcept try {
         },
     };
 
-    math::uint2 vic20Size { VIC20_SCREEN_WIDTH, VIC20_SCREEN_HEIGHT };
+    math::uint2 vic20Size { VIC20_SCREEN_WIDTH * 2, VIC20_SCREEN_HEIGHT * 2 };
     DrawContext context{config, window.getHandle(), vic20Size};
     events.context = &context;
 
