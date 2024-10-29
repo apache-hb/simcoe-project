@@ -84,7 +84,7 @@ D3D12_GPU_VIRTUAL_ADDRESS Vic20Display::getInfoBufferAddress(UINT index) const n
 }
 
 void Vic20Display::createFrameBuffer() {
-    size_t size = size_t(VIC20_SCREEN_SIZE);
+    size_t size = size_t(VIC20_FRAMEBUFFER_SIZE);
     mFrameBuffer = DeviceFrameBuffer(mContext, size, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_UPLOAD);
     mFrameBufferPtr = mFrameBuffer.map(size);
     mFrameData = std::make_unique<FrameBufferElement[]>(size);
@@ -153,7 +153,7 @@ void Vic20Display::record(ID3D12GraphicsCommandList *list, UINT index) {
     uint dispatchX = (mTargetSize.x / VIC20_THREADS_X) - 1;
     uint dispatchY = (mTargetSize.y / VIC20_THREADS_Y) - 1;
 
-    std::copy(mFrameData.get(), mFrameData.get() + VIC20_SCREEN_SIZE, mFrameBufferPtr);
+    std::copy(mFrameData.get(), mFrameData.get() + VIC20_FRAMEBUFFER_SIZE, mFrameBufferPtr);
 
     const D3D12_RESOURCE_BARRIER cBarrier[] = {
         CD3DX12_RESOURCE_BARRIER::UAV(getTarget())
@@ -181,9 +181,17 @@ D3D12_GPU_DESCRIPTOR_HANDLE Vic20Display::getTargetSrv() const {
 }
 
 void Vic20Display::write(uint32_t x, uint32_t y, uint8_t colour) noexcept {
-    uint32_t coord = y * VIC20_SCREEN_WIDTH + x;
+    uint32_t coord = (y * VIC20_SCREEN_WIDTH + x);
     if (coord > VIC20_SCREEN_SIZE) {
-        CTASSERTF(false, "write out of bounds");
+        return;
     }
-    mFrameData[coord] = colour;
+
+    int high = (coord & 1);
+    int index = (coord >> 1);
+    uint8_t& cell = mFrameData[index];
+    if (high) {
+        cell = (cell & 0x0F) | (colour << 4);
+    } else {
+        cell = (cell & 0xF0) | colour;
+    }
 }

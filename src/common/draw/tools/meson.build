@@ -1,5 +1,5 @@
 exe = executable('draw-imgui-context', 'imgui_context.cpp',
-    dependencies : [ draw_next ],
+    dependencies : [ draw_next, cthulhu.get_variable('backtrace'), cthulhu.get_variable('format_core'), ],
     cpp_args : cpp.get_supported_arguments([ '-Wno-c99-designator' ]),
 )
 
