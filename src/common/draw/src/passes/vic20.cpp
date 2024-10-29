@@ -181,10 +181,9 @@ D3D12_GPU_DESCRIPTOR_HANDLE Vic20Display::getTargetSrv() const {
 }
 
 void Vic20Display::write(uint32_t x, uint32_t y, uint8_t colour) noexcept {
-    if (x >= VIC20_SCREEN_WIDTH || y >= VIC20_SCREEN_HEIGHT) {
-        return;
-    }
-
     uint32_t coord = y * VIC20_SCREEN_WIDTH + x;
+    if (coord > VIC20_SCREEN_SIZE) {
+        CTASSERTF(false, "write out of bounds");
+    }
     mFrameData[coord] = colour;
 }
