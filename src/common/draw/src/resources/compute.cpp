@@ -62,3 +62,7 @@ void ComputeContext::end() {
 void ComputeContext::blockQueueUntil(ID3D12CommandQueue *queue) {
     syncDeviceTimeline(mComputeQueue.get(), queue, mComputeFence.get(), ++mFenceValue);
 }
+
+void ComputeContext::waitOnQueue(ID3D12CommandQueue *queue) {
+    syncDeviceTimeline(queue, mComputeQueue.get(), mComputeFence.get(), ++mFenceValue);
+}

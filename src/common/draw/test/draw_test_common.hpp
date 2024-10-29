@@ -15,7 +15,7 @@ struct DrawWindowTestContext : WindowBaseTest<ImGuiWindowEvents> {
 
     DrawWindowTestContext(int frames, bool debug = true, std::string name = sm::system::getProgramName())
         : WindowBaseTest(frames, std::move(name))
-        , context(window.getClientCoords().size(), &windowSwapChain, debug, window.getHandle())
+        , context(window.getClientCoords().size(), &windowSwapChain, debug, window.getHandle(), math::uint2{ 720, 480 })
     {
         window.showWindow(system::ShowWindow::eShow);
         events.context = &context.context;

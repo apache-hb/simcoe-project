@@ -37,6 +37,7 @@ namespace sm::render::next {
         D3D12_CPU_DESCRIPTOR_HANDLE allocateHost();
         D3D12_GPU_DESCRIPTOR_HANDLE allocateDevice();
 
+        void free(size_t index);
         void free(D3D12_GPU_DESCRIPTOR_HANDLE handle);
         void free(D3D12_CPU_DESCRIPTOR_HANDLE handle);
     };

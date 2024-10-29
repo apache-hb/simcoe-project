@@ -29,6 +29,9 @@ namespace sm::draw::next {
         /// @param queue the queue to block
         void blockQueueUntil(ID3D12CommandQueue *queue);
 
+        /// @brief sync the compute queue with the incoming queue
+        void waitOnQueue(ID3D12CommandQueue *queue);
+
         ID3D12GraphicsCommandList *getCommandList() const noexcept { return mCommandSet->get(); }
 
         // IContextResource

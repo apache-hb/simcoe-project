@@ -85,13 +85,84 @@ int main(int argc, const char **argv) noexcept try {
         },
     };
 
-    DrawContext context{config, window.getHandle()};
+    math::uint2 vic20Size { VIC20_SCREEN_WIDTH, VIC20_SCREEN_HEIGHT };
+    DrawContext context{config, window.getHandle(), vic20Size};
     events.context = &context;
+
+    static const char *kVic20ColourNames[VIC20_PALETTE_SIZE] = {
+        [VIC20_COLOUR_BLACK] = "Black",
+        [VIC20_COLOUR_WHITE] = "White",
+        [VIC20_COLOUR_DARK_BROWN] = "Dark Brown",
+        [VIC20_COLOUR_LIGHT_BROWN] = "Light Brown",
+
+        [VIC20_COLOUR_MAROON] = "Maroon",
+        [VIC20_COLOUR_LIGHT_RED] = "Light Red",
+        [VIC20_COLOUR_BLUE] = "Blue",
+        [VIC20_COLOUR_LIGHT_BLUE] = "Light Blue",
+
+        [VIC20_COLOUR_PURPLE] = "Purple",
+        [VIC20_COLOUR_PINK] = "Pink",
+        [VIC20_COLOUR_GREEN] = "Green",
+        [VIC20_COLOUR_LIGHT_GREEN] = "Light Green",
+
+        [VIC20_COLOUR_DARK_PURPLE] = "Dark Purple",
+        [VIC20_COLOUR_LIGHT_PURPLE] = "Light Purple",
+        [VIC20_COLOUR_YELLOW_GREEN] = "Yellow Green",
+        [VIC20_COLOUR_LIGHT_YELLOW] = "Light Yellow",
+    };
+
+    // // draw a square in the middle of the screen
+    // uint8_t x = VIC20_SCREEN_WIDTH / 2;
+    // uint8_t y = VIC20_SCREEN_HEIGHT / 2;
+    int sizeWidth = 50;
+    int sizeHeight = 50;
+
+    // context.write(100, 100, VIC20_COLOUR_LIGHT_YELLOW);
+
+    // for (int i = 0; i < sizeWidth; ++i) {
+    //     for (int j = 0; j < sizeHeight; ++j) {
+    //         context.write(x + i, y + j, VIC20_COLOUR_BLUE);
+    //     }
+    // }
 
     while (nextMessage()) {
         context.begin();
 
         ImGui::ShowDemoWindow();
+
+        if (ImGui::Begin("Poke")) {
+            static uint8_t x = 0;
+            static uint8_t y = 0;
+            static int colour = VIC20_COLOUR_BLACK;
+
+            ImGui::InputScalar("X", ImGuiDataType_U8, &x);
+            ImGui::InputScalar("Y", ImGuiDataType_U8, &y);
+            if (ImGui::BeginCombo("Colour", kVic20ColourNames[colour])) {
+                for (int i = 0; i < VIC20_PALETTE_SIZE; ++i) {
+                    if (ImGui::Selectable(kVic20ColourNames[i])) {
+                        colour = i;
+                    }
+                }
+                ImGui::EndCombo();
+            }
+
+            if (ImGui::Button("Poke")) {
+                context.write(x, y, colour);
+
+                for (int i = 0; i < sizeWidth; ++i) {
+                    for (int j = 0; j < sizeHeight; ++j) {
+                        context.write(x + i, y + j, VIC20_COLOUR_BLUE);
+                    }
+                }
+            }
+        }
+        ImGui::End();
+
+        if (ImGui::Begin("VIC20")) {
+            D3D12_GPU_DESCRIPTOR_HANDLE srv = context.getVic20TargetSrv();
+            ImGui::Image(reinterpret_cast<ImTextureID>(srv.ptr), ImVec2(vic20Size.width, vic20Size.height));
+        }
+        ImGui::End();
 
         context.end();
     }

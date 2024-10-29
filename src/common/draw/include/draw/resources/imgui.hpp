@@ -6,6 +6,7 @@ namespace sm::draw::next {
     class ImGuiDrawContext final : public render::next::IContextResource {
         using Super = render::next::IContextResource;
         HWND mWindow;
+        size_t mSrvHeapIndex;
 
         bool hasViewportSupport() const noexcept;
 
@@ -23,7 +24,7 @@ namespace sm::draw::next {
         void updatePlatformViewports(ID3D12GraphicsCommandList *list) noexcept;
 
         void setupPlatform() noexcept;
-        void setupRender(ID3D12Device *device, DXGI_FORMAT format, UINT frames, render::next::DescriptorPool& srvHeap, size_t srvHeapIndex) noexcept;
+        void setupRender(ID3D12Device *device, DXGI_FORMAT format, UINT frames, render::next::DescriptorPool& srvHeap) noexcept;
 
         // IContextResource
         void reset() noexcept override;

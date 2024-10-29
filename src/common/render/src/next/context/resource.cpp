@@ -27,14 +27,24 @@ BufferResource::BufferResource(CoreContext& context, D3D12_RESOURCE_STATES state
 { }
 
 void BufferResource::write(const void *data, size_t size) {
+    D3D12_RANGE written = {0, size};
+    void *mapped = map(size);
+    memcpy(mapped, data, size);
+    unmap(mapped, &written);
+}
+
+void *BufferResource::map(size_t size) {
     ID3D12Resource *resource = get();
 
     void *mapped;
     SM_THROW_HR(resource->Map(0, nullptr, &mapped));
-    memcpy(mapped, data, size);
 
-    D3D12_RANGE written = {0, size};
-    resource->Unmap(0, &written);
+    return mapped;
+}
+
+void BufferResource::unmap(void *mapped, const D3D12_RANGE *written) noexcept {
+    ID3D12Resource *resource = get();
+    resource->Unmap(0, written);
 }
 
 static ConstBufferData newConstBuffer(CoreContext& context, UINT index, size_t size) {

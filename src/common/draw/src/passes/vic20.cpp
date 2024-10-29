@@ -1,5 +1,7 @@
 #include "draw/passes/vic20.hpp"
 
+#include <directx/d3dx12_barriers.h>
+
 using namespace sm::render::next;
 using namespace sm::draw::next;
 
@@ -66,8 +68,20 @@ void Vic20Display::createComputeShader() {
 }
 
 void Vic20Display::createConstBuffers(UINT length) {
-    size_t size = sizeof(ConstBufferData) * length;
+    size_t size = sizeof(shared::Vic20Info) * length;
     mVic20InfoBuffer = BufferResource(mContext, D3D12_RESOURCE_STATE_GENERIC_READ, size, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_UPLOAD);
+
+    shared::Vic20Info *mapped = (shared::Vic20Info*)mVic20InfoBuffer.map(size);
+    for (size_t i = 0; i < length; i++) {
+        shared::Vic20Info data = {
+            .textureSize = mTargetSize,
+            .dispatchSize = (mTargetSize / math::uint2(VIC20_THREADS_X, VIC20_THREADS_Y)),
+        };
+
+        mapped[i] = data;
+    }
+
+    mVic20InfoBuffer.unmap(mapped, nullptr);
 }
 
 D3D12_GPU_VIRTUAL_ADDRESS Vic20Display::getInfoBufferAddress(UINT index) const noexcept {
@@ -76,17 +90,19 @@ D3D12_GPU_VIRTUAL_ADDRESS Vic20Display::getInfoBufferAddress(UINT index) const n
 }
 
 void Vic20Display::createFrameBuffer() {
-    mVic20FrameBuffer = BufferResource(mContext, D3D12_RESOURCE_STATE_GENERIC_READ, VIC20_FRAMEBUFFER_SIZE, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_UPLOAD);
+    size_t size = VIC20_FRAMEBUFFER_SIZE * sizeof(uint32_t);
+    mFrameBuffer = BufferResource(mContext, D3D12_RESOURCE_STATE_GENERIC_READ, size, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_UPLOAD);
+    mFrameBufferPtr = mFrameBuffer.map(size);
 }
 
-void Vic20Display::createCompositionTarget(math::uint2 size) {
-    // round size up to nearest multiple of 16
-    size.x = (size.x + 15) & ~15;
-    size.y = (size.y + 15) & ~15;
-
+void Vic20Display::createCompositionTarget() {
     DescriptorPool& srvPool = mContext.getSrvHeap();
     CoreDevice& device = mContext.getCoreDevice();
-    D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, size.x, size.y, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+    D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(
+        DXGI_FORMAT_R8G8B8A8_UNORM, mTargetSize.x, mTargetSize.y,
+        1, 0, 1, 0,
+        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
+    );
 
     D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {
         .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -97,27 +113,48 @@ void Vic20Display::createCompositionTarget(math::uint2 size) {
         },
     };
 
-    mTargetSize = size;
-    mVic20Target = TextureResource(mContext, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, desc, true);
-    mVic20TargetUAVIndex = 1;
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {
+        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+        .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
+        .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+        .Texture2D = {
+            .MostDetailedMip = 0,
+            .MipLevels = 1,
+            .PlaneSlice = 0,
+            .ResourceMinLODClamp = 0.0f,
+        },
+    };
 
-    device->CreateUnorderedAccessView(mVic20Target.get(), nullptr, &uavDesc, srvPool.host(mVic20TargetUAVIndex));
+    mTarget = TextureResource(mContext, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, desc, true);
+    mTargetUAVIndex = srvPool.allocate();
+    mTargetSRVIndex = srvPool.allocate();
+
+    device->CreateUnorderedAccessView(mTarget.get(), nullptr, &uavDesc, srvPool.host(mTargetUAVIndex));
+    device->CreateShaderResourceView(mTarget.get(), &srvDesc, srvPool.host(mTargetSRVIndex));
 }
 
-Vic20Display::Vic20Display(CoreContext& context) noexcept
+Vic20Display::Vic20Display(CoreContext& context, math::uint2 resolution) noexcept
     : IContextResource(context)
-{ }
+    , mTargetSize(resolution)
+{
+    mTargetSize.x = (mTargetSize.x + VIC20_THREADS_X) & ~VIC20_THREADS_X;
+    mTargetSize.y = (mTargetSize.y + VIC20_THREADS_Y) & ~VIC20_THREADS_Y;
+}
 
 void Vic20Display::resetDisplayData() {
-    mVic20Target.reset();
-    mVic20FrameBuffer.reset();
+    DescriptorPool& srvPool = mContext.getSrvHeap();
+    srvPool.free(mTargetUAVIndex);
+    srvPool.free(mTargetSRVIndex);
+
+    mTarget.reset();
+    mFrameBuffer.reset();
     mVic20InfoBuffer.reset();
 }
 
 void Vic20Display::createDisplayData(SurfaceInfo info) {
     createConstBuffers(info.length);
     createFrameBuffer();
-    createCompositionTarget(info.size);
+    createCompositionTarget();
 }
 
 void Vic20Display::reset() noexcept {
@@ -138,21 +175,54 @@ void Vic20Display::update(SurfaceInfo info) {
 
 void Vic20Display::record(ID3D12GraphicsCommandList *list, UINT index) {
     DescriptorPool& srvPool = mContext.getSrvHeap();
-    uint dispatchX = mTargetSize.x / 16;
-    uint dispatchY = mTargetSize.y / 16;
-
     ID3D12DescriptorHeap *heaps[] = { srvPool.get() };
+    uint dispatchX = (mTargetSize.x / VIC20_THREADS_X) - 1;
+    uint dispatchY = (mTargetSize.y / VIC20_THREADS_Y) - 1;
+
+    memcpy(mFrameBufferPtr, mFrameData.get(), VIC20_FRAMEBUFFER_SIZE * sizeof(uint32_t));
+
+    const D3D12_RESOURCE_BARRIER cBarrier[] = {
+        CD3DX12_RESOURCE_BARRIER::UAV(getTarget())
+    };
 
     list->SetDescriptorHeaps(_countof(heaps), heaps);
 
     list->SetComputeRootSignature(mVic20RootSignature.get());
     list->SetPipelineState(mVic20PipelineState.get());
 
-    list->DiscardResource(mVic20Target.get(), nullptr);
+    list->DiscardResource(getTarget(), nullptr);
 
     list->SetComputeRootShaderResourceView(eDrawInfoBuffer, getInfoBufferAddress(index));
-    list->SetComputeRootShaderResourceView(eFrameBuffer, mVic20FrameBuffer.deviceAddress());
-    list->SetComputeRootDescriptorTable(ePresentTexture, srvPool.device(mVic20TargetUAVIndex));
+    list->SetComputeRootShaderResourceView(eFrameBuffer, mFrameBuffer.deviceAddress());
+    list->SetComputeRootDescriptorTable(ePresentTexture, srvPool.device(mTargetUAVIndex));
+
+    list->ResourceBarrier(_countof(cBarrier), cBarrier);
 
     list->Dispatch(dispatchX, dispatchY, 1);
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE Vic20Display::getTargetSrv() const {
+    DescriptorPool& srvPool = mContext.getSrvHeap();
+    return srvPool.device(mTargetSRVIndex);
+}
+
+void Vic20Display::write(uint8_t x, uint8_t y, uint8_t colour) noexcept {
+    if (x >= VIC20_SCREEN_WIDTH || y >= VIC20_SCREEN_HEIGHT) {
+        return;
+    }
+
+    uint32_t coord = uint32_t(y) * VIC20_SCREEN_WIDTH + x;
+    mFrameData[coord] = colour;
+#if 0
+    int high = (coord & 1);
+    int index = (coord & ~1) / 2;
+    uint8_t palette = colour & 0x0F;
+
+    uint8_t& cell = mFrameData[index];
+    if (high) {
+        cell = (cell & 0b1111'0000) | palette;
+    } else {
+        cell = (cell & 0b0000'1111) | (palette << 4);
+    }
+#endif
 }

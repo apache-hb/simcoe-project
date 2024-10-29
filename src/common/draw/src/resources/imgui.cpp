@@ -36,9 +36,11 @@ void ImGuiDrawContext::setupPlatform() noexcept {
     ImGui_ImplWin32_Init(mWindow);
 }
 
-void ImGuiDrawContext::setupRender(ID3D12Device *device, DXGI_FORMAT format, UINT frames, render::next::DescriptorPool& srvHeap, size_t srvHeapIndex) noexcept {
-    D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = srvHeap.device(srvHeapIndex);
-    D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = srvHeap.host(srvHeapIndex);
+void ImGuiDrawContext::setupRender(ID3D12Device *device, DXGI_FORMAT format, UINT frames, render::next::DescriptorPool& srvHeap) noexcept {
+    mSrvHeapIndex = srvHeap.allocate();
+
+    D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = srvHeap.device(mSrvHeapIndex);
+    D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = srvHeap.host(mSrvHeapIndex);
     ImGui_ImplDX12_Init(device, frames, format, srvHeap.get(), cpuHandle, gpuHandle);
 }
 
@@ -68,8 +70,11 @@ void ImGuiDrawContext::updatePlatformViewports(ID3D12GraphicsCommandList *list) 
 }
 
 void ImGuiDrawContext::reset() noexcept {
+    DescriptorPool &srvHeap = mContext.getSrvHeap();
     ImGui_ImplDX12_Shutdown();
     ImGui_ImplWin32_Shutdown();
+
+    srvHeap.free(mSrvHeapIndex);
 }
 
 void ImGuiDrawContext::create() {
@@ -77,7 +82,7 @@ void ImGuiDrawContext::create() {
     DescriptorPool &srvHeap = mContext.getSrvHeap();
 
     setupPlatform();
-    setupRender(mContext.getDevice(), info.format, info.length, srvHeap, 0);
+    setupRender(mContext.getDevice(), info.format, info.length, srvHeap);
 }
 
 void ImGuiDrawContext::update(SurfaceInfo info) {
@@ -86,5 +91,5 @@ void ImGuiDrawContext::update(SurfaceInfo info) {
 
     reset();
     setupPlatform();
-    setupRender(mContext.getDevice(), info.format, info.length, srvHeap, 0);
+    setupRender(mContext.getDevice(), info.format, info.length, srvHeap);
 }

@@ -57,12 +57,16 @@ D3D12_GPU_DESCRIPTOR_HANDLE DescriptorPool::allocateDevice() {
     return device(allocate());
 }
 
+void DescriptorPool::free(size_t index) {
+    mAllocator.deallocate(index);
+}
+
 void DescriptorPool::free(D3D12_GPU_DESCRIPTOR_HANDLE handle) {
     UINT64 offset = (handle.ptr - mFirstDeviceHandle.ptr) / mDescriptorSize;
-    mAllocator.deallocate(offset);
+    free(offset);
 }
 
 void DescriptorPool::free(D3D12_CPU_DESCRIPTOR_HANDLE handle) {
     UINT64 offset = (handle.ptr - mFirstHostHandle.ptr) / mDescriptorSize;
-    mAllocator.deallocate(offset);
+    free(offset);
 }

@@ -37,6 +37,9 @@ namespace sm::render::next {
         BufferResource(CoreContext& context, D3D12_RESOURCE_STATES state, uint64 width, D3D12_RESOURCE_FLAGS flags, D3D12_HEAP_TYPE heap);
 
         void write(const void *data, size_t size);
+
+        void *map(size_t size);
+        void unmap(void *mapped, const D3D12_RANGE *written) noexcept;
     };
 
     /// @brief a per frame resource buffer

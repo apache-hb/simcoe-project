@@ -1,8 +1,5 @@
 #include "draw/common/vic20.h"
 
-#define CS_THREADS_X 16
-#define CS_THREADS_Y 16
-
 StructuredBuffer<Vic20Info> gDrawInfo : register(t0);
 
 // framebuffer is a 1D array of colour palette indices of size `VIC20_FRAMEBUFFER_SIZE`
@@ -13,15 +10,20 @@ StructuredBuffer<uint> gFrameBuffer : register(t1);
 RWTexture2D<float4> gPresentTexture : register(u0);
 
 // this is dispatched based on the size of `gTextureSize` rather than the framebuffer size
-[numthreads(CS_THREADS_X, CS_THREADS_Y, 1)]
-void csMain(
-    uint3 groupId : SV_GroupID,
-    uint3 threadId : SV_GroupThreadID
-) {
-    // calculate the texture coordinates this thread will write to
-    uint x = groupId.x * CS_THREADS_X + threadId.x;
-    uint y = groupId.y * CS_THREADS_Y + threadId.y;
+[numthreads(VIC20_THREADS_X, VIC20_THREADS_Y, 1)]
+void csMain(uint3 dispatchId : SV_DispatchThreadID) {
+    Vic20Info info = gDrawInfo[0];
 
-    // TODO: the rest of the function
-    gPresentTexture[uint2(x, y)] = float4(kVic20Pallete[gFrameBuffer[0]], 1.f);
+    // index into the framebuffer array as if it was an array of uint8_t
+    uint index = dispatchId.y * VIC20_SCREEN_WIDTH + dispatchId.x; // getFrameBufferIndex(dispatchId.xy, info.dispatchSize);
+
+    uint paletteIndex = 0;
+
+    if (index < VIC20_FRAMEBUFFER_SIZE) {
+        paletteIndex = gFrameBuffer[index] & 0x0000000F;
+    }
+
+    float3 colour = kVic20Palette[paletteIndex];
+
+    gPresentTexture[dispatchId.xy] = float4(colour, 1.f);
 }
