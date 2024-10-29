@@ -68,31 +68,27 @@ void Vic20Display::createComputeShader() {
 }
 
 void Vic20Display::createConstBuffers(UINT length) {
-    size_t size = sizeof(shared::Vic20Info) * length;
-    mVic20InfoBuffer = BufferResource(mContext, D3D12_RESOURCE_STATE_GENERIC_READ, size, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_UPLOAD);
+    mInfoBuffer = InfoDeviceBuffer(mContext, length, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_UPLOAD);
 
-    shared::Vic20Info *mapped = (shared::Vic20Info*)mVic20InfoBuffer.map(size);
     for (size_t i = 0; i < length; i++) {
         shared::Vic20Info data = {
             .textureSize = mTargetSize,
             .dispatchSize = (mTargetSize / math::uint2(VIC20_THREADS_X, VIC20_THREADS_Y)),
         };
 
-        mapped[i] = data;
+        mInfoBuffer.updateElement(i, data);
     }
-
-    mVic20InfoBuffer.unmap(mapped, nullptr);
 }
 
 D3D12_GPU_VIRTUAL_ADDRESS Vic20Display::getInfoBufferAddress(UINT index) const noexcept {
-    D3D12_GPU_VIRTUAL_ADDRESS address = mVic20InfoBuffer.deviceAddress();
-    return address + index * sizeof(ConstBufferData);
+    return mInfoBuffer.elementAddress(index);
 }
 
 void Vic20Display::createFrameBuffer() {
-    size_t size = VIC20_FRAMEBUFFER_SIZE * sizeof(uint32_t);
-    mFrameBuffer = BufferResource(mContext, D3D12_RESOURCE_STATE_GENERIC_READ, size, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_UPLOAD);
+    size_t size = size_t(VIC20_SCREEN_SIZE);
+    mFrameBuffer = DeviceFrameBuffer(mContext, size, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_UPLOAD);
     mFrameBufferPtr = mFrameBuffer.map(size);
+    mFrameData = std::make_unique<FrameBufferElement[]>(size);
 }
 
 void Vic20Display::createCompositionTarget() {
@@ -148,7 +144,7 @@ void Vic20Display::resetDisplayData() {
 
     mTarget.reset();
     mFrameBuffer.reset();
-    mVic20InfoBuffer.reset();
+    mInfoBuffer.reset();
 }
 
 void Vic20Display::createDisplayData(SurfaceInfo info) {
@@ -179,7 +175,7 @@ void Vic20Display::record(ID3D12GraphicsCommandList *list, UINT index) {
     uint dispatchX = (mTargetSize.x / VIC20_THREADS_X) - 1;
     uint dispatchY = (mTargetSize.y / VIC20_THREADS_Y) - 1;
 
-    memcpy(mFrameBufferPtr, mFrameData.get(), VIC20_FRAMEBUFFER_SIZE * sizeof(uint32_t));
+    std::copy(mFrameData.get(), mFrameData.get() + VIC20_SCREEN_SIZE, mFrameBufferPtr);
 
     const D3D12_RESOURCE_BARRIER cBarrier[] = {
         CD3DX12_RESOURCE_BARRIER::UAV(getTarget())

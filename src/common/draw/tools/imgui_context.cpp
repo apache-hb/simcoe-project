@@ -1,5 +1,4 @@
-#include "render/next/context/core.hpp"
-#include "draw/next/context.hpp"
+#include "draw/next/vic20.hpp"
 
 #include "render/next/surface/swapchain.hpp"
 #include "system/system.hpp"
@@ -85,8 +84,8 @@ int main(int argc, const char **argv) noexcept try {
         },
     };
 
-    math::uint2 vic20Size { VIC20_SCREEN_WIDTH * 2, VIC20_SCREEN_HEIGHT * 2 };
-    DrawContext context{config, window.getHandle(), vic20Size};
+    math::uint2 vic20Size { VIC20_SCREEN_WIDTH, VIC20_SCREEN_HEIGHT };
+    Vic20DrawContext context{config, window.getHandle(), vic20Size};
     events.context = &context;
 
     static const char *kVic20ColourNames[VIC20_PALETTE_SIZE] = {
@@ -139,8 +138,15 @@ int main(int argc, const char **argv) noexcept try {
             ImGui::InputScalar("Y", ImGuiDataType_U8, &y);
             if (ImGui::BeginCombo("Colour", kVic20ColourNames[colour])) {
                 for (int i = 0; i < VIC20_PALETTE_SIZE; ++i) {
+                    // draw a little square with the colour of this choice
+                    // on the left side of the selectable as a visual preview
+
                     if (ImGui::Selectable(kVic20ColourNames[i])) {
                         colour = i;
+                    }
+
+                    if (i == colour) {
+                        ImGui::SetItemDefaultFocus();
                     }
                 }
                 ImGui::EndCombo();

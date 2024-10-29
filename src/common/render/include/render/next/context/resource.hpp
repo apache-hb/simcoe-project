@@ -26,15 +26,17 @@ namespace sm::render::next {
     };
 
     class TextureResource : public DeviceResource {
+        using Super = DeviceResource;
     public:
         TextureResource() noexcept = default;
         TextureResource(CoreContext& context, D3D12_RESOURCE_STATES state, D3D12_RESOURCE_DESC desc, bool comitted);
     };
 
-    class BufferResource : public DeviceResource {
+    class AnyBufferResource : public DeviceResource {
+        using Super = DeviceResource;
     public:
-        BufferResource() noexcept = default;
-        BufferResource(CoreContext& context, D3D12_RESOURCE_STATES state, uint64 width, D3D12_RESOURCE_FLAGS flags, D3D12_HEAP_TYPE heap);
+        AnyBufferResource() noexcept = default;
+        AnyBufferResource(CoreContext& context, uint64_t width, D3D12_RESOURCE_STATES state, D3D12_RESOURCE_FLAGS flags, D3D12_HEAP_TYPE heap);
 
         void write(const void *data, size_t size);
 
@@ -42,38 +44,45 @@ namespace sm::render::next {
         void unmap(void *mapped, const D3D12_RANGE *written) noexcept;
     };
 
-    /// @brief a per frame resource buffer
-    /// holds N resources, one for each frame
     template<typename T>
-    class FrameResource {
-        std::unique_ptr<T[]> mResources;
-
-    protected:
-        FrameResource(UINT frames, auto&& init) {
-            mResources = std::make_unique<T[]>(frames);
-            for (UINT i = 0; i < frames; ++i) {
-                mResources[i] = init(i);
-            }
-        }
-
-        T& get(UINT frame) noexcept {
-            return mResources[frame];
-        }
-    };
-
-    struct ConstBufferData {
-        Object<D3D12MA::Allocation> resource;
-        D3D12_GPU_DESCRIPTOR_HANDLE cbvHandle;
-        void *data;
-    };
-
-    class ConstBufferResourceBase : public FrameResource<ConstBufferData> {
-        using Super = FrameResource<ConstBufferData>;
+    class BufferResource : public AnyBufferResource {
+        using Super = AnyBufferResource;
 
     public:
-        ConstBufferResourceBase(CoreContext& context, size_t size);
+        BufferResource() noexcept = default;
+        BufferResource(CoreContext& context, uint64_t count, D3D12_RESOURCE_STATES state, D3D12_RESOURCE_FLAGS flags, D3D12_HEAP_TYPE heap)
+            : Super(context, count * sizeof(T), state, flags, heap)
+        { }
 
-        void update(UINT frame, const void *data, size_t size);
+        void write(std::span<const T> data) {
+            Super::write((void*)data.data(), data.size_bytes());
+        }
+
+        T *map(size_t size) {
+            return reinterpret_cast<T*>(Super::map(size * sizeof(T)));
+        }
+
+        void unmap(T *mapped, const D3D12_RANGE *written) noexcept {
+            Super::unmap((void*)mapped, written);
+        }
+    };
+
+    class AnyMultiBufferResource : public AnyBufferResource {
+        using Super = AnyBufferResource;
+
+        uint16_t mElementCount;
+        void *mMapped;
+
+        void *getElementData(size_t index, size_t stride) const;
+
+    protected:
+        D3D12_GPU_VIRTUAL_ADDRESS getElementDeviceAddress(size_t index, size_t stride) const;
+
+    public:
+        AnyMultiBufferResource() noexcept = default;
+        AnyMultiBufferResource(CoreContext& context, size_t count, size_t size, D3D12_RESOURCE_STATES state, D3D12_RESOURCE_FLAGS flags, D3D12_HEAP_TYPE heap);
+
+        void update(UINT frame, const void *data, size_t stride);
     };
 
     template<typename T>
@@ -82,16 +91,21 @@ namespace sm::render::next {
                            && std::is_trivial_v<T>;
 
     template<ConstBufferType T>
-    class ConstBufferResource : public ConstBufferResourceBase {
-        using Super = ConstBufferResourceBase;
+    class MultiBufferResource : public AnyMultiBufferResource {
+        using Super = AnyMultiBufferResource;
 
     public:
-        ConstBufferResource(CoreContext& context)
-            : ConstBufferResourceBase(context, sizeof(T))
+        MultiBufferResource() noexcept = default;
+        MultiBufferResource(CoreContext& context, size_t count, D3D12_RESOURCE_STATES state, D3D12_RESOURCE_FLAGS flags, D3D12_HEAP_TYPE heap)
+            : Super(context, count, sizeof(T), state, flags, heap)
         { }
 
-        void update(UINT frame, const T& value) {
-            Super::update(frame, reinterpret_cast<void*>(&value), sizeof(T));
+        void updateElement(UINT frame, const T& value) {
+            update(frame, reinterpret_cast<const void*>(&value), sizeof(T));
+        }
+
+        D3D12_GPU_VIRTUAL_ADDRESS elementAddress(UINT frame) const {
+            return getElementDeviceAddress(frame, sizeof(T));
         }
     };
 }

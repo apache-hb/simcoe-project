@@ -19,21 +19,25 @@ DeviceResource::DeviceResource(CoreContext& context, D3D12_RESOURCE_STATES state
 }
 
 TextureResource::TextureResource(CoreContext& context, D3D12_RESOURCE_STATES state, D3D12_RESOURCE_DESC desc, bool comitted)
-    : DeviceResource(context, state, desc, newAllocInfo(comitted, D3D12_HEAP_TYPE_DEFAULT))
+    : Super(context, state, desc, newAllocInfo(comitted, D3D12_HEAP_TYPE_DEFAULT))
 { }
 
-BufferResource::BufferResource(CoreContext& context, D3D12_RESOURCE_STATES state, uint64 width, D3D12_RESOURCE_FLAGS flags, D3D12_HEAP_TYPE heap)
-    : DeviceResource(context, state, CD3DX12_RESOURCE_DESC::Buffer(width, flags), newAllocInfo(false, heap))
+///
+/// unbuffered resource
+///
+
+AnyBufferResource::AnyBufferResource(CoreContext& context, uint64_t width, D3D12_RESOURCE_STATES state, D3D12_RESOURCE_FLAGS flags, D3D12_HEAP_TYPE heap)
+    : Super(context, state, CD3DX12_RESOURCE_DESC::Buffer(width, flags), newAllocInfo(false, heap))
 { }
 
-void BufferResource::write(const void *data, size_t size) {
+void AnyBufferResource::write(const void *data, size_t size) {
     D3D12_RANGE written = {0, size};
     void *mapped = map(size);
     memcpy(mapped, data, size);
     unmap(mapped, &written);
 }
 
-void *BufferResource::map(size_t size) {
+void *AnyBufferResource::map(size_t size) {
     ID3D12Resource *resource = get();
 
     void *mapped;
@@ -42,24 +46,32 @@ void *BufferResource::map(size_t size) {
     return mapped;
 }
 
-void BufferResource::unmap(void *mapped, const D3D12_RANGE *written) noexcept {
+void AnyBufferResource::unmap(void *mapped, const D3D12_RANGE *written) noexcept {
     ID3D12Resource *resource = get();
     resource->Unmap(0, written);
 }
 
-static ConstBufferData newConstBuffer(CoreContext& context, UINT index, size_t size) {
-    Object<D3D12MA::Allocation> resource;
-    D3D12_GPU_DESCRIPTOR_HANDLE cbvHandle;
-    void *data = nullptr;
+///
+/// buffered per frame resource
+///
 
-    return ConstBufferData {std::move(resource), cbvHandle, data};
-}
-
-ConstBufferResourceBase::ConstBufferResourceBase(CoreContext& context, size_t size)
-    : Super(context.getSwapChainLength(), [&](UINT index) { return newConstBuffer(context, index, size); })
+AnyMultiBufferResource::AnyMultiBufferResource(CoreContext& context, size_t count, size_t size, D3D12_RESOURCE_STATES state, D3D12_RESOURCE_FLAGS flags, D3D12_HEAP_TYPE heap)
+    : Super(context, (count * size), state, flags, heap)
+    , mElementCount(count)
+    , mMapped(map(count * size))
 { }
 
-void ConstBufferResourceBase::update(UINT frame, const void *data, size_t size) {
-    ConstBufferData& buffer = get(frame);
-    memcpy(buffer.data, data, size);
+void *AnyMultiBufferResource::getElementData(size_t index, size_t stride) const {
+    CTASSERTF(index < mElementCount, "Index out of bounds: %zu >= %u", index, mElementCount);
+    return static_cast<uint8_t *>(mMapped) + (index * stride);
+}
+
+D3D12_GPU_VIRTUAL_ADDRESS AnyMultiBufferResource::getElementDeviceAddress(size_t index, size_t stride) const {
+    CTASSERTF(index < mElementCount, "Index out of bounds: %zu >= %u", index, mElementCount);
+    return deviceAddress() + (index * stride);
+}
+
+void AnyMultiBufferResource::update(UINT frame, const void *data, size_t stride) {
+    void *element = getElementData(frame, stride);
+    memcpy(element, data, stride);
 }

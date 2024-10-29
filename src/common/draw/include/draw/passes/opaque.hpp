@@ -12,7 +12,7 @@ namespace sm::draw::next {
         render::next::TextureResource mDepthTarget;
         D3D12_CPU_DESCRIPTOR_HANDLE mDepthDsv;
 
-        render::next::BufferResource mQuadBuffer;
+        render::next::AnyBufferResource mQuadBuffer;
         D3D12_VERTEX_BUFFER_VIEW mQuadView;
 
         void setup(math::uint2 size, DXGI_FORMAT colour, DXGI_FORMAT depth);

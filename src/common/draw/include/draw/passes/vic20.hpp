@@ -2,25 +2,28 @@
 
 #include "draw/common/vic20.h"
 
-#include "draw/resources/compute.hpp"
-#include "draw/resources/imgui.hpp"
 #include "render/next/context/resource.hpp"
 
 namespace sm::draw::next {
     class Vic20Display final : public render::next::IContextResource {
+        using Super = render::next::IContextResource;
+        using InfoDeviceBuffer = render::next::MultiBufferResource<shared::Vic20Info>;
+        using FrameBufferElement = uint32_t;
+        using DeviceFrameBuffer = render::next::BufferResource<FrameBufferElement>;
+
         render::Object<ID3D12RootSignature> mVic20RootSignature;
         render::Object<ID3D12PipelineState> mVic20PipelineState;
         void createComputeShader();
 
 
-        render::next::BufferResource mVic20InfoBuffer;
+        InfoDeviceBuffer mInfoBuffer;
         void createConstBuffers(UINT length);
         D3D12_GPU_VIRTUAL_ADDRESS getInfoBufferAddress(UINT index) const noexcept;
 
 
-        render::next::BufferResource mFrameBuffer;
-        void *mFrameBufferPtr = nullptr;
-        std::unique_ptr<uint32_t[]> mFrameData = std::make_unique<uint32_t[]>(VIC20_FRAMEBUFFER_SIZE);
+        DeviceFrameBuffer mFrameBuffer;
+        FrameBufferElement *mFrameBufferPtr = nullptr;
+        std::unique_ptr<FrameBufferElement[]> mFrameData;
         void createFrameBuffer();
 
 

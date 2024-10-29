@@ -41,7 +41,7 @@ draw = declare_dependency(
 vic20_shader = custom_target('vic20-shader',
     input : 'data/vic20.hlsl',
     output : '@BASENAME@.cs.cso',
-    command : [ dxc, '/Wx', '/Ges', '-I@CURRENT_SOURCE_DIR@/include', '-Tcs_6_0', '-EcsMain', '-Fo@OUTPUT@', '@INPUT@' ]
+    command : [ dxc, '/Wx', '/Ges', '-I@CURRENT_SOURCE_DIR@/include', '-Tcs_6_0', '-EcsMain', '-Fo@OUTPUT@', '@INPUT@', '/Zi', '-Qembed_debug' ]
 )
 
 src = [
@@ -60,6 +60,7 @@ src = [
 
     # next draw contexts
     'src/next/context.cpp',
+    'src/next/vic20.cpp',
 ]
 
 deps = [ render_next, logs, imgui ]

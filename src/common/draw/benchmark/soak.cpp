@@ -77,7 +77,7 @@ static render::next::ContextConfig newContextConfig(render::next::ISwapChainFact
 GuiWindow::GuiWindow(const char *title)
     : mWindow(newWindowConfig(title), mEvents)
     , mSwapChain(mWindow.getHandle())
-    , mContext(newContextConfig(&mSwapChain, mWindow.getClientSize()), mWindow.getHandle(), math::uint2 { 800, 600 })
+    , mContext(newContextConfig(&mSwapChain, mWindow.getClientSize()), mWindow.getHandle())
 {
     mWindow.showWindow(system::ShowWindow::eShow);
     mEvents.setContext(&mContext);

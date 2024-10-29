@@ -52,7 +52,7 @@ void OpaquePass::setup(math::uint2 size, DXGI_FORMAT colour, DXGI_FORMAT depth) 
     mOpaqueTarget = TextureResource(mContext, D3D12_RESOURCE_STATE_RENDER_TARGET, CD3DX12_RESOURCE_DESC::Tex2D(colour, width, height), true);
     mDepthTarget = TextureResource(mContext, D3D12_RESOURCE_STATE_DEPTH_WRITE, CD3DX12_RESOURCE_DESC::Tex2D(depth, width, height), true);
 
-    mQuadBuffer = BufferResource(mContext, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, sizeof(kScreenQuad), D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_UPLOAD);
+    mQuadBuffer = AnyBufferResource(mContext, sizeof(kScreenQuad), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_UPLOAD);
     mQuadView = D3D12_VERTEX_BUFFER_VIEW { mQuadBuffer.deviceAddress(), sizeof(kScreenQuad), sizeof(QuadVertex) };
 
     mQuadBuffer.write(kScreenQuad, sizeof(kScreenQuad));
