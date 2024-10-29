@@ -122,7 +122,7 @@ int main(int argc, const char **argv) noexcept try {
         if (ImGui::Begin("Poke")) {
             static uint8_t x = 0;
             static uint8_t y = 0;
-            static int colour = VIC20_COLOUR_BLACK;
+            static int colour = VIC20_COLOUR_WHITE;
 
             ImGui::InputScalar("X", ImGuiDataType_U8, &x);
             ImGui::InputScalar("Y", ImGuiDataType_U8, &y);

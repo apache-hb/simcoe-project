@@ -19,7 +19,7 @@ namespace sm::draw::next {
             return mVic20->getTargetSrv();
         }
 
-        void write(uint8_t x, uint8_t y, uint8_t colour) {
+        void write(uint32_t x, uint32_t y, uint8_t colour) {
             mVic20->write(x, y, colour);
         }
     };

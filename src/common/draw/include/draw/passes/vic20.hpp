@@ -43,7 +43,7 @@ namespace sm::draw::next {
         ID3D12Resource *getTarget() const noexcept { return mTarget.get(); }
         D3D12_GPU_DESCRIPTOR_HANDLE getTargetSrv() const;
 
-        void write(uint8_t x, uint8_t y, uint8_t colour) noexcept;
+        void write(uint32_t x, uint32_t y, uint8_t colour) noexcept;
 
         // IContextResource
         void reset() noexcept override;

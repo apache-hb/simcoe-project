@@ -86,8 +86,7 @@ namespace sm::render::next {
     };
 
     template<typename T>
-    concept ConstBufferType = (alignof(T) % D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT == 0)
-                           && std::is_standard_layout_v<T>
+    concept ConstBufferType = std::is_standard_layout_v<T>
                            && std::is_trivial_v<T>;
 
     template<ConstBufferType T>

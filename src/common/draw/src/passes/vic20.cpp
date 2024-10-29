@@ -73,7 +73,6 @@ void Vic20Display::createConstBuffers(UINT length) {
     for (size_t i = 0; i < length; i++) {
         shared::Vic20Info data = {
             .textureSize = mTargetSize,
-            .dispatchSize = (mTargetSize / math::uint2(VIC20_THREADS_X, VIC20_THREADS_Y)),
         };
 
         mInfoBuffer.updateElement(i, data);
@@ -100,33 +99,12 @@ void Vic20Display::createCompositionTarget() {
         D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
     );
 
-    D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {
-        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
-        .ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D,
-        .Texture2D = {
-            .MipSlice = 0,
-            .PlaneSlice = 0,
-        },
-    };
-
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {
-        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
-        .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
-        .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
-        .Texture2D = {
-            .MostDetailedMip = 0,
-            .MipLevels = 1,
-            .PlaneSlice = 0,
-            .ResourceMinLODClamp = 0.0f,
-        },
-    };
-
     mTarget = TextureResource(mContext, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, desc, true);
     mTargetUAVIndex = srvPool.allocate();
     mTargetSRVIndex = srvPool.allocate();
 
-    device->CreateUnorderedAccessView(mTarget.get(), nullptr, &uavDesc, srvPool.host(mTargetUAVIndex));
-    device->CreateShaderResourceView(mTarget.get(), &srvDesc, srvPool.host(mTargetSRVIndex));
+    device->CreateUnorderedAccessView(mTarget.get(), nullptr, nullptr, srvPool.host(mTargetUAVIndex));
+    device->CreateShaderResourceView(mTarget.get(), nullptr, srvPool.host(mTargetSRVIndex));
 }
 
 Vic20Display::Vic20Display(CoreContext& context, math::uint2 resolution) noexcept
@@ -202,23 +180,11 @@ D3D12_GPU_DESCRIPTOR_HANDLE Vic20Display::getTargetSrv() const {
     return srvPool.device(mTargetSRVIndex);
 }
 
-void Vic20Display::write(uint8_t x, uint8_t y, uint8_t colour) noexcept {
+void Vic20Display::write(uint32_t x, uint32_t y, uint8_t colour) noexcept {
     if (x >= VIC20_SCREEN_WIDTH || y >= VIC20_SCREEN_HEIGHT) {
         return;
     }
 
-    uint32_t coord = uint32_t(y) * VIC20_SCREEN_WIDTH + x;
+    uint32_t coord = y * VIC20_SCREEN_WIDTH + x;
     mFrameData[coord] = colour;
-#if 0
-    int high = (coord & 1);
-    int index = (coord & ~1) / 2;
-    uint8_t palette = colour & 0x0F;
-
-    uint8_t& cell = mFrameData[index];
-    if (high) {
-        cell = (cell & 0b1111'0000) | palette;
-    } else {
-        cell = (cell & 0b0000'1111) | (palette << 4);
-    }
-#endif
 }

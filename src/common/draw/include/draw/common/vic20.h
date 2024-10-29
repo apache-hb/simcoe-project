@@ -3,15 +3,10 @@
 #ifndef __HLSL_VERSION
 #include "math/math.hpp"
 namespace sm::draw::shared { using namespace sm::math;
-
-#define IS_CONST_BUFFER alignas(256)
-#else
-#define IS_CONST_BUFFER
 #endif
 
-struct IS_CONST_BUFFER Vic20Info {
+struct Vic20Info {
     uint2 textureSize;
-    uint2 dispatchSize;
 };
 
 #define VIC20_THREADS_X 8
