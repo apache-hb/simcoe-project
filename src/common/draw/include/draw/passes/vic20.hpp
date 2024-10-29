@@ -8,7 +8,7 @@ namespace sm::draw::next {
     class Vic20Display final : public render::next::IContextResource {
         using Super = render::next::IContextResource;
         using InfoDeviceBuffer = render::next::MultiBufferResource<shared::Vic20Info>;
-        using FrameBufferElement = uint32_t;
+        using FrameBufferElement = uint16_t;
         using DeviceFrameBuffer = render::next::BufferResource<FrameBufferElement>;
 
         render::Object<ID3D12RootSignature> mVic20RootSignature;

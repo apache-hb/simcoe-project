@@ -9,6 +9,20 @@ StructuredBuffer<uint> gFrameBuffer : register(t1);
 // a texture to write into with a resolution of `gTextureSize`
 RWTexture2D<float4> gPresentTexture : register(u0);
 
+uint getPaletteIndexValue(uint index) {
+    if (index >= VIC20_SCREEN_SIZE)
+        return VIC20_PALETTE_SIZE;
+
+    return gFrameBuffer[index];
+}
+
+float4 getPaletteColourFromIndex(uint index) {
+    if (index >= VIC20_PALETTE_SIZE)
+        return float4(1, 0, 1, 1);
+
+    return float4(kVic20Palette[index], 1.f);
+}
+
 float4 getPaletteColour(uint index) {
     if (index >= VIC20_SCREEN_SIZE)
         return float4(1, 0, 1, 1);
@@ -34,11 +48,21 @@ uint getIndexForDispatch(uint2 dispatchId, float2 textureSize) {
 }
 
 // this is dispatched based on the size of `gTextureSize` rather than the framebuffer size
-[numthreads(VIC20_THREADS_X, VIC20_THREADS_Y, 1)]
-void csMain(uint3 dispatchId : SV_DispatchThreadID) {
+[numthreads(VIC20_THREADS_X / 2, VIC20_THREADS_Y, 1)]
+void csMain(
+    uint3 groupId : SV_GroupID,
+    uint3 groupThreadId : SV_GroupThreadID
+) {
     Vic20Info info = gDrawInfo[0];
 
-    uint index = getIndexForDispatch(dispatchId.xy, info.textureSize);
+    for (uint i = 0; i <= 2; i++) {
+        uint2 threadId = groupId.xy * uint2(VIC20_THREADS_X, VIC20_THREADS_Y) + groupThreadId.xy + uint2(i * 2, 0);
+        uint index = getIndexForDispatch(threadId, info.textureSize) / 2;
+        uint colourIndexPair = getPaletteIndexValue(index);
+        uint low = colourIndexPair & 0xFFFF;
+        uint high = colourIndexPair >> 16;
 
-    gPresentTexture[dispatchId.xy] = getPaletteColour(index);
+        gPresentTexture[threadId + uint2(0, 0)] = getPaletteColourFromIndex(low);
+        gPresentTexture[threadId + uint2(1, 0)] = getPaletteColourFromIndex(high);
+    }
 }
