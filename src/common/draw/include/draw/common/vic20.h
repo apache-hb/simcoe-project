@@ -44,6 +44,8 @@ struct IS_CONST_BUFFER Vic20Info {
 #define VIC20_COLOUR_YELLOW_GREEN 14
 #define VIC20_COLOUR_LIGHT_YELLOW 15
 
+#define VIC20_PALETTE_MASK (VIC20_PALETTE_SIZE - 1)
+
 #define VIC20_COLOUR(r, g, b) float3(r / 255.0f, g / 255.0f, b / 255.0f)
 
 // https://lospec.com/palette-list/commodore-vic-20

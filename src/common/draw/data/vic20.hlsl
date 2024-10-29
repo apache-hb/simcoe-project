@@ -13,7 +13,7 @@ float4 getPaletteColour(uint index) {
     if (index >= VIC20_SCREEN_SIZE)
         return float4(1, 0, 1, 1);
 
-    uint paletteIndex = gFrameBuffer[index] & 0x0000000F;
+    uint paletteIndex = gFrameBuffer[index] & VIC20_PALETTE_MASK;
     return float4(kVic20Palette[paletteIndex], 1.f);
 }
 
@@ -28,10 +28,10 @@ void csMain(
 
     float shaderWidth = info.dispatchSize.x * VIC20_THREADS_X;
     float shaderHeight = info.dispatchSize.y * VIC20_THREADS_Y;
-    float fbX = dispatchId.x / shaderWidth;
-    float fbY = dispatchId.y / shaderHeight;
+    float fbX = (dispatchId.x / shaderWidth) * VIC20_SCREEN_WIDTH;
+    float fbY = (dispatchId.y / shaderHeight) * VIC20_SCREEN_HEIGHT;
 
-    uint index = fbX * VIC20_SCREEN_WIDTH + fbY;
+    uint index = fbY * VIC20_SCREEN_WIDTH + fbX;
 
     gPresentTexture[dispatchId.xy] = getPaletteColour(index);
 }

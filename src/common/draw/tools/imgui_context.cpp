@@ -85,6 +85,7 @@ int main(int argc, const char **argv) noexcept try {
     };
 
     math::uint2 vic20Size { VIC20_SCREEN_WIDTH, VIC20_SCREEN_HEIGHT };
+    vic20Size *= 2;
     Vic20DrawContext context{config, window.getHandle(), vic20Size};
     events.context = &context;
 
@@ -110,19 +111,8 @@ int main(int argc, const char **argv) noexcept try {
         [VIC20_COLOUR_LIGHT_YELLOW] = "Light Yellow",
     };
 
-    // // draw a square in the middle of the screen
-    // uint8_t x = VIC20_SCREEN_WIDTH / 2;
-    // uint8_t y = VIC20_SCREEN_HEIGHT / 2;
     int sizeWidth = 50;
     int sizeHeight = 50;
-
-    // context.write(100, 100, VIC20_COLOUR_LIGHT_YELLOW);
-
-    // for (int i = 0; i < sizeWidth; ++i) {
-    //     for (int j = 0; j < sizeHeight; ++j) {
-    //         context.write(x + i, y + j, VIC20_COLOUR_BLUE);
-    //     }
-    // }
 
     while (nextMessage()) {
         context.begin();
@@ -138,8 +128,16 @@ int main(int argc, const char **argv) noexcept try {
             ImGui::InputScalar("Y", ImGuiDataType_U8, &y);
             if (ImGui::BeginCombo("Colour", kVic20ColourNames[colour])) {
                 for (int i = 0; i < VIC20_PALETTE_SIZE; ++i) {
+                    ImGui::PushID(i);
                     // draw a little square with the colour of this choice
                     // on the left side of the selectable as a visual preview
+
+                    math::float3 palette = draw::shared::kVic20Palette[i];
+                    ImGui::ColorButton("##colour", ImVec4(palette.r, palette.g, palette.b, 1.0f), ImGuiColorEditFlags_NoPicker);
+
+                    ImGui::PopID();
+
+                    ImGui::SameLine();
 
                     if (ImGui::Selectable(kVic20ColourNames[i])) {
                         colour = i;
@@ -157,7 +155,7 @@ int main(int argc, const char **argv) noexcept try {
 
                 for (int i = 0; i < sizeWidth; ++i) {
                     for (int j = 0; j < sizeHeight; ++j) {
-                        context.write(x + i, y + j, VIC20_COLOUR_BLUE);
+                        context.write(x + i, y + j, colour);
                     }
                 }
             }

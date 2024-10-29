@@ -101,4 +101,3 @@ drawtest = declare_dependency(
 )
 
 subdir('test')
-subdir('benchmark')
