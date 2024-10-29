@@ -20,13 +20,9 @@ float4 getPaletteColour(uint index) {
     return float4(kVic20Palette[paletteIndex], 1.f);
 }
 
-// this is dispatched based on the size of `gTextureSize` rather than the framebuffer size
-[numthreads(VIC20_THREADS_X, VIC20_THREADS_Y, 1)]
-void csMain(uint3 dispatchId : SV_DispatchThreadID) {
-    Vic20Info info = gDrawInfo[0];
-
-    float shaderWidth  = info.textureSize.x;
-    float shaderHeight = info.textureSize.y;
+uint getIndexForDispatch(uint2 dispatchId, float2 textureSize) {
+    float shaderWidth = textureSize.x;
+    float shaderHeight = textureSize.y;
 
     float uvX = float(dispatchId.x) / shaderWidth;
     float uvY = float(dispatchId.y) / shaderHeight;
@@ -34,7 +30,15 @@ void csMain(uint3 dispatchId : SV_DispatchThreadID) {
     uint fbX = uvX * VIC20_SCREEN_WIDTH;
     uint fbY = uvY * VIC20_SCREEN_HEIGHT;
 
-    float index = fbY * VIC20_SCREEN_WIDTH + fbX;
+    return fbY * VIC20_SCREEN_WIDTH + fbX;
+}
+
+// this is dispatched based on the size of `gTextureSize` rather than the framebuffer size
+[numthreads(VIC20_THREADS_X, VIC20_THREADS_Y, 1)]
+void csMain(uint3 dispatchId : SV_DispatchThreadID) {
+    Vic20Info info = gDrawInfo[0];
+
+    uint index = getIndexForDispatch(dispatchId.xy, info.textureSize);
 
     gPresentTexture[dispatchId.xy] = getPaletteColour(index);
 }
