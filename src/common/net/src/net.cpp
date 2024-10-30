@@ -79,18 +79,17 @@ NetError::NetError(int code)
 ///
 
 void net::create(void) {
-    if (isNetSetup()) {
-        CT_NEVER("network already initialized");
-    }
+    CTASSERTF(!isNetSetup(), "network already initialized");
 
     if (int result = WSAStartup(MAKEWORD(2, 2), &gNetData))
         throw NetException{result};
 
     LOG_INFO(NetLog, "WSAStartup successful. {}.{}", gNetData.wVersion, gNetData.wHighVersion);
 
-    LOG_INFO(NetLog, "Description: `{}`, Status: `{}`",
+    LOG_INFO(NetLog, "Description: `{}`, Status: `{}`, MaxSockets: {}",
         std::string_view{gNetData.szDescription},
-        std::string_view{gNetData.szSystemStatus}
+        std::string_view{gNetData.szSystemStatus},
+        gNetData.iMaxSockets
     );
 }
 
