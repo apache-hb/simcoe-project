@@ -186,6 +186,8 @@ void Vic20Display::write(uint32_t x, uint32_t y, uint8_t colour) noexcept {
         return;
     }
 
+    colour &= 0x0F;
+
     int high = (coord & 1);
     int index = (coord >> 1);
     uint8_t& cell = mFrameData[index];

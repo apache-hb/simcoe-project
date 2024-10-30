@@ -275,7 +275,7 @@ void CoreContext::createDeviceState(ISwapChainFactory *swapChainFactory, Surface
     createRtvHeap();
     createDsvHeap();
     createSrvHeap();
-    createBackBuffers(0);
+    createBackBuffers(1);
     setFrameIndex(mSwapChain->currentSurfaceIndex());
     createDirectCommandList();
     createPresentFence();
@@ -306,7 +306,6 @@ void CoreContext::flushDevice() {
 }
 
 void CoreContext::setFrameIndex(UINT index) {
-    // fmt::println(stderr, "setFrameIndex(old={}, new={})", mCurrentBackBuffer, index);
     mCurrentBackBuffer = index;
     mAllocator->SetCurrentFrameIndex(index);
 }

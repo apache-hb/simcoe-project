@@ -31,7 +31,8 @@ uint64_t Fence::completedValue() const {
 }
 
 void Fence::waitForCompetedValue(uint64_t value) {
-    if (completedValue() < value) {
+    uint64_t completed = completedValue();
+    if (completed < value) {
         waitForEvent(value);
     }
 }

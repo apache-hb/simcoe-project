@@ -34,7 +34,8 @@ void ComputeContext::setup(UINT length) {
 }
 
 void ComputeContext::reset() noexcept {
-    mComputeQueue->Signal(mComputeFence.get(), ++mFenceValue);
+    mFenceValue += 1;
+    mComputeQueue->Signal(mComputeFence.get(), mFenceValue);
     mComputeFence->SetEventOnCompletion(mFenceValue, nullptr);
 
     mCommandSet.reset();

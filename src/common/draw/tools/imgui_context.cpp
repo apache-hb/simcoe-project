@@ -147,9 +147,9 @@ int main(int argc, const char **argv) noexcept try {
         .flags = DebugFlags::eDeviceDebugLayer
                | DebugFlags::eFactoryDebug
                | DebugFlags::eDeviceRemovedInfo
+               | DebugFlags::eWarpAdapter
                | DebugFlags::eInfoQueue
                | DebugFlags::eAutoName
-               | DebugFlags::eGpuValidation
                | DebugFlags::eDirectStorageDebug
                | DebugFlags::eDirectStorageBreak
                | DebugFlags::eDirectStorageNames
@@ -190,8 +190,21 @@ int main(int argc, const char **argv) noexcept try {
         [VIC20_COLOUR_LIGHT_YELLOW] = "Light Yellow",
     };
 
-    int sizeWidth = 50;
-    int sizeHeight = 50;
+    for (int i = 0; i < VIC20_SCREEN_WIDTH; i++) {
+        context.write(i, 10, VIC20_COLOUR_WHITE);
+    }
+
+    for (int i = 0; i < VIC20_SCREEN_HEIGHT; i++) {
+        context.write(VIC20_SCREEN_WIDTH / 2, i, VIC20_COLOUR_BLUE);
+    }
+
+    for (int i = 0; i < VIC20_SCREEN_HEIGHT; i++) {
+        context.write(13, i, VIC20_COLOUR_BLUE);
+    }
+
+    for (int i = 0; i < VIC20_SCREEN_HEIGHT; i++) {
+        context.write(VIC20_SCREEN_WIDTH - 13, i, VIC20_COLOUR_BLUE);
+    }
 
     while (nextMessage()) {
         context.begin();
@@ -201,7 +214,15 @@ int main(int argc, const char **argv) noexcept try {
         if (ImGui::Begin("Poke")) {
             static uint8_t x = 0;
             static uint8_t y = 0;
+            static int width = 50;
+            static int height = 50;
             static int colour = VIC20_COLOUR_WHITE;
+
+            ImGui::InputScalar("Width", ImGuiDataType_S32, &width);
+            ImGui::InputScalar("Height", ImGuiDataType_S32, &height);
+
+            width = std::clamp(width, 1, 50);
+            height = std::clamp(height, 1, 50);
 
             ImGui::InputScalar("X", ImGuiDataType_U8, &x);
             ImGui::InputScalar("Y", ImGuiDataType_U8, &y);
@@ -230,10 +251,8 @@ int main(int argc, const char **argv) noexcept try {
             }
 
             if (ImGui::Button("Poke")) {
-                context.write(x, y, colour);
-
-                for (int i = 0; i < sizeWidth; ++i) {
-                    for (int j = 0; j < sizeHeight; ++j) {
+                for (int i = 0; i < width; ++i) {
+                    for (int j = 0; j < height; ++j) {
                         context.write(x + i, y + j, colour);
                     }
                 }
