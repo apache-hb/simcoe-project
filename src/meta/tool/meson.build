@@ -19,6 +19,8 @@ deps = [
     cpp.find_library('clangEdit', dirs : llvm_libdir),
     cpp.find_library('clangSupport', dirs : llvm_libdir),
     cpp.find_library('version'),
+    cpp.find_library('zlib', dirs : llvm_libdir, required : false),
+    cpp.find_library('zstd.dll', dirs : llvm_libdir),
     llvm,
 
     fmtlib,

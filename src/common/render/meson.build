@@ -15,7 +15,6 @@ ags = dependency('amd_ags', required : get_option('amd_ags_enable'))
 framegraph_trace_feature = get_option('framegraph_trace').disable_auto_if(is_release)
 warp_feature = get_option('warp_enable').disable_auto_if(is_release)
 pix_feature = get_option('pix_enable').disable_auto_if(is_release)
-agility_feature = get_option('agility_enable')
 
 render_cdata = configuration_data()
 render_cdata.set10('SMC_RENDER_ENABLE_NVAPI', nvapi.found())
@@ -23,7 +22,6 @@ render_cdata.set10('SMC_RENDER_ENABLE_AMD_AGS', ags.found())
 render_cdata.set10('SMC_RENDER_FRAMEGRAPH_TRACE', framegraph_trace_feature.allowed())
 render_cdata.set10('SMC_RENDER_ENABLE_WINPIXRUNTIME', pix_feature.allowed())
 render_cdata.set10('SMC_RENDER_ENABLE_WARP', warp_feature.allowed())
-render_cdata.set10('SMC_RENDER_ENABLE_AGILITY', agility_feature.allowed())
 
 render_config = configure_file(
     output : 'simcoe_render_config.h',
@@ -72,6 +70,10 @@ src = [
     'src/core/error.cpp',
     'src/core/resource.cpp',
     'src/core/format.cpp',
+    
+    # vendor
+    'src/vendor/nvidia/nvapi.cpp',
+    'src/vendor/amd/ags.cpp',
 ]
 
 deps = [
@@ -81,19 +83,23 @@ deps = [
     # internal libraries
     core, logs, math, db, world,
 
+    # microsoft
     wil,
-
-    # microsoft d3d12
-    d3d12, d3dx12,
+    d3d12, 
+    d3dx12,
     dstorage,
     winpixruntime.partial_dependency(includes : true),
 
-    # hardware vendors
+    # ihv libraries
     nvapi, ags,
 
     # other vendors
     tracy, d3d12ma,
 ]
+
+if pix_feature.allowed()
+    deps += [ winpixruntime ]
+endif
 
 librender_base = library('render-base', src,
     cpp_pch : 'src/stdafx.hpp',
@@ -148,10 +154,6 @@ src = [
     # render graph
     'src/graph/render_pass.cpp',
     'src/graph.cpp',
-
-    # vendor
-    'src/vendor/nvidia/nvapi.cpp',
-    'src/vendor/amd/ags.cpp',
 ]
 
 deps = [
@@ -161,23 +163,12 @@ deps = [
 
     render_base,
 
-    # other vendors
-    tracy, d3d12ma,
-
     # microsoft
-    d3d12, d3dx12, dstorage,
-    winpixruntime.partial_dependency(includes : true),
-
-    # hardware vendors
-    nvapi, ags,
+    dstorage,
 
     # exports
     ihv_export, dstorage_export, agility_export,
 ]
-
-if pix_feature.allowed()
-    deps += [ winpixruntime ]
-endif
 
 librender_core = library('rendercore', src,
     cpp_pch : 'src/stdafx.hpp',

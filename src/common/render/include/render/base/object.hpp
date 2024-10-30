@@ -9,7 +9,6 @@
 #include <directx/d3d12.h>
 #include <dxgi1_6.h>
 #include <dxgidebug.h>
-#include <dstorage.h>
 
 namespace sm::render {
     using Format = DXGI_FORMAT;

@@ -118,11 +118,13 @@ static SOCKET findOpenSocket(addrinfo *info) noexcept(false) {
 
         // if we fail to even create a socket then throw an exception
         SOCKET socket = ::socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
+        fmt::println(stderr, "trySocket()");
         if (socket == INVALID_SOCKET)
             throw NetException{lastNetError()};
 
         // failing to connect is acceptable, we can try the next address
         int err = ::connect(socket, ptr->ai_addr, ptr->ai_addrlen);
+        fmt::println(stderr, "tryConnect({})", err);
         if (err != SOCKET_ERROR)
             return socket;
 
@@ -144,6 +146,7 @@ Socket Network::connect(const Address& address, uint16_t port) noexcept(false) {
 
     std::string addr = toAddressString(address);
     std::string p = std::to_string(port);
+    fmt::println(stderr, "here {}:{}", addr, p);
     if (int err = getaddrinfo(addr.c_str(), p.c_str(), &hints, &result)) {
         throw NetException{err, "getaddrinfo({}:{})", addr, p};
     }

@@ -18,7 +18,7 @@ void doParallel(int iters, auto&& fn) {
     std::vector<std::jthread> threads;
     threads.reserve(iters);
     for (int i = 0; i < iters; i++) {
-        threads.emplace_back(std::jthread([&, i](const std::stop_token& stop) {
+        threads.emplace_back(std::jthread([&fn, i](const std::stop_token& stop) {
             fn(i, stop);
         }));
     }
@@ -34,6 +34,8 @@ struct TestServerConfig {
         , env(db::Environment::create(db::DbType::eSqlite3))
         , config(makeSqliteTestDb(path))
     {
+        std::filesystem::remove(config.host);
+        
         // drop any existing tables so we can test from a clean slate
         auto db = connect();
         db.dropTableIfExists(dao::account::Message::table());
@@ -55,6 +57,7 @@ struct TestServerConfig {
                 std::stop_callback cb(stop, [&] { server.stop(); });
                 server.listen(count);
             } catch (const std::exception& e) {
+                fmt::println(stderr, "Server exception {}", e.what());
                 errors.add("Server exception: {}", e.what());
             }
         });

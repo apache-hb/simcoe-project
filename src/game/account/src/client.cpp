@@ -9,7 +9,7 @@ using namespace sm;
 
 // TODO: dont hardcode timeout
 
-AccountClient::AccountClient(sm::net::Network& net, sm::net::Address address, uint16_t port) noexcept(false)
+AccountClient::AccountClient(sm::net::Network& net, const sm::net::Address& address, uint16_t port) noexcept(false)
     : mSocket{net.connect(address, port)}
 { }
 

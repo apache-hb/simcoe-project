@@ -1,9 +1,9 @@
-[wrap-git]
-directory = Catch2-devel
+[wrap-file]
+directory = Catch2-a7684503459ebc1a10b1312a4a828b2ad3ed0ee6
 
-url = https://github.com/apache-hb/Catch2.git
-revision = head
-depth = 1
+source_url = https://github.com/apache-hb/Catch2/archive/a7684503459ebc1a10b1312a4a828b2ad3ed0ee6.zip
+source_filename = Catch2-a7684503459ebc1a10b1312a4a828b2ad3ed0ee6.zip
+source_hash = 9e1a0472042825530925174271f9a76cfd2ff614ac6e83ef88d1729367a469af
 
 [provide]
 catch2 = catch2_dep

@@ -14,7 +14,6 @@ using namespace sm;
 namespace acd = sm::dao::account;
 
 std::string AccountServer::newSaltString(size_t length) {
-    std::lock_guard lock(mSaltMutex);
     return mSalt.getSaltString(length);
 }
 
@@ -52,7 +51,9 @@ void AccountServer::handleCreateAccount(sm::net::Socket& socket, game::CreateAcc
         socket.send(response).throwIfFailed();
     };
 
-    std::string salt = newSaltString(16);
+    std::scoped_lock guard(mSaltMutex, mDbMutex);
+
+    std::string salt = mSalt.getSaltString(16);
     uint64_t password = hashWithSalt(packet.password, salt);
 
     acd::User user {
@@ -60,8 +61,6 @@ void AccountServer::handleCreateAccount(sm::net::Socket& socket, game::CreateAcc
         .password = password,
         .salt = salt
     };
-
-    std::lock_guard guard(mDbMutex);
 
     auto oldUser = getUserByName(mAccountDb, packet.username);
     if (oldUser.has_value()) {
@@ -92,8 +91,11 @@ void AccountServer::handleLogin(sm::net::Socket& socket, game::LoginRequestPacke
 
     std::string name = packet.username;
 
-    std::lock_guard guard(mDbMutex);
-    std::optional<acd::User> optUser = getUserByName(mAccountDb, name);
+    std::optional<acd::User> optUser = [&] {
+        std::lock_guard guard(mDbMutex);
+        return getUserByName(mAccountDb, name);
+    }();
+
     if (!optUser.has_value()) {
         sendResponse(LoginResult::eFailure);
         return;
@@ -158,7 +160,7 @@ static void createSchema(db::Connection& db) {
     db.createTable(acd::Message::table());
 }
 
-AccountServer::AccountServer(db::Connection db, net::Network& net, net::Address address, uint16_t port) noexcept(false)
+AccountServer::AccountServer(db::Connection db, net::Network& net, const net::Address& address, uint16_t port) noexcept(false)
     : mAccountDb(std::move(db))
     , mNetwork(net)
     , mServer(mNetwork.bind(address, port))
@@ -166,7 +168,7 @@ AccountServer::AccountServer(db::Connection db, net::Network& net, net::Address 
     createSchema(mAccountDb);
 }
 
-AccountServer::AccountServer(db::Connection db, net::Network& net, net::Address address, uint16_t port, unsigned seed) noexcept(false)
+AccountServer::AccountServer(db::Connection db, net::Network& net, const net::Address& address, uint16_t port, unsigned seed) noexcept(false)
     : mAccountDb(std::move(db))
     , mNetwork(net)
     , mServer(mNetwork.bind(address, port))

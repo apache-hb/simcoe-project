@@ -3,6 +3,8 @@
 #include "base/instance.hpp"
 #include "render/base/object.hpp"
 
+#include <dstorage.h>
+
 #include "render.reflect.h"
 
 namespace sm::render {
