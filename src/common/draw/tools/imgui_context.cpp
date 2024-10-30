@@ -147,7 +147,7 @@ int main(int argc, const char **argv) noexcept try {
         .flags = DebugFlags::eDeviceDebugLayer
                | DebugFlags::eFactoryDebug
                | DebugFlags::eDeviceRemovedInfo
-               | DebugFlags::eWarpAdapter
+            //    | DebugFlags::eWarpAdapter
                | DebugFlags::eInfoQueue
                | DebugFlags::eAutoName
                | DebugFlags::eDirectStorageDebug
@@ -163,8 +163,7 @@ int main(int argc, const char **argv) noexcept try {
         },
     };
 
-    math::uint2 vic20Size { VIC20_SCREEN_WIDTH, VIC20_SCREEN_HEIGHT };
-    vic20Size *= 2;
+    math::uint2 vic20Size { 525, 468 };
     Vic20DrawContext context{config, window.getHandle(), vic20Size};
     events.context = &context;
 

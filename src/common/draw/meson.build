@@ -46,7 +46,7 @@ vic20_shader = custom_target('vic20-shader',
         '-I@CURRENT_SOURCE_DIR@/include',
         '-Tcs_6_2', '-EcsMain',
         '-Fo@OUTPUT@', '@INPUT@',
-        '-enable-16bit-types',
+        # '-enable-16bit-types',
         '/Zi', '-Qembed_debug'
     ]
 )

@@ -50,7 +50,7 @@ void csMain(
     uint index = getIndexForDispatch(threadId, info.textureSize) / X_PIXELS_PER_WORD;
     uint colourValueData = getPaletteIndexValue(index);
 
-    uint16_t word = colourValueData >> (dispatchId.x % 2 == 0 ? 0 : 16);
+    uint word = colourValueData >> (dispatchId.x % 2 == 0 ? 0 : 16);
 
     for (uint i = 0; i < X_PIXELS_PER_WORD; i += 2) {
         uint value = (word >> (i * 2)) & 0xF;
