@@ -30,7 +30,7 @@ static constexpr db::DbType kType = db::DbType::eOracleDB;
 
 #else
 
-static const db::ConnectionConfig kConfig = makeSqliteTestDb("testlogs");
+static const db::ConnectionConfig kConfig = makeSqliteTestDb("logs/setup");
 
 static constexpr db::DbType kType = db::DbType::eSqlite3;
 

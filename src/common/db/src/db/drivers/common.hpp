@@ -3,7 +3,7 @@
 #include "db/db.hpp"
 #include "db/error.hpp"
 
-#include "dao/dao.hpp"
+#include "dao/info.hpp"
 
 namespace sm::db::detail {
     struct IEnvironment {
@@ -16,6 +16,13 @@ namespace sm::db::detail {
         /** Connection */
 
         virtual DbError connect(const ConnectionConfig& config, IConnection **connection) noexcept = 0;
+
+        virtual IConnection *connect(const ConnectionConfig& config) throws(DbException) {
+            IConnection *connection = nullptr;
+            if (DbError error = connect(config, &connection))
+                throw DbConnectionException{error, config};
+            return connection;
+        }
     };
 
     struct ConnectionInfo {
@@ -115,7 +122,7 @@ namespace sm::db::detail {
             throw DbException{DbError::todoFn()};
         }
 
-        /** Version */
+        /** DB/Client Feature Info */
 
         Version clientVersion() const noexcept {
             return mInfo.clientVersion;
@@ -327,6 +334,9 @@ namespace sm::db::detail {
     DbError getOracleEnv(IEnvironment **env, const EnvConfig& config) noexcept;
     DbError getMsSqlEnv(IEnvironment **env) noexcept;
     DbError getDb2Env(IEnvironment **env) noexcept;
+
+    IEnvironment *newSqliteEnvironment(const EnvConfig& config);
+    IEnvironment *newDb2Environment();
 
     // removes any empty lines and trims whitespace
     std::vector<std::string_view> splitComment(std::string_view comment);

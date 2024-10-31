@@ -5,9 +5,15 @@ StructuredBuffer<Vic20Info> gDrawInfo : register(t0);
 typedef uint PixelData;
 
 // https://sleepingelephant.com/denial/wiki/index.php?title=Memory_Map#Screen_memory_map
-// framebuffer is a 1D array of colour palette indices of size `VIC20_SCREEN_SIZE`
-// each index is a 4 bit index into `kVic20Pallete`
+// array of `VIC20_SCREEN_CHARS_WIDTH * VIC20_SCREEN_CHARS_HEIGHT * 2` bytes
+// the first half of the array is the character data, the second half is the colour data
+// each byte in the second half is 3+1+4 bits, with the first 3 bits being the foreground
+// colour, the next bit is ignored, and the last 4 bits are the background colour
 StructuredBuffer<PixelData> gFrameBuffer : register(t1);
+
+// each character is a 64 bit value, with each bit representing a pixel
+// a high bit chooses the foreground colour and a low bit chooses the background colour
+// StructuredBuffer<uint64_t> gCharacterMap : register(t2);
 
 // a texture to write into with a resolution of `gTextureSize`
 RWTexture2D<float4> gPresentTexture : register(u0);

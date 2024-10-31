@@ -282,7 +282,7 @@ static std::string toUpper(std::string_view str) noexcept {
 
 DbError OraStatement::getColumnIndex(std::string_view name, int& index) const noexcept {
     std::string search = toUpper(name);
-    for (int i = 0; i < mColumnInfo.size(); ++i) {
+    for (size_t i = 0; i < mColumnInfo.size(); ++i) {
         if (mColumnInfo[i].name == search) {
             index = i;
             return DbError::ok();

@@ -64,6 +64,10 @@ DbError DbError::unsupported(std::string_view subject) noexcept {
     return DbError{-1, eError, fmt::format("Unsupported {}", subject)};
 }
 
+DbError DbError::unsupported(DbType type) noexcept {
+    return DbError{-1, eError, fmt::format("Environment {} is not available", type)};
+}
+
 DbError DbError::columnNotFound(std::string_view column) noexcept {
     return DbError{-1, eError, fmt::format("Column not found: `{}`", column)};
 }

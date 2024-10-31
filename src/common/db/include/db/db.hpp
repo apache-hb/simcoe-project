@@ -146,6 +146,8 @@ namespace sm::db {
         bool logQueries = false;
     };
 
+    static constexpr std::chrono::seconds kDefaultTimeout{5};
+
     /// @brief DB connection configuration
     ///
     /// Used to connect to a database.
@@ -170,7 +172,7 @@ namespace sm::db {
         std::string password;
         std::string database;
 
-        std::chrono::seconds timeout{5};
+        std::chrono::seconds timeout = kDefaultTimeout;
 
         bool autoCommit = true;
 

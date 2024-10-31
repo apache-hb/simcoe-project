@@ -1,6 +1,7 @@
 #include "stdafx.hpp"
 
 #include "sqlite/sqlite.hpp"
+#include "sqlite/statement.hpp"
 
 using namespace sm;
 using namespace sm::db;
@@ -227,7 +228,6 @@ DbError SqliteStatement::isNullByName(std::string_view column, bool& value) noex
 
     return isNullByIndex(index, value);
 }
-
 
 SqliteStatement::SqliteStatement(sqlite3_stmt *stmt) noexcept
     : mStatement(stmt)

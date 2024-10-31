@@ -61,6 +61,7 @@ namespace sm::db {
         static DbError columnIsNull(std::string_view name) noexcept;
         static DbError done(int code) noexcept;
         static DbError unsupported(std::string_view subject) noexcept;
+        static DbError unsupported(DbType type) noexcept;
         static DbError columnNotFound(std::string_view column) noexcept;
         static DbError typeMismatch(std::string_view column, DataType actual, DataType expected) noexcept;
         static DbError bindNotFound(std::string_view bind) noexcept;

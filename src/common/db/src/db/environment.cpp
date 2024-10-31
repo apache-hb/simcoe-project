@@ -62,12 +62,49 @@ DbResult<Environment> Environment::tryCreate(DbType type, const EnvConfig& confi
     return Environment{env};
 }
 
-DbResult<Connection> Environment::tryConnect(const ConnectionConfig& config) noexcept {
-    detail::IConnection *connection = nullptr;
+Environment Environment::create(DbType type, const EnvConfig& config) {
+    switch (type) {
+#if SMC_DB_HAS_DB2
+    case DbType::eDB2:
+        return Environment{detail::newDb2Environment()};
+#endif
 
-    LOG_INFO(DbLog, "Connecting to database: {}:{}/{} as role `{}`", config.host, config.port, config.database, config.user);
+    default:
+        throw DbException{DbError::unsupported(type)};
+    }
+}
+
+static std::string formatConnectionConfig(const ConnectionConfig& config) {
+    std::string_view role = config.user.empty() ? "anonymous" : std::string_view(config.user);
+    std::string database = config.database.empty() ? "" : fmt::format("/{}", config.database);
+    std::string port = (config.port == 0) ? "" : fmt::format(":{}", config.port);
+
+    return fmt::format("{}{}{} as `{}`", config.host, port, database, role);
+}
+
+static void logConnectionAttempt(const ConnectionConfig& config) {
+    std::string info = formatConnectionConfig(config);
+
+    if (config.timeout != kDefaultTimeout) {
+        info += fmt::format(" (timeout: {})", config.timeout);
+    }
+
+    LOG_INFO(DbLog, "Connecting to database: {}", info);
+}
+
+DbResult<Connection> Environment::tryConnect(const ConnectionConfig& config) noexcept {
+    logConnectionAttempt(config);
+
+    detail::IConnection *connection = nullptr;
     if (DbError error = mImpl->connect(config, &connection))
         return std::unexpected(error);
 
+    return Connection{connection, config};
+}
+
+Connection Environment::connect(const ConnectionConfig& config) {
+    logConnectionAttempt(config);
+
+    detail::IConnection *connection = mImpl->connect(config);
     return Connection{connection, config};
 }

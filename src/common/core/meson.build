@@ -40,7 +40,7 @@ inc = include_directories('.', 'include', 'src')
 
 libcore = library('core', src, simcoe_config,
     cpp_args : [ '-DSM_CORE_BUILD=1' ],
-    # cpp_pch : 'src/stdafx.hpp',
+    cpp_pch : 'src/stdafx.hpp',
     include_directories : [ inc, core_include, config_include, reflect_include ],
     dependencies : core_dependencies
 )
@@ -54,7 +54,7 @@ core = declare_dependency(
 catch2 = dependency('catch2-with-main')
 testargs = [ '--reporter=TAP', '--allow-running-no-tests' ]
 testkwargs = { 'protocol' : 'tap', 'args' : testargs, 'timeout': 5 }
-benchkwargs = { 'timeout': 60 }
+benchkwargs = { 'timeout': 600 }
 
 deps = [ core, catch2 ]
 

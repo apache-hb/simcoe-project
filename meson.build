@@ -247,6 +247,7 @@ subdir('src/common/game')
 ###
 
 subdir('src/game/account')
+subdir('src/game/thunderflash')
 
 ###
 ### top level modules

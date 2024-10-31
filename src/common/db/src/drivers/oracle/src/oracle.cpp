@@ -237,7 +237,7 @@ std::string oracle::setupInsertReturningPrimaryKey(const dao::TableInfo& info) {
 
     auto pk = info.getPrimaryKey();
 
-    ss << " RETURNING " << pk.name << " INTO :" << pk.name;
+    ss << fmt::format(" RETURNING {0} INTO :{0}", pk.name);
 
     return ss.str();
 }

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root name="thunderflash">
+    <table name="leaderboard" primaryKey="name">
+        <column name="name" type="text" length="4">
+            <unique />
+        </column>
+
+        <column name="score" type="ulong" />
+        <!-- <column name="time" type="duration" /> -->
+    </table>
+</root>

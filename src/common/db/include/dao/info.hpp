@@ -8,6 +8,7 @@
 namespace sm::db {
     using Blob = std::vector<std::uint8_t>;
     using DateTime = std::chrono::time_point<std::chrono::system_clock>;
+    using Duration = std::chrono::milliseconds;
 }
 
 namespace sm::dao {
@@ -26,6 +27,7 @@ namespace sm::dao {
         eDouble, // double
         eBlob, // Blob
         eDateTime, // DateTime
+        eDuration, // Duration
 
         eCount
     };

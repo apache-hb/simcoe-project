@@ -36,14 +36,17 @@ cli_deps = [
     cthulhu.get_variable('format'),
 ]
 
-args = cpp.get_supported_arguments('/wd4201', '/wd4005', '-Wno-format-security')
-args += cc.get_supported_arguments('/wd4201', '/wd4005', '-Wno-missing-designated-field-initializers')
-args += cthulhu.get_variable('generated_args')
+reflect_args = cpp.get_supported_arguments(
+    '/wd4201', '/wd4005',
+    '-Wno-format-security', '-Wno-missing-designated-field-initializers'
+)
+
+reflect_args += cthulhu.get_variable('generated_args')
 
 ref = library('ref', src,
     dependencies : deps + library_deps,
-    c_args : args,
-    cpp_args : args,
+    c_args : reflect_args,
+    cpp_args : reflect_args,
     include_directories : [ 'src', 'include' ],
     override_options : [ 'unity=off' ]
 )
@@ -52,8 +55,8 @@ reflect_cli = executable('reflect_cli', 'src/main.cpp',
     dependencies : deps + cli_deps,
     link_with : ref,
     include_directories : [ 'include', ref.private_dir_include() ],
-    cpp_args : args,
-    c_args : args,
+    cpp_args : reflect_args,
+    c_args : reflect_args,
     override_options : [ 'unity=off', 'b_sanitize=none' ],
     native : true
 )

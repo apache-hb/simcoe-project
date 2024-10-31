@@ -27,7 +27,7 @@ TEST_CASE("Setup logging") {
 
     auto env = db::Environment::create(db::DbType::eSqlite3);
 
-    logs::sinks::create(env.connect({.host="benchlogs.db"}));
+    logs::sinks::create(env.connect(makeSqliteTestDb("logs/benchmark")));
     SUCCEED();
 
     BENCHMARK("Log plain message") {

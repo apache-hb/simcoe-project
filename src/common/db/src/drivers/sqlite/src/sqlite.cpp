@@ -1,4 +1,3 @@
-#include "core/string.hpp"
 #include "stdafx.hpp"
 
 #include "sqlite/sqlite.hpp"
@@ -245,10 +244,6 @@ std::string sqlite::setupInsertReturningPrimaryKey(const dao::TableInfo& info) n
         << " RETURNING " << pk.name << ";";
 
     return ss.str();
-}
-
-std::string sqlite::setupTruncate(std::string_view name) noexcept {
-    return fmt::format("DELETE FROM {};", name);
 }
 
 std::string sqlite::setupUpdate(const dao::TableInfo& info) noexcept {

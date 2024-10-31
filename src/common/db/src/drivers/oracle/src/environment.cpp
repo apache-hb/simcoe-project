@@ -19,23 +19,6 @@ static constexpr std::string_view kConnectionString = R"(
     )
 )";
 
-static DbError getServerVersion(const oracle::OraServer& server, oracle::OraError& error, Version& version) noexcept {
-    text buffer[512];
-    ub4 release;
-    if (sword result = OCIServerRelease2(server, error, buffer, sizeof(buffer), OCI_HTYPE_SERVER, &release, OCI_DEFAULT))
-        return oraGetError(error, result);
-
-    int major = OCI_SERVER_RELEASE_REL(release);
-    int minor = OCI_SERVER_RELEASE_REL_UPD(release);
-    int revision = OCI_SERVER_RELEASE_REL_UPD_REV(release);
-    int increment = OCI_SERVER_RELEASE_REL_UPD_INC(release);
-    int ext = OCI_SERVER_RELEASE_EXT(release);
-
-    version = Version{(const char*)buffer, major, minor, revision, increment, ext};
-
-    return DbError::ok();
-}
-
 static constexpr ub4 kRoleMode[(int)AssumeRole::eCount] = {
     [(int)AssumeRole::eDefault] = OCI_DEFAULT,
     [(int)AssumeRole::eSYSDBA]  = OCI_SYSDBA,

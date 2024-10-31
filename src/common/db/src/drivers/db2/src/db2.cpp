@@ -69,18 +69,26 @@ DbError db2::getErrorFromParent(SqlResult result, SQLSMALLINT type, SQLHANDLE pa
     }
 }
 
-DbError detail::getDb2Env(IEnvironment **env) noexcept {
+DbError detail::getDb2Env(detail::IEnvironment **env) noexcept {
+    try {
+        *env = newDb2Environment();
+    } catch (DbException& e) {
+        return e.error();
+    }
+
+    return DbError::ok();
+}
+
+detail::IEnvironment *detail::newDb2Environment() {
     SqlEnvHandleEx henv;
     if (SqlResult result = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv)) {
         if (henv == SQL_NULL_HENV)
-            return db2::getSqlError(result);
+            throw DbException{db2::getSqlError(result)};
 
-        return db2::getEnvErrorInfo(result, henv);
+        throw DbException{db2::getEnvErrorInfo(result, henv)};
     }
 
     SQLSetEnvAttr(henv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0);
 
-    *env = new db2::Db2Environment(std::move(henv));
-
-    return DbError::ok();
+    return new db2::Db2Environment(std::move(henv));
 }

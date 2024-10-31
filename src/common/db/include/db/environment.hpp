@@ -22,17 +22,9 @@ namespace sm::db {
 
         static DbResult<Environment> tryCreate(DbType type, const EnvConfig& config = EnvConfig{}) noexcept;
 
-        static Environment create(DbType type, const EnvConfig& config = EnvConfig{}) {
-            return throwIfFailed(tryCreate(type, config));
-        }
+        static Environment create(DbType type, const EnvConfig& config = EnvConfig{});
 
         DbResult<Connection> tryConnect(const ConnectionConfig& config) noexcept;
-        Connection connect(const ConnectionConfig& config) {
-            auto result = tryConnect(config);
-            if (!result.has_value())
-                throw DbConnectionException{result.error(), config};
-
-            return std::move(*result);
-        }
+        Connection connect(const ConnectionConfig& config);
     };
 }

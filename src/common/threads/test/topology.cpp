@@ -12,7 +12,7 @@ using CpuInfoLibrary = threads::detail::CpuInfoLibrary;
 TEST_CASE("CpuSet Geometry") {
     CpuInfoLibrary lib = CpuInfoLibrary::load();
     db::Environment sqlite = db::Environment::create(db::DbType::eSqlite3);
-    db::Connection connection = sqlite.connect({ .host = "threadtest.db" });
+    db::Connection connection = sqlite.connect(makeSqliteTestDb("threads/info"));
 
     threads::saveThreadInfo(connection);
 

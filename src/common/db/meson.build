@@ -83,6 +83,7 @@ src += [
     'src/drivers/sqlite/src/sqlite.cpp',
     'src/drivers/sqlite/src/statement.cpp',
     'src/drivers/sqlite/src/connection.cpp',
+    'src/drivers/sqlite/src/environment.cpp',
 ]
 
 db_private_include += [ include_directories('src/drivers/sqlite/include') ]
@@ -127,11 +128,12 @@ if has_odbc
     src += 'src/db/drivers/odbc.cpp'
 endif
 
-libdb = library('orm', [ src, db_config ],
+libdb = library('db', [ src, db_config ],
     cpp_args : [ '-DSM_DB_BUILD=1', args, cpp.get_supported_arguments('-Wno-c99-designator', '-Wno-cast-function-type-mismatch') ],
     cpp_pch : 'src/db/stdafx.hpp',
     include_directories : [ db_include, db_private_include ],
-    dependencies : [ deps, db_private_deps ]
+    dependencies : [ deps, db_private_deps ],
+    override_options : [ 'unity=off' ]
 )
 
 db = declare_dependency(
