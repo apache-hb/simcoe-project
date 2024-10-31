@@ -163,6 +163,8 @@ int main(int argc, const char **argv) noexcept try {
         },
     };
 
+    // math::uint2 ntscSize { 486, 440 };
+
     math::uint2 vic20Size { VIC20_SCREEN_WIDTH, VIC20_SCREEN_HEIGHT };
     Vic20DrawContext context{config, window.getHandle(), vic20Size};
     events.context = &context;

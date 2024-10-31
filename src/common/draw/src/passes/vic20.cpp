@@ -14,9 +14,14 @@ static constexpr D3D12_ROOT_SIGNATURE_FLAGS kRootFlags
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
 
 enum BindIndex {
-    eDrawInfoBuffer = 0, // StructuredBuffer<Vic20Info> : register(t0)
-    eFrameBuffer = 1,    // StructuredBuffer<uint>      : register(t0)
-    ePresentTexture = 2, // RWTexture2D<float4>         : register(u0)
+    eDrawInfoBuffer, // StructuredBuffer<Vic20Info> : register(t0)
+    eFrameBuffer,    // StructuredBuffer<uint>      : register(t1)
+
+#if 0
+    eCharacterMap,   // StructuredBuffer<uint64_t>  : register(t2)
+#endif
+
+    ePresentTexture, // RWTexture2D<float4>         : register(u0)
 
     eBindCount
 };

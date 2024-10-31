@@ -46,8 +46,7 @@ ID3D12Resource *ISwapChain::getSurface(UINT index) {
 }
 
 void ISwapChain::updateSurfaceInfo(SurfaceInfo info) {
-    SwapChainLimits limits = mFactory->limits();
-    checkSurfaceLimits(limits, info);
+    checkSurfaceLimits(mFactory->limits(), info);
 
     updateSurfaces(info);
     mLength = info.length;

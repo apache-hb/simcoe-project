@@ -4,6 +4,7 @@ StructuredBuffer<Vic20Info> gDrawInfo : register(t0);
 
 typedef uint PixelData;
 
+// https://sleepingelephant.com/denial/wiki/index.php?title=Memory_Map#Screen_memory_map
 // framebuffer is a 1D array of colour palette indices of size `VIC20_SCREEN_SIZE`
 // each index is a 4 bit index into `kVic20Pallete`
 StructuredBuffer<PixelData> gFrameBuffer : register(t1);

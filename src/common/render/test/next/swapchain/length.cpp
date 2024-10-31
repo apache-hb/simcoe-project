@@ -23,13 +23,13 @@ TEST_CASE("swapchain length") {
     };
 
     for (UINT i = minLength; i < maxLength; i++) {
-        test.event(i, [&] {
+        test.event(i, [i, &setSurfaceLength] {
             setSurfaceLength(i);
         });
     }
 
-    for (UINT i = maxLength; i > minLength; i--) {
-        test.event(i + maxLength, [&] {
+    for (UINT i = maxLength; i >= minLength; i--) {
+        test.event(i + maxLength, [i, &setSurfaceLength] {
             setSurfaceLength(i);
         });
     }
@@ -41,7 +41,8 @@ TEST_CASE("swapchain length") {
 
     for (int i = 0; i < 10; i++) {
         test.event(1 + i + (maxLength * 2), [&] {
-            setSurfaceLength(dist(rng));
+            int length = dist(rng);
+            setSurfaceLength(length);
         });
     }
 
