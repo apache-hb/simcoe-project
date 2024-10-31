@@ -142,11 +142,6 @@ void Vic20Display::create() {
     createDisplayData(mContext.getSwapChainInfo());
 }
 
-void Vic20Display::update(SurfaceInfo info) {
-    resetDisplayData();
-    createDisplayData(info);
-}
-
 void Vic20Display::record(ID3D12GraphicsCommandList *list, UINT index) {
     DescriptorPool& srvPool = mContext.getSrvHeap();
     ID3D12DescriptorHeap *heaps[] = { srvPool.get() };

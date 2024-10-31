@@ -50,12 +50,23 @@ void csMain(
     uint index = getIndexForDispatch(threadId, info.textureSize) / X_PIXELS_PER_WORD;
     uint colourValueData = getPaletteIndexValue(index);
 
-    uint word = colourValueData >> (dispatchId.x % 2 == 0 ? 0 : 16);
+    uint word = colourValueData;
 
-    for (uint i = 0; i < X_PIXELS_PER_WORD; i += 2) {
-        uint value = (word >> (i * 2)) & 0xF;
-        float4 colour = getPaletteColourFromIndex(value);
-        gPresentTexture[threadId + uint2(i, 0)] = colour;
-        gPresentTexture[threadId + uint2(i + 1, 0)] = colour;
-    }
+    uint nibble0 = (word >> 0) & 0xF;
+    uint nibble1 = (word >> 4) & 0xF;
+    uint nibble2 = (word >> 8) & 0xF;
+    uint nibble3 = (word >> 12) & 0xF;
+    uint nibble4 = (word >> 16) & 0xF;
+    uint nibble5 = (word >> 20) & 0xF;
+    uint nibble6 = (word >> 24) & 0xF;
+    uint nibble7 = (word >> 28) & 0xF;
+
+    gPresentTexture[threadId + uint2(0, 0)] = getPaletteColourFromIndex(nibble0);
+    gPresentTexture[threadId + uint2(1, 0)] = getPaletteColourFromIndex(nibble1);
+    gPresentTexture[threadId + uint2(2, 0)] = getPaletteColourFromIndex(nibble2);
+    gPresentTexture[threadId + uint2(3, 0)] = getPaletteColourFromIndex(nibble3);
+    gPresentTexture[threadId + uint2(4, 0)] = getPaletteColourFromIndex(nibble4);
+    gPresentTexture[threadId + uint2(5, 0)] = getPaletteColourFromIndex(nibble5);
+    gPresentTexture[threadId + uint2(6, 0)] = getPaletteColourFromIndex(nibble6);
+    gPresentTexture[threadId + uint2(7, 0)] = getPaletteColourFromIndex(nibble7);
 }

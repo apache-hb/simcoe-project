@@ -14,14 +14,14 @@ void createTestAccounts(net::Network& network, net::Address address, uint16_t po
 
         try {
             fmt::println(stderr, "Before prepare {}", name);
-            
+
             game::AccountClient client { network, address, port };
 
-            fmt::println(stderr, "Preparing for {} {}", name, std::chrono::system_clock::now());
+            fmt::println(stderr, "Preparing for {}", name);
 
             readyClients.arrive_and_wait();
 
-            fmt::println(stderr, "Creating {} {}", name, std::chrono::system_clock::now());
+            fmt::println(stderr, "Creating {}", name);
 
             errors.expect(client.createAccount(name, password), "Failed to create account");
         } catch (const std::exception& e) {

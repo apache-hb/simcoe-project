@@ -48,7 +48,6 @@ namespace sm::draw::next {
         // IContextResource
         void reset() noexcept override;
         void create() override;
-        void update(render::next::SurfaceInfo info) override;
         // ~IContextResource
     };
 }

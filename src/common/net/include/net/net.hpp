@@ -244,6 +244,7 @@ namespace sm::net {
         }
 
         Socket connect(const Address& address, uint16_t port) throws(NetException);
+        Socket connectWithTimeout(const Address& address, uint16_t port, std::chrono::milliseconds timeout) throws(NetException);
 
         NetResult<ListenSocket> tryBind(const Address& address, uint16_t port) noexcept;
         ListenSocket bind(const Address& address, uint16_t port) throws(NetException) {
