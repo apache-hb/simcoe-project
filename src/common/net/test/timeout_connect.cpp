@@ -1,6 +1,7 @@
 #include "net_test_common.hpp"
 
 #include <thread>
+#include <latch>
 
 #include "net/net.hpp"
 
@@ -10,9 +11,9 @@ using namespace sm::net;
 using namespace std::chrono_literals;
 
 static constexpr size_t kBufferSize = 128;
-static constexpr uint16_t kPort = 9989;
+static constexpr uint16_t kPort = 9919;
 
-TEST_CASE("Network client server connection") {
+TEST_CASE("Network connect timeout") {
     net::create();
 
     auto network = Network::create();
@@ -52,6 +53,27 @@ TEST_CASE("Network client server connection") {
 
     auto client = network.connect(Address::loopback(), kPort);
     client.setBlocking(false).throwIfFailed();
+
+    int clients = 25;
+    std::latch latch{clients};
+    std::vector<std::jthread> workers;
+
+    for (int i = 0; i < clients; ++i) {
+        workers.emplace_back([&] {
+            latch.arrive_and_wait();
+            try {
+                auto client = network.connectWithTimeout(Address::loopback(), kPort, 25ms);
+            } catch (const NetException& err) {
+                if (err.error().timeout()) {
+                    return;
+                }
+
+                errors.expect(err.error().timeout(), "Expected timeout, got: {}", err.error());
+            }
+        });
+    }
+
+    workers.clear();
 
     // recv a buffer larger than what will ever be sent. this should timeout
     char buffer[kBufferSize * 16];

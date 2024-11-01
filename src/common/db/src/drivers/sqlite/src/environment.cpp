@@ -104,29 +104,26 @@ static constexpr std::string_view kLockingMode[(int)LockingMode::eCount] = {
     [(int)LockingMode::eExclusive] = "EXCLUSIVE",
 };
 
-DbError SqliteEnvironment::connect(const ConnectionConfig& config, detail::IConnection **connection) noexcept {
+detail::IConnection *SqliteEnvironment::connect(const ConnectionConfig& config) noexcept(false) {
     std::string dbPath = std::string{config.host};
     sqlite::Sqlite3Handle db;
-    if (int err = sqlite3_open(dbPath.c_str(), &db))
-        return sqlite::getError(err);
+    if (int err = sqlite3_open(dbPath.c_str(), &db)) {
+        throw DbConnectionException{sqlite::getError(err), config};
+    }
 
     if (config.journalMode != JournalMode::eDefault) {
-        if (DbError err = pragma(db.get(), "journal_mode", kJournalMode[std::to_underlying(config.journalMode)]))
-            return err;
+        pragma(db.get(), "journal_mode", kJournalMode[std::to_underlying(config.journalMode)]).throwIfFailed();
     }
 
     if (config.synchronous != Synchronous::eDefault) {
-        if (DbError err = pragma(db.get(), "synchronous", kSynchronous[std::to_underlying(config.synchronous)]))
-            return err;
+        pragma(db.get(), "synchronous", kSynchronous[std::to_underlying(config.synchronous)]).throwIfFailed();
     }
 
     if (config.lockingMode != LockingMode::eDefault) {
-        if (DbError err = pragma(db.get(), "locking_mode", kLockingMode[std::to_underlying(config.lockingMode)]))
-            return err;
+        pragma(db.get(), "locking_mode", kLockingMode[std::to_underlying(config.lockingMode)]).throwIfFailed();
     }
 
-    *connection = new SqliteConnection{std::move(db)};
-    return DbError::ok();
+    return new SqliteConnection{std::move(db)};
 }
 
 SqliteEnvironment::SqliteEnvironment(const EnvConfig& config) noexcept {
@@ -136,8 +133,7 @@ SqliteEnvironment::SqliteEnvironment(const EnvConfig& config) noexcept {
     setConfigMemory();
 }
 
-DbError detail::getSqliteEnv(detail::IEnvironment **env, const EnvConfig& config) noexcept {
-    static SqliteEnvironment sqlite{config};
-    *env = &sqlite;
-    return DbError::ok();
+detail::IEnvironment *detail::newSqliteEnvironment(const EnvConfig& config) {
+    static SqliteEnvironment sEnvironment{config};
+    return &sEnvironment;
 }

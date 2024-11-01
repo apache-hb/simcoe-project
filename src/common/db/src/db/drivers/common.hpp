@@ -15,14 +15,7 @@ namespace sm::db::detail {
 
         /** Connection */
 
-        virtual DbError connect(const ConnectionConfig& config, IConnection **connection) noexcept = 0;
-
-        virtual IConnection *connect(const ConnectionConfig& config) throws(DbException) {
-            IConnection *connection = nullptr;
-            if (DbError error = connect(config, &connection))
-                throw DbConnectionException{error, config};
-            return connection;
-        }
+        virtual IConnection *connect(const ConnectionConfig& config) throws(DbException) = 0;
     };
 
     struct ConnectionInfo {
@@ -52,7 +45,7 @@ namespace sm::db::detail {
 
         /** Execution */
 
-        virtual DbError prepare(std::string_view sql, IStatement **stmt) noexcept = 0;
+        virtual IStatement *prepare(std::string_view sql) throws(DbException) = 0;
 
         /** Transaction */
 
@@ -328,14 +321,8 @@ namespace sm::db::detail {
         }
     };
 
-    DbError getSqliteEnv(IEnvironment **env, const EnvConfig& config) noexcept;
-    DbError getPostgresEnv(IEnvironment **env) noexcept;
-    DbError getMySqlEnv(IEnvironment **env) noexcept;
-    DbError getOracleEnv(IEnvironment **env, const EnvConfig& config) noexcept;
-    DbError getMsSqlEnv(IEnvironment **env) noexcept;
-    DbError getDb2Env(IEnvironment **env) noexcept;
-
     IEnvironment *newSqliteEnvironment(const EnvConfig& config);
+    IEnvironment *newOracleEnvironment(const EnvConfig& config);
     IEnvironment *newDb2Environment();
 
     // removes any empty lines and trims whitespace

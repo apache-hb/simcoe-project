@@ -334,9 +334,7 @@ namespace sm::db {
 
         DbResult<PreparedStatement> tryPrepareStatement(std::string_view sql, StatementType type) noexcept;
 
-        PreparedStatement prepareStatement(std::string_view sql, StatementType type) throws(DbException) {
-            return throwIfFailed(tryPrepareStatement(sql, type));
-        }
+        PreparedStatement prepareStatement(std::string_view sql, StatementType type) throws(DbException);
 
         DbResult<PreparedStatement> tryPrepareQuery(std::string_view sql) noexcept;
         DbResult<PreparedStatement> tryPrepareUpdate(std::string_view sql) noexcept;

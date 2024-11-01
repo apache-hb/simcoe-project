@@ -4,6 +4,8 @@
 
 #include "drivers/common.hpp"
 
+#include "sqlite/statement.hpp"
+
 namespace sm::db::sqlite {
     struct CloseDb {
         void operator()(sqlite3 *db) noexcept;
@@ -14,17 +16,17 @@ namespace sm::db::sqlite {
     class SqliteConnection final : public detail::IConnection {
         Sqlite3Handle mConnection;
 
-        sqlite3_stmt *mBeginStmt = nullptr;
-        sqlite3_stmt *mCommitStmt = nullptr;
-        sqlite3_stmt *mRollbackStmt = nullptr;
+        SqliteStatement mBeginStmt;
+        SqliteStatement mCommitStmt;
+        SqliteStatement mRollbackStmt;
 
         DbError getConnectionError(int err) const noexcept;
 
-        DbError prepare(std::string_view sql, sqlite3_stmt **stmt) noexcept;
+        SqliteStatement newStatement(std::string_view sql) throws(DbException);
 
         DbError close() noexcept override;
 
-        DbError prepare(std::string_view sql, detail::IStatement **statement) noexcept override;
+        detail::IStatement *prepare(std::string_view sql) noexcept(false) override;
 
         DbError begin() noexcept override;
         DbError commit() noexcept override;
@@ -47,6 +49,6 @@ namespace sm::db::sqlite {
         std::string setupCreateTable(const dao::TableInfo& table) noexcept(false) override;
 
     public:
-        SqliteConnection(Sqlite3Handle connection) noexcept;
+        SqliteConnection(Sqlite3Handle connection);
     };
 }

@@ -5,8 +5,14 @@
 #include "drivers/common.hpp"
 
 namespace sm::db::sqlite {
+    struct CloseStmt {
+        void operator()(sqlite3_stmt *stmt) noexcept;
+    };
+
+    using SqliteStmtHandle = sm::UniquePtr<sqlite3_stmt, CloseStmt>;
+
     class SqliteStatement final : public detail::IStatement {
-        sqlite3_stmt *mStatement = nullptr;
+        SqliteStmtHandle mStatement = nullptr;
         int mStatus = SQLITE_OK;
 
         DbError getStmtError(int err) const noexcept;

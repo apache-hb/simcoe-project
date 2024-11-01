@@ -12,11 +12,11 @@ namespace sm::db::oracle {
         OraService mService;
         OraSession mSession;
 
-        DbResult<OraStatement> newStatement(std::string_view sql) noexcept;
+        OraStatement newStatement(std::string_view sql) throws(DbException);
 
         DbError close() noexcept override;
 
-        DbError prepare(std::string_view sql, detail::IStatement **stmt) noexcept override;
+        detail::IStatement *prepare(std::string_view sql) noexcept(false) override;
 
         DbError begin() noexcept override;
         DbError commit() noexcept override;

@@ -68,14 +68,14 @@ static detail::ConnectionInfo buildConnectionInfo(oracle::OraError& error, oracl
     };
 }
 
-DbResult<oracle::OraStatement> OraConnection::newStatement(std::string_view sql) noexcept {
+oracle::OraStatement OraConnection::newStatement(std::string_view sql) {
     OraEnv& env = mEnvironment.env();
 
-    OraResource<OraError> error = TRY_RESULT(oraNewResource<OraError>(env));
-    OraResource<OraStmt> statement = TRY_RESULT(oraNewResource<OraStmt>(env, *error));
+    OraResource<OraError> error = oraNewResource<OraError>(env);
+    OraResource<OraStmt> statement = oraNewResource<OraStmt>(env, *error);
 
     if (sword result = OCIStmtPrepare2(mService, statement.address(), *error, (text*)sql.data(), sql.size(), nullptr, 0, OCI_NTV_SYNTAX, OCI_DEFAULT))
-        return std::unexpected(oraGetError(*error, result));
+        throw DbException{oraGetError(*error, result)};
 
     return OraStatement{mEnvironment, *this, statement.release(), error.release()};
 }
@@ -102,12 +102,8 @@ DbError OraConnection::close() noexcept {
     return DbError::ok();
 }
 
-DbError OraConnection::prepare(std::string_view sql, detail::IStatement **stmt) noexcept {
-    OraStatement statement = TRY_UNWRAP(newStatement(sql));
-
-    *stmt = new OraStatement{statement};
-
-    return DbError::ok();
+detail::IStatement *OraConnection::prepare(std::string_view sql) noexcept(false) {
+    return new OraStatement{newStatement(sql)};
 }
 
 DbError OraConnection::begin() noexcept {

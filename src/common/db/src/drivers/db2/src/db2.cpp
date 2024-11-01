@@ -56,6 +56,19 @@ DbError db2::getStmtErrorInfo(SQLRETURN status, SQLHSTMT stmt) {
     return DbError::error(status, sqlGetErrorMessage(SQL_NULL_HENV, SQL_NULL_HDBC, stmt));
 }
 
+DbError db2::getErrorInfo(SQLRETURN status, SQLSMALLINT type, SQLHANDLE handle) {
+    switch (type) {
+    case SQL_HANDLE_ENV:
+        return db2::getEnvErrorInfo(status, handle);
+    case SQL_HANDLE_DBC:
+        return db2::getConnectionErrorInfo(status, handle);
+    case SQL_HANDLE_STMT:
+        return db2::getStmtErrorInfo(status, handle);
+    default:
+        return db2::getSqlError(status);
+    }
+}
+
 DbError db2::getErrorFromParent(SqlResult result, SQLSMALLINT type, SQLHANDLE parent) {
     switch (type) {
     case SQL_HANDLE_ENV:
@@ -67,16 +80,6 @@ DbError db2::getErrorFromParent(SqlResult result, SQLSMALLINT type, SQLHANDLE pa
     default:
         return db2::getSqlError(result);
     }
-}
-
-DbError detail::getDb2Env(detail::IEnvironment **env) noexcept {
-    try {
-        *env = newDb2Environment();
-    } catch (DbException& e) {
-        return e.error();
-    }
-
-    return DbError::ok();
 }
 
 detail::IEnvironment *detail::newDb2Environment() {

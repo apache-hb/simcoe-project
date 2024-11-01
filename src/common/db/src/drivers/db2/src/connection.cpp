@@ -110,15 +110,15 @@ DbError Db2Connection::close() noexcept {
     return DbError::ok();
 }
 
-DbError Db2Connection::prepare(std::string_view sql, detail::IStatement **stmt) noexcept {
+detail::IStatement *Db2Connection::prepare(std::string_view sql) noexcept(false) {
     SqlStmtHandleEx hstmt = SqlStmtHandleEx::create(mDbHandle);
 
     if (SqlResult result = SQLPrepare(hstmt, (SQLCHAR*)sql.data(), (SQLINTEGER)sql.size()))
-        return getStmtErrorInfo(result, hstmt);
+        throw DbException{getStmtErrorInfo(result, hstmt)};
 
     SQLSMALLINT params;
     if (SqlResult result = SQLNumParams(hstmt, &params))
-        return getStmtErrorInfo(result, hstmt);
+        throw DbException{getStmtErrorInfo(result, hstmt)};
 
 #if 0
     for (SQLSMALLINT i = 1; i <= params; i++) {
@@ -131,9 +131,7 @@ DbError Db2Connection::prepare(std::string_view sql, detail::IStatement **stmt) 
     }
 #endif
 
-    *stmt = new Db2Statement(std::move(hstmt), std::string{sql});
-
-    return DbError::ok();
+    return new Db2Statement(std::move(hstmt), std::string{sql});
 }
 
 DbError Db2Connection::setAutoCommit(bool autoCommit) noexcept {

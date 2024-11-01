@@ -19,6 +19,13 @@ namespace sm::system {
         }
     };
 
+    struct WindowConfig {
+        WindowMode mode;
+        int width;
+        int height;
+        std::string title;
+    };
+
     class IWindowEvents {
         friend class Window;
 

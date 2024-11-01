@@ -12,13 +12,6 @@ variant WindowMode : uint32 {
     case Borderless = opaque(WS_POPUP)
 }
 
-struct WindowConfig {
-    mode: WindowMode;
-    width: int;
-    height: int;
-    title: cstring;
-}
-
 // win32 types
 
 [[facade]]

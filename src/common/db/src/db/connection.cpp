@@ -54,11 +54,14 @@ Version Connection::serverVersion() const {
     return mImpl->serverVersion();
 }
 
-DbResult<PreparedStatement> Connection::tryPrepareStatement(std::string_view sql, StatementType type) noexcept {
-    detail::IStatement *statement = nullptr;
-    if (DbError error = mImpl->prepare(sql, &statement))
-        return std::unexpected(error);
+DbResult<PreparedStatement> Connection::tryPrepareStatement(std::string_view sql, StatementType type) noexcept try {
+    return prepareStatement(sql, type);
+} catch (const DbException& e) {
+    return std::unexpected{e.error()};
+}
 
+PreparedStatement Connection::prepareStatement(std::string_view sql, StatementType type) throws(DbException) {
+    detail::IStatement *statement = mImpl->prepare(sql);
     return PreparedStatement{statement, this, type};
 }
 

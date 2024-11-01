@@ -36,10 +36,9 @@ namespace sm::db::oracle {
     using OraEnvResource = OraResource<OraEnv>;
 
     template<typename T>
-    DbResult<OraResource<T>> oraNewResource(OCIEnv *env, OCIError *error = nullptr) noexcept {
+    OraResource<T> oraNewResource(OCIEnv *env, OCIError *error = nullptr) noexcept {
         T handle;
-        if (DbError result = oraNewHandle(env, handle))
-            return std::unexpected(result);
+        oraNewHandle(env, handle).throwIfFailed();
 
         OraDelete<T> deleter{error};
 

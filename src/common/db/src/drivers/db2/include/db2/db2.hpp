@@ -36,6 +36,7 @@ namespace sm::db::db2 {
         }
     };
 
+    DbError getErrorInfo(SQLRETURN status, SQLSMALLINT type, SQLHANDLE handle);
     DbError getErrorFromParent(SqlResult result, SQLSMALLINT type, SQLHANDLE parent);
 
     template<SQLSMALLINT T>
@@ -59,6 +60,10 @@ namespace sm::db::db2 {
                 getErrorFromParent(result, kHandleType, parent).raise();
 
             return SqlHandleEx(std::move(handle));
+        }
+
+        DbError getErrorInfo(SQLRETURN status) const noexcept {
+            return db2::getErrorInfo(status, kHandleType, mHandle.get());
         }
 
         operator SQLHANDLE() const noexcept { return mHandle.get(); }
@@ -97,7 +102,7 @@ namespace sm::db::db2 {
 
         /** Execution */
 
-        DbError prepare(std::string_view sql, detail::IStatement **stmt) noexcept override;
+        detail::IStatement *prepare(std::string_view sql) noexcept(false) override;
 
         /** Transaction */
 
@@ -122,7 +127,7 @@ namespace sm::db::db2 {
 
         bool close() noexcept override { return true; }
 
-        DbError connect(const ConnectionConfig& config, detail::IConnection **connection) noexcept override;
+        detail::IConnection *connect(const ConnectionConfig& config) noexcept(false) override;
 
     public:
         Db2Environment(SqlEnvHandleEx env) noexcept;

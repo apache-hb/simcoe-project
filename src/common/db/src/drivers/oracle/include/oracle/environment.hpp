@@ -8,7 +8,7 @@ namespace sm::db::oracle {
     class OraEnvironment final : public detail::IEnvironment {
         OraEnv mEnv;
 
-        DbError connect(const ConnectionConfig& config, detail::IConnection **connection) noexcept override;
+        detail::IConnection *connect(const ConnectionConfig& config) noexcept(false) override;
 
         bool close() noexcept override {
             return true;

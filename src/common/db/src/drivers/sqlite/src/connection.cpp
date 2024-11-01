@@ -44,48 +44,36 @@ DbError SqliteConnection::getConnectionError(int err) const noexcept {
     return sqlite::getError(err, mConnection.get());
 }
 
-DbError SqliteConnection::prepare(std::string_view sql, sqlite3_stmt **stmt) noexcept {
-    if (int err = sqlite3_prepare_v2(mConnection.get(), sql.data(), sql.size(), stmt, nullptr))
-        return getError(err, mConnection.get());
+SqliteStatement SqliteConnection::newStatement(std::string_view sql) noexcept(false) {
+    sqlite3_stmt *stmt = nullptr;
+    if (int err = sqlite3_prepare_v2(mConnection.get(), sql.data(), sql.size(), &stmt, nullptr))
+        throw DbException{getConnectionError(err)};
 
-    return DbError::ok();
+    return stmt;
 }
 
 DbError SqliteConnection::close() noexcept {
-    sqlite3_finalize(mBeginStmt);
-    sqlite3_finalize(mCommitStmt);
-    sqlite3_finalize(mRollbackStmt);
-
-    int err = sqlite3_close(mConnection.release());
-    if (err != SQLITE_OK)
-        return getConnectionError(err);
-
-    mConnection = nullptr;
+    (void)mBeginStmt.finalize();
+    (void)mCommitStmt.finalize();
+    (void)mRollbackStmt.finalize();
+    mConnection.reset();
     return DbError::ok();
 }
 
-DbError SqliteConnection::prepare(std::string_view sql, detail::IStatement **statement) noexcept {
-    sqlite3_stmt *stmt = nullptr;
-    if (DbError err = prepare(sql, &stmt))
-        return err;
-
-    *statement = new SqliteStatement{stmt};
-    return DbError::ok();
+detail::IStatement *SqliteConnection::prepare(std::string_view sql) noexcept(false) {
+    return new SqliteStatement{newStatement(sql)};
 }
 
 DbError SqliteConnection::begin() noexcept {
-    int err = execStatement(mBeginStmt);
-    return getConnectionError(err);
+    return mBeginStmt.execute();
 }
 
 DbError SqliteConnection::commit() noexcept {
-    int err = execStatement(mCommitStmt);
-    return getConnectionError(err);
+    return mCommitStmt.execute();
 }
 
 DbError SqliteConnection::rollback() noexcept {
-    int err = execStatement(mRollbackStmt);
-    return getConnectionError(err);
+    return mRollbackStmt.execute();
 }
 
 std::string SqliteConnection::setupInsert(const dao::TableInfo& table) noexcept(false) {
@@ -125,9 +113,13 @@ std::string SqliteConnection::setupCreateTable(const dao::TableInfo& table) noex
 }
 
 static bool isBlankString(const char *text) noexcept {
-    while (*text)
-        if (!isspace(*text))
+    while (*text) {
+        if (!isspace(*text)) {
             return false;
+        }
+
+        text += 1;
+    }
 
     return true;
 }
@@ -143,19 +135,13 @@ static void isBlankStringImpl(sqlite3_context *ctx, int argc, sqlite3_value **ar
     sqlite3_result_int(ctx, isBlankString(text));
 }
 
-static void prepareAlways(sqlite3 *connection, const char *sql, sqlite3_stmt **stmt) {
-    [[maybe_unused]] int err = sqlite3_prepare_v2(connection, sql, -1, stmt, nullptr);
-    CTASSERTF(err == SQLITE_OK, "Failed to prepare statement `%s`: %s (%d)", sql, sqlite3_errmsg(connection), err);
-}
-
-SqliteConnection::SqliteConnection(Sqlite3Handle connection) noexcept
+SqliteConnection::SqliteConnection(Sqlite3Handle connection)
     : detail::IConnection(buildConnectionInfo())
     , mConnection(std::move(connection))
+    , mBeginStmt(newStatement("BEGIN;"))
+    , mCommitStmt(newStatement("COMMIT;"))
+    , mRollbackStmt(newStatement("ROLLBACK;"))
 {
-    prepareAlways(mConnection.get(), "BEGIN;", &mBeginStmt);
-    prepareAlways(mConnection.get(), "COMMIT;", &mCommitStmt);
-    prepareAlways(mConnection.get(), "ROLLBACK;", &mRollbackStmt);
-
     [[maybe_unused]] int err = sqlite3_create_function(mConnection.get(), "IS_BLANK_STRING", 1, SQLITE_UTF8 | SQLITE_DETERMINISTIC, nullptr, isBlankStringImpl, nullptr, nullptr);
     CTASSERTF(err == SQLITE_OK, "Failed to create IS_BLANK_STRING function: %s (%d)", sqlite3_errmsg(mConnection.get()), err);
 }

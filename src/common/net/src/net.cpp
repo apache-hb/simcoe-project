@@ -2,6 +2,7 @@
 
 #include "common.hpp"
 #include "core/error.hpp"
+#include <cassert>
 
 using namespace sm;
 using namespace sm::net;
@@ -105,11 +106,18 @@ void net::destroy(void) noexcept {
     gNetData = WSADATA{};
 }
 
-NetResult<Network> Network::tryCreate() noexcept {
+Network Network::create() noexcept(false) {
     if (!isNetSetup())
-        return std::unexpected(NetError{WSANOTINITIALISED});
+        throw NetException{WSANOTINITIALISED};
 
     return Network{};
+}
+
+static DWORD getSocketError(SOCKET socket) noexcept {
+    DWORD error = 0;
+    int size = sizeof(error);
+    getsockopt(socket, SOL_SOCKET, SO_ERROR, reinterpret_cast<char *>(&error), &size);
+    return error;
 }
 
 static SOCKET findOpenSocket(addrinfo *info) noexcept(false) {
@@ -117,13 +125,11 @@ static SOCKET findOpenSocket(addrinfo *info) noexcept(false) {
 
         // if we fail to even create a socket then throw an exception
         SOCKET socket = ::socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
-        fmt::println(stderr, "trySocket()");
         if (socket == INVALID_SOCKET)
             throw NetException{lastNetError()};
 
         // failing to connect is acceptable, we can try the next address
         int err = ::connect(socket, ptr->ai_addr, ptr->ai_addrlen);
-        fmt::println(stderr, "tryConnect({})", err);
         if (err != SOCKET_ERROR)
             return socket;
 
@@ -134,7 +140,52 @@ static SOCKET findOpenSocket(addrinfo *info) noexcept(false) {
     throw NetException{SNET_CONNECTION_FAILED};
 }
 
-Socket Network::connect(const Address& address, uint16_t port) noexcept(false) {
+static SOCKET findOpenSocketWithTimeout(addrinfo *info, std::chrono::milliseconds timeout) noexcept(false) {
+    for (addrinfo *ptr = info; ptr != nullptr; ptr = ptr->ai_next) {
+
+        // if we fail to even create a socket then throw an exception
+        SOCKET socket = ::socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
+        if (socket == INVALID_SOCKET)
+            throw NetException{lastNetError()};
+
+        u_long nonblocking = 1;
+        if (ioctlsocket(socket, FIONBIO, &nonblocking) == SOCKET_ERROR) {
+            NetError err = lastNetError();
+            closesocket(socket);
+            throw NetException{err};
+        }
+
+        const chrono::time_point start = chrono::steady_clock::now();
+        auto timeoutReached = [&] { return start + timeout < chrono::steady_clock::now(); };
+
+        while (!timeoutReached()) {
+            int err = ::connect(socket, ptr->ai_addr, ptr->ai_addrlen);
+            if (err != SOCKET_ERROR)
+                return socket;
+
+            DWORD reason = getSocketError(socket);
+            if (reason == WSAEISCONN)
+                return socket;
+
+            // if we might be able to connect later then we can retry until
+            // the timeout is reached.
+            if (reason == WSAEWOULDBLOCK)
+                continue;
+
+            assert(reason != 0);
+
+            closesocket(socket);
+            throw NetException{reason};
+        }
+
+        closesocket(socket);
+    }
+
+    // if we reach this point then we failed to connect to any address
+    throw NetException{ERROR_TIMEOUT};
+}
+
+static addrinfo *getAddrInfo(const Address& address, uint16_t port) throws(NetException) {
     addrinfo hints = {
         .ai_family = AF_UNSPEC,
         .ai_socktype = SOCK_STREAM,
@@ -145,17 +196,30 @@ Socket Network::connect(const Address& address, uint16_t port) noexcept(false) {
 
     std::string addr = toAddressString(address);
     std::string p = std::to_string(port);
-    fmt::println(stderr, "here {}:{}", addr, p);
     if (int err = getaddrinfo(addr.c_str(), p.c_str(), &hints, &result)) {
         throw NetException{err, "getaddrinfo({}:{})", addr, p};
     }
+
+    return result;
+}
+
+Socket Network::connect(const Address& address, uint16_t port) noexcept(false) {
+    addrinfo *result = getAddrInfo(address, port);
 
     defer { freeaddrinfo(result); };
 
     return Socket{findOpenSocket(result)};
 }
 
-NetResult<ListenSocket> Network::tryBind(const Address& address, uint16_t port) noexcept {
+Socket Network::connectWithTimeout(const Address& address, uint16_t port, std::chrono::milliseconds timeout) noexcept(false) {
+    addrinfo *result = getAddrInfo(address, port);
+
+    defer { freeaddrinfo(result); };
+
+    return Socket{findOpenSocketWithTimeout(result, timeout)};
+}
+
+ListenSocket Network::bind(const Address& address, uint16_t port) noexcept(false) {
     addrinfo hints = {
         .ai_flags = AI_PASSIVE,
         .ai_family = AF_INET,
@@ -169,23 +233,21 @@ NetResult<ListenSocket> Network::tryBind(const Address& address, uint16_t port) 
     std::string p = std::to_string(port);
 
     if (int err = getaddrinfo(addr.c_str(), p.c_str(), &hints, &result)) {
-        return std::unexpected(NetError(err, "getaddrinfo({}:{})", addr, p));
+        throw NetException{NetError(err, "getaddrinfo({}:{})", addr, p)};
     }
 
     defer { freeaddrinfo(result); };
 
     SOCKET socket = ::socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-    if (socket == INVALID_SOCKET)
-        return std::unexpected(lastNetError());
+    if (socket == INVALID_SOCKET) {
+        throw NetException{lastNetError()};
+    }
 
     if (::bind(socket, result->ai_addr, result->ai_addrlen)) {
+        NetError error = lastNetError();
         closesocket(socket);
-        return std::unexpected(lastNetError());
+        throw NetException{error};
     }
 
     return ListenSocket{socket};
-}
-
-size_t Network::getMaxSockets() const noexcept {
-    return gNetData.iMaxSockets;
 }

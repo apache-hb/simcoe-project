@@ -34,34 +34,38 @@ static ub4 getConnectMode(const ConnectionConfig& config) noexcept {
     return kRoleMode[(int)config.role] | OCI_STMT_CACHE;
 }
 
-DbError OraEnvironment::connect(const ConnectionConfig& config, detail::IConnection **connection) noexcept {
+detail::IConnection *OraEnvironment::connect(const ConnectionConfig& config) noexcept(false) {
 
     /** Create base connection objects */
-    OraResource<OraError> error = TRY_UNWRAP(oraNewResource<OraError>(mEnv, nullptr));
-    OraResource<OraServer> server = TRY_UNWRAP(oraNewResource<OraServer>(mEnv, *error));
+    OraResource<OraError> error = oraNewResource<OraError>(mEnv, nullptr);
+    OraResource<OraServer> server = oraNewResource<OraServer>(mEnv, *error);
 
     /** Attach to the server */
     chrono::seconds timeout = chrono::duration_cast<chrono::seconds>(config.timeout);
     std::string conn = fmt::format(kConnectionString, timeout.count(), config.host, config.port, config.database);
-    if (sword result = OCIServerAttach(*server, *error, (text*)conn.data(), conn.size(), OCI_DEFAULT))
-        return oraGetError(*error, result);
+    if (sword result = OCIServerAttach(*server, *error, (text*)conn.data(), conn.size(), OCI_DEFAULT)) {
+        throw DbConnectionException{oraGetError(*error, result), config};
+    }
 
     /** Create the service handle and attach the server connection */
 
-    OraResource<OraService> service = TRY_UNWRAP(oraNewResource<OraService>(mEnv, *error));
+    OraResource<OraService> service = oraNewResource<OraService>(mEnv, *error);
 
-    if (sword result = (*service).setAttribute(*error, OCI_ATTR_SERVER, *server))
-        return oraGetError(*error, result);
+    if (sword result = (*service).setAttribute(*error, OCI_ATTR_SERVER, *server)) {
+        throw DbConnectionException{oraGetError(*error, result), config};
+    }
 
     /** Create session and configure it with connection details */
 
-    OraResource<OraSession> session = TRY_UNWRAP(oraNewResource<OraSession>(mEnv, *error));
+    OraResource<OraSession> session = oraNewResource<OraSession>(mEnv, *error);
 
-    if (sword result = (*session).setString(*error, OCI_ATTR_USERNAME, config.user))
-        return oraGetError(*error, result);
+    if (sword result = (*session).setString(*error, OCI_ATTR_USERNAME, config.user)) {
+        throw DbConnectionException{oraGetError(*error, result), config};
+    }
 
-    if (sword result = (*session).setString(*error, OCI_ATTR_PASSWORD, config.password))
-        return oraGetError(*error, result);
+    if (sword result = (*session).setString(*error, OCI_ATTR_PASSWORD, config.password)) {
+        throw DbConnectionException{oraGetError(*error, result), config};
+    }
 
     if (sword result = (*session).setString(*error, OCI_ATTR_MODULE, kModuleName)) {
         LOG_WARN(DbLog, "Failed to set module name: {}", oraGetError(*error, result));
@@ -70,16 +74,12 @@ DbError OraEnvironment::connect(const ConnectionConfig& config, detail::IConnect
     ub4 mode = getConnectMode(config);
 
     if (sword result = OCISessionBegin(*service, *error, *session, OCI_CRED_RDBMS, mode))
-        return oraGetError(*error, result);
+        throw DbConnectionException{oraGetError(*error, result), config};
 
     if (sword result = (*service).setAttribute(*error, OCI_ATTR_SESSION, *session))
-        return oraGetError(*error, result);
+        throw DbConnectionException{oraGetError(*error, result), config};
 
-    /** Get version information about the server */
-
-    *connection = new OraConnection{*this, error.release(), server.release(), service.release(), session.release()};
-
-    return DbError::ok();
+    return new OraConnection{*this, error.release(), server.release(), service.release(), session.release()};
 }
 
 void *OraEnvironment::malloc(size_t size) noexcept {
@@ -111,7 +111,7 @@ void OraEnvironment::wrapFree(void *ctx, void *ptr) {
     env->free(ptr);
 }
 
-DbError detail::getOracleEnv(detail::IEnvironment **env, const EnvConfig& config) noexcept {
+detail::IEnvironment *detail::newOracleEnvironment(const EnvConfig& config) {
     UniquePtr orcl = makeUnique<OraEnvironment>();
     oracle::OraEnv oci;
     sword result = OCIEnvNlsCreate(
@@ -128,12 +128,10 @@ DbError detail::getOracleEnv(detail::IEnvironment **env, const EnvConfig& config
         if (DbError error2 = oci.close(nullptr))
             LOG_WARN(DbLog, "Failed to close environment: {}", error2.message());
 
-        return error;
+        throw DbException{error};
     }
 
     orcl->attach(oci);
 
-    *env = orcl.release();
-
-    return DbError::ok();
+    return orcl.release();
 }

@@ -45,6 +45,7 @@ nettest = declare_dependency(
 testcases = {
     'Client Server communication': 'test/client_server.cpp',
     'Timeout on client recv': 'test/timeout_recv.cpp',
+    'Timeout on connect to oversubcribed server': 'test/timeout_connect.cpp',
 }
 
 foreach name, source : testcases

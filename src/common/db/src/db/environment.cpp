@@ -22,51 +22,25 @@ bool Environment::isSupported(DbType type) noexcept {
     }
 }
 
-DbResult<Environment> Environment::tryCreate(DbType type, const EnvConfig& config) noexcept {
-    detail::IEnvironment *env = nullptr;
-    DbError error = [&] {
-        switch (type) {
-        case DbType::eSqlite3: return detail::getSqliteEnv(&env, config);
-
-#if SMC_DB_HAS_POSTGRES
-        case DbType::ePostgreSQL: return detail::getPostgresEnv(&env);
-#endif
-
-#if SMC_DB_HAS_MYSQL
-        case DbType::eMySQL: return detail::mysql(&env);
-#endif
-
-#if SMC_DB_HAS_ORCL
-        case DbType::eOracleDB: return detail::getOracleEnv(&env, config);
-#endif
-
-#if SMC_DB_HAS_MSSQL
-        case DbType::eMSSQL: return detail::mssql(&env);
-#endif
-
-#if SMC_DB_HAS_DB2
-        case DbType::eDB2: return detail::getDb2Env(&env);
-#endif
-
-#if SMC_DB_HAS_ODBC
-        case DbType::eODBC: return detail::odbc(&env);
-#endif
-
-        default: return DbError::unsupported("environment");
-        }
-    }();
-
-    if (error)
-        return std::unexpected(error);
-
-    return Environment{env};
+DbResult<Environment> Environment::tryCreate(DbType type, const EnvConfig& config) noexcept try {
+    return Environment::create(type, config);
+} catch (const DbException& ex) {
+    return std::unexpected(ex.error());
 }
 
 Environment Environment::create(DbType type, const EnvConfig& config) {
     switch (type) {
+    case DbType::eSqlite3:
+        return detail::newSqliteEnvironment(config);
+
+#if SMC_DB_HAS_ORCL
+    case DbType::eOracleDB:
+        return detail::newOracleEnvironment(config);
+#endif
+
 #if SMC_DB_HAS_DB2
     case DbType::eDB2:
-        return Environment{detail::newDb2Environment()};
+        return detail::newDb2Environment();
 #endif
 
     default:
@@ -92,14 +66,10 @@ static void logConnectionAttempt(const ConnectionConfig& config) {
     LOG_INFO(DbLog, "Connecting to database: {}", info);
 }
 
-DbResult<Connection> Environment::tryConnect(const ConnectionConfig& config) noexcept {
-    logConnectionAttempt(config);
-
-    detail::IConnection *connection = nullptr;
-    if (DbError error = mImpl->connect(config, &connection))
-        return std::unexpected(error);
-
-    return Connection{connection, config};
+DbResult<Connection> Environment::tryConnect(const ConnectionConfig& config) noexcept try {
+    return connect(config);
+} catch (const DbException& ex) {
+    return std::unexpected(ex.error());
 }
 
 Connection Environment::connect(const ConnectionConfig& config) {

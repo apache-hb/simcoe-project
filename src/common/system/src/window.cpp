@@ -83,7 +83,7 @@ void Window::create(const WindowConfig &info) {
     mWindow = CreateWindowExA(
         /* dwExStyle = */ 0,
         /* lpClassName = */ gWindowClass,
-        /* lpWindowName = */ info.title,
+        /* lpWindowName = */ info.title.c_str(),
         /* dwStyle = */ info.mode.as_integral(),
         /* x = */ CW_USEDEFAULT,
         /* y = */ CW_USEDEFAULT,

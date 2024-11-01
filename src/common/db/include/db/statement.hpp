@@ -3,8 +3,6 @@
 #include "db/bind.hpp"
 #include "db/error.hpp"
 
-#include "dao/dao.hpp"
-
 namespace sm::db {
     class PreparedStatement {
         friend Connection;

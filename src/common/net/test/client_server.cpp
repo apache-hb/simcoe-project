@@ -21,7 +21,7 @@ TEST_CASE("Network client server connection") {
     std::atomic<int> clientCount = 0;
 
     std::jthread serverThread = std::jthread([&](const std::stop_token& stop) {
-        server.listen(network.getMaxSockets()).throwIfFailed();
+        server.listen(32).throwIfFailed();
 
         while (!stop.stop_requested()) {
             auto client = [&] {

@@ -10,7 +10,7 @@ namespace sm::db::sqlite {
         DbError pragma(sqlite3 *db, std::string_view option, std::string_view value) noexcept;
 
         bool close() noexcept override;
-        DbError connect(const ConnectionConfig& config, detail::IConnection **connection) noexcept override;
+        detail::IConnection *connect(const ConnectionConfig& config) noexcept(false) override;
 
     public:
         SqliteEnvironment(const EnvConfig& config) noexcept;

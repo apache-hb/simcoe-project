@@ -49,51 +49,55 @@ int sqlite::execStatement(sqlite3_stmt *stmt) noexcept {
     return sqlite3_reset(stmt);
 }
 
+void sqlite::CloseStmt::operator()(sqlite3_stmt *stmt) noexcept {
+    sqlite3_finalize(stmt);
+}
+
 DbError SqliteStatement::getStmtError(int err) const noexcept {
     if (err == SQLITE_DONE)
         return DbError::done(err);
 
-    return getError(err, sqlite3_db_handle(mStatement));
+    return getError(err, sqlite3_db_handle(mStatement.get()));
 }
 
 DbError SqliteStatement::finalize() noexcept {
-    sqlite3_finalize(mStatement);
+    mStatement.reset();
     return DbError::ok();
 }
 
 DbError SqliteStatement::start(bool autoCommit, StatementType type) noexcept {
-    mStatus = runUntilData(mStatement);
+    mStatus = runUntilData(mStatement.get());
     return getStmtError(mStatus);
 }
 
 DbError SqliteStatement::execute() noexcept {
     if (mStatus != SQLITE_DONE)
-        runUntilComplete(mStatement);
+        runUntilComplete(mStatement.get());
 
-    sqlite3_reset(mStatement);
+    sqlite3_reset(mStatement.get());
 
-    if (int err = sqlite3_clear_bindings(mStatement); err != SQLITE_OK)
+    if (int err = sqlite3_clear_bindings(mStatement.get()); err != SQLITE_OK)
         return getStmtError(err);
 
     return DbError::ok();
 }
 
 DbError SqliteStatement::next() noexcept {
-    mStatus = doStep(mStatement);
+    mStatus = doStep(mStatement.get());
     return getStmtError(mStatus);
 }
 
 std::string SqliteStatement::getSql() const {
-    return sqlite3_sql(mStatement);
+    return sqlite3_sql(mStatement.get());
 }
 
 int SqliteStatement::getBindCount() const noexcept {
-    return sqlite3_bind_parameter_count(mStatement);
+    return sqlite3_bind_parameter_count(mStatement.get());
 }
 
 DbError SqliteStatement::getBindIndex(std::string_view name, int& index) const noexcept {
     std::string id = fmt::format(":{}", name);
-    int param = sqlite3_bind_parameter_index(mStatement, id.c_str());
+    int param = sqlite3_bind_parameter_index(mStatement.get(), id.c_str());
     if (param == 0)
         return getStmtError(SQLITE_ERROR);
 
@@ -103,48 +107,48 @@ DbError SqliteStatement::getBindIndex(std::string_view name, int& index) const n
 }
 
 DbError SqliteStatement::bindIntByIndex(int index, int64 value) noexcept {
-    int err = sqlite3_bind_int64(mStatement, index + 1, value);
+    int err = sqlite3_bind_int64(mStatement.get(), index + 1, value);
     return getStmtError(err);
 }
 
 DbError SqliteStatement::bindBooleanByIndex(int index, bool value) noexcept {
-    int err = sqlite3_bind_int(mStatement, index + 1, value ? 1 : 0);
+    int err = sqlite3_bind_int(mStatement.get(), index + 1, value ? 1 : 0);
     return getStmtError(err);
 }
 
 DbError SqliteStatement::bindStringByIndex(int index, std::string_view value) noexcept {
-    int err = sqlite3_bind_text(mStatement, index + 1, value.data(), value.size(), SQLITE_STATIC);
+    int err = sqlite3_bind_text(mStatement.get(), index + 1, value.data(), value.size(), SQLITE_STATIC);
     return getStmtError(err);
 }
 
 DbError SqliteStatement::bindDoubleByIndex(int index, double value) noexcept {
-    int err = sqlite3_bind_double(mStatement, index + 1, value);
+    int err = sqlite3_bind_double(mStatement.get(), index + 1, value);
     return getStmtError(err);
 }
 
 DbError SqliteStatement::bindBlobByIndex(int index, Blob value) noexcept {
-    int err = sqlite3_bind_blob(mStatement, index + 1, value.data(), value.size(), SQLITE_STATIC);
+    int err = sqlite3_bind_blob(mStatement.get(), index + 1, value.data(), value.size(), SQLITE_STATIC);
     return getStmtError(err);
 }
 
 DbError SqliteStatement::bindDateTimeByIndex(int index, DateTime value) noexcept {
     int64_t timestamp = chrono::duration_cast<chrono::milliseconds>(value.time_since_epoch()).count();
-    int err = sqlite3_bind_int64(mStatement, index + 1, timestamp);
+    int err = sqlite3_bind_int64(mStatement.get(), index + 1, timestamp);
     return getStmtError(err);
 }
 
 DbError SqliteStatement::bindNullByIndex(int index) noexcept {
-    int err = sqlite3_bind_null(mStatement, index + 1);
+    int err = sqlite3_bind_null(mStatement.get(), index + 1);
     return getStmtError(err);
 }
 
 int SqliteStatement::getColumnCount() const noexcept {
-    return sqlite3_column_count(mStatement);
+    return sqlite3_column_count(mStatement.get());
 }
 
 DbError SqliteStatement::getColumnIndex(std::string_view name, int& index) const noexcept {
     for (int i = 0; i < getColumnCount(); i++) {
-        if (name == sqlite3_column_name(mStatement, i)) {
+        if (name == sqlite3_column_name(mStatement.get(), i)) {
             index = i;
             return DbError::ok();
         }
@@ -154,8 +158,8 @@ DbError SqliteStatement::getColumnIndex(std::string_view name, int& index) const
 }
 
 DbError SqliteStatement::getColumnInfo(int index, ColumnInfo& info) const noexcept {
-    const char *name = sqlite3_column_name(mStatement, index);
-    int type = sqlite3_column_type(mStatement, index);
+    const char *name = sqlite3_column_name(mStatement.get(), index);
+    int type = sqlite3_column_type(mStatement.get(), index);
 
     if (name == nullptr)
         return DbError::columnNotFound(std::to_string(index));
@@ -179,36 +183,36 @@ DbError SqliteStatement::getColumnInfo(std::string_view name, ColumnInfo& info) 
 }
 
 DbError SqliteStatement::getIntByIndex(int index, int64& value) noexcept {
-    value = sqlite3_column_int64(mStatement, index);
+    value = sqlite3_column_int64(mStatement.get(), index);
     return DbError::ok();
 }
 
 DbError SqliteStatement::getBooleanByIndex(int index, bool& value) noexcept {
-    value = sqlite3_column_int(mStatement, index) != 0;
+    value = sqlite3_column_int(mStatement.get(), index) != 0;
     return DbError::ok();
 }
 
 DbError SqliteStatement::getStringByIndex(int index, std::string_view& value) noexcept {
-    if (const char *text = (const char*)sqlite3_column_text(mStatement, index))
+    if (const char *text = (const char*)sqlite3_column_text(mStatement.get(), index))
         value = text;
 
     return DbError::ok();
 }
 
 DbError SqliteStatement::getDoubleByIndex(int index, double& value) noexcept {
-    value = sqlite3_column_double(mStatement, index);
+    value = sqlite3_column_double(mStatement.get(), index);
     return DbError::ok();
 }
 
 DbError SqliteStatement::getDateTimeByIndex(int index, DateTime& value) noexcept {
-    int64_t timestamp = sqlite3_column_int64(mStatement, index);
+    int64_t timestamp = sqlite3_column_int64(mStatement.get(), index);
     value = DateTime{chrono::milliseconds{timestamp}};
     return DbError::ok();
 }
 
 DbError SqliteStatement::getBlobByIndex(int index, Blob& value) noexcept {
-    const std::uint8_t *bytes = (const std::uint8_t*)sqlite3_column_blob(mStatement, index);
-    int length = sqlite3_column_bytes(mStatement, index);
+    const std::uint8_t *bytes = (const std::uint8_t*)sqlite3_column_blob(mStatement.get(), index);
+    int length = sqlite3_column_bytes(mStatement.get(), index);
     if (length > 0) {
         value = Blob{bytes, bytes + length};
     }
@@ -217,7 +221,7 @@ DbError SqliteStatement::getBlobByIndex(int index, Blob& value) noexcept {
 }
 
 DbError SqliteStatement::isNullByIndex(int index, bool& value) noexcept {
-    value = sqlite3_column_type(mStatement, index) == SQLITE_NULL;
+    value = sqlite3_column_type(mStatement.get(), index) == SQLITE_NULL;
     return DbError::ok();
 }
 

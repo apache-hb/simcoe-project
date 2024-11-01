@@ -150,3 +150,31 @@ TEST_CASE("sqlite connection creation") {
         }
     }
 }
+
+TEST_CASE("Sqlite error handling") {
+    auto env = Environment::create(DbType::eSqlite3);
+    auto conn = env.connect(makeSqliteTestDb("sqlite/errors"));
+
+    // invalid on purpose, should throw
+    CHECK_THROWS_AS(conn.updateSql("INSERT INTO not_a_table VALUES (1, 2, 3)"), DbException);
+
+    // after an error, connection should still be usable
+    conn.commit().throwIfFailed();
+
+    if (conn.tableExists("test"))
+        conn.updateSql("DROP TABLE test");
+
+    conn.updateSql("CREATE TABLE test (id INTEGER, name VARCHAR(100))");
+
+    // check that the database connection is still usable
+    conn.updateSql("INSERT INTO test (id, name) VALUES (1, 'test')");
+
+    ResultSet results = conn.selectSql("SELECT * FROM test");
+    for (auto row : results) {
+        int64 id = getValue(row.getInt(0));
+        std::string_view name = getValue(row.getString(1));
+
+        REQUIRE(id == 1);
+        REQUIRE(name == "test");
+    }
+}

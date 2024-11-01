@@ -238,20 +238,12 @@ namespace sm::net {
         Network() = default;
 
     public:
-        static NetResult<Network> tryCreate() noexcept;
-        static Network create() throws(NetException) {
-            return throwIfFailed(tryCreate());
-        }
+        static Network create() throws(NetException);
 
         Socket connect(const Address& address, uint16_t port) throws(NetException);
         Socket connectWithTimeout(const Address& address, uint16_t port, std::chrono::milliseconds timeout) throws(NetException);
 
-        NetResult<ListenSocket> tryBind(const Address& address, uint16_t port) noexcept;
-        ListenSocket bind(const Address& address, uint16_t port) throws(NetException) {
-            return throwIfFailed(tryBind(address, port));
-        }
-
-        size_t getMaxSockets() const noexcept;
+        ListenSocket bind(const Address& address, uint16_t port) throws(NetException);
     };
 
     void create(void);
