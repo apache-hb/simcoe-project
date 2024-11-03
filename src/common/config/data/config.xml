@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <root name="config">
-    <table name="group" primaryKey="name">
+    <table name="group" syntheticPrimaryKey="id">
         <column name="name" type="text" length="255">
             <unique />
         </column>
@@ -9,7 +9,7 @@
     </table>
 
     <table name="option" syntheticPrimaryKey="id">
-        <column name="group" type="text" length="255">
+        <column name="group" type="ulong">
             <constraint references="group.name" />
         </column>
 

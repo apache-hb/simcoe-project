@@ -179,23 +179,27 @@ namespace sm::config {
         const std::string_view description;
     };
 
+    enum Flags : unsigned {
+        eNone = 0u,
+
+        /// flag is readonly at runtime, can only be modified by code
+        /// this can be updated at startup by a configuration source
+        eReadOnly = 1u << 0,
+
+        /// flag is hidden in help messages by default
+        eHidden = 1u << 1,
+
+        /// flag has been set by a configuration source
+        eIsSet = 1u << 2,
+
+        /// this is an enum bitflags
+        eIsEnumFlags = 1u << 3,
+
+        /// this option requires a restart to take effect
+        eUpdateRequiresRestart = 1u << 0,
+    };
+
     class OptionBase {
-        enum Flags : unsigned {
-            eNone = 0u,
-
-            // flag is readonly at runtime, can only be modified at startup or by code
-            eReadOnly = 1u << 0,
-
-            // flag is hidden in help messages by default
-            eHidden = 1u << 1,
-
-            // flag has been set by a configuration source
-            eIsSet = 1u << 2,
-
-            // this is an enum bitflags
-            eIsEnumFlags = 1u << 3
-        };
-
         unsigned mFlags = eNone;
 
         void verifyType(OptionType type) const noexcept;
@@ -215,12 +219,13 @@ namespace sm::config {
         const Group& parent;
         const OptionType type;
 
+        Flags getFlags() const noexcept { return static_cast<Flags>(mFlags); }
+
         bool isReadOnly() const noexcept { return mFlags & eReadOnly; }
         bool isHidden() const noexcept { return mFlags & eHidden; }
-
-        bool isSet() const noexcept { return mFlags & eIsSet; }
-
+        bool isModified() const noexcept { return mFlags & eIsSet; }
         bool isEnumFlags() const noexcept { return mFlags & eIsEnumFlags; }
+        bool shouldRestartOnUpdate() const noexcept { return mFlags & eUpdateRequiresRestart; }
     };
 
     class Context {

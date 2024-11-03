@@ -112,7 +112,7 @@ struct WindowBaseTest {
         , windowSwapChain(window.getHandle())
         , frames(frameCount)
     {
-        window.showWindow(system::ShowWindow::eShow);
+        window.showWindow(system::ShowWindow::eHide);
     }
 
     math::uint2 getClientSize() { return window.getClientCoords().size(); }
@@ -145,7 +145,6 @@ struct WindowContextTest : WindowBaseTest<> {
         : WindowBaseTest(frameCount)
         , context(window.getClientCoords().size(), &windowSwapChain)
     {
-        window.showWindow(system::ShowWindow::eShow);
         events.context = &context.context;
     }
 

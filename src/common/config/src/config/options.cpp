@@ -68,8 +68,8 @@ void config::addStaticVariable(Context& context, OptionBase *cvar, Group* group)
 }
 
 Context& config::cvars() noexcept {
-    static Context instance{};
-    return instance;
+    static Context sContext{};
+    return sContext;
 }
 
 void OptionBase::verifyType(OptionType otherType) const noexcept {
@@ -98,9 +98,6 @@ template struct sm::config::ConsoleVariable<double>;
 template struct sm::config::ConsoleVariable<std::string>;
 
 static void printOption(const OptionBase& option) noexcept {
-    if (option.isReadOnly())
-        return;
-
     if (option.isHidden())
         return;
 

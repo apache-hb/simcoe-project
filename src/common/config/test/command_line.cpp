@@ -86,7 +86,7 @@ TEST_CASE("parsing a command line") {
 
             THEN("the option is true") {
                 CHECK(boolOpt.getValue() == true);
-                CHECK(boolOpt.isSet());
+                CHECK(boolOpt.isModified());
             }
         }
 
@@ -95,7 +95,7 @@ TEST_CASE("parsing a command line") {
 
             THEN("the option is true") {
                 CHECK(boolOpt.getValue() == true);
-                CHECK(boolOpt.isSet());
+                CHECK(boolOpt.isModified());
             }
         }
 
@@ -104,7 +104,7 @@ TEST_CASE("parsing a command line") {
 
             THEN("the option is false") {
                 CHECK(boolOpt.getValue() == false);
-                CHECK(boolOpt.isSet());
+                CHECK(boolOpt.isModified());
             }
         }
 
@@ -113,7 +113,7 @@ TEST_CASE("parsing a command line") {
 
             THEN("the option is false") {
                 CHECK(boolOpt.getValue() == false);
-                CHECK(boolOpt.isSet());
+                CHECK(boolOpt.isModified());
             }
         }
 
@@ -122,7 +122,7 @@ TEST_CASE("parsing a command line") {
 
             THEN("the option is false") {
                 CHECK(boolOpt.getValue() == false);
-                CHECK(boolOpt.isSet());
+                CHECK(boolOpt.isModified());
             }
         }
 
@@ -131,7 +131,7 @@ TEST_CASE("parsing a command line") {
 
             THEN("the option is false") {
                 CHECK(boolOpt.getValue() == false);
-                CHECK(boolOpt.isSet());
+                CHECK(boolOpt.isModified());
             }
         }
     }
@@ -156,7 +156,7 @@ TEST_CASE("parsing a command line") {
             testVariants(ctx, "str-opt", "value", true, [&] {
                 THEN("the option is set") {
                     CHECK(strOpt.getValue() == "value");
-                    CHECK(strOpt.isSet());
+                    CHECK(strOpt.isModified());
                 }
             });
         }
@@ -165,7 +165,7 @@ TEST_CASE("parsing a command line") {
             testVariants(ctx, "str-opt", "value with spaces", true, [&] {
                 THEN("the option is set") {
                     CHECK(strOpt.getValue() == "value with spaces");
-                    CHECK(strOpt.isSet());
+                    CHECK(strOpt.isModified());
                 }
             });
         }
@@ -174,7 +174,7 @@ TEST_CASE("parsing a command line") {
             testVariants(ctx, "str-opt", "", true, [&] {
                 THEN("the option is set") {
                     CHECK(strOpt.getValue().empty());
-                    CHECK(strOpt.isSet());
+                    CHECK(strOpt.isModified());
                 }
             });
         }
@@ -200,7 +200,7 @@ TEST_CASE("parsing a command line") {
             testVariants(ctx, "float-opt", "3.14", true, [&] {
                 THEN("the option is set") {
                     CHECK(floatOpt.getValue() == 3.14f);
-                    CHECK(floatOpt.isSet());
+                    CHECK(floatOpt.isModified());
                 }
             });
         }
@@ -209,7 +209,7 @@ TEST_CASE("parsing a command line") {
             testVariants(ctx, "float-opt", "1e1000", false, [&] {
                 THEN("the option is not set") {
                     CHECK(floatOpt.getValue() == 0.0f);
-                    CHECK(!floatOpt.isSet());
+                    CHECK(!floatOpt.isModified());
                 }
             });
         }
@@ -218,7 +218,7 @@ TEST_CASE("parsing a command line") {
             testVariants(ctx, "float-opt", "3.4028235e38", false, [&] {
                 THEN("the option is set") {
                     CHECK(floatOpt.getValue() == 0.0f);
-                    CHECK(!floatOpt.isSet());
+                    CHECK(!floatOpt.isModified());
                 }
             });
         }
@@ -227,7 +227,7 @@ TEST_CASE("parsing a command line") {
             testVariants(ctx, "float-opt", "-3.4028235e38", false, [&] {
                 THEN("the option is set") {
                     CHECK(floatOpt.getValue() == 0.0f);
-                    CHECK(!floatOpt.isSet());
+                    CHECK(!floatOpt.isModified());
                 }
             });
         }
@@ -236,7 +236,7 @@ TEST_CASE("parsing a command line") {
             testVariants(ctx, "float-opt", "-0.0", true, [&] {
                 THEN("the option is set") {
                     CHECK(floatOpt.getValue() == -0.0f);
-                    CHECK(floatOpt.isSet());
+                    CHECK(floatOpt.isModified());
                 }
             });
         }
@@ -245,7 +245,7 @@ TEST_CASE("parsing a command line") {
             testVariants(ctx, "float-opt", "0.0", true, [&] {
                 THEN("the option is set") {
                     CHECK(floatOpt.getValue() == 0.0f);
-                    CHECK(floatOpt.isSet());
+                    CHECK(floatOpt.isModified());
                 }
             });
         }
@@ -278,7 +278,7 @@ TEST_CASE("parsing a command line") {
             testVariants(ctx, "uint-opt", "42", true, [&] {
                 THEN("the option is set") {
                     CHECK(opt.getValue() == 42);
-                    CHECK(opt.isSet());
+                    CHECK(opt.isModified());
                 }
             });
         });
@@ -287,7 +287,7 @@ TEST_CASE("parsing a command line") {
             testVariants(ctx, "uint-opt", "1e1000", false, [&] {
                 THEN("the option is not set") {
                     CHECK(opt.getValue() == 0);
-                    CHECK(!opt.isSet());
+                    CHECK(!opt.isModified());
                 }
             });
         });
@@ -296,7 +296,7 @@ TEST_CASE("parsing a command line") {
             testVariants(ctx, "uint-opt", "4294967296", false, [&] {
                 THEN("the option is not set") {
                     CHECK(opt.getValue() == 0);
-                    CHECK(!opt.isSet());
+                    CHECK(!opt.isModified());
                 }
             });
         });
@@ -305,7 +305,7 @@ TEST_CASE("parsing a command line") {
             testVariants(ctx, "uint-opt", "-1", false, [&] {
                 THEN("the option is not set") {
                     CHECK(opt.getValue() == 0);
-                    CHECK(!opt.isSet());
+                    CHECK(!opt.isModified());
                 }
             });
         });
@@ -314,7 +314,7 @@ TEST_CASE("parsing a command line") {
             testVariants(ctx, "uint-opt", "-42", false, [&] {
                 THEN("the option is not set") {
                     CHECK(opt.getValue() == 0);
-                    CHECK(!opt.isSet());
+                    CHECK(!opt.isModified());
                 }
             });
         });
@@ -323,7 +323,7 @@ TEST_CASE("parsing a command line") {
             testVariants(ctx, "uint-opt", "0", true, [&] {
                 THEN("the option is set") {
                     CHECK(opt.getValue() == 0);
-                    CHECK(opt.isSet());
+                    CHECK(opt.isModified());
                 }
             });
         });
@@ -332,7 +332,7 @@ TEST_CASE("parsing a command line") {
             testVariants(ctx, "uint-opt", "4294967295", true, [&] {
                 THEN("the option is set") {
                     CHECK(opt.getValue() == 4294967295);
-                    CHECK(opt.isSet());
+                    CHECK(opt.isModified());
                 }
             });
         });
@@ -341,7 +341,7 @@ TEST_CASE("parsing a command line") {
             testVariants(ctx, "uint-opt", "-0", false, [&] {
                 THEN("the option is not set") {
                     CHECK(opt.getValue() == 0);
-                    CHECK(!opt.isSet());
+                    CHECK(!opt.isModified());
                 }
             });
         });
@@ -350,7 +350,7 @@ TEST_CASE("parsing a command line") {
             testVariants(ctx, "uint-opt", "0", true, [&] {
                 THEN("the option is set") {
                     CHECK(opt.getValue() == 0);
-                    CHECK(opt.isSet());
+                    CHECK(opt.isModified());
                 }
             });
         });
@@ -384,7 +384,7 @@ TEST_CASE("parsing a command line") {
 
             THEN("the option is set") {
                 CHECK(opt.getValue() == 42);
-                CHECK(opt.isSet());
+                CHECK(opt.isModified());
             }
         });
 
@@ -393,7 +393,7 @@ TEST_CASE("parsing a command line") {
 
             THEN("the option is set") {
                 CHECK(opt.getValue() == 42);
-                CHECK(opt.isSet());
+                CHECK(opt.isModified());
             }
         });
 
@@ -402,7 +402,7 @@ TEST_CASE("parsing a command line") {
 
             THEN("the option is not set") {
                 CHECK(opt.getValue() == 0);
-                CHECK(!opt.isSet());
+                CHECK(!opt.isModified());
             }
         });
 
@@ -411,7 +411,7 @@ TEST_CASE("parsing a command line") {
 
             THEN("the option is not set") {
                 CHECK(opt.getValue() == 0);
-                CHECK(!opt.isSet());
+                CHECK(!opt.isModified());
             }
         });
 
@@ -420,7 +420,7 @@ TEST_CASE("parsing a command line") {
 
             THEN("the option is not set") {
                 CHECK(opt.getValue() == 0);
-                CHECK(!opt.isSet());
+                CHECK(!opt.isModified());
             }
         });
 
@@ -429,7 +429,7 @@ TEST_CASE("parsing a command line") {
 
             THEN("the option is set") {
                 CHECK(opt.getValue() == -42);
-                CHECK(opt.isSet());
+                CHECK(opt.isModified());
             }
         });
 
@@ -438,7 +438,7 @@ TEST_CASE("parsing a command line") {
 
             THEN("the option is set") {
                 CHECK(opt.getValue() == 0);
-                CHECK(opt.isSet());
+                CHECK(opt.isModified());
             }
         });
 
@@ -447,7 +447,7 @@ TEST_CASE("parsing a command line") {
 
             THEN("the option is set") {
                 CHECK(opt.getValue() == -2147483648);
-                CHECK(opt.isSet());
+                CHECK(opt.isModified());
             }
         });
     }
@@ -478,7 +478,7 @@ TEST_CASE("command line and enum options") {
 
         THEN("it updates the option correctly") {
             CHECK(opt1.getValue() == TestEnum::eSecond);
-            CHECK(opt1.isSet());
+            CHECK(opt1.isModified());
         }
     }
 
@@ -501,7 +501,7 @@ TEST_CASE("command line and enum options") {
 
         THEN("it does not update the option") {
             CHECK(opt1.getValue() == TestEnum::eFirst);
-            CHECK(!opt1.isSet());
+            CHECK(!opt1.isModified());
         }
     }
 
@@ -531,7 +531,7 @@ TEST_CASE("command line and enum options") {
 
         THEN("it updates the option correctly") {
             CHECK(opt1.getValue() == (TestFlags::eFlag2 | TestFlags::eFlag3));
-            CHECK(opt1.isSet());
+            CHECK(opt1.isModified());
         }
     }
 
@@ -554,7 +554,7 @@ TEST_CASE("command line and enum options") {
 
         THEN("it updates the option correctly") {
             CHECK(opt1.getValue() == TestFlags::eFlag3);
-            CHECK(opt1.isSet());
+            CHECK(opt1.isModified());
         }
     }
 
@@ -578,7 +578,7 @@ TEST_CASE("command line and enum options") {
 
         THEN("it updates the option correctly") {
             CHECK(opt1.getValue() == TestFlags::eFlag3);
-            CHECK(opt1.isSet());
+            CHECK(opt1.isModified());
         }
     }
 }

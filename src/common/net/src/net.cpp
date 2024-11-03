@@ -113,13 +113,6 @@ Network Network::create() noexcept(false) {
     return Network{};
 }
 
-static DWORD getSocketError(SOCKET socket) noexcept {
-    DWORD error = 0;
-    int size = sizeof(error);
-    getsockopt(socket, SOL_SOCKET, SO_ERROR, reinterpret_cast<char *>(&error), &size);
-    return error;
-}
-
 static SOCKET findOpenSocket(addrinfo *info) noexcept(false) {
     for (addrinfo *ptr = info; ptr != nullptr; ptr = ptr->ai_next) {
 
@@ -138,6 +131,16 @@ static SOCKET findOpenSocket(addrinfo *info) noexcept(false) {
 
     // if we reach this point then we failed to connect to any address
     throw NetException{SNET_CONNECTION_FAILED};
+}
+
+static bool socketIsWritable(SOCKET socket) {
+    fd_set writefds;
+    FD_ZERO(&writefds);
+    FD_SET(socket, &writefds);
+
+    timeval timeout = { .tv_sec = 0, .tv_usec = 0 };
+    int result = select(0, nullptr, &writefds, nullptr, &timeout);
+    return result > 0;
 }
 
 static SOCKET findOpenSocketWithTimeout(addrinfo *info, std::chrono::milliseconds timeout) noexcept(false) {
@@ -160,22 +163,11 @@ static SOCKET findOpenSocketWithTimeout(addrinfo *info, std::chrono::millisecond
 
         while (!timeoutReached()) {
             int err = ::connect(socket, ptr->ai_addr, ptr->ai_addrlen);
-            if (err != SOCKET_ERROR)
+            if (err == 0)
                 return socket;
 
-            DWORD reason = getSocketError(socket);
-            if (reason == WSAEISCONN)
+            if (socketIsWritable(socket))
                 return socket;
-
-            // if we might be able to connect later then we can retry until
-            // the timeout is reached.
-            if (reason == WSAEWOULDBLOCK)
-                continue;
-
-            assert(reason != 0);
-
-            closesocket(socket);
-            throw NetException{reason};
         }
 
         closesocket(socket);

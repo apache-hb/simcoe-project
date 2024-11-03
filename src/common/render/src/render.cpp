@@ -78,7 +78,7 @@ static render::DebugFlags getDebugFlags() {
 }
 
 static LUID getOverrideLUID() {
-    CTASSERTF(gOverrideLUID.isSet(), "adapter LUID is not set");
+    CTASSERTF(gOverrideLUID.isModified(), "adapter LUID is not set");
 
     auto [high, low] = sm::split(gOverrideLUID.getValue(), ':');
     LUID result { };
@@ -909,7 +909,7 @@ void IDeviceContext::create() {
     }
 
     Adapter& adapter = [&] -> Adapter& {
-        if (gOverrideLUID.isSet()) {
+        if (gOverrideLUID.isModified()) {
             LUID luid = getOverrideLUID();
             if (Adapter *adapter = mInstance.getAdapterByLUID(luid)) {
                 return *adapter;
