@@ -19,7 +19,6 @@
 #define SNET_FIRST_STATUS 12000
 
 #define SNET_END_OF_PACKET 12001
-#define SNET_READ_TIMEOUT 12002
 #define SNET_CONNECTION_CLOSED 12003
 #define SNET_CONNECTION_FAILED 12004
 
@@ -48,7 +47,7 @@ namespace sm::net {
         bool isSuccess() const noexcept { return mCode == 0; }
 
         bool cancelled() const noexcept { return mCode == WSAEINTR; }
-        bool timeout() const noexcept { return mCode == SNET_READ_TIMEOUT || mCode == ERROR_TIMEOUT; }
+        bool timeout() const noexcept { return mCode == ERROR_TIMEOUT; }
         bool connectionClosed() const noexcept { return mCode == SNET_CONNECTION_CLOSED; }
 
         static NetError ok() noexcept { return NetError{0}; }

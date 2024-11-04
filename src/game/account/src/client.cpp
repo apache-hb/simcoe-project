@@ -26,7 +26,7 @@ bool AccountClient::createAccount(std::string_view name, std::string_view passwo
 
     auto response = net::throwIfFailed(mSocket.recvTimed<CreateAccountResponsePacket>(1s));
 
-    return response.status == CreateAccountStatus::eSuccess;
+    return response.status == Status::eSuccess;
 }
 
 bool AccountClient::login(std::string_view name, std::string_view password) {
@@ -42,7 +42,7 @@ bool AccountClient::login(std::string_view name, std::string_view password) {
 
     LoginResponsePacket response = net::throwIfFailed(mSocket.recvTimed<LoginResponsePacket>(1s));
 
-    bool success = response.result == LoginResult::eSuccess;
+    bool success = response.status == Status::eSuccess;
 
     return success;
 }

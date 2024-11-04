@@ -11,10 +11,6 @@ using namespace sm;
 
 namespace acd = sm::dao::account;
 
-std::string AccountServer::newSaltString(size_t length) {
-    return mSalt.getSaltString(length);
-}
-
 static bool recvDataPacket(std::span<std::byte> dst, net::Socket& socket, game::PacketHeader header) {
     std::memcpy(dst.data(), &header, sizeof(header));
     size_t size = game::getPacketDataSize(header);
@@ -42,7 +38,7 @@ static std::optional<acd::User> getUserByName(db::Connection& db, std::string_vi
 }
 
 void AccountServer::handleCreateAccount(sm::net::Socket& socket, game::CreateAccountRequestPacket packet) {
-    auto sendResponse = [&](CreateAccountStatus status) {
+    auto sendResponse = [&](Status status) {
         CreateAccountResponsePacket response{};
         response.status = status;
 
@@ -63,7 +59,7 @@ void AccountServer::handleCreateAccount(sm::net::Socket& socket, game::CreateAcc
     auto oldUser = getUserByName(mAccountDb, packet.username);
     if (oldUser.has_value()) {
         LOG_WARN(GlobalLog, "account already exists: {}", user.name);
-        sendResponse(CreateAccountStatus::eFailure);
+        sendResponse(Status::eFailure);
         return;
     }
 
@@ -71,18 +67,18 @@ void AccountServer::handleCreateAccount(sm::net::Socket& socket, game::CreateAcc
 
     if (!result.has_value()) {
         LOG_WARN(GlobalLog, "failed to create account: {}", result.error());
-        sendResponse(CreateAccountStatus::eFailure);
+        sendResponse(Status::eFailure);
         return;
     }
 
     LOG_INFO(GlobalLog, "created account: {}", result.value());
-    sendResponse(CreateAccountStatus::eSuccess);
+    sendResponse(Status::eSuccess);
 }
 
 void AccountServer::handleLogin(sm::net::Socket& socket, game::LoginRequestPacket packet) try {
-    auto sendResponse = [&](LoginResult result) {
+    auto sendResponse = [&](Status result) {
         LoginResponsePacket response;
-        response.result = result;
+        response.status = result;
 
         socket.send(response).throwIfFailed();
     };
@@ -95,7 +91,7 @@ void AccountServer::handleLogin(sm::net::Socket& socket, game::LoginRequestPacke
     }();
 
     if (!optUser.has_value()) {
-        sendResponse(LoginResult::eFailure);
+        sendResponse(Status::eFailure);
         return;
     }
 
@@ -104,13 +100,13 @@ void AccountServer::handleLogin(sm::net::Socket& socket, game::LoginRequestPacke
     uint64_t password = hashWithSalt(packet.password, user.salt);
 
     if (user.password == password) {
-        sendResponse(LoginResult::eSuccess);
+        sendResponse(Status::eSuccess);
     } else {
-        sendResponse(LoginResult::eFailure);
+        sendResponse(Status::eFailure);
     }
 } catch (const db::DbException& e) {
     LoginResponsePacket response;
-    response.result = LoginResult::eFailure;
+    response.status = Status::eFailure;
 
     socket.send(response).throwIfFailed();
 }

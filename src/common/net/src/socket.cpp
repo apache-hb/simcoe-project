@@ -64,7 +64,7 @@ ReadResult Socket::recvBytesTimeout(void *data, size_t size, std::chrono::millis
         }
     }
 
-    return { consumed, NetError{SNET_READ_TIMEOUT} };
+    return { consumed, NetError{ERROR_TIMEOUT} };
 }
 
 NetError Socket::setBlocking(bool blocking) noexcept {

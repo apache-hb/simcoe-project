@@ -57,8 +57,6 @@ std::string net::toString(const Address& addr) {
 
 static std::string fmtOsError(int code) {
     switch (code) {
-    case SNET_READ_TIMEOUT:
-        return "Read timeout (" CT_STR(SNET_READ_TIMEOUT) ")";
     case SNET_END_OF_PACKET:
         return "End of packet (" CT_STR(SNET_END_OF_PACKET) ")";
     case SNET_CONNECTION_CLOSED:

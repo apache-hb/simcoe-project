@@ -3,6 +3,7 @@
 import os
 import sys
 import subprocess
+import winreg
 
 builddir = sys.argv[1]
 buildtype = sys.argv[2]
@@ -22,11 +23,10 @@ if __name__ == '__main__':
         '--native-file', f'{basedir}/{buildtype}.ini'
     ]
 
-    # TODO: this is a bit fudged, but db2 doesnt provide either
-    # a redist package i can wrap, or an environment variable
-    # with its base path. so we just assume the default install
     if has_db2:
-        args.append(f'-Ddb2-client:home=C:/Program Files/IBM/SQLLIB')
+        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, 'SOFTWARE\\IBM\\DB2\\GLOBAL_PROFILE')
+        db2path, _ = winreg.QueryValueEx(key, 'DB2PATH')
+        args.append(f'-Ddb2-client:home={db2path}')
 
     args.extend(sys.argv[3:])
 
