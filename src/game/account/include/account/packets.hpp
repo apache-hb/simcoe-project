@@ -1,5 +1,7 @@
 #pragma once
 
+#include "account/guid.hpp"
+
 #include "packets.meta.hpp"
 
 /**
@@ -11,45 +13,52 @@ namespace game {
     enum class PacketType : uint16_t {
         eInvalid = 0,
 
+        eResponse,
         eAck,
 
-        eCreateAccountRequest,
-        eCreateAccountResponse,
+        eCreateAccount,
+        eLogin,
 
-        eLoginRequest,
-        eLoginResponse,
+        ePostMessage,
+        eGetLobbyList,
+        eGetUserList,
 
-        ePostMessageRequest,
-        ePostMessageResponse,
-
-        eGetLobbyListRequest,
-        eGetLobbyListResponse,
-
-        eCreateLobbyRequest,
-        eCreateLobbyResponse,
-
-        eJoinLobbyRequest,
-        eJoinLobbyResponse,
-
+        eCreateLobby,
+        eJoinLobby,
         eLeaveLobby,
 
         eCount
     };
 
     template<size_t N>
-    struct VarChar {
-        uint32_t length;
-        char data[N];
+    struct Text {
+        char data[N] = {};
+
+        std::string_view text() const {
+            size_t length = strnlen(data, N);
+            return { data, length };
+        }
+
+        operator std::string_view() const {
+            return text();
+        }
+
+        Text() = default;
+
+        Text(std::string_view text) {
+            std::memcpy(data, text.data(), std::min(text.size(), N));
+        }
     };
 
-    static constexpr size_t kSessionIdSize = 32;
-    using SessionId = VarChar<kSessionIdSize>;
+    using SessionId = Guid;
+    using LobbyId = Guid;
 
     REFLECT()
     struct PacketHeader {
         PacketType type;
         uint16_t size;
         uint16_t id;
+        uint8_t padding[2];
     };
 
     REFLECT_ENUM(Status)
@@ -59,69 +68,127 @@ namespace game {
     };
 
     REFLECT()
-    struct ResponsePacket {
+    struct Response {
         // the id in the packet header will be the same as the
         // request that instigated this response
         PacketHeader header;
+
         Status status;
+
+        Response() = default;
+
+        Response(uint16_t id, Status status, size_t size = sizeof(Response))
+            : header(PacketType::eResponse, size, id)
+            , status(status)
+        { }
     };
 
     REFLECT()
-    struct AckPacket {
-        PacketHeader header = {PacketType::eAck};
-        uint32_t ack;
+    struct Ack {
+        PacketHeader header;
+
+        Ack() = default;
+
+        Ack(uint16_t id)
+            : header(PacketType::eAck, sizeof(Ack), id)
+        { }
     };
 
     REFLECT()
-    struct CreateAccountRequestPacket {
-        PacketHeader header = {PacketType::eCreateAccountRequest};
-        char username[32];
-        char password[32];
+    struct CreateAccount {
+        PacketHeader header;
+        Text<32> username;
+        Text<32> password;
+
+        CreateAccount() = default;
+
+        CreateAccount(uint16_t id, std::string_view name, std::string_view pass)
+            : header(PacketType::eCreateAccount, sizeof(CreateAccount), id)
+            , username(name)
+            , password(pass)
+        { }
+
+        std::string_view getUsername() const {
+            return username.text();
+        }
+
+        std::string_view getPassword() const {
+            return password.text();
+        }
     };
 
     REFLECT()
-    struct CreateAccountResponsePacket {
-        PacketHeader header = {PacketType::eCreateAccountResponse};
-        Status status;
+    struct Login {
+        PacketHeader header;
+        Text<32> username;
+        Text<32> password;
+
+        Login() = default;
+
+        Login(uint16_t id, std::string_view name, std::string_view pass)
+            : header(PacketType::eLogin, sizeof(Login), id)
+            , username(name)
+            , password(pass)
+        { }
+
+        std::string_view getUsername() const {
+            return username.text();
+        }
+
+        std::string_view getPassword() const {
+            return password.text();
+        }
     };
 
     REFLECT()
-    struct LoginRequestPacket {
-        PacketHeader header = {PacketType::eLoginRequest};
-        char username[32];
-        char password[32];
-    };
-
-    REFLECT()
-    struct LoginResponsePacket {
-        PacketHeader header = {PacketType::eLoginResponse};
-        Status status;
+    struct NewSession {
+        Response response;
         SessionId session;
+
+        NewSession() = default;
+
+        NewSession(uint16_t id, SessionId session)
+            : NewSession(id, Status::eSuccess, session)
+        { }
+
+        NewSession(uint16_t id, Status status, SessionId session)
+            : response(id, status, sizeof(NewSession))
+            , session(session)
+        { }
     };
 
     REFLECT()
-    struct PostMessageRequestPacket {
-        PacketHeader header = {PacketType::ePostMessageRequest};
+    struct PostMessage {
+        PacketHeader header;
         SessionId session;
-        VarChar<256> message;
-    };
+        Text<256> message;
 
-    REFLECT()
-    struct PostMessageResponsePacket {
-        PacketHeader header = {PacketType::ePostMessageResponse};
-        Status status;
+        PostMessage() = default;
+
+        PostMessage(uint16_t id, SessionId session, std::string_view msg)
+            : header(PacketType::ePostMessage, sizeof(PostMessage), id)
+            , session(session)
+            , message(msg)
+        { }
     };
 
     REFLECT()
     struct CreateLobby {
-        PacketHeader header = {PacketType::eCreateLobbyRequest};
+        PacketHeader header;
         SessionId session;
     };
 
     REFLECT()
+    struct NewLobby {
+        Response response;
+        LobbyId lobby;
+    };
+
+    REFLECT()
     struct JoinLobby {
-        PacketHeader header = {PacketType::eJoinLobbyRequest};
+        PacketHeader header;
         SessionId session;
+        LobbyId lobby;
     };
 
     size_t getPacketDataSize(PacketHeader header);

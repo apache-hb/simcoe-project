@@ -129,5 +129,5 @@ NetError ListenSocket::listen(int backlog) noexcept {
     if (::listen(mSocket, backlog))
         return lastNetError();
 
-    return NetError{0};
+    return NetError::ok();
 }

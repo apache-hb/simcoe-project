@@ -5,6 +5,7 @@
 #include "net/net.hpp"
 
 #include "account/packets.hpp"
+#include "account/router.hpp"
 #include "account/salt.hpp"
 
 #include <map>
@@ -12,9 +13,7 @@
 
 namespace game {
     struct UserSession {
-        std::string mName;
-        std::map<uint16_t, std::vector<std::byte>> mPendingResponses;
-        std::jthread mThread;
+        uint64_t mUserId;
     };
 
     struct GameSession {
@@ -35,11 +34,12 @@ namespace game {
         std::mutex mSaltMutex;
         Salt mSalt;
 
-        std::mutex mSessionsMutex;
-        std::map<std::string, UserSession> mSessions;
+        std::mutex mSessionMutex;
+        std::unordered_map<SessionId, UserSession> mSessions;
 
-        void handleCreateAccount(sm::net::Socket& socket, game::CreateAccountRequestPacket packet);
-        void handleLogin(sm::net::Socket& socket, game::LoginRequestPacket packet);
+        bool createAccount(game::CreateAccount info);
+        SessionId login(game::Login info);
+
         void handleClient(const std::stop_token& stop, sm::net::Socket socket) noexcept;
 
     public:
@@ -54,6 +54,9 @@ namespace game {
 
     class AccountClient {
         sm::net::Socket mSocket;
+        uint16_t mNextId = 0;
+
+        SessionId mCurrentSession;
 
     public:
         AccountClient(sm::net::Network& net, const sm::net::Address& address, uint16_t port) throws(sm::net::NetException);

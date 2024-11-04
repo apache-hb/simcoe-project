@@ -34,10 +34,11 @@ namespace sm::errors {
     };
 
     template<typename T>
-    class [[nodiscard("Ignoring error value")]] Error : public AnyError {
+    class Error : public AnyError {
         friend T;
 
         using AnyError::AnyError;
+
         constexpr Error() = default;
 
         constexpr T& self() noexcept { return static_cast<T&>(*this); }
@@ -48,7 +49,8 @@ namespace sm::errors {
         }
 
     public:
-        [[noreturn]] void raise() const throws(typename T::Exception) {
+        [[noreturn]]
+        void raise() const throws(typename T::Exception) {
             throw (typename T::Exception){ self() };
         }
 

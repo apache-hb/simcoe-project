@@ -14,35 +14,28 @@ AccountClient::AccountClient(sm::net::Network& net, const sm::net::Address& addr
 { }
 
 bool AccountClient::createAccount(std::string_view name, std::string_view password) {
-    CreateAccountRequestPacket packet{};
-
-    if (name.size() > sizeof(packet.username) || password.size() > sizeof(packet.password))
+    if (name.size() > sizeof(CreateAccount::username) || password.size() > sizeof(CreateAccount::password))
         return false;
 
-    std::memcpy(packet.username, name.data(), name.size());
-    std::memcpy(packet.password, password.data(), password.size());
+    mSocket.send(CreateAccount { mNextId++, name, password }).throwIfFailed();
 
-    mSocket.send(packet).throwIfFailed();
-
-    auto response = net::throwIfFailed(mSocket.recvTimed<CreateAccountResponsePacket>(1s));
+    Response response = net::throwIfFailed(mSocket.recv<Response>());
 
     return response.status == Status::eSuccess;
 }
 
 bool AccountClient::login(std::string_view name, std::string_view password) {
-    LoginRequestPacket packet{};
-
-    if (name.size() > sizeof(packet.username) || password.size() > sizeof(packet.password))
+    if (name.size() > sizeof(Login::username) || password.size() > sizeof(Login::password))
         return false;
 
-    std::memcpy(packet.username, name.data(), name.size());
-    std::memcpy(packet.password, password.data(), password.size());
+    mSocket.send(Login { mNextId++, name, password }).throwIfFailed();
 
-    mSocket.send(packet).throwIfFailed();
+    NewSession session = net::throwIfFailed(mSocket.recv<NewSession>());
 
-    LoginResponsePacket response = net::throwIfFailed(mSocket.recvTimed<LoginResponsePacket>(1s));
+    bool success = session.response.status == Status::eSuccess;
+    if (!success)
+        return false;
 
-    bool success = response.status == Status::eSuccess;
-
-    return success;
+    mCurrentSession = session.session;
+    return true;
 }

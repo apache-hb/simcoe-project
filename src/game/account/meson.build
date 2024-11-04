@@ -31,6 +31,7 @@ src = [
     'src/packets.cpp',
     'src/server.cpp',
     'src/client.cpp',
+    'src/router.cpp',
 ]
 
 deps = [ logs, net, account_meta ]

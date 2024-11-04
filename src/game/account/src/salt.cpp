@@ -28,6 +28,16 @@ std::string Salt::getSaltString(size_t length) {
     return buffer;
 }
 
+Guid Salt::newGuid() {
+    std::uniform_int_distribution<> anyByte(0, 255);
+    Guid guid{};
+    for (uint8_t& byte : guid.data) {
+        byte = anyByte(mSource);
+    }
+
+    return guid;
+}
+
 uint64_t game::hashWithSalt(std::string_view password, std::string_view salt) {
     std::string combined = fmt::format("{}{}", password, salt);
     return std::hash<std::string>{}(combined);

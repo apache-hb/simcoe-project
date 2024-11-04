@@ -39,17 +39,15 @@ TEST_CASE("New APIs missing") {
 
     THEN("CPU Geometry is built correctly with all apis present") {
         auto result = threads::detail::buildCpuGeometry(temp);
-        CHECK(result.processorCores.size() > 0);
-        CHECK(result.logicalCores.size() > 0);
-        CHECK(result.packages.size() > 0);
+        CHECK(result->processorCores().size() > 0);
+        CHECK(result->logicalCores().size() > 0);
     }
 
     THEN("CPU Geometry is built correctly without GetSystemCpuSetInformation") {
         temp.pfnGetSystemCpuSetInformation = nullptr;
         auto result = threads::detail::buildCpuGeometry(temp);
-        CHECK(result.processorCores.size() > 0);
-        CHECK(result.logicalCores.size() > 0);
-        CHECK(result.packages.size() > 0);
+        CHECK(result->processorCores().size() > 0);
+        CHECK(result->logicalCores().size() > 0);
     }
 
     THEN("CPU Geometry is built correctly without GetLogicalProcessorInformationEx") {

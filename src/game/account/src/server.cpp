@@ -11,19 +11,6 @@ using namespace sm;
 
 namespace acd = sm::dao::account;
 
-static bool recvDataPacket(std::span<std::byte> dst, net::Socket& socket, game::PacketHeader header) {
-    std::memcpy(dst.data(), &header, sizeof(header));
-    size_t size = game::getPacketDataSize(header);
-
-    size_t read = socket.recvBytes(dst.data() + sizeof(header), size).value();
-    if (read != size) {
-        LOG_ERROR(GlobalLog, "failed to receive all packet data: expected {}, got {}", size, read);
-        return false;
-    }
-
-    return true;
-}
-
 static std::optional<acd::User> getUserByName(db::Connection& db, std::string_view name) try {
     // TODO: horrible evil, need to support arbitrary prepared statements
     std::string query = fmt::format("SELECT * FROM user WHERE name = '{}'", name);
@@ -37,106 +24,88 @@ static std::optional<acd::User> getUserByName(db::Connection& db, std::string_vi
     throw;
 }
 
-void AccountServer::handleCreateAccount(sm::net::Socket& socket, game::CreateAccountRequestPacket packet) {
-    auto sendResponse = [&](Status status) {
-        CreateAccountResponsePacket response{};
-        response.status = status;
-
-        socket.send(response).throwIfFailed();
-    };
-
+bool AccountServer::createAccount(game::CreateAccount info) {
     std::scoped_lock guard(mSaltMutex, mDbMutex);
 
+    auto existingUser = getUserByName(mAccountDb, info.username);
+    if (existingUser.has_value()) {
+        LOG_WARN(GlobalLog, "account already exists: {}", info.username.text());
+        return false;
+    }
+
     std::string salt = mSalt.getSaltString(16);
-    uint64_t password = hashWithSalt(packet.password, salt);
+    uint64_t password = hashWithSalt(info.password, salt);
 
     acd::User user {
-        .name = packet.username,
+        .name = std::string{info.username},
         .password = password,
         .salt = salt
     };
 
-    auto oldUser = getUserByName(mAccountDb, packet.username);
-    if (oldUser.has_value()) {
-        LOG_WARN(GlobalLog, "account already exists: {}", user.name);
-        sendResponse(Status::eFailure);
-        return;
-    }
-
     auto result = mAccountDb.tryInsertReturningPrimaryKey(user);
-
     if (!result.has_value()) {
         LOG_WARN(GlobalLog, "failed to create account: {}", result.error());
-        sendResponse(Status::eFailure);
-        return;
+        return false;
     }
 
     LOG_INFO(GlobalLog, "created account: {}", result.value());
-    sendResponse(Status::eSuccess);
+
+    return true;
 }
 
-void AccountServer::handleLogin(sm::net::Socket& socket, game::LoginRequestPacket packet) try {
-    auto sendResponse = [&](Status result) {
-        LoginResponsePacket response;
-        response.status = result;
+SessionId AccountServer::login(game::Login info) {
+    std::scoped_lock guard(mDbMutex, mSessionMutex);
 
-        socket.send(response).throwIfFailed();
+    auto user = getUserByName(mAccountDb, info.username);
+    if (!user.has_value()) {
+        fmt::println(stderr, "user not found: `{}`", info.username.text());
+        return SessionId::empty();
+    }
+
+    uint64_t password = hashWithSalt(info.password, user->salt);
+    if (user->password != password) {
+        fmt::println(stderr, "invalid password for user: `{}`", info.username.text());
+        return SessionId::empty();
+    }
+
+    SessionId session = mSalt.newGuid();
+    mSessions[session] = UserSession {
+        .mUserId = user->id
     };
 
-    std::string name = packet.username;
-
-    std::optional<acd::User> optUser = [&] {
-        std::lock_guard guard(mDbMutex);
-        return getUserByName(mAccountDb, name);
-    }();
-
-    if (!optUser.has_value()) {
-        sendResponse(Status::eFailure);
-        return;
-    }
-
-    const acd::User& user = optUser.value();
-
-    uint64_t password = hashWithSalt(packet.password, user.salt);
-
-    if (user.password == password) {
-        sendResponse(Status::eSuccess);
-    } else {
-        sendResponse(Status::eFailure);
-    }
-} catch (const db::DbException& e) {
-    LoginResponsePacket response;
-    response.status = Status::eFailure;
-
-    socket.send(response).throwIfFailed();
+    return session;
 }
 
 void AccountServer::handleClient(const std::stop_token& stop, net::Socket socket) noexcept try {
-    while (!stop.stop_requested()) {
-        auto headerOr = socket.recv<game::PacketHeader>();
-        if (net::isConnectionClosed(headerOr)) {
-            LOG_INFO(GlobalLog, "client disconnected");
-            break;
+    MessageRouter router;
+
+    router.addRoute<Ack>(PacketType::eAck, [](const Ack& req) {
+        fmt::println(stderr, "received ack: {}", req.header.id);
+
+        return Ack { req.header.id };
+    });
+
+    router.addRoute<CreateAccount>(PacketType::eCreateAccount, [this](const CreateAccount& req) {
+        if (createAccount(req)) {
+            return Response { req.header.id, Status::eSuccess };
+        } else {
+            return Response { req.header.id, Status::eFailure };
         }
+    });
 
-        auto header = net::throwIfFailed(std::move(headerOr));
+    router.addRoute<Login>(PacketType::eLogin, [this](const Login& req) {
+        SessionId session = login(req);
+        if (session == SessionId::empty()) {
+            return NewSession { req.header.id, Status::eFailure, SessionId::empty() };
+        } else {
+            return NewSession { req.header.id, session };
+        }
+    });
 
-        std::byte buffer[512];
-        if (!recvDataPacket(buffer, socket, header))
-            break;
-
-        switch (header.type) {
-        case game::PacketType::eCreateAccountRequest:
-            handleCreateAccount(socket, *reinterpret_cast<game::CreateAccountRequestPacket*>(buffer));
-            break;
-
-        case game::PacketType::eLoginRequest:
-            handleLogin(socket, *reinterpret_cast<game::LoginRequestPacket*>(buffer));
-            break;
-
-        default:
-            LOG_WARN(GlobalLog, "unknown packet type: {}", header.type);
-            break;
+    while (!stop.stop_requested()) {
+        if (!router.handleMessage(socket)) {
+            LOG_INFO(GlobalLog, "dropping client connection");
+            return;
         }
     }
 } catch (const db::DbException& e) {
@@ -155,12 +124,8 @@ static void createSchema(db::Connection& db) {
 }
 
 AccountServer::AccountServer(db::Connection db, net::Network& net, const net::Address& address, uint16_t port) noexcept(false)
-    : mAccountDb(std::move(db))
-    , mNetwork(net)
-    , mServer(mNetwork.bind(address, port))
-{
-    createSchema(mAccountDb);
-}
+    : AccountServer(std::move(db), net, address, port, std::random_device{}())
+{ }
 
 AccountServer::AccountServer(db::Connection db, net::Network& net, const net::Address& address, uint16_t port, unsigned seed) noexcept(false)
     : mAccountDb(std::move(db))

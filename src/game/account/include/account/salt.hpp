@@ -1,5 +1,7 @@
 #pragma once
 
+#include "account/guid.hpp"
+
 #include <random>
 #include <span>
 
@@ -14,6 +16,7 @@ namespace game {
         Salt(unsigned seed);
 
         std::string getSaltString(size_t length);
+        Guid newGuid();
     };
 
     uint64_t hashWithSalt(std::string_view password, std::string_view salt);

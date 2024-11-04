@@ -50,7 +50,7 @@ namespace sm::net {
         bool timeout() const noexcept { return mCode == ERROR_TIMEOUT; }
         bool connectionClosed() const noexcept { return mCode == SNET_CONNECTION_CLOSED; }
 
-        static NetError ok() noexcept { return NetError{0}; }
+        static NetError ok() noexcept { return NetError{ERROR_SUCCESS}; }
     };
 
     class NetException : public errors::Exception<NetError> {
