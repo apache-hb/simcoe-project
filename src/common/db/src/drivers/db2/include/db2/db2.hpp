@@ -43,23 +43,23 @@ namespace sm::db::db2 {
     using WilSqlHandle = wil::unique_any<SQLHANDLE, decltype(&freeSqlHandle<T>), freeSqlHandle<T>>;
 
     template<SQLSMALLINT T>
-    class SqlHandleEx {
+    class SqlHandle {
         using WilHandle = WilSqlHandle<T>;
 
         WilHandle mHandle;
     public:
         static constexpr SQLSMALLINT kHandleType = T;
 
-        SqlHandleEx(WilHandle handle = SQL_NULL_HANDLE)
+        SqlHandle(WilHandle handle = SQL_NULL_HANDLE)
             : mHandle(std::move(handle))
         { }
 
-        static SqlHandleEx create(SQLHANDLE parent) {
+        static SqlHandle create(SQLHANDLE parent) {
             WilHandle handle;
             if (SqlResult result = SQLAllocHandle(kHandleType, parent, &handle))
                 getErrorFromParent(result, kHandleType, parent).raise();
 
-            return SqlHandleEx(std::move(handle));
+            return SqlHandle(std::move(handle));
         }
 
         DbError getErrorInfo(SQLRETURN status) const noexcept {
@@ -70,16 +70,14 @@ namespace sm::db::db2 {
         SQLHANDLE* operator&() noexcept { return mHandle.put(); }
     };
 
-    using SqlStmtHandleEx = SqlHandleEx<SQL_HANDLE_STMT>;
-    using SqlDbHandleEx = SqlHandleEx<SQL_HANDLE_DBC>;
-    using SqlEnvHandleEx = SqlHandleEx<SQL_HANDLE_ENV>;
+    using SqlStmtHandle = SqlHandle<SQL_HANDLE_STMT>;
+    using SqlDbHandle = SqlHandle<SQL_HANDLE_DBC>;
+    using SqlEnvHandle = SqlHandle<SQL_HANDLE_ENV>;
 
     class Db2Statement final : public detail::IStatement {
-        SqlStmtHandleEx mStmtHandle;
+        SqlStmtHandle mStmtHandle;
         std::string mSqlString;
         std::multimap<std::string, int> mBindIndexLayout;
-
-        DbError finalize() noexcept override;
 
         DbError start(bool autoCommit, StatementType type) noexcept override;
 
@@ -90,15 +88,11 @@ namespace sm::db::db2 {
         std::string getSql() const override;
 
     public:
-        Db2Statement(SqlStmtHandleEx stmt, std::string sql);
+        Db2Statement(SqlStmtHandle stmt, std::string sql);
     };
 
     class Db2Connection final : public detail::IConnection {
-        SqlDbHandleEx mDbHandle;
-
-        /** Lifecycle */
-
-        DbError close() noexcept override;
+        SqlDbHandle mDbHandle;
 
         /** Execution */
 
@@ -119,17 +113,18 @@ namespace sm::db::db2 {
         DbError endTransaction(SQLSMALLINT completionType) noexcept;
 
     public:
-        Db2Connection(SqlDbHandleEx hdbc) noexcept;
+        ~Db2Connection() noexcept override;
+        Db2Connection(SqlDbHandle hdbc) noexcept;
     };
 
     class Db2Environment final : public detail::IEnvironment {
-        SqlEnvHandleEx mEnvHandle;
+        SqlEnvHandle mEnvHandle;
 
         bool close() noexcept override { return true; }
 
         detail::IConnection *connect(const ConnectionConfig& config) noexcept(false) override;
 
     public:
-        Db2Environment(SqlEnvHandleEx env) noexcept;
+        Db2Environment(SqlEnvHandle env) noexcept;
     };
 }

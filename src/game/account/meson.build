@@ -73,6 +73,8 @@ testcases = {
     'Account creation': 'test/create.cpp',
     'Account login': 'test/login.cpp',
     'Posting messages': 'test/post.cpp',
+    'Get session list': 'test/session_list.cpp',
+    'Get lobby list': 'test/lobby_list.cpp',
 }
 
 foreach name, source : testcases

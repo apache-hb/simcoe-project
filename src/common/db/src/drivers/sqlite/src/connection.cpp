@@ -52,14 +52,6 @@ SqliteStatement SqliteConnection::newStatement(std::string_view sql) noexcept(fa
     return stmt;
 }
 
-DbError SqliteConnection::close() noexcept {
-    (void)mBeginStmt.finalize();
-    (void)mCommitStmt.finalize();
-    (void)mRollbackStmt.finalize();
-    mConnection.reset();
-    return DbError::ok();
-}
-
 detail::IStatement *SqliteConnection::prepare(std::string_view sql) noexcept(false) {
     return new SqliteStatement{newStatement(sql)};
 }

@@ -100,7 +100,6 @@ namespace sm::db::oracle {
         ) noexcept;
 
     public:
-        DbError finalize() noexcept override;
         DbError start(bool autoCommit, StatementType type) noexcept override;
         DbError execute() noexcept override;
         DbError next() noexcept override;
@@ -144,6 +143,8 @@ namespace sm::db::oracle {
         DbError getDoubleByIndex(int index, double& value) noexcept override;
         DbError getBlobByIndex(int index, Blob& value) noexcept override;
         DbError getDateTimeByIndex(int index, DateTime& value) noexcept override;
+
+        ~OraStatement() noexcept override;
 
         OraStatement(
             OraEnvironment& environment,

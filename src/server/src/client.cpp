@@ -30,9 +30,102 @@ enum ClientState {
     eLoggedIn,
 };
 
+using EventQueue = moodycamel::BlockingConcurrentQueue<std::function<void()>>;
+
+struct LobbyListWidget {
+    enum State {
+        eIdle,
+        eUpdating,
+        eDoneUpdate,
+        eError,
+    };
+
+    std::atomic<State> state = eIdle;
+    std::string error = "";
+    std::vector<game::LobbyInfo> sessions;
+    std::vector<game::LobbyInfo> newSessionInfo;
+};
+
+struct SessionListWidget {
+    enum State {
+        eIdle,
+        eUpdating,
+        eDoneUpdate,
+        eError,
+    };
+
+    std::atomic<State> state = eIdle;
+    std::string error = "";
+    std::vector<game::SessionInfo> sessions;
+    std::vector<game::SessionInfo> newSessionInfo;
+
+    void drawTable() {
+        ImGui::SeparatorText("Sessions");
+
+        if (ImGui::BeginTable("Sessions", 2)) {
+            ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, 100);
+            ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
+
+            ImGui::TableHeadersRow();
+
+            for (const auto& session : sessions) {
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::Text("%llu", session.id);
+                ImGui::TableNextColumn();
+                std::string_view name = session.name.text();
+                ImGui::Text("%.*s", (int)name.size(), name.data());
+            }
+
+            ImGui::EndTable();
+        }
+    }
+
+    void refreshList(EventQueue& events, game::AccountClient& client) {
+        events.enqueue([&] {
+            try {
+                state.store(eUpdating);
+                client.refreshSessionList();
+                newSessionInfo = client.getSessionInfo();
+                state.store(eDoneUpdate);
+            } catch (const std::exception& e) {
+                error = e.what();
+                state.store(eError);
+            }
+        });
+    }
+
+    void refreshButton(EventQueue& events, game::AccountClient& client) {
+        if (ImGui::Button("Refresh")) {
+            refreshList(events, client);
+        }
+    }
+
+    void draw(EventQueue& events, game::AccountClient& client) {
+        State s = state.load();
+
+        if (!newSessionInfo.empty()) {
+            sessions = std::move(newSessionInfo);
+            newSessionInfo.clear();
+        }
+
+        if (s == eError) {
+            ImGui::Text("Error: %s", error.c_str());
+            refreshButton(events, client);
+        } else if (s == eIdle || s == eDoneUpdate) {
+            drawTable();
+            refreshButton(events, client);
+        } else if (s == eUpdating) {
+            drawTable();
+            ImGui::Text("Updating %c", "|/-\\"[(int)(ImGui::GetTime() / 0.05f) & 3]);
+        }
+    }
+};
+
 static int commonMain() noexcept try {
     net::Network network = net::Network::create();
-    moodycamel::BlockingConcurrentQueue<std::function<void()>> events;
+    EventQueue events;
+    moodycamel::ConcurrentQueue<std::function<void()>> responses;
 
     std::atomic<ClientState> state = eDisconnected;
     std::unique_ptr<game::AccountClient> client;
@@ -52,6 +145,8 @@ static int commonMain() noexcept try {
 
     char host[64] = "127.0.0.1";
     unsigned port = 9919;
+
+    SessionListWidget sessionList;
 
     auto connectToServerAsync = [&] {
         state.store(eConnecting);
@@ -111,6 +206,10 @@ static int commonMain() noexcept try {
                             std::strncpy(error, err.what(), sizeof(error));
                             state.store(eLoginError);
                         }
+
+                        if (state.load() == eLoggedIn) {
+                            sessionList.refreshList(events, *client);
+                        }
                     });
                 }
 
@@ -142,6 +241,8 @@ static int commonMain() noexcept try {
                 }
             } else if (current == eLoggedIn) {
                 ImGui::Text("Logged in as %s", username);
+
+                sessionList.draw(events, *client);
 
                 if (ImGui::Button("Logout")) {
                     state.store(eDisconnected);

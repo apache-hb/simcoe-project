@@ -12,7 +12,8 @@ std::string_view dao::toString(ColumnType type) noexcept {
     case ColumnType::eLong: return "eLong";
     case ColumnType::eUlong: return "eUlong";
     case ColumnType::eBool: return "eBool";
-    case ColumnType::eString: return "eString";
+    case ColumnType::eVarChar: return "eVarChar";
+    case ColumnType::eChar: return "eChar";
     case ColumnType::eFloat: return "eFloat";
     case ColumnType::eDouble: return "eDouble";
     case ColumnType::eBlob: return "eBlob";

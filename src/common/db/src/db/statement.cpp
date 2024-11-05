@@ -11,26 +11,19 @@ using namespace sm;
 using namespace sm::db;
 
 void detail::destroyStatement(detail::IStatement *impl) noexcept {
-    if (DbError err = impl->finalize())
-        CT_NEVER("Failed to close statement: %s (%d)", err.what(), err.code());
-
     delete impl;
 }
 
-DbError PreparedStatement::prepareIntReturn(std::string_view name) noexcept(false) {
-    return mImpl->prepareIntReturnByName(name);
+void PreparedStatement::prepareIntReturn(std::string_view name) noexcept(false) {
+    mImpl->prepareIntReturnByName(name).throwIfFailed();
 }
 
-DbError PreparedStatement::prepareStringReturn(std::string_view name) noexcept(false) {
-    return mImpl->prepareStringReturnByName(name);
+void PreparedStatement::prepareStringReturn(std::string_view name) noexcept(false) {
+    mImpl->prepareStringReturnByName(name).throwIfFailed();
 }
 
 BindPoint PreparedStatement::bind(std::string_view name) noexcept {
     return BindPoint{mImpl.get(), name};
-}
-
-DbError PreparedStatement::close() noexcept {
-    return mImpl->finalize();
 }
 
 DbResult<ResultSet> PreparedStatement::start() noexcept {
@@ -47,26 +40,26 @@ DbError PreparedStatement::execute() noexcept {
 }
 
 template<typename T>
-DbError tryBindField(BindPoint& binding, const void *field, bool nullable) noexcept {
+void tryBindField(BindPoint& binding, const void *field, bool nullable) {
     using Option = std::optional<T>;
     if (nullable) {
         const Option *value = reinterpret_cast<const Option*>(field);
         if (value->has_value()) {
-            return binding.tryBind(value->value());
+            binding.bind(value->value());
         } else {
-            return binding.tryBindNull();
+            binding.bind(nullptr);
         }
+    } else {
+        const T *value = reinterpret_cast<const T*>(field);
+        binding.bind(*value);
     }
-
-    const T *value = reinterpret_cast<const T*>(field);
-    return binding.tryBind(*value);
 }
 
-static DbError bindIndex(PreparedStatement& stmt, const dao::TableInfo& info, size_t index, bool returning, const void *data) noexcept {
+static void bindIndex(PreparedStatement& stmt, const dao::TableInfo& info, size_t index, bool returning, const void *data) {
     const auto& column = info.columns[index];
     size_t primaryKey = detail::primaryKeyIndex(info);
     if (returning && primaryKey == index)
-        return DbError::ok();
+        return;
 
     auto binding = stmt.bind(column.name);
     const void *field = static_cast<const char*>(data) + column.offset;
@@ -74,34 +67,43 @@ static DbError bindIndex(PreparedStatement& stmt, const dao::TableInfo& info, si
 
     switch (column.type) {
     case dao::ColumnType::eInt:
-        return tryBindField<int32_t>(binding, field, nullable);
+        tryBindField<int32_t>(binding, field, nullable);
+        break;
     case dao::ColumnType::eUint:
-        return tryBindField<uint32_t>(binding, field, nullable);
+        tryBindField<uint32_t>(binding, field, nullable);
+        break;
     case dao::ColumnType::eLong:
-        return tryBindField<int64_t>(binding, field, nullable);
+        tryBindField<int64_t>(binding, field, nullable);
+        break;
     case dao::ColumnType::eUlong:
-        return tryBindField<uint64_t>(binding, field, nullable);
+        tryBindField<uint64_t>(binding, field, nullable);
+        break;
     case dao::ColumnType::eBool:
-        return tryBindField<bool>(binding, field, nullable);
-    case dao::ColumnType::eString:
-        return tryBindField<std::string>(binding, field, nullable);
+        tryBindField<bool>(binding, field, nullable);
+        break;
+    case dao::ColumnType::eChar: case dao::ColumnType::eVarChar:
+        tryBindField<std::string>(binding, field, nullable);
+        break;
     case dao::ColumnType::eFloat:
-        return tryBindField<float>(binding, field, nullable);
+        tryBindField<float>(binding, field, nullable);
+        break;
     case dao::ColumnType::eDouble:
-        return tryBindField<double>(binding, field, nullable);
+        tryBindField<double>(binding, field, nullable);
+        break;
     case dao::ColumnType::eBlob:
-        return tryBindField<db::Blob>(binding, field, nullable);
+        tryBindField<db::Blob>(binding, field, nullable);
+        break;
     case dao::ColumnType::eDateTime:
-        return tryBindField<db::DateTime>(binding, field, nullable);
+        tryBindField<db::DateTime>(binding, field, nullable);
+        break;
     default:
-        return DbError::todo(toString(column.type));
+        throw DbException{DbError::todo(toString(column.type))};
     }
 }
 
-DbError db::bindRowToStatement(PreparedStatement& stmt, const dao::TableInfo& info, bool returning, const void *data) noexcept {
+void db::bindRowToStatement(PreparedStatement& stmt, const dao::TableInfo& info, bool returning, const void *data) noexcept(false) {
     for (size_t i = 0; i < info.columns.size(); i++)
-        if (DbError error = bindIndex(stmt, info, i, returning, data))
-            return error;
+        bindIndex(stmt, info, i, returning, data);
 
     if (returning && info.hasPrimaryKey()) {
         size_t pkIndex = detail::primaryKeyIndex(info);
@@ -112,14 +114,15 @@ DbError db::bindRowToStatement(PreparedStatement& stmt, const dao::TableInfo& in
         case dao::ColumnType::eUint:
         case dao::ColumnType::eLong:
         case dao::ColumnType::eUlong:
-            return stmt.prepareIntReturn(column.name);
-        case dao::ColumnType::eString:
-            return stmt.prepareStringReturn(column.name);
+            stmt.prepareIntReturn(column.name);
+            break;
+
+        case dao::ColumnType::eChar: case dao::ColumnType::eVarChar:
+            stmt.prepareStringReturn(column.name);
+            break;
 
         default:
-            return DbError::unsupported(fmt::format("returning primary key of type {}", toString(column.type)));
+            throw DbException{DbError::unsupported(fmt::format("returning primary key of type {}", toString(column.type)))};
         }
     }
-
-    return DbError::ok();
 }

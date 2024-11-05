@@ -28,8 +28,8 @@ namespace sm::db {
         void bind(std::string_view name, Blob value) noexcept { bind(name).toBlob(std::move(value)); }
         void bind(std::string_view name, std::nullptr_t) noexcept { bind(name).toNull(); }
 
-        DbError prepareIntReturn(std::string_view name);
-        DbError prepareStringReturn(std::string_view name);
+        void prepareIntReturn(std::string_view name) throws(DbException);
+        void prepareStringReturn(std::string_view name) throws(DbException);
 
         DbResult<ResultSet> select() noexcept;
         DbResult<ResultSet> start() noexcept;
@@ -37,11 +37,9 @@ namespace sm::db {
         DbError execute() noexcept;
         DbError step() noexcept;
 
-        DbError close() noexcept;
-
         [[nodiscard]]
         StatementType type() const noexcept { return mType; }
     };
 
-    DbError bindRowToStatement(PreparedStatement& stmt, const dao::TableInfo& info, bool returning, const void *data) noexcept;
+    void bindRowToStatement(PreparedStatement& stmt, const dao::TableInfo& info, bool returning, const void *data) throws(DbException);
 }

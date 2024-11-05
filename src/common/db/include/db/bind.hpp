@@ -47,6 +47,22 @@ namespace sm::db {
         DbError tryBindDateTime(DateTime value) noexcept;
         DbError tryBindNull() noexcept;
 
+
+        template<std::signed_integral T>
+        void bind(T value) throws(DbException) { toInt(value); }
+
+        template<std::unsigned_integral T>
+        void bind(T value) throws(DbException) { toUInt(value); }
+
+        template<std::floating_point T>
+        void bind(T value) throws(DbException) { toDouble(value); }
+
+        void bind(bool value) throws(DbException) { toBool(value); }
+        void bind(std::string_view value) throws(DbException) { toString(value); }
+        void bind(Blob value) throws(DbException) { toBlob(std::move(value)); }
+        void bind(DateTime value) throws(DbException) { toDateTime(value); }
+        void bind(std::nullptr_t) throws(DbException) { toNull(); }
+
         template<std::signed_integral T>
         DbError tryBind(T value) noexcept { return tryBindInt(value); }
 

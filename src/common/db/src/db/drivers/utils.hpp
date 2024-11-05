@@ -6,4 +6,6 @@ namespace sm::dao {
 
 namespace sm::db::detail {
     size_t primaryKeyIndex(const dao::TableInfo& info) noexcept;
+
+    void cleanErrorMessage(std::string& message) noexcept;
 }

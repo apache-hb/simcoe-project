@@ -21,11 +21,37 @@ namespace sm::db::detail {
     struct ConnectionInfo {
         Version clientVersion;
         Version serverVersion;
+
+        /// If this database doesnt have a boolean column type,
+        /// this is the equivalent type to use.
         DataType boolType = DataType::eBoolean;
+
+        /// If this database doesnt have a datetime column type,
+        /// this is the equivalent type to use.
         DataType dateTimeType = DataType::eDateTime;
+
+        /// Does this database require additional COMMENT ON statements
+        /// after creating a table?
+        /// sqlite and mysql support this via either adding comments
+        /// to the create table statement, or by using inline COMMENT ON
+        /// statements.
+        /// all other databases - to my knowledge - require additional
+        /// COMMENT ON statements.
         bool hasCommentOn = false;
+
+        /// True if this database driver supports :named placeholders.
+        /// oracle and sqlite support named placeholders, while db2
+        /// is lacking this feature.
         bool hasNamedParams = false;
+
+        /// True if this database has user accounts.
+        /// Sqlite does not have user accounts.
         bool hasUsers = false;
+
+        /// True if this database driver can report
+        /// differences between CHAR and VARCHAR column types.
+        /// some databases only have TEXT types, such as sqlite.
+        bool hasDistinctTextTypes = false;
     };
 
     class IConnection {
@@ -38,10 +64,6 @@ namespace sm::db::detail {
 
     public:
         virtual ~IConnection() = default;
-
-        /** Lifecycle */
-
-        virtual DbError close() noexcept = 0;
 
         /** Execution */
 
@@ -144,14 +166,14 @@ namespace sm::db::detail {
         bool hasUsers() const noexcept {
             return mInfo.hasUsers;
         }
+
+        bool hasDistinctTextTypes() const noexcept {
+            return mInfo.hasDistinctTextTypes;
+        }
     };
 
     struct IStatement {
         virtual ~IStatement() = default;
-
-        /** Lifecycle */
-
-        virtual DbError finalize() noexcept = 0;
 
         /** Execution */
 

@@ -12,33 +12,20 @@ namespace detail = sm::db::detail;
 
 #define STRCASE(ID) case ID: return #ID
 
-std::string oracle::oraErrorText(void *handle, sword status, ub4 type) {
-    auto result = [&] -> std::string {
-        text buffer[OCI_ERROR_MAXMSG_SIZE];
-        sb4 error;
+static std::string oraErrorText(void *handle, sword status, ub4 type) {
+    text buffer[OCI_ERROR_MAXMSG_SIZE2];
+    sb4 error;
 
-        switch (status) {
-        STRCASE(OCI_SUCCESS);
-        STRCASE(OCI_NO_DATA);
-        STRCASE(OCI_INVALID_HANDLE);
-        STRCASE(OCI_NEED_DATA);
-        STRCASE(OCI_STILL_EXECUTING);
+    std::vector<std::string> messages;
 
-        case OCI_SUCCESS_WITH_INFO: case OCI_ERROR:
-            if (sword err = OCIErrorGet(handle, 1, nullptr, &error, buffer, sizeof(buffer), type)) {
-                return fmt::format("Failed to get error text: {}", err);
-            }
-            return std::string{(const char*)(buffer)};
+    ub4 record = 1;
+    while (OCIErrorGet(handle, record++, nullptr, &error, buffer, sizeof(buffer), type) == OCI_SUCCESS) {
+        std::string result = fmt::format("SQLCODE: {}, MESSAGE: {}", error, (const char*)buffer);
+        detail::cleanErrorMessage(result);
+        messages.push_back(result);
+    }
 
-        default:
-            return fmt::format("Unknown: {}", status);
-        }
-    }();
-
-    result.erase(std::remove(result.begin(), result.end(), '\r'), result.end());
-    std::replace(result.begin(), result.end(), '\n', ' ');
-
-    return result;
+    return fmt::format("{}", fmt::join(messages, "\n"));
 }
 
 DbError oracle::oraGetHandleError(void *handle, sword status, ub4 type) {
@@ -61,7 +48,7 @@ std::string oracle::getHandleStringAttribute(void *handle, ub4 type, ub4 attr, O
     ub4 length = 0;
     sword result = OCIAttrGet(handle, type, &text, &length, attr, error);
     if (result != OCI_SUCCESS)
-        oraGetHandleError(error, result, OCI_HTYPE_ERROR).raise();
+        throw DbException{oraGetHandleError(error, result, OCI_HTYPE_ERROR)};
 
     return std::string{(const char*)text, length};
 }
@@ -88,8 +75,10 @@ static std::string makeSqlType(const dao::ColumnInfo& info, bool hasBoolean) {
         return "BINARY_FLOAT";
     case dao::ColumnType::eDouble:
         return "BINARY_DOUBLE";
-    case dao::ColumnType::eString:
+    case dao::ColumnType::eVarChar:
         return fmt::format("VARCHAR2({})", info.length);
+    case dao::ColumnType::eChar:
+        return fmt::format("CHAR({})", info.length);
     case dao::ColumnType::eBlob:
         return "BLOB";
     case dao::ColumnType::eDateTime:
@@ -286,17 +275,26 @@ std::string oracle::setupCreateTable(const dao::TableInfo& info, bool hasBoolTyp
         if (column.nullable || column.autoIncrement != dao::AutoIncrement::eNever)
             continue;
 
-        bool isString = column.type == dao::ColumnType::eString;
-
         addConstraint("ck_{0}_{1}_nonnull CHECK({1} IS NOT NULL)", info.name, column.name);
 
-        if (isString)
+        if (isStringType(column.type))
             addConstraint("ck_{0}_{1}_nonblank CHECK(REGEXP_LIKE({1}, '\\S'))", info.name, column.name);
     }
 
     for (size_t i = 0; i < info.foreignKeys.size(); i++) {
         const auto& foreign = info.foreignKeys[i];
-        addConstraint("{} FOREIGN KEY({}) REFERENCES {}({})", foreign.name, foreign.column, foreign.foreignTable, foreign.foreignColumn);
+        const char *onDelete = [&] {
+            switch (foreign.onDelete) {
+            case dao::OnDelete::eCascade:
+                return " ON DELETE CASCADE";
+            case dao::OnDelete::eSetNull:
+                return " ON DELETE SET NULL";
+            default:
+                return "";
+            }
+        }();
+
+        addConstraint("{} FOREIGN KEY({}) REFERENCES {}({}){}", foreign.name, foreign.column, foreign.foreignTable, foreign.foreignColumn, onDelete);
     }
 
     for (size_t i = 0; i < info.uniqueKeys.size(); i++) {

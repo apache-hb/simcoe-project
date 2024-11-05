@@ -1,13 +1,13 @@
 #include "db2/db2.hpp"
 
-#include "core/string.hpp"
+#include "drivers/utils.hpp"
 
 using namespace sm::db;
 
 using Db2Environment = sm::db::db2::Db2Environment;
 using Db2Connection = sm::db::db2::Db2Connection;
 using SqlResult = sm::db::db2::SqlResult;
-using SqlEnvHandleEx = sm::db::db2::SqlEnvHandleEx;
+using SqlEnvHandle = sm::db::db2::SqlEnvHandle;
 
 static std::string sqlErrorMessage(SQLRETURN result) {
     if (result > 0) {
@@ -25,9 +25,9 @@ static std::string sqlGetErrorMessage(SQLHENV env, SQLHDBC dbc, SQLHSTMT stmt) {
 
     std::vector<std::string> messages;
 
-    while (SQLError(env, dbc, stmt, sqlState, &sqlcode, message, SQL_MAX_MESSAGE_LENGTH + 1, &length) == SQL_SUCCESS) {
+    while (SQLError(env, dbc, stmt, sqlState, &sqlcode, message, sizeof(message), &length) == SQL_SUCCESS) {
         std::string msg = fmt::format("SQLSTATE: {}, SQLCODE: {}, MESSAGE: {}", (char*)sqlState, sqlcode, (char*)message);
-        sm::trimWhitespace(msg);
+        detail::cleanErrorMessage(msg);
         messages.push_back(msg);
     }
 
@@ -83,7 +83,7 @@ DbError db2::getErrorFromParent(SqlResult result, SQLSMALLINT type, SQLHANDLE pa
 }
 
 detail::IEnvironment *detail::newDb2Environment() {
-    SqlEnvHandleEx henv;
+    SqlEnvHandle henv;
     if (SqlResult result = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv)) {
         if (henv == SQL_NULL_HENV)
             throw DbException{db2::getSqlError(result)};

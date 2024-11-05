@@ -51,7 +51,7 @@ static std::string_view makeSqlType(const dao::ColumnInfo& info) noexcept {
     case ColumnType::eFloat:
     case ColumnType::eDouble:
         return "REAL";
-    case ColumnType::eString:
+    case ColumnType::eChar: case ColumnType::eVarChar:
         return "TEXT";
     case ColumnType::eBlob:
         return "BLOB";
@@ -104,7 +104,7 @@ std::string sqlite::setupCreateTable(const dao::TableInfo& info) noexcept {
         if (!column.nullable)
             ss << " NOT NULL";
 
-        if (column.type == ColumnType::eString && !column.nullable)
+        if (isStringType(column.type) && !column.nullable)
             ss << " CHECK(NOT IS_BLANK_STRING(" << column.name << "))";
 
         if (hasConstraints || (i != info.columns.size() - 1)) {
@@ -117,8 +117,7 @@ std::string sqlite::setupCreateTable(const dao::TableInfo& info) noexcept {
     if (info.hasPrimaryKey()) {
         const auto& pk = info.getPrimaryKey();
         ss << "\tCONSTRAINT pk_" << info.name
-        << " PRIMARY KEY (" << pk.name
-        << ")";
+           << " PRIMARY KEY (" << pk.name << ")";
 
         if (info.hasForeignKeys() || info.hasUniqueKeys()) {
             ss << ",\n";
@@ -129,7 +128,20 @@ std::string sqlite::setupCreateTable(const dao::TableInfo& info) noexcept {
 
     for (size_t i = 0; i < info.foreignKeys.size(); i++) {
         const auto& foreign = info.foreignKeys[i];
-        ss << "\tCONSTRAINT " << foreign.name << " FOREIGN KEY (" << foreign.column << ") REFERENCES " << foreign.foreignTable << "(" << foreign.foreignColumn << ")";
+        ss << "\tCONSTRAINT " << foreign.name
+           << " FOREIGN KEY (" << foreign.column << ") REFERENCES "
+           << foreign.foreignTable << "(" << foreign.foreignColumn << ")";
+
+        switch (foreign.onDelete) {
+        case dao::OnDelete::eCascade:
+            ss << " ON DELETE CASCADE";
+            break;
+        case dao::OnDelete::eSetNull:
+            ss << " ON DELETE SET NULL";
+            break;
+        default:
+            break;
+        }
 
         if (info.hasUniqueKeys() || i != info.foreignKeys.size() - 1) {
             ss << ",";

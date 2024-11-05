@@ -2,12 +2,22 @@
 
 #include "account/account.hpp"
 
+using namespace sm;
+using namespace game;
+
 using namespace std::chrono_literals;
 
-using namespace game;
-using namespace sm;
+static std::unique_ptr<std::byte[]> readFlexiblePacket(sm::net::Socket& socket) {
+    PacketHeader header = net::throwIfFailed(socket.recv<PacketHeader>());
+    std::unique_ptr<std::byte[]> data = std::make_unique<std::byte[]>(header.size);
+    memcpy(data.get(), &header, sizeof(PacketHeader));
 
-// TODO: dont hardcode timeout
+    if (header.size > sizeof(PacketHeader)) {
+        net::throwIfFailed(socket.recvBytes(data.get() + sizeof(PacketHeader), header.size - sizeof(PacketHeader)));
+    }
+
+    return data;
+}
 
 AccountClient::AccountClient(sm::net::Network& net, const sm::net::Address& address, uint16_t port) noexcept(false)
     : mSocket{net.connect(address, port)}
@@ -38,4 +48,85 @@ bool AccountClient::login(std::string_view name, std::string_view password) {
 
     mCurrentSession = session.session;
     return true;
+}
+
+bool AccountClient::createLobby(std::string_view name) {
+    if (name.size() > sizeof(CreateLobby::name))
+        return false;
+
+    mSocket.send(CreateLobby { mNextId++, mCurrentSession, name }).throwIfFailed();
+
+    NewLobby lobby = net::throwIfFailed(mSocket.recv<NewLobby>());
+
+    bool success = lobby.response.status == Status::eSuccess;
+    if (!success)
+        return false;
+
+    mCurrentLobby = lobby.lobby;
+    return true;
+}
+
+bool AccountClient::joinLobby(LobbyId id) {
+    mSocket.send(JoinLobby { mNextId++, mCurrentSession, id }).throwIfFailed();
+
+    Response response = net::throwIfFailed(mSocket.recv<Response>());
+
+    bool success = response.status == Status::eSuccess;
+    if (!success)
+        return false;
+
+    mCurrentLobby = id;
+    return true;
+}
+
+static size_t getSessionListSize(const SessionList *list) {
+    size_t size = list->response.header.size - sizeof(SessionList);
+    if (size % sizeof(SessionInfo) != 0)
+        return 0;
+
+    return size / sizeof(SessionInfo);
+}
+
+void AccountClient::refreshSessionList() {
+    std::vector<SessionInfo> sessions;
+
+    mSocket.send(GetSessionList { mNextId++, mCurrentSession }).throwIfFailed();
+
+    std::unique_ptr<std::byte[]> data = readFlexiblePacket(mSocket);
+    SessionList *list = reinterpret_cast<SessionList*>(data.get());
+    size_t count = getSessionListSize(list);
+
+    sessions.reserve(count);
+
+    for (size_t i = 0; i < count; i++) {
+        sessions.push_back(list->sessions[i]);
+    }
+
+    mSessions = std::move(sessions);
+}
+
+static size_t getLobbyListSize(const LobbyList *list) {
+    size_t size = list->response.header.size - sizeof(LobbyList);
+    if (size % sizeof(LobbyInfo) != 0)
+        return 0;
+
+    return size / sizeof(LobbyInfo);
+}
+
+void AccountClient::refreshLobbyList() {
+    std::vector<LobbyInfo> lobbies;
+
+    mSocket.send(GetLobbyList { mNextId++, mCurrentSession }).throwIfFailed();
+
+    std::unique_ptr<std::byte[]> data = readFlexiblePacket(mSocket);
+    LobbyList *list = reinterpret_cast<LobbyList*>(data.get());
+    size_t count = getLobbyListSize(list);
+
+    lobbies.reserve(count);
+
+    for (size_t i = 0; i < count; i++) {
+        lobbies.push_back(list->lobbies[i]);
+    }
+
+    mLobbies = std::move(lobbies);
 }

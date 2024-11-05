@@ -5,7 +5,6 @@
 #include <oci.h>
 
 namespace sm::db::oracle {
-    std::string oraErrorText(void *handle, sword status, ub4 type);
     DbError oraGetHandleError(void *handle, sword status, ub4 type);
     bool isSuccess(sword status) noexcept;
 

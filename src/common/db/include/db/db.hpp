@@ -52,7 +52,11 @@ namespace sm::db {
 
         eInteger, // int32_t
         eBoolean, // bool
-        eString, // std::string
+
+        eString, // eChar/eVarChar
+
+        eChar,    // std::string
+        eVarChar, // std::string
         eDouble, // double
         eBlob, // Blob
         eDateTime, // DateTime
@@ -61,6 +65,12 @@ namespace sm::db {
 
         eCount
     };
+
+    inline bool isStringDataType(DataType type) noexcept {
+        return type == DataType::eString
+            || type == DataType::eChar
+            || type == DataType::eVarChar;
+    }
 
     REFLECT_ENUM(StatementType)
     enum class StatementType : uint_least8_t {

@@ -56,7 +56,7 @@ static detail::ConnectionInfo buildConnectionInfo(oracle::OraError& error, oracl
     Version serverVersion = getServerVersion(server, error);
     // if boolean types arent available, we use a string of length 1
     // where '0' is false, and everything else is true (but we prefer '1')
-    DataType boolType = hasBoolColumnType(serverVersion) ? DataType::eBoolean : DataType::eString;
+    DataType boolType = hasBoolColumnType(serverVersion) ? DataType::eBoolean : DataType::eChar;
 
     return detail::ConnectionInfo {
         .clientVersion = clientVersion,
@@ -65,6 +65,7 @@ static detail::ConnectionInfo buildConnectionInfo(oracle::OraError& error, oracl
         .hasCommentOn = true,
         .hasNamedParams = true,
         .hasUsers = true,
+        .hasDistinctTextTypes = true,
     };
 }
 
@@ -78,28 +79,6 @@ oracle::OraStatement OraConnection::newStatement(std::string_view sql) {
         throw DbException{oraGetError(*error, result)};
 
     return OraStatement{mEnvironment, *this, statement.release(), error.release()};
-}
-
-DbError OraConnection::close() noexcept {
-    if (sword result = OCISessionEnd(mService, mError, mSession, OCI_DEFAULT))
-        return oraGetError(mError, result);
-
-    if (sword result = OCIServerDetach(mServer, mError, OCI_DEFAULT))
-        return oraGetError(mError, result);
-
-    if (DbError result = mSession.close(mError))
-        return result;
-
-    if (DbError result = mService.close(mError))
-        return result;
-
-    if (DbError result = mServer.close(mError))
-        return result;
-
-    if (DbError result = mError.close(nullptr))
-        return result;
-
-    return DbError::ok();
 }
 
 detail::IStatement *OraConnection::prepare(std::string_view sql) noexcept(false) {
@@ -171,6 +150,32 @@ std::string OraConnection::setupCommentOnTable(std::string_view table, std::stri
 
 std::string OraConnection::setupCommentOnColumn(std::string_view table, std::string_view column, std::string_view comment) noexcept(false) {
     return oracle::setupCommentOnColumn(table, column, comment);
+}
+
+OraConnection::~OraConnection() noexcept {
+    if (sword result = OCISessionEnd(mService, mError, mSession, OCI_DEFAULT)) {
+        LOG_WARN(DbLog, "OCISessionEnd {}", oraGetError(mError, result));
+    }
+
+    if (sword result = OCIServerDetach(mServer, mError, OCI_DEFAULT)) {
+        LOG_WARN(DbLog, "OCIServerDetach {}", oraGetError(mError, result));
+    }
+
+    if (DbError result = mSession.close(mError)) {
+        LOG_WARN(DbLog, "Failed to close session: {}", result);
+    }
+
+    if (DbError result = mService.close(mError)) {
+        LOG_WARN(DbLog, "Failed to close service: {}", result);
+    }
+
+    if (DbError result = mServer.close(mError)) {
+        LOG_WARN(DbLog, "Failed to close server: {}", result);
+    }
+
+    if (DbError result = mError.close(nullptr)) {
+        LOG_WARN(DbLog, "Failed to close error: {}", result);
+    }
 }
 
 OraConnection::OraConnection(OraEnvironment& env, OraError error, OraServer server, OraService service, OraSession session)

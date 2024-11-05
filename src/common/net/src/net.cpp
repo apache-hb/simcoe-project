@@ -2,7 +2,6 @@
 
 #include "common.hpp"
 #include "core/error.hpp"
-#include <cassert>
 
 using namespace sm;
 using namespace sm::net;
@@ -18,60 +17,6 @@ static bool isNetSetup() noexcept {
 static NetError lastNetError() {
     return NetError{WSAGetLastError()};
 }
-
-static std::string fmtIp4Address(Address::IPv4Bytes bytes) {
-    return fmt::format("{}.{}.{}.{}", bytes[0], bytes[1], bytes[2], bytes[3]);
-}
-
-#if 0
-static std::string fmtIp6Address(Address::IPv6Bytes bytes) {
-    std::string buffer{INET6_ADDRSTRLEN};
-    size_t index = 0;
-    for (size_t i = 0; i < bytes.size(); i += 2) {
-        if (i > 0)
-            buffer[index++] = ':';
-
-        uint8_t byte = bytes[i];
-        if (byte != 0) {
-            fmt::format_to_n(buffer.data() + index, buffer.size() - index, "{:02x}", byte);
-        }
-    }
-
-    return buffer;
-}
-#endif
-
-std::string net::toAddressString(const Address& addr) {
-    if (addr.hasHostName())
-        return addr.hostName();
-
-    return fmtIp4Address(addr.v4address());
-}
-
-std::string net::toString(const Address& addr) {
-    if (addr.hasHostName())
-        return fmt::format("HostName({})", addr.hostName());
-
-    return fmt::format("IPv4Address({})", fmtIp4Address(addr.v4address()));
-}
-
-static std::string fmtOsError(int code) {
-    switch (code) {
-    case SNET_END_OF_PACKET:
-        return "End of packet (" CT_STR(SNET_END_OF_PACKET) ")";
-    case SNET_CONNECTION_CLOSED:
-        return "Connection closed (" CT_STR(SNET_CONNECTION_CLOSED) ")";
-    case SNET_CONNECTION_FAILED:
-        return "Connection failed (" CT_STR(SNET_CONNECTION_FAILED) ")";
-    default:
-        return fmt::format("OS error: {} ({})", OsError(code), code);
-    }
-}
-
-NetError::NetError(int code)
-    : Super(fmtOsError(code))
-    , mCode(code)
-{ }
 
 ///
 /// network

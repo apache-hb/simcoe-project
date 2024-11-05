@@ -32,7 +32,6 @@ int ResultSet::getColumnCount() const noexcept {
     return mImpl->getColumnCount();
 }
 
-
 static DataType remapExpectedType(detail::IConnection *connection, DataType expected) noexcept {
     switch (expected) {
     case DataType::eBoolean:
@@ -42,6 +41,16 @@ static DataType remapExpectedType(detail::IConnection *connection, DataType expe
     default:
         return expected;
     }
+}
+
+static bool isCorrectType(detail::IConnection *connection, DataType expected, DataType actual) noexcept {
+    if (isStringDataType(actual) && !connection->hasDistinctTextTypes()) {
+        return isStringDataType(expected);
+    }
+
+    DataType matching = remapExpectedType(connection, expected);
+
+    return actual == matching;
 }
 
 // TODO: deduplicate
@@ -57,9 +66,7 @@ DbError ResultSet::checkColumnAccess(int index, DataType expected) noexcept {
     if (DbError error = mImpl->getColumnInfo(index, info))
         return error;
 
-    DataType matching = remapExpectedType(mConnection->impl(), expected);
-
-    if (info.type != matching)
+    if (!isCorrectType(mConnection->impl(), expected, info.type))
         return DbError::typeMismatch(info.name, info.type, expected);
 
     return DbError::ok();
@@ -73,9 +80,7 @@ DbError ResultSet::checkColumnAccess(std::string_view column, DataType expected)
     if (DbError error = mImpl->getColumnInfo(column, info))
         return error;
 
-    DataType matching = remapExpectedType(mConnection->impl(), expected);
-
-    if (info.type != matching)
+    if (!isCorrectType(mConnection->impl(), expected, info.type))
         return DbError::typeMismatch(info.name, info.type, expected);
 
     return DbError::ok();
@@ -126,7 +131,7 @@ DbResult<bool> ResultSet::getBool(int index) noexcept {
 }
 
 DbResult<std::string_view> ResultSet::getString(int index) noexcept {
-    if (DbError error = checkColumnAccess(index, DataType::eString))
+    if (DbError error = checkColumnAccess(index, DataType::eVarChar))
         return std::unexpected(error);
 
     std::string_view value;
@@ -200,7 +205,7 @@ DbResult<bool> ResultSet::getBool(std::string_view column) noexcept {
 }
 
 DbResult<std::string_view> ResultSet::getString(std::string_view column) noexcept {
-    if (DbError error = checkColumnAccess(column, DataType::eString))
+    if (DbError error = checkColumnAccess(column, DataType::eVarChar))
         return std::unexpected(error);
 
     std::string_view value;
@@ -255,65 +260,70 @@ DbResult<bool> ResultSet::isNull(std::string_view column) noexcept {
 }
 
 template<typename T>
-DbError setColumnField(ResultSet& results, void *dst, std::string_view name, bool nullable) noexcept {
+void setColumnField(ResultSet& results, void *dst, std::string_view name, bool nullable) {
     using Option = std::optional<T>;
     bool isNull = results.isNull(name).value_or(false);
+    if (isNull && !nullable)
+        throw DbException{DbError::columnIsNull(name)};
+
     if (nullable) {
         Option *value = reinterpret_cast<Option*>(dst);
         if (isNull) {
             *value = std::nullopt;
         } else {
-            *value = TRY_UNWRAP(results.get<T>(name));
+            *value = db::throwIfFailed(results.get<T>(name));
         }
     } else {
         T *value = reinterpret_cast<T*>(dst);
-        if (isNull)
-            return DbError::columnIsNull(name);
-
-        *value = TRY_UNWRAP(results.get<T>(name));
+        *value = db::throwIfFailed(results.get<T>(name));
     }
-
-    return DbError::ok();
 }
 
-static DbError getColumnData(ResultSet& results, const dao::ColumnInfo& info, void *dst) noexcept {
+static void getColumnData(ResultSet& results, const dao::ColumnInfo& info, void *dst) {
     std::string_view name = info.name;
     bool nullable = info.nullable;
 
     using enum dao::ColumnType;
     switch (info.type) {
     case eInt:
-        return setColumnField<int32_t>(results, dst, name, nullable);
+        setColumnField<int32_t>(results, dst, name, nullable);
+        break;
     case eUint:
-        return setColumnField<uint32_t>(results, dst, name, nullable);
+        setColumnField<uint32_t>(results, dst, name, nullable);
+        break;
     case eLong:
-        return setColumnField<int64_t>(results, dst, name, nullable);
+        setColumnField<int64_t>(results, dst, name, nullable);
+        break;
     case eUlong:
-        return setColumnField<uint64_t>(results, dst, name, nullable);
+        setColumnField<uint64_t>(results, dst, name, nullable);
+        break;
     case eBool:
-        return setColumnField<bool>(results, dst, name, nullable);
-    case eString:
-        return setColumnField<std::string>(results, dst, name, nullable);
+        setColumnField<bool>(results, dst, name, nullable);
+        break;
+    case eChar: case eVarChar:
+        setColumnField<std::string>(results, dst, name, nullable);
+        break;
     case eFloat:
-        return setColumnField<float>(results, dst, name, nullable);
+        setColumnField<float>(results, dst, name, nullable);
+        break;
     case eDouble:
-        return setColumnField<double>(results, dst, name, nullable);
+        setColumnField<double>(results, dst, name, nullable);
+        break;
     case eBlob:
-        return setColumnField<Blob>(results, dst, name, nullable);
+        setColumnField<Blob>(results, dst, name, nullable);
+        break;
     case eDateTime:
-        return setColumnField<DateTime>(results, dst, name, nullable);
+        setColumnField<DateTime>(results, dst, name, nullable);
+        break;
     default:
-        return DbError::todo(toString(info.type));
+        throw DbException{DbError::todo(toString(info.type))};
     }
 }
 
-DbError ResultSet::getRowData(const dao::TableInfo& info, void *dst) noexcept {
+void ResultSet::getRowData(const dao::TableInfo& info, void *dst) {
     for (size_t i = 0; i < info.columns.size(); ++i) {
         auto& column = info.columns[i];
         void *col = static_cast<char*>(dst) + column.offset;
-        if (DbError error = getColumnData(*this, column, col))
-            return error;
+        getColumnData(*this, column, col);
     }
-
-    return DbError::ok();
 }

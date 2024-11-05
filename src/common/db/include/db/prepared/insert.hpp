@@ -19,15 +19,16 @@ namespace sm::db {
     public:
         SM_MOVE(PreparedInsert, default);
 
-        DbError tryInsert(const T& value) noexcept {
-            if (DbError error = bindRowToStatement(mStatement, T::table(), false, static_cast<const void*>(&value)))
-                return error;
-
-            return mStatement.execute();
+        DbError tryInsert(const T& value) noexcept try {
+            insert(value);
+            return DbError::ok();
+        } catch (const DbException& e) {
+            return e.error();
         }
 
         void insert(const T& value) throws(DbException) {
-            tryInsert(value).throwIfFailed();
+            bindRowToStatement(mStatement, T::table(), false, static_cast<const void*>(&value));
+            mStatement.execute().throwIfFailed();
         }
     };
 
@@ -46,23 +47,23 @@ namespace sm::db {
     public:
         SM_MOVE(PreparedInsertReturning, default);
 
-        DbResult<PrimaryKey> tryInsert(const T& value) {
-            const auto& info = T::table();
-            if (DbError error = bindRowToStatement(mStatement, info, true, static_cast<const void*>(&value)))
-                return std::unexpected{error};
-
-            ResultSet result = TRY_UNWRAP(mStatement.start());
-
-            auto pk = result.getReturn<PrimaryKey>(info.primaryKeyIndex()); // TODO: enforce primary key column
-
-            if (DbError error = result.execute())
-                return error;
-
-            return pk;
+        DbResult<PrimaryKey> tryInsert(const T& value) try {
+            return insert(value);
+        } catch (const DbException& e) {
+            return e.error();
         }
 
         PrimaryKey insert(const T& value) throws(DbException) {
-            return throwIfFailed(tryInsert(value));
+            const auto& info = T::table();
+            bindRowToStatement(mStatement, info, true, static_cast<const void*>(&value));
+
+            ResultSet result = db::throwIfFailed(mStatement.start());
+
+            auto pk = result.getReturn<PrimaryKey>(info.primaryKeyIndex()); // TODO: enforce primary key column
+
+            result.execute().throwIfFailed();
+
+            return pk;
         }
     };
 }

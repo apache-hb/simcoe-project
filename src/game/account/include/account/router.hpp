@@ -9,8 +9,7 @@
 
 namespace game {
     using RequestData = std::span<const std::byte>;
-    using ResponseChannel = sm::net::Socket&;
-    using MessageHandler = std::function<void(RequestData request, ResponseChannel response)>;
+    using MessageHandler = std::function<void(RequestData request, sm::net::Socket& response)>;
 
     class MessageRouter {
         std::unordered_map<PacketType, MessageHandler> mRoutes;
@@ -22,7 +21,7 @@ namespace game {
         void addRoute(PacketType type, F&& handler) {
             using ResponseType = decltype(handler(std::declval<const T&>()));
 
-            auto messageHandler = [handler](RequestData request, ResponseChannel response) {
+            auto messageHandler = [handler](RequestData request, sm::net::Socket& response) {
                 const T *requestPacket = std::bit_cast<const T*>(request.data());
                 if constexpr (std::is_void_v<ResponseType>) {
                     handler(*requestPacket);
@@ -30,6 +29,16 @@ namespace game {
                     ResponseType responsePacket = handler(*requestPacket);
                     response.send(responsePacket).throwIfFailed();
                 }
+            };
+
+            addGenericRoute(type, messageHandler);
+        }
+
+        template<typename T, typename F>
+        void addFlexibleDataRoute(PacketType type, F&& handler) {
+            auto messageHandler = [handler](RequestData request, sm::net::Socket& response) {
+                const T *requestPacket = std::bit_cast<const T*>(request.data());
+                handler(*requestPacket, response);
             };
 
             addGenericRoute(type, messageHandler);

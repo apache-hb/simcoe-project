@@ -21,7 +21,12 @@ namespace sm::dao {
         eLong, // int64
         eUlong, // uint64
         eBool, // bool
-        eString, // std::string
+
+        /// @note variable length string
+        eVarChar, // std::string
+
+        /// @note fixed length string
+        eChar,    // std::string
 
         eFloat, // float
         eDouble, // double
@@ -32,10 +37,22 @@ namespace sm::dao {
         eCount
     };
 
+    constexpr bool isStringType(ColumnType type) noexcept {
+        return type == ColumnType::eVarChar || type == ColumnType::eChar;
+    }
+
     enum class AutoIncrement : uint_least8_t {
         eNever, // never auto-increment
         eAlways, // always auto-increment, prevents manual setting
         eDefault, // auto-increment if not set
+
+        eCount
+    };
+
+    enum class OnDelete : uint_least8_t {
+        eRestrict,
+        eSetNull,
+        eCascade,
 
         eCount
     };
@@ -60,12 +77,14 @@ namespace sm::dao {
         const std::string_view column;
         const std::string_view foreignTable;
         const std::string_view foreignColumn;
+        const OnDelete onDelete;
 
-        constexpr ForeignKey(std::string_view name, std::string_view column, std::string_view foreignTable, std::string_view foreignColumn) noexcept
+        constexpr ForeignKey(std::string_view name, std::string_view column, std::string_view foreignTable, std::string_view foreignColumn, OnDelete onDelete = OnDelete::eRestrict) noexcept
             : ConstraintInfo{name}
             , column{column}
             , foreignTable{foreignTable}
             , foreignColumn{foreignColumn}
+            , onDelete{onDelete}
         { }
     };
 

@@ -276,25 +276,30 @@ namespace sm::db {
         ///
 
         template<dao::DaoInterface T>
-        DbResult<std::vector<T>> trySelectAll() noexcept {
+        DbResult<std::vector<T>> trySelectAll() try {
             auto stmt = TRY_RESULT(tryPrepareSelectAll<T>());
             return stmt.tryFetchAll();
+        } catch (const DbException& e) {
+            return std::unexpected{e.error()};
         }
 
         template<dao::DaoInterface T>
         std::vector<T> selectAll() throws(DbException) {
-            return throwIfFailed(trySelectAll<T>());
+            PreparedSelect<T> stmt = prepareSelectAll<T>();
+            return stmt.fetchAll();
         }
 
         template<dao::DaoInterface T>
-        DbResult<T> trySelectOne() noexcept {
-            auto stmt = TRY_RESULT(tryPrepareSelectAll<T>());
-            return stmt.tryFetchOne();
+        DbResult<T> trySelectOne() try {
+            return selectOne<T>();
+        } catch (const DbException& e) {
+            return std::unexpected{e.error()};
         }
 
         template<dao::DaoInterface T>
         T selectOne() throws(DbException) {
-            return throwIfFailed(trySelectOne<T>());
+            PreparedSelect<T> stmt = prepareSelectAll<T>();
+            return stmt.fetchOne();
         }
 
         template<dao::DaoInterface T>

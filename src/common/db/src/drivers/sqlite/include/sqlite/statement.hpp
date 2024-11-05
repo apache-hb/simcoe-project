@@ -19,7 +19,6 @@ namespace sm::db::sqlite {
         bool hasDataReady() const noexcept override { return mStatus == SQLITE_ROW; }
 
     public:
-        DbError finalize() noexcept override;
         DbError start(bool autoCommit, StatementType type) noexcept override;
         DbError execute() noexcept override;
         DbError next() noexcept override;

@@ -19,32 +19,25 @@ namespace sm::db {
     public:
         SM_MOVE(PreparedSelect, default);
 
-        DbResult<std::vector<T>> tryFetchAll() noexcept {
-            ResultSet result = TRY_RESULT(mStatement.start());
+        std::vector<T> fetchAll() throws(DbException) {
+            ResultSet result = db::throwIfFailed(mStatement.start());
 
             std::vector<T> values;
+
             do {
-                values.emplace_back(TRY_RESULT(result.getRow<T>()));
+                values.emplace_back(result.getRow<T>());
             } while (!result.next().isDone());
 
             return values;
         }
 
-        DbResult<T> tryFetchOne() noexcept {
-            ResultSet result = TRY_RESULT(mStatement.start());
+        T fetchOne() throws(DbException) {
+            ResultSet result = db::throwIfFailed(mStatement.start());
 
             if (result.isDone())
-                return std::unexpected{DbError::noData()};
+                throw DbException{DbError::noData()};
 
             return result.getRow<T>();
-        }
-
-        std::vector<T> fetchAll() throws(DbException) {
-            return throwIfFailed(tryFetchAll());
-        }
-
-        T fetchOne() throws(DbException) {
-            return throwIfFailed(tryFetchOne());
         }
     };
 }

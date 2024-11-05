@@ -18,7 +18,7 @@ static std::optional<std::string> getServerInfo(SQLHDBC hdbc, SQLUSMALLINT field
         return std::nullopt;
     }
 
-    return std::string((char*)buffer, length);
+    return std::string((const char*)buffer, length);
 }
 
 static bool hasGetInfoSupport(SQLHDBC hdbc) {
@@ -60,33 +60,27 @@ static bool parseVersion(std::string_view version, int& major, int& minor, int& 
     return true;
 }
 
-static Version getServerVersion(SQLHDBC hdbc) {
-    auto dbmsName = getServerInfo(hdbc, SQL_DBMS_NAME).value_or("Unknown");
-    auto dbmsVersion = getServerInfo(hdbc, SQL_DBMS_VER).value_or("00.00.0000");
+static Version getVersionInfo(SQLHDBC hdbc, SQLUSMALLINT name, SQLUSMALLINT version) {
+    auto nameInfo = getServerInfo(hdbc, name).value_or("Unknown");
+    auto versionInfo = getServerInfo(hdbc, version).value_or("00.00.0000");
 
-    // SQL_DBMS_VER is in the format 'xx.yy.zzzz'
+    // SQL_DBMS_VER and SQL_DRIVER_VER are in the format 'xx.yy.zzzz'
     // where xx is the major version, yy is the minor version, and zzzz is the release version.
     int major = 0, minor = 0, release = 0;
-    if (!parseVersion(dbmsVersion, major, minor, release)) {
-        LOG_WARN(DbLog, "Failed to parse server version: {}", dbmsVersion);
+    if (!parseVersion(versionInfo, major, minor, release)) {
+        LOG_WARN(DbLog, "Failed to parse version: {}", versionInfo);
         return kUnknownServerVersion;
     }
 
-    return Version{dbmsName, major, minor, release, 0, 0};
+    return Version{nameInfo, major, minor, release, 0, 0};
+}
+
+static Version getServerVersion(SQLHDBC hdbc) {
+    return getVersionInfo(hdbc, SQL_DBMS_NAME, SQL_DBMS_VER);
 }
 
 static Version getClientVersion(SQLHDBC hdbc) {
-    auto driverName = getServerInfo(hdbc, SQL_DRIVER_NAME).value_or("Unknown");
-    auto driverVersion = getServerInfo(hdbc, SQL_DRIVER_VER).value_or("00.00.0000");
-
-    // SQL_DRIVER_VER has the same format as SQL_DBMS_VER
-    int major = 0, minor = 0, release = 0;
-    if (!parseVersion(driverVersion, major, minor, release)) {
-        LOG_WARN(DbLog, "Failed to parse client version: {}", driverVersion);
-        return kUnknownClientVersion;
-    }
-
-    return Version{driverName, major, minor, release, 0, 0};
+    return getVersionInfo(hdbc, SQL_DRIVER_NAME, SQL_DRIVER_VER);
 }
 
 static detail::ConnectionInfo buildConnectionInfo(SQLHDBC hdbc) {
@@ -100,18 +94,12 @@ static detail::ConnectionInfo buildConnectionInfo(SQLHDBC hdbc) {
         .hasCommentOn = true,
         .hasNamedParams = false,
         .hasUsers = true,
+        .hasDistinctTextTypes = true,
     };
 }
 
-DbError Db2Connection::close() noexcept {
-    if (SqlResult result = SQLDisconnect(mDbHandle))
-        return getConnectionErrorInfo(result, mDbHandle);
-
-    return DbError::ok();
-}
-
 detail::IStatement *Db2Connection::prepare(std::string_view sql) noexcept(false) {
-    SqlStmtHandleEx hstmt = SqlStmtHandleEx::create(mDbHandle);
+    SqlStmtHandle hstmt = SqlStmtHandle::create(mDbHandle);
 
     if (SqlResult result = SQLPrepare(hstmt, (SQLCHAR*)sql.data(), (SQLINTEGER)sql.size()))
         throw DbException{getStmtErrorInfo(result, hstmt)};
@@ -169,7 +157,14 @@ std::string Db2Connection::setupTableExists() noexcept(false) {
     return "SELECT COUNT(*) FROM SYSIBM.SYSTABLES WHERE TYPE = 'T' AND NAME = UPPER(?)";
 }
 
-Db2Connection::Db2Connection(SqlDbHandleEx hdbc) noexcept
+Db2Connection::~Db2Connection() noexcept {
+    if (SqlResult result = SQLDisconnect(mDbHandle)) {
+        DbError error = mDbHandle.getErrorInfo(result);
+        LOG_WARN(DbLog, "Failed to disconnect: {}", error);
+    }
+}
+
+Db2Connection::Db2Connection(SqlDbHandle hdbc) noexcept
     : detail::IConnection(buildConnectionInfo(hdbc))
     , mDbHandle(std::move(hdbc))
 { }

@@ -13,8 +13,12 @@ struct CellInfo {
     ub4 length;
 };
 
-static bool isStringType(ub2 type) noexcept {
-    return type == SQLT_STR || type == SQLT_AFC || type == SQLT_CHR;
+static bool isVarCharType(ub2 type) noexcept {
+    return type == SQLT_STR || type == SQLT_CHR;
+}
+
+static bool isCharType(ub2 type) noexcept {
+    return type == SQLT_AFC || type == SQLT_AVC;
 }
 
 static bool isBlobType(ub2 type) noexcept {
@@ -45,7 +49,7 @@ static bool getCellBoolean(const OraColumnInfo& column) noexcept {
 }
 
 static DbResult<CellInfo> initCellValue(OraEnvironment& env, OraError error, OraColumnInfo& column) noexcept {
-    if (isStringType(column.type)) {
+    if (isVarCharType(column.type) || isCharType(column.type)) {
         ub4 length = (column.columnWidth + 1);
         column.value.text = (char*)env.malloc(length);
         column.value.text[0] = '\0';
@@ -172,7 +176,7 @@ static DbResult<std::vector<OraColumnInfo>> defineColumns(OraEnvironment& env, O
 
 DbError OraStatement::closeColumns() noexcept {
     for (OraColumnInfo& column : mColumnInfo) {
-        if (isStringType(column.type)) {
+        if (isVarCharType(column.type)) {
             mEnvironment.free(column.value.text);
         } else if (isBlobType(column.type)) {
             mEnvironment.free(column.value.lob);
@@ -225,19 +229,6 @@ DbError OraStatement::executeStatement(ub4 flags, int iters) noexcept {
 
 int OraStatement::getBindCount() const noexcept {
     return mStatement.getAttribute<ub4>(mError, OCI_ATTR_BIND_COUNT).value_or(-1);
-}
-
-DbError OraStatement::finalize() noexcept {
-    freeBindValues();
-
-    if (DbError error = closeColumns())
-        return error;
-
-    if (sword result = OCIStmtRelease(mStatement, mError, nullptr, 0, OCI_DEFAULT))
-        return oraGetError(mError, result);
-
-    DbError result = mError.close(nullptr);
-    return oraGetError(mError, result);
 }
 
 static ub4 computeFlags(bool isQuery, bool autoCommit) noexcept {
@@ -602,8 +593,11 @@ int OraStatement::getColumnCount() const noexcept {
 }
 
 static DataType getColumnType(ub2 type) noexcept {
-    if (isStringType(type))
-        return DataType::eString;
+    if (isVarCharType(type))
+        return DataType::eVarChar;
+
+    if (isCharType(type))
+        return DataType::eChar;
 
     if (isBlobType(type))
         return DataType::eBlob;
@@ -708,4 +702,20 @@ DbError OraStatement::extractDateTime(const OraDateTime& datetime, DateTime& res
 DbError OraStatement::getDateTimeByIndex(int index, DateTime& value) noexcept {
     const OraColumnInfo& column = mColumnInfo[index];
     return extractDateTime(column.value.date, value);
+}
+
+OraStatement::~OraStatement() noexcept {
+    freeBindValues();
+
+    if (DbError error = closeColumns()) {
+        LOG_WARN(DbLog, "Failed to close columns: {}", error);
+    }
+
+    if (sword result = OCIStmtRelease(mStatement, mError, nullptr, 0, OCI_DEFAULT)) {
+        LOG_WARN(DbLog, "Failed to release statement: {}", oraGetError(mError, result));
+    }
+
+    if (DbError error = mError.close(nullptr)) {
+        LOG_WARN(DbLog, "Failed to close error: {}", error);
+    }
 }

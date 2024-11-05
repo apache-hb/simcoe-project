@@ -24,6 +24,31 @@ static std::optional<acd::User> getUserByName(db::Connection& db, std::string_vi
     throw;
 }
 
+#if 0
+static std::optional<acd::User> getUserById(db::Connection& db, uint64_t id) try {
+    std::string query = fmt::format("SELECT * FROM user WHERE id = {}", id);
+
+    return db.selectOneWhere<acd::User>(query);
+} catch (const db::DbException& e) {
+    if (e.error().noData()) {
+        return std::nullopt;
+    }
+
+    throw;
+}
+#endif
+
+bool AccountServer::authSession(SessionId id) {
+    std::lock_guard guard(mDbMutex);
+
+    auto stmt = mAccountDb.prepareQuery("SELECT COUNT(*) FROM session WHERE id = :user");
+    stmt.bind("user").to(id);
+    auto result = db::throwIfFailed(stmt.start());
+
+    fmt::println(stderr, "auth session: {} {}", result.at<int>(0), id);
+    return result.at<int>(0) > 0;
+}
+
 bool AccountServer::createAccount(game::CreateAccount info) {
     std::scoped_lock guard(mSaltMutex, mDbMutex);
 
@@ -54,26 +79,112 @@ bool AccountServer::createAccount(game::CreateAccount info) {
 }
 
 SessionId AccountServer::login(game::Login info) {
-    std::scoped_lock guard(mDbMutex, mSessionMutex);
+    std::lock_guard guard(mDbMutex);
 
     auto user = getUserByName(mAccountDb, info.username);
     if (!user.has_value()) {
         fmt::println(stderr, "user not found: `{}`", info.username.text());
-        return SessionId::empty();
+        return UINT64_MAX;
     }
 
     uint64_t password = hashWithSalt(info.password, user->salt);
     if (user->password != password) {
         fmt::println(stderr, "invalid password for user: `{}`", info.username.text());
-        return SessionId::empty();
+        return UINT64_MAX;
     }
 
-    SessionId session = mSalt.newGuid();
-    mSessions[session] = UserSession {
-        .mUserId = user->id
+    acd::Session session {
+        .user = user->id
     };
 
-    return session;
+    auto result = mAccountDb.tryInsertReturningPrimaryKey(session);
+    if (!result.has_value()) {
+        fmt::println(stderr, "failed to create session: {}", result.error());
+        return UINT64_MAX;
+    }
+
+    fmt::println(stderr, "created session: {}", result.value());
+    return result.value();
+}
+
+LobbyId AccountServer::createLobby(game::CreateLobby info) {
+    std::lock_guard guard(mDbMutex);
+
+    acd::Lobby lobby {
+        .name = std::string{info.name.text()},
+        .owner = info.session,
+        .state = "O"
+    };
+
+    auto result = mAccountDb.tryInsertReturningPrimaryKey(lobby);
+    if (!result.has_value()) {
+        fmt::println(stderr, "failed to create lobby: {}", result.error());
+        return UINT64_MAX;
+    }
+
+    fmt::println(stderr, "created lobby: {}", result.value());
+    return result.value();
+}
+
+bool AccountServer::joinLobby(game::JoinLobby info) {
+    std::lock_guard guard(mDbMutex);
+
+    std::string_view sql = R"(
+        UPDATE lobby
+        SET state = 'J', user = :user
+        WHERE id = :lobby AND state = 'O'
+    )";
+
+    auto stmt = mAccountDb.prepareUpdate(sql);
+    stmt.bind("user").to(info.session);
+    stmt.bind("lobby").to(info.lobby);
+    auto result = stmt.execute();
+
+    return result.isSuccess();
+}
+
+uint64_t AccountServer::getSessionList(std::span<SessionInfo> sessions) {
+    std::lock_guard guard(mDbMutex);
+
+    std::string_view query = R"(
+        SELECT s.id, u.name
+        FROM session s
+        JOIN user u ON u.id = s.user
+    )";
+    auto result = mAccountDb.selectSql(query);
+
+    uint64_t count = 0;
+    for (auto& row : result) {
+        if (count >= sessions.size())
+            break;
+
+        sessions[count++] = SessionInfo {
+            .id = row.at<uint64_t>(0),
+            .name = std::string_view{row.at<std::string>(1)}
+        };
+    }
+
+    return count;
+}
+
+uint64_t AccountServer::getLobbyList(std::span<LobbyInfo> lobbies) {
+    std::lock_guard guard(mDbMutex);
+
+    std::string_view query = "SELECT * FROM lobby";
+    auto result = mAccountDb.selectSql(query);
+
+    uint64_t count = 0;
+    for (auto& row : result) {
+        if (count >= lobbies.size())
+            break;
+
+        lobbies[count++] = LobbyInfo {
+            .id = row.at<uint64_t>(0),
+            .name = std::string_view{row.at<std::string>(1)}
+        };
+    }
+
+    return count;
 }
 
 void AccountServer::handleClient(const std::stop_token& stop, net::Socket socket) noexcept try {
@@ -95,11 +206,62 @@ void AccountServer::handleClient(const std::stop_token& stop, net::Socket socket
 
     router.addRoute<Login>(PacketType::eLogin, [this](const Login& req) {
         SessionId session = login(req);
-        if (session == SessionId::empty()) {
-            return NewSession { req.header.id, Status::eFailure, SessionId::empty() };
+        if (session == UINT64_MAX) {
+            return NewSession { req.header.id };
         } else {
             return NewSession { req.header.id, session };
         }
+    });
+
+    router.addRoute<CreateLobby>(PacketType::eCreateLobby, [this](const CreateLobby& req) {
+        LobbyId id = createLobby(req);
+        if (id == UINT64_MAX) {
+            return NewLobby { req.header.id };
+        } else {
+            return NewLobby { req.header.id, id };
+        }
+    });
+
+    router.addRoute<JoinLobby>(PacketType::eJoinLobby, [this](const JoinLobby& req) {
+        if (joinLobby(req)) {
+            return Response { req.header.id, Status::eSuccess };
+        } else {
+            return Response { req.header.id, Status::eFailure };
+        }
+    });
+
+    router.addFlexibleDataRoute<GetSessionList>(PacketType::eGetSessionList, [this](const GetSessionList& req, net::Socket& socket) {
+        if (!authSession(req.session)) {
+            socket.send(Response { req.header.id, Status::eFailure }).throwIfFailed();
+            return;
+        }
+
+        static constexpr size_t kMaxSessions = 256;
+        std::unique_ptr<std::byte[]> data = std::make_unique<std::byte[]>(sizeof(SessionList) + (sizeof(SessionInfo) * kMaxSessions));
+        SessionList *list = reinterpret_cast<SessionList*>(data.get());
+        auto count = getSessionList(std::span<SessionInfo>(list->sessions, kMaxSessions));
+        uint16_t size = sizeof(SessionList) + (sizeof(SessionInfo) * count);
+
+        list->response = Response { req.header.id, Status::eSuccess, size };
+
+        net::throwIfFailed(socket.sendBytes(data.get(), size));
+    });
+
+    router.addFlexibleDataRoute<GetLobbyList>(PacketType::eGetLobbyList, [this](const GetLobbyList& req, net::Socket& socket) {
+        if (!authSession(req.session)) {
+            socket.send(Response { req.header.id, Status::eFailure }).throwIfFailed();
+            return;
+        }
+
+        static constexpr size_t kMaxLobbies = 256;
+        std::unique_ptr<std::byte[]> data = std::make_unique<std::byte[]>(sizeof(LobbyList) + (sizeof(LobbyInfo) * kMaxLobbies));
+        LobbyList *list = reinterpret_cast<LobbyList*>(data.get());
+        auto count = getLobbyList(std::span<LobbyInfo>(list->lobbies, kMaxLobbies));
+        uint16_t size = sizeof(LobbyList) + (sizeof(LobbyInfo) * count);
+
+        list->response = Response { req.header.id, Status::eSuccess, size };
+
+        net::throwIfFailed(socket.sendBytes(data.get(), size));
     });
 
     while (!stop.stop_requested()) {
@@ -121,6 +283,11 @@ void AccountServer::handleClient(const std::stop_token& stop, net::Socket socket
 static void createSchema(db::Connection& db) {
     db.createTable(acd::User::table());
     db.createTable(acd::Message::table());
+    db.createTable(acd::Session::table());
+    db.createTable(acd::Lobby::table());
+
+    db.truncate(acd::Session::table());
+    db.truncate(acd::Lobby::table());
 }
 
 AccountServer::AccountServer(db::Connection db, net::Network& net, const net::Address& address, uint16_t port) noexcept(false)
@@ -133,6 +300,7 @@ AccountServer::AccountServer(db::Connection db, net::Network& net, const net::Ad
     , mServer(mNetwork.bind(address, port))
     , mSalt(seed)
 {
+    mAccountDb.setAutoCommit(true);
     createSchema(mAccountDb);
 }
 

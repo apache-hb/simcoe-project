@@ -1,9 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <root name="account">
-    <table name="user"
-           syntheticPrimaryKey="ulong"
-           autoIncrement="always">
-
+    <table name="user" syntheticPrimaryKey="ulong" autoIncrement="always">
         <column name="name" type="text" length="32">
             <unique />
         </column>
@@ -12,12 +9,30 @@
         <column name="salt"     type="char" length="16" />
     </table>
 
-    <table name="message"
-           syntheticPrimaryKey="ulong"
-           autoIncrement="always">
-
+    <table name="message" syntheticPrimaryKey="ulong" autoIncrement="always">
         <column name="author"    type="ulong"             />
         <column name="content"   type="text" length="256" />
         <column name="timestamp" type="ulong"             />
+    </table>
+
+    <table name="session" syntheticPrimaryKey="ulong" autoIncrement="always">
+        <column name="user" type="ulong">
+            <constraint references="user.id" />
+            <unique />
+        </column>
+    </table>
+
+    <table name="lobby" syntheticPrimaryKey="ulong" autoIncrement="always">
+        <column name="name" type="text" length="32" />
+
+        <column name="owner" type="ulong">
+            <constraint references="session.id" onDelete="cascade" />
+        </column>
+
+        <column name="client" type="ulong" nullable="true">
+            <constraint references="session.id" onDelete="null" />
+        </column>
+
+        <column name="state" type="char" length="1" />
     </table>
 </root>

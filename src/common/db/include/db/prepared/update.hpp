@@ -19,14 +19,16 @@ template<dao::DaoInterface T>
     public:
         SM_MOVE(PreparedUpdate, default);
 
-        DbError tryUpdate(const T& value) noexcept {
-            if (DbError error = bindRowToStatement(mStatement, T::table(), false, static_cast<const void*>(&value)))
-                return error;
-            return mStatement.execute();
+        DbError tryUpdate(const T& value) try {
+            update(value);
+            return DbError::ok();
+        } catch (const DbException& e) {
+            return e.error();
         }
 
         void update(const T& value) throws(DbException) {
-            tryUpdate(value).throwIfFailed();
+            bindRowToStatement(mStatement, T::table(), false, static_cast<const void*>(&value));
+            mStatement.execute().throwIfFailed();
         }
     };
 }

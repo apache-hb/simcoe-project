@@ -5,6 +5,9 @@
 net_include = include_directories('.', 'include')
 
 src = [
+    'src/error.cpp',
+    'src/address.cpp',
+
     'src/net.cpp',
     'src/socket.cpp',
 ]

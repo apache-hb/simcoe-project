@@ -20,8 +20,15 @@ namespace game {
         eLogin,
 
         ePostMessage,
+
+        eGetSessionList,
+        eGetSessionInfo,
+
         eGetLobbyList,
+        eGetLobbyInfo,
+
         eGetUserList,
+        eGetUserInfo,
 
         eCreateLobby,
         eJoinLobby,
@@ -50,8 +57,8 @@ namespace game {
         }
     };
 
-    using SessionId = Guid;
-    using LobbyId = Guid;
+    using SessionId = uint64_t;
+    using LobbyId = uint64_t;
 
     REFLECT()
     struct PacketHeader {
@@ -77,7 +84,7 @@ namespace game {
 
         Response() = default;
 
-        Response(uint16_t id, Status status, size_t size = sizeof(Response))
+        Response(uint16_t id, Status status, uint16_t size = sizeof(Response))
             : header(PacketType::eResponse, size, id)
             , status(status)
         { }
@@ -151,6 +158,10 @@ namespace game {
             : NewSession(id, Status::eSuccess, session)
         { }
 
+        NewSession(uint16_t id)
+            : NewSession(id, Status::eFailure, 0)
+        { }
+
         NewSession(uint16_t id, Status status, SessionId session)
             : response(id, status, sizeof(NewSession))
             , session(session)
@@ -158,30 +169,36 @@ namespace game {
     };
 
     REFLECT()
-    struct PostMessage {
-        PacketHeader header;
-        SessionId session;
-        Text<256> message;
-
-        PostMessage() = default;
-
-        PostMessage(uint16_t id, SessionId session, std::string_view msg)
-            : header(PacketType::ePostMessage, sizeof(PostMessage), id)
-            , session(session)
-            , message(msg)
-        { }
-    };
-
-    REFLECT()
     struct CreateLobby {
         PacketHeader header;
         SessionId session;
+        Text<32> name;
+
+        CreateLobby() = default;
+
+        CreateLobby(uint16_t id, SessionId session, std::string_view name)
+            : header(PacketType::eCreateLobby, sizeof(CreateLobby), id)
+            , session(session)
+            , name(name)
+        { }
     };
 
     REFLECT()
     struct NewLobby {
         Response response;
         LobbyId lobby;
+
+        NewLobby() = default;
+
+        NewLobby(uint16_t id, LobbyId lobby)
+            : response(id, Status::eSuccess, sizeof(NewLobby))
+            , lobby(lobby)
+        { }
+
+        NewLobby(uint16_t id)
+            : response(id, Status::eFailure, sizeof(NewLobby))
+            , lobby(UINT64_MAX)
+        { }
     };
 
     REFLECT()
@@ -189,6 +206,67 @@ namespace game {
         PacketHeader header;
         SessionId session;
         LobbyId lobby;
+
+        JoinLobby() = default;
+
+        JoinLobby(uint16_t id, SessionId session, LobbyId lobby)
+            : header(PacketType::eJoinLobby, sizeof(JoinLobby), id)
+            , session(session)
+            , lobby(lobby)
+        { }
+    };
+
+    REFLECT()
+    struct GetSessionList {
+        PacketHeader header;
+        SessionId session;
+
+        GetSessionList() = default;
+
+        GetSessionList(uint16_t id, SessionId session)
+            : header(PacketType::eGetSessionList, sizeof(GetSessionList), id)
+            , session(session)
+        { }
+    };
+
+    struct SessionInfo {
+        SessionId id;
+        Text<32> name;
+    };
+
+    REFLECT()
+    struct SessionList {
+        Response response;
+        SessionInfo sessions[];
+    };
+
+    REFLECT()
+    struct GetLobbyList {
+        PacketHeader header;
+        SessionId session;
+
+        GetLobbyList() = default;
+
+        GetLobbyList(uint16_t id, SessionId session)
+            : header(PacketType::eGetLobbyList, sizeof(GetLobbyList), id)
+            , session(session)
+        { }
+    };
+
+    struct LobbyInfo {
+        LobbyId id;
+        SessionId players[4];
+        Text<32> name;
+
+        SessionId getHost() const {
+            return players[0];
+        }
+    };
+
+    REFLECT()
+    struct LobbyList {
+        Response response;
+        LobbyInfo lobbies[];
     };
 
     size_t getPacketDataSize(PacketHeader header);

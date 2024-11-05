@@ -9,9 +9,6 @@
 using namespace sm::db;
 
 void detail::destroyConnection(detail::IConnection *impl) noexcept {
-    if (DbError err = impl->close())
-        CT_NEVER("Failed to close connection: %s (%d)", err.what(), err.code());
-
     delete impl;
 }
 
@@ -22,7 +19,7 @@ bool Connection::tableExists(std::string_view name) noexcept(false) {
     stmt.bind("name").to(name);
     ResultSet results = db::throwIfFailed(stmt.start());
 
-    return db::throwIfFailed(results.get<int>(0)) > 0;
+    return results.at<int>(0) > 0;
 }
 
 bool Connection::tableExists(const dao::TableInfo& info) noexcept(false) {
@@ -39,7 +36,7 @@ bool Connection::userExists(std::string_view name, bool fallback) noexcept(false
     stmt.bind("name").to(name);
     ResultSet results = db::throwIfFailed(stmt.start());
 
-    return db::throwIfFailed(results.get<int>(0)) > 0;
+    return results.at<int>(0) > 0;
 }
 
 bool Connection::hasUsers() const noexcept {

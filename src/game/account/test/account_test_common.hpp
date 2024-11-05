@@ -7,6 +7,8 @@
 
 #include "account.dao.hpp"
 
+#include <latch>
+
 using namespace sm;
 
 namespace acd = sm::dao::account;
@@ -17,8 +19,10 @@ void createTestAccounts(net::Network& network, net::Address address, uint16_t po
 void doParallel(int iters, auto&& fn) {
     std::vector<std::jthread> threads;
     threads.reserve(iters);
+    std::latch ready{iters};
     for (int i = 0; i < iters; i++) {
-        threads.emplace_back(std::jthread([&fn, i](const std::stop_token& stop) {
+        threads.emplace_back(std::jthread([&fn, &ready, i](const std::stop_token& stop) {
+            ready.arrive_and_wait();
             fn(i, stop);
         }));
     }
@@ -35,7 +39,7 @@ struct TestServerConfig {
         , config(makeSqliteTestDb(path))
     {
         std::filesystem::remove(config.host);
-        
+
         // drop any existing tables so we can test from a clean slate
         auto db = connect();
         db.dropTableIfExists(dao::account::Message::table());

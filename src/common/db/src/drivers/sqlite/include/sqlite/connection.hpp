@@ -24,8 +24,6 @@ namespace sm::db::sqlite {
 
         SqliteStatement newStatement(std::string_view sql) throws(DbException);
 
-        DbError close() noexcept override;
-
         detail::IStatement *prepare(std::string_view sql) noexcept(false) override;
 
         DbError begin() noexcept override;

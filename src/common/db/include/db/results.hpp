@@ -28,7 +28,7 @@ namespace sm::db {
             , mIsDone(isDone)
         { }
 
-        DbError getRowData(const dao::TableInfo& info, void *dst) noexcept;
+        void getRowData(const dao::TableInfo& info, void *dst);
 
         DbError checkColumnAccess(int index, DataType expected) noexcept;
         DbError checkColumnAccess(std::string_view column, DataType expected) noexcept;
@@ -74,7 +74,11 @@ namespace sm::db {
         DbResult<double> getDouble(int index) noexcept;
         DbResult<int64> getInt(int index) noexcept;
         DbResult<bool> getBool(int index) noexcept;
+
         DbResult<std::string_view> getString(int index) noexcept;
+        DbResult<std::string_view> getVarChar(int index) noexcept;
+        DbResult<std::string_view> getChar(int index) noexcept;
+
         DbResult<Blob> getBlob(int index) noexcept;
         DbResult<DateTime> getDateTime(int index) noexcept;
 
@@ -84,7 +88,12 @@ namespace sm::db {
         DbResult<double> getDouble(std::string_view column) noexcept;
         DbResult<int64> getInt(std::string_view column) noexcept;
         DbResult<bool> getBool(std::string_view column) noexcept;
+
         DbResult<std::string_view> getString(std::string_view column) noexcept;
+        DbResult<std::string_view> getVarChar(std::string_view column) noexcept;
+        DbResult<std::string_view> getChar(std::string_view column) noexcept;
+
+
         DbResult<Blob> getBlob(std::string_view column) noexcept;
         DbResult<DateTime> getDateTime(std::string_view column) noexcept;
 
@@ -105,11 +114,9 @@ namespace sm::db {
         }
 
         template<dao::DaoInterface T>
-        DbResult<T> getRow() noexcept {
+        T getRow() {
             T value;
-            if (DbError error = getRowData(T::table(), static_cast<void*>(&value)))
-                return std::unexpected{error};
-
+            getRowData(T::table(), static_cast<void*>(&value));
             return value;
         }
 
@@ -165,6 +172,16 @@ namespace sm::db {
                 .transform([](auto it) {
                     return std::string(it);
                 });
+        }
+
+        template<typename T>
+        T at(int index) {
+            return db::throwIfFailed(get<T>(index));
+        }
+
+        template<typename T>
+        T at(std::string_view column) {
+            return db::throwIfFailed(get<T>(column));
         }
     };
 

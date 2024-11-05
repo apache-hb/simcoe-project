@@ -14,8 +14,6 @@ namespace sm::db::oracle {
 
         OraStatement newStatement(std::string_view sql) throws(DbException);
 
-        DbError close() noexcept override;
-
         detail::IStatement *prepare(std::string_view sql) noexcept(false) override;
 
         DbError begin() noexcept override;
@@ -44,6 +42,7 @@ namespace sm::db::oracle {
         std::string setupCommentOnColumn(std::string_view table, std::string_view column, std::string_view comment) noexcept(false) override;
 
     public:
+        ~OraConnection() noexcept override;
         OraConnection(
             OraEnvironment& env, OraError error,
             OraServer server, OraService service,

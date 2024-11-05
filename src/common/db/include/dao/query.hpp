@@ -11,7 +11,7 @@ namespace sm::dao {
         int64_t,      // ColumnType::eLong
         uint64_t,     // ColumnType::eUlong
         bool,         // ColumnType::eBool
-        std::string,  // ColumnType::eString
+        std::string,  // ColumnType::eVarChar/ColumnType::eChar
         float,        // ColumnType::eFloat
         double,       // ColumnType::eDouble
         db::Blob,     // ColumnType::eBlob

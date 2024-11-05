@@ -6,7 +6,7 @@ using Db2Environment = sm::db::db2::Db2Environment;
 using Db2Connection = sm::db::db2::Db2Connection;
 
 detail::IConnection *Db2Environment::connect(const ConnectionConfig& config) noexcept(false) {
-    SqlDbHandleEx hdbc = SqlDbHandleEx::create(mEnvHandle);
+    SqlDbHandle hdbc = SqlDbHandle::create(mEnvHandle);
 
     SQLPOINTER autocommit = config.autoCommit ? (SQLPOINTER)SQL_AUTOCOMMIT_ON : (SQLPOINTER)SQL_AUTOCOMMIT_OFF;
     if (SqlResult status = SQLSetConnectAttr(hdbc, SQL_AUTOCOMMIT, autocommit, 0))
@@ -35,6 +35,6 @@ detail::IConnection *Db2Environment::connect(const ConnectionConfig& config) noe
     return new Db2Connection(std::move(hdbc));
 }
 
-Db2Environment::Db2Environment(SqlEnvHandleEx env) noexcept
+Db2Environment::Db2Environment(SqlEnvHandle env) noexcept
     : mEnvHandle(std::move(env))
 { }

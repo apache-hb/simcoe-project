@@ -60,11 +60,6 @@ DbError SqliteStatement::getStmtError(int err) const noexcept {
     return getError(err, sqlite3_db_handle(mStatement.get()));
 }
 
-DbError SqliteStatement::finalize() noexcept {
-    mStatement.reset();
-    return DbError::ok();
-}
-
 DbError SqliteStatement::start(bool autoCommit, StatementType type) noexcept {
     mStatus = runUntilData(mStatement.get());
     return getStmtError(mStatus);

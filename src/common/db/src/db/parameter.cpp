@@ -1,3 +1,5 @@
+#include "stdafx.hpp"
+
 #include "db/parameter.hpp"
 
 using namespace sm::db;

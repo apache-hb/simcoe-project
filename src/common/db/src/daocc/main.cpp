@@ -74,7 +74,7 @@ struct Type {
     bool nullable = false;
     size_t size;
 
-    bool isString() const { return kind == eString; }
+    bool isString() const { return kind == eVarChar || kind == eChar; }
     bool isBlob() const { return kind == eBlob; }
     bool isInteger() const { return kind == eInt || kind == eUint || kind == eLong || kind == eUlong; }
     bool isMoveConstructed() const { return isString() || isBlob(); }
@@ -88,7 +88,8 @@ static std::string makeCxxType(const Type& type, bool optional) {
             case eLong: return "int64_t";
             case eUlong: return "uint64_t";
             case eBool: return "bool";
-            case eString: return "std::string";
+            case eVarChar: case eChar:
+                return "std::string";
             case eFloat: return "float";
             case eDouble: return "double";
             case eBlob: return "sm::db::Blob";
@@ -109,7 +110,8 @@ static std::string makeColumnType(const Type& type) {
     STRCASE(eLong);
     STRCASE(eUlong);
     STRCASE(eBool);
-    STRCASE(eString);
+    STRCASE(eVarChar);
+    STRCASE(eChar);
     STRCASE(eFloat);
     STRCASE(eDouble);
     STRCASE(eBlob);
@@ -129,6 +131,8 @@ struct ForeignKey {
 
     std::string foreignTable;
     std::string foreignColumn;
+
+    sm::dao::OnDelete onDelete = sm::dao::OnDelete::eRestrict;
 };
 
 struct Unique {
@@ -306,10 +310,9 @@ static const std::map<std::string_view, ColumnType> kTypeMap = {
     {"ulong", eUlong},
     {"bool", eBool},
 
-    // TODO: use char for fixed length and varchar for variable length
-    {"text", eString},
-    {"varchar", eString},
-    {"char", eString},
+    {"text", eVarChar},
+    {"varchar", eVarChar},
+    {"char", eChar},
 
     {"float", eFloat},
     {"double", eDouble},
@@ -329,6 +332,16 @@ static std::optional<ColumnType> findType(const std::string& name) {
     }
 
     return std::nullopt;
+}
+
+static ColumnType expectTypeProperty(const Properties &props, std::string_view key) {
+    auto type = expectProperty(props, key, "int");
+    if (auto it = findType(type); it.has_value()) {
+        return it.value();
+    }
+
+    postError("Unknown type: {}", type);
+    return ColumnType::eInt;
 }
 
 static const std::map<std::string_view, sm::dao::AutoIncrement> kAutoIncrementMap = {
@@ -357,27 +370,47 @@ static sm::dao::AutoIncrement getAutoIncrement(const Properties &props, std::str
     return sm::dao::AutoIncrement::eNever;
 }
 
+static const std::map<std::string_view, sm::dao::OnDelete> kOnDeleteMap = {
+    {"restrict", sm::dao::OnDelete::eRestrict},
+    {"null", sm::dao::OnDelete::eSetNull},
+    {"cascade", sm::dao::OnDelete::eCascade}
+};
+
+static std::string_view getOnDeleteName(sm::dao::OnDelete value) {
+    switch (value) {
+    STRCASE(sm::dao::OnDelete::eRestrict);
+    STRCASE(sm::dao::OnDelete::eSetNull);
+    STRCASE(sm::dao::OnDelete::eCascade);
+
+    default: CT_NEVER("Invalid on-delete value %d", (int)value);
+    }
+}
+
+static sm::dao::OnDelete getOnDelete(const Properties &props, std::string_view def = "restrict") {
+    auto value = getOrDefault(props, "onDelete", def);
+    if (auto it = kOnDeleteMap.find(value); it != kOnDeleteMap.end()) {
+        return it->second;
+    }
+
+    postError("Invalid onDelete value: {}", value);
+    return sm::dao::OnDelete::eRestrict;
+}
+
 static Type buildType(const Properties &props) {
-    auto type = expectProperty(props, "type", "int");
+    auto type = expectTypeProperty(props, "type");
     bool nullable = getOrDefault(props, "nullable", "false") == "true";
-    if (type == "text") {
+    if (type == ColumnType::eChar || type == ColumnType::eVarChar) {
         auto len = expectProperty(props, "length", "0");
 
         return Type {
-            .kind = ColumnType::eString,
+            .kind = type,
             .nullable = nullable,
             .size = std::stoul(len)
         };
     }
 
-    auto it = findType(type);
-    if (!it.has_value()) {
-        postError("Unknown type: {}", type);
-        return {};
-    }
-
     return Type {
-        .kind = it.value(),
+        .kind = type,
         .nullable = nullable,
         .size = 0
     };
@@ -401,12 +434,14 @@ static void buildDaoConstraint(Table& parent, Column& column, xmlNodePtr node) {
 
         auto id = fmt::format("fk_{}_{}_to_{}_{}", parent.name, column.name, split[0], split[1]);
         auto fkName = getOrDefault(props, "name", id);
+        auto onDelete = getOnDelete(props);
 
         ForeignKey foreign = {
             .name = fkName,
             .column = column.name,
             .foreignTable = split[0],
-            .foreignColumn = split[1]
+            .foreignColumn = split[1],
+            .onDelete = onDelete
         };
 
         parent.foregin.push_back(foreign);
@@ -790,6 +825,7 @@ static void emitCxxBody(
             source.writeln("/* column =        */ \"{}\",", fk.column);
             source.writeln("/* foreignTable =  */ \"{}\",", fk.foreignTable);
             source.writeln("/* foreignColumn = */ \"{}\",", fk.foreignColumn);
+            source.writeln("/* onDelete =      */ {},", getOnDeleteName(fk.onDelete));
             source.dedent();
             source.writeln("}},");
         }

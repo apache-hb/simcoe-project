@@ -1,4 +1,7 @@
+#include "stdafx.hpp"
+
 #include "db/transaction.hpp"
+
 #include "core/defer.hpp"
 
 using namespace sm;
@@ -19,11 +22,11 @@ Transaction::~Transaction() noexcept {
     if (mState != ePending)
         return;
 
+    defer { mConnection->setAutoCommit(true); };
+
     if (DbError err = mConnection->commit()) {
         LOG_ERROR(DbLog, "Transaction::~Transaction() failed to commit: {}", err);
     }
-
-    defer { mConnection->setAutoCommit(true); };
 }
 
 void Transaction::rollback() noexcept(false) {

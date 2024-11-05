@@ -12,18 +12,6 @@
 #include <mutex>
 
 namespace game {
-    struct UserSession {
-        uint64_t mUserId;
-    };
-
-    struct GameSession {
-        std::string mPlayer0;
-        std::string mPlayer1;
-
-        // only need 9*2 bits to store the board state
-        uint32_t mGameState;
-    };
-
     class AccountServer {
         std::mutex mDbMutex;
         sm::db::Connection mAccountDb;
@@ -34,11 +22,15 @@ namespace game {
         std::mutex mSaltMutex;
         Salt mSalt;
 
-        std::mutex mSessionMutex;
-        std::unordered_map<SessionId, UserSession> mSessions;
+        bool authSession(SessionId id);
 
         bool createAccount(game::CreateAccount info);
         SessionId login(game::Login info);
+        LobbyId createLobby(game::CreateLobby info);
+        bool joinLobby(game::JoinLobby info);
+
+        uint64_t getSessionList(std::span<SessionInfo> sessions);
+        uint64_t getLobbyList(std::span<LobbyInfo> lobbies);
 
         void handleClient(const std::stop_token& stop, sm::net::Socket socket) noexcept;
 
@@ -56,12 +48,25 @@ namespace game {
         sm::net::Socket mSocket;
         uint16_t mNextId = 0;
 
-        SessionId mCurrentSession;
+        SessionId mCurrentSession = UINT64_MAX;
+        LobbyId mCurrentLobby = UINT64_MAX;
+
+        std::vector<SessionInfo> mSessions;
+        std::vector<LobbyInfo> mLobbies;
 
     public:
         AccountClient(sm::net::Network& net, const sm::net::Address& address, uint16_t port) throws(sm::net::NetException);
 
         bool createAccount(std::string_view name, std::string_view password);
         bool login(std::string_view name, std::string_view password);
+
+        bool createLobby(std::string_view name);
+        bool joinLobby(LobbyId id);
+
+        void refreshSessionList();
+        void refreshLobbyList();
+
+        std::vector<SessionInfo> getSessionInfo() { return mSessions; }
+        std::vector<LobbyInfo> getLobbyInfo() { return mLobbies; }
     };
 }
