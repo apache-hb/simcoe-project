@@ -12,39 +12,34 @@ namespace sm::thread {
     /// @note can block when writing
     template<typename T>
     class NonBlockingMailBox {
-        std::atomic<int> mReadIndex;
-        std::atomic<bool> mShouldSwap;
-        std::atomic<bool> mReadLock;
+        static const uint32_t kIndexMask        = 0b0001;
+        static const uint32_t kActiveReaderMask = 0b0010;
+        static const uint32_t kNewDataMask      = 0b0100;
+
+        // bit 0 is the last written slot
+        // bit 1 is if the reader is currently active
+        std::atomic<uint32_t> mState;
+
+        int mReadIndex = 0;
         T mSlots[2];
 
     public:
         NonBlockingMailBox() = default;
 
         void lock() {
-            mReadLock.store(true);
-
-            bool expected = true;
-            if (mShouldSwap.compare_exchange_strong(expected, false)) { // update-0
-                mReadIndex.fetch_xor(1); // update-1
-            }
+            mReadIndex = mState.fetch_or(kActiveReaderMask) & kIndexMask;
         }
 
         void unlock() {
-            mReadLock.store(false);
+            mState &= (kIndexMask | kNewDataMask);
         }
 
         const T& read() {
-            CTASSERTF(mReadLock.load(), "Reading from mailbox without acquiring guard");
-            // read-0
-            return mSlots[mReadIndex.load()];
+            return mSlots[mReadIndex];
         }
 
         void write(T&& data) {
-            int index = !mReadIndex.load();
-            // update-1
-            // read-0
-            mSlots[index] = std::move(data);
-            mShouldSwap.store(true);
+            uint32_t state = mState.load();
         }
     };
 }
