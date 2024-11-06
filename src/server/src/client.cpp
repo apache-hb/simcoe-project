@@ -44,6 +44,75 @@ struct LobbyListWidget {
     std::string error = "";
     std::vector<game::LobbyInfo> sessions;
     std::vector<game::LobbyInfo> newSessionInfo;
+
+    void drawTable() {
+        ImGui::SeparatorText("Lobbies");
+
+        if (ImGui::BeginTable("Lobbies", 4)) {
+            ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, 100);
+            ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("Host", ImGuiTableColumnFlags_WidthFixed, 100);
+            ImGui::TableSetupColumn("Players", ImGuiTableColumnFlags_WidthFixed, 100);
+
+            ImGui::TableHeadersRow();
+
+            for (const auto& session : sessions) {
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::Text("%llu", session.id);
+                ImGui::TableNextColumn();
+                std::string_view name = session.name.text();
+                ImGui::Text("%.*s", (int)name.size(), name.data());
+                ImGui::TableNextColumn();
+                game::SessionId host = session.getHost();
+                ImGui::Text("%llu", host);
+                ImGui::TableNextColumn();
+                ImGui::Text("%d", session.getPlayerCount());
+            }
+
+            ImGui::EndTable();
+        }
+    }
+
+    void refreshList(EventQueue& events, game::AccountClient& client) {
+        events.enqueue([&] {
+            try {
+                state.store(eUpdating);
+                client.refreshLobbyList();
+                newSessionInfo = client.getLobbyInfo();
+                state.store(eDoneUpdate);
+            } catch (const std::exception& e) {
+                error = e.what();
+                state.store(eError);
+            }
+        });
+    }
+
+    void refreshButton(EventQueue& events, game::AccountClient& client) {
+        if (ImGui::Button("Refresh##Lobbies")) {
+            refreshList(events, client);
+        }
+    }
+
+    void draw(EventQueue& events, game::AccountClient& client) {
+        State s = state.load();
+
+        if (!newSessionInfo.empty()) {
+            sessions = std::move(newSessionInfo);
+            newSessionInfo.clear();
+        }
+
+        if (s == eError) {
+            ImGui::Text("Error: %s", error.c_str());
+            refreshButton(events, client);
+        } else if (s == eIdle || s == eDoneUpdate) {
+            drawTable();
+            refreshButton(events, client);
+        } else if (s == eUpdating) {
+            drawTable();
+            ImGui::Text("Updating %c", "|/-\\"[(int)(ImGui::GetTime() / 0.05f) & 3]);
+        }
+    }
 };
 
 struct SessionListWidget {
@@ -70,8 +139,10 @@ struct SessionListWidget {
 
             for (const auto& session : sessions) {
                 ImGui::TableNextRow();
+
                 ImGui::TableNextColumn();
                 ImGui::Text("%llu", session.id);
+
                 ImGui::TableNextColumn();
                 std::string_view name = session.name.text();
                 ImGui::Text("%.*s", (int)name.size(), name.data());
@@ -96,7 +167,7 @@ struct SessionListWidget {
     }
 
     void refreshButton(EventQueue& events, game::AccountClient& client) {
-        if (ImGui::Button("Refresh")) {
+        if (ImGui::Button("Refresh##Sessions")) {
             refreshList(events, client);
         }
     }
@@ -142,11 +213,13 @@ static int commonMain() noexcept try {
     char username[32] = "";
     char password[32] = "";
     char error[256] = "";
+    char lobby[32] = "";
 
     char host[64] = "127.0.0.1";
     unsigned port = 9919;
 
     SessionListWidget sessionList;
+    LobbyListWidget lobbyList;
 
     auto connectToServerAsync = [&] {
         state.store(eConnecting);
@@ -209,6 +282,7 @@ static int commonMain() noexcept try {
 
                         if (state.load() == eLoggedIn) {
                             sessionList.refreshList(events, *client);
+                            lobbyList.refreshList(events, *client);
                         }
                     });
                 }
@@ -243,6 +317,7 @@ static int commonMain() noexcept try {
                 ImGui::Text("Logged in as %s", username);
 
                 sessionList.draw(events, *client);
+                lobbyList.draw(events, *client);
 
                 if (ImGui::Button("Logout")) {
                     state.store(eDisconnected);
@@ -255,6 +330,31 @@ static int commonMain() noexcept try {
                 if (ImGui::Button("Disconnect")) {
                     state.store(eDisconnected);
                     client.reset();
+                }
+
+                ImGui::SameLine();
+
+                if (ImGui::Button("Create Lobby")) {
+                    ImGui::OpenPopup("Create Lobby");
+                }
+
+                if (ImGui::BeginPopup("Create Lobby")) {
+                    ImGui::InputText("Name", lobby, sizeof(lobby));
+
+                    if (ImGui::Button("Create")) {
+                        events.enqueue([&, lobby = lobby] {
+                            try {
+                                client->createLobby(lobby);
+                                lobbyList.refreshList(events, *client);
+                            } catch (const std::exception& e) {
+                                std::strncpy(error, e.what(), sizeof(error));
+                            }
+                        });
+
+                        ImGui::CloseCurrentPopup();
+                    }
+
+                    ImGui::EndPopup();
                 }
             }
         }

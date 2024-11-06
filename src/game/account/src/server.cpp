@@ -24,19 +24,6 @@ static std::optional<acd::User> getUserByName(db::Connection& db, std::string_vi
     throw;
 }
 
-#if 0
-static std::optional<acd::User> getUserById(db::Connection& db, uint64_t id) try {
-    std::string query = fmt::format("SELECT * FROM user WHERE id = {}", id);
-
-    return db.selectOneWhere<acd::User>(query);
-} catch (const db::DbException& e) {
-    if (e.error().noData()) {
-        return std::nullopt;
-    }
-
-    throw;
-}
-#endif
 
 bool AccountServer::authSession(SessionId id) {
     std::lock_guard guard(mDbMutex);
@@ -167,7 +154,7 @@ uint64_t AccountServer::getSessionList(std::span<SessionInfo> sessions) {
     return count;
 }
 
-uint64_t AccountServer::getLobbyList(std::span<LobbyInfo> lobbies) {
+uint64_t AccountServer::getLobbyList(std::span<LobbyInfo> lobbies) try {
     std::lock_guard guard(mDbMutex);
 
     std::string_view query = "SELECT * FROM lobby";
@@ -185,6 +172,12 @@ uint64_t AccountServer::getLobbyList(std::span<LobbyInfo> lobbies) {
     }
 
     return count;
+} catch (const db::DbException& e) {
+    if (e.error().noData()) {
+        return 0;
+    }
+
+    throw;
 }
 
 void AccountServer::handleClient(const std::stop_token& stop, net::Socket socket) noexcept try {
@@ -300,7 +293,6 @@ AccountServer::AccountServer(db::Connection db, net::Network& net, const net::Ad
     , mServer(mNetwork.bind(address, port))
     , mSalt(seed)
 {
-    mAccountDb.setAutoCommit(true);
     createSchema(mAccountDb);
 }
 

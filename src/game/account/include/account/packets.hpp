@@ -261,6 +261,16 @@ namespace game {
         SessionId getHost() const {
             return players[0];
         }
+
+        int getPlayerCount() const {
+            int count = 0;
+            for (SessionId id : players) {
+                if (id != UINT64_MAX)
+                    count++;
+            }
+
+            return count;
+        }
     };
 
     REFLECT()
