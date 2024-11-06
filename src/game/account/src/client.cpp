@@ -41,6 +41,7 @@ bool AccountClient::login(std::string_view name, std::string_view password) {
     mSocket.send(Login { mNextId++, name, password }).throwIfFailed();
 
     NewSession session = net::throwIfFailed(mSocket.recv<NewSession>());
+    LOG_INFO(GlobalLog, "New session established with server. Assigned id {}", session.session);
 
     bool success = session.response.status == Status::eSuccess;
     if (!success)
@@ -80,7 +81,7 @@ bool AccountClient::joinLobby(LobbyId id) {
 }
 
 static size_t getSessionListSize(const SessionList *list) {
-    size_t size = list->response.header.size - sizeof(SessionList);
+    size_t size = std::max<size_t>(list->response.header.size, sizeof(SessionList)) - sizeof(SessionList);
     if (size % sizeof(SessionInfo) != 0)
         return 0;
 
@@ -106,7 +107,7 @@ void AccountClient::refreshSessionList() {
 }
 
 static size_t getLobbyListSize(const LobbyList *list) {
-    size_t size = list->response.header.size - sizeof(LobbyList);
+    size_t size = std::max<size_t>(list->response.header.size, sizeof(LobbyList)) - sizeof(LobbyList);
     if (size % sizeof(LobbyInfo) != 0)
         return 0;
 
@@ -129,4 +130,22 @@ void AccountClient::refreshLobbyList() {
     }
 
     mLobbies = std::move(lobbies);
+}
+
+std::unique_ptr<std::byte[]> AccountClient::getNextMessage(std::chrono::milliseconds timeout) {
+    while (true) {
+        PacketHeader header = net::throwIfFailed(mSocket.recvTimed<PacketHeader>(timeout));
+        size_t size = std::max<size_t>(header.size, sizeof(PacketHeader));
+        std::unique_ptr<std::byte[]> packet = std::make_unique<std::byte[]>(size);
+        memcpy(packet.get(), &header, sizeof(PacketHeader));
+        mSocket.recvBytesTimeout(packet.get() + sizeof(PacketHeader), size - sizeof(PacketHeader), timeout).error.throwIfFailed();
+
+        if (auto it = mRequestSlots.find(header.id); it != mRequestSlots.end()) {
+            std::invoke(it->second, std::span(packet.get(), size));
+            mRequestSlots.erase(it);
+            continue;
+        } 
+        
+        return packet;
+    }
 }

@@ -2,6 +2,8 @@
 
 #include "account/account.hpp"
 
+#include "core/defer.hpp"
+
 #include "account.dao.hpp"
 
 using namespace std::chrono_literals;
@@ -180,8 +182,24 @@ uint64_t AccountServer::getLobbyList(std::span<LobbyInfo> lobbies) try {
     throw;
 }
 
+void AccountServer::dropSession(SessionId session) {
+    if (session == UINT64_MAX)
+        return;
+
+    std::lock_guard guard(mDbMutex);
+
+    auto stmt = mAccountDb.prepareUpdate("DELETE FROM session WHERE id = :id");
+    stmt.bind("id").to(session);
+    if (db::DbError error = stmt.execute()) {
+        LOG_WARN(GlobalLog, "Failed to remove data associated with session {}. {}", session, error);
+    }
+}
+
 void AccountServer::handleClient(const std::stop_token& stop, net::Socket socket) noexcept try {
     MessageRouter router;
+    SessionId session = UINT64_MAX;
+
+    defer { dropSession(session); };
 
     router.addRoute<Ack>(PacketType::eAck, [](const Ack& req) {
         fmt::println(stderr, "received ack: {}", req.header.id);
@@ -197,12 +215,13 @@ void AccountServer::handleClient(const std::stop_token& stop, net::Socket socket
         }
     });
 
-    router.addRoute<Login>(PacketType::eLogin, [this](const Login& req) {
-        SessionId session = login(req);
-        if (session == UINT64_MAX) {
+    router.addRoute<Login>(PacketType::eLogin, [this, &session](const Login& req) {
+        SessionId auth = login(req);
+        if (auth == UINT64_MAX) {
             return NewSession { req.header.id };
         } else {
-            return NewSession { req.header.id, session };
+            session = auth;
+            return NewSession { req.header.id, auth };
         }
     });
 

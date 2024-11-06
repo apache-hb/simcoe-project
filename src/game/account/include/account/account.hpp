@@ -34,6 +34,8 @@ namespace game {
 
         void handleClient(const std::stop_token& stop, sm::net::Socket socket) noexcept;
 
+        void dropSession(SessionId session);
+
     public:
         AccountServer(sm::db::Connection db, sm::net::Network& net, const sm::net::Address& address, uint16_t port) throws(sm::db::DbException);
         AccountServer(sm::db::Connection db, sm::net::Network& net, const sm::net::Address& address, uint16_t port, unsigned seed) throws(sm::db::DbException);
@@ -51,6 +53,10 @@ namespace game {
         SessionId mCurrentSession = UINT64_MAX;
         LobbyId mCurrentLobby = UINT64_MAX;
 
+        using RequestCallback = std::function<void(std::span<const std::byte>)>;
+
+        std::map<uint16_t, RequestCallback> mRequestSlots;
+
         std::vector<SessionInfo> mSessions;
         std::vector<LobbyInfo> mLobbies;
 
@@ -65,6 +71,8 @@ namespace game {
 
         void refreshSessionList();
         void refreshLobbyList();
+
+        std::unique_ptr<std::byte[]> getNextMessage(std::chrono::milliseconds timeout);
 
         std::vector<SessionInfo> getSessionInfo() { return mSessions; }
         std::vector<LobbyInfo> getLobbyInfo() { return mLobbies; }
