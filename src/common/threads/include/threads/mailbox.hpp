@@ -12,34 +12,39 @@ namespace sm::thread {
     /// @note can block when writing
     template<typename T>
     class NonBlockingMailBox {
-        static const uint32_t kIndexMask        = 0b0001;
-        static const uint32_t kActiveReaderMask = 0b0010;
-        static const uint32_t kNewDataMask      = 0b0100;
+        static constexpr size_t kIndexBit = 0b0001;
+        static constexpr size_t kWriteBit = 0b0010;
 
-        // bit 0 is the last written slot
-        // bit 1 is if the reader is currently active
-        std::atomic<uint32_t> mState;
+        alignas(std::hardware_destructive_interference_size)
+        std::atomic<int> mState = 0;
 
-        int mReadIndex = 0;
         T mSlots[2];
 
     public:
         NonBlockingMailBox() = default;
 
         void lock() {
-            mReadIndex = mState.fetch_or(kActiveReaderMask) & kIndexMask;
+
         }
 
         void unlock() {
-            mState &= (kIndexMask | kNewDataMask);
+            mState ^= kWriteBit;
         }
 
         const T& read() {
-            return mSlots[mReadIndex];
+            return mSlots[!(mState.load(std::memory_order_relaxed) & kIndexBit)];
         }
 
-        void write(T&& data) {
-            uint32_t state = mState.load();
+        void write(T data) {
+            int state = 0;
+            while ((state = mState.load(std::memory_order_acquire)) & kWriteBit) {
+                /* spin */
+            }
+
+            int newIndex = (state & kIndexBit);
+            mSlots[newIndex] = std::move(data);
+
+            mState.store(state ^ (kIndexBit | kWriteBit), std::memory_order_release);
         }
     };
 }

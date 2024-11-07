@@ -58,6 +58,7 @@ threads = declare_dependency(
 testcases = {
     'Processor geometry parsing': 'test/geometry.cpp',
     'Save processor topology data': 'test/topology.cpp',
+    'Nonblocking mailbox': 'test/mailbox.cpp',
 }
 
 foreach name, source : testcases
@@ -68,6 +69,28 @@ foreach name, source : testcases
 
     test(name, exe,
         suite : 'threads',
-        kwargs : testkwargs
+        kwargs : testkwargs + { 'timeout': 10 }
+    )
+endforeach
+
+###
+### benchmarks
+###
+
+googlebench = dependency('benchmark')
+
+benchcases = {
+    'Mailbox': 'benchmark/mailbox.cpp',
+}
+
+foreach name, source : benchcases
+    exe = executable('bench-threads-' + name.to_lower().replace(' ', '-'), source,
+        include_directories : 'src',
+        dependencies : [ threads, coretest ]
+    )
+
+    benchmark(name, exe,
+        suite : 'threads',
+        kwargs : benchkwargs
     )
 endforeach

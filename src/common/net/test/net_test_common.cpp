@@ -3,6 +3,6 @@
 NetTestStream::~NetTestStream() noexcept(false) {
     CHECK(errors.empty());
     for (const auto& error : errors) {
-        FAIL(error);
+        FAIL_CHECK(error);
     }
 }
