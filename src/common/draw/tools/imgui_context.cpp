@@ -287,7 +287,7 @@ int main(int argc, const char **argv) noexcept try {
 
     openCharacterMapRom.SetPwd(userprofile);
 
-    std::vector<draw::shared::Vic20Character> charmap;
+    std::vector<uint8_t> charmapBytes;
     fs::path selected;
     std::string error;
 
@@ -316,9 +316,11 @@ int main(int argc, const char **argv) noexcept try {
             selected = openCharacterMapRom.GetSelected();
 
             try {
-                charmap = readFileBytes<draw::shared::Vic20Character>(selected);
-                for (size_t i = 0; i < charmap.size(); i++) {
-                    context.writeCharacter(i, charmap[i]);
+                charmapBytes = readFileBytes<uint8_t>(selected);
+                draw::shared::Vic20Character *data = reinterpret_cast<draw::shared::Vic20Character *>(charmapBytes.data());
+                size_t size = charmapBytes.size() / sizeof(draw::shared::Vic20Character);
+                for (size_t i = 0; i < size; i++) {
+                    context.writeCharacter(i, data[i]);
                 }
             } catch (const std::exception& e) {
                 error = e.what();
@@ -337,11 +339,12 @@ int main(int argc, const char **argv) noexcept try {
         }
 
         if (ImGui::Begin("Character Map")) {
+#if 0
             ImGui::Text("Character Map %s - %zu characters", selected.string().c_str(), charmap.size());
             static int selectedChar = 0;
             ImGui::InputScalar("Character", ImGuiDataType_S32, &selectedChar);
 
-            if (!charmap.empty()) {
+            if (!charmapBytes.empty()) {
                 selectedChar = std::clamp(selectedChar, 0, int(charmap.size() - 1));
 
                 draw::shared::Vic20Character character = charmap[selectedChar];
@@ -355,12 +358,29 @@ int main(int argc, const char **argv) noexcept try {
                     ImGui::TextUnformatted(buffer);
                 }
             }
+#endif
         }
         ImGui::End();
 
         ImGui::ShowDemoWindow();
 
         if (ImGui::Begin("Poke")) {
+            static int slide = 0;
+            static int first = 0;
+            bool reload = false;
+
+            reload |= ImGui::SliderInt("Slide", &slide, 0, sizeof(draw::shared::Vic20Character) - 1);
+            reload |= ImGui::SliderInt("First", &first, 0, (charmapBytes.size() / sizeof(draw::shared::Vic20Character) - 256));
+            reload |= ImGui::Button("Reload charmap");
+
+            if (reload) {
+                draw::shared::Vic20Character *data = reinterpret_cast<draw::shared::Vic20Character *>(charmapBytes.data() + slide);
+                size_t size = (charmapBytes.size() - slide) / sizeof(draw::shared::Vic20Character);
+                for (size_t i = 0; i < size; i++) {
+                    context.writeCharacter(i, data[i + first]);
+                }
+            }
+
             static int x = 0;
             static int y = 0;
             static int c = 0;

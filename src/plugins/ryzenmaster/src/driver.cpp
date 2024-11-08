@@ -215,6 +215,9 @@ struct Param {
     uint32_t second;
 };
 
+/// 6, 9, 11, and 15 fail to read
+/// every other number below 15 reads back data
+/// refer to @a MsrIndex for possible behaviours associated with each index
 uint32_t rm::DriverHandle::readMsrData(uint32_t index) {
     Param param{};
     param.header = index;

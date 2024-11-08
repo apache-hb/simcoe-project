@@ -11,9 +11,9 @@ int main() try {
     handle.readPciConfig(0, 0x18, 1, 0x140, 4);
     handle.readPciConfig(0, 0x18, 1, 0x144, 4);
     handle.readPciConfig(0, 0x18, 0, 200, 0);
-    handle.readMomentaryMemory(0x5d0);
+    // handle.readMomentaryMemory(0x5d0);
 
-    handle.readMemory();
+    // handle.readMemory();
     for (int i = 0; i < 16; i++) {
         try {
             handle.readMsrData(i);

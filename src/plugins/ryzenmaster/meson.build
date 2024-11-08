@@ -16,3 +16,5 @@ ryzenmaster = declare_dependency(
 exe = executable('ryzenmaster-test', 'test/connect.cpp',
     dependencies: [ ryzenmaster ],
 )
+
+run_target('run-ryzenmaster-test', command: [ exe ])

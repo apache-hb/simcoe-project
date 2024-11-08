@@ -28,13 +28,18 @@ namespace sm::amd::ryzenmaster {
     // get rsd ptr?
     static constexpr uint32_t kReadMemory = 0x81112f08;
 
-    // write to an msr, not sure what it does yet
-    static constexpr uint32_t kIoControl7 = 0x81112ee4;
+    // write to one of the predefined msrs, im still not sure which ones
+    // are safe to write to at runtime. the ryzenmaster kmd does very little
+    // input validation so this is probably an easy way to cause
+    // a system crash.
+    static constexpr uint32_t kIoWriteMsr = 0x81112ee4;
 
+    /// read from a predetermined list of msrs
+    /// refer to @a MsrIndex
     static constexpr uint32_t kIoReadMsr = 0x81112ee0;
 
     // writes to an mmio region
-    static constexpr uint32_t kIoControl9 = 0x81112ff8;
+    static constexpr uint32_t kIoWriteToMmioRegion = 0x81112ff8;
 
     struct PCIConfigParam {
         uint32_t action;
