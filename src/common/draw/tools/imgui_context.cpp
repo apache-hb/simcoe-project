@@ -7,6 +7,8 @@
 #include <imgui/backends/imgui_impl_win32.h>
 #include <imgui/backends/imgui_impl_dx12.h>
 
+#include <imfilebrowser.h>
+
 #include "system/system.hpp"
 
 #include "core/macros.h"
@@ -98,6 +100,25 @@ class DefaultSystemError final : public sm::ISystemError {
 };
 
 static DefaultSystemError gDefaultError{};
+
+template<typename T>
+static std::vector<T> readFileBytes(const sm::fs::path& path) {
+    std::ifstream file(path, std::ios::binary);
+    if (!file.is_open()) {
+        throw std::runtime_error("failed to open file: " + path.string());
+    }
+
+    file.seekg(0, std::ios::end);
+    size_t sizeInBytes = file.tellg();
+    size_t size = sizeInBytes / sizeof(T);
+
+    std::vector<T> data(size);
+    file.seekg(0, std::ios::beg);
+
+    file.read(reinterpret_cast<char *>(data.data()), size * sizeof(T));
+
+    return data;
+}
 
 int main(int argc, const char **argv) noexcept try {
     SetProcessAffinityMask(GetCurrentProcess(), 0b1111'1111'1111'1111);
@@ -191,24 +212,84 @@ int main(int argc, const char **argv) noexcept try {
         [VIC20_COLOUR_LIGHT_YELLOW] = "Light Yellow",
     };
 
-    for (int i = 0; i < VIC20_SCREEN_WIDTH; i++) {
-        context.write(i, 10, VIC20_COLOUR_WHITE);
-    }
+    context.write(0, 0, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLUE), 0);
+    context.write(1, 0, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLUE), 1);
+    context.write(2, 0, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLUE), 2);
+    context.write(3, 0, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLUE), 3);
+    context.write(4, 0, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLUE), 4);
 
-    for (int i = 0; i < VIC20_SCREEN_HEIGHT; i++) {
-        context.write(VIC20_SCREEN_WIDTH / 2, i, VIC20_COLOUR_BLUE);
-    }
-
-    for (int i = 0; i < VIC20_SCREEN_HEIGHT; i++) {
-        context.write(13, i, VIC20_COLOUR_BLUE);
-    }
-
-    for (int i = 0; i < VIC20_SCREEN_HEIGHT; i++) {
-        context.write(VIC20_SCREEN_WIDTH - 13, i, VIC20_COLOUR_BLUE);
-    }
+    ImGui::FileBrowser openCharacterMapRom{ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_ConfirmOnEnter};
+    std::vector<draw::shared::Vic20Character> charmap;
+    fs::path selected;
+    std::string error;
 
     while (nextMessage()) {
         context.begin();
+
+        openCharacterMapRom.Display();
+
+        ImGui::DockSpaceOverViewport();
+        if (ImGui::BeginMainMenuBar()) {
+            ImGui::TextUnformatted("VIC20");
+            ImGui::Separator();
+
+            if (ImGui::BeginMenu("File")) {
+                if (ImGui::MenuItem("Open Character Map ROM")) {
+                    openCharacterMapRom.Open();
+                }
+
+                ImGui::EndMenu();
+            }
+
+            ImGui::EndMainMenuBar();
+        }
+
+        if (openCharacterMapRom.HasSelected()) {
+            selected = openCharacterMapRom.GetSelected();
+
+            try {
+                charmap = readFileBytes<draw::shared::Vic20Character>(selected);
+                for (size_t i = 0; i < charmap.size(); i++) {
+                    context.writeCharacter(i, charmap[i]);
+                }
+            } catch (const std::exception& e) {
+                error = e.what();
+                ImGui::OpenPopup("Error");
+            }
+
+            openCharacterMapRom.ClearSelected();
+        }
+
+        if (ImGui::BeginPopupModal("Error")) {
+            ImGui::TextUnformatted(error.c_str());
+            if (ImGui::Button("OK")) {
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+
+        if (ImGui::Begin("Character Map")) {
+            ImGui::Text("Character Map %s - %zu characters", selected.string().c_str(), charmap.size());
+            static int selectedChar = 0;
+            ImGui::InputScalar("Character", ImGuiDataType_S32, &selectedChar);
+
+            if (!charmap.empty()) {
+                selectedChar = std::clamp(selectedChar, 0, int(charmap.size() - 1));
+
+                draw::shared::Vic20Character character = charmap[selectedChar];
+                // byte order is reversed
+                for (int i = 0; i < 8; i++) {
+                    char buffer[9] = {0};
+                    for (int j = 0; j < 8; j++) {
+                        buffer[(8 - j) - 1] = (character.data & (1ull << (i * 8 + j))) ? '#' : '.';
+                    }
+
+                    ImGui::TextUnformatted(buffer);
+                }
+            }
+        }
+        ImGui::End();
+
 
         ImGui::ShowDemoWindow();
 
@@ -254,7 +335,7 @@ int main(int argc, const char **argv) noexcept try {
             if (ImGui::Button("Poke")) {
                 for (int i = 0; i < width; ++i) {
                     for (int j = 0; j < height; ++j) {
-                        context.write(x + i, y + j, colour);
+                        context.write(x + i, y + j, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLUE), 0);
                     }
                 }
             }

@@ -2,29 +2,39 @@
 
 StructuredBuffer<Vic20Info> gDrawInfo : register(t0);
 
-typedef uint PixelData;
+StructuredBuffer<Vic20CharacterMap> gCharacterMap : register(t1);
 
-// https://sleepingelephant.com/denial/wiki/index.php?title=Memory_Map#Screen_memory_map
-// array of `VIC20_SCREEN_CHARS_WIDTH * VIC20_SCREEN_CHARS_HEIGHT * 2` bytes
-// the first half of the array is the character data, the second half is the colour data
-// each byte in the second half is 3+1+4 bits, with the first 3 bits being the foreground
-// colour, the next bit is ignored, and the last 4 bits are the background colour
-StructuredBuffer<PixelData> gFrameBuffer : register(t1);
-
-// each character is a 64 bit value, with each bit representing a pixel
-// a high bit chooses the foreground colour and a low bit chooses the background colour
-// StructuredBuffer<uint64_t> gCharacterMap : register(t2);
+StructuredBuffer<Vic20Screen> gScreenState : register(t2);
 
 // a texture to write into with a resolution of `gTextureSize`
 RWTexture2D<float4> gPresentTexture : register(u0);
 
-#define X_PIXELS_PER_WORD (sizeof(PixelData) * 2)
+#define X_PIXELS_PER_WORD (8)
 
-uint getPaletteIndexValue(uint index) {
-    if (index >= VIC20_FRAMEBUFFER_SIZE)
-        return VIC20_PALETTE_SIZE;
+uint getCharacterIndex(Vic20Screen screen, uint index) {
+    uint elementIndex = index / sizeof(uint);
+    uint byteIndex = index % sizeof(uint);
+    if (elementIndex >= VIC20_SCREEN_CHARBUFFER_SIZE)
+        return VIC20_CHARMAP_SIZE;
 
-    return gFrameBuffer[index];
+    return screen.screen[elementIndex] >> (byteIndex * 8) & 0xFF;
+}
+
+uint getCharacterColour(Vic20Screen screen, uint index) {
+    uint elementIndex = index / sizeof(uint);
+    uint byteIndex = index % sizeof(uint);
+    if (elementIndex >= VIC20_SCREEN_CHARBUFFER_SIZE)
+        return 0xFF;
+
+    return screen.colour[elementIndex] >> (byteIndex * 8) & 0xFF;
+}
+
+uint foregroundColour(uint colour) {
+    return (colour >> 4) & 0x0F;
+}
+
+uint backgroundColour(uint colour) {
+    return colour & 0x0F;
 }
 
 float4 getPaletteColourFromIndex(uint index) {
@@ -34,14 +44,14 @@ float4 getPaletteColourFromIndex(uint index) {
     return float4(kVic20Palette[index], 1.f);
 }
 
-uint getIndexForDispatch(uint2 dispatchId, float2 textureSize) {
+uint getScreenIndex(uint2 dispatchId, float2 textureSize) {
     float uvX = float(dispatchId.x) / textureSize.x;
     float uvY = float(dispatchId.y) / textureSize.y;
 
-    uint fbX = floor(uvX * VIC20_SCREEN_WIDTH);
-    uint fbY = floor(uvY * VIC20_SCREEN_HEIGHT);
+    uint fbX = floor(uvX * VIC20_SCREEN_CHARS_WIDTH);
+    uint fbY = floor(uvY * VIC20_SCREEN_CHARS_HEIGHT);
 
-    return fbY * VIC20_SCREEN_WIDTH + fbX;
+    return fbY * VIC20_SCREEN_CHARS_WIDTH + fbX;
 }
 
 // this is dispatched based on the size of `gTextureSize` rather than the framebuffer size
@@ -52,28 +62,22 @@ void csMain(
     uint3 dispatchId : SV_DispatchThreadID
 ) {
     Vic20Info info = gDrawInfo[0];
+    Vic20CharacterMap characters = gCharacterMap[0];
+    Vic20Screen screen = gScreenState[0];
 
     uint2 threadId = groupId.xy * uint2(VIC20_THREADS_X, VIC20_THREADS_Y) + groupThreadId.xy * uint2(X_PIXELS_PER_WORD, 1);
-    uint index = getIndexForDispatch(threadId, info.textureSize) / X_PIXELS_PER_WORD;
-    uint colourValueData = getPaletteIndexValue(index);
+    uint index = getScreenIndex(threadId, info.textureSize) / X_PIXELS_PER_WORD;
+    uint characterIndex = getCharacterIndex(screen, index);
+    uint colour = getCharacterColour(screen, index);
+    uint fg = foregroundColour(colour);
+    uint bg = backgroundColour(colour);
 
-    uint word = colourValueData;
-
-    uint nibble0 = (word >> 0) & 0xF;
-    uint nibble1 = (word >> 4) & 0xF;
-    uint nibble2 = (word >> 8) & 0xF;
-    uint nibble3 = (word >> 12) & 0xF;
-    uint nibble4 = (word >> 16) & 0xF;
-    uint nibble5 = (word >> 20) & 0xF;
-    uint nibble6 = (word >> 24) & 0xF;
-    uint nibble7 = (word >> 28) & 0xF;
-
-    gPresentTexture[threadId + uint2(0, 0)] = getPaletteColourFromIndex(nibble0);
-    gPresentTexture[threadId + uint2(1, 0)] = getPaletteColourFromIndex(nibble1);
-    gPresentTexture[threadId + uint2(2, 0)] = getPaletteColourFromIndex(nibble2);
-    gPresentTexture[threadId + uint2(3, 0)] = getPaletteColourFromIndex(nibble3);
-    gPresentTexture[threadId + uint2(4, 0)] = getPaletteColourFromIndex(nibble4);
-    gPresentTexture[threadId + uint2(5, 0)] = getPaletteColourFromIndex(nibble5);
-    gPresentTexture[threadId + uint2(6, 0)] = getPaletteColourFromIndex(nibble6);
-    gPresentTexture[threadId + uint2(7, 0)] = getPaletteColourFromIndex(nibble7);
+    gPresentTexture[threadId + uint2(0, 0)] = getPaletteColourFromIndex(fg);
+    gPresentTexture[threadId + uint2(1, 0)] = getPaletteColourFromIndex(fg);
+    gPresentTexture[threadId + uint2(2, 0)] = getPaletteColourFromIndex(fg);
+    gPresentTexture[threadId + uint2(3, 0)] = getPaletteColourFromIndex(fg);
+    gPresentTexture[threadId + uint2(4, 0)] = getPaletteColourFromIndex(bg);
+    gPresentTexture[threadId + uint2(5, 0)] = getPaletteColourFromIndex(bg);
+    gPresentTexture[threadId + uint2(6, 0)] = getPaletteColourFromIndex(bg);
+    gPresentTexture[threadId + uint2(7, 0)] = getPaletteColourFromIndex(bg);
 }

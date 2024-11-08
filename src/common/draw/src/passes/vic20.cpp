@@ -14,14 +14,12 @@ static constexpr D3D12_ROOT_SIGNATURE_FLAGS kRootFlags
     | D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
 
 enum BindIndex {
-    eDrawInfoBuffer, // StructuredBuffer<Vic20Info> : register(t0)
-    eFrameBuffer,    // StructuredBuffer<uint>      : register(t1)
+    eDrawInfoBuffer, // StructuredBuffer<Vic20Info>         : register(t0)
 
-#if 0
-    eCharacterMap,   // StructuredBuffer<uint64_t>  : register(t2)
-#endif
+    eCharacterMap,   // StructuredBuffer<Vic20CharacterMap> : register(t1)
+    eScreenState,    // StructuredBuffer<Vic20Screen>       : register(t3)
 
-    ePresentTexture, // RWTexture2D<float4>         : register(u0)
+    ePresentTexture, // RWTexture2D<float4>                 : register(u0)
 
     eBindCount
 };
@@ -51,7 +49,8 @@ void Vic20Display::createComputeShader() {
     CD3DX12_ROOT_PARAMETER1 params[eBindCount];
 
     params[eDrawInfoBuffer].InitAsShaderResourceView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_ALL);
-    params[eFrameBuffer].InitAsShaderResourceView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_ALL);
+    params[eCharacterMap].InitAsShaderResourceView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_ALL);
+    params[eScreenState].InitAsShaderResourceView(2, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_ALL);
 
     ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE);
     params[ePresentTexture].InitAsDescriptorTable(_countof(ranges), ranges, D3D12_SHADER_VISIBILITY_ALL);
@@ -88,11 +87,9 @@ D3D12_GPU_VIRTUAL_ADDRESS Vic20Display::getInfoBufferAddress(UINT index) const n
     return mInfoBuffer.elementAddress(index);
 }
 
-void Vic20Display::createFrameBuffer() {
-    size_t size = size_t(VIC20_FRAMEBUFFER_SIZE);
-    mFrameBuffer = DeviceFrameBuffer(mContext, size, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_UPLOAD);
-    mFrameBufferPtr = mFrameBuffer.map(size);
-    mFrameData = std::make_unique<FrameBufferElement[]>(size);
+void Vic20Display::createScreenBuffer(UINT length) {
+    mScreenBuffer = DeviceScreenBuffer(mContext, length, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_UPLOAD);
+    mCharacterMap = DeviceCharacterMap(mContext, length, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_UPLOAD);
 }
 
 void Vic20Display::createCompositionTarget() {
@@ -126,13 +123,14 @@ void Vic20Display::resetDisplayData() {
     srvPool.free(mTargetSRVIndex);
 
     mTarget.reset();
-    mFrameBuffer.reset();
+    mScreenBuffer.reset();
+    mCharacterMap.reset();
     mInfoBuffer.reset();
 }
 
 void Vic20Display::createDisplayData(SurfaceInfo info) {
     createConstBuffers(info.length);
-    createFrameBuffer();
+    createScreenBuffer(info.length);
     createCompositionTarget();
 }
 
@@ -153,7 +151,7 @@ void Vic20Display::record(ID3D12GraphicsCommandList *list, UINT index) {
     uint dispatchX = (mTargetSize.x / VIC20_THREADS_X) - 1;
     uint dispatchY = (mTargetSize.y / VIC20_THREADS_Y) - 1;
 
-    std::copy(mFrameData.get(), mFrameData.get() + VIC20_FRAMEBUFFER_SIZE, mFrameBufferPtr);
+    mScreenBuffer.updateElement(index, mScreenData);
 
     const D3D12_RESOURCE_BARRIER cBarrier[] = {
         CD3DX12_RESOURCE_BARRIER::UAV(getTarget())
@@ -167,7 +165,10 @@ void Vic20Display::record(ID3D12GraphicsCommandList *list, UINT index) {
     list->DiscardResource(getTarget(), nullptr);
 
     list->SetComputeRootShaderResourceView(eDrawInfoBuffer, getInfoBufferAddress(index));
-    list->SetComputeRootShaderResourceView(eFrameBuffer, mFrameBuffer.deviceAddress());
+
+    list->SetComputeRootShaderResourceView(eCharacterMap, mCharacterMap.elementAddress(index));
+    list->SetComputeRootShaderResourceView(eScreenState, mScreenBuffer.deviceAddress());
+
     list->SetComputeRootDescriptorTable(ePresentTexture, srvPool.device(mTargetUAVIndex));
 
     list->ResourceBarrier(_countof(cBarrier), cBarrier);
@@ -180,20 +181,16 @@ D3D12_GPU_DESCRIPTOR_HANDLE Vic20Display::getTargetSrv() const {
     return srvPool.device(mTargetSRVIndex);
 }
 
-void Vic20Display::write(uint32_t x, uint32_t y, uint8_t colour) noexcept {
-    uint32_t coord = (y * VIC20_SCREEN_WIDTH + x);
-    if (coord > VIC20_SCREEN_SIZE) {
-        return;
-    }
+void Vic20Display::write(uint8_t x, uint8_t y, uint8_t colour, uint8_t character) noexcept {
+    uint8_t coord = y * VIC20_SCREEN_CHARS_WIDTH + x;
 
-    colour &= 0x0F;
+    uint8_t *screen = reinterpret_cast<uint8_t *>(mScreenData.screen);
+    uint8_t *colours = reinterpret_cast<uint8_t *>(mScreenData.colour);
 
-    int high = (coord & 1);
-    int index = (coord >> 1);
-    uint8_t& cell = mFrameData[index];
-    if (high) {
-        cell = (cell & 0x0F) | (colour << 4);
-    } else {
-        cell = (cell & 0xF0) | colour;
-    }
+    screen[coord] = character;
+    colours[coord] = colour;
+}
+
+void Vic20Display::writeCharacter(uint8_t id, shared::Vic20Character character) noexcept {
+    mCharacterData.characters[id] = character;
 }

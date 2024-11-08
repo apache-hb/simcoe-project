@@ -5,11 +5,29 @@
 #include "render/next/context/resource.hpp"
 
 namespace sm::draw::next {
+    constexpr shared::Vic20Character newChar(std::string_view text) noexcept {
+        CTASSERTF(text.size() == 64, "Invalid character data size %zu", text.size());
+        // treat `.` as selecting the background colour, and `#` as selecting the foreground colour.
+        // all other characters should throw an error.
+
+        uint64_t data = 0;
+        for (size_t i = 0; i < text.size(); i++) {
+            if (text[i] == '#') {
+                data |= (1ull << i);
+            } else if (text[i] != '.') {
+                CT_NEVER("Invalid character `%c` at index %zu", text[i], i);
+            }
+        }
+
+        return shared::Vic20Character{ data };
+    }
+
     class Vic20Display final : public render::next::IContextResource {
         using Super = render::next::IContextResource;
         using InfoDeviceBuffer = render::next::MultiBufferResource<shared::Vic20Info>;
-        using FrameBufferElement = uint8_t;
-        using DeviceFrameBuffer = render::next::BufferResource<FrameBufferElement>;
+
+        using DeviceScreenBuffer = render::next::MultiBufferResource<shared::Vic20Screen>;
+        using DeviceCharacterMap = render::next::MultiBufferResource<shared::Vic20CharacterMap>;
 
         render::Object<ID3D12RootSignature> mVic20RootSignature;
         render::Object<ID3D12PipelineState> mVic20PipelineState;
@@ -20,11 +38,11 @@ namespace sm::draw::next {
         void createConstBuffers(UINT length);
         D3D12_GPU_VIRTUAL_ADDRESS getInfoBufferAddress(UINT index) const noexcept;
 
-
-        DeviceFrameBuffer mFrameBuffer;
-        FrameBufferElement *mFrameBufferPtr = nullptr;
-        std::unique_ptr<FrameBufferElement[]> mFrameData;
-        void createFrameBuffer();
+        DeviceScreenBuffer mScreenBuffer;
+        shared::Vic20Screen mScreenData{};
+        DeviceCharacterMap mCharacterMap;
+        shared::Vic20CharacterMap mCharacterData{};
+        void createScreenBuffer(UINT length);
 
 
         render::next::TextureResource mTarget;
@@ -43,7 +61,9 @@ namespace sm::draw::next {
         ID3D12Resource *getTarget() const noexcept { return mTarget.get(); }
         D3D12_GPU_DESCRIPTOR_HANDLE getTargetSrv() const;
 
-        void write(uint32_t x, uint32_t y, uint8_t colour) noexcept;
+        void write(uint8_t x, uint8_t y, uint8_t colour, uint8_t character) noexcept;
+
+        void writeCharacter(uint8_t id, shared::Vic20Character character) noexcept;
 
         // IContextResource
         void reset() noexcept override;

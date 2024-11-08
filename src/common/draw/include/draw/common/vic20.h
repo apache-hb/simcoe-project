@@ -26,6 +26,8 @@ struct Vic20Info {
 
 #define VIC20_SCREEN_CHARBUFFER_SIZE (VIC20_SCREEN_CHARS_WIDTH * VIC20_SCREEN_CHARS_HEIGHT)
 
+#define VIC20_CHAR_COLOUR(FG, BG) ((FG << 4) | (BG & 0x0F))
+
 #define VIC20_COLOUR_BLACK 0
 #define VIC20_COLOUR_WHITE 1
 #define VIC20_COLOUR_DARK_BROWN 2
@@ -84,6 +86,38 @@ static const float3 kVic20Palette[VIC20_PALETTE_SIZE] = {
     VIC20_COLOUR(0xbd, 0xcc, 0x71),
     // #ff'ff'b0
     VIC20_COLOUR(0xff, 0xff, 0xb0),
+};
+
+/// an 8x8 character, each bit selects either the foreground
+/// or background colour for this character when rendered.
+/// Binary for the letter A. replaced 0 and 1 with . and # for readability.
+/// . . . # # . . .
+/// . . # . . # . .
+/// . # . . . . # .
+/// . # # # # # # .
+/// . # . . . . # .
+/// . # . . . . # .
+/// . # . . . . # .
+/// . . . . . . . .
+struct Vic20Character {
+    uint64_t data;
+};
+
+struct Vic20CharacterMap {
+    Vic20Character characters[VIC20_CHARMAP_SIZE];
+};
+
+/// @brief all screen buffer data for the vic20
+struct Vic20Screen {
+    /// @brief screen character map indices
+    /// Each byte is an index into the character map
+    /// originally placed at $1E00
+    uint32_t screen[VIC20_SCREEN_CHARBUFFER_SIZE / sizeof(uint32_t)];
+
+    /// @brief screen colour values
+    /// Each byte is 4 bits of foreground and 4 bits of background
+    /// originally placed at $9600
+    uint32_t colour[VIC20_SCREEN_CHARBUFFER_SIZE / sizeof(uint32_t)];
 };
 
 #ifndef __HLSL_VERSION
