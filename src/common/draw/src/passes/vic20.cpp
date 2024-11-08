@@ -77,6 +77,7 @@ void Vic20Display::createConstBuffers(UINT length) {
     for (size_t i = 0; i < length; i++) {
         shared::Vic20Info data = {
             .textureSize = mTargetSize,
+            .charmapIndex = 0,
         };
 
         mInfoBuffer.updateElement(i, data);
@@ -200,5 +201,17 @@ void Vic20Display::write(uint8_t x, uint8_t y, uint8_t colour, uint8_t character
 }
 
 void Vic20Display::writeCharacter(uint8_t id, shared::Vic20Character character) noexcept {
-    mCharacterData.characters[id] = character;
+    // reverse each byte before writing to the buffer
+    // https://graphics.stanford.edu/~seander/bithacks.html#ReverseByteWith64BitsDiv
+    auto reverseByte = [](uint8_t x) -> uint8_t {
+        return ((x * 0x0202020202ULL & 0x010884422010ULL) % 1023);
+    };
+
+    uint64_t result = 0;
+    for (int i = 0; i < 8; i++) {
+        uint8_t byte = reverseByte((character.data >> (i * 8)) & 0xFF);
+        result |= (uint64_t(byte) << (i * 8));
+    }
+
+    mCharacterData.characters[id] = shared::Vic20Character{ result };
 }

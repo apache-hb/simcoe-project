@@ -377,6 +377,15 @@ int main(int argc, const char **argv) noexcept try {
             if (ImGui::Button("Poke")) {
                 context.write(x, y, VIC20_CHAR_COLOUR(fg, bg), c);
             }
+
+            if (ImGui::Button("Draw character map")) {
+                int index = 0;
+                for (int i = 0; i < VIC20_SCREEN_CHARS_WIDTH; i++) {
+                    for (int j = 0; j < VIC20_SCREEN_CHARS_HEIGHT; j++) {
+                        context.write(i, j, VIC20_CHAR_COLOUR(fg, bg), index++);
+                    }
+                }
+            }
         }
         ImGui::End();
 

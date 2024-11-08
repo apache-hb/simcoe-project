@@ -7,6 +7,7 @@ namespace sm::draw::shared { using namespace sm::math;
 
 struct Vic20Info {
     uint2 textureSize;
+    uint charmapIndex;
 };
 
 #define VIC20_THREADS_X 8
