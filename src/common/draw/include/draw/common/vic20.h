@@ -107,17 +107,19 @@ struct Vic20CharacterMap {
     Vic20Character characters[VIC20_CHARMAP_SIZE];
 };
 
+typedef uint32_t ScreenElement;
+
 /// @brief all screen buffer data for the vic20
 struct Vic20Screen {
     /// @brief screen character map indices
     /// Each byte is an index into the character map
     /// originally placed at $1E00
-    uint32_t screen[VIC20_SCREEN_CHARBUFFER_SIZE / sizeof(uint32_t)];
+    ScreenElement screen[(VIC20_SCREEN_CHARBUFFER_SIZE) / 2];
 
     /// @brief screen colour values
     /// Each byte is 4 bits of foreground and 4 bits of background
     /// originally placed at $9600
-    uint32_t colour[VIC20_SCREEN_CHARBUFFER_SIZE / sizeof(uint32_t)];
+    ScreenElement colour[(VIC20_SCREEN_CHARBUFFER_SIZE) / 2];
 };
 
 #ifndef __HLSL_VERSION

@@ -120,6 +120,60 @@ static std::vector<T> readFileBytes(const sm::fs::path& path) {
     return data;
 }
 
+static const char *kVic20ColourNames[VIC20_PALETTE_SIZE] = {
+    [VIC20_COLOUR_BLACK] = "Black",
+    [VIC20_COLOUR_WHITE] = "White",
+    [VIC20_COLOUR_DARK_BROWN] = "Dark Brown",
+    [VIC20_COLOUR_LIGHT_BROWN] = "Light Brown",
+
+    [VIC20_COLOUR_MAROON] = "Maroon",
+    [VIC20_COLOUR_LIGHT_RED] = "Light Red",
+    [VIC20_COLOUR_BLUE] = "Blue",
+    [VIC20_COLOUR_LIGHT_BLUE] = "Light Blue",
+
+    [VIC20_COLOUR_PURPLE] = "Purple",
+    [VIC20_COLOUR_PINK] = "Pink",
+    [VIC20_COLOUR_GREEN] = "Green",
+    [VIC20_COLOUR_LIGHT_GREEN] = "Light Green",
+
+    [VIC20_COLOUR_DARK_PURPLE] = "Dark Purple",
+    [VIC20_COLOUR_LIGHT_PURPLE] = "Light Purple",
+    [VIC20_COLOUR_YELLOW_GREEN] = "Yellow Green",
+    [VIC20_COLOUR_LIGHT_YELLOW] = "Light Yellow",
+};
+
+static void PaletteColourPicker(const char *label, int *colour)
+{
+    if (ImGui::BeginCombo(label, kVic20ColourNames[*colour]))
+    {
+        for (int i = 0; i < VIC20_PALETTE_SIZE; ++i)
+        {
+            ImGui::PushID(i);
+            // draw a little square with the colour of this choice
+            // on the left side of the selectable as a visual preview
+
+            math::float3 palette = draw::shared::kVic20Palette[i];
+            ImGui::ColorButton("##colour", ImVec4(palette.r, palette.g, palette.b, 1.0f), ImGuiColorEditFlags_NoPicker);
+
+            ImGui::PopID();
+
+            ImGui::SameLine();
+
+            if (ImGui::Selectable(kVic20ColourNames[i]))
+            {
+                *colour = i;
+            }
+
+            if (i == *colour)
+            {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+
+        ImGui::EndCombo();
+    }
+}
+
 int main(int argc, const char **argv) noexcept try {
     SetProcessAffinityMask(GetCurrentProcess(), 0b1111'1111'1111'1111);
     bt_init();
@@ -190,35 +244,49 @@ int main(int argc, const char **argv) noexcept try {
     Vic20DrawContext context{config, window.getHandle(), vic20Size};
     events.context = &context;
 
-    static const char *kVic20ColourNames[VIC20_PALETTE_SIZE] = {
-        [VIC20_COLOUR_BLACK] = "Black",
-        [VIC20_COLOUR_WHITE] = "White",
-        [VIC20_COLOUR_DARK_BROWN] = "Dark Brown",
-        [VIC20_COLOUR_LIGHT_BROWN] = "Light Brown",
+    // context.write(
+    //     0, 0,
+    //     VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLUE), 99
+    // );
 
-        [VIC20_COLOUR_MAROON] = "Maroon",
-        [VIC20_COLOUR_LIGHT_RED] = "Light Red",
-        [VIC20_COLOUR_BLUE] = "Blue",
-        [VIC20_COLOUR_LIGHT_BLUE] = "Light Blue",
+    // context.write(
+    //     VIC20_SCREEN_CHARS_WIDTH - 1, 0,
+    //     VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLUE), 99
+    // );
 
-        [VIC20_COLOUR_PURPLE] = "Purple",
-        [VIC20_COLOUR_PINK] = "Pink",
-        [VIC20_COLOUR_GREEN] = "Green",
-        [VIC20_COLOUR_LIGHT_GREEN] = "Light Green",
+    context.write(
+        0, 11,
+        VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLUE), 99
+    );
 
-        [VIC20_COLOUR_DARK_PURPLE] = "Dark Purple",
-        [VIC20_COLOUR_LIGHT_PURPLE] = "Light Purple",
-        [VIC20_COLOUR_YELLOW_GREEN] = "Yellow Green",
-        [VIC20_COLOUR_LIGHT_YELLOW] = "Light Yellow",
-    };
+    context.write(
+        0, 12,
+        VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_GREEN), 99
+    );
 
-    context.write(0, 0, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLUE), 0);
-    context.write(1, 0, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLUE), 1);
-    context.write(2, 0, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLUE), 2);
-    context.write(3, 0, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLUE), 3);
-    context.write(4, 0, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLUE), 4);
+    context.write(
+        0, 13,
+        VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_LIGHT_RED), 99
+    );
+
+    // context.write(
+    //     0, VIC20_SCREEN_CHARS_HEIGHT - 1,
+    //     VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLUE), 99
+    // );
+
+    // context.write(
+    //     VIC20_SCREEN_CHARS_WIDTH - 1, VIC20_SCREEN_CHARS_HEIGHT - 1,
+    //     VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLUE), 99
+    // );
 
     ImGui::FileBrowser openCharacterMapRom{ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_ConfirmOnEnter};
+    openCharacterMapRom.SetInputName("Open Character Map ROM");
+
+    char userprofile[MAX_PATH];
+    GetEnvironmentVariableA("USERPROFILE", userprofile, MAX_PATH);
+
+    openCharacterMapRom.SetPwd(userprofile);
+
     std::vector<draw::shared::Vic20Character> charmap;
     fs::path selected;
     std::string error;
@@ -290,54 +358,22 @@ int main(int argc, const char **argv) noexcept try {
         }
         ImGui::End();
 
-
         ImGui::ShowDemoWindow();
 
         if (ImGui::Begin("Poke")) {
-            static uint8_t x = 0;
-            static uint8_t y = 0;
-            static int width = 50;
-            static int height = 50;
-            static int colour = VIC20_COLOUR_WHITE;
+            static int x = 0;
+            static int y = 0;
+            static int fg = VIC20_COLOUR_WHITE;
+            static int bg = VIC20_COLOUR_BLACK;
 
-            ImGui::InputScalar("Width", ImGuiDataType_S32, &width);
-            ImGui::InputScalar("Height", ImGuiDataType_S32, &height);
+            ImGui::SliderInt("X", &x, 0, VIC20_SCREEN_CHARS_WIDTH - 1);
+            ImGui::SliderInt("Y", &y, 0, VIC20_SCREEN_CHARS_HEIGHT - 1);
 
-            width = std::clamp(width, 1, 50);
-            height = std::clamp(height, 1, 50);
-
-            ImGui::InputScalar("X", ImGuiDataType_U8, &x);
-            ImGui::InputScalar("Y", ImGuiDataType_U8, &y);
-            if (ImGui::BeginCombo("Colour", kVic20ColourNames[colour])) {
-                for (int i = 0; i < VIC20_PALETTE_SIZE; ++i) {
-                    ImGui::PushID(i);
-                    // draw a little square with the colour of this choice
-                    // on the left side of the selectable as a visual preview
-
-                    math::float3 palette = draw::shared::kVic20Palette[i];
-                    ImGui::ColorButton("##colour", ImVec4(palette.r, palette.g, palette.b, 1.0f), ImGuiColorEditFlags_NoPicker);
-
-                    ImGui::PopID();
-
-                    ImGui::SameLine();
-
-                    if (ImGui::Selectable(kVic20ColourNames[i])) {
-                        colour = i;
-                    }
-
-                    if (i == colour) {
-                        ImGui::SetItemDefaultFocus();
-                    }
-                }
-                ImGui::EndCombo();
-            }
+            PaletteColourPicker("Background", &bg);
+            PaletteColourPicker("Foreground", &fg);
 
             if (ImGui::Button("Poke")) {
-                for (int i = 0; i < width; ++i) {
-                    for (int j = 0; j < height; ++j) {
-                        context.write(x + i, y + j, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLUE), 0);
-                    }
-                }
+                context.write(x, y, VIC20_CHAR_COLOUR(fg, bg), 0);
             }
         }
         ImGui::End();

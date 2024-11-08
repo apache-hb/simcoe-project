@@ -148,8 +148,6 @@ void Vic20Display::create() {
 void Vic20Display::record(ID3D12GraphicsCommandList *list, UINT index) {
     DescriptorPool& srvPool = mContext.getSrvHeap();
     ID3D12DescriptorHeap *heaps[] = { srvPool.get() };
-    uint dispatchX = (mTargetSize.x / VIC20_THREADS_X) - 1;
-    uint dispatchY = (mTargetSize.y / VIC20_THREADS_Y) - 1;
 
     mScreenBuffer.updateElement(index, mScreenData);
 
@@ -173,7 +171,7 @@ void Vic20Display::record(ID3D12GraphicsCommandList *list, UINT index) {
 
     list->ResourceBarrier(_countof(cBarrier), cBarrier);
 
-    list->Dispatch(dispatchX, dispatchY, 1);
+    list->Dispatch(VIC20_SCREEN_CHARS_WIDTH, VIC20_SCREEN_CHARS_HEIGHT, 1);
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE Vic20Display::getTargetSrv() const {
@@ -182,13 +180,22 @@ D3D12_GPU_DESCRIPTOR_HANDLE Vic20Display::getTargetSrv() const {
 }
 
 void Vic20Display::write(uint8_t x, uint8_t y, uint8_t colour, uint8_t character) noexcept {
-    uint8_t coord = y * VIC20_SCREEN_CHARS_WIDTH + x;
+    uint16_t coord = y * VIC20_SCREEN_CHARS_WIDTH + x;
 
-    uint8_t *screen = reinterpret_cast<uint8_t *>(mScreenData.screen);
-    uint8_t *colours = reinterpret_cast<uint8_t *>(mScreenData.colour);
+    uint16_t elementIndex = coord / sizeof(shared::ScreenElement);
+    uint16_t elementOffset = coord % sizeof(shared::ScreenElement);
 
-    screen[coord] = character;
-    colours[coord] = colour;
+    shared::ScreenElement screenElement = mScreenData.screen[elementIndex];
+    shared::ScreenElement colourElement = mScreenData.colour[elementIndex];
+
+    screenElement &= ~(0xFF << (elementOffset * 8));
+    colourElement &= ~(0xFF << (elementOffset * 8));
+
+    screenElement |= character << (elementOffset * 8);
+    colourElement |= colour << (elementOffset * 8);
+
+    mScreenData.screen[elementIndex] = screenElement;
+    mScreenData.colour[elementIndex] = colourElement;
 }
 
 void Vic20Display::writeCharacter(uint8_t id, shared::Vic20Character character) noexcept {

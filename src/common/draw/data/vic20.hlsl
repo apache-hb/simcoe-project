@@ -9,22 +9,25 @@ StructuredBuffer<Vic20Screen> gScreenState : register(t2);
 // a texture to write into with a resolution of `gTextureSize`
 RWTexture2D<float4> gPresentTexture : register(u0);
 
-#define X_PIXELS_PER_WORD (8)
+#define X_PIXELS_PER_THREAD (8)
+#define Y_PIXELS_PER_THREAD (8)
 
 uint getCharacterIndex(Vic20Screen screen, uint index) {
-    uint elementIndex = index / sizeof(uint);
-    uint byteIndex = index % sizeof(uint);
-    if (elementIndex >= VIC20_SCREEN_CHARBUFFER_SIZE)
+    if (index >= VIC20_SCREEN_CHARBUFFER_SIZE)
         return VIC20_CHARMAP_SIZE;
+
+    uint elementIndex = index / sizeof(ScreenElement);
+    uint byteIndex = index % sizeof(ScreenElement);
 
     return screen.screen[elementIndex] >> (byteIndex * 8) & 0xFF;
 }
 
 uint getCharacterColour(Vic20Screen screen, uint index) {
-    uint elementIndex = index / sizeof(uint);
-    uint byteIndex = index % sizeof(uint);
-    if (elementIndex >= VIC20_SCREEN_CHARBUFFER_SIZE)
-        return 0xFF;
+    if (index >= VIC20_SCREEN_CHARBUFFER_SIZE)
+        return VIC20_CHAR_COLOUR(VIC20_COLOUR_PINK, VIC20_COLOUR_BLACK);
+
+    uint elementIndex = index / sizeof(ScreenElement);
+    uint byteIndex = index % sizeof(ScreenElement);
 
     return screen.colour[elementIndex] >> (byteIndex * 8) & 0xFF;
 }
@@ -44,18 +47,22 @@ float4 getPaletteColourFromIndex(uint index) {
     return float4(kVic20Palette[index], 1.f);
 }
 
-uint getScreenIndex(uint2 dispatchId, float2 textureSize) {
-    float uvX = float(dispatchId.x) / textureSize.x;
-    float uvY = float(dispatchId.y) / textureSize.y;
-
-    uint fbX = floor(uvX * VIC20_SCREEN_CHARS_WIDTH);
-    uint fbY = floor(uvY * VIC20_SCREEN_CHARS_HEIGHT);
-
-    return fbY * VIC20_SCREEN_CHARS_WIDTH + fbX;
+uint getScreenIndex(uint2 dispatchId) {
+    return dispatchId.y * VIC20_SCREEN_CHARS_WIDTH + dispatchId.x;
 }
 
-// this is dispatched based on the size of `gTextureSize` rather than the framebuffer size
-[numthreads(VIC20_THREADS_X / X_PIXELS_PER_WORD, VIC20_THREADS_Y, 1)]
+uint2 getTextureIndex(uint2 dispatchId, float2 textureSize) {
+    float uvX = float(dispatchId.x) / VIC20_SCREEN_CHARS_WIDTH;
+    float uvY = float(dispatchId.y) / VIC20_SCREEN_CHARS_HEIGHT;
+
+    uint fbX = floor(uvX * textureSize.x);
+    uint fbY = floor(uvY * textureSize.y);
+
+    return uint2(fbX, fbY);
+}
+
+// each thread is responsible for a single character
+[numthreads(VIC20_THREADS_X / X_PIXELS_PER_THREAD, VIC20_THREADS_Y, 1)]
 void csMain(
     uint3 groupId : SV_GroupID,
     uint3 groupThreadId : SV_GroupThreadID,
@@ -65,12 +72,17 @@ void csMain(
     Vic20CharacterMap characters = gCharacterMap[0];
     Vic20Screen screen = gScreenState[0];
 
-    uint2 threadId = groupId.xy * uint2(VIC20_THREADS_X, VIC20_THREADS_Y) + groupThreadId.xy * uint2(X_PIXELS_PER_WORD, 1);
-    uint index = getScreenIndex(threadId, info.textureSize) / X_PIXELS_PER_WORD;
+    uint2 threadId = groupId.xy * uint2(VIC20_THREADS_X, VIC20_THREADS_Y) + groupThreadId.xy;
+
+    uint index = getScreenIndex(groupId.xy);
     uint characterIndex = getCharacterIndex(screen, index);
     uint colour = getCharacterColour(screen, index);
     uint fg = foregroundColour(colour);
     uint bg = backgroundColour(colour);
+
+    float ic = float(index) / VIC20_SCREEN_CHARBUFFER_SIZE;
+    float u = float(threadId.x) / info.textureSize.x;
+    float v = float(threadId.y) / info.textureSize.y;
 
     gPresentTexture[threadId + uint2(0, 0)] = getPaletteColourFromIndex(fg);
     gPresentTexture[threadId + uint2(1, 0)] = getPaletteColourFromIndex(fg);
