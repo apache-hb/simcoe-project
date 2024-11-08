@@ -21,9 +21,10 @@
 !*.ps1
 !*.sql
 !*.xml
-!setup.bat
-!setup.sh
+!*.bat
+!*.sh
 !*.yml
+!*.wsb
 
 # config files
 !*.ini

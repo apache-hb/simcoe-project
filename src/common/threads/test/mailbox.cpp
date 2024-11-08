@@ -44,7 +44,7 @@ TEST_CASE("Non-blocking mailbox") {
     using BigArray = std::array<uint8_t, kArraySize>;
 
     // a little too big for the stack
-    std::unique_ptr mailbox = std::make_unique<thread::NonBlockingMailBox<BigArray>>();
+    std::unique_ptr mailbox = std::make_unique<threads::NonBlockingMailBox<BigArray>>();
 
     {
         MultiThreadedTestStream errors;

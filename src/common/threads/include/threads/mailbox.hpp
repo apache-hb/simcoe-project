@@ -5,7 +5,7 @@
 
 #include "base/panic.h"
 
-namespace sm::thread {
+namespace sm::threads {
     /// @brief single slot mailbox for communicating between threads
     /// single producer single consumer mailbox which garantees to never
     /// block when reading.

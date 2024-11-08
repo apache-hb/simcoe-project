@@ -63,6 +63,8 @@ namespace game {
     public:
         AccountClient(sm::net::Network& net, const sm::net::Address& address, uint16_t port) throws(sm::net::NetException);
 
+        bool isAuthed() { return mCurrentSession != UINT64_MAX; }
+
         bool createAccount(std::string_view name, std::string_view password);
         bool login(std::string_view name, std::string_view password);
 

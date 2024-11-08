@@ -31,9 +31,9 @@ using BigArray = std::array<uint8_t, kBigArraySize>;
 using MediumArray = std::array<uint8_t, kMediumArraySize>;
 using SmallArray = std::array<uint8_t, kSmallArraySize>;
 
-std::unique_ptr bigMailbox = std::make_unique<thread::NonBlockingMailBox<BigArray>>();
-std::unique_ptr mediumMailbox = std::make_unique<thread::NonBlockingMailBox<MediumArray>>();
-std::unique_ptr smallMailbox = std::make_unique<thread::NonBlockingMailBox<SmallArray>>();
+std::unique_ptr bigMailbox = std::make_unique<threads::NonBlockingMailBox<BigArray>>();
+std::unique_ptr mediumMailbox = std::make_unique<threads::NonBlockingMailBox<MediumArray>>();
+std::unique_ptr smallMailbox = std::make_unique<threads::NonBlockingMailBox<SmallArray>>();
 
 TEST_CASE("Mailbox baseline") {
     SetProcessAffinityMask(GetCurrentProcess(), 0b1111'1111'1111'1111);

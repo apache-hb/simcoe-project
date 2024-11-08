@@ -55,6 +55,9 @@ bool AccountClient::createLobby(std::string_view name) {
     if (name.size() > sizeof(CreateLobby::name))
         return false;
 
+    if (!isAuthed())
+        return false;
+
     mSocket.send(CreateLobby { mNextId++, mCurrentSession, name }).throwIfFailed();
 
     NewLobby lobby = net::throwIfFailed(mSocket.recv<NewLobby>());
@@ -68,6 +71,9 @@ bool AccountClient::createLobby(std::string_view name) {
 }
 
 bool AccountClient::joinLobby(LobbyId id) {
+    if (!isAuthed())
+        return false;
+
     mSocket.send(JoinLobby { mNextId++, mCurrentSession, id }).throwIfFailed();
 
     Response response = net::throwIfFailed(mSocket.recv<Response>());
@@ -89,6 +95,9 @@ static size_t getSessionListSize(const SessionList *list) {
 }
 
 void AccountClient::refreshSessionList() {
+    if (!isAuthed())
+        throw std::runtime_error("Not authenticated");
+
     std::vector<SessionInfo> sessions;
 
     mSocket.send(GetSessionList { mNextId++, mCurrentSession }).throwIfFailed();
@@ -115,6 +124,9 @@ static size_t getLobbyListSize(const LobbyList *list) {
 }
 
 void AccountClient::refreshLobbyList() {
+    if (!isAuthed())
+        throw std::runtime_error("Not authenticated");
+
     std::vector<LobbyInfo> lobbies;
 
     mSocket.send(GetLobbyList { mNextId++, mCurrentSession }).throwIfFailed();
@@ -144,8 +156,8 @@ std::unique_ptr<std::byte[]> AccountClient::getNextMessage(std::chrono::millisec
             std::invoke(it->second, std::span(packet.get(), size));
             mRequestSlots.erase(it);
             continue;
-        } 
-        
+        }
+
         return packet;
     }
 }

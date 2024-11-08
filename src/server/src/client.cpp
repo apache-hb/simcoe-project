@@ -3,6 +3,8 @@
 
 #include "db/connection.hpp"
 
+#include "threads/mailbox.hpp"
+
 #include "net/net.hpp"
 
 #include "launch/launch.hpp"
@@ -32,6 +34,16 @@ enum ClientState {
 
 using EventQueue = moodycamel::BlockingConcurrentQueue<std::function<void()>>;
 
+namespace ImGui
+{
+    void Spinner(const char *title, float frequency = 0.05f)
+    {
+        char symbol = "|/-\\"[(int)(ImGui::GetTime() / frequency) & 3];
+
+        ImGui::Text("%s %c", title, symbol);
+    }
+}
+
 struct LobbyListWidget {
     enum State {
         eIdle,
@@ -42,8 +54,8 @@ struct LobbyListWidget {
 
     std::atomic<State> state = eIdle;
     std::string error = "";
-    std::vector<game::LobbyInfo> sessions;
-    std::vector<game::LobbyInfo> newSessionInfo;
+
+    threads::NonBlockingMailBox<std::vector<game::LobbyInfo>> lobbies;
 
     void drawTable() {
         ImGui::SeparatorText("Lobbies");
@@ -56,7 +68,9 @@ struct LobbyListWidget {
 
             ImGui::TableHeadersRow();
 
-            for (const auto& session : sessions) {
+            std::lock_guard guard(lobbies);
+
+            for (const auto& session : lobbies.read()) {
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
                 ImGui::Text("%llu", session.id);
@@ -79,7 +93,7 @@ struct LobbyListWidget {
             try {
                 state.store(eUpdating);
                 client.refreshLobbyList();
-                newSessionInfo = client.getLobbyInfo();
+                lobbies.write(client.getLobbyInfo());
                 state.store(eDoneUpdate);
             } catch (const std::exception& e) {
                 error = e.what();
@@ -97,11 +111,6 @@ struct LobbyListWidget {
     void draw(EventQueue& events, game::AccountClient& client) {
         State s = state.load();
 
-        if (!newSessionInfo.empty()) {
-            sessions = std::move(newSessionInfo);
-            newSessionInfo.clear();
-        }
-
         if (s == eError) {
             ImGui::Text("Error: %s", error.c_str());
             refreshButton(events, client);
@@ -110,7 +119,7 @@ struct LobbyListWidget {
             refreshButton(events, client);
         } else if (s == eUpdating) {
             drawTable();
-            ImGui::Text("Updating %c", "|/-\\"[(int)(ImGui::GetTime() / 0.05f) & 3]);
+            ImGui::Spinner("Updating");
         }
     }
 };
@@ -125,8 +134,8 @@ struct SessionListWidget {
 
     std::atomic<State> state = eIdle;
     std::string error = "";
-    std::vector<game::SessionInfo> sessions;
-    std::vector<game::SessionInfo> newSessionInfo;
+
+    threads::NonBlockingMailBox<std::vector<game::SessionInfo>> sessions;
 
     void drawTable() {
         ImGui::SeparatorText("Sessions");
@@ -137,7 +146,9 @@ struct SessionListWidget {
 
             ImGui::TableHeadersRow();
 
-            for (const auto& session : sessions) {
+            std::lock_guard guard(sessions);
+
+            for (const auto& session : sessions.read()) {
                 ImGui::TableNextRow();
 
                 ImGui::TableNextColumn();
@@ -157,7 +168,7 @@ struct SessionListWidget {
             try {
                 state.store(eUpdating);
                 client.refreshSessionList();
-                newSessionInfo = client.getSessionInfo();
+                sessions.write(client.getSessionInfo());
                 state.store(eDoneUpdate);
             } catch (const std::exception& e) {
                 error = e.what();
@@ -175,11 +186,6 @@ struct SessionListWidget {
     void draw(EventQueue& events, game::AccountClient& client) {
         State s = state.load();
 
-        if (!newSessionInfo.empty()) {
-            sessions = std::move(newSessionInfo);
-            newSessionInfo.clear();
-        }
-
         if (s == eError) {
             ImGui::Text("Error: %s", error.c_str());
             refreshButton(events, client);
@@ -188,7 +194,7 @@ struct SessionListWidget {
             refreshButton(events, client);
         } else if (s == eUpdating) {
             drawTable();
-            ImGui::Text("Updating %c", "|/-\\"[(int)(ImGui::GetTime() / 0.05f) & 3]);
+            ImGui::Spinner("Updating");
         }
     }
 };
@@ -251,7 +257,7 @@ static int commonMain() noexcept try {
                 }
 
                 if (current == eConnecting) {
-                    ImGui::Text("Connecting %c", "|/-\\"[(int)(ImGui::GetTime() / 0.05f) & 3]);
+                    ImGui::Spinner("Connecting");
                 } else if (current == eConnectError) {
                     ImGui::Text("Failed to connect: %s", error);
                 } else if (current == eDisconnected) {
@@ -294,7 +300,12 @@ static int commonMain() noexcept try {
                     events.enqueue([&, username = username, password = password] {
                         try {
                             if (client->createAccount(username, password)) {
-                                state.store(eLoggedIn);
+                                if (!client->login(username, password)) {
+                                    std::strncpy(error, "Login failed", sizeof(error));
+                                    state.store(eLoginError);
+                                } else {
+                                    state.store(eLoggedIn);
+                                }
                             } else {
                                 std::strncpy(error, "Account creation failed", sizeof(error));
                                 state.store(eLoginError);
@@ -303,13 +314,18 @@ static int commonMain() noexcept try {
                             std::strncpy(error, err.what(), sizeof(error));
                             state.store(eLoginError);
                         }
+
+                        if (state.load() == eLoggedIn) {
+                            sessionList.refreshList(events, *client);
+                            lobbyList.refreshList(events, *client);
+                        }
                     });
                 }
 
                 ImGui::EndDisabled();
 
                 if (current == eLoggingIn) {
-                    ImGui::Text("Logging in %c", "|/-\\"[(int)(ImGui::GetTime() / 0.05f) & 3]);
+                    ImGui::Spinner("Authenticating");
                 } else if (current == eLoginError) {
                     ImGui::Text("Failed to login: %s", error);
                 }
@@ -402,7 +418,7 @@ int main(int argc, const char **argv) noexcept try {
 }
 
 int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
-    auto _ = launch::commonInit(GetModuleHandleA(nullptr), kLaunchInfo);
+    auto _ = launch::commonInit(hInstance, kLaunchInfo);
 
     LOG_INFO(ClientLog, "lpCmdLine = {}", lpCmdLine);
     LOG_INFO(ClientLog, "nShowCmd = {}", nShowCmd);
