@@ -150,6 +150,7 @@ void Vic20Display::record(ID3D12GraphicsCommandList *list, UINT index) {
     ID3D12DescriptorHeap *heaps[] = { srvPool.get() };
 
     mScreenBuffer.updateElement(index, mScreenData);
+    mCharacterMap.updateElement(index, mCharacterData);
 
     const D3D12_RESOURCE_BARRIER cBarrier[] = {
         CD3DX12_RESOURCE_BARRIER::UAV(getTarget())

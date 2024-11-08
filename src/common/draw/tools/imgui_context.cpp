@@ -363,24 +363,26 @@ int main(int argc, const char **argv) noexcept try {
         if (ImGui::Begin("Poke")) {
             static int x = 0;
             static int y = 0;
+            static int c = 0;
             static int fg = VIC20_COLOUR_WHITE;
             static int bg = VIC20_COLOUR_BLACK;
 
             ImGui::SliderInt("X", &x, 0, VIC20_SCREEN_CHARS_WIDTH - 1);
             ImGui::SliderInt("Y", &y, 0, VIC20_SCREEN_CHARS_HEIGHT - 1);
+            ImGui::SliderInt("Character", &c, 0, 255);
 
             PaletteColourPicker("Background", &bg);
             PaletteColourPicker("Foreground", &fg);
 
             if (ImGui::Button("Poke")) {
-                context.write(x, y, VIC20_CHAR_COLOUR(fg, bg), 0);
+                context.write(x, y, VIC20_CHAR_COLOUR(fg, bg), c);
             }
         }
         ImGui::End();
 
         if (ImGui::Begin("VIC20")) {
             D3D12_GPU_DESCRIPTOR_HANDLE srv = context.getVic20TargetSrv();
-            ImGui::Image(reinterpret_cast<ImTextureID>(srv.ptr), ImVec2(vic20Size.width, vic20Size.height));
+            ImGui::Image(std::bit_cast<ImTextureID>(srv), ImVec2(vic20Size.width, vic20Size.height));
         }
         ImGui::End();
 

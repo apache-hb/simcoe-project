@@ -22,6 +22,14 @@ uint getCharacterIndex(Vic20Screen screen, uint index) {
     return screen.screen[elementIndex] >> (byteIndex * 8) & 0xFF;
 }
 
+Vic20Character getCharacter(Vic20CharacterMap characters, uint index) {
+    if (index >= VIC20_CHARMAP_SIZE) {
+        return Vic20Character(0b0101010101010101010101010101010101010101010101010101010101010101);
+    }
+
+    return characters.characters[index];
+}
+
 uint getCharacterColour(Vic20Screen screen, uint index) {
     if (index >= VIC20_SCREEN_CHARBUFFER_SIZE)
         return VIC20_CHAR_COLOUR(VIC20_COLOUR_PINK, VIC20_COLOUR_BLACK);
@@ -61,8 +69,8 @@ uint2 getTextureIndex(uint2 dispatchId, float2 textureSize) {
     return uint2(fbX, fbY);
 }
 
-// each thread is responsible for a single character
-[numthreads(VIC20_THREADS_X / X_PIXELS_PER_THREAD, VIC20_THREADS_Y, 1)]
+// each thread is responsible for a single pixel in a character
+[numthreads(VIC20_THREADS_X, VIC20_THREADS_Y, 1)]
 void csMain(
     uint3 groupId : SV_GroupID,
     uint3 groupThreadId : SV_GroupThreadID,
@@ -72,24 +80,30 @@ void csMain(
     Vic20CharacterMap characters = gCharacterMap[0];
     Vic20Screen screen = gScreenState[0];
 
-    uint2 threadId = groupId.xy * uint2(VIC20_THREADS_X, VIC20_THREADS_Y) + groupThreadId.xy;
+    uint groupIndex = groupThreadId.y * VIC20_THREADS_X + groupThreadId.x;
 
     uint index = getScreenIndex(groupId.xy);
     uint characterIndex = getCharacterIndex(screen, index);
+    Vic20Character character = getCharacter(characters, characterIndex);
+    bool pickForeground = (character.data & (1ULL << groupIndex)) != 0;
     uint colour = getCharacterColour(screen, index);
-    uint fg = foregroundColour(colour);
-    uint bg = backgroundColour(colour);
 
-    float ic = float(index) / VIC20_SCREEN_CHARBUFFER_SIZE;
-    float u = float(threadId.x) / info.textureSize.x;
-    float v = float(threadId.y) / info.textureSize.y;
+    uint finalColour = pickForeground
+        ? foregroundColour(colour)
+        : backgroundColour(colour);
 
-    gPresentTexture[threadId + uint2(0, 0)] = getPaletteColourFromIndex(fg);
-    gPresentTexture[threadId + uint2(1, 0)] = getPaletteColourFromIndex(fg);
-    gPresentTexture[threadId + uint2(2, 0)] = getPaletteColourFromIndex(fg);
-    gPresentTexture[threadId + uint2(3, 0)] = getPaletteColourFromIndex(fg);
-    gPresentTexture[threadId + uint2(4, 0)] = getPaletteColourFromIndex(bg);
-    gPresentTexture[threadId + uint2(5, 0)] = getPaletteColourFromIndex(bg);
-    gPresentTexture[threadId + uint2(6, 0)] = getPaletteColourFromIndex(bg);
-    gPresentTexture[threadId + uint2(7, 0)] = getPaletteColourFromIndex(bg);
+    uint2 pixel = groupId.xy * uint2(VIC20_THREADS_X, VIC20_THREADS_Y) + groupThreadId.xy;
+    gPresentTexture[pixel] = getPaletteColourFromIndex(finalColour);
+
+    // float ic = float(index) / VIC20_SCREEN_CHARBUFFER_SIZE;
+    // float u = float(threadId.x) / info.textureSize.x;
+    // float v = float(threadId.y) / info.textureSize.y;
+
+    // gPresentTexture[threadId + uint2(1, 0)] = getPaletteColourFromIndex(fg);
+    // gPresentTexture[threadId + uint2(2, 0)] = getPaletteColourFromIndex(fg);
+    // gPresentTexture[threadId + uint2(3, 0)] = getPaletteColourFromIndex(fg);
+    // gPresentTexture[threadId + uint2(4, 0)] = getPaletteColourFromIndex(bg);
+    // gPresentTexture[threadId + uint2(5, 0)] = getPaletteColourFromIndex(bg);
+    // gPresentTexture[threadId + uint2(6, 0)] = getPaletteColourFromIndex(bg);
+    // gPresentTexture[threadId + uint2(7, 0)] = getPaletteColourFromIndex(bg);
 }
