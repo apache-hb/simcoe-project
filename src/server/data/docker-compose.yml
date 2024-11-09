@@ -33,9 +33,8 @@ services:
     dns: ${DNS_PUBLIC_IP}
     dns_search: ${DNS_DOMAIN}
     volumes:
-      # - /boot:/boot:ro
+      - /boot:/boot:ro
       - ./container/.secrets:/run/secrets:ro
-      - /dev/shm
       - ./container/rac_host_file:/etc/hosts
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
     tmpfs:
