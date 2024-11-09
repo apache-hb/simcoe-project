@@ -406,6 +406,28 @@ int main(int argc, const char **argv) noexcept try {
                     }
                 }
             }
+
+            static bool fill = false;
+            ImGui::Checkbox("Fill", &fill);
+            ImGui::SameLine();
+            ImGui::SliderInt("Index", &c, 0, 255);
+
+            if (fill) {
+                for (int i = 0; i < VIC20_SCREEN_CHARS_WIDTH; i++) {
+                    for (int j = 0; j < VIC20_SCREEN_CHARS_HEIGHT; j++) {
+                        context.write(i, j, VIC20_CHAR_COLOUR(fg, bg), c);
+                    }
+                }
+            }
+
+            static char buffer[256] = {0};
+            ImGui::InputText("Text", buffer, sizeof(buffer));
+
+            if (ImGui::Button("Draw text")) {
+                for (size_t i = 0; i < strlen(buffer); i++) {
+                    context.write(x + i, y, VIC20_CHAR_COLOUR(fg, bg), buffer[i]);
+                }
+            }
         }
         ImGui::End();
 

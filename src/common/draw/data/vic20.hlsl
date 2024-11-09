@@ -12,6 +12,10 @@ RWTexture2D<float4> gPresentTexture : register(u0);
 #define X_PIXELS_PER_THREAD (8)
 #define Y_PIXELS_PER_THREAD (8)
 
+uint extractByte(uint value, uint byteIndex) {
+    return value >> (byteIndex * 8) & 0xFF;
+}
+
 uint getCharacterIndex(Vic20Screen screen, uint index) {
     if (index >= VIC20_SCREEN_CHARBUFFER_SIZE)
         return VIC20_CHARMAP_SIZE;
@@ -19,7 +23,7 @@ uint getCharacterIndex(Vic20Screen screen, uint index) {
     uint elementIndex = index / sizeof(ScreenElement);
     uint byteIndex = index % sizeof(ScreenElement);
 
-    return screen.screen[elementIndex] >> (byteIndex * 8) & 0xFF;
+    return extractByte(screen.screen[elementIndex], byteIndex);
 }
 
 Vic20Character getCharacter(Vic20CharacterMap characters, uint index) {
@@ -37,7 +41,7 @@ uint getCharacterColour(Vic20Screen screen, uint index) {
     uint elementIndex = index / sizeof(ScreenElement);
     uint byteIndex = index % sizeof(ScreenElement);
 
-    return screen.colour[elementIndex] >> (byteIndex * 8) & 0xFF;
+    return extractByte(screen.colour[elementIndex], byteIndex);
 }
 
 uint foregroundColour(uint colour) {

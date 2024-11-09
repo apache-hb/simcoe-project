@@ -110,7 +110,7 @@ struct Vic20CharacterMap {
 
 typedef uint32_t ScreenElement;
 
-#define VIC20_SCREEN_BUFFER_SIZE (VIC20_SCREEN_CHARBUFFER_SIZE / 2)
+#define VIC20_SCREEN_BUFFER_SIZE ((uint(VIC20_SCREEN_CHARBUFFER_SIZE) / sizeof(ScreenElement)) + 1u)
 
 /// @brief all screen buffer data for the vic20
 struct Vic20Screen {
