@@ -1,0 +1,11 @@
+[wrap-file]
+directory = instantclient_23_5
+
+source_url = https://download.oracle.com/otn_software/linux/instantclient/2360000/instantclient-sdk-linux.x64-23.6.0.24.10.zip
+source_hash = 9f7cda57908cf0a5e407da906a86410b22c6d91bee380c4ce585c26e6ec270c7
+source_filename = instantclient-sdk-linux.x64-23.6.0.24.10.zip
+
+patch_directory = instantclient-linux
+
+[provide]
+dependency_names = instantclient-linux

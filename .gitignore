@@ -25,6 +25,7 @@
 !*.sh
 !*.yml
 !*.wsb
+!*.env
 
 # config files
 !*.ini

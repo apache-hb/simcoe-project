@@ -9,4 +9,4 @@ instantclient_dep = declare_dependency(
     dependencies : lib
 )
 
-meson.override_dependency('instantclient', instantclient_dep)
+meson.override_dependency('instantclient-linux', instantclient_dep)

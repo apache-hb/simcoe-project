@@ -54,8 +54,8 @@ if get_option('tracy_enable')
     add_global_arguments('-DTRACY_ENABLE', language : [ 'c', 'cpp' ])
 endif
 
-dxc_id = is_windows ? 'dxc-windows' : 'dxc-linux'
-dxcompiler_id = is_windows ? 'dxcompiler-windows' : 'dxcompiler-linux'
+dxc_id = 'dxc-' + host_machine.system()
+dxcompiler_id = 'dxcompiler-' + host_machine.system()
 
 add_project_arguments(
     cc.get_supported_arguments(

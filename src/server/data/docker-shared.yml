@@ -1,0 +1,16 @@
+version: "3"
+networks:
+  rac_pub1_nw:
+    name: ${PUBLIC_NETWORK_NAME}
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: "${PUBLIC_NETWORK_SUBNET}"
+  rac_priv1_nw:
+    name: ${PRIVATE_NETWORK_NAME}
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: "${PRIVATE_NETWORK_SUBNET}"

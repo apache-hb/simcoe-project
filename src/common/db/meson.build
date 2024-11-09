@@ -6,7 +6,7 @@ cfg = configuration_data()
 
 tlsf = dependency('tlsf')
 sqlite3 = dependency('sqlite3')
-oci = dependency('instantclient', required : get_option('orcl'))
+oci = dependency('instantclient-' + host_machine.system(), required : get_option('orcl'))
 db2 = subproject('db2-client', required : get_option('db2'))
 postgres = dependency('libpq', required : get_option('psql'))
 devapi = dependency('devapi', required : get_option('mysql'))
