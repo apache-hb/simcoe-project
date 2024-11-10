@@ -22,6 +22,30 @@ services:
       - rac_pub1_nw
       - rac_priv1_nw
 
+  racnode-storage:
+    container_name: ${STORAGE_CONTAINER_NAME}
+    hostname: ${STORAGE_HOST_NAME}
+    image: ${STORAGE_IMAGE_NAME}
+    dns_search: ${DNS_DOMAIN}
+    volumes:
+      - ${NFS_STORAGE_VOLUME}:/oradata
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    tmpfs:
+      - /run
+    cap_add:
+      - SYS_ADMIN
+      - AUDIT_WRITE
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - /bin/bash -c "ls -lrt /oradata/ && showmount -e | grep '/oradata'"
+      interval: ${HEALTHCHECK_INTERVAL}
+      timeout: ${HEALTHCHECK_TIMEOUT}
+      retries: ${HEALTHCHECK_RETRIES}
+    networks:
+      rac_priv1_nw:
+        ipv4_address: ${STORAGE_PRIVATE_IP}
+
   racnoded1:
     depends_on:
       rac-dnsserver:
@@ -33,10 +57,10 @@ services:
     dns: ${DNS_PUBLIC_IP}
     dns_search: ${DNS_DOMAIN}
     volumes:
-      - /boot:/boot:ro
       - ./container/.secrets:/run/secrets:ro
       - ./container/rac_host_file:/etc/hosts
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
+      - racstorage:/oradata
     tmpfs:
       - /dev/shm:rw,exec,size=4G
       - /run
@@ -65,9 +89,6 @@ services:
       - SYS_RESOURCE
       - NET_ADMIN
       - SYS_NICE
-    devices:
-      - "${ASM_DISK1}:${ASM_DEVICE1}"
-      - "${ASM_DISK2}:${ASM_DEVICE2}"
     networks:
       - rac_pub1_nw
       - rac_priv1_nw
@@ -173,6 +194,13 @@ services:
   #     interval: ${HEALTHCHECK_INTERVAL}
   #     timeout: ${HEALTHCHECK_TIMEOUT}
   #     retries: ${HEALTHCHECK_RETRIES}
+
+volumes:
+  racstorage:
+    driver_opts:
+      type: nfs
+      o: addr=${STORAGE_PRIVATE_IP},rw,bg,hard,tcp,vers=3,timeo=600,rsize=32768,wsize=32768,actimeo=0
+      device: ":${NFS_STORAGE_VOLUME}"
 
 networks:
   rac_pub1_nw:

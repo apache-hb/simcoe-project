@@ -46,11 +46,12 @@
                 type="text" length="1024" nullable="true"
                 comment="
                 The body of the message, NULL when built for release to reduce&#xA;
-                the size of the message table, improve startup time, and prevent&#xA;
-                leaking of implementation details.
-                " />
+                the size of the message table and improve startup time." />
 
-        <column name="severity" type="uint" comment="The severity this message carries.">
+        <column name="severity"
+                type="uint"
+                onUpdate="cascade"
+                comment="The severity this message carries.">
             <constraint references="log_severity.severity" />
         </column>
 

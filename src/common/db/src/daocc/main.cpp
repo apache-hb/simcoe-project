@@ -133,6 +133,7 @@ struct ForeignKey {
     std::string foreignColumn;
 
     sm::dao::OnDelete onDelete = sm::dao::OnDelete::eRestrict;
+    sm::dao::OnUpdate onUpdate = sm::dao::OnUpdate::eRestrict;
 };
 
 struct Unique {
@@ -396,6 +397,30 @@ static sm::dao::OnDelete getOnDelete(const Properties &props, std::string_view d
     return sm::dao::OnDelete::eRestrict;
 }
 
+static const std::map<std::string_view, sm::dao::OnUpdate> kOnUpdateMap = {
+    {"restrict", sm::dao::OnUpdate::eRestrict},
+    {"cascade", sm::dao::OnUpdate::eCascade}
+};
+
+static std::string_view getOnUpdateName(sm::dao::OnUpdate value) {
+    switch (value) {
+    STRCASE(sm::dao::OnUpdate::eRestrict);
+    STRCASE(sm::dao::OnUpdate::eCascade);
+
+    default: CT_NEVER("Invalid on-update value %d", (int)value);
+    }
+}
+
+static sm::dao::OnUpdate getOnUpdate(const Properties &props, std::string_view def = "restrict") {
+    auto value = getOrDefault(props, "onUpdate", def);
+    if (auto it = kOnUpdateMap.find(value); it != kOnUpdateMap.end()) {
+        return it->second;
+    }
+
+    postError("Invalid onUpdate value: {}", value);
+    return sm::dao::OnUpdate::eRestrict;
+}
+
 static Type buildType(const Properties &props) {
     auto type = expectTypeProperty(props, "type");
     bool nullable = getOrDefault(props, "nullable", "false") == "true";
@@ -435,13 +460,15 @@ static void buildDaoConstraint(Table& parent, Column& column, xmlNodePtr node) {
         auto id = fmt::format("fk_{}_{}_to_{}_{}", parent.name, column.name, split[0], split[1]);
         auto fkName = getOrDefault(props, "name", id);
         auto onDelete = getOnDelete(props);
+        auto onUpdate = getOnUpdate(props);
 
         ForeignKey foreign = {
             .name = fkName,
             .column = column.name,
             .foreignTable = split[0],
             .foreignColumn = split[1],
-            .onDelete = onDelete
+            .onDelete = onDelete,
+            .onUpdate = onUpdate
         };
 
         parent.foregin.push_back(foreign);
@@ -826,6 +853,7 @@ static void emitCxxBody(
             source.writeln("/* foreignTable =  */ \"{}\",", fk.foreignTable);
             source.writeln("/* foreignColumn = */ \"{}\",", fk.foreignColumn);
             source.writeln("/* onDelete =      */ {},", getOnDeleteName(fk.onDelete));
+            source.writeln("/* onUpdate =      */ {},", getOnUpdateName(fk.onUpdate));
             source.dedent();
             source.writeln("}},");
         }

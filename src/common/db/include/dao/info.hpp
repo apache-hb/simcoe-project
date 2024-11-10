@@ -57,6 +57,13 @@ namespace sm::dao {
         eCount
     };
 
+    enum class OnUpdate : uint_least8_t {
+        eRestrict,
+        eCascade,
+
+        eCount
+    };
+
     std::string_view toString(ColumnType type) noexcept;
 
     struct ColumnInfo {
@@ -78,13 +85,22 @@ namespace sm::dao {
         const std::string_view foreignTable;
         const std::string_view foreignColumn;
         const OnDelete onDelete;
+        const OnUpdate onUpdate;
 
-        constexpr ForeignKey(std::string_view name, std::string_view column, std::string_view foreignTable, std::string_view foreignColumn, OnDelete onDelete = OnDelete::eRestrict) noexcept
+        constexpr ForeignKey(
+            std::string_view name,
+            std::string_view column,
+            std::string_view foreignTable,
+            std::string_view foreignColumn,
+            OnDelete onDelete = OnDelete::eRestrict,
+            OnUpdate onUpdate = OnUpdate::eRestrict
+        ) noexcept
             : ConstraintInfo{name}
             , column{column}
             , foreignTable{foreignTable}
             , foreignColumn{foreignColumn}
             , onDelete{onDelete}
+            , onUpdate{onUpdate}
         { }
     };
 
