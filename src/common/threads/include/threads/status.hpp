@@ -2,5 +2,5 @@
 
 namespace sm::threads {
     bool isRealtimeThread();
-    void setThreadRealtime(bool realtime);
+    void setCurrentThreadClass(bool realtime);
 }

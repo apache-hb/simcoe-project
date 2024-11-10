@@ -111,6 +111,14 @@ namespace sm {
         constexpr void reset(T *data = nullptr) noexcept {
             Super::reset(data);
         }
+
+        constexpr bool operator==(const UniquePtr& other) const noexcept {
+            return Super::get() == other.get();
+        }
+
+        constexpr bool operator==(std::nullptr_t) const noexcept {
+            return Super::get() == nullptr;
+        }
     };
 
     template<typename T, void(*F)(T*)>

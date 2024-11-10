@@ -391,14 +391,10 @@ static int commonMain() noexcept try {
     return -1;
 }
 
-int main(int argc, const char **argv) noexcept try {
-    auto _ = launch::commonInit(GetModuleHandleA(nullptr), kLaunchInfo);
-
-    sm::Span<const char*> args{argv, size_t(argc)};
-    LOG_INFO(GlobalLog, "args = [{}]", fmt::join(args, ", "));
-
-    if (int err = sm::parseCommandLine(argc, argv)) {
-        return (err == -1) ? 0 : err; // TODO: this is a little silly, should wrap in a type
+int main(int argc, const char **argv) noexcept {
+    launch::LaunchResult launch = launch::commonInitMain(argc, argv, kLaunchInfo);
+    if (launch.shouldExit()) {
+        return launch.exitCode();
     }
 
     int result = commonMain();
@@ -406,23 +402,13 @@ int main(int argc, const char **argv) noexcept try {
     LOG_INFO(ClientLog, "editor exiting with {}", result);
 
     return result;
-} catch (const db::DbException& err) {
-    LOG_ERROR(ClientLog, "database error: {}", err.error());
-    return -1;
-} catch (const std::exception& err) {
-    LOG_ERROR(ClientLog, "unhandled exception: {}", err.what());
-    return -1;
-} catch (...) {
-    LOG_ERROR(ClientLog, "unknown unhandled exception");
-    return -1;
 }
 
 int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
-    auto _ = launch::commonInit(hInstance, kLaunchInfo);
-
-    LOG_INFO(ClientLog, "lpCmdLine = {}", lpCmdLine);
-    LOG_INFO(ClientLog, "nShowCmd = {}", nShowCmd);
-    // TODO: parse lpCmdLine
+    launch::LaunchResult launch = launch::commonInitWinMain(hInstance, nShowCmd, kLaunchInfo);
+    if (launch.shouldExit()) {
+        return launch.exitCode();
+    }
 
     int result = commonMain();
 

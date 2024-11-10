@@ -45,7 +45,7 @@ namespace sm::config {
         eCount
     };
 
-    Group& getCommonGroup() noexcept;
+    const Group& getCommonGroup() noexcept;
 
     namespace detail {
         template<typename T>
@@ -117,7 +117,7 @@ namespace sm::config {
             bool hidden = false;
 
             OptionType type;
-            Group* group = &getCommonGroup();
+            const Group* group = &getCommonGroup();
 
             void init(ReadOnly it) noexcept { readonly = it.readonly; }
             void init(Hidden it) noexcept { hidden = it.hidden; }
@@ -234,7 +234,7 @@ namespace sm::config {
         };
 
         std::unordered_map<std::string_view, OptionBase*> mArgLookup;
-        std::unordered_map<std::string_view, Group*> mGroupLookup;
+        std::unordered_map<std::string_view, const Group*> mGroupLookup;
         std::unordered_map<const Group*, GroupInfo> mGroups;
     public:
         const auto& groups() const noexcept { return mGroups; }
@@ -243,13 +243,13 @@ namespace sm::config {
         /// @warning this is a dangerous operation, the lifetime of the variable must be greater
         /// than the lifetime of the context
         /// @warning this is not thread safe
-        void addToGroup(OptionBase* cvar, Group* group) noexcept;
+        void addToGroup(OptionBase* cvar, const Group* group) noexcept;
 
         UpdateResult updateFromCommandLine(int argc, const char *const *argv) noexcept;
         UpdateResult updateFromConfigFile(std::istream& is) noexcept;
     };
 
-    void addStaticVariable(Context& context, OptionBase *cvar, Group* group) noexcept;
+    void addStaticVariable(Context& context, OptionBase *cvar, const Group* group) noexcept;
 
     Context& cvars() noexcept;
 
@@ -673,7 +673,7 @@ namespace sm {
     constinit inline config::ConfigWrapper<config::Hidden,      bool>             hidden{};
     constinit inline config::ConfigWrapper<config::Name,        std::string_view> name{};
     constinit inline config::ConfigWrapper<config::Description, std::string_view> desc{};
-    constinit inline config::ConfigWrapper<config::Category,    config::Group&>   group{};
+    constinit inline config::ConfigWrapper<config::Category,    const config::Group&>   group{};
 
     template<config::detail::IsValidEnum T>
     constexpr auto val(T value) noexcept {

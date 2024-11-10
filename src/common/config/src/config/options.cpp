@@ -20,8 +20,8 @@ static sm::opt<bool> gOptionVersion {
     desc = "print version information"
 };
 
-Group& config::getCommonGroup() noexcept {
-    static Group instance = [] {
+const Group& config::getCommonGroup() noexcept {
+    static Group sInstance = [] {
         detail::ConfigBuilder config {
             .name = "common",
             .description = "common options",
@@ -29,7 +29,7 @@ Group& config::getCommonGroup() noexcept {
         return Group{config};
     }();
 
-    return instance;
+    return sInstance;
 }
 
 void UpdateResult::vfmtError(UpdateStatus status, fmt::string_view fmt, fmt::format_args args) {
@@ -44,7 +44,7 @@ constexpr std::string_view getOptionTypeName(OptionType type) noexcept {
     return toString(type);
 }
 
-void Context::addToGroup(OptionBase *cvar, Group* group) noexcept {
+void Context::addToGroup(OptionBase *cvar, const Group* group) noexcept {
     CTASSERT(cvar != nullptr);
     CTASSERT(group != nullptr);
 
@@ -61,9 +61,9 @@ void Context::addToGroup(OptionBase *cvar, Group* group) noexcept {
     mGroupLookup[group->name] = group;
 }
 
-void config::addStaticVariable(Context& context, OptionBase *cvar, Group* group) noexcept {
-    CTASSERTF(isStaticStorage(group), "group %s does not have static storage duration", group->name.data());
-    CTASSERTF(isStaticStorage(cvar), "cvar %s does not have static storage duration", cvar->name.data());
+void config::addStaticVariable(Context& context, OptionBase *cvar, const Group* group) noexcept {
+    CTASSERTF(isStaticStorage(group, true), "group %s does not have static storage duration", group->name.data());
+    CTASSERTF(isStaticStorage(cvar, true), "cvar %s does not have static storage duration", cvar->name.data());
     context.addToGroup(cvar, group);
 }
 

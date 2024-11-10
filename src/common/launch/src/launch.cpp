@@ -1,5 +1,6 @@
 #include "launch/launch.hpp"
 
+#include "fmt/ranges.h"
 #include "logs/logger.hpp"
 #include "logs/sinks/channels.hpp"
 
@@ -11,6 +12,7 @@
 #include "net/net.hpp"
 
 #include "config/config.hpp"
+#include "config/parse.hpp"
 
 #include "core/macros.h"
 #include "core/memory.h"
@@ -20,6 +22,11 @@
 
 #include "format/backtrace.h"
 #include "format/colour.h"
+#include "threads/topology.hpp"
+
+#include "core/defer.hpp"
+#include "core/win32.hpp"
+#include <shellapi.h>
 
 using namespace sm;
 
@@ -27,7 +34,9 @@ namespace launch = sm::launch;
 namespace db = sm::db;
 namespace config = sm::config;
 
-static config::Group kLoggingGroup {
+LOG_MESSAGE_CATEGORY(LaunchLog, "Launch");
+
+static const config::Group kLoggingGroup {
     name = "Logging",
     desc = "Logging configuration",
 };
@@ -44,15 +53,49 @@ static const opt<logs::TimerSource> kLoggingTimerSource {
     }
 };
 
-struct LoggingDb {
-    db::Environment env;
+class GlobalDatabaseEnv {
+    db::Environment mEnv;
 
-    db::Connection connect(const db::ConnectionConfig& info) {
-        return env.connect(info);
+public:
+    db::Connection connect(const db::ConnectionConfig& config) {
+        return mEnv.connect(config);
     }
 
-    LoggingDb(sm::db::DbType type)
-        : env(db::Environment::create(type))
+    GlobalDatabaseEnv(db::DbType type)
+        : mEnv(db::Environment::create(type))
+    { }
+};
+
+class LazyDatabaseEnv {
+    db::DbType mType;
+    db::ConnectionConfig mConfig;
+
+    std::optional<db::Environment> mEnv;
+    std::optional<db::Connection> mConnection;
+
+    void lazySetup() {
+        if (mEnv.has_value() && mConnection.has_value()) return;
+
+        mEnv = db::Environment::create(mType);
+        mConnection = mEnv->connect(mConfig);
+    }
+
+public:
+    db::Connection& connect() {
+        lazySetup();
+
+        return mConnection.value();
+    }
+
+    db::Connection moveConnection() {
+        lazySetup();
+
+        return std::move(mConnection.value());
+    }
+
+    LazyDatabaseEnv(sm::db::DbType type, const sm::db::ConnectionConfig& config) noexcept
+        : mType(type)
+        , mConfig(config)
     { }
 };
 
@@ -93,22 +136,25 @@ class DefaultSystemError final : public sm::ISystemError {
     }
 };
 
-static sm::UniquePtr<LoggingDb> gLogging;
+struct GlobalInfo {
+    std::optional<int> exitCode;
+};
+
+static GlobalInfo gGlobalInfo;
+static sm::UniquePtr<GlobalDatabaseEnv> gLoggingEnv;
+static sm::UniquePtr<LazyDatabaseEnv> gInfoEnv;
 static DefaultSystemError gDefaultError{};
 
-launch::LaunchCleanup::~LaunchCleanup() noexcept {
-    net::destroy();
-    threads::destroy();
-    system::destroy();
-    logs::sinks::destroy();
+static void setupThreadState() {
+    // TODO: move to our own thread library which is aware of topology
+    SetProcessAffinityMask(GetCurrentProcess(), 0b1111'1111'1111'1111);
 }
 
-launch::LaunchCleanup launch::commonInit(HINSTANCE hInstance, const LaunchInfo& info) {
-    SetProcessAffinityMask(GetCurrentProcess(), 0b1111'1111'1111'1111);
+static void setupCthulhuRuntime() {
     bt_init();
     os_init();
 
-    // TODO: popup window for panics and system errors
+    // TODO: popup window for panics and system errors in release builds
     gSystemError = gDefaultError;
 
     gPanicHandler = [](source_info_t info, const char *msg, va_list args) {
@@ -131,29 +177,114 @@ launch::LaunchCleanup launch::commonInit(HINSTANCE hInstance, const LaunchInfo& 
 
         os_exit(CT_EXIT_INTERNAL); // NOLINT
     };
+}
 
+static void setupDatabaseInfo(const launch::LaunchInfo& info) {
+    gLoggingEnv = sm::makeUnique<GlobalDatabaseEnv>(info.logDbType);
+    gInfoEnv = sm::makeUnique<LazyDatabaseEnv>(info.infoDbType, info.infoDbConfig);
+}
+
+static void setupLogging(const fs::path& path, const db::ConnectionConfig& config) {
     logs::create(logs::LoggingConfig {
         .timer = kLoggingTimerSource.getValue()
     });
 
-    gLogging = sm::makeUnique<LoggingDb>(info.logDbType);
-    logs::sinks::create(gLogging->connect(info.logDbConfig));
+    logs::sinks::create(gLoggingEnv->connect(config));
 
     logs::sinks::addConsoleChannel();
     logs::sinks::addDebugChannel();
-    logs::sinks::addFileChannel(info.logPath);
+    logs::sinks::addFileChannel(path);
+}
 
+static void setupSystem(HINSTANCE hInstance) {
     system::create(hInstance);
+}
 
-    if (info.threads) {
-        threads::create();
-        db::Connection infoDb = gLogging->connect({ .host = "info.db" });
-        threads::saveThreadInfo(infoDb);
+static void setupThreads(bool enabled) {
+    if (!enabled) return;
+
+    threads::create();
+    threads::saveThreadInfo(gInfoEnv->connect());
+}
+
+static void setupNetwork(bool enabled) {
+    if (!enabled) return;
+
+    net::create();
+}
+
+launch::LaunchResult::~LaunchResult() noexcept try {
+    net::destroy();
+    threads::destroy();
+    system::destroy();
+    logs::sinks::destroy();
+} catch (const std::exception& err) {
+    LOG_ERROR(LaunchLog, "unhandled exception: {}", err.what());
+} catch (...) {
+    LOG_ERROR(LaunchLog, "unknown unhandled exception");
+}
+
+bool launch::LaunchResult::shouldExit() const noexcept {
+    return gGlobalInfo.exitCode.has_value();
+}
+
+int launch::LaunchResult::exitCode() const noexcept {
+    return gGlobalInfo.exitCode.value_or(0);
+}
+
+launch::LaunchResult launch::commonInit(HINSTANCE hInstance, const LaunchInfo& info) {
+    setupThreadState();
+    setupCthulhuRuntime();
+    setupDatabaseInfo(info);
+    setupLogging(info.logPath, info.logDbConfig);
+    setupSystem(hInstance);
+    setupThreads(info.threads);
+    setupNetwork(info.network);
+
+    return LaunchResult {};
+}
+
+static launch::LaunchResult commonMainInner(HINSTANCE hInstance, std::span<const char*> args, const launch::LaunchInfo& info) try {
+    launch::LaunchResult result = commonInit(hInstance, info);
+
+    LOG_INFO(LaunchLog, "args = [{}]", fmt::join(args, ", "));
+
+    if (int err = sm::parseCommandLine(args.size(), args.data())) {
+        gGlobalInfo.exitCode = (err == -1) ? 0 : err;
     }
 
-    if (info.network) {
-        net::create();
+    return result;
+} catch (const std::exception& err) {
+    LOG_ERROR(LaunchLog, "unhandled exception: {}", err.what());
+    gGlobalInfo.exitCode = -1;
+
+    return launch::LaunchResult {};
+} catch (...) {
+    LOG_ERROR(LaunchLog, "unknown unhandled exception");
+    gGlobalInfo.exitCode = -1;
+
+    return launch::LaunchResult {};
+}
+
+launch::LaunchResult launch::commonInitMain(int argc, const char **argv, const LaunchInfo& info) {
+    std::span<const char*> args{argv, size_t(argc)};
+    return commonMainInner(GetModuleHandleA(nullptr), args, info);
+}
+
+launch::LaunchResult launch::commonInitWinMain(HINSTANCE hInstance, int nShowCmd, const LaunchInfo& info) {
+    int argc = 0;
+    LPWSTR *argvw = CommandLineToArgvW(GetCommandLineW(), &argc);
+    defer { LocalFree((void*)argvw); };
+
+    std::vector<std::string> strings(argc);
+    for (int i = 0; i < argc; ++i) {
+        strings[i] = sm::narrow(argvw[i]);
     }
 
-    return LaunchCleanup {};
+    std::vector<const char*> argv(argc);
+    for (int i = 0; i < argc; ++i) {
+        argv[i] = strings[i].c_str();
+    }
+
+    return commonMainInner(hInstance, argv, info);
 }

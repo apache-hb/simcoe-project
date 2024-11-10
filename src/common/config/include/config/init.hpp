@@ -9,7 +9,7 @@ namespace sm::config {
     struct Description { std::string_view value; };
     struct ReadOnly { bool readonly = true; };
     struct Hidden { bool hidden = true; };
-    struct Category { Group& group; };
+    struct Category { const Group& group; };
 
     template<typename T>
     struct EnumValue {

@@ -26,8 +26,8 @@ threads_meta = declare_dependency(
 
 src = [
     'src/threads.cpp',
-    'src/geometry.cpp',
-    'src/schedule.cpp',
+    'src/topology.cpp',
+    'src/scheduler.cpp',
 
     'src/cpuinfo.cpp',
 

@@ -36,7 +36,7 @@ static std::string_view getNodeTypeString(toml::node_type type) noexcept {
 struct ConfigFileSource {
     UpdateResult& result;
     std::unordered_map<std::string_view, OptionBase*> *argLookup;
-    std::unordered_map<std::string_view, Group*> *groupLookup;
+    std::unordered_map<std::string_view, const Group*> *groupLookup;
 
     void reportInvalidType(std::string_view key, std::string_view expected, toml::node_type found) noexcept {
         result.fmtError(UpdateStatus::eInvalidValue, "invalid value for {}. expected {} found {}", key, expected, getNodeTypeString(found));
@@ -113,7 +113,7 @@ struct ConfigFileSource {
         return true;
     }
 
-    void updateValue(Group *group, std::string_view key, const toml::node& node) noexcept {
+    void updateValue(const Group *group, std::string_view key, const toml::node& node) noexcept {
         if (node.is_table()) {
             const toml::table& table = *node.as_table();
             if (!tryUpdateFlags(key, table)) {
@@ -165,7 +165,7 @@ struct ConfigFileSource {
         }
     }
 
-    void updateFromTable(Group *group, std::string_view key, const toml::table& table) noexcept {
+    void updateFromTable(const Group *group, std::string_view key, const toml::table& table) noexcept {
         if (group == nullptr) {
             result.fmtError(UpdateStatus::eMissingValue, "no group named {}", key);
             return;
