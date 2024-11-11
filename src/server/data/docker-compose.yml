@@ -10,6 +10,8 @@ services:
       SETUP_DNS_CONFIG_FILES: "setup_true"
       DOMAIN_NAME: ${DNS_DOMAIN}
       RAC_NODE_NAME_PREFIXD: ${RAC_NODE_NAME_PREFIXD}
+      RAC_PRIVATE_IP: ${DNS_PRIVATE_IP}
+      RAC_PUBLIC_IP: ${DNS_PUBLIC_IP}
       WEBMIN_ENABLED: false
     cap_add:
       - AUDIT_WRITE
@@ -19,10 +21,10 @@ services:
       timeout: ${HEALTHCHECK_TIMEOUT}
       retries: ${HEALTHCHECK_RETRIES}
     networks:
-      private_nw:
-        ipv4_address: ${DNS_PRIVATE_IP}
       public_nw:
         ipv4_address: ${DNS_PUBLIC_IP}
+      private_nw:
+        ipv4_address: ${DNS_PRIVATE_IP}
 
   storage:
     depends_on:
@@ -64,10 +66,11 @@ services:
     dns_search: ${DNS_DOMAIN}
     restart: always
     volumes:
+      - ./racnode/chronyd.conf:/etc/chrony.conf:ro
       - ./racnode/symvers.gz:/boot/symvers.gz:ro
       - ./container/.secrets:/run/secrets:ro
       - ./container/rac_host_file:/etc/hosts
-      - ./racnode/nogetty.sh:/opt/scripts/nogetty.sh:ro,exec
+      - ./racnode/setup.sh:/opt/scripts/setup.sh:ro,exec
       - ./racnode/init.sh:/etc/rc.local:ro,exec
       - racstorage:/oradata
     tmpfs:
@@ -92,14 +95,18 @@ services:
       COMMON_OS_PWD_FILE: ${COMMON_OS_PWD_FILE}
       PWD_KEY: ${PWD_KEY}
       RESET_FAILED_SYSTEMD: "true"
-      ORACLE_HOME: ${ORACLE_HOME}
+      ORACLE_HOME: ${ORACLE_DB_HOME}
     cap_add:
+      - SYS_NICE
       - ALL
+    ulimits:
+      rtprio: 99
+    cpu_rt_runtime: 900000
     networks:
-      private_nw:
-        ipv4_address: ${RACNODE1_PRIV_IP}
       public_nw:
         ipv4_address: ${RACNODE1_PUBLIC_IP}
+      private_nw:
+        ipv4_address: ${RACNODE1_PRIV_IP}
     healthcheck:
       test: ["CMD-SHELL", "su - grid -c 'srvctl status database -d ORCLCDB'| grep -q 'is running on node'"]
       interval: ${HEALTHCHECK_INTERVAL}
@@ -114,10 +121,11 @@ services:
     dns_search: ${DNS_DOMAIN}
     restart: always
     volumes:
+      - ./racnode/chronyd.conf:/etc/chrony.conf:ro
       - ./racnode/symvers.gz:/boot/symvers.gz:ro
       - ./container/.secrets:/run/secrets:ro
       - ./container/rac_host_file:/etc/hosts
-      - ./racnode/nogetty.sh:/opt/scripts/nogetty.sh:ro,exec
+      - ./racnode/setup.sh:/opt/scripts/setup.sh:ro,exec
       - ./racnode/init.sh:/etc/rc.local:ro,exec
       - racstorage:/oradata
     tmpfs:
@@ -142,14 +150,16 @@ services:
       COMMON_OS_PWD_FILE: ${COMMON_OS_PWD_FILE}
       PWD_KEY: ${PWD_KEY}
       RESET_FAILED_SYSTEMD: "true"
-      ORACLE_HOME: ${ORACLE_HOME}
+      ORACLE_HOME: ${ORACLE_DB_HOME}
     cap_add:
       - ALL
+    ulimits:
+      rtprio: 99
     networks:
-      private_nw:
-        ipv4_address: ${RACNODE1_PRIV_IP}
       public_nw:
         ipv4_address: ${RACNODE1_PUBLIC_IP}
+      private_nw:
+        ipv4_address: ${RACNODE1_PRIV_IP}
     healthcheck:
       test: ["CMD-SHELL", "su - grid -c 'srvctl status database -d ORCLCDB'| grep -q 'is running on node'"]
       interval: ${HEALTHCHECK_INTERVAL}
@@ -184,7 +194,7 @@ services:
     healthcheck:
       test:
         - CMD-SHELL
-        - /bin/bash -c "export LD_LIBRARY_PATH=${ORACLE_HOME}/lib && /u01/app/oracle/product/${CMAN_VERSION}/client_1/bin/cmctl show service -c ${CMAN_HOSTNAME}.${DNS_DOMAIN} | grep -q 'Instance \"cman\", status READY'"
+        - /bin/bash -c "export LD_LIBRARY_PATH=${ORACLE_CLIENT_HOME}/lib && ${ORACLE_CLIENT_HOME}/bin/cmctl show service -c ${CMAN_HOSTNAME}.${DNS_DOMAIN} | grep -q 'Instance \"cman\", status READY'"
       interval: ${HEALTHCHECK_INTERVAL}
       timeout: ${HEALTHCHECK_TIMEOUT}
       retries: ${HEALTHCHECK_RETRIES}

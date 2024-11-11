@@ -38,7 +38,7 @@
 !data/*
 !*.md
 !*.jinja2
-!symvers.gz
+!src/server/data/racnode/*
 
 # dependencies
 subprojects/*

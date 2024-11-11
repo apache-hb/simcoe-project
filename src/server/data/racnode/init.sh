@@ -1,5 +1,5 @@
 #!/bin/bash
 
 touch /var/lock/subsys/local
-/opt/scripts/nogetty.sh
+/opt/scripts/setup.sh
 nohup /opt/scripts/startup/runOracle.sh &
