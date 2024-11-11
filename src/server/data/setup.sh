@@ -14,3 +14,6 @@ openssl enc -aes-256-cbc -salt \
     -pass file:container/.secrets/pwd.key
 
 rm -f container/.secrets/common_os_pwdfile
+
+sudo chmod -R 777 racnode/*.sh
+sudo chown -R : racnode/*.sh

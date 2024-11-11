@@ -1,8 +1,11 @@
 ---
 name: rac
 services:
-  rac-dnsserver:
+  dns:
     image: oracle/rac-dnsserver:latest
+    container_name: ${DNS_HOSTNAME}
+    hostname: ${DNS_HOSTNAME}
+    dns_search: ${DNS_DOMAIN}
     environment:
       SETUP_DNS_CONFIG_FILES: "setup_true"
       DOMAIN_NAME: ${DNS_DOMAIN}
@@ -16,23 +19,28 @@ services:
       timeout: ${HEALTHCHECK_TIMEOUT}
       retries: ${HEALTHCHECK_RETRIES}
     networks:
-      public_nw:
-        ipv4_address: ${DNS_PUBLIC_IP}
       private_nw:
         ipv4_address: ${DNS_PRIVATE_IP}
+      public_nw:
+        ipv4_address: ${DNS_PUBLIC_IP}
 
-  racnode-storage:
+  storage:
+    depends_on:
+      dns:
+        condition: service_healthy
     image: oracle/rac-storage-server:19.3.0
+    container_name: ${STORAGE_HOSTNAME}
+    hostname: ${STORAGE_HOSTNAME}
+    dns_search: ${DNS_DOMAIN}
     volumes:
       - ${NFS_STORAGE_VOLUME}:/oradata
-      - /sys/fs/cgroup:/sys/fs/cgroup:ro
     tmpfs:
       - /run
+    privileged: true
     environment:
       ASM_STORAGE_SIZE_GB: 20
     cap_add:
-      - SYS_ADMIN
-      - AUDIT_WRITE
+      - ALL
     healthcheck:
       test:
         - CMD-SHELL
@@ -45,17 +53,27 @@ services:
         ipv4_address: ${STORAGE_PRIVATE_IP}
 
   racnoded1:
+    depends_on:
+      dns:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
     image: ${RACNODE_IMAGE_NAME}
+    container_name: ${RACNODE1_HOSTNAME}
+    hostname: ${RACNODE1_HOSTNAME}
+    dns_search: ${DNS_DOMAIN}
     restart: always
     volumes:
+      - ./racnode/symvers.gz:/boot/symvers.gz:ro
       - ./container/.secrets:/run/secrets:ro
       - ./container/rac_host_file:/etc/hosts
-      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+      - ./racnode/nogetty.sh:/opt/scripts/nogetty.sh:ro,exec
+      - ./racnode/init.sh:/etc/rc.local:ro,exec
       - racstorage:/oradata
     tmpfs:
       - /dev/shm:rw,exec,size=4G
       - /run
-    privileged: false
+    privileged: true
     environment:
       DNS_SERVERS: ${DNS_PUBLIC_IP}
       NODE_VIP: ${RACNODE1_NODE_VIP}
@@ -74,15 +92,14 @@ services:
       COMMON_OS_PWD_FILE: ${COMMON_OS_PWD_FILE}
       PWD_KEY: ${PWD_KEY}
       RESET_FAILED_SYSTEMD: "true"
+      ORACLE_HOME: ${ORACLE_HOME}
     cap_add:
-      - SYS_RESOURCE
-      - NET_ADMIN
-      - SYS_NICE
+      - ALL
     networks:
-      public_nw:
-        ipv4_address: ${RACNODE1_PUBLIC_IP}
       private_nw:
         ipv4_address: ${RACNODE1_PRIV_IP}
+      public_nw:
+        ipv4_address: ${RACNODE1_PUBLIC_IP}
     healthcheck:
       test: ["CMD-SHELL", "su - grid -c 'srvctl status database -d ORCLCDB'| grep -q 'is running on node'"]
       interval: ${HEALTHCHECK_INTERVAL}
@@ -92,16 +109,21 @@ services:
 
   racnoded2:
     image: ${RACNODE_IMAGE_NAME}
+    container_name: ${RACNODE2_HOSTNAME}
+    hostname: ${RACNODE2_HOSTNAME}
+    dns_search: ${DNS_DOMAIN}
     restart: always
     volumes:
+      - ./racnode/symvers.gz:/boot/symvers.gz:ro
       - ./container/.secrets:/run/secrets:ro
       - ./container/rac_host_file:/etc/hosts
-      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+      - ./racnode/nogetty.sh:/opt/scripts/nogetty.sh:ro,exec
+      - ./racnode/init.sh:/etc/rc.local:ro,exec
       - racstorage:/oradata
     tmpfs:
       - /dev/shm:rw,exec,size=4G
       - /run
-    privileged: false
+    privileged: true
     environment:
       DNS_SERVERS: ${DNS_PUBLIC_IP}
       NODE_VIP: ${RACNODE2_NODE_VIP}
@@ -120,27 +142,58 @@ services:
       COMMON_OS_PWD_FILE: ${COMMON_OS_PWD_FILE}
       PWD_KEY: ${PWD_KEY}
       RESET_FAILED_SYSTEMD: "true"
+      ORACLE_HOME: ${ORACLE_HOME}
     cap_add:
-      - SYS_RESOURCE
-      - NET_ADMIN
-      - SYS_NICE
+      - ALL
     networks:
-      public_nw:
-        ipv4_address: ${RACNODE2_PRIV_IP}
       private_nw:
-        ipv4_address: ${RACNODE2_PUBLIC_IP}
+        ipv4_address: ${RACNODE1_PRIV_IP}
+      public_nw:
+        ipv4_address: ${RACNODE1_PUBLIC_IP}
     healthcheck:
       test: ["CMD-SHELL", "su - grid -c 'srvctl status database -d ORCLCDB'| grep -q 'is running on node'"]
       interval: ${HEALTHCHECK_INTERVAL}
       timeout: ${HEALTHCHECK_TIMEOUT}
       retries: ${HEALTHCHECK_RETRIES}
 
+  racnodedc1-cman:
+    depends_on:
+      dns:
+        condition: service_healthy
+      racnoded1:
+        condition: service_healthy
+    container_name: ${CMAN_HOSTNAME}
+    hostname: ${CMAN_HOSTNAME}
+    image: ${CMAN_IMAGE_NAME}
+    dns_search: ${DNS_DOMAIN}
+    restart: always
+    privileged: true
+    environment:
+      DOMAIN: ${DNS_DOMAIN}
+      PUBLIC_HOSTNAME: ${CMAN_PUBLIC_HOSTNAME}
+      SCAN_NAME: ${SCAN_NAME}
+      SCAN_IP: ${SCAN_IP}
+      PUBLIC_IP: ${CMAN_PUBLIC_IP}
+    cap_add:
+      - ALL
+    ports:
+      - 1521:1521
+    networks:
+      public_nw:
+        ipv4_address: ${CMAN_PUBLIC_IP}
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - /bin/bash -c "export LD_LIBRARY_PATH=${ORACLE_HOME}/lib && /u01/app/oracle/product/${CMAN_VERSION}/client_1/bin/cmctl show service -c ${CMAN_HOSTNAME}.${DNS_DOMAIN} | grep -q 'Instance \"cman\", status READY'"
+      interval: ${HEALTHCHECK_INTERVAL}
+      timeout: ${HEALTHCHECK_TIMEOUT}
+      retries: ${HEALTHCHECK_RETRIES}
 volumes:
   racstorage:
     driver_opts:
       type: nfs
       o: addr=${STORAGE_PRIVATE_IP},rw,bg,hard,tcp,vers=3,timeo=600,rsize=32768,wsize=32768,actimeo=0
-      device: ":${NFS_STORAGE_VOLUME}"
+      device: ":/oradata"
 
 networks:
   public_nw:

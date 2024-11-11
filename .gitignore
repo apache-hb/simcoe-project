@@ -38,6 +38,7 @@
 !data/*
 !*.md
 !*.jinja2
+!symvers.gz
 
 # dependencies
 subprojects/*
