@@ -2,10 +2,7 @@
 name: rac
 services:
   rac-dnsserver:
-    container_name: ${DNS_CONTAINER_NAME}
-    hostname: ${DNS_HOST_NAME}
-    image: ${DNS_IMAGE_NAME}
-    dns_search: ${DNS_DOMAIN}
+    image: oracle/rac-dnsserver:latest
     environment:
       SETUP_DNS_CONFIG_FILES: "setup_true"
       DOMAIN_NAME: ${DNS_DOMAIN}
@@ -19,19 +16,20 @@ services:
       timeout: ${HEALTHCHECK_TIMEOUT}
       retries: ${HEALTHCHECK_RETRIES}
     networks:
-      - rac_pub1_nw
-      - rac_priv1_nw
+      public_nw:
+        ipv4_address: ${DNS_PUBLIC_IP}
+      private_nw:
+        ipv4_address: ${DNS_PRIVATE_IP}
 
   racnode-storage:
-    container_name: ${STORAGE_CONTAINER_NAME}
-    hostname: ${STORAGE_HOST_NAME}
-    image: ${STORAGE_IMAGE_NAME}
-    dns_search: ${DNS_DOMAIN}
+    image: oracle/rac-storage-server:19.3.0
     volumes:
       - ${NFS_STORAGE_VOLUME}:/oradata
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
     tmpfs:
       - /run
+    environment:
+      ASM_STORAGE_SIZE_GB: 20
     cap_add:
       - SYS_ADMIN
       - AUDIT_WRITE
@@ -43,19 +41,12 @@ services:
       timeout: ${HEALTHCHECK_TIMEOUT}
       retries: ${HEALTHCHECK_RETRIES}
     networks:
-      rac_priv1_nw:
+      private_nw:
         ipv4_address: ${STORAGE_PRIVATE_IP}
 
   racnoded1:
-    depends_on:
-      rac-dnsserver:
-        condition: service_healthy
-    container_name: ${RACNODE1_CONTAINER_NAME}
-    hostname: ${RACNODE1_HOST_NAME}
     image: ${RACNODE_IMAGE_NAME}
     restart: always
-    dns: ${DNS_PUBLIC_IP}
-    dns_search: ${DNS_DOMAIN}
     volumes:
       - ./container/.secrets:/run/secrets:ro
       - ./container/rac_host_file:/etc/hosts
@@ -83,15 +74,15 @@ services:
       COMMON_OS_PWD_FILE: ${COMMON_OS_PWD_FILE}
       PWD_KEY: ${PWD_KEY}
       RESET_FAILED_SYSTEMD: "true"
-    ulimits:
-      rtprio: 99
     cap_add:
       - SYS_RESOURCE
       - NET_ADMIN
       - SYS_NICE
     networks:
-      - rac_pub1_nw
-      - rac_priv1_nw
+      public_nw:
+        ipv4_address: ${RACNODE1_PUBLIC_IP}
+      private_nw:
+        ipv4_address: ${RACNODE1_PRIV_IP}
     healthcheck:
       test: ["CMD-SHELL", "su - grid -c 'srvctl status database -d ORCLCDB'| grep -q 'is running on node'"]
       interval: ${HEALTHCHECK_INTERVAL}
@@ -100,15 +91,8 @@ services:
 
 
   racnoded2:
-    depends_on:
-      rac-dnsserver:
-        condition: service_healthy
-    container_name: ${RACNODE2_CONTAINER_NAME}
-    hostname: ${RACNODE2_HOST_NAME}
     image: ${RACNODE_IMAGE_NAME}
     restart: always
-    dns: ${DNS_PUBLIC_IP}
-    dns_search: ${DNS_DOMAIN}
     volumes:
       - ./container/.secrets:/run/secrets:ro
       - ./container/rac_host_file:/etc/hosts
@@ -136,15 +120,15 @@ services:
       COMMON_OS_PWD_FILE: ${COMMON_OS_PWD_FILE}
       PWD_KEY: ${PWD_KEY}
       RESET_FAILED_SYSTEMD: "true"
-    ulimits:
-      rtprio: 99
     cap_add:
       - SYS_RESOURCE
       - NET_ADMIN
       - SYS_NICE
     networks:
-      - rac_pub1_nw
-      - rac_priv1_nw
+      public_nw:
+        ipv4_address: ${RACNODE2_PRIV_IP}
+      private_nw:
+        ipv4_address: ${RACNODE2_PUBLIC_IP}
     healthcheck:
       test: ["CMD-SHELL", "su - grid -c 'srvctl status database -d ORCLCDB'| grep -q 'is running on node'"]
       interval: ${HEALTHCHECK_INTERVAL}
@@ -159,15 +143,13 @@ volumes:
       device: ":${NFS_STORAGE_VOLUME}"
 
 networks:
-  rac_pub1_nw:
-    name: ${PUBLIC_NETWORK_NAME}
+  public_nw:
     driver: bridge
     ipam:
       driver: default
       config:
         - subnet: "${PUBLIC_NETWORK_SUBNET}"
-  rac_priv1_nw:
-    name: ${PRIVATE_NETWORK_NAME}
+  private_nw:
     driver: bridge
     ipam:
       driver: default

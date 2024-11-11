@@ -1,6 +1,6 @@
 mkdir -p container
 mkdir -p container/.secrets
-mkdir -p container/oradata
+mkdir -p container/asm
 
 touch container/rac_host_file
 touch container/.secrets/pwd.key
