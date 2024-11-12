@@ -2,6 +2,8 @@
 
 #include "db/error.hpp"
 
+#include "core/format.hpp"
+
 using namespace sm;
 using namespace sm::db;
 

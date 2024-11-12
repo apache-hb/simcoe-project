@@ -1,5 +1,5 @@
 ###
-### reflection data
+### configuration data
 ###
 
 opt = get_option('logs_include_source_info').disable_auto_if(is_release)
@@ -16,36 +16,20 @@ log_config = configure_file(
 
 logs_include = include_directories('include', '.')
 
-src = [
-    metacc.process('include/logs/logs.hpp'),
-    log_config,
-]
-
-deps = [ core, meta ]
-
-liblogs_meta = library('logs-meta', src,
-    include_directories : logs_include,
-    dependencies : deps
-)
-
-logs_meta = declare_dependency(
-    link_with : liblogs_meta,
-    include_directories : [ logs_include, liblogs_meta.private_dir_include() ],
-    dependencies : deps
-)
-
 ###
 ### public api and implementation
 ###
 
 src = [
+    log_config,
+
     'src/logging.cpp',
     'src/logger.cpp',
 
     'src/timer.cpp',
 ]
 
-deps = [ core, logs_meta ]
+deps = [ core ]
 
 liblogs = library('logs', src,
     cpp_args : [ '-DSM_LOGS_BUILD=1' ],

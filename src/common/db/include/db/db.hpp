@@ -12,8 +12,6 @@
 
 #include "logs/logging.hpp"
 
-#include "db.meta.hpp"
-
 LOG_MESSAGE_CATEGORY(DbLog, "DB");
 
 namespace sm::db {
@@ -38,41 +36,26 @@ namespace sm::db {
         using EnvHandle = FnUniquePtr<detail::IEnvironment, &destroyEnvironment>;
     }
 
-    REFLECT_ENUM(DbType)
     enum class DbType : uint_least8_t {
-#define DB_TYPE(id, enabled) id,
-#include "db/orm.inc"
+#define DB_TYPE(id, name, enabled) id,
+#include "db/db.inc"
 
         eCount
     };
 
-    REFLECT_ENUM(DataType)
     enum class DataType : uint_least8_t {
-        eUnknown,
-
-        eInteger, // int32_t
-        eBoolean, // bool
-
-        eString, // eChar/eVarChar
-
-        eChar,    // std::string
-        eVarChar, // std::string
-        eDouble, // double
-        eBlob, // Blob
-        eDateTime, // DateTime
-        eNull, // ???
-        eRowId, // ???
+#define DB_DATATYPE(id, name) id,
+#include "db/db.inc"
 
         eCount
     };
 
-    inline bool isStringDataType(DataType type) noexcept {
+    constexpr bool isStringDataType(DataType type) noexcept {
         return type == DataType::eString
             || type == DataType::eChar
             || type == DataType::eVarChar;
     }
 
-    REFLECT_ENUM(StatementType)
     enum class StatementType : uint_least8_t {
         eQuery, // select
         eModify, // update
@@ -82,7 +65,6 @@ namespace sm::db {
         eCount
     };
 
-    REFLECT_ENUM(JournalMode)
     enum class JournalMode : uint_least8_t {
         eDefault,
 
@@ -96,7 +78,6 @@ namespace sm::db {
         eCount
     };
 
-    REFLECT_ENUM(Synchronous)
     enum class Synchronous : uint_least8_t {
         eDefault,
 
@@ -108,7 +89,6 @@ namespace sm::db {
         eCount
     };
 
-    REFLECT_ENUM(LockingMode)
     enum class LockingMode : uint_least8_t {
         eDefault,
 
@@ -118,7 +98,6 @@ namespace sm::db {
         eCount
     };
 
-    REFLECT_ENUM(AssumeRole)
     enum class AssumeRole : uint_least8_t {
         eDefault,
 
@@ -133,10 +112,15 @@ namespace sm::db {
         eCount
     };
 
-    REFLECT()
-    struct Version {
-        REFLECT_BODY(Version)
+    std::string_view toString(DbType type) noexcept;
+    std::string_view toString(DataType type) noexcept;
+    std::string_view toString(StatementType type) noexcept;
+    std::string_view toString(JournalMode mode) noexcept;
+    std::string_view toString(Synchronous mode) noexcept;
+    std::string_view toString(LockingMode mode) noexcept;
+    std::string_view toString(AssumeRole role) noexcept;
 
+    struct Version {
         std::string name; ///< user facing version string
         int major;
         int minor;
@@ -149,10 +133,7 @@ namespace sm::db {
         }
     };
 
-    REFLECT()
     struct EnvConfig {
-        REFLECT_BODY(EnvConfig)
-
         bool logQueries = false;
     };
 
@@ -164,10 +145,7 @@ namespace sm::db {
     /// Some fields may be ignored depending on the driver.
     /// @a ConnectionConfig::connection will always be used if set.
     /// @a ConnectionConfig::alias will be used if set and @a ConnectionConfig::connection is not set.
-    REFLECT()
     struct ConnectionConfig {
-        REFLECT_BODY(ConnectionConfig)
-
         /// @brief Connection string
         /// @note if set will override other connection parameters
         std::string connection;
@@ -176,7 +154,7 @@ namespace sm::db {
         /// @warning Only used if @a connection is not set
         std::string alias;
 
-        uint16 port;
+        uint16 port = 0;
         std::string host;
         std::string user;
         std::string password;
@@ -203,6 +181,8 @@ namespace sm::db {
         AssumeRole role = AssumeRole::eDefault;
     };
 
+    std::string toString(const ConnectionConfig& config);
+
     struct ColumnInfo {
         std::string_view name;
         DataType type;
@@ -215,11 +195,11 @@ namespace sm::db {
 
 template<>
 struct fmt::formatter<sm::db::ConnectionConfig> {
-    constexpr auto parse(format_parse_context& ctx) {
+    constexpr auto parse(format_parse_context& ctx) const {
         return ctx.begin();
     }
 
-    constexpr auto format(const sm::db::ConnectionConfig& config, format_context& ctx) {
+    constexpr auto format(const sm::db::ConnectionConfig& config, format_context& ctx) const {
         return format_to(ctx.out(), "ConnectionConfig({}:{}, {}/{}, {}s)",
             config.host, config.port, config.user, config.database, config.timeout.count());
     }

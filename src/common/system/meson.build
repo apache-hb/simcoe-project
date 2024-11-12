@@ -11,6 +11,7 @@ src = [
 
     # setup/teardown
     'src/system.cpp',
+    'src/storage.cpp',
 
     # windowing
     'src/window.cpp',
@@ -20,7 +21,7 @@ src = [
     reflect.process('data/system.ct'),
 ]
 
-deps = [ core, logs, math, cthulhu.get_variable('os'), input, config ]
+deps = [ core, logs, math, cthulhu.get_variable('os'), input, config, wil ]
 
 libsystem = library('system', src,
     cpp_args : [ '-DSM_SYSTEM_BUILD=1' ],
