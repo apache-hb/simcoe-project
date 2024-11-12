@@ -30,10 +30,9 @@ void net::create(void) {
 
     LOG_INFO(NetLog, "WSAStartup successful. {}.{}", gNetData.wVersion, gNetData.wHighVersion);
 
-    LOG_INFO(NetLog, "Description: `{}`, Status: `{}`, MaxSockets: {}",
+    LOG_INFO(NetLog, "Description: `{}`, Status: `{}`",
         std::string_view{gNetData.szDescription},
-        std::string_view{gNetData.szSystemStatus},
-        gNetData.iMaxSockets
+        std::string_view{gNetData.szSystemStatus}
     );
 }
 

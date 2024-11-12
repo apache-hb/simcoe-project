@@ -4,7 +4,7 @@ src = [
     metacc.process('include/input/input.hpp'),
 ]
 
-deps = [ core, logs, math ]
+deps = [ core, logs, math, meta ]
 
 libinput_meta = library('input-meta', src,
     include_directories : [ input_include, reflect_include ],

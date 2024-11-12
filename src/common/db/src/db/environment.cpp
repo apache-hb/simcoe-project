@@ -6,7 +6,72 @@
 #include "db/error.hpp"
 #include "db/environment.hpp"
 
+using namespace sm;
 using namespace sm::db;
+
+
+std::string_view db::toString(DbType it) noexcept {
+    using enum DbType;
+    switch (it) {
+#define DB_TYPE(id, name, enabled) case id: return name;
+#include "db/db.inc"
+    default: return "Unknown";
+    }
+}
+
+std::string_view db::toString(DataType it) noexcept {
+    using enum DataType;
+    switch (it) {
+#define DB_DATATYPE(id, name) case id: return name;
+#include "db/db.inc"
+    default: return "Unknown";
+    }
+}
+
+std::string_view db::toString(StatementType it) noexcept {
+    using enum StatementType;
+    switch (it) {
+#define DB_STATEMENT(id, name) case id: return name;
+#include "db/db.inc"
+    default: return "Unknown";
+    }
+}
+
+std::string_view db::toString(JournalMode it) noexcept {
+    using enum JournalMode;
+    switch (it) {
+#define DB_JOURNAL(id, name) case id: return name;
+#include "db/db.inc"
+    default: return "Unknown";
+    }
+}
+
+std::string_view db::toString(Synchronous it) noexcept {
+    using enum Synchronous;
+    switch (it) {
+#define DB_SYNC(id, name) case id: return name;
+#include "db/db.inc"
+    default: return "Unknown";
+    }
+}
+
+std::string_view db::toString(LockingMode it) noexcept {
+    using enum LockingMode;
+    switch (it) {
+#define DB_LOCKING(id, name) case id: return name;
+#include "db/db.inc"
+    default: return "Unknown";
+    }
+}
+
+std::string_view db::toString(AssumeRole it) noexcept {
+    using enum AssumeRole;
+    switch (it) {
+#define DB_ROLE(id, name) case id: return name;
+#include "db/db.inc"
+    default: return "Unknown";
+    }
+}
 
 void detail::destroyEnvironment(detail::IEnvironment *impl) noexcept {
     if (impl->close())
@@ -15,8 +80,8 @@ void detail::destroyEnvironment(detail::IEnvironment *impl) noexcept {
 
 bool Environment::isSupported(DbType type) noexcept {
     switch (type) {
-#define DB_TYPE(id, enabled) case DbType::id: return enabled;
-#include "db/orm.inc"
+#define DB_TYPE(id, name, enabled) case DbType::id: return enabled;
+#include "db/db.inc"
 
     default: return false;
     }

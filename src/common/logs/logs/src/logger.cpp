@@ -113,3 +113,16 @@ logs::Logger& logs::Logger::instance() noexcept {
     static Logger sInstance;
     return sInstance;
 }
+
+std::string_view logs::toString(Severity severity) noexcept {
+    switch (severity) {
+    case Severity::eTrace: return "TRACE";
+    case Severity::eDebug: return "DEBUG";
+    case Severity::eInfo: return "INFO";
+    case Severity::eWarning: return "WARN";
+    case Severity::eError: return "ERROR";
+    case Severity::eFatal: return "FATAL";
+    case Severity::ePanic: return "PANIC";
+    default: return "UNK";
+    }
+}
