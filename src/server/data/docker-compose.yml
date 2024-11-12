@@ -84,15 +84,15 @@ services:
       - ./racnode/boot:/boot:ro
       - ./racnode/dbca_19c.rsp:/opt/scripts/startup/dbca_19c.rsp:ro
       - ./racnode/configGrid.sh:/opt/scripts/startup/configGrid.sh:ro,exec
-      - ./container/.secrets:/run/secrets:ro
+      - ./racnode/runOracle.sh:/opt/scripts/startup/runOracle.sh:ro,exec
+      - ./racnode/erasesem.sh:/opt/scripts/startup/erasesem.sh:ro,exec
+      - ./container/secrets:${SECRET_VOLUME}:ro
       - ./container/rac_host_file:/etc/hosts
       - ./racnode/setup.sh:/opt/scripts/setup.sh:ro,exec
       - ./racnode/init.sh:/etc/rc.local:ro,exec
-      # - /sys/fs/cgroup:/sys/fs/cgroup:ro
       - racstorage:/oradata
     tmpfs:
       - /dev/shm:rw,exec,size=4G
-      # - /run
     privileged: true
     environment:
       DNS_SERVERS: ${DNS_PUBLIC_IP}
@@ -113,7 +113,9 @@ services:
       PWD_KEY: ${PWD_KEY}
       RESET_FAILED_SYSTEMD: "true"
       ORACLE_HOME: ${ORACLE_DB_HOME}
+      ORACLE_SID: ${ORACLE_DBNAME}
       TOTAL_MEMORY: 12288
+      SECRET_VOLUME: ${SECRET_VOLUME}
     cap_add:
       - SYS_NICE
       - SYS_RESOURCE
@@ -127,14 +129,23 @@ services:
         ipv4_address: ${RACNODE1_PUBLIC_IP}
       private_nw:
         ipv4_address: ${RACNODE1_PRIV_IP}
-    # healthcheck:
-    #   test: ["CMD-SHELL", "su - grid -c 'srvctl status database -d ORCLCDB'| grep -q 'is running on node'"]
-    #   interval: ${HEALTHCHECK_INTERVAL}
-    #   timeout: ${HEALTHCHECK_TIMEOUT}
-    #   retries: ${HEALTHCHECK_RETRIES}
+    healthcheck:
+      test: ["CMD-SHELL", "su - grid -c 'srvctl status database -d ORCLCDB'| grep -q 'is running on node'"]
+      interval: ${HEALTHCHECK_INTERVAL}
+      timeout: ${HEALTHCHECK_TIMEOUT}
+      retries: ${HEALTHCHECK_RETRIES}
 
 
   racnoded2:
+    depends_on:
+      ntp:
+        condition: service_healthy
+      dns:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+      racnoded1: # node1 creates the initial database files, so it must be up before us
+        condition: service_healthy
     image: ${RACNODE_IMAGE_NAME}
     container_name: ${RACNODE2_HOSTNAME}
     hostname: ${RACNODE2_HOSTNAME}
@@ -142,15 +153,18 @@ services:
     restart: always
     volumes:
       - ./racnode/chronyd.conf:/etc/chrony.conf:ro
-      - ./racnode/symvers.gz:/boot/symvers.gz:ro
-      - ./container/.secrets:/run/secrets:ro
+      - ./racnode/boot:/boot:ro
+      - ./racnode/dbca_19c.rsp:/opt/scripts/startup/dbca_19c.rsp:ro
+      - ./racnode/configGrid.sh:/opt/scripts/startup/configGrid.sh:ro,exec
+      - ./racnode/runOracle.sh:/opt/scripts/startup/runOracle.sh:ro,exec
+      - ./racnode/erasesem.sh:/opt/scripts/startup/erasesem.sh:ro,exec
+      - ./container/secrets:${SECRET_VOLUME}:ro
       - ./container/rac_host_file:/etc/hosts
       - ./racnode/setup.sh:/opt/scripts/setup.sh:ro,exec
       - ./racnode/init.sh:/etc/rc.local:ro,exec
       - racstorage:/oradata
     tmpfs:
       - /dev/shm:rw,exec,size=4G
-      - /run
     privileged: true
     environment:
       DNS_SERVERS: ${DNS_PUBLIC_IP}
@@ -158,7 +172,8 @@ services:
       VIP_HOSTNAME: ${RACNODE2_VIP_HOSTNAME}
       PRIV_IP: ${RACNODE2_PRIV_IP}
       PRIV_HOSTNAME: ${RACNODE2_PRIV_HOSTNAME}
-      OP_TYPE: INSTALL
+      OP_TYPE: ADDNODE
+      EXISTING_CLS_NODES: ${RACNODE1_HOSTNAME}
       PUBLIC_IP: ${RACNODE2_PUBLIC_IP}
       PUBLIC_HOSTNAME: ${RACNODE2_PUBLIC_HOSTNAME}
       SCAN_NAME: ${SCAN_NAME}
@@ -171,22 +186,29 @@ services:
       PWD_KEY: ${PWD_KEY}
       RESET_FAILED_SYSTEMD: "true"
       ORACLE_HOME: ${ORACLE_DB_HOME}
+      ORACLE_SID: ${ORACLE_DBNAME}
+      TOTAL_MEMORY: 12288
+      SECRET_VOLUME: ${SECRET_VOLUME}
     cap_add:
+      - SYS_NICE
+      - SYS_RESOURCE
+      - SYS_ADMIN
       - ALL
     ulimits:
       rtprio: 99
+    cpu_rt_runtime: 9000
     networks:
       public_nw:
-        ipv4_address: ${RACNODE1_PUBLIC_IP}
+        ipv4_address: ${RACNODE2_PUBLIC_IP}
       private_nw:
-        ipv4_address: ${RACNODE1_PRIV_IP}
+        ipv4_address: ${RACNODE2_PRIV_IP}
     healthcheck:
       test: ["CMD-SHELL", "su - grid -c 'srvctl status database -d ORCLCDB'| grep -q 'is running on node'"]
       interval: ${HEALTHCHECK_INTERVAL}
       timeout: ${HEALTHCHECK_TIMEOUT}
       retries: ${HEALTHCHECK_RETRIES}
 
-  racnodedc1-cman:
+  racnoded1-cman:
     depends_on:
       dns:
         condition: service_healthy
@@ -204,6 +226,7 @@ services:
       SCAN_NAME: ${SCAN_NAME}
       SCAN_IP: ${SCAN_IP}
       PUBLIC_IP: ${CMAN_PUBLIC_IP}
+      ORACLE_HOME: ${ORACLE_CLIENT_HOME}
     cap_add:
       - ALL
     ports:
@@ -214,7 +237,7 @@ services:
     healthcheck:
       test:
         - CMD-SHELL
-        - /bin/bash -c "export LD_LIBRARY_PATH=${ORACLE_CLIENT_HOME}/lib && ${ORACLE_CLIENT_HOME}/bin/cmctl show service -c ${CMAN_HOSTNAME}.${DNS_DOMAIN} | grep -q 'Instance \"cman\", status READY'"
+        - /bin/bash -c "${ORACLE_CLIENT_HOME}/bin/cmctl show service -c CMAN_${CMAN_HOSTNAME}.${DNS_DOMAIN} | grep -q 'Instance \"cman\", status READY'"
       interval: ${HEALTHCHECK_INTERVAL}
       timeout: ${HEALTHCHECK_TIMEOUT}
       retries: ${HEALTHCHECK_RETRIES}

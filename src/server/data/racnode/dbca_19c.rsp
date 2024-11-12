@@ -50,7 +50,7 @@ walletPassword=
 listeners=LISTENER
 variablesFile=
 variables=DB_UNIQUE_NAME=###ORACLE_SID###,ORACLE_BASE=###DB_BASE###,PDB_NAME=###ORACLE_PDB###,DB_NAME=###ORACLE_SID###,ORACLE_HOME=###DB_HOME###,SID=###ORACLE_SID###
-initParams=audit_trail=none,audit_sys_operations=false,remote_login_passwordfile=exclusive,sga_target=6000M,sga_max_size=8000M
+initParams=audit_trail=none,audit_sys_operations=false,remote_login_passwordfile=exclusive,sga_target=6000M,sga_max_size=8000M,processes=500
 sampleSchema=false
 memoryPercentage=40
 databaseType=MULTIPURPOSE

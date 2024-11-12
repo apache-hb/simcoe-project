@@ -39,6 +39,7 @@
 !*.md
 !*.jinja2
 !src/server/data/racnode/*
+!src/server/data/racnode/boot/symvers-5.15.0-301.163.5.2.el8uek.x86_64.gz
 
 # dependencies
 subprojects/*

@@ -288,95 +288,95 @@ fi
 check_passwd_env_vars ()
 {
 
-##################  Checks for Password and Clustername and clustertype begins here ###########
-if [ -f "${SECRET_VOLUME}/${COMMON_OS_PWD_FILE}" ]; then
-# shellcheck disable=SC2016
-cmd='openssl enc -d -aes-256-cbc -in "${SECRET_VOLUME}/${COMMON_OS_PWD_FILE}" -out /tmp/${COMMON_OS_PWD_FILE} -pass file:"${SECRET_VOLUME}/${PWD_KEY}"'
+  ##################  Checks for Password and Clustername and clustertype begins here ###########
+  if [ -f "${SECRET_VOLUME}/${COMMON_OS_PWD_FILE}" ]; then
+    # shellcheck disable=SC2016
+    cmd='openssl enc -d -aes-256-cbc -in "${SECRET_VOLUME}/${COMMON_OS_PWD_FILE}" -out /tmp/${COMMON_OS_PWD_FILE} -pass file:"${SECRET_VOLUME}/${PWD_KEY}"'
 
 
-if eval "$cmd"; then
-print_message "Password file generated"
-else
-error_exit "Error occurred during common os password file generation"
-fi
+    if eval "$cmd"; then
+      print_message "Password file generated"
+    else
+      error_exit "Error occurred during common os password file generation"
+    fi
 
-read -r PASSWORD < /tmp/${COMMON_OS_PWD_FILE}
-rm -f /tmp/${COMMON_OS_PWD_FILE}
+    read -r PASSWORD < /tmp/${COMMON_OS_PWD_FILE}
+    # rm -f /tmp/${COMMON_OS_PWD_FILE}
 
-elif [ -f "${SECRET_VOLUME}/${PASSWORD_FILE}" ]; then
-# shellcheck disable=SC2016
- cmd='openssl base64 -d -in "${SECRET_VOLUME}/${PASSWORD_FILE}" -out /tmp/"${PASSWORD_FILE}"'
-
-
- if eval "$cmd"; then
-   print_message "Password file generated"
- else
-   error_exit "Error occurred during password file ${PASSWORD_FILE} generation"
- fi
-
-  read -r PASSWORD < /tmp/${PASSWORD_FILE}
-  rm -f /tmp/${PASSWORD_FILE}
-else
-  print_message "Password is empty string"
-  PASSWORD=O$(openssl rand -base64 6 | tr -d "=+/")_1
-fi
-
-if [ -n "${GRID_PWD_FILE}" ]; then
-# shellcheck disable=SC2016
-cmd='openssl enc -d -aes-256-cbc -in "${SECRET_VOLUME}/${GRID_PWD_FILE}" -out "/tmp/${GRID_PWD_FILE}" -pass file:"${SECRET_VOLUME}/${PWD_KEY}"'
-
-if eval "$cmd"; then
-print_message "Password file generated"
-else
-error_exit "Error occurred during Grid password file generation"
-fi
-
-read -r GRID_PASSWORD < /tmp/"${GRID_PWD_FILE}"
-rm -f /tmp/"${GRID_PWD_FILE}"
-else
-  GRID_PASSWORD="${PASSWORD}"
-  print_message "Common OS Password string is set for Grid user"
-fi
-
-if [ -n "${ORACLE_PWD_FILE}" ]; then
-# shellcheck disable=SC2016
-cmd='openssl enc -d -aes-256-cbc -in "${SECRET_VOLUME}/${ORACLE_PWD_FILE}" -out "/tmp/${ORACLE_PWD_FILE}" -pass file:"${SECRET_VOLUME}/${PWD_KEY}"'
-
-if eval "$cmd"; then
-print_message "Password file generated"
-else
-error_exit "Error occurred during Oracle  password file generation"
-fi
-
-read -r ORACLE_PASSWORD < /tmp/"${ORACLE_PWD_FILE}"
-rm -f /tmp/"${GRID_PWD_FILE}"
-else
-  ORACLE_PASSWORD="${PASSWORD}"
-  print_message "Common OS Password string is set for  Oracle user"
-fi
-
-if [ -n "${DB_PWD_FILE}" ]; then
-# shellcheck disable=SC2016
-cmd='openssl enc -d -aes-256-cbc -in "${SECRET_VOLUME}/${DB_PWD_FILE}" -out "/tmp/${DB_PWD_FILE}" -pass file:"${SECRET_VOLUME}/${PWD_KEY}"'
-
-if eval "$cmd"; then
-print_message "Password file generated"
-else
-error_exit "Error occurred during common database password file generation"
-fi
-
-read -r ORACLE_PWD < /tmp/"${DB_PWD_FILE}"
-rm -f /tmp/"${DB_PWD_FILE}"
-else
-   ORACLE_PWD="${PASSWORD}"
-  print_message "Common OS Password string is set for Oracle Database"
-fi
+  elif [ -f "${SECRET_VOLUME}/${PASSWORD_FILE}" ]; then
+    # shellcheck disable=SC2016
+    cmd='openssl base64 -d -in "${SECRET_VOLUME}/${PASSWORD_FILE}" -out /tmp/"${PASSWORD_FILE}"'
 
 
-if [ "${REMOVE_OS_PWD_FILES}" == 'true' ]; then
-rm -f  ${SECRET_VOLUME}/${COMMON_OS_PWD_FILE}
-rm -f ${SECRET_VOLUME}/${PWD_KEY}
-fi
+    if eval "$cmd"; then
+      print_message "Password file generated"
+    else
+      error_exit "Error occurred during password file ${PASSWORD_FILE} generation"
+    fi
+
+    read -r PASSWORD < /tmp/${PASSWORD_FILE}
+    rm -f /tmp/${PASSWORD_FILE}
+  else
+    print_message "Password is empty string"
+    PASSWORD=O$(openssl rand -base64 6 | tr -d "=+/")_1
+  fi
+
+  if [ -n "${GRID_PWD_FILE}" ]; then
+    # shellcheck disable=SC2016
+    cmd='openssl enc -d -aes-256-cbc -in "${SECRET_VOLUME}/${GRID_PWD_FILE}" -out "/tmp/${GRID_PWD_FILE}" -pass file:"${SECRET_VOLUME}/${PWD_KEY}"'
+
+    if eval "$cmd"; then
+      print_message "Password file generated"
+    else
+      error_exit "Error occurred during Grid password file generation"
+    fi
+
+    read -r GRID_PASSWORD < /tmp/"${GRID_PWD_FILE}"
+    rm -f /tmp/"${GRID_PWD_FILE}"
+  else
+    GRID_PASSWORD="${PASSWORD}"
+    print_message "Common OS Password string is set for Grid user"
+  fi
+
+  if [ -n "${ORACLE_PWD_FILE}" ]; then
+    # shellcheck disable=SC2016
+    cmd='openssl enc -d -aes-256-cbc -in "${SECRET_VOLUME}/${ORACLE_PWD_FILE}" -out "/tmp/${ORACLE_PWD_FILE}" -pass file:"${SECRET_VOLUME}/${PWD_KEY}"'
+
+    if eval "$cmd"; then
+      print_message "Password file generated"
+    else
+      error_exit "Error occurred during Oracle  password file generation"
+    fi
+
+    read -r ORACLE_PASSWORD < /tmp/"${ORACLE_PWD_FILE}"
+    rm -f /tmp/"${GRID_PWD_FILE}"
+  else
+    ORACLE_PASSWORD="${PASSWORD}"
+    print_message "Common OS Password string is set for  Oracle user"
+  fi
+
+  if [ -n "${DB_PWD_FILE}" ]; then
+    # shellcheck disable=SC2016
+    cmd='openssl enc -d -aes-256-cbc -in "${SECRET_VOLUME}/${DB_PWD_FILE}" -out "/tmp/${DB_PWD_FILE}" -pass file:"${SECRET_VOLUME}/${PWD_KEY}"'
+
+    if eval "$cmd"; then
+      print_message "Password file generated"
+    else
+      error_exit "Error occurred during common database password file generation"
+    fi
+
+    read -r ORACLE_PWD < /tmp/"${DB_PWD_FILE}"
+    rm -f /tmp/"${DB_PWD_FILE}"
+  else
+    ORACLE_PWD="${PASSWORD}"
+    print_message "Common OS Password string is set for Oracle Database"
+  fi
+
+
+  if [ "${REMOVE_OS_PWD_FILES}" == 'true' ]; then
+    rm -f  ${SECRET_VOLUME}/${COMMON_OS_PWD_FILE}
+    rm -f ${SECRET_VOLUME}/${PWD_KEY}
+  fi
 }
 
 ############ Checks for password ends here################
