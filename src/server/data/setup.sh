@@ -10,12 +10,7 @@ touch container/secrets/common_os_pwdfile
 
 openssl rand -out container/secrets/pwd.key -hex 64
 
-openssl enc -aes-256-cbc -salt \
-    -in password.txt \
-    -out container/secrets/common_os_pwdfile.enc \
-    -pass file:container/secrets/pwd.key
-
-rm -f container/secrets/common_os_pwdfile
+cp password.txt container/secrets/common_os_pwdfile
 
 sudo chmod -R 777 racnode/*.sh
 sudo chown -R : racnode/*.sh

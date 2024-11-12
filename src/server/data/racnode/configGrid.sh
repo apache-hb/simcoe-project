@@ -291,8 +291,7 @@ check_passwd_env_vars ()
   ##################  Checks for Password and Clustername and clustertype begins here ###########
   if [ -f "${SECRET_VOLUME}/${COMMON_OS_PWD_FILE}" ]; then
     # shellcheck disable=SC2016
-    cmd='openssl enc -d -aes-256-cbc -in "${SECRET_VOLUME}/${COMMON_OS_PWD_FILE}" -out /tmp/${COMMON_OS_PWD_FILE} -pass file:"${SECRET_VOLUME}/${PWD_KEY}"'
-
+    cmd='cp ${SECRET_VOLUME}/${COMMON_OS_PWD_FILE} /tmp/${COMMON_OS_PWD_FILE}'
 
     if eval "$cmd"; then
       print_message "Password file generated"
