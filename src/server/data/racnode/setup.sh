@@ -4,12 +4,14 @@
 systemctl stop getty@tty1
 systemctl disable getty@tty1
 
-# disable chronyd service, grid requires it to be installed
-# but we dont need it running
+# disable chronyd service, systemd is all kinds of broken
+# inside docker. we'll start chrony ourselves
 systemctl stop chronyd
 systemctl disable chronyd
 
 systemctl reset-failed
+
+/usr/sbin/chronyd
 
 # rename the symvers file to include the kernel version
 RELEASE=$(uname -r)

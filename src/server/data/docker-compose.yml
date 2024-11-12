@@ -26,6 +26,18 @@ services:
       private_nw:
         ipv4_address: ${DNS_PRIVATE_IP}
 
+  ntp:
+    image: dockurr/chrony
+    container_name: ${NTP_HOSTNAME}
+    hostname: ${NTP_HOSTNAME}
+    environment:
+      NTP_SERVERS: "pool.ntp.org"
+    ports:
+      - 123:123/udp
+    networks:
+      private_nw:
+        ipv4_address: ${NTP_PRIVATE_IP}
+
   storage:
     depends_on:
       dns:
@@ -56,6 +68,8 @@ services:
 
   racnoded1:
     depends_on:
+      ntp:
+        condition: service_healthy
       dns:
         condition: service_healthy
       storage:
@@ -67,15 +81,18 @@ services:
     restart: always
     volumes:
       - ./racnode/chronyd.conf:/etc/chrony.conf:ro
-      - ./racnode/symvers.gz:/boot/symvers.gz:ro
+      - ./racnode/boot:/boot:ro
+      - ./racnode/dbca_19c.rsp:/opt/scripts/startup/dbca_19c.rsp:ro
+      - ./racnode/configGrid.sh:/opt/scripts/startup/configGrid.sh:ro,exec
       - ./container/.secrets:/run/secrets:ro
       - ./container/rac_host_file:/etc/hosts
       - ./racnode/setup.sh:/opt/scripts/setup.sh:ro,exec
       - ./racnode/init.sh:/etc/rc.local:ro,exec
+      # - /sys/fs/cgroup:/sys/fs/cgroup:ro
       - racstorage:/oradata
     tmpfs:
       - /dev/shm:rw,exec,size=4G
-      - /run
+      # - /run
     privileged: true
     environment:
       DNS_SERVERS: ${DNS_PUBLIC_IP}
@@ -96,22 +113,25 @@ services:
       PWD_KEY: ${PWD_KEY}
       RESET_FAILED_SYSTEMD: "true"
       ORACLE_HOME: ${ORACLE_DB_HOME}
+      TOTAL_MEMORY: 12288
     cap_add:
       - SYS_NICE
+      - SYS_RESOURCE
+      - SYS_ADMIN
       - ALL
     ulimits:
       rtprio: 99
-    cpu_rt_runtime: 900000
+    cpu_rt_runtime: 9000
     networks:
       public_nw:
         ipv4_address: ${RACNODE1_PUBLIC_IP}
       private_nw:
         ipv4_address: ${RACNODE1_PRIV_IP}
-    healthcheck:
-      test: ["CMD-SHELL", "su - grid -c 'srvctl status database -d ORCLCDB'| grep -q 'is running on node'"]
-      interval: ${HEALTHCHECK_INTERVAL}
-      timeout: ${HEALTHCHECK_TIMEOUT}
-      retries: ${HEALTHCHECK_RETRIES}
+    # healthcheck:
+    #   test: ["CMD-SHELL", "su - grid -c 'srvctl status database -d ORCLCDB'| grep -q 'is running on node'"]
+    #   interval: ${HEALTHCHECK_INTERVAL}
+    #   timeout: ${HEALTHCHECK_TIMEOUT}
+    #   retries: ${HEALTHCHECK_RETRIES}
 
 
   racnoded2:

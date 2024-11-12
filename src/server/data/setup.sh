@@ -1,3 +1,5 @@
+#!/bin/bash
+
 mkdir -p container
 mkdir -p container/.secrets
 mkdir -p container/asm
