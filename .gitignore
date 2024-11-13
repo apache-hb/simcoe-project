@@ -55,3 +55,4 @@ adns/
 !README
 
 *[bB]uild*/
+/install*/

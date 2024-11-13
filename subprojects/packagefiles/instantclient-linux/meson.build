@@ -1,4 +1,9 @@
-project('instantclient', 'c')
+project('instantclient', 'c',
+    version : '23.5.0',
+    license : 'LicenseRef-Proprietary',
+    license_files : [ 'SDK_LICENSE' ],
+    meson_version : '>=1.1.0'
+)
 
 c = meson.get_compiler('c')
 inc = include_directories('sdk/include')
@@ -10,3 +15,9 @@ instantclient_dep = declare_dependency(
 )
 
 meson.override_dependency('instantclient-linux', instantclient_dep)
+
+install_data(meson.project_license_files(),
+    install_dir : get_option('licensedir'),
+    rename : meson.project_name() + '.LICENSE.txt',
+    install_tag : 'legal',
+)

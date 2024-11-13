@@ -46,10 +46,11 @@ install_data([ bindir / 'dxil.dll', bindir / 'dxcompiler.dll' ],
 )
 
 install_data([ 'LICENSE-MS.txt', 'LICENSE-MIT.txt', 'LICENSE-LLVM.txt' ],
-    install_dir : get_option('datadir') / 'licenses',
+    install_dir : get_option('licensedir'),
     rename : [
         meson.project_name() + '.LICENSE-MS.txt',
         meson.project_name() + '.LICENSE-MIT.txt',
-        meson.project_name() + '.LICENSE-LLVM.txt'
-    ]
+        meson.project_name() + '.LICENSE-LLVM.txt',
+    ],
+    install_tag : 'legal',
 )

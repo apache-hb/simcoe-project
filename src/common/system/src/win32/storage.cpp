@@ -4,13 +4,10 @@
 
 #include "core/win32.hpp"
 
-#include <wil/com.h>
-
 using namespace sm;
 using namespace sm::system;
 
 static bool gStorageSetup = false;
-static wil::unique_couninitialize_call gCoUninitialize;
 
 bool storage::isSetup() noexcept {
     return gStorageSetup;
@@ -20,8 +17,6 @@ void storage::create(void) {
     CTASSERTF(!isSetup(), "storage already initialized");
 
     gStorageSetup = true;
-
-    gCoUninitialize = wil::CoInitializeEx(COINIT_MULTITHREADED);
 }
 
 void storage::destroy(void) noexcept {
@@ -29,5 +24,16 @@ void storage::destroy(void) noexcept {
         return;
 
     gStorageSetup = false;
-    gCoUninitialize.reset();
+}
+
+fs::path storage::getRoamingConfig() {
+
+}
+
+fs::path storage::getLocalConfig() {
+
+}
+
+fs::path storage::getMachineConfig() {
+
 }

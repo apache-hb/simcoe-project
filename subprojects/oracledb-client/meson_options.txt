@@ -1,3 +1,0 @@
-option('home', type : 'string',
-    description : 'Oracle Instant Client home directory'
-)

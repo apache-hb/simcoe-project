@@ -11,15 +11,19 @@ src = [
 
     # setup/teardown
     'src/system.cpp',
-    'src/storage.cpp',
 
     # windowing
     'src/window.cpp',
 
     # win32 input source
     'src/input.cpp',
-    reflect.process('data/system.ct'),
 ]
+
+if host_machine.system() == 'windows'
+    src += [ 'src/win32/storage.cpp' ]
+elif host_machine.system() == 'linux'
+    src += [ 'src/posix/storage.cpp' ]
+endif
 
 deps = [ core, logs, math, cthulhu.get_variable('os'), input, config, wil ]
 

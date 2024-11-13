@@ -31,18 +31,14 @@ icon = files('icon.png')
 # the system d3dconfig
 d3dconfig = find_program(bindir / 'd3dconfig.exe')
 
-kwargs = { }
-if os == 'linux'
-    kwargs += { 'dirs' : [ '/usr/lib/wsl/lib' ] }
-endif
+d3d12core = files(bindir / 'D3D12Core.dll')
+d3d12sdklayers = files(bindir / 'd3d12SDKLayers.dll')
 
-libd3d12 = cpp.find_library('d3d12', kwargs : kwargs)
-
-d3d12 = declare_dependency(
+d3d12_dep = declare_dependency(
     dependencies : [
-        libd3d12,
-        cpp.find_library('dxgi', required : os == 'windows'),
-        cpp.find_library('dxguid', required : os == 'windows')
+        cpp.find_library('d3d12'),
+        cpp.find_library('dxgi'),
+        cpp.find_library('dxguid'),
     ],
     variables : {
         'd3d12core': meson.current_source_dir() / bindir / 'D3D12Core.dll',
@@ -52,9 +48,15 @@ d3d12 = declare_dependency(
 )
 
 meson.override_find_program('d3dconfig', d3dconfig)
-meson.override_dependency('d3d12', d3d12)
+meson.override_dependency('d3d12', d3d12_dep)
+
+install_data(bindir / 'D3D12Core.dll',
+    install_dir : get_option('bindir') / 'redist/d3d12',
+    install_tag : 'bin',
+)
 
 install_data('LICENSE.txt',
-    install_dir : get_option('datadir') / 'licenses',
-    rename : meson.project_name() + '.LICENSE.txt'
+    install_dir : get_option('licensedir'),
+    rename : meson.project_name() + '.LICENSE.txt',
+    install_tag : 'legal',
 )

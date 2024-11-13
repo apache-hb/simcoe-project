@@ -55,3 +55,9 @@ headers = [
 ]
 
 install_headers(headers, subdir : 'fastgltf')
+
+install_data(meson.project_license_files(),
+    install_dir : get_option('licensedir'),
+    rename : meson.project_name() + '.LICENSE.txt',
+    install_tag : 'legal',
+)

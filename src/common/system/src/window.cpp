@@ -78,13 +78,11 @@ void Window::create(const WindowConfig &info) {
     CTASSERTF(gInstance != nullptr, "system::create() not called before Window::create()");
     CTASSERTF(gWindowClass != nullptr, "system::create() not called before Window::create()");
 
-    SM_ASSERTF(info.mode.is_valid(), "invalid mode: {}", info.mode);
-
     mWindow = CreateWindowExA(
         /* dwExStyle = */ 0,
         /* lpClassName = */ gWindowClass,
         /* lpWindowName = */ info.title.c_str(),
-        /* dwStyle = */ info.mode.as_integral(),
+        /* dwStyle = */ std::to_underlying(info.mode),
         /* x = */ CW_USEDEFAULT,
         /* y = */ CW_USEDEFAULT,
         /* nWidth = */ info.width,
@@ -120,8 +118,7 @@ void Window::setPlacement(const WindowPlacement &placement) {
 
 void Window::show_window(ShowWindow show) {
     CTASSERTF(mWindow != nullptr, "Window::show_window() called before Window::create()");
-    SM_ASSERTF(show.is_valid(), "invalid show: {}", show);
-    ::ShowWindow(mWindow, show.as_integral());
+    ::ShowWindow(mWindow, std::to_underlying(show));
 }
 
 void Window::resize(math::int2 size) {
@@ -157,10 +154,9 @@ sys::WindowCoords Window::get_client_coords() const {
 
 bool Window::center_window(MultiMonitor monitor, bool topmost) {
     CTASSERTF(mWindow != nullptr, "Window::center_window() called before Window::create()");
-    SM_ASSERTF(monitor.is_valid(), "invalid monitor {}", monitor);
 
     // get current monitor
-    HMONITOR hmonitor = MonitorFromWindow(mWindow, monitor.as_integral());
+    HMONITOR hmonitor = MonitorFromWindow(mWindow, std::to_underlying(monitor));
     if (!SM_CHECK_WIN32(hmonitor != nullptr)) return false;
 
     // get monitor info

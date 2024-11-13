@@ -175,3 +175,9 @@ framework_dep = declare_dependency(
 
 meson.override_dependency('cmp_core', core_dep)
 meson.override_dependency('cmp_framework', framework_dep)
+
+install_data(meson.project_license_files(),
+    install_dir : get_option('licensedir'),
+    rename : meson.project_name() + '.LICENSE.txt',
+    install_tag : 'legal',
+)

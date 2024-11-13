@@ -14,22 +14,6 @@ variant WindowMode : uint32 {
 
 // win32 types
 
-[[facade]]
-variant MultiMonitor : ulong {
-    default Null = opaque(MONITOR_DEFAULTTONULL)
-    case Primary = opaque(MONITOR_DEFAULTTOPRIMARY)
-    case Nearest = opaque(MONITOR_DEFAULTTONEAREST)
-}
-
-[[facade]]
-variant ShowWindow : int {
-    case Hide = opaque(SW_HIDE)
-    case ShowNormal = opaque(SW_SHOWNORMAL)
-    case Show = opaque(SW_SHOW)
-    case Restore = opaque(SW_RESTORE)
-    case ShowDefault = opaque(SW_SHOWDEFAULT)
-}
-
 [[external]]
 struct RECT {
     left: long;

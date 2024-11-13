@@ -48,3 +48,9 @@ meson.override_find_program('makepkg', makepkg)
 meson.override_find_program('makepri', makepri)
 meson.override_find_program('packageutil', packageutil)
 meson.override_find_program('splitpkg', splitpkg)
+
+install_data(meson.project_license_files(),
+    install_dir : get_option('licensedir'),
+    rename : meson.project_name() + '.LICENSE.txt',
+    install_tag : 'legal',
+)

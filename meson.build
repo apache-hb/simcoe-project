@@ -16,6 +16,8 @@ project('simcoe', [ 'c', 'cpp' ],
         'default_library=static',
         'b_vscrt=mt',
 
+        'licensedir=licenses',
+
         # configure freetype before harfbuzz to pick up configuration
         # 'freetype2:auto_features=disabled',
         # 'freetype2:zlib=disabled',
@@ -201,15 +203,14 @@ subdir('src/common/db')
 subdir('src/common/logs/sinks')
 
 subdir('src/common/config')
+subdir('src/common/math')
+subdir('src/common/archive')
 
 if not is_windows
     subdir_done()
 endif
 
 subdir('src/plugins/ryzenmaster')
-
-subdir('src/common/math')
-subdir('src/common/archive')
 
 dxc = find_program(dxc_id, native : true)
 msdf_atlas_gen = find_program('msdf-atlas-gen', native : true)
@@ -390,14 +391,3 @@ executable('editor', src, game_bundle,
 )
 
 subdir('src/server')
-
-# executable('server', src,
-#     cpp_pch : pch,
-#     include_directories : inc,
-#     install : true,
-#     export_dynamic : true,
-#     win_subsystem : 'console',
-#     link_depends : [ manifest, res ],
-#     link_args : link_args,
-#     dependencies : deps
-# )

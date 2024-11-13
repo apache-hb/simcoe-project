@@ -10,11 +10,30 @@
 
 #include "logs/logging.hpp"
 
-#include "system.reflect.h" // IWYU pragma: export
+#include "core/win32.hpp"
 
 LOG_MESSAGE_CATEGORY(SystemLog, "System");
 
 namespace sm::system {
+    enum class ShowWindow {
+        eHide = SW_HIDE,
+        eShowNormal = SW_SHOWNORMAL,
+        eShow = SW_SHOW,
+        eRestore = SW_RESTORE,
+        eShowDefault = SW_SHOWDEFAULT,
+    };
+
+    enum class MultiMonitor {
+        eNull = MONITOR_DEFAULTTONULL,
+        ePrimary = MONITOR_DEFAULTTOPRIMARY,
+        eNearest = MONITOR_DEFAULTTONEAREST,
+    };
+
+    enum class WindowMode : DWORD {
+        eWindowed = WS_OVERLAPPEDWINDOW,
+        eBorderless = WS_POPUP,
+    };
+
     CT_NORETURN assertLastError(source_info_t panic, const char *expr);
 
     OsError getLastError();

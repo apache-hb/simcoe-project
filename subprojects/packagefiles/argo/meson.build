@@ -1,15 +1,16 @@
 project('argo', 'cpp',
-    default_options : [
-        'cpp_std=c++14'
-    ]
+    license : 'MIT',
+    license_files : [ 'LICENSE' ],
+    meson_version : '>=1.1.0',
+    default_options : [ 'cpp_std=c++14' ]
 )
 
 cpp = meson.get_compiler('cpp')
 
-args = [
+args = cpp.get_supported_arguments([
     '-D_CRT_SECURE_NO_WARNINGS',
     '-D_CRT_NONSTDC_NO_WARNINGS'
-]
+])
 
 src = [
     'json.cpp',
@@ -36,6 +37,34 @@ src = [
     'pointer.cpp',
 ]
 
+headers = [
+    'argo.hpp',
+    'common.hpp',
+    'documentation.hpp',
+    'fd_reader.hpp',
+    'fd_writer.hpp',
+    'file_reader.hpp',
+    'file_writer.hpp',
+    'json.hpp',
+    'json_array_index_range_exception.hpp',
+    'json_exception.hpp',
+    'json_invalid_key_exception.hpp',
+    'json_io_exception.hpp',
+    'json_parser_exception.hpp',
+    'json_pointer_exception.hpp',
+    'json_utf8_exception.hpp',
+    'lexer.hpp',
+    'parser.hpp',
+    'pointer.hpp',
+    'reader.hpp',
+    'stream_reader.hpp',
+    'stream_writer.hpp',
+    'token.hpp',
+    'unparser.hpp',
+    'utf8.hpp',
+    'writer.hpp'
+]
+
 inc = include_directories('.')
 
 libargo = library('argo', src,
@@ -50,3 +79,11 @@ argo_dep = declare_dependency(
 )
 
 meson.override_dependency('argo', argo_dep)
+
+install_headers(headers, subdir : 'argo')
+
+install_data(meson.project_license_files(),
+    install_dir : get_option('licensedir'),
+    rename : meson.project_name() + '.LICENSE.txt',
+    install_tag : 'legal',
+)

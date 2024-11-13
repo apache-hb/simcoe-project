@@ -1,7 +1,8 @@
 project('minizip-ng', 'c',
     version : '4.0.4',
     license : 'ZLIB',
-    license_files : [ 'LICENSE' ]
+    license_files : [ 'LICENSE' ],
+    meson_version : '>=1.1.0',
 )
 
 src = [
@@ -38,4 +39,10 @@ minizip_ng_dep = declare_dependency(
     include_directories : includes,
     dependencies : zlib_ng,
     link_with : minizip_ng
+)
+
+install_data(meson.project_license_files(),
+    install_dir : get_option('licensedir'),
+    rename : meson.project_name() + '.LICENSE.txt',
+    install_tag : 'legal',
 )

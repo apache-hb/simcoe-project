@@ -39,9 +39,10 @@ install_data([ libdir / 'libdxil.so', libdir / 'libdxcompiler.so' ],
 )
 
 install_data([ 'LICENSE-MS.txt', 'LICENSE-LLVM.txt' ],
-    install_dir : get_option('datadir') / 'licenses',
+    install_dir : get_option('licensedir'),
     rename : [
         meson.project_name() + '.LICENSE-MS.txt',
         meson.project_name() + '.LICENSE-LLVM.txt'
-    ]
+    ],
+    install_tag : 'legal',
 )

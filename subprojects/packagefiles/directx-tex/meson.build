@@ -36,6 +36,7 @@ dxtex_dep = declare_dependency(
 meson.override_dependency('directx-tex', dxtex_dep)
 
 install_data(meson.project_license_files(),
-    install_dir : get_option('datadir') / 'licenses',
-    rename : meson.project_name() + '.LICENSE.txt'
+    install_dir : get_option('licensedir'),
+    rename : meson.project_name() + '.LICENSE.txt',
+    install_tag : 'legal',
 )
