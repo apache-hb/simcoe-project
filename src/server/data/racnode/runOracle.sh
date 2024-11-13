@@ -107,8 +107,6 @@ else
          error_exit "Error has occurred in Grid Setup, Please verify!"
       fi
 
-      # $SCRIPT_DIR/erasesem.sh
-
       print_message "####################################"
       print_message "ORACLE RAC DATABASE IS READY TO USE!"
       print_message "####################################"
@@ -119,8 +117,6 @@ else
       if [ $stat -ne 0 ];then
          error_exit "Error has occurred in Grid Setup, Please verify!"
       fi
-
-      # $SCRIPT_DIR/erasesem.sh
 
       print_message "####################################"
       print_message "ORACLE RAC DATABASE IS READY TO USE!"

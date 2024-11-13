@@ -1271,6 +1271,7 @@ if [ "${CLUSTER_TYPE}" == 'STANDALONE' ] || [ "${CLUSTER_TYPE}" == 'MEMBERDB' ];
     su - $DB_USER -c "$SCRIPT_DIR/$USER_SCRIPTS_FILE $DB_SCRIPT_ROOT DB"
     print_message "Setting Remote Listener"
     setremotelistener
+    print_message "Finished setup"
   fi
 fi
 

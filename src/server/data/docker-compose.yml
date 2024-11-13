@@ -52,7 +52,7 @@ services:
       - /run
     privileged: true
     environment:
-      ASM_STORAGE_SIZE_GB: 20
+      ASM_STORAGE_SIZE_GB: 50
     cap_add:
       - ALL
     healthcheck:
@@ -84,8 +84,6 @@ services:
       - ./racnode/boot:/boot:ro
       - ./racnode/dbca_19c.rsp:/opt/scripts/startup/dbca_19c.rsp:ro
       - ./racnode/configGrid.sh:/opt/scripts/startup/configGrid.sh:ro,exec
-      - ./racnode/runOracle.sh:/opt/scripts/startup/runOracle.sh:ro,exec
-      - ./racnode/erasesem.sh:/opt/scripts/startup/erasesem.sh:ro,exec
       - ./container/secrets:${SECRET_VOLUME}:ro
       - ./container/rac_host_file:/etc/hosts
       - ./racnode/setup.sh:/opt/scripts/setup.sh:ro,exec
@@ -156,8 +154,7 @@ services:
       - ./racnode/boot:/boot:ro
       - ./racnode/dbca_19c.rsp:/opt/scripts/startup/dbca_19c.rsp:ro
       - ./racnode/configGrid.sh:/opt/scripts/startup/configGrid.sh:ro,exec
-      - ./racnode/runOracle.sh:/opt/scripts/startup/runOracle.sh:ro,exec
-      - ./racnode/erasesem.sh:/opt/scripts/startup/erasesem.sh:ro,exec
+      - ./racnode/AddNode.sh:/opt/scripts/startup/AddNode.sh:ro,exec
       - ./container/secrets:${SECRET_VOLUME}:ro
       - ./container/rac_host_file:/etc/hosts
       - ./racnode/setup.sh:/opt/scripts/setup.sh:ro,exec
@@ -237,10 +234,11 @@ services:
     healthcheck:
       test:
         - CMD-SHELL
-        - /bin/bash -c "${ORACLE_CLIENT_HOME}/bin/cmctl show service -c CMAN_${CMAN_HOSTNAME}.${DNS_DOMAIN} | grep -q 'Instance \"cman\", status READY'"
+        - /bin/bash -c "${ORACLE_CLIENT_HOME}/bin/cmctl show service -c ${CMAN_HOSTNAME} | grep -q 'Instance \"cman\", status READY'"
       interval: ${HEALTHCHECK_INTERVAL}
       timeout: ${HEALTHCHECK_TIMEOUT}
       retries: ${HEALTHCHECK_RETRIES}
+
 volumes:
   racstorage:
     driver_opts:
