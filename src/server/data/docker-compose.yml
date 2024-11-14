@@ -205,7 +205,7 @@ services:
       timeout: ${HEALTHCHECK_TIMEOUT}
       retries: ${HEALTHCHECK_RETRIES}
 
-  racnoded1-cman:
+  racnodedc1-cman:
     depends_on:
       dns:
         condition: service_healthy
