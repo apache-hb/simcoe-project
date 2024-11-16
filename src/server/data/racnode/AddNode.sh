@@ -465,26 +465,13 @@ runorainstroot()
 
 runrootsh ()
 {
-# shellcheck disable=SC2034
-local ORACLE_HOME=$1
+  # shellcheck disable=SC2034
+  local ORACLE_HOME=$1
 
-local USER=$2
+  local USER=$2
 
-# if [ -z "$CRS_NODES" ]; then
-#   CLUSTER_NODES=( "$PUBLIC_HOSTNAME" )
-# else
-#   IFS=', ' read -r -a CLUSTER_NODES <<< "$CRS_NODES"
-# fi
-
-CLUSTER_NODES=$(echo \"$EXISTING_CLS_NODES\" | tr ',' ' ')
-
-print_message "Nodes in the cluster ${CLUSTER_NODES[*]}"
-for node in "${CLUSTER_NODES[@]}"; do
-# shellcheck disable=SC2016
-cmd='su - $USER -c "ssh $node sudo $ORACLE_HOME/root.sh"'
-eval "$cmd"
-done
-
+  # shellcheck disable=SC2016
+  su - $USER -c "sudo $ORACLE_HOME/root.sh"
 }
 
 generate_response_file ()
@@ -950,7 +937,7 @@ cluvfyCheck
 print_message "Running Node Addition and cluvfy test for node $PUBLIC_HOSTNAME"
 addGridNode
 print_message "Running root.sh on node $PUBLIC_HOSTNAME"
-runrootsh "$GRID_HOME"  "$GRID_USER"
+runrootsh "$GRID_HOME" "$GRID_USER"
 checkCluster
 print_message "Checking Cluster Class"
 checkClusterClass
@@ -959,20 +946,20 @@ su - $GRID_USER -c "$SCRIPT_DIR/$USER_SCRIPTS_FILE $GRID_SCRIPT_ROOT GRID"
 
 ###### DB Node Addition ######
 if [ "${CLUSTER_TYPE}" != 'Domain' ]; then
-if [ "${RUN_DBCA}" == 'true' ]; then
-print_message  "Performing DB Node addition"
-addDBNode
-print_message "Running root.sh"
-runrootsh "$DB_HOME" "$DB_USER"
-print_message "Adding DB Instance"
-addDBInst
-print_message "Checking DB status"
-su - $DB_USER -c "$SCRIPT_DIR/$CHECK_DB_FILE $ORACLE_SID"
-checkDBStatus
-print_message "Running User Script for  $DB_USER user"
-su - $DB_USER -c "$SCRIPT_DIR/$USER_SCRIPTS_FILE $DB_SCRIPT_ROOT DB"
-print_message "Setting Remote Listener"
-setremotelistener
-fi
+  if [ "${RUN_DBCA}" == 'true' ]; then
+    print_message  "Performing DB Node addition"
+    addDBNode
+    print_message "Running root.sh"
+    runrootsh "$DB_HOME" "$DB_USER"
+    print_message "Adding DB Instance"
+    addDBInst
+    print_message "Checking DB status"
+    su - $DB_USER -c "$SCRIPT_DIR/$CHECK_DB_FILE $ORACLE_SID"
+    checkDBStatus
+    print_message "Running User Script for  $DB_USER user"
+    su - $DB_USER -c "$SCRIPT_DIR/$USER_SCRIPTS_FILE $DB_SCRIPT_ROOT DB"
+    print_message "Setting Remote Listener"
+    setremotelistener
+  fi
 fi
 echo $TRUE
