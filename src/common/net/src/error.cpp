@@ -19,6 +19,11 @@ static std::string fmtOsError(int code) {
     }
 }
 
+NetError::NetError(int code, std::string_view message)
+    : Super(fmt::format("{} ({})", message, fmtOsError(code)))
+    , mCode(code)
+{ }
+
 NetError::NetError(int code)
     : Super(fmtOsError(code))
     , mCode(code)

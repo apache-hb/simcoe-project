@@ -74,12 +74,12 @@ static void registerMessagesWithDb(
     for (const logs::MessageInfo& message : messages) {
         sm::dao::logs::LogMessage daoMessage {
             .hash = message.getHash(),
-#if SMC_LOGS_INCLUDE_MESSAGE
+#if SMC_LOGS_INCLUDE_LOG_MESSAGES
             .message = std::string{message.getMessage()},
 #endif
             .severity = uint32_t(message.getSeverity()),
             .category = message.getCategory().hash,
-#if SMC_LOGS_INCLUDE_MESSAGE
+#if SMC_LOGS_INCLUDE_LOG_MESSAGES
             .path = std::string{message.getFileName()},
             .line = message.getLine(),
             .function = std::string{message.getFunction()},

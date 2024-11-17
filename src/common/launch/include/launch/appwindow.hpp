@@ -27,7 +27,6 @@ namespace sm::launch {
 
         void resize(render::next::SurfaceInfo info);
 
-
     protected:
         db::Connection *mConnection;
         WindowEvents mEvents;

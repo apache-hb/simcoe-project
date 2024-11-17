@@ -61,14 +61,6 @@ static std::string camelCase(std::string_view text) {
     return result;
 }
 
-static std::string singular(std::string_view text) {
-    if (text.back() == 's') {
-        return std::string{text.substr(0, text.size() - 1)};
-    }
-
-    return std::string{text};
-}
-
 struct Type {
     ColumnType kind;
     bool nullable = false;
@@ -811,7 +803,7 @@ static void emitCxxBody(
 
         first = false;
 
-        auto className = singular(pascalCase(table.name));
+        auto className = pascalCase(table.name);
 
         source.writeln("template<> struct sm::dao::detail::TableInfoImpl<sm::dao::{}::{}> final {{", dao.name, className);
         source.indent();

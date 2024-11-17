@@ -85,7 +85,7 @@ class DefaultSystemError final : public sm::ISystemError {
 
         mReport = bt_report_new(get_default_arena());
         io_t *io = io_stderr();
-        io_printf(io, "System error detected: (%s)\n", error.toString().c_str());
+        io_printf(io, "System error detected: (%s)\n", error.what());
     }
 
     void error_frame(bt_address_t it) override {

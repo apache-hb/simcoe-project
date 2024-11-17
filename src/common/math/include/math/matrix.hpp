@@ -116,11 +116,11 @@ namespace sm::math {
                 (other0.w * row3.x) + (other1.w * row3.y) + (other2.w * row3.z) + (other3.w * row3.w)
             };
 
-            return { out0, out1, out2, out3 };
+            return Mat4x4 { out0, out1, out2, out3 };
         }
 
         constexpr Mat4x4 add(const Mat4x4& other) const {
-            return {
+            return Mat4x4 {
                 at(0).add(other.at(0)),
                 at(1).add(other.at(1)),
                 at(2).add(other.at(2)),
@@ -129,7 +129,7 @@ namespace sm::math {
         }
 
         constexpr Mat4x4 operator*(T other) const {
-            return { at(0) * other, at(1) * other, at(2) * other, at(3) * other };
+            return Mat4x4 { at(0) * other, at(1) * other, at(2) * other, at(3) * other };
         }
 
         constexpr Mat4x4 operator*(const Mat4x4& other) const {
@@ -161,11 +161,11 @@ namespace sm::math {
             Vec4 row1 = { 0, y, 0, 0 };
             Vec4 row2 = { 0, 0, z, 0 };
             Vec4 row3 = { 0, 0, 0, 1 };
-            return { row0, row1, row2, row3 };
+            return Mat4x4 { row0, row1, row2, row3 };
         }
 
         constexpr Vec3 get_scale() const {
-            return { at(0, 0), at(1, 1), at(2, 2) };
+            return Vec3 { at(0, 0), at(1, 1), at(2, 2) };
         }
 
         constexpr void set_scale(const Vec3& scale) {
@@ -187,11 +187,11 @@ namespace sm::math {
             Vec4 row1 = { 0, 1, 0, y };
             Vec4 row2 = { 0, 0, 1, z };
             Vec4 row3 = { 0, 0, 0, 1 };
-            return { row0, row1, row2, row3 };
+            return Mat4x4 { row0, row1, row2, row3 };
         }
 
         constexpr Vec3 get_translation() const {
-            return { at(0, 3), at(1, 3), at(2, 3) };
+            return Vec3 { at(0, 3), at(1, 3), at(2, 3) };
         }
 
         constexpr void set_translation(const Vec3& translation) {
@@ -234,7 +234,7 @@ namespace sm::math {
 
             Vec4 r3 = { 0, 0, 0, 1 };
 
-            return { r0, r1, r2, r3 };
+            return Mat4x4 { r0, r1, r2, r3 };
         }
 
         static constexpr Mat4x4 rotation(const Quat& q) {

@@ -15,6 +15,11 @@ option('editor_win_subsystem', type : 'combo',
     value : 'console'
 )
 
+option('engine_name', type : 'string',
+    description : 'Name of the engine, used for installation paths and registry keys',
+    value : 'SIMCOE'
+)
+
 ###
 ### debug features
 ###
@@ -30,6 +35,11 @@ option('freetype_logging', type : 'boolean',
 
 option('logs_include_source_info', type : 'feature',
     description : 'Include source info in the built logdb',
+    value : 'auto'
+)
+
+option('logs_include_log_messages', type : 'feature',
+    description : 'Include log messages in the built logdb',
     value : 'auto'
 )
 

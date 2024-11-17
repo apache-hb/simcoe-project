@@ -25,10 +25,9 @@ namespace sm::render {
 
         constexpr explicit operator HRESULT() const { return mValue; }
 
-        template<size_t N = 512>
-        SmallString<N> toString() const {
+        std::string_view toString() const {
             OsError err = OsError(mValue);
-            return err.toString<N>();
+            return err.message();
         }
     };
 }
@@ -43,7 +42,7 @@ struct fmt::formatter<sm::render::Result> {
     constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
 
     auto format(const sm::render::Result& result, fmt::format_context& ctx) const {
-        return format_to(ctx.out(), "{}", result.toString().c_str());
+        return format_to(ctx.out(), "{}", result.toString());
     }
 };
 

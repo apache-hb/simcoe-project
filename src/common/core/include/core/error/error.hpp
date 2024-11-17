@@ -82,20 +82,30 @@ namespace sm::errors {
         }
     };
 
+    class AnyException : public std::runtime_error {
+        using Super = std::runtime_error;
+    public:
+        using Super::Super;
+
+        [[nodiscard]] virtual const std::stacktrace& stacktrace() const noexcept = 0;
+    };
+
     template<IsError T>
-    class Exception : public std::runtime_error {
+    class Exception : public AnyException {
+        using Super = AnyException;
+
         T mError;
 
     public:
         Exception(T error)
-            : std::runtime_error(error.what())
+            : Super(error.what())
             , mError(std::move(error))
         { }
 
         [[nodiscard]] const char *what() const noexcept override { return mError.what(); }
 
         [[nodiscard]] const T& error() const noexcept { return mError; }
-        [[nodiscard]] const std::stacktrace& stacktrace() const noexcept { return mError.stacktrace(); }
+        [[nodiscard]] const std::stacktrace& stacktrace() const noexcept override final { return mError.stacktrace(); }
     };
 }
 

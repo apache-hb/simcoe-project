@@ -103,7 +103,7 @@ class CpuSetScheduler final : public threads::IScheduler {
         if (thread == nullptr) {
             auto error = sm::OsError(GetLastError());
             LOG_ERROR(ThreadLog, "Failed to create thread: {}", error);
-            error.raise();
+            throw sm::OsException{error};
         }
 
         threads::ThreadHandle handle(thread, id);

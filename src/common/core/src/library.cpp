@@ -17,8 +17,7 @@ Library::Library(const fs::path& path)
 
 std::expected<Library, OsError> Library::open(const fs::path& path) noexcept {
     os_library_t library;
-    OsError error = os_library_open(path.string().c_str(), &library);
-    if (error.failed())
+    if (OsError error = os_library_open(path.string().c_str(), &library))
         return std::unexpected{error};
 
     return Library{library};
@@ -28,7 +27,7 @@ void *Library::getSymbol(const char *name) noexcept {
     void *result;
     mError = os_library_symbol(mHandle.address(), &result, name);
 
-    if (mError.failed())
+    if (mError)
         return nullptr;
 
     return result;

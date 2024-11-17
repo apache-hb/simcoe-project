@@ -25,9 +25,10 @@ namespace sm::launch {
 
         bool threads = true;
         bool network = false;
+        bool com = false;
     };
 
     LaunchResult commonInit(HINSTANCE hInstance, const LaunchInfo& info);
-    LaunchResult commonInitMain(int argc, const char **argv, const LaunchInfo& info);
-    LaunchResult commonInitWinMain(HINSTANCE hInstance, int nShowCmd, const LaunchInfo& info);
+    LaunchResult commonInitMain(int argc, const char **argv, const LaunchInfo& info) noexcept;
+    LaunchResult commonInitWinMain(HINSTANCE hInstance, int nShowCmd, const LaunchInfo& info) noexcept;
 }

@@ -168,6 +168,7 @@ simcoe_cdata.set('SMC_VERSION_MINOR', parts[1].to_int())
 simcoe_cdata.set('SMC_VERSION_MAJOR', parts[0].to_int())
 simcoe_cdata.set_quoted('SMC_VERSION', version)
 simcoe_cdata.set_quoted('SMC_SOURCE_DIR', meson.project_source_root().replace('\\', '\\\\'))
+simcoe_cdata.set_quoted('SMC_ENGINE_NAME', get_option('engine_name'))
 
 simcoe_cdata.set10('SMC_DEBUG', build_type.contains('debug'))
 simcoe_cdata.set10('SMC_RELEASE', build_type.contains('release'))
@@ -210,8 +211,6 @@ if not is_windows
     subdir_done()
 endif
 
-subdir('src/plugins/ryzenmaster')
-
 dxc = find_program(dxc_id, native : true)
 msdf_atlas_gen = find_program('msdf-atlas-gen', native : true)
 compressonator = find_program('compressonatorcli', native : true)
@@ -245,6 +244,12 @@ subdir('src/common/draw')
 subdir('src/common/game')
 
 ###
+### plugins
+###
+
+subdir('src/plugins/ryzenmaster')
+
+###
 ### game modules
 ###
 
@@ -256,6 +261,12 @@ subdir('src/game/thunderflash')
 ###
 
 subdir('src/common/launch')
+
+###
+### plugins
+###
+
+subdir('src/plugins/contextmenu')
 
 # windows specific dependencies
 d3d12 = subproject('d3d12')

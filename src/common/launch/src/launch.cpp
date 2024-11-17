@@ -122,7 +122,7 @@ class DefaultSystemError final : public sm::ISystemError {
 
         mReport = bt_report_new(get_default_arena());
         io_t *io = io_stderr();
-        io_printf(io, "System error detected: (%s)\n", error.toString().c_str());
+        io_printf(io, "System error detected: (%s)\n", error.what());
     }
 
     void error_frame(bt_address_t it) override {
@@ -196,7 +196,7 @@ static void setupLogging(const fs::path& path, const db::ConnectionConfig& confi
     logs::sinks::addFileChannel(path);
 }
 
-static void setupSystem(HINSTANCE hInstance) {
+static void setupSystem(HINSTANCE hInstance, bool enableCom) {
     system::create(hInstance);
 }
 
@@ -237,14 +237,14 @@ launch::LaunchResult launch::commonInit(HINSTANCE hInstance, const LaunchInfo& i
     setupCthulhuRuntime();
     setupDatabaseInfo(info);
     setupLogging(info.logPath, info.logDbConfig);
-    setupSystem(hInstance);
+    setupSystem(hInstance, info.com);
     setupThreads(info.threads);
     setupNetwork(info.network);
 
     return LaunchResult {};
 }
 
-static launch::LaunchResult commonMainInner(HINSTANCE hInstance, std::span<const char*> args, const launch::LaunchInfo& info) try {
+static launch::LaunchResult commonMainInner(HINSTANCE hInstance, std::span<const char*> args, const launch::LaunchInfo& info) noexcept try {
     launch::LaunchResult result = commonInit(hInstance, info);
 
     LOG_INFO(LaunchLog, "args = [{}]", fmt::join(args, ", "));
@@ -266,12 +266,12 @@ static launch::LaunchResult commonMainInner(HINSTANCE hInstance, std::span<const
     return launch::LaunchResult {};
 }
 
-launch::LaunchResult launch::commonInitMain(int argc, const char **argv, const LaunchInfo& info) {
+launch::LaunchResult launch::commonInitMain(int argc, const char **argv, const LaunchInfo& info) noexcept {
     std::span<const char*> args{argv, size_t(argc)};
     return commonMainInner(GetModuleHandleA(nullptr), args, info);
 }
 
-launch::LaunchResult launch::commonInitWinMain(HINSTANCE hInstance, int nShowCmd, const LaunchInfo& info) {
+launch::LaunchResult launch::commonInitWinMain(HINSTANCE hInstance, int nShowCmd, const LaunchInfo& info) noexcept {
     int argc = 0;
     LPWSTR *argvw = CommandLineToArgvW(GetCommandLineW(), &argc);
     defer { LocalFree((void*)argvw); };

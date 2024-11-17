@@ -17,6 +17,8 @@ src = [
 
     # win32 input source
     'src/input.cpp',
+
+    'src/registry.cpp',
 ]
 
 if host_machine.system() == 'windows'

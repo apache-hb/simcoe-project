@@ -22,7 +22,9 @@ namespace sm::logs {
         logs::Severity level;
         const CategoryInfo& category;
 
+#if SMC_LOGS_INCLUDE_LOG_MESSAGES
         std::string_view message;
+#endif
 
 #if SMC_LOGS_INCLUDE_SOURCE_INFO
         std::source_location location;
@@ -34,7 +36,7 @@ namespace sm::logs {
         std::span<const MessageAttributeInfo> namedAttributes;
 
         consteval MessageInfo(
-            std::string_view message,
+            [[maybe_unused]] std::string_view message,
             logs::Severity level,
             const CategoryInfo& category,
             [[maybe_unused]] std::source_location location,
@@ -44,7 +46,9 @@ namespace sm::logs {
             : hash(detail::hashMessage(message))
             , level(level)
             , category(category)
+#if SMC_LOGS_INCLUDE_LOG_MESSAGES
             , message(message)
+#endif
 #if SMC_LOGS_INCLUDE_SOURCE_INFO
             , location(location)
 #endif
@@ -56,7 +60,11 @@ namespace sm::logs {
         uint64_t getHash() const noexcept { return hash; }
         const CategoryInfo& getCategory() const noexcept { return category; }
 
+#if SMC_LOGS_INCLUDE_LOG_MESSAGES
         std::string_view getMessage() const noexcept { return message; }
+#else
+        std::string_view getMessage() const noexcept { return ""; }
+#endif
 
 #if SMC_LOGS_INCLUDE_SOURCE_INFO
         uint_least32_t getLine() const noexcept { return location.line(); }

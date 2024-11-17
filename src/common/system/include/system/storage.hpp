@@ -16,12 +16,13 @@ namespace sm::system::storage {
     /// @brief Get the path to the local configuration folder.
     /// This folder is intended for user-specific configuration
     /// data that is specific to this machine.
-    /// i.e. window positions or PSO cache.
+    /// i.e. window positions
     fs::path getLocalDataFolder();
 
     /// @brief Get the path to the shared configuration folder.
     /// This folder is intended for machine specific configuration
     /// data that is shared between all users on this machine.
+    /// i.e. PSO cache
     fs::path getMachineDataFolder();
 
     /// @brief Get the path to the static data folder.

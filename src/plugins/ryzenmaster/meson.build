@@ -9,12 +9,12 @@ libryzenmaster = library('ryzenmaster', src,
 )
 
 ryzenmaster = declare_dependency(
-    link_with: libryzenmaster,
-    include_directories: inc,
+    link_with : libryzenmaster,
+    include_directories : inc,
 )
 
 exe = executable('ryzenmaster-test', 'test/connect.cpp',
-    dependencies: [ ryzenmaster ],
+    dependencies : [ ryzenmaster ],
 )
 
-run_target('run-ryzenmaster-test', command: [ exe ])
+run_target('run-ryzenmaster-test', command : [ exe ])

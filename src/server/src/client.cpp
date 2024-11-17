@@ -391,7 +391,7 @@ static int commonMain() noexcept try {
     return -1;
 }
 
-int main(int argc, const char **argv) noexcept {
+int main(int argc, const char **argv) noexcept try {
     launch::LaunchResult launch = launch::commonInitMain(argc, argv, kLaunchInfo);
     if (launch.shouldExit()) {
         return launch.exitCode();
@@ -402,9 +402,15 @@ int main(int argc, const char **argv) noexcept {
     LOG_INFO(ClientLog, "editor exiting with {}", result);
 
     return result;
+} catch (const std::exception& err) {
+    LOG_ERROR(ClientLog, "unhandled exception: {}", err.what());
+    return -1;
+} catch (...) {
+    LOG_ERROR(ClientLog, "unknown unhandled exception");
+    return -1;
 }
 
-int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
+int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) try {
     launch::LaunchResult launch = launch::commonInitWinMain(hInstance, nShowCmd, kLaunchInfo);
     if (launch.shouldExit()) {
         return launch.exitCode();
@@ -415,4 +421,10 @@ int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdL
     LOG_INFO(ClientLog, "editor exiting with {}", result);
 
     return result;
+} catch (const std::exception& err) {
+    LOG_ERROR(ClientLog, "unhandled exception: {}", err.what());
+    return -1;
+} catch (...) {
+    LOG_ERROR(ClientLog, "unknown unhandled exception");
+    return -1;
 }

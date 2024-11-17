@@ -20,6 +20,9 @@ namespace sm::net {
         using Super = errors::Error<NetError>;
 
         int mCode;
+
+        NetError(int code, std::string_view message);
+
     public:
         using Exception = NetException;
 
@@ -27,8 +30,7 @@ namespace sm::net {
 
         template<typename... A>
         NetError(int code, fmt::format_string<A...> fmt, A&&... args)
-            : Super(fmt::vformat(fmt, fmt::make_format_args(args...)))
-            , mCode(code)
+            : NetError(code, fmt::vformat(fmt, fmt::make_format_args(args...)))
         { }
 
         int code() const noexcept { return mCode; }

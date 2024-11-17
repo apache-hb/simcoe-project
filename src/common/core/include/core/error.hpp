@@ -3,7 +3,7 @@
 #include <simcoe_config.h>
 
 #include "core/adt/small_string.hpp"
-#include "core/throws.hpp"
+#include "core/error/error.hpp"
 
 #include "backtrace/backtrace.h"
 #include "core/source_info.h"
@@ -22,46 +22,36 @@ namespace sm {
         panic(info, fmt::vformat(msg, fmt::make_format_args(args...)));
     }
 
-    class OsError {
+    class OsError : public errors::Error<OsError> {
+        using Super = errors::Error<OsError>;
         os_error_t mError;
 
+        OsError(os_error_t error, std::string_view message);
+
     public:
-        constexpr OsError(os_error_t error) noexcept
-            : mError(error)
+        using Exception = OsException;
+
+        OsError(os_error_t error);
+
+        template<typename... A>
+        OsError(os_error_t error, fmt::format_string<A...> fmt, A&&... args)
+            : OsError(error, fmt::vformat(fmt, fmt::make_format_args(args...)))
         { }
 
         constexpr os_error_t error() const noexcept { return mError; }
-        constexpr operator bool() const noexcept { return mError != 0; }
-        constexpr bool success() const noexcept { return mError == 0; }
-        constexpr bool failed() const noexcept { return mError != 0; }
-
-        constexpr bool operator==(const OsError &) const noexcept = default;
-        constexpr bool operator!=(const OsError &) const noexcept = default;
-
-        CT_NORETURN raise() const throws(OsException);
-        void throwIfFailed() const throws(OsException);
-
-        template<size_t N = 512>
-        SmallString<N> toString() const {
-            char buffer[N];
-            size_t size = os_error_get_string(mError, buffer, N);
-            buffer[std::min(size, N - 1)] = '\0';
-            return SmallString<N>(buffer);
-        }
+        constexpr bool isSuccess() const noexcept { return mError == 0; }
     };
 
-    class OsException : public std::exception {
-        OsError mError;
-        std::string mMessage;
+    class OsException : public errors::Exception<OsError> {
+        using Super = errors::Exception<OsError>;
 
     public:
-        OsException(OsError error)
-            : mError(error)
-            , mMessage(error.toString())
-        { }
+        using Super::Super;
 
-        OsError error() const noexcept { return mError; }
-        const char *what() const noexcept override { return mMessage.c_str(); }
+        template<typename... A>
+        OsException(os_error_t error, fmt::format_string<A...> fmt, A&&... args)
+            : Super(OsError(error, fmt, args...))
+        { }
     };
 
     class ISystemError : public bt_error_t {
@@ -79,17 +69,6 @@ namespace sm {
         { }
     };
 } // namespace sm
-
-template <>
-struct fmt::formatter<sm::OsError> {
-    constexpr auto parse(format_parse_context &ctx) const {
-        return ctx.begin();
-    }
-
-    auto format(sm::OsError error, fmt::format_context &ctx) const {
-        return format_to(ctx.out(), "{}", error.toString<512>().c_str());
-    }
-};
 
 #define SM_ASSERTF_ALWAYS(expr, ...)                    \
     do {                                                \

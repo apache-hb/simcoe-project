@@ -4,6 +4,13 @@
 
 using namespace sm;
 
+static std::string osErrorToString(os_error_t error) {
+    char buffer[512];
+    size_t size = os_error_get_string(error, buffer, sizeof(buffer));
+    buffer[std::min(size, sizeof(buffer) - 1)] = '\0';
+    return buffer;
+}
+
 void ISystemError::wrap_begin(size_t error, void *user) {
     static_cast<ISystemError*>(user)->error_begin(error);
 }
@@ -20,10 +27,12 @@ void sm::panic(source_info_t info, std::string_view msg) {
     ctu_panic(info, "%.*s", (int)msg.size(), msg.data());
 }
 
-CT_NORETURN OsError::raise() const noexcept(false) {
-    throw OsException(*this);
-}
+OsError::OsError(os_error_t error, std::string_view message)
+    : Super(fmt::format("{} ({})", message, osErrorToString(error)))
+    , mError(error)
+{ }
 
-void OsError::throwIfFailed() const noexcept(false) {
-    if (failed()) raise();
-}
+OsError::OsError(os_error_t error)
+    : Super(osErrorToString(error))
+    , mError(error)
+{ }

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root name="contextmenu">
+    <table name="registry_hive" syntheticPrimaryKey="ulong">
+        <column name="name" type="text" length="64">
+            <unique />
+        </column>
+    </table>
+
+    <table name="file_class" syntheticPrimaryKey="ulong">
+        <column name="hive_id" type="ulong">
+            <constraint references="registry_hive.id" />
+        </column>
+
+        <column name="extension"          type="text" length="128" />
+        <column name="name"               type="text" length="128" nullable="true" />
+        <column name="content_type"       type="text" length="128" nullable="true" />
+        <column name="perceived_type"     type="text" length="128" nullable="true" />
+        <column name="persistent_handler" type="text" length="128" nullable="true" />
+
+        <unique>
+            <column>hive_id</column>
+            <column>extension</column>
+        </unique>
+    </table>
+
+    <table name="cls_id" syntheticPrimaryKey="ulong">
+        <column name="hive_id" type="ulong">
+            <constraint references="registry_hive.id" />
+        </column>
+
+        <column name="clsid" type="text" length="128" />
+        <column name="name" type="text" length="128" nullable="true" />
+
+        <unique>
+            <column>hive_id</column>
+            <column>clsid</column>
+        </unique>
+    </table>
+
+    <table name="mime_type" syntheticPrimaryKey="ulong">
+        <column name="hive_id" type="ulong">
+            <constraint references="registry_hive.id" />
+        </column>
+
+        <column name="content_type" type="text" length="128" />
+        <column name="extension"    type="text" length="128" nullable="true" />
+        <column name="clsid"        type="text" length="128" nullable="true" />
+        <column name="autoplay"     type="text" length="128" nullable="true" />
+    </table>
+
+    <table name="open_with_progids" syntheticPrimaryKey="ulong">
+        <column name="progid" type="text" length="128" />
+        <column name="name" type="text" length="128" nullable="true" />
+    </table>
+
+</root>

@@ -22,5 +22,5 @@ liblaunch = library('launch', src,
 launch = declare_dependency(
     link_with : liblaunch,
     include_directories : [ launch_include ],
-    dependencies : [ core ]
+    dependencies : [ core, db, draw_next ]
 )
