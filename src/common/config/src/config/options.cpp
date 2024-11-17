@@ -20,6 +20,36 @@ static sm::opt<bool> gOptionVersion {
     desc = "print version information"
 };
 
+
+std::string_view config::toString(OptionType it) {
+    switch (it) {
+    case OptionType::eUnknown: return "UNKNOWN";
+    case OptionType::eBoolean: return "BOOLEAN";
+    case OptionType::eSigned: return "SIGNED";
+    case OptionType::eUnsigned: return "UNSIGNED";
+    case OptionType::eReal: return "REAL";
+    case OptionType::eString: return "STRING";
+    case OptionType::eSignedEnum:
+    case OptionType::eUnsignedEnum:
+        return "ENUM";
+
+    default: return "INVALID";
+    }
+}
+
+std::string_view config::toString(UpdateStatus it) {
+    switch (it) {
+    case UpdateStatus::eSuccess: return "SUCCESS";
+    case UpdateStatus::eUnknownOption: return "UNKNOWN OPTION";
+    case UpdateStatus::eMissingValue: return "MISSING VALUE";
+    case UpdateStatus::eInvalidValue: return "INVALID VALUE";
+    case UpdateStatus::eOutOfRange: return "OUT OF RANGE";
+    case UpdateStatus::eReadOnly: return "READ ONLY";
+    case UpdateStatus::eSyntax: return "INVALID SYNTAX";
+    default: return "INVALID";
+    }
+}
+
 const Group& config::getCommonGroup() noexcept {
     static Group sInstance = [] {
         detail::ConfigBuilder config {

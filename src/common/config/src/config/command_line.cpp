@@ -107,9 +107,9 @@ struct CommandLineParser {
         value *= sign;
 
         if (ec != std::errc() || (ptr != arg.data() + arg.size())) {
-            errors.fmtError(UpdateStatus::eInvalidValue, "invalid value `{}` for `{}`", arg, option->name);
+            errors.fmtError(UpdateStatus::eInvalidValue, "Invalid value ({}) for ({}).", arg, option->name);
         } else if (!range.contains(value)) {
-            errors.fmtError(UpdateStatus::eOutOfRange, "value `{}` for `{}` is out of range [{}, {}]", value, option->name, range.min, range.max);
+            errors.fmtError(UpdateStatus::eOutOfRange, "Value ({}) for option ({}) is out of range [{}, {}].", value, option->name, range.min, range.max);
         } else {
             option->setCommonValue(value);
         }
@@ -125,9 +125,9 @@ struct CommandLineParser {
 
         value *= sign;
         if (ec != std::errc() || (ptr != arg.data() + arg.size())) {
-            errors.fmtError(UpdateStatus::eInvalidValue, "invalid value `{}` for `{}`", arg, option->name);
+            errors.fmtError(UpdateStatus::eInvalidValue, "Invalid value ({}) for option ({}).", arg, option->name);
         } else if (!range.contains(value)) {
-            errors.fmtError(UpdateStatus::eOutOfRange, "value `{}` for `{}` is out of range [{}, {}]", value, option->name, range.min, range.max);
+            errors.fmtError(UpdateStatus::eOutOfRange, "Value ({}) for option ({}) is out of range [{}, {}].", value, option->name, range.min, range.max);
         } else {
             option->setCommonValue(value);
         }
@@ -169,14 +169,14 @@ struct CommandLineParser {
                     sm::setMask(value, *enumValue, shouldSetFlag);
                     option->setCommonValue(value);
                 } else {
-                    errors.fmtError(UpdateStatus::eInvalidValue, "invalid flag `{}` for `{}`", word, option->name);
+                    errors.fmtError(UpdateStatus::eInvalidValue, "Invalid flag ({}) for combo ({}).", word, option->name);
                 }
             }
         } else {
             if (const auto *value = config::detail::getEnumValue(options, arg)) {
                 option->setCommonValue(*value);
             } else {
-                errors.fmtError(UpdateStatus::eInvalidValue, "invalid choice `{}` for `{}`", arg, option->name);
+                errors.fmtError(UpdateStatus::eInvalidValue, "Invalid choice ({}) for option ({}).", arg, option->name);
             }
         }
     }
@@ -198,7 +198,7 @@ UpdateResult Context::updateFromCommandLine(int argc, const char *const *argv) n
     UpdateResult errors;
 
     auto reportMissingValue = [&errors](std::string_view name) {
-        errors.fmtError(UpdateStatus::eMissingValue, "missing value for `{}`", name);
+        errors.fmtError(UpdateStatus::eMissingValue, "Missing value for ({}).", name);
     };
 
     while (parser.hasNext()) {
@@ -207,12 +207,10 @@ UpdateResult Context::updateFromCommandLine(int argc, const char *const *argv) n
         std::string_view name = arg;
         if (name.starts_with("--")) {
             name.remove_prefix(2);
-        }
-        else if (name.starts_with("/")) {
+        } else if (name.starts_with("/")) {
             name.remove_prefix(1);
-        }
-        else {
-            errors.fmtError(UpdateStatus::eSyntax, "unexpected value `{}`", name);
+        } else {
+            errors.fmtError(UpdateStatus::eSyntax, "Unexpected value ({}).", name);
             continue;
         }
 
@@ -228,7 +226,7 @@ UpdateResult Context::updateFromCommandLine(int argc, const char *const *argv) n
         auto it = mArgLookup.find(name);
 
         if (it == mArgLookup.end()) {
-            errors.fmtError(UpdateStatus::eUnknownOption, "unknown option `{}`", name);
+            errors.fmtError(UpdateStatus::eUnknownOption, "Unknown option ({}).", name);
             continue;
         }
 

@@ -15,10 +15,7 @@
 
 #include "config/init.hpp"
 
-#include "config.meta.hpp"
-
 namespace sm::config {
-    REFLECT_ENUM(UpdateStatus)
     enum class UpdateStatus {
         eSuccess,
         eUnknownOption,
@@ -31,7 +28,6 @@ namespace sm::config {
         eCount
     };
 
-    REFLECT_ENUM(OptionType)
     enum class OptionType {
         eUnknown,
         eBoolean,
@@ -44,6 +40,9 @@ namespace sm::config {
 
         eCount
     };
+
+    std::string_view toString(OptionType it);
+    std::string_view toString(UpdateStatus it);
 
     const Group& getCommonGroup() noexcept;
 

@@ -1,27 +1,6 @@
 config_include = include_directories('include')
 
 ###
-### reflection data
-###
-
-src = [
-    metacc.process('include/config/config.hpp'),
-]
-
-deps = [ core, meta ]
-
-libconfig_meta = library('config-meta', src,
-    include_directories : config_include,
-    dependencies : deps,
-)
-
-config_meta = declare_dependency(
-    link_with : libconfig_meta,
-    include_directories : [ config_include, libconfig_meta.private_dir_include() ],
-    dependencies : deps,
-)
-
-###
 ### public api and implentation
 ###
 
@@ -37,13 +16,13 @@ libconfig = library('config', src,
     include_directories : config_include,
     cpp_args : [ '-DSM_CONFIG_BUILD=1' ],
     cpp_pch : 'src/config/stdafx.hpp',
-    dependencies : [ config_meta, tomlplusplus ],
+    dependencies : [ core, tomlplusplus ],
 )
 
 config = declare_dependency(
     link_with : libconfig,
     include_directories : config_include,
-    dependencies : config_meta,
+    dependencies : [ core ],
 )
 
 testdeps = [ config, coretest ]
