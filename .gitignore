@@ -33,6 +33,7 @@
 !.clang-tidy
 !*.natvis
 !*.in
+!*.json
 
 # assets
 !data/*

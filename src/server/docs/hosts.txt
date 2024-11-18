@@ -1,0 +1,15 @@
+127.0.0.1       localhost.localdomain   localhost
+
+172.16.1.100    racnoded1.elliothb.com  racnoded1
+
+192.168.17.100  racnoded1-priv.elliothb.com     racnoded1-priv
+
+172.16.1.130    racnoded1-vip.elliothb.com      racnoded1-vip
+
+172.16.1.164    racnodedc1-cman.elliothb.com    racnodedc1-cman
+
+172.16.1.101    racnoded2.elliothb.com  racnoded2
+
+192.168.17.101  racnoded2-priv.elliothb.com     racnoded2-priv
+
+172.16.1.131    racnoded2-vip.elliothb.com      racnoded2-vip

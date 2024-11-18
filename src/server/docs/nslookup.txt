@@ -1,0 +1,32 @@
+[orcladmin@racnodedc1-dns ~]$ nslookup racnoded1
+Server:         172.16.1.25
+Address:        172.16.1.25#53
+
+Name:   racnoded1.elliothb.com
+Address: 172.16.1.100
+
+[orcladmin@racnodedc1-dns ~]$ nslookup
+> racnoded1
+Server:         172.16.1.25
+Address:        172.16.1.25#53
+
+Name:   racnoded1.elliothb.com
+Address: 172.16.1.100
+> racnoded2
+Server:         172.16.1.25
+Address:        172.16.1.25#53
+
+Name:   racnoded2.elliothb.com
+Address: 172.16.1.101
+> racnodedc1-cman
+Server:         172.16.1.25
+Address:        172.16.1.25#53
+
+Name:   racnodedc1-cman.elliothb.com
+Address: 172.16.1.164
+> racnodedc1-dns
+Server:         172.16.1.25
+Address:        172.16.1.25#53
+
+Name:   racnodedc1-dns.elliothb.com
+Address: 172.16.1.25

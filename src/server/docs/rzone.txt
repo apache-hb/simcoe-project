@@ -1,0 +1,174 @@
+[root@racnodedc1-dns orcladmin]# cat /var/named/chroot/var/named/elliothb.com.rzone
+$TTL 86400
+@       IN SOA  elliothb.com. root.elliothb.com. (
+        2014090402      ; serial
+        3600      ; refresh
+        1800      ; retry
+        604800      ; expire
+        86400 )    ; minimum
+; Name server's
+ 25       IN      NS     elliothb.com.
+; Name server hostname to IP resolve.
+       IN PTR  racnodedc1-dns.elliothb.com.
+; Second RAC Cluster on Same Subnet on Docker
+100     IN PTR  racnoded1.elliothb.com.
+101     IN PTR  racnoded2.elliothb.com.
+102     IN PTR  racnoded3.elliothb.com.
+103     IN PTR  racnoded4.elliothb.com.
+104     IN PTR  racnoded5.elliothb.com.
+105     IN PTR  racnoded6.elliothb.com.
+106     IN PTR  racnoded7.elliothb.com.
+107     IN PTR  racnoded8.elliothb.com.
+108     IN PTR  racnoded9.elliothb.com.
+109     IN PTR  racnoded10.elliothb.com.
+110     IN PTR  racnoded11.elliothb.com.
+111     IN PTR  racnoded12.elliothb.com.
+112     IN PTR  racnoded13.elliothb.com.
+113     IN PTR  racnoded14.elliothb.com.
+114     IN PTR  racnoded15.elliothb.com.
+115     IN PTR  racnoded16.elliothb.com.
+116     IN PTR  racnoded17.elliothb.com.
+117     IN PTR  racnoded18.elliothb.com.
+118     IN PTR  racnoded19.elliothb.com.
+119     IN PTR  racnoded20.elliothb.com.
+120     IN PTR  racnoded21.elliothb.com.
+121     IN PTR  racnoded22.elliothb.com.
+122     IN PTR  racnoded23.elliothb.com.
+123     IN PTR  racnoded24.elliothb.com.
+124     IN PTR  racnoded25.elliothb.com.
+125     IN PTR  appmc1.elliothb.com.
+126     IN PTR  appmc2.elliothb.com.
+127     IN PTR  appmc3.elliothb.com.
+128     IN PTR  appmc4.elliothb.com.
+129     IN PTR  appmc5.elliothb.com.
+
+; Podman hosts
+170     IN PTR  1.elliothb.com.
+171     IN PTR  2.elliothb.com.
+172     IN PTR  3.elliothb.com.
+173     IN PTR  4.elliothb.com.
+174     IN PTR  5.elliothb.com.
+175     IN PTR  6.elliothb.com.
+176     IN PTR  7.elliothb.com.
+177     IN PTR  8.elliothb.com.
+178     IN PTR  9.elliothb.com.
+179     IN PTR  10.elliothb.com.
+180     IN PTR  11.elliothb.com.
+181     IN PTR  12.elliothb.com.
+182     IN PTR  13.elliothb.com.
+183     IN PTR  14.elliothb.com.
+184     IN PTR  15.elliothb.com.
+185     IN PTR  16.elliothb.com.
+186     IN PTR  17.elliothb.com.
+187     IN PTR  18.elliothb.com.
+188     IN PTR  19.elliothb.com.
+189     IN PTR  20.elliothb.com.
+190     IN PTR  21.elliothb.com.
+191     IN PTR  22.elliothb.com.
+192     IN PTR  23.elliothb.com.
+193     IN PTR  24.elliothb.com.
+194     IN PTR  25.elliothb.com.
+195     IN PTR  dbmc1.elliothb.com.
+196     IN PTR  dbmc2.elliothb.com.
+197     IN PTR  dbmc3.elliothb.com.
+198     IN PTR  dbmc4.elliothb.com.
+199     IN PTR  dbmc5.elliothb.com.
+
+; Docker VIPs
+130     IN PTR  racnoded1-vip.elliothb.com.
+131     IN PTR  racnoded2-vip.elliothb.com.
+132     IN PTR  racnoded3-vip.elliothb.com.
+133     IN PTR  racnoded4-vip.elliothb.com.
+134     IN PTR  racnoded5-vip.elliothb.com.
+135     IN PTR  racnoded6-vip.elliothb.com.
+136     IN PTR  racnoded7-vip.elliothb.com.
+137     IN PTR  racnoded8-vip.elliothb.com.
+138     IN PTR  racnoded9-vip.elliothb.com.
+139     IN PTR  racnoded10-vip.elliothb.com.
+140     IN PTR  racnoded11-vip.elliothb.com.
+141     IN PTR  racnoded12-vip.elliothb.com.
+142     IN PTR  racnoded13-vip.elliothb.com.
+143     IN PTR  racnoded14-vip.elliothb.com.
+144     IN PTR  racnoded15-vip.elliothb.com.
+145     IN PTR  racnoded16-vip.elliothb.com.
+146     IN PTR  racnoded17-vip.elliothb.com.
+147     IN PTR  racnoded18-vip.elliothb.com.
+148     IN PTR  racnoded19-vip.elliothb.com.
+149     IN PTR  racnoded20-vip.elliothb.com.
+150     IN PTR  racnoded21-vip.elliothb.com.
+151     IN PTR  racnoded22-vip.elliothb.com.
+152     IN PTR  racnoded23-vip.elliothb.com.
+153     IN PTR  racnoded24-vip.elliothb.com.
+154     IN PTR  racnoded25-vip.elliothb.com.
+155     IN PTR  tcmc1.elliothb.com.
+156     IN PTR  tcmc2.elliothb.com.
+157     IN PTR  tcmc3.elliothb.com.
+158     IN PTR  tcmc4.elliothb.com.
+159     IN PTR  tcmc5.elliothb.com.
+
+;Podman VIPs
+200     IN PTR  1-vip.elliothb.com.
+201     IN PTR  2-vip.elliothb.com.
+202     IN PTR  3-vip.elliothb.com.
+203     IN PTR  4-vip.elliothb.com.
+204     IN PTR  5-vip.elliothb.com.
+205     IN PTR  6-vip.elliothb.com.
+206     IN PTR  7-vip.elliothb.com.
+207     IN PTR  8-vip.elliothb.com.
+208     IN PTR  9-vip.elliothb.com.
+209     IN PTR  10-vip.elliothb.com.
+210     IN PTR  11-vip.elliothb.com.
+211     IN PTR  12-vip.elliothb.com.
+212     IN PTR  13-vip.elliothb.com.
+213     IN PTR  14-vip.elliothb.com.
+214     IN PTR  15-vip.elliothb.com.
+215     IN PTR  16-vip.elliothb.com.
+216     IN PTR  17-vip.elliothb.com.
+217     IN PTR  18-vip.elliothb.com.
+218     IN PTR  19-vip.elliothb.com.
+219     IN PTR  20-vip.elliothb.com.
+220     IN PTR  21-vip.elliothb.com.
+221     IN PTR  22-vip.elliothb.com.
+222     IN PTR  23-vip.elliothb.com.
+223     IN PTR  24-vip.elliothb.com.
+224     IN PTR  25-vip.elliothb.com.
+225     IN PTR  client1.elliothb.com.
+226     IN PTR  client2.elliothb.com.
+227     IN PTR  client3.elliothb.com.
+228     IN PTR  client4.elliothb.com.
+229     IN PTR  client5.elliothb.com.
+
+; SCAN IPs
+230     IN PTR  racnodedc1-scan.elliothb.com.
+231     IN PTR  racnodedc1-scan.elliothb.com.
+232     IN PTR  racnodedc1-scan.elliothb.com.
+233     IN PTR  racnodedc2-scan.elliothb.com.
+234     IN PTR  racnodedc2-scan.elliothb.com.
+235     IN PTR  racnodedc2-scan.elliothb.com.
+236     IN PTR  c1-scan.elliothb.com.
+237     IN PTR  c1-scan.elliothb.com.
+238     IN PTR  c1-scan.elliothb.com.
+239     IN PTR  c2-scan.elliothb.com.
+240     IN PTR  c2-scan.elliothb.com.
+241     IN PTR  c2-scan.elliothb.com.
+242     IN PTR  c3-scan.elliothb.com.
+243     IN PTR  c3-scan.elliothb.com.
+244     IN PTR  c3-scan.elliothb.com.
+245     IN PTR  c4-scan.elliothb.com.
+246     IN PTR  c4-scan.elliothb.com.
+247     IN PTR  c4-scan.elliothb.com.
+248     IN PTR  c5-scan.elliothb.com.
+249     IN PTR  c5-scan.elliothb.com.
+250     IN PTR  c5-scan.elliothb.com.
+
+;GNS
+160     IN PTR  racnodedc1-gns.elliothb.com.
+161     IN PTR  racnodedc2-gns.elliothb.com.
+162     IN PTR  c1-gns.elliothb.com.
+163     IN PTR  c2-gns.elliothb.com.
+
+; CMAN Server Entry
+164       IN PTR  racnodedc1-cman.elliothb.com.
+165       IN PTR  racnodedc2-cman.elliothb.com.
+166       IN PTR  c1-cman.elliothb.com.
+167       IN PTR  c2-cman.elliothb.com.

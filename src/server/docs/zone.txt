@@ -1,0 +1,178 @@
+[root@racnodedc1-dns orcladmin]# cat /var/named/chroot/var/named/elliothb.com.zone
+$TTL 86400
+@       IN SOA  elliothb.com.   root (
+        2014090401    ; serial
+        3600    ; refresh
+        1800    ; retry
+        604800    ; expire
+        86400 )  ; minimum
+; Name server's
+                IN NS      elliothb.com.
+                IN A       172.16.1.25
+; Name server hostname to IP resolve.
+;@ORIGIN  eot.us.oracle.com.
+;@               IN      NS      gns.eot.us.oracle.com.
+; Hosts in this Domain
+racnodedc1-dns                       IN A    172.16.1.25
+racnoded1         IN A    172.16.1.100
+racnoded2         IN A    172.16.1.101
+racnoded3         IN A    172.16.1.102
+racnoded4         IN A    172.16.1.103
+racnoded5         IN A    172.16.1.104
+racnoded6         IN A    172.16.1.105
+racnoded7         IN A    172.16.1.106
+racnoded8         IN A    172.16.1.107
+racnoded9         IN A    172.16.1.108
+racnoded10        IN A    172.16.1.109
+racnoded11        IN A    172.16.1.110
+racnoded12        IN A    172.16.1.111
+racnoded13        IN A    172.16.1.112
+racnoded14        IN A    172.16.1.113
+racnoded15        IN A    172.16.1.114
+racnoded16        IN A    172.16.1.115
+racnoded17        IN A    172.16.1.116
+racnoded18        IN A    172.16.1.117
+racnoded19        IN A    172.16.1.118
+racnoded20        IN A    172.16.1.119
+racnoded21        IN A    172.16.1.120
+racnoded22        IN A    172.16.1.121
+racnoded23        IN A    172.16.1.122
+racnoded24        IN A    172.16.1.123
+racnoded25        IN A    172.16.1.124
+appmc1                               IN A    172.16.1.125
+appmc2                               IN A    172.16.1.126
+appmc3                               IN A    172.16.1.127
+appmc4                               IN A    172.16.1.128
+appmc5                               IN A    172.16.1.129
+
+; Podman hosts
+1         IN A    172.16.1.170
+2         IN A    172.16.1.171
+3         IN A    172.16.1.172
+4         IN A    172.16.1.173
+5         IN A    172.16.1.174
+6         IN A    172.16.1.175
+7         IN A    172.16.1.176
+8         IN A    172.16.1.177
+9         IN A    172.16.1.178
+10        IN A    172.16.1.179
+11        IN A    172.16.1.180
+12        IN A    172.16.1.181
+13        IN A    172.16.1.182
+14        IN A    172.16.1.183
+15        IN A    172.16.1.184
+16        IN A    172.16.1.185
+17        IN A    172.16.1.186
+18        IN A    172.16.1.187
+19        IN A    172.16.1.188
+20        IN A    172.16.1.189
+21        IN A    172.16.1.190
+22        IN A    172.16.1.191
+23        IN A    172.16.1.192
+24        IN A    172.16.1.193
+25        IN A    172.16.1.194
+dbmc1                                IN A    172.16.1.195
+dbmc2                                IN A    172.16.1.196
+dbmc3                                IN A    172.16.1.197
+dbmc4                                IN A    172.16.1.198
+dbmc5                                IN A    172.16.1.199
+
+; Docker VIPs
+racnoded1-vip     IN A    172.16.1.130
+racnoded2-vip     IN A    172.16.1.131
+racnoded3-vip     IN A    172.16.1.132
+racnoded4-vip     IN A    172.16.1.133
+racnoded5-vip     IN A    172.16.1.134
+racnoded6-vip     IN A    172.16.1.135
+racnoded7-vip     IN A    172.16.1.136
+racnoded8-vip     IN A    172.16.1.137
+racnoded9-vip     IN A    172.16.1.138
+racnoded10-vip    IN A    172.16.1.139
+racnoded11-vip    IN A    172.16.1.140
+racnoded12-vip    IN A    172.16.1.141
+racnoded13-vip    IN A    172.16.1.142
+racnoded14-vip    IN A    172.16.1.143
+racnoded15-vip    IN A    172.16.1.144
+racnoded16-vip    IN A    172.16.1.145
+racnoded17-vip    IN A    172.16.1.146
+racnoded18-vip    IN A    172.16.1.147
+racnoded19-vip    IN A    172.16.1.148
+racnoded20-vip    IN A    172.16.1.149
+racnoded21-vip    IN A    172.16.1.150
+racnoded22-vip    IN A    172.16.1.151
+racnoded23-vip    IN A    172.16.1.152
+racnoded24-vip    IN A    172.16.1.153
+racnoded25-vip    IN A    172.16.1.154
+tcmc1                                IN A    172.16.1.155
+tcmc2                                IN A    172.16.1.156
+tcmc3                                IN A    172.16.1.157
+tcmc4                                IN A    172.16.1.158
+tcmc5                                IN A    172.16.1.159
+
+; Podman VIPs
+1-vip     IN A    172.16.1.200
+2-vip     IN A    172.16.1.201
+3-vip     IN A    172.16.1.202
+4-vip     IN A    172.16.1.203
+5-vip     IN A    172.16.1.204
+6-vip     IN A    172.16.1.205
+7-vip     IN A    172.16.1.206
+8-vip     IN A    172.16.1.207
+9-vip     IN A    172.16.1.208
+10-vip    IN A    172.16.1.209
+11-vip    IN A    172.16.1.210
+12-vip    IN A    172.16.1.211
+13-vip    IN A    172.16.1.212
+14-vip    IN A    172.16.1.213
+15-vip    IN A    172.16.1.214
+16-vip    IN A    172.16.1.215
+17-vip    IN A    172.16.1.216
+18-vip    IN A    172.16.1.217
+19-vip    IN A    172.16.1.218
+20-vip    IN A    172.16.1.219
+21-vip    IN A    172.16.1.220
+22-vip    IN A    172.16.1.221
+23-vip    IN A    172.16.1.222
+24-vip    IN A    172.16.1.223
+25-vip    IN A    172.16.1.224
+client1                              IN A    172.16.1.225
+client2                              IN A    172.16.1.226
+client3                              IN A    172.16.1.227
+client4                              IN A    172.16.1.228
+client5                              IN A    172.16.1.229
+
+; SCAN IPs
+racnodedc1-scan   IN A    172.16.1.230
+racnodedc1-scan   IN A    172.16.1.231
+racnodedc1-scan   IN A    172.16.1.232
+racnodedc2-scan   IN A    172.16.1.233
+racnodedc2-scan   IN A    172.16.1.234
+racnodedc2-scan   IN A    172.16.1.235
+c1-scan   IN A    172.16.1.236
+c1-scan   IN A    172.16.1.237
+c1-scan   IN A    172.16.1.238
+c2-scan   IN A    172.16.1.239
+c2-scan   IN A    172.16.1.240
+c2-scan   IN A    172.16.1.241
+c3-scan   IN A    172.16.1.242
+c3-scan   IN A    172.16.1.243
+c3-scan   IN A    172.16.1.244
+c4-scan   IN A    172.16.1.245
+c4-scan   IN A    172.16.1.246
+c4-scan   IN A    172.16.1.247
+c5-scan   IN A    172.16.1.248
+c5-scan   IN A    172.16.1.249
+c5-scan   IN A    172.16.1.250
+
+; GNS
+racnodedc1-gns    IN A    172.16.1.160
+racnodedc2-gns    IN A    172.16.1.161
+c1-gns    IN A    172.16.1.162
+c2-gns    IN A    172.16.1.163
+
+; CMAN Server Entry
+racnodedc1-cman         IN A    172.16.1.164
+racnodedc2-cman         IN A    172.16.1.165
+c1-cman         IN A    172.16.1.166
+c2-cman         IN A    172.16.1.167
+;gns.eot.us.oracle.com.     IN A 192.168.1.500

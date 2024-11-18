@@ -1,0 +1,480 @@
+{
+    "Id": "22810dec06a1597f334db59ad10462465f7e81ea8109d2d976f8f7040fa6e961",
+    "Created": "2024-11-16T04:26:12.73996791Z",
+    "Path": "/bin/sh",
+    "Args": [
+        "-c",
+        "\"/usr/bin/$INITSH\""
+    ],
+    "State": {
+        "Status": "running",
+        "Running": true,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 15247,
+        "ExitCode": 0,
+        "Error": "",
+        "StartedAt": "2024-11-17T19:47:24.928842645Z",
+        "FinishedAt": "2024-11-16T06:42:09.233424347Z",
+        "Health": {
+            "Status": "healthy",
+            "FailingStreak": 0,
+            "Log": [
+                {
+                    "Start": "2024-11-17T19:19:00.631715463-05:00",
+                    "End": "2024-11-17T19:19:01.850659726-05:00",
+                    "ExitCode": 0,
+                    "Output": ""
+                },
+                {
+                    "Start": "2024-11-17T19:19:31.851867932-05:00",
+                    "End": "2024-11-17T19:19:33.025765859-05:00",
+                    "ExitCode": 0,
+                    "Output": ""
+                },
+                {
+                    "Start": "2024-11-17T19:20:03.026287826-05:00",
+                    "End": "2024-11-17T19:20:04.223158171-05:00",
+                    "ExitCode": 0,
+                    "Output": ""
+                },
+                {
+                    "Start": "2024-11-17T19:20:34.223723933-05:00",
+                    "End": "2024-11-17T19:20:35.409179068-05:00",
+                    "ExitCode": 0,
+                    "Output": ""
+                },
+                {
+                    "Start": "2024-11-17T19:21:05.410221277-05:00",
+                    "End": "2024-11-17T19:21:06.62300426-05:00",
+                    "ExitCode": 0,
+                    "Output": ""
+                }
+            ]
+        }
+    },
+    "Image": "sha256:96a87e109347e5423913f06123c7e9489bf8cf6fbbe70bddbfee579f50d8903d",
+    "ResolvConfPath": "/var/lib/docker/containers/22810dec06a1597f334db59ad10462465f7e81ea8109d2d976f8f7040fa6e961/resolv.conf",
+    "HostnamePath": "/var/lib/docker/containers/22810dec06a1597f334db59ad10462465f7e81ea8109d2d976f8f7040fa6e961/hostname",
+    "HostsPath": "/home/elliothb/github/simcoe-project/src/server/data/container/rac_host_file",
+    "LogPath": "/var/lib/docker/containers/22810dec06a1597f334db59ad10462465f7e81ea8109d2d976f8f7040fa6e961/22810dec06a1597f334db59ad10462465f7e81ea8109d2d976f8f7040fa6e961-json.log",
+    "Name": "/racnoded1",
+    "RestartCount": 0,
+    "Driver": "overlay2",
+    "Platform": "linux",
+    "MountLabel": "",
+    "ProcessLabel": "",
+    "AppArmorProfile": "",
+    "ExecIDs": [
+        "034a3364478a4fbd7bec8101159c9e957bed454eaf8819892c14544b495f7024",
+        "a4d0feeafa39ea51c0ea1f3a455a5340692f9166dc1424bc75737a02d1740e1f"
+    ],
+    "HostConfig": {
+        "Binds": [
+            "/home/elliothb/github/simcoe-project/src/server/data/racnode/boot:/boot:ro",
+            "/home/elliothb/github/simcoe-project/src/server/data/container/secrets:/etc/secrets:ro",
+            "/home/elliothb/github/simcoe-project/src/server/data/container/rac_host_file:/etc/hosts:rw",
+            "/home/elliothb/github/simcoe-project/src/server/data/racnode/setup.sh:/opt/scripts/setup.sh:ro",
+            "/home/elliothb/github/simcoe-project/src/server/data/racnode/chronyd.conf:/etc/chrony.conf:ro",
+            "/home/elliothb/github/simcoe-project/src/server/data/racnode/dbca_19c.rsp:/opt/scripts/startup/dbca_19c.rsp:ro",
+            "/home/elliothb/github/simcoe-project/src/server/data/racnode/configGrid.sh:/opt/scripts/startup/configGrid.sh:ro",
+            "/home/elliothb/github/simcoe-project/src/server/data/racnode/init.sh:/etc/rc.local:ro"
+        ],
+        "ContainerIDFile": "",
+        "LogConfig": {
+            "Type": "json-file",
+            "Config": {}
+        },
+        "NetworkMode": "rac_private_nw",
+        "PortBindings": {},
+        "RestartPolicy": {
+            "Name": "always",
+            "MaximumRetryCount": 0
+        },
+        "AutoRemove": false,
+        "VolumeDriver": "",
+        "VolumesFrom": null,
+        "ConsoleSize": [
+            0,
+            0
+        ],
+        "CapAdd": [
+            "SYS_NICE",
+            "SYS_RESOURCE",
+            "SYS_ADMIN",
+            "ALL"
+        ],
+        "CapDrop": null,
+        "CgroupnsMode": "host",
+        "Dns": [],
+        "DnsOptions": [],
+        "DnsSearch": [
+            "elliothb.com"
+        ],
+        "ExtraHosts": [],
+        "GroupAdd": null,
+        "IpcMode": "private",
+        "Cgroup": "",
+        "Links": null,
+        "OomScoreAdj": 0,
+        "PidMode": "",
+        "Privileged": true,
+        "PublishAllPorts": false,
+        "ReadonlyRootfs": false,
+        "SecurityOpt": [
+            "label=disable"
+        ],
+        "Tmpfs": {
+            "/dev/shm": "rw,exec,size=4G"
+        },
+        "UTSMode": "",
+        "UsernsMode": "",
+        "ShmSize": 67108864,
+        "Runtime": "runc",
+        "Isolation": "",
+        "CpuShares": 0,
+        "Memory": 0,
+        "NanoCpus": 0,
+        "CgroupParent": "",
+        "BlkioWeight": 0,
+        "BlkioWeightDevice": null,
+        "BlkioDeviceReadBps": null,
+        "BlkioDeviceWriteBps": null,
+        "BlkioDeviceReadIOps": null,
+        "BlkioDeviceWriteIOps": null,
+        "CpuPeriod": 0,
+        "CpuQuota": 0,
+        "CpuRealtimePeriod": 0,
+        "CpuRealtimeRuntime": 9000,
+        "CpusetCpus": "",
+        "CpusetMems": "",
+        "Devices": null,
+        "DeviceCgroupRules": null,
+        "DeviceRequests": null,
+        "MemoryReservation": 0,
+        "MemorySwap": 0,
+        "MemorySwappiness": null,
+        "OomKillDisable": false,
+        "PidsLimit": null,
+        "Ulimits": [
+            {
+                "Name": "rtprio",
+                "Hard": 99,
+                "Soft": 99
+            }
+        ],
+        "CpuCount": 0,
+        "CpuPercent": 0,
+        "IOMaximumIOps": 0,
+        "IOMaximumBandwidth": 0,
+        "Mounts": [
+            {
+                "Type": "volume",
+                "Source": "rac_racstorage",
+                "Target": "/oradata",
+                "VolumeOptions": {}
+            }
+        ],
+        "MaskedPaths": null,
+        "ReadonlyPaths": null
+    },
+    "GraphDriver": {
+        "Data": {
+            "LowerDir": "/var/lib/docker/overlay2/04af358a89293e5a1b2eab4f67f98a2b26c5dcadf2f489c05846836b5774808e-init/diff:/var/lib/docker/overlay2/0678065ca98dd42178752c8b47b706b2dcb457b1c2175f91da6a452d02101594/diff:/var/lib/docker/overlay2/31dc8b04dc4abbb39f9c66354a579a4e130f8970866ab46f1ed36ece94a07e0f/diff:/var/lib/docker/overlay2/4c0a5fdf8b63ab7f727f9ce5388739ad0e4a5b2b63c63b7d01db84adcb60dc64/diff:/var/lib/docker/overlay2/47e6bc6bd7c0e44b5dadd7d283e3d76b60279b5d6db7c562818742568fe3eec7/diff:/var/lib/docker/overlay2/95341844c701c95bbf29df84b2750dffb8c6533d5129fb1eec50263b0e842839/diff:/var/lib/docker/overlay2/066d290214671e84c88f808ff507ad828c5dc950ae5c9b214d578c988ef44e68/diff:/var/lib/docker/overlay2/25e986ad1ff41c8391313b8ee05b7269abc36e10c62718a9f908df07e8dae800/diff:/var/lib/docker/overlay2/adbb48f5f5b36783755ee3f905d91d0076a85824588d58a5eb0ed6cc22c194bb/diff",
+            "MergedDir": "/var/lib/docker/overlay2/04af358a89293e5a1b2eab4f67f98a2b26c5dcadf2f489c05846836b5774808e/merged",
+            "UpperDir": "/var/lib/docker/overlay2/04af358a89293e5a1b2eab4f67f98a2b26c5dcadf2f489c05846836b5774808e/diff",
+            "WorkDir": "/var/lib/docker/overlay2/04af358a89293e5a1b2eab4f67f98a2b26c5dcadf2f489c05846836b5774808e/work"
+        },
+        "Name": "overlay2"
+    },
+    "Mounts": [
+        {
+            "Type": "bind",
+            "Source": "/home/elliothb/github/simcoe-project/src/server/data/racnode/boot",
+            "Destination": "/boot",
+            "Mode": "ro",
+            "RW": false,
+            "Propagation": "rprivate"
+        },
+        {
+            "Type": "volume",
+            "Name": "7d64458aecbb8b46a8b1a574491ac2d9979bc1951d8aacbdeb4fcde3d8e3d62e",
+            "Source": "/var/lib/docker/volumes/7d64458aecbb8b46a8b1a574491ac2d9979bc1951d8aacbdeb4fcde3d8e3d62e/_data",
+            "Destination": "/common_scripts",
+            "Driver": "local",
+            "Mode": "",
+            "RW": true,
+            "Propagation": ""
+        },
+        {
+            "Type": "bind",
+            "Source": "/home/elliothb/github/simcoe-project/src/server/data/racnode/chronyd.conf",
+            "Destination": "/etc/chrony.conf",
+            "Mode": "ro",
+            "RW": false,
+            "Propagation": "rprivate"
+        },
+        {
+            "Type": "bind",
+            "Source": "/home/elliothb/github/simcoe-project/src/server/data/container/rac_host_file",
+            "Destination": "/etc/hosts",
+            "Mode": "rw",
+            "RW": true,
+            "Propagation": "rprivate"
+        },
+        {
+            "Type": "bind",
+            "Source": "/home/elliothb/github/simcoe-project/src/server/data/racnode/init.sh",
+            "Destination": "/etc/rc.local",
+            "Mode": "ro",
+            "RW": false,
+            "Propagation": "rprivate"
+        },
+        {
+            "Type": "bind",
+            "Source": "/home/elliothb/github/simcoe-project/src/server/data/racnode/setup.sh",
+            "Destination": "/opt/scripts/setup.sh",
+            "Mode": "ro",
+            "RW": false,
+            "Propagation": "rprivate"
+        },
+        {
+            "Type": "bind",
+            "Source": "/home/elliothb/github/simcoe-project/src/server/data/racnode/configGrid.sh",
+            "Destination": "/opt/scripts/startup/configGrid.sh",
+            "Mode": "ro",
+            "RW": false,
+            "Propagation": "rprivate"
+        },
+        {
+            "Type": "bind",
+            "Source": "/home/elliothb/github/simcoe-project/src/server/data/container/secrets",
+            "Destination": "/etc/secrets",
+            "Mode": "ro",
+            "RW": false,
+            "Propagation": "rprivate"
+        },
+        {
+            "Type": "bind",
+            "Source": "/home/elliothb/github/simcoe-project/src/server/data/racnode/dbca_19c.rsp",
+            "Destination": "/opt/scripts/startup/dbca_19c.rsp",
+            "Mode": "ro",
+            "RW": false,
+            "Propagation": "rprivate"
+        },
+        {
+            "Type": "volume",
+            "Name": "rac_racstorage",
+            "Source": "/var/lib/docker/volumes/rac_racstorage/_data",
+            "Destination": "/oradata",
+            "Driver": "local",
+            "Mode": "z",
+            "RW": true,
+            "Propagation": ""
+        }
+    ],
+    "Config": {
+        "Hostname": "racnoded1",
+        "Domainname": "",
+        "User": "root",
+        "AttachStdin": false,
+        "AttachStdout": true,
+        "AttachStderr": true,
+        "Tty": false,
+        "OpenStdin": false,
+        "StdinOnce": false,
+        "Env": [
+            "PUBLIC_IP=172.16.1.100",
+            "PWD_KEY=pwd.key",
+            "PRIV_IP=192.168.17.100",
+            "RESET_FAILED_SYSTEMD=true",
+            "PRIV_HOSTNAME=racnoded1-priv",
+            "ORACLE_HOME=/u01/app/oracle/product/19.3.0/dbhome_1",
+            "PUBLIC_HOSTNAME=racnoded1",
+            "ORACLE_SID=ORCLCDB",
+            "DOMAIN=elliothb.com",
+            "NODE_VIP=172.16.1.130",
+            "DNS_SERVERS=172.16.1.25",
+            "OP_TYPE=INSTALL",
+            "CMAN_IP=172.16.1.164",
+            "ASM_DEVICE_LIST=/oradata/asm_disk01.img,/oradata/asm_disk02.img,/oradata/asm_disk03.img,/oradata/asm_disk04.img,/oradata/asm_disk05.img",
+            "SCAN_NAME=racnodedc1-scan",
+            "CMAN_HOSTNAME=racnodedc1-cman",
+            "VIP_HOSTNAME=racnoded1-vip",
+            "TOTAL_MEMORY=12288",
+            "ASM_DISCOVERY_DIR=/oradata",
+            "COMMON_OS_PWD_FILE=common_os_pwdfile",
+            "SECRET_VOLUME=/etc/secrets",
+            "PATH=/bin:/usr/bin:/sbin:/usr/sbin",
+            "SETUP_LINUX_FILE=setupLinuxEnv.sh",
+            "INSTALL_DIR=/opt/scripts",
+            "GRID_BASE=/u01/app/grid",
+            "GRID_HOME=/u01/app/19.3.0/grid",
+            "INSTALL_FILE_1=LINUX.X64_193000_grid_home.zip",
+            "GRID_INSTALL_RSP=gridsetup_19c.rsp",
+            "GRID_SW_INSTALL_RSP=grid_sw_install_19c.rsp",
+            "GRID_SETUP_FILE=setupGrid.sh",
+            "FIXUP_PREQ_FILE=fixupPreq.sh",
+            "INSTALL_GRID_BINARIES_FILE=installGridBinaries.sh",
+            "INSTALL_GRID_PATCH=applyGridPatch.sh",
+            "INVENTORY=/u01/app/oraInventory",
+            "CONFIGGRID=configGrid.sh",
+            "ADDNODE=AddNode.sh",
+            "DELNODE=DelNode.sh",
+            "INITSH=initsh",
+            "ADDNODE_RSP=grid_addnode.rsp",
+            "SETUPSSH=setupSSH.expect",
+            "DOCKERORACLEINIT=dockeroracleinit",
+            "GRID_USER_HOME=/home/grid",
+            "SETUPGRIDENV=setupGridEnv.sh",
+            "RESET_OS_PASSWORD=resetOSPassword.sh",
+            "MULTI_NODE_INSTALL=MultiNodeInstall.py",
+            "DB_BASE=/u01/app/oracle",
+            "DB_HOME=/u01/app/oracle/product/19.3.0/dbhome_1",
+            "INSTALL_FILE_2=LINUX.X64_193000_db_home.zip",
+            "DB_INSTALL_RSP=db_sw_install_19c.rsp",
+            "DBCA_RSP=dbca_19c.rsp",
+            "DB_SETUP_FILE=setupDB.sh",
+            "PWD_FILE=setPassword.sh",
+            "RUN_FILE=runOracle.sh",
+            "STOP_FILE=stopOracle.sh",
+            "ENABLE_RAC_FILE=enableRAC.sh",
+            "CHECK_DB_FILE=checkDBStatus.sh",
+            "USER_SCRIPTS_FILE=runUserScripts.sh",
+            "REMOTE_LISTENER_FILE=remoteListener.sh",
+            "INSTALL_DB_BINARIES_FILE=installDBBinaries.sh",
+            "GRID_HOME_CLEANUP=GridHomeCleanup.sh",
+            "ORACLE_HOME_CLEANUP=OracleHomeCleanup.sh",
+            "DB_USER=oracle",
+            "GRID_USER=grid",
+            "WORKDIR=/rac-work-dir",
+            "USER=root",
+            "SLIMMING=false",
+            "FUNCTIONS=functions.sh",
+            "COMMON_SCRIPTS=/common_scripts",
+            "CHECK_SPACE_FILE=checkSpace.sh",
+            "RESET_FAILED_UNITS=resetFailedUnits.sh",
+            "SET_CRONTAB=setCrontab.sh",
+            "CRONTAB_ENTRY=crontabEntry",
+            "EXPECT=/usr/bin/expect",
+            "BIN=/usr/sbin",
+            "container=true",
+            "INSTALL_SCRIPTS=/opt/scripts/install",
+            "SCRIPT_DIR=/opt/scripts/startup",
+            "GRID_PATH=/u01/app/19.3.0/grid/bin:/u01/app/19.3.0/grid/OPatch/:/u01/app/19.3.0/grid/perl/bin:/usr/sbin:/bin:/sbin",
+            "DB_PATH=/u01/app/oracle/product/19.3.0/dbhome_1/bin:/u01/app/oracle/product/19.3.0/dbhome_1/OPatch/:/u01/app/oracle/product/19.3.0/dbhome_1/perl/bin:/usr/sbin:/bin:/sbin",
+            "GRID_LD_LIBRARY_PATH=/u01/app/19.3.0/grid/lib:/usr/lib:/lib",
+            "DB_LD_LIBRARY_PATH=/u01/app/oracle/product/19.3.0/dbhome_1/lib:/usr/lib:/lib"
+        ],
+        "Cmd": null,
+        "Healthcheck": {
+            "Test": [
+                "CMD-SHELL",
+                "su - grid -c 'srvctl status database -d ORCLCDB'| grep -q 'is running on node'"
+            ],
+            "Interval": 30000000000,
+            "Timeout": 3000000000,
+            "Retries": 240
+        },
+        "Image": "oracle/database-rac:19.3.0",
+        "Volumes": {
+            "/common_scripts": {}
+        },
+        "WorkingDir": "/rac-work-dir",
+        "Entrypoint": [
+            "/bin/sh",
+            "-c",
+            "\"/usr/bin/$INITSH\""
+        ],
+        "OnBuild": null,
+        "Labels": {
+            "com.docker.compose.config-hash": "5bef5d801c8d18039cb89fc410a7487f208636495c9d0d30be4d542fc1404167",
+            "com.docker.compose.container-number": "1",
+            "com.docker.compose.depends_on": "storage:service_healthy:false,ntp:service_healthy:false,dns:service_healthy:false",
+            "com.docker.compose.image": "sha256:96a87e109347e5423913f06123c7e9489bf8cf6fbbe70bddbfee579f50d8903d",
+            "com.docker.compose.oneoff": "False",
+            "com.docker.compose.project": "rac",
+            "com.docker.compose.project.config_files": "/home/elliothb/github/simcoe-project/src/server/data/docker-compose.yml",
+            "com.docker.compose.project.working_dir": "/home/elliothb/github/simcoe-project/src/server/data",
+            "com.docker.compose.service": "racnoded1",
+            "com.docker.compose.version": "2.29.7",
+            "issues": "https://github.com/oracle/docker-images/issues",
+            "port.listener": "1521",
+            "port.oemexpress": "5500",
+            "provider": "Oracle",
+            "volume.setup.location1": "/opt/scripts",
+            "volume.startup.location1": "/opt/scripts/startup"
+        }
+    },
+    "NetworkSettings": {
+        "Bridge": "",
+        "SandboxID": "3057b11642cf7a537a06cdfc049045d6c3ff92c785ace76c3732a920e109f913",
+        "SandboxKey": "/var/run/docker/netns/3057b11642cf",
+        "Ports": {},
+        "HairpinMode": false,
+        "LinkLocalIPv6Address": "",
+        "LinkLocalIPv6PrefixLen": 0,
+        "SecondaryIPAddresses": null,
+        "SecondaryIPv6Addresses": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "MacAddress": "",
+        "Networks": {
+            "rac_private_nw": {
+                "IPAMConfig": {
+                    "IPv4Address": "192.168.17.100"
+                },
+                "Links": null,
+                "Aliases": [
+                    "racnoded1",
+                    "racnoded1"
+                ],
+                "MacAddress": "02:42:c0:a8:11:64",
+                "DriverOpts": null,
+                "NetworkID": "8f8222db9983fb0408107214fbe8ea285912827e5308bd50bafab17a44b726c9",
+                "EndpointID": "01541681db90fdc0552a2fec1698f38c3e76793d6ba1d2339f1062a68dc07d12",
+                "Gateway": "192.168.17.1",
+                "IPAddress": "192.168.17.100",
+                "IPPrefixLen": 24,
+                "IPv6Gateway": "",
+                "GlobalIPv6Address": "",
+                "GlobalIPv6PrefixLen": 0,
+                "DNSNames": [
+                    "racnoded1",
+                    "22810dec06a1"
+                ]
+            },
+            "rac_public_nw": {
+                "IPAMConfig": {
+                    "IPv4Address": "172.16.1.100"
+                },
+                "Links": null,
+                "Aliases": [
+                    "racnoded1",
+                    "racnoded1"
+                ],
+                "MacAddress": "02:42:ac:10:01:64",
+                "DriverOpts": null,
+                "NetworkID": "9c8c4ff374827c2eb3dfa10566eefd773ee671da5ef5cf0e482a3ea8243f20f5",
+                "EndpointID": "87c3202c0b2160e26f76f933cb5fcd4ebb011552b9f98d6e5b1b759562afc4d1",
+                "Gateway": "172.16.1.1",
+                "IPAddress": "172.16.1.100",
+                "IPPrefixLen": 24,
+                "IPv6Gateway": "",
+                "GlobalIPv6Address": "",
+                "GlobalIPv6PrefixLen": 0,
+                "DNSNames": [
+                    "racnoded1",
+                    "22810dec06a1"
+                ]
+            }
+        }
+    }
+}
