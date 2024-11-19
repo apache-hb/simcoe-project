@@ -3,6 +3,7 @@
 mkdir -p container
 mkdir -p container/secrets
 mkdir -p container/asm
+mkdir -p container/shared
 
 touch container/rac_host_file
 touch container/secrets/pwd.key
