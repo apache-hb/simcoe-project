@@ -57,3 +57,4 @@ adns/
 
 *[bB]uild*/
 /install*/
+/.vscode

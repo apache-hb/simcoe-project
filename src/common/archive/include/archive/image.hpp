@@ -8,9 +8,25 @@
 
 #include "math/math.hpp"
 
-#include "format.reflect.h"
-
 namespace sm {
+    enum class Format : uint16_t {
+        unknown,
+
+        rg32float,
+        rgb32float,
+        rgba32float,
+
+        r8byte,
+        rg8byte,
+        rgb8byte,
+        rgba8byte,
+
+        uint16,
+        uint32,
+    };
+
+    std::string_view toString(Format format);
+
     struct ImageData {
         Format pxformat;
         math::uint2 size;

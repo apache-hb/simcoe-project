@@ -44,8 +44,8 @@ sm::dao::archive::WindowPlacement sm::archive::fromWindowPlacement(const WINDOWP
     };
 }
 
-Io Io::file(const char *path, archive::IoAccess access) {
-    return Io(io_file(path, access.as_facade(), get_default_arena()));
+Io Io::file(const char *path, os_access_t access) {
+    return Io(io_file(path, access, get_default_arena()));
 }
 
 OsError Io::error() const {

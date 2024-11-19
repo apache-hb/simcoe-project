@@ -9,13 +9,29 @@
 
 using namespace sm;
 
+std::string_view sm::toString(Format format) {
+    switch (format) {
+    case Format::unknown: return "UNKNOWN";
+    case Format::rg32float: return "RG/FLOAT32";
+    case Format::rgb32float: return "RGB/FLOAT32";
+    case Format::rgba32float: return "RGBA/FLOAT32";
+    case Format::r8byte: return "R/UINT8";
+    case Format::rg8byte: return "RG/UINT8";
+    case Format::rgb8byte: return "RGB/UINT8";
+    case Format::rgba8byte: return "RGBA/UINT8";
+    case Format::uint16: return "UINT16";
+    case Format::uint32: return "UINT32";
+    default: return "INVALID";
+    }
+}
+
 static constexpr Format getChannelFormat(int channels) {
     switch (channels) {
-    case 1: return Format::eR8_BYTE;
-    case 2: return Format::eRG8_BYTE;
-    case 3: return Format::eRGB8_BYTE;
-    case 4: return Format::eRGBA8_BYTE;
-    default: return Format::eUnknown;
+    case 1: return Format::r8byte;
+    case 2: return Format::rg8byte;
+    case 3: return Format::rgb8byte;
+    case 4: return Format::rgba8byte;
+    default: return Format::unknown;
     }
 }
 

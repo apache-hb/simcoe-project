@@ -9,8 +9,6 @@
 
 #include "logs/logging.hpp"
 
-#include "io.reflect.h"
-
 LOG_MESSAGE_CATEGORY(IoLog, "IO");
 
 namespace sm {
@@ -21,7 +19,7 @@ namespace sm {
     using IoHandle = sm::UniquePtr<io_t, decltype(kIoClose)>;
 
     struct Io : IoHandle {
-        static Io file(const char *path, archive::IoAccess access);
+        static Io file(const char *path, os_access_t access);
 
         OsError error() const;
         const char *name() const;
