@@ -21,13 +21,15 @@ src = [
     'src/registry.cpp',
 ]
 
+deps = [ core, logs, math, cthulhu.get_variable('os'), input, config ]
+
 if host_machine.system() == 'windows'
     src += [ 'src/win32/storage.cpp' ]
+    deps += [ dependency('wil') ]
 elif host_machine.system() == 'linux'
     src += [ 'src/posix/storage.cpp' ]
 endif
 
-deps = [ core, logs, math, cthulhu.get_variable('os'), input, config, wil ]
 
 libsystem = library('system', src,
     cpp_args : [ '-DSM_SYSTEM_BUILD=1' ],

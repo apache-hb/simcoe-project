@@ -1,9 +1,7 @@
 #pragma once
 
 #include <atomic>
-#include <mutex>
-
-#include "base/panic.h"
+#include <new>
 
 namespace sm::threads {
     /// @brief single slot mailbox for communicating between threads

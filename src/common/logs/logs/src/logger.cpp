@@ -4,7 +4,9 @@
 
 #include "timer.hpp"
 
-#include <cpuid.h>
+#ifndef _WIN32
+#   include <cpuid.h>
+#endif
 
 namespace logs = sm::logs;
 namespace detail = sm::logs::detail;

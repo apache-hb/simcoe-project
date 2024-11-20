@@ -2,9 +2,11 @@
 
 #include "threads/mailbox.hpp"
 
-#include <array>
 #include <fmtlib/format.h>
+
+#include <array>
 #include <latch>
+#include <mutex>
 
 using namespace sm;
 

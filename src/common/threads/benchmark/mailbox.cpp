@@ -1,4 +1,5 @@
 #include <catch2/benchmark/catch_benchmark.hpp>
+#include <mutex>
 
 #include "test/db_test_common.hpp"
 
