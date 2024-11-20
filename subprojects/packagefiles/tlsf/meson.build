@@ -1,7 +1,7 @@
 project('tlsf', 'c')
 
 cc = meson.get_compiler('c')
-args = cc.get_supported_arguments([ '-Wno-format-pedantic' ])
+args = cc.get_supported_arguments([ '-Wno-format-pedantic', '-Wno-format' ])
 
 libtlsf = static_library('tlsf', 'tlsf.c',
     c_args: args,

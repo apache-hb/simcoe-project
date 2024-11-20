@@ -27,9 +27,16 @@ void operator delete(void *ptr) noexcept {
     std::free(ptr);
 }
 
+void operator delete(void *ptr, size_t size) noexcept {
+    if (ptr == nullptr)
+        return;
+
+    std::free(ptr);
+}
+
 void *operator new(size_t size, std::align_val_t align) throw() {
     void *ptr = SM_ALIGNED_MALLOC(size, (size_t)align);
-    CTASSERTF(ptr != nullptr, "Failed to allocate %zu bytes with alignment %zu", size, align);
+    CTASSERTF(ptr != nullptr, "Failed to allocate %zu bytes with alignment %zu", size, (size_t)align);
     return ptr;
 }
 

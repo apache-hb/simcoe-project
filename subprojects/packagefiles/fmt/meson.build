@@ -6,8 +6,10 @@ project('fmt', 'cpp',
   meson_version : '>=1.1.0',
 )
 
+cpp = meson.get_compiler('cpp')
+
 fmt_private_cpp_args = []
-fmt_interface_cpp_args = []
+fmt_interface_cpp_args = cpp.get_supported_arguments('-Wno-dangling-reference')
 if get_option('default_library') == 'shared'
   fmt_private_cpp_args += ['-DFMT_LIB_EXPORT']
   fmt_interface_cpp_args += ['-DFMT_SHARED']

@@ -57,8 +57,8 @@ namespace sm {
         T mValue;
 
     public:
-        using WriteGuard = WriteGuard<T>;
-        using ReadGuard = ReadGuard<T>;
+        using SyncWriteGuard = WriteGuard<T>;
+        using SyncReadGuard = ReadGuard<T>;
 
         Sync() = default;
         Sync(T initial) : mValue(initial) { }
@@ -78,12 +78,12 @@ namespace sm {
             fn(const_cast<const T&>(mValue));
         }
 
-        WriteGuard acquire() {
-            return WriteGuard { mValue, mMutex };
+        SyncWriteGuard acquire() {
+            return SyncWriteGuard { mValue, mMutex };
         }
 
-        ReadGuard read() {
-            return ReadGuard { mValue, mMutex };
+        SyncReadGuard read() {
+            return SyncReadGuard { mValue, mMutex };
         }
     };
 }

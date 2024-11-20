@@ -2,14 +2,11 @@
 
 #include "account/guid.hpp"
 
-#include "packets.meta.hpp"
-
 /**
  * Network packets for game and account actions.
  * Features 0 protection from mitm attacks or packet tampering. :^)
  */
 namespace game {
-    REFLECT_ENUM(PacketType)
     enum class PacketType : uint16_t {
         eInvalid = 0,
 
@@ -60,7 +57,6 @@ namespace game {
     using SessionId = uint64_t;
     using LobbyId = uint64_t;
 
-    REFLECT()
     struct PacketHeader {
         PacketType type;
         uint16_t size;
@@ -68,13 +64,11 @@ namespace game {
         uint8_t padding[2];
     };
 
-    REFLECT_ENUM(Status)
     enum class Status : uint16_t {
         eSuccess = 0,
         eFailure = 1,
     };
 
-    REFLECT()
     struct Response {
         // the id in the packet header will be the same as the
         // request that instigated this response
@@ -90,7 +84,6 @@ namespace game {
         { }
     };
 
-    REFLECT()
     struct Ack {
         PacketHeader header;
 
@@ -101,7 +94,6 @@ namespace game {
         { }
     };
 
-    REFLECT()
     struct CreateAccount {
         PacketHeader header;
         Text<32> username;
@@ -124,7 +116,6 @@ namespace game {
         }
     };
 
-    REFLECT()
     struct Login {
         PacketHeader header;
         Text<32> username;
@@ -147,7 +138,6 @@ namespace game {
         }
     };
 
-    REFLECT()
     struct NewSession {
         Response response;
         SessionId session;
@@ -168,7 +158,6 @@ namespace game {
         { }
     };
 
-    REFLECT()
     struct CreateLobby {
         PacketHeader header;
         SessionId session;
@@ -183,7 +172,6 @@ namespace game {
         { }
     };
 
-    REFLECT()
     struct NewLobby {
         Response response;
         LobbyId lobby;
@@ -201,7 +189,6 @@ namespace game {
         { }
     };
 
-    REFLECT()
     struct JoinLobby {
         PacketHeader header;
         SessionId session;
@@ -216,7 +203,6 @@ namespace game {
         { }
     };
 
-    REFLECT()
     struct GetSessionList {
         PacketHeader header;
         SessionId session;
@@ -234,13 +220,11 @@ namespace game {
         Text<32> name;
     };
 
-    REFLECT()
     struct SessionList {
         Response response;
         SessionInfo sessions[];
     };
 
-    REFLECT()
     struct GetLobbyList {
         PacketHeader header;
         SessionId session;
@@ -273,7 +257,6 @@ namespace game {
         }
     };
 
-    REFLECT()
     struct LobbyList {
         Response response;
         LobbyInfo lobbies[];

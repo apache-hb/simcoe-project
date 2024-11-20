@@ -6,7 +6,6 @@ account_include = include_directories('.', 'include')
 
 src = [
     daocc.process('data/account.xml'),
-    metacc.process('include/account/packets.hpp'),
 ]
 
 deps = [ core, db, dao ]

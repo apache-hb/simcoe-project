@@ -195,7 +195,7 @@ namespace sm::db {
 
         template<dao::DaoInterface T>
         DbResult<PreparedDrop> tryPrepareDropTable() noexcept try {
-            return prepareDrop<T>();
+            return prepareDropTable<T>();
         } catch (const DbException& e) {
             return std::unexpected{e.error()};
         }

@@ -27,29 +27,10 @@ db_config = configure_file(
 )
 
 ###
-### reflection data
+### private impl and public api
 ###
 
 db_include = include_directories('include')
-
-src = [
-    metacc.process('include/db/db.hpp'),
-]
-
-libdb_meta = library('db-meta', [ src, db_config ],
-    include_directories : db_include,
-    dependencies : [ core, meta, logs ]
-)
-
-db_meta = declare_dependency(
-    link_with : libdb_meta,
-    include_directories : [ db_include, libdb_meta.private_dir_include() ],
-    dependencies : [ core, meta ]
-)
-
-###
-### private impl and public api
-###
 
 db_private_include = [ include_directories('src/db', 'src/db/drivers') ]
 
@@ -73,10 +54,8 @@ src = [
     'src/db/drivers/utils.cpp',
 ]
 
-wil = dependency('wil')
-
-deps = [ core, meta, logs, db_meta ]
-db_private_deps = [ sqlite3, tlsf, wil ]
+deps = [ core, logs ]
+db_private_deps = [ sqlite3, tlsf ]
 
 # sqlite3 is always enabled
 src += [
@@ -100,6 +79,8 @@ if oci.found()
 endif
 
 if db2.found()
+    wil = dependency('wil')
+
     src += [
         'src/drivers/db2/src/db2.cpp',
         'src/drivers/db2/src/statement.cpp',
@@ -107,7 +88,7 @@ if db2.found()
         'src/drivers/db2/src/environment.cpp',
     ]
     db_private_include += [ include_directories('src/drivers/db2/include') ]
-    db_private_deps += [ db2.get_variable('db2cli') ]
+    db_private_deps += [ db2.get_variable('db2cli'), wil ]
 endif
 
 if postgres.found()
@@ -128,9 +109,17 @@ if has_odbc
     src += 'src/db/drivers/odbc.cpp'
 endif
 
+args = cpp.get_supported_arguments(
+    '-Wno-c99-designator', 
+    '-Wno-cast-function-type-mismatch',
+
+    # bogus gcc warning
+    '-Wno-subobject-linkage'
+)
+
 libdb = library('db', [ src, db_config ],
-    cpp_args : [ '-DSM_DB_BUILD=1', args, cpp.get_supported_arguments('-Wno-c99-designator', '-Wno-cast-function-type-mismatch') ],
-    cpp_pch : 'src/db/stdafx.hpp',
+    cpp_args : [ '-DSM_DB_BUILD=1', args ],
+    # cpp_pch : 'src/db/stdafx.hpp',
     include_directories : [ db_include, db_private_include ],
     dependencies : [ deps, db_private_deps ],
     override_options : [ 'unity=off' ]
@@ -139,6 +128,7 @@ libdb = library('db', [ src, db_config ],
 db = declare_dependency(
     link_with : libdb,
     include_directories : [ '.', db_include ],
+    compile_args : args,
     dependencies : deps
 )
 

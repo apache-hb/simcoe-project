@@ -6,7 +6,6 @@ threads_include = include_directories('.', 'include')
 
 src = [
     daocc.process('data/topology.xml'),
-    metacc.process('include/threads/threads.hpp'),
 ]
 
 libthreads_meta = library('threads-meta', src,

@@ -26,6 +26,12 @@
 #define TRY_UNWRAP(expr) ({ auto innerResult = (expr); if (!innerResult) return innerResult.error(); std::move(innerResult.value()); })
 #define TRY_RETURN(expr, ...) ({ auto innerResult = (expr); if (!innerResult) { return [&] __VA_ARGS__ (innerResult.error()); } std::move(innerResult.value()); })
 
+#if __cpp_deleted_function >= 202403L
+#   define SM_DELETE_REASON(it) delete(it)
+#else
+#   define SM_DELETE_REASON(it) delete
+#endif
+
 #if defined(_MSC_VER)
 #   if defined(__clang__)
 #      if __clang_major__ >= 18

@@ -2,6 +2,7 @@
 
 #include "core/adt/range.hpp"
 #include "core/core.hpp"
+#include "core/macros.hpp"
 
 #include "base/panic.h"
 
@@ -258,7 +259,7 @@ namespace sm {
             return *this;
         }
 
-        constexpr SmallVector& operator=(const SmallVector& other) noexcept  = delete("copy using clone()");
+        constexpr SmallVector& operator=(const SmallVector& other) noexcept = SM_DELETE_REASON("copy using clone()");
 
         constexpr SmallVector clone() const noexcept {
             return SmallVector(*this);

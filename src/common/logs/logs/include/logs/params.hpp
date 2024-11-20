@@ -96,6 +96,44 @@ namespace sm::logs {
     template<typename... A>
     using ArgTuple = std::tuple<detail::ArgDataT<A>...>;
 
+    template<size_t N, typename... A> requires (sizeof...(A) == 0)
+    FormatArg getArgByIndex(const ArgTuple<A...>& args, int index) noexcept {
+        return FormatArg{};
+    }
+
+    template<size_t N, typename... A>
+    FormatArg getArgByIndex(const ArgTuple<A...>& args, int index) noexcept {
+        if (N == index) {
+            return FormatArg(std::get<N>(args));
+        }
+
+        if constexpr (N + 1 != sizeof...(A)) {
+            return getArgByIndex<N + 1, A...>(args, index);
+        }
+
+        return FormatArg{};
+    }
+
+    template<size_t N, typename... A> requires (sizeof...(A) == 0)
+    FormatArg getArgByName(const ArgTuple<A...>& args, std::string_view name) noexcept {
+        return FormatArg{};
+    }
+
+    template<size_t N, typename... A>
+    FormatArg getArgByName(const ArgTuple<A...>& args, std::string_view name) noexcept {
+        if constexpr (isNamedArg<std::tuple_element_t<N, ArgTuple<A...>>>()) {
+            if (std::get<N>(args).name == name)
+                return FormatArg(std::get<N>(args).value);
+        }
+
+        if constexpr (N + 1 != sizeof...(A)) {
+            return getArgByName<N + 1, A...>(args, name);
+        }
+        
+        return FormatArg{};
+    }
+
+
     template<typename... A>
     class ArgStoreData final : public DynamicArgStore {
         using InnerData = ArgTuple<A...>;
@@ -104,40 +142,12 @@ namespace sm::logs {
         template<size_t N>
         using ArgType = std::tuple_element_t<N, InnerData>;
 
-        template<size_t N = 0>
-        FormatArg getArgByIndex(int index) const noexcept {
-            if (index == N)
-                return FormatArg(std::get<N>(args));
-
-            return getArgByIndex<N + 1>(index);
-        }
-
-        template<>
-        FormatArg getArgByIndex<sizeof...(A)>(int) const noexcept {
-            return {};
-        }
-
         FormatArg getArg(int index) const noexcept override {
-            return getArgByIndex(index);
-        }
-
-        template<size_t N = 0>
-        FormatArg getArgByName(std::string_view name) const noexcept {
-            if constexpr (isNamedArg<ArgType<N>>()) {
-                if (std::get<N>(args).name == name)
-                    return FormatArg(std::get<N>(args).value);
-            }
-
-            return getArgByName<N + 1>(name);
-        }
-
-        template<>
-        FormatArg getArgByName<sizeof...(A)>(std::string_view) const noexcept {
-            return {};
+            return getArgByIndex<0, A...>(args, index);
         }
 
         FormatArg getArg(std::string_view name) const noexcept override {
-            return getArgByName(name);
+            return getArgByName<0, A...>(args, name);
         }
 
         ArgStore buildArgStore() const override {

@@ -25,7 +25,7 @@ namespace sm::dao {
 
     template<typename T>
     concept HasPrimaryKey = requires {
-        DaoInterface<T>;
+        requires DaoInterface<T>;
         typename T::PrimaryKey;
     };
 

@@ -108,7 +108,7 @@ namespace sm::db {
             return static_cast<T>(getIntReturn(index));
         }
 
-        template<>
+        template<typename T> requires std::same_as<T, std::string_view>
         std::string_view getReturn(int index) {
             return getStringReturn(index);
         }
@@ -158,7 +158,7 @@ namespace sm::db {
                 });
         }
 
-        template<>
+        template<typename T> requires std::same_as<T, std::string>
         DbResult<std::string> get(std::string_view column) noexcept {
             return getString(column)
                 .transform([](auto it) {
@@ -166,7 +166,7 @@ namespace sm::db {
                 });
         }
 
-        template<>
+        template<typename T> requires std::same_as<T, std::string>
         DbResult<std::string> get(int index) noexcept {
             return getString(index)
                 .transform([](auto it) {

@@ -7,9 +7,9 @@ namespace sm::logs {
         std::string_view name;
         uint64_t hash;
 
-        consteval CategoryInfo(std::string_view name) noexcept
-            : name(name)
-            , hash(detail::hashMessage(name))
+        consteval CategoryInfo(std::string_view id) noexcept
+            : name(id)
+            , hash(detail::hashMessage(id))
         { }
     };
 

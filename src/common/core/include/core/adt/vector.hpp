@@ -2,6 +2,7 @@
 
 #include "core/core.hpp"
 #include "core/throws.hpp"
+#include "core/macros.hpp"
 
 #include "core/adt/range.hpp"
 
@@ -171,7 +172,7 @@ namespace sm {
 
         // delete the copy assignment operator since it cant be made
         // explicit. use clone() instead.
-        VectorBase& operator=(const VectorBase &other) noexcept = delete("copy using clone()");
+        VectorBase& operator=(const VectorBase &other) noexcept = SM_DELETE_REASON("copy using clone()");
 
         constexpr VectorBase& operator=(VectorBase &&other) noexcept {
             swap(*this, other);

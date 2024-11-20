@@ -30,8 +30,8 @@ namespace sm::logs {
 
 #define LOG_MESSAGE_CATEGORY(id, name) \
     struct id final : public sm::logs::CategoryInfo { \
-        constexpr id() noexcept \
-            : CategoryInfo(sm::logs::CategoryInfo{name}) \
+        consteval id() noexcept \
+            : sm::logs::CategoryInfo(name) \
         { } \
     }
 

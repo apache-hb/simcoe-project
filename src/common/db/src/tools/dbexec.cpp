@@ -46,7 +46,6 @@ int main(int argc, const char **argv) try {
         return 1;
     }
 
-    std::string_view name = argv[eName];
     std::string_view dbtypename = argv[eType];
     if (!kDbTypeMap.contains(dbtypename)) {
         fmt::println(stderr, "Unknown database type: {}", dbtypename);

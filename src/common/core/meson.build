@@ -1,6 +1,6 @@
 core_include = include_directories('.', 'include')
 
-core_dependencies = [
+deps = [
     fmtlib,
     cthulhu.get_variable('core'),
     cthulhu.get_variable('base'),
@@ -38,17 +38,20 @@ endif
 
 inc = include_directories('.', 'include', 'src')
 
+args = cpp.get_supported_arguments('-Wno-dangling-reference')
+
 libcore = library('core', src, simcoe_config,
-    cpp_args : [ '-DSM_CORE_BUILD=1' ],
-    cpp_pch : 'src/stdafx.hpp',
-    include_directories : [ inc, core_include, config_include, reflect_include ],
-    dependencies : core_dependencies
+    cpp_args : [ '-DSM_CORE_BUILD=1', args ],
+    # cpp_pch : 'src/stdafx.hpp',
+    include_directories : [ inc, core_include, config_include, 'src' ],
+    dependencies : deps
 )
 
 core = declare_dependency(
     link_with : libcore,
     include_directories : [ core_include, config_include ],
-    dependencies : core_dependencies
+    dependencies : deps,
+    compile_args : args
 )
 
 catch2 = dependency('catch2-with-main')

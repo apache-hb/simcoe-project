@@ -190,14 +190,10 @@ config_include = include_directories('.')
 # we vendor fmtlib via a small shim header to hook FMT_THROW(x) into cthulhu's error handling
 subdir('src/vendor/fmtlib')
 
-
-subdir('src/vendor/reflect')
 subdir('src/common/core')
 
 # structured logging
 subdir('src/common/logs/logs')
-
-subdir('src/meta')
 
 subdir('src/common/db')
 
@@ -210,6 +206,9 @@ subdir('src/common/archive')
 if not is_windows
     subdir_done()
 endif
+
+subdir('src/vendor/reflect')
+subdir('src/meta')
 
 dxc = find_program(dxc_id, native : true)
 msdf_atlas_gen = find_program('msdf-atlas-gen', native : true)
