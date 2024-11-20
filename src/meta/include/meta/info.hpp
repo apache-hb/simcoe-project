@@ -2,6 +2,7 @@
 
 #include <span>
 #include <string_view>
+#include <stdint.h>
 
 namespace sm::reflect {
     enum class TypeClass {

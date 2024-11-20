@@ -2,11 +2,14 @@
 
 #include "timer.hpp"
 
-#include "core/win32.hpp"
+#if CT_HAS_TSC_TIMESOURCE
+#   include "core/win32.hpp"
+#endif
 
 namespace detail = sm::logs::detail;
 namespace chrono = std::chrono;
 
+#if CT_HAS_TSC_TIMESOURCE
 static uint64_t getCounterFrequency() {
     LARGE_INTEGER frequency;
     QueryPerformanceFrequency(&frequency);
@@ -14,6 +17,7 @@ static uint64_t getCounterFrequency() {
 }
 
 static const uint64_t kPerformanceCounterFrequency = getCounterFrequency();
+#endif
 
 detail::ITimeSource::ITimeSource() noexcept
     : mStartTime(chrono::system_clock::now())
@@ -35,6 +39,7 @@ chrono::milliseconds detail::HighResolutionSource::getTimeSinceStart() const noe
 /// invariant TSC based source
 /// uses rdtsc for better performance, but not portable or tested on all platforms
 
+#if CT_HAS_TSC_TIMESOURCE
 detail::InvariantTscSource::InvariantTscSource() noexcept
     : mStartTsc(__rdtsc())
 { }
@@ -51,3 +56,4 @@ static chrono::milliseconds detail::getCurrentTime(const ITimeSource& source) no
 
     return chrono::duration_cast<chrono::milliseconds>(time.time_since_epoch());
 }
+#endif

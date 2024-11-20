@@ -6,6 +6,14 @@
 
 using namespace std::string_view_literals;
 
+#ifdef _WIN32
+#   define SM_ALIGNED_MALLOC _aligned_malloc
+#   define SM_ALIGNED_FREE _aligned_free
+#else
+#   define SM_ALIGNED_MALLOC aligned_alloc
+#   define SM_ALIGNED_FREE free
+#endif
+
 void *operator new(size_t size) throw() {
     void *ptr = std::malloc(size);
     CTASSERTF(ptr != nullptr, "Failed to allocate %zu bytes", size);
@@ -20,7 +28,7 @@ void operator delete(void *ptr) noexcept {
 }
 
 void *operator new(size_t size, std::align_val_t align) throw() {
-    void *ptr = _aligned_malloc(size, (size_t)align);
+    void *ptr = SM_ALIGNED_MALLOC(size, (size_t)align);
     CTASSERTF(ptr != nullptr, "Failed to allocate %zu bytes with alignment %zu", size, align);
     return ptr;
 }
@@ -29,7 +37,7 @@ void operator delete(void *ptr, std::align_val_t align) noexcept {
     if (ptr == nullptr)
         return;
 
-    _aligned_free(ptr);
+    SM_ALIGNED_FREE(ptr);
 }
 
 static void trimPrefix(std::string_view &name, std::string_view prefix) {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string_view>
+#include <stdint.h>
 
 namespace sm::logs::detail {
     consteval uint64_t hashMessage(std::string_view message) noexcept {

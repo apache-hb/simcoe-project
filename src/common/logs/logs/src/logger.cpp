@@ -4,6 +4,8 @@
 
 #include "timer.hpp"
 
+#include <cpuid.h>
+
 namespace logs = sm::logs;
 namespace detail = sm::logs::detail;
 namespace chrono = std::chrono;
@@ -26,7 +28,11 @@ union CpuId {
 
     static CpuId get(int leaf) noexcept {
         CpuId id;
+#if _WIN32
         __cpuid(id.iregs, leaf);
+#else
+        __cpuid(leaf, id.uregs[0], id.uregs[1], id.uregs[2], id.uregs[3]);
+#endif
         return id;
     }
 };
@@ -47,13 +53,21 @@ static uint64_t getInvariantTscRatio() noexcept {
 #endif
 
 static bool hasInvariantTsc() noexcept {
+#if CT_HAS_TSC_TIMESOURCE
     // Intel SDM Vol. 2A 3-247 - Table 1-17.
     CpuId cpuid = CpuId::get(0x80000007);
     return cpuid.edx & (1 << 8); // Bit 08: Invariant TSC available if 1
+#else
+    return false;
+#endif
 }
 
 static detail::HighResolutionSource gHighResolutionSource;
+
+#if CT_HAS_TSC_TIMESOURCE
 static detail::InvariantTscSource gInvariantTscSource;
+#endif
+
 static detail::ITimeSource *gTimeSource = &gHighResolutionSource;
 
 void logs::create(LoggingConfig config) {
@@ -61,11 +75,15 @@ void logs::create(LoggingConfig config) {
     if (config.timer == TimerSource::eAutoDetect && hasInvariantTsc())
         config.timer = TimerSource::eInvariantTsc;
 
+#if CT_HAS_TSC_TIMESOURCE
     if (config.timer == TimerSource::eInvariantTsc) {
         gTimeSource = &gInvariantTscSource;
     } else {
         gTimeSource = &gHighResolutionSource;
     }
+#else
+    gTimeSource = &gHighResolutionSource;
+#endif
 }
 
 uint64_t logs::getCurrentTime() noexcept {

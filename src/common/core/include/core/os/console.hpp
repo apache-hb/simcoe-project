@@ -8,7 +8,7 @@ namespace sm::os {
     struct ConsoleHandle;
 
     class Console final {
-        ConsoleHandle *mHandle;
+        [[maybe_unused]] ConsoleHandle *mHandle;
 
         Console(ConsoleHandle *handle) noexcept
             : mHandle(handle)

@@ -38,7 +38,8 @@ cli_deps = [
 
 reflect_args = cpp.get_supported_arguments(
     '/wd4201', '/wd4005',
-    '-Wno-format-security', '-Wno-missing-designated-field-initializers'
+    '-Wno-format-security', '-Wno-missing-designated-field-initializers',
+    '-Wno-nested-anon-types', '-Wno-gnu-anonymous-struct'
 )
 
 reflect_args += cthulhu.get_variable('generated_args')
