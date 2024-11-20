@@ -13,18 +13,18 @@ static const D3D12_HEAP_PROPERTIES kReadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEA
 
 #pragma region Utils
 
-static D3D12MA::Allocation *newComittedResource(D3D12MA::Allocator *allocator, D3D12_HEAP_TYPE heap, const D3D12_RESOURCE_DESC *desc, D3D12_RESOURCE_STATES state, const D3D12_CLEAR_VALUE *clear) {
+static Object<D3D12MA::Allocation> newComittedResource(D3D12MA::Allocator *allocator, D3D12_HEAP_TYPE heap, const D3D12_RESOURCE_DESC *desc, D3D12_RESOURCE_STATES state, const D3D12_CLEAR_VALUE *clear) {
     const D3D12MA::ALLOCATION_DESC cAllocInfo {
         .Flags = D3D12MA::ALLOCATION_FLAG_COMMITTED,
         .HeapType = heap,
     };
 
-    D3D12MA::Allocation *allocation = nullptr;
+    Object<D3D12MA::Allocation> allocation = nullptr;
     SM_THROW_HR(allocator->CreateResource(&cAllocInfo, desc, state, clear, &allocation, __uuidof(ID3D12Resource), nullptr));
     return allocation;
 }
 
-static D3D12MA::Allocation *newSurfaceTexture(D3D12MA::Allocator *allocator, SurfaceInfo info) {
+static Object<D3D12MA::Allocation> newSurfaceTexture(D3D12MA::Allocator *allocator, SurfaceInfo info) {
     auto [format, size, _, clear] = info;
     const D3D12_RESOURCE_DESC cTextureInfo = CD3DX12_RESOURCE_DESC::Tex2D(
         format, size.width, size.height,
@@ -37,7 +37,7 @@ static D3D12MA::Allocation *newSurfaceTexture(D3D12MA::Allocator *allocator, Sur
     return newComittedResource(allocator, D3D12_HEAP_TYPE_DEFAULT, &cTextureInfo, D3D12_RESOURCE_STATE_PRESENT, &cClearValue);
 }
 
-static D3D12MA::Allocation *newReadbackBuffer(D3D12MA::Allocator *allocator, SurfaceInfo info) {
+static Object<D3D12MA::Allocation> newReadbackBuffer(D3D12MA::Allocator *allocator, SurfaceInfo info) {
     auto [format, size, _, _] = info;
 
     UINT64 pitch = size.width * 4LLU;
@@ -61,13 +61,13 @@ static std::span<const uint32_t> mapBuffer(D3D12MA::Allocation *readback, Surfac
 }
 
 static VirtualSurface newVirtualSurface(D3D12MA::Allocator *allocator, SurfaceInfo info) {
-    D3D12MA::Allocation *target = newSurfaceTexture(allocator, info);
-    D3D12MA::Allocation *readback = newReadbackBuffer(allocator, info);
-    std::span<const uint32_t> image = mapBuffer(readback, info);
+    Object<D3D12MA::Allocation> target = newSurfaceTexture(allocator, info);
+    Object<D3D12MA::Allocation> readback = newReadbackBuffer(allocator, info);
+    std::span<const uint32_t> image = mapBuffer(readback.get(), info);
 
     return VirtualSurface {
-        .target = target,
-        .readback = readback,
+        .target = std::move(target),
+        .readback = std::move(readback),
         .image = image
     };
 }

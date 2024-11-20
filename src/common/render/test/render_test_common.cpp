@@ -10,20 +10,25 @@ next::SurfaceInfo newSurfaceInfo(math::uint2 size, UINT length, math::float4 cle
 }
 
 next::ContextConfig newConfig(next::ISwapChainFactory *factory, math::uint2 size, bool debug) {
-    const DebugFlags kAllFlags
+    DebugFlags allFlags
         = DebugFlags::eDeviceDebugLayer
         | DebugFlags::eFactoryDebug
         | DebugFlags::eDeviceRemovedInfo
         | DebugFlags::eInfoQueue
         | DebugFlags::eAutoName
         | DebugFlags::eGpuValidation
+        | DebugFlags::eWarpAdapter // TODO: should this always be here?
         | DebugFlags::eDirectStorageDebug
         | DebugFlags::eDirectStorageBreak
         | DebugFlags::eDirectStorageNames
         | DebugFlags::eWinPixEventRuntime;
+    
+    if (!debug) {
+        allFlags = DebugFlags::eWarpAdapter;
+    }
 
     return next::ContextConfig {
-        .flags = debug ? kAllFlags : DebugFlags::eNone,
+        .flags = allFlags,
         .targetLevel = FeatureLevel::eLevel_11_0,
         .swapChainFactory = factory,
         .swapChainInfo = newSurfaceInfo(size, 2),
