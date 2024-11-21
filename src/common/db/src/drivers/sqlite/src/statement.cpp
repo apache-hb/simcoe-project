@@ -122,8 +122,9 @@ DbError SqliteStatement::bindBooleanByIndex(int index, bool value) noexcept {
 }
 
 DbError SqliteStatement::bindStringByIndex(int index, std::string_view value) noexcept {
+    size_t size = value.size();
     const char *data = addBoundData(value);
-    int err = sqlite3_bind_text(mStatement.get(), index + 1, data, value.size(), SQLITE_STATIC);
+    int err = sqlite3_bind_text(mStatement.get(), index + 1, data, size, SQLITE_STATIC);
     return getStmtError(err);
 }
 
@@ -133,8 +134,9 @@ DbError SqliteStatement::bindDoubleByIndex(int index, double value) noexcept {
 }
 
 DbError SqliteStatement::bindBlobByIndex(int index, Blob value) noexcept {
+    size_t size = value.size();
     void *data = addBoundData(std::move(value));
-    int err = sqlite3_bind_blob(mStatement.get(), index + 1, data, value.size(), SQLITE_STATIC);
+    int err = sqlite3_bind_blob(mStatement.get(), index + 1, data, size, SQLITE_STATIC);
     return getStmtError(err);
 }
 
