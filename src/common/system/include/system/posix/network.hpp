@@ -1,7 +1,13 @@
 #pragma once
 
+#include <string_view>
+
+#include <sys/types.h>
 #include <sys/socket.h>
+#include <netdb.h>
 #include <errno.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 namespace sm::system::os {
     /// error code mapping
@@ -9,21 +15,30 @@ namespace sm::system::os {
     static constexpr NetErrorCode kSuccess = 0;
     static constexpr NetErrorCode kErrorTimeout = ETIMEDOUT;
     static constexpr NetErrorCode kErrorInterrupted = EINTR;
+    static constexpr NetErrorCode kNotInitialized = ENOTCONN;
+    static constexpr NetErrorCode kWouldBlock = EWOULDBLOCK;
 
     inline NetErrorCode lastNetError() {
         return errno;
     }
 
-    /// address info
+    /// setup data
+    struct NetData {
+        bool initialized = false;
 
-    using AddressInfo = addrinfo;
+        bool isInitialized() { return initialized; }
+        int version() { return 1; }
+        int highVersion() { return 0; }
+        std::string_view description() { return "POSIX SOCKETS"; }
+        std::string_view systemStatus() { return "ACTIVE"; }
+    };
 
-    inline NetErrorCode createAddressInfo(const char *node, const char *service, const AddressInfo *hints, AddressInfo **res) {
-        return ::getaddrinfo(node, service, hints, res);
+    inline NetErrorCode setupNetwork(NetData& data) {
+        data.initialized = true;
+        return kSuccess;
     }
 
-    inline NetErrorCode destroyAddressInfo(AddressInfo *ai) {
-        ::freeaddrinfo(ai);
+    inline NetErrorCode destroyNetwork(NetData& data) {
         return kSuccess;
     }
 
@@ -32,15 +47,16 @@ namespace sm::system::os {
     using SocketHandle = int;
     static constexpr SocketHandle kInvalidSocket = -1;
 
-    inline SocketHandle createSocket(int af, int type, int protocol) {
-        return ::socket(af, type, protocol);
-    }
-
     inline NetErrorCode destroySocket(SocketHandle socket) {
         return ::close(socket);
     }
 
-    inline NetErrorCode connectSocket(SocketHandle socket, const sockaddr *name, socklen_t namelen) {
-        return ::connect(socket, name, namelen);
+    inline bool ioctlSocketAsync(SocketHandle socket, bool enabled) {
+        int mode = enabled ? 0 : 1;
+        return ::fcntl(socket, O_NONBLOCK, mode) != -1;
+    }
+
+    inline bool cancelSocket(SocketHandle socket) {
+        return ::shutdown(socket, SHUT_RDWR) == 0;
     }
 }

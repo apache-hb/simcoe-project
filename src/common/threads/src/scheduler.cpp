@@ -2,7 +2,8 @@
 
 using namespace sm::threads;
 
-ThreadHandle::ThreadHandle(HANDLE handle, DWORD threadId) noexcept
+#if _WIN32
+ThreadHandle::ThreadHandle(system::os::Thread handle, system::os::ThreadId threadId) noexcept
     : mHandle(handle)
     , mThreadId(threadId)
 { }
@@ -23,3 +24,4 @@ sm::OsError ThreadHandle::join() noexcept {
     default: return OsError(GetLastError());
     }
 }
+#endif

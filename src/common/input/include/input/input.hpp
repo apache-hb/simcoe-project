@@ -5,10 +5,7 @@
 
 #include "math/math.hpp"
 
-#include "input.meta.hpp"
-
 namespace sm::input {
-    REFLECT_ENUM(DeviceType)
     enum class DeviceType : uint8_t {
         eNone,
         eXInput,
@@ -18,7 +15,6 @@ namespace sm::input {
         eCount
     };
 
-    REFLECT_ENUM(Axis)
     enum class Axis : uint8_t {
         eMouseX, eMouseY,
 
@@ -29,7 +25,6 @@ namespace sm::input {
         eCount
     };
 
-    REFLECT_ENUM(Button)
     enum class Button {
         ePadButtonUp,
         ePadButtonDown,

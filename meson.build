@@ -203,6 +203,12 @@ subdir('src/common/config')
 subdir('src/common/math')
 subdir('src/common/archive')
 
+subdir('src/common/input')
+subdir('src/common/system')
+subdir('src/common/threads')
+
+subdir('src/common/net')
+
 if not is_windows
     subdir_done()
 endif
@@ -219,11 +225,6 @@ d3d12 = dependency('d3d12')
 d3dx12 = dependency('directx-headers')
 tracy = dependency('tracy')
 
-subdir('src/common/input')
-subdir('src/common/system')
-subdir('src/common/threads')
-
-subdir('src/common/net')
 
 subdir('src/common/world')
 

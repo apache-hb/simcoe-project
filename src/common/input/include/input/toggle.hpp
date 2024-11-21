@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stddef.h>
+
 namespace sm::input {
     class Toggle {
         size_t mLastValue = 0;

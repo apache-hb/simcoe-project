@@ -1,0 +1,11 @@
+[wrap-file]
+directory = hwloc-2.11.2
+
+source_url = https://download.open-mpi.org/release/hwloc/v2.11/hwloc-2.11.2.tar.gz
+source_filename = hwloc-2.11.2.tar.gz
+source_hash = 866ac8ef07b350a6a2ba0c6826c37d78e8994dcbcd443bdd2b436350de19d540
+
+patch_directory = hwloc-2.11.2
+
+[provide]
+dependency_names = hwloc

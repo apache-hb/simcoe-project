@@ -4,28 +4,28 @@
 
 #include "core/memory/unique.hpp"
 
-#include "core/win32.hpp" // IWYU pragma: keep
+#include "system/threads.hpp"
 
 #include "threads/threads.hpp"
 
 namespace sm::threads {
     class ThreadHandle {
-        HANDLE mHandle;
-        DWORD mThreadId;
+        system::os::Thread mHandle;
+        system::os::ThreadId mThreadId;
 
     public:
-        ThreadHandle(HANDLE handle, DWORD threadId) noexcept;
+        ThreadHandle(system::os::Thread handle, system::os::ThreadId threadId) noexcept;
 
         ~ThreadHandle() noexcept;
 
         OsError join() noexcept;
 
-        HANDLE getHandle() const noexcept { return mHandle; }
-        DWORD getThreadId() const noexcept { return mThreadId; }
+        system::os::Thread getHandle() const noexcept { return mHandle; }
+        system::os::ThreadId getThreadId() const noexcept { return mThreadId; }
     };
 
     class IScheduler {
-        virtual ThreadHandle launchThread(void *param, LPTHREAD_START_ROUTINE start) = 0;
+        virtual ThreadHandle launchThread(void *param, system::os::StartRoutine start) = 0;
 
     public:
         virtual ~IScheduler() = default;

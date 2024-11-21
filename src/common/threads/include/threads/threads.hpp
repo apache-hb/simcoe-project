@@ -2,7 +2,7 @@
 
 #include "core/core.hpp"
 
-#include "core/win32.hpp" // IWYU pragma: keep
+#include "system/threads.hpp"
 
 #include "logs/logging.hpp"
 
@@ -23,9 +23,9 @@ namespace sm::threads {
     };
 
     enum class PriorityClass : int16 {
-        eHigh = HIGH_PRIORITY_CLASS,
-        eNormal = NORMAL_PRIORITY_CLASS,
-        eIdle = THREAD_PRIORITY_IDLE,
+        eHigh = system::os::kHighPriorityClass,
+        eNormal = system::os::kNormalPriorityClass,
+        eIdle = system::os::kIdlePriorityClass,
     };
 
     enum class CacheType : uint8 {

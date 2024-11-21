@@ -12,8 +12,8 @@ namespace chrono = std::chrono;
 ///
 
 void Socket::closeSocket() noexcept {
-    closesocket(mSocket);
-    mSocket = INVALID_SOCKET;
+    system::os::destroySocket(mSocket);
+    mSocket = system::os::kInvalidSocket;
 }
 
 Socket::~Socket() noexcept {
@@ -22,7 +22,7 @@ Socket::~Socket() noexcept {
 
 NetResult<size_t> Socket::sendBytes(const void *data, size_t size) noexcept {
     int sent = ::send(mSocket, static_cast<const char *>(data), size, 0);
-    if (sent == SOCKET_ERROR)
+    if (sent == -1)
         return std::unexpected(lastNetError());
 
     return sent;
@@ -30,7 +30,7 @@ NetResult<size_t> Socket::sendBytes(const void *data, size_t size) noexcept {
 
 NetResult<size_t> Socket::recvBytes(void *data, size_t size) noexcept {
     int received = ::recv(mSocket, static_cast<char *>(data), size, 0);
-    if (received == SOCKET_ERROR)
+    if (received == -1)
         return std::unexpected(lastNetError());
 
     if (received == 0)
@@ -57,19 +57,18 @@ ReadResult Socket::recvBytesTimeout(void *data, size_t size, std::chrono::millis
                 return { consumed, NetError::ok() };
 
         } else {
-            int lastError = WSAGetLastError();
-            if (lastError != WSAEWOULDBLOCK)
+            int lastError = system::os::lastNetError();
+            if (lastError != system::os::kWouldBlock)
                 return { consumed, NetError{lastError} };
 
         }
     }
 
-    return { consumed, NetError{ERROR_TIMEOUT} };
+    return { consumed, NetError{system::os::kErrorTimeout} };
 }
 
 NetError Socket::setBlocking(bool blocking) noexcept {
-    u_long mode = blocking ? 0 : 1;
-    if (ioctlsocket(mSocket, FIONBIO, &mode))
+    if (!system::os::ioctlSocketAsync(mSocket, blocking))
         return lastNetError();
 
     mBlocking = blocking;
@@ -113,15 +112,15 @@ ListenSocket::~ListenSocket() noexcept {
 }
 
 NetResult<Socket> ListenSocket::tryAccept() noexcept {
-    SOCKET client = ::accept(mSocket, nullptr, nullptr);
-    if (client == INVALID_SOCKET)
+    system::os::SocketHandle client = ::accept(mSocket, nullptr, nullptr);
+    if (client == system::os::kInvalidSocket)
         return std::unexpected(lastNetError());
 
     return Socket{client};
 }
 
 void ListenSocket::cancel() noexcept {
-    shutdown(mSocket, SD_BOTH);
+    system::os::cancelSocket(mSocket);
     Socket::closeSocket();
 }
 

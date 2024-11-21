@@ -3,6 +3,7 @@
 #include <array>
 #include <span>
 #include <string>
+#include <stdint.h>
 
 namespace sm::net {
     enum class AddressType {

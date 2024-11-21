@@ -1,35 +1,27 @@
-system_include = include_directories('.', 'include')
+system_include = include_directories('include')
 
 # TODO: splash screens, do them all in d3d12 rather than trying to grok
 # how gdi works. its quick enough to start a d3d12 software device and
 # render using that
 # 'src/splash.cpp',
 
-src = [
-    # shared internal variables
-    'src/common.cpp',
-
-    # setup/teardown
-    'src/system.cpp',
-
-    # windowing
-    'src/window.cpp',
-
-    # win32 input source
-    'src/input.cpp',
-
-    'src/registry.cpp',
-]
+src = [ ]
 
 deps = [ core, logs, math, cthulhu.get_variable('os'), input, config ]
 
 if host_machine.system() == 'windows'
-    src += [ 'src/win32/storage.cpp' ]
-    deps += [ dependency('wil') ]
+    src += [
+        'src/common.cpp',
+        'src/system.cpp',
+        'src/input.cpp',
+        'src/registry.cpp',
+        'src/window.cpp',
+        'src/win32/storage.cpp'
+    ]
+    deps += [ dependency('wil'), cc.find_library('ws2_32') ]
 elif host_machine.system() == 'linux'
     src += [ 'src/posix/storage.cpp' ]
 endif
-
 
 libsystem = library('system', src,
     cpp_args : [ '-DSM_SYSTEM_BUILD=1' ],
@@ -39,7 +31,7 @@ libsystem = library('system', src,
 
 system_core = declare_dependency(
     link_with : libsystem,
-    include_directories : [ system_include, libsystem.private_dir_include() ],
+    include_directories : [ system_include ],
     objects : libsystem.extract_all_objects(recursive : true),
     dependencies : deps
 )

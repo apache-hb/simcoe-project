@@ -10,33 +10,39 @@ src = [
 
 libthreads_meta = library('threads-meta', src,
     include_directories : threads_include,
-    dependencies : [ core, meta, logs, db ],
+    dependencies : [ core, dao ],
 )
 
 threads_meta = declare_dependency(
     link_with : libthreads_meta,
     include_directories : [ threads_include, libthreads_meta.private_dir_include() ],
-    dependencies : [ core, meta, logs, db ],
+    dependencies : [ core, dao ],
 )
 
 ###
 ### thread api
 ###
 
+hwloc = dependency('hwloc')
+
 src = [
-    'src/threads.cpp',
-    'src/topology.cpp',
     'src/scheduler.cpp',
-
-    'src/cpuinfo.cpp',
-
-    'src/backends/common.cpp',
-    'src/backends/cpuset.cpp',
-    'src/backends/logical.cpp',
-    'src/backends/default.cpp',
 ]
 
-deps = [ core, config, logs, logs, system, threads_meta ]
+if host_machine.system() == 'windows'
+    src += [
+        'src/topology.cpp',
+        'src/threads.cpp',
+        'src/cpuinfo.cpp',
+
+        'src/backends/common.cpp',
+        'src/backends/cpuset.cpp',
+        'src/backends/logical.cpp',
+        'src/backends/default.cpp',
+    ]
+endif
+
+deps = [ core, config, logs, logs, system, db, hwloc, threads_meta ]
 
 libthreads = library('threads', src,
     cpp_args : [ '-DSM_THREADS_BUILD=1' ],
@@ -55,10 +61,15 @@ threads = declare_dependency(
 ###
 
 testcases = {
-    'Processor geometry parsing': 'test/geometry.cpp',
-    'Save processor topology data': 'test/topology.cpp',
     'Nonblocking mailbox': 'test/mailbox.cpp',
 }
+
+if host_machine.system() == 'windows'
+    testcases += {
+        'Processor geometry parsing': 'test/geometry.cpp',
+        'Save processor topology data': 'test/topology.cpp',
+    }
+endif
 
 foreach name, source : testcases
     exe = executable('test-threads-' + name.to_lower().replace(' ', '-'), source,

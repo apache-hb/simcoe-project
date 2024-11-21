@@ -5,8 +5,6 @@
 
 #include "threads/mailbox.hpp"
 
-#include "core/win32.hpp"
-
 using namespace sm;
 using namespace std::chrono_literals;
 
@@ -37,8 +35,6 @@ std::unique_ptr mediumMailbox = std::make_unique<threads::NonBlockingMailBox<Med
 std::unique_ptr smallMailbox = std::make_unique<threads::NonBlockingMailBox<SmallArray>>();
 
 TEST_CASE("Mailbox baseline") {
-    SetProcessAffinityMask(GetCurrentProcess(), 0b1111'1111'1111'1111);
-
     BENCHMARK("Baseline reading mailbox of big array") {
         std::lock_guard guard(*bigMailbox);
         const auto& data = bigMailbox->read();
@@ -59,8 +55,6 @@ TEST_CASE("Mailbox baseline") {
 }
 
 TEST_CASE("Mailbox writer overhead") {
-    SetProcessAffinityMask(GetCurrentProcess(), 0b1111'1111'1111'1111);
-
     std::jthread writer = std::jthread([&](const std::stop_token& stop) {
         std::array<uint8_t, kBigArraySize> bigData;
         std::array<uint8_t, kMediumArraySize> mediumData;

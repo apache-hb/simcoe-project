@@ -8,6 +8,25 @@
 #include "core/macros.hpp"
 
 namespace sm::system {
+    enum class ShowWindow {
+        eHide = SW_HIDE,
+        eShowNormal = SW_SHOWNORMAL,
+        eShow = SW_SHOW,
+        eRestore = SW_RESTORE,
+        eShowDefault = SW_SHOWDEFAULT,
+    };
+
+    enum class MultiMonitor {
+        eNull = MONITOR_DEFAULTTONULL,
+        ePrimary = MONITOR_DEFAULTTOPRIMARY,
+        eNearest = MONITOR_DEFAULTTONEAREST,
+    };
+
+    enum class WindowMode : DWORD {
+        eWindowed = WS_OVERLAPPEDWINDOW,
+        eBorderless = WS_POPUP,
+    };
+
     using WindowPlacement = WINDOWPLACEMENT;
     using Point = POINT;
 

@@ -2,8 +2,7 @@
 
 // IWYU pragma: begin_exports
 
-#include <WinSock2.h>
-#include <ws2tcpip.h>
+#include "system/network.hpp"
 
 #include "core/defer.hpp"
 #include "core/macros.h"

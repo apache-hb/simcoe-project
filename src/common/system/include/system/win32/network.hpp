@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string_view>
+
 #include <WinSock2.h>
 #include <ws2ipdef.h>
 #include <ws2tcpip.h>
@@ -10,22 +12,31 @@ namespace sm::system::os {
     static constexpr NetErrorCode kSuccess = ERROR_SUCCESS;
     static constexpr NetErrorCode kErrorTimeout = ERROR_TIMEOUT;
     static constexpr NetErrorCode kErrorInterrupted = WSAEINTR;
+    static constexpr NetErrorCode kNotInitialized = WSANOTINITIALISED;
+    static constexpr NetErrorCode kWouldBlock = WSAEWOULDBLOCK;
 
     inline NetErrorCode lastNetError() {
         return ::WSAGetLastError();
     }
 
-    /// address info
+    /// setup data
+    struct NetData {
+        WSADATA data;
 
-    using AddressInfo = addrinfo;
+        bool isInitialized() { return data.wVersion != 0; }
+        int version() { return data.wVersion; }
+        int highVersion() { return data.wHighVersion; }
 
-    inline NetErrorCode createAddressInfo(const char *node, const char *service, const AddressInfo *hints, AddressInfo **res) {
-        return ::getaddrinfo(node, service, hints, res);
+        std::string_view description() { return data.szDescription; }
+        std::string_view systemStatus() { return data.szSystemStatus; }
+    };
+
+    inline NetErrorCode setupNetwork(NetData& data) {
+        return ::WSAStartup(MAKEWORD(2, 2), &data.data);
     }
 
-    inline NetErrorCode destroyAddressInfo(AddressInfo *ai) {
-        ::freeaddrinfo(ai);
-        return kSuccess;
+    inline NetErrorCode destroyNetwork(NetData& data) {
+        return ::WSACleanup();
     }
 
     /// socket handle
@@ -33,23 +44,16 @@ namespace sm::system::os {
     using SocketHandle = SOCKET;
     static constexpr SocketHandle kInvalidSocket = INVALID_SOCKET;
 
-    inline SocketHandle createSocket(int af, int type, int protocol) {
-        return ::socket(af, type, protocol);
-    }
-
     inline NetErrorCode destroySocket(SocketHandle socket) {
         return ::closesocket(socket);
     }
 
-    inline NetErrorCode connectSocket(SocketHandle socket, const sockaddr *name, int namelen) {
-        return ::connect(socket, name, namelen);
+    inline bool ioctlSocketAsync(SocketHandle socket, bool enabled) {
+        u_long mode = enabled ? 0 : 1;
+        return ::ioctlsocket(socket, FIONBIO, &mode) != SOCKET_ERROR;
     }
 
-    inline NetErrorCode bindSocket(SocketHandle socket, const sockaddr *name, int namelen) {
-        return ::bind(socket, name, namelen);
-    }
-
-    inline NetErrorCode listenSocket(SocketHandle socket, int backlog) {
-        return ::listen(socket, backlog);
+    inline bool cancelSocket(SocketHandle socket) {
+        return ::shutdown(socket, SD_BOTH) == 0;
     }
 }

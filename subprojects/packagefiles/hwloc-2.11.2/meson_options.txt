@@ -1,0 +1,1 @@
+option('libxml2', type : 'feature', value : 'auto')

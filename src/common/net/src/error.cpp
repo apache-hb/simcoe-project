@@ -30,11 +30,11 @@ NetError::NetError(int code)
 { }
 
 bool NetError::cancelled() const noexcept {
-    return mCode == WSAEINTR;
+    return mCode == system::os::kErrorInterrupted;
 }
 
 bool NetError::timeout() const noexcept {
-    return mCode == ERROR_TIMEOUT;
+    return mCode == system::os::kErrorTimeout;;
 }
 
 bool NetError::connectionClosed() const noexcept {
@@ -42,5 +42,5 @@ bool NetError::connectionClosed() const noexcept {
 }
 
 NetError NetError::ok() noexcept {
-    return NetError{ERROR_SUCCESS};
+    return NetError{system::os::kSuccess};
 }

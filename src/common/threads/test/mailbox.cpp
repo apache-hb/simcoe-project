@@ -7,6 +7,7 @@
 #include <array>
 #include <latch>
 #include <mutex>
+#include <thread>
 
 using namespace sm;
 

@@ -12,8 +12,7 @@ src = [
     'src/socket.cpp',
 ]
 
-ws2 = cc.find_library('ws2_32', required : is_windows)
-deps = [ core, logs, ws2, cthulhu.get_variable('os') ]
+deps = [ core, logs, system, cthulhu.get_variable('os') ]
 
 libnet = library('net', src,
     include_directories : [ net_include ],
@@ -23,7 +22,7 @@ libnet = library('net', src,
 net = declare_dependency(
     link_with : libnet,
     include_directories : [ net_include ],
-    dependencies : [ core ]
+    dependencies : [ core, system, logs ]
 )
 
 ###

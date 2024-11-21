@@ -6,13 +6,12 @@
 #include "core/macros.hpp"
 #include "core/throws.hpp"
 
+#include "system/network.hpp"
+
 #include <expected>
 #include <chrono>
 
 #include <fmtlib/format.h>
-
-#include <WinSock2.h>
-#include <ws2ipdef.h>
 
 namespace sm::net {
     struct [[nodiscard]] ReadResult {
@@ -24,22 +23,22 @@ namespace sm::net {
     protected:
         void closeSocket() noexcept;
 
-        SOCKET mSocket = INVALID_SOCKET;
+        system::os::SocketHandle mSocket = system::os::kInvalidSocket;
         bool mBlocking = true;
 
     public:
-        Socket(SOCKET socket) noexcept
+        Socket(system::os::SocketHandle socket) noexcept
             : mSocket(socket)
         { }
 
         Socket(Socket&& other) noexcept
-            : mSocket(std::exchange(other.mSocket, INVALID_SOCKET))
+            : mSocket(std::exchange(other.mSocket, system::os::kInvalidSocket))
         { }
 
         Socket& operator=(Socket&& other) noexcept {
             if (this != &other) {
                 closeSocket();
-                mSocket = std::exchange(other.mSocket, INVALID_SOCKET);
+                mSocket = std::exchange(other.mSocket, system::os::kInvalidSocket);
             }
 
             return *this;
@@ -88,7 +87,7 @@ namespace sm::net {
 
         NetError setBlocking(bool blocking) noexcept;
         bool isBlocking() const noexcept { return mBlocking; }
-        bool isActive() const noexcept { return mSocket != INVALID_SOCKET; }
+        bool isActive() const noexcept { return mSocket != system::os::kInvalidSocket; }
 
         NetError setRecvTimeout(std::chrono::milliseconds timeout) noexcept;
         NetError setSendTimeout(std::chrono::milliseconds timeout) noexcept;
