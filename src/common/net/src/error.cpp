@@ -34,7 +34,7 @@ bool NetError::cancelled() const noexcept {
 }
 
 bool NetError::timeout() const noexcept {
-    return mCode == system::os::kErrorTimeout;;
+    return mCode == system::os::kErrorTimeout;
 }
 
 bool NetError::connectionClosed() const noexcept {

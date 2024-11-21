@@ -12,6 +12,7 @@ namespace chrono = std::chrono;
 ///
 
 void Socket::closeSocket() noexcept {
+    mFlags |= kShutdownFlag;
     system::os::destroySocket(mSocket);
     mSocket = system::os::kInvalidSocket;
 }
@@ -71,7 +72,11 @@ NetError Socket::setBlocking(bool blocking) noexcept {
     if (!system::os::ioctlSocketAsync(mSocket, blocking))
         return lastNetError();
 
-    mBlocking = blocking;
+    if (blocking) {
+        mFlags |= kBlockingFlag;
+    } else {
+        mFlags &= ~kBlockingFlag;
+    }
 
     return NetError::ok();
 }
@@ -83,7 +88,7 @@ NetError Socket::setRecvTimeout(std::chrono::milliseconds timeout) noexcept {
         .tv_usec = static_cast<long>((count % 1000))
     };
 
-    if (setsockopt(mSocket, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&tv), sizeof(tv)))
+    if (::setsockopt(mSocket, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&tv), sizeof(tv)))
         return lastNetError();
 
     return NetError::ok();
@@ -96,7 +101,7 @@ NetError Socket::setSendTimeout(std::chrono::milliseconds timeout) noexcept {
         .tv_usec = static_cast<long>((count % 1000))
     };
 
-    if (setsockopt(mSocket, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&tv), sizeof(tv)))
+    if (::setsockopt(mSocket, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&tv), sizeof(tv)))
         return lastNetError();
 
     return NetError::ok();
@@ -113,13 +118,20 @@ ListenSocket::~ListenSocket() noexcept {
 
 NetResult<Socket> ListenSocket::tryAccept() noexcept {
     system::os::SocketHandle client = ::accept(mSocket, nullptr, nullptr);
-    if (client == system::os::kInvalidSocket)
+    if (client == system::os::kInvalidSocket) {
+
+        // if we were shutdown then return an error
+        if (!isActive())
+            return std::unexpected(NetError{system::os::kErrorInterrupted});
+
         return std::unexpected(lastNetError());
+    }
 
     return Socket{client};
 }
 
 void ListenSocket::cancel() noexcept {
+    mFlags |= kShutdownFlag;
     system::os::cancelSocket(mSocket);
     Socket::closeSocket();
 }

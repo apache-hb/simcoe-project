@@ -8,6 +8,7 @@
 
 #include "system/network.hpp"
 
+#include <atomic>
 #include <expected>
 #include <chrono>
 
@@ -23,18 +24,24 @@ namespace sm::net {
     protected:
         void closeSocket() noexcept;
 
+        static constexpr int kBlockingFlag = (1 << 0);
+        static constexpr int kShutdownFlag = (1 << 1);
+
+        std::atomic<int> mFlags;
+
         system::os::SocketHandle mSocket = system::os::kInvalidSocket;
-        bool mBlocking = true;
 
     public:
         Socket(system::os::SocketHandle socket) noexcept
             : mSocket(socket)
         { }
 
+        /// @note not internally synchronized
         Socket(Socket&& other) noexcept
             : mSocket(std::exchange(other.mSocket, system::os::kInvalidSocket))
         { }
 
+        /// @note not internally synchronized
         Socket& operator=(Socket&& other) noexcept {
             if (this != &other) {
                 closeSocket();
@@ -86,8 +93,8 @@ namespace sm::net {
         }
 
         NetError setBlocking(bool blocking) noexcept;
-        bool isBlocking() const noexcept { return mBlocking; }
-        bool isActive() const noexcept { return mSocket != system::os::kInvalidSocket; }
+        bool isBlocking() const noexcept { return mFlags.load(std::memory_order_seq_cst) & kBlockingFlag; }
+        bool isActive() const noexcept { return !(mFlags.load(std::memory_order_seq_cst) & kShutdownFlag); }
 
         NetError setRecvTimeout(std::chrono::milliseconds timeout) noexcept;
         NetError setSendTimeout(std::chrono::milliseconds timeout) noexcept;

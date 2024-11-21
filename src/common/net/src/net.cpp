@@ -72,16 +72,6 @@ static system::os::SocketHandle findOpenSocket(addrinfo *info) noexcept(false) {
     throw NetException{SNET_CONNECTION_FAILED};
 }
 
-static bool socketIsWritable(system::os::SocketHandle socket) {
-    fd_set writefds;
-    FD_ZERO(&writefds);
-    FD_SET(socket, &writefds);
-
-    timeval timeout = { .tv_sec = 0, .tv_usec = 0 };
-    int result = select(0, nullptr, &writefds, nullptr, &timeout);
-    return result > 0;
-}
-
 static system::os::SocketHandle findOpenSocketWithTimeout(addrinfo *info, std::chrono::milliseconds timeout) noexcept(false) {
     for (addrinfo *ptr = info; ptr != nullptr; ptr = ptr->ai_next) {
 
@@ -91,8 +81,8 @@ static system::os::SocketHandle findOpenSocketWithTimeout(addrinfo *info, std::c
             throw NetException{lastNetError()};
 
         if (!system::os::ioctlSocketAsync(socket, true)) {
+            defer { system::os::destroySocket(socket); };
             NetError err = lastNetError();
-            system::os::destroySocket(socket);
             throw NetException{err};
         }
 
@@ -100,12 +90,17 @@ static system::os::SocketHandle findOpenSocketWithTimeout(addrinfo *info, std::c
         auto timeoutReached = [&] { return start + timeout < chrono::steady_clock::now(); };
 
         while (!timeoutReached()) {
+            fmt::println(stderr, "Trying to connect to address");
             int err = ::connect(socket, ptr->ai_addr, ptr->ai_addrlen);
-            if (err == 0)
+            if (err == system::os::kSuccess)
                 return socket;
 
-            if (socketIsWritable(socket))
+            fmt::println(stderr, "Failed to connect to address");
+
+            if (system::os::isSocketReady(socket))
                 return socket;
+
+            fmt::println(stderr, "Failed to connect to address 2");
         }
 
         system::os::destroySocket(socket);

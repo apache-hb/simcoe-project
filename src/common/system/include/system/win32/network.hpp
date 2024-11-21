@@ -56,4 +56,14 @@ namespace sm::system::os {
     inline bool cancelSocket(SocketHandle socket) {
         return ::shutdown(socket, SD_BOTH) == 0;
     }
+
+    inline bool isSocketReady(SocketHandle socket) {
+        fd_set writefds;
+        FD_ZERO(&writefds);
+        FD_SET(socket, &writefds);
+
+        timeval timeout = { .tv_sec = 0, .tv_usec = 0 };
+        int result = ::select(0, nullptr, &writefds, nullptr, &timeout);
+        return result > 0;
+    }
 }

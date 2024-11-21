@@ -52,11 +52,19 @@ namespace sm::system::os {
     }
 
     inline bool ioctlSocketAsync(SocketHandle socket, bool enabled) {
-        int mode = enabled ? 0 : 1;
-        return ::fcntl(socket, O_NONBLOCK, mode) != -1;
+        int flags = ::fcntl(socket, F_GETFL, 0);
+        if (flags == -1)
+            return false;
+
+        int mode = enabled ? (flags & ~O_NONBLOCK) : (flags | O_NONBLOCK);
+        return ::fcntl(socket, F_SETFL, mode) != -1;
     }
 
     inline bool cancelSocket(SocketHandle socket) {
         return ::shutdown(socket, SHUT_RDWR) == 0;
+    }
+
+    inline bool isSocketReady(SocketHandle socket) {
+        return false; // TODO: implement
     }
 }
