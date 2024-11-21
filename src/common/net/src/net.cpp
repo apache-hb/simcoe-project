@@ -28,9 +28,14 @@ void net::create(void) {
     if (int result = system::os::setupNetwork(gNetData))
         throw NetException{result};
 
-    LOG_INFO(NetLog, "WSAStartup successful. {}.{}", gNetData.version(), gNetData.highVersion());
-
-    LOG_INFO(NetLog, "Description: `{}`, Status: `{}`", gNetData.description(), gNetData.systemStatus());
+    LOG_INFO(NetLog,
+        "WSAStartup  : SUCCESS\n"
+        "VERSION     : {}.{}\n"
+        "DESCRIPTION : `{}`\n"
+        "STATUS      : `{}`",
+        gNetData.version(), gNetData.highVersion(),
+        gNetData.description(), gNetData.systemStatus()
+    );
 }
 
 void net::destroy(void) noexcept {
@@ -73,41 +78,24 @@ static system::os::SocketHandle findOpenSocket(addrinfo *info) noexcept(false) {
 }
 
 static system::os::SocketHandle findOpenSocketWithTimeout(addrinfo *info, std::chrono::milliseconds timeout) noexcept(false) {
-    for (addrinfo *ptr = info; ptr != nullptr; ptr = ptr->ai_next) {
 
-        // if we fail to even create a socket then throw an exception
-        system::os::SocketHandle socket = ::socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
-        if (socket == system::os::kInvalidSocket)
-            throw NetException{lastNetError()};
+    // if we fail to even create a socket then throw an exception
+    system::os::SocketHandle socket = ::socket(info->ai_family, info->ai_socktype, info->ai_protocol);
+    if (socket == system::os::kInvalidSocket)
+        throw NetException{lastNetError()};
 
-        if (!system::os::ioctlSocketAsync(socket, true)) {
-            defer { system::os::destroySocket(socket); };
-            NetError err = lastNetError();
-            throw NetException{err};
-        }
-
-        const chrono::time_point start = chrono::steady_clock::now();
-        auto timeoutReached = [&] { return start + timeout < chrono::steady_clock::now(); };
-
-        while (!timeoutReached()) {
-            fmt::println(stderr, "Trying to connect to address");
-            int err = ::connect(socket, ptr->ai_addr, ptr->ai_addrlen);
-            if (err == system::os::kSuccess)
-                return socket;
-
-            fmt::println(stderr, "Failed to connect to address");
-
-            if (system::os::isSocketReady(socket))
-                return socket;
-
-            fmt::println(stderr, "Failed to connect to address 2");
-        }
-
-        system::os::destroySocket(socket);
+    if (!system::os::ioctlSocketAsync(socket, true)) {
+        defer { system::os::destroySocket(socket); };
+        throw NetException{lastNetError()};
     }
 
-    // if we reach this point then we failed to connect to any address
-    throw NetException{system::os::kErrorTimeout};
+    if (!system::os::connectWithTimeout(socket, info->ai_addr, info->ai_addrlen, timeout)) {
+        defer { system::os::destroySocket(socket); };
+        // if we reach this point then we failed to connect to any address
+        throw NetException{system::os::kErrorTimeout};
+    }
+
+    return socket;
 }
 
 static addrinfo *getAddrInfo(const Address& address, uint16_t port) throws(NetException) {

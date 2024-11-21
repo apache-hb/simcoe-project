@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string_view>
+#include <chrono>
 
 #include <WinSock2.h>
 #include <ws2ipdef.h>
@@ -44,9 +45,7 @@ namespace sm::system::os {
     using SocketHandle = SOCKET;
     static constexpr SocketHandle kInvalidSocket = INVALID_SOCKET;
 
-    inline NetErrorCode destroySocket(SocketHandle socket) {
-        return ::closesocket(socket);
-    }
+    NetErrorCode destroySocket(SocketHandle socket);
 
     inline bool ioctlSocketAsync(SocketHandle socket, bool enabled) {
         u_long mode = enabled ? 0 : 1;
@@ -57,13 +56,5 @@ namespace sm::system::os {
         return ::shutdown(socket, SD_BOTH) == 0;
     }
 
-    inline bool isSocketReady(SocketHandle socket) {
-        fd_set writefds;
-        FD_ZERO(&writefds);
-        FD_SET(socket, &writefds);
-
-        timeval timeout = { .tv_sec = 0, .tv_usec = 0 };
-        int result = ::select(0, nullptr, &writefds, nullptr, &timeout);
-        return result > 0;
-    }
+    bool connectWithTimeout(SocketHandle socket, std::chrono::milliseconds timeout);
 }

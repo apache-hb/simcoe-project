@@ -10,24 +10,23 @@ using namespace sm::net;
 using namespace std::chrono_literals;
 
 static constexpr size_t kBufferSize = 128;
-static constexpr uint16_t kPort = 9989;
 
 TEST_CASE("Network client server connection") {
     net::create();
 
-    auto network = Network::create();
+    Network network = Network::create();
 
     NetTestStream errors;
 
-    auto server = network.bind(Address::loopback(), kPort);
+    ListenSocket server = network.bind(Address::loopback(), 0);
+    uint16_t port = server.getBoundPort();
 
     REQUIRE(server.setBlocking(false).isSuccess());
-    REQUIRE(server.setBlocking(true).isSuccess());
     REQUIRE(server.listen(1).isSuccess());
 
     std::jthread serverThread = std::jthread([&](const std::stop_token& stop) {
         while (stop.stop_requested()) {
-            auto client = [&] {
+            NetResult<Socket> client = [&] {
                 std::stop_callback cb(stop, [&] { server.cancel(); });
                 return server.tryAccept();
             }();
@@ -50,12 +49,17 @@ TEST_CASE("Network client server connection") {
         }
     });
 
-    auto client = network.connect(Address::loopback(), kPort);
+    Socket client = network.connect(Address::loopback(), port);
     client.setBlocking(false).throwIfFailed();
+    client.setRecvTimeout(256ms).throwIfFailed();
+
+    fmt::println(stderr, "client connected");
 
     // recv a buffer larger than what will ever be sent. this should timeout
     char buffer[kBufferSize * 16];
     auto [read, err] = client.recvBytesTimeout(buffer, sizeof(buffer), 256ms);
+
+    fmt::println(stderr, "client read {} bytes", read);
 
     errors.expect(err.timeout(), "Expected timeout, got: {}. read {} bytes", err.message(), read);
 }

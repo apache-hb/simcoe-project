@@ -10,13 +10,13 @@ using namespace sm::net;
 
 static const char kMessage[] = "Hello, world!";
 static constexpr int kClientCount = 10;
-static constexpr uint16_t kPort = 9999; 
 
 TEST_CASE("Network client server connection") {
     net::create();
 
     Network network = Network::create();
-    ListenSocket server = network.bind(Address::loopback(), kPort);
+    ListenSocket server = network.bind(Address::loopback(), 0);
+    uint16_t port = server.getBoundPort();
 
     NetTestStream errors;
     std::atomic<int> clientCount = 0;
@@ -48,7 +48,7 @@ TEST_CASE("Network client server connection") {
 
     std::jthread clientThread = std::jthread([&] {
         for (int i = 0; i < kClientCount; ++i) {
-            auto client = network.connect(Address::loopback(), kPort);
+            Socket client = network.connect(Address::loopback(), port);
 
             std::array<char, 1024> buffer;
             size_t received = client.recvBytes(buffer.data(), buffer.size()).value();

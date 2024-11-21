@@ -11,24 +11,23 @@ using namespace sm::net;
 using namespace std::chrono_literals;
 
 static constexpr size_t kBufferSize = 128;
-static constexpr uint16_t kPort = 9919;
 
 TEST_CASE("Network connect timeout") {
     net::create();
 
-    auto network = Network::create();
+    Network network = Network::create();
 
     NetTestStream errors;
 
-    auto server = network.bind(Address::loopback(), kPort);
+    ListenSocket server = network.bind(Address::loopback(), 0);
+    uint16_t port = server.getBoundPort();
 
     REQUIRE(server.setBlocking(false).isSuccess());
-    REQUIRE(server.setBlocking(true).isSuccess());
     REQUIRE(server.listen(1).isSuccess());
 
     std::jthread serverThread = std::jthread([&](const std::stop_token& stop) {
         while (stop.stop_requested()) {
-            auto client = [&] {
+            NetResult<Socket> client = [&] {
                 std::stop_callback cb(stop, [&] { server.cancel(); });
                 return server.tryAccept();
             }();
@@ -46,34 +45,40 @@ TEST_CASE("Network connect timeout") {
                 buffer[i] = std::hash<size_t>{}(i) % CHAR_MAX;
             }
 
-            size_t sent = client->sendBytes(buffer, sizeof(buffer)).value();
+            size_t sent = net::throwIfFailed(client->sendBytes(buffer, sizeof(buffer)));
             errors.expect(sent == sizeof(buffer), "Sent {} bytes, expected {}", sent, sizeof(buffer));
         }
     });
 
-    auto client = network.connect(Address::loopback(), kPort);
+    Socket client = network.connect(Address::loopback(), port);
     client.setBlocking(false).throwIfFailed();
+    client.setRecvTimeout(256ms).throwIfFailed();
 
     int clients = 25;
     std::latch latch{clients};
     std::vector<std::jthread> workers;
 
     for (int i = 0; i < clients; ++i) {
-        workers.emplace_back([&] {
+        workers.emplace_back([&, i] {
             latch.arrive_and_wait();
             try {
-                auto client = network.connectWithTimeout(Address::loopback(), kPort, 25ms);
+                Socket client = network.connectWithTimeout(Address::loopback(), port, 25ms);
             } catch (const NetException& err) {
-                if (err.error().timeout()) {
-                    return;
-                }
+                fmt::println(stderr, "Client failed to connect {}: {}", i, err.error());
 
                 errors.expect(err.error().timeout(), "Expected timeout, got: {}", err.error());
+                return;
             }
+
+            fmt::println(stderr, "Client connected");
         });
     }
 
+    fmt::println(stderr, "Waiting for clients to connect");
+
     workers.clear();
+
+    fmt::println(stderr, "All clients done");
 
     // recv a buffer larger than what will ever be sent. this should timeout
     char buffer[kBufferSize * 16];

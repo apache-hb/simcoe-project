@@ -119,6 +119,8 @@ namespace sm::net {
         void cancel() noexcept;
 
         NetError listen(int backlog) noexcept;
+
+        uint16_t getBoundPort();
     };
 
     class Network {

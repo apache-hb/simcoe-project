@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string_view>
+#include <chrono>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -47,16 +48,14 @@ namespace sm::system::os {
     using SocketHandle = int;
     static constexpr SocketHandle kInvalidSocket = -1;
 
-    inline NetErrorCode destroySocket(SocketHandle socket) {
-        return ::close(socket);
-    }
+    NetErrorCode destroySocket(SocketHandle socket);
 
     inline bool ioctlSocketAsync(SocketHandle socket, bool enabled) {
         int flags = ::fcntl(socket, F_GETFL, 0);
         if (flags == -1)
             return false;
 
-        int mode = enabled ? (flags & ~O_NONBLOCK) : (flags | O_NONBLOCK);
+        int mode = enabled ? (flags | O_NONBLOCK) : (flags & ~O_NONBLOCK);
         return ::fcntl(socket, F_SETFL, mode) != -1;
     }
 
@@ -64,7 +63,5 @@ namespace sm::system::os {
         return ::shutdown(socket, SHUT_RDWR) == 0;
     }
 
-    inline bool isSocketReady(SocketHandle socket) {
-        return false; // TODO: implement
-    }
+    bool connectWithTimeout(SocketHandle socket, const sockaddr *addr, socklen_t len, std::chrono::milliseconds timeout);
 }

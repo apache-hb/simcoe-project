@@ -85,7 +85,7 @@ NetError Socket::setRecvTimeout(std::chrono::milliseconds timeout) noexcept {
     auto count = timeout.count();
     struct timeval tv = {
         .tv_sec = static_cast<long>(count / 1000),
-        .tv_usec = static_cast<long>((count % 1000))
+        .tv_usec = static_cast<long>(count % 1000)
     };
 
     if (::setsockopt(mSocket, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&tv), sizeof(tv)))
@@ -98,7 +98,7 @@ NetError Socket::setSendTimeout(std::chrono::milliseconds timeout) noexcept {
     auto count = timeout.count();
     struct timeval tv = {
         .tv_sec = static_cast<long>(count / 1000),
-        .tv_usec = static_cast<long>((count % 1000))
+        .tv_usec = static_cast<long>(count % 1000)
     };
 
     if (::setsockopt(mSocket, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&tv), sizeof(tv)))
@@ -131,9 +131,7 @@ NetResult<Socket> ListenSocket::tryAccept() noexcept {
 }
 
 void ListenSocket::cancel() noexcept {
-    mFlags |= kShutdownFlag;
-    system::os::cancelSocket(mSocket);
-    Socket::closeSocket();
+    closeSocket();
 }
 
 NetError ListenSocket::listen(int backlog) noexcept {
@@ -141,4 +139,19 @@ NetError ListenSocket::listen(int backlog) noexcept {
         return lastNetError();
 
     return NetError::ok();
+}
+
+uint16_t ListenSocket::getBoundPort() {
+    sockaddr_storage addr;
+    socklen_t len = sizeof(addr);
+
+    if (::getsockname(mSocket, reinterpret_cast<sockaddr*>(&addr), &len))
+        throw NetException{lastNetError()};
+
+    if (addr.ss_family == AF_INET) {
+        sockaddr_in *in = reinterpret_cast<sockaddr_in*>(&addr);
+        return ntohs(in->sin_port);
+    }
+
+    return 0;
 }

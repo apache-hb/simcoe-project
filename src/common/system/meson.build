@@ -16,11 +16,16 @@ if host_machine.system() == 'windows'
         'src/input.cpp',
         'src/registry.cpp',
         'src/window.cpp',
-        'src/win32/storage.cpp'
+
+        'src/win32/storage.cpp',
+        'src/win32/network.cpp',
     ]
     deps += [ dependency('wil'), cc.find_library('ws2_32') ]
 elif host_machine.system() == 'linux'
-    src += [ 'src/posix/storage.cpp' ]
+    src += [
+        'src/posix/storage.cpp',
+        'src/posix/network.cpp',
+    ]
 endif
 
 libsystem = library('system', src,
