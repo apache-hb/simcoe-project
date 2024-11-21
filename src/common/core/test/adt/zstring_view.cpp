@@ -60,8 +60,6 @@ TEST_CASE("zstring view operations") {
         }
     }
 
-    CHECK(sm::isNullTerminated("test"));
-
     CHECK("test"_zsv.startsWith("te"));
     CHECK("test"_zsv.endsWith("st"));
 

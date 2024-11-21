@@ -7,6 +7,7 @@
 
 using namespace sm;
 
+#if _WIN32
 WINDOWPLACEMENT sm::archive::toWindowPlacement(const sm::dao::archive::WindowPlacement &placement) noexcept {
     return WINDOWPLACEMENT {
         .length = sizeof(WINDOWPLACEMENT),
@@ -43,6 +44,7 @@ sm::dao::archive::WindowPlacement sm::archive::fromWindowPlacement(const WINDOWP
         .normalPosBottom = placement.rcNormalPosition.bottom,
     };
 }
+#endif
 
 Io Io::file(const char *path, os_access_t access) {
     return Io(io_file(path, access, get_default_arena()));

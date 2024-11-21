@@ -12,13 +12,13 @@
 
 #define FMT_STATIC_THOUSANDS_SEPARATOR '\''
 
-#ifdef __GNUC__
+#ifdef CT_CC_GNU
 #   pragma GCC diagnostic push
 #   pragma GCC diagnostic ignored "-Wdangling-reference"
 #endif
 
 #include "fmt/format.h" // IWYU pragma: export
 
-#ifdef __GNUC__
+#ifdef CT_CC_GNU
 #   pragma GCC diagnostic pop
 #endif

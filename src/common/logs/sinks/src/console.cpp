@@ -6,7 +6,9 @@
 #include "logs/channel.hpp"
 #include "logs/sinks/channels.hpp"
 
-#include "core/win32.hpp"
+#if _WIN32
+#   include "core/win32.hpp"
+#endif
 
 namespace os = sm::os;
 namespace logs = sm::logs;
@@ -39,7 +41,11 @@ public:
 };
 
 bool sinks::isConsoleAvailable() noexcept {
+#if _WIN32
     return !!GetConsoleCP();
+#else
+    return true;
+#endif
 }
 
 logs::ILogChannel *sm::logs::sinks::console() {

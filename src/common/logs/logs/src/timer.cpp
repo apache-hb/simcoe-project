@@ -49,11 +49,11 @@ chrono::milliseconds detail::InvariantTscSource::getTimeSinceStart() const noexc
     uint64_t ms = ((tsc - mStartTsc) / kPerformanceCounterFrequency);
     return chrono::milliseconds(ms);
 }
+#endif
 
-static chrono::milliseconds detail::getCurrentTime(const ITimeSource& source) noexcept {
+chrono::milliseconds detail::getCurrentTime(const ITimeSource& source) noexcept {
     chrono::milliseconds ms = source.getTimeSinceStart();
     SystemTimePoint time = source.getStartTime() + ms;
 
     return chrono::duration_cast<chrono::milliseconds>(time.time_since_epoch());
 }
-#endif

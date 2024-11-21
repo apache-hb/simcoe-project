@@ -33,7 +33,7 @@ DbError sqlite::getError(int err, sqlite3 *db, const char *message) noexcept {
         return DbError::done(err);
 
     int status = getStatusType(err);
-    const char *msg = message != nullptr ? message : sqlite3_errmsg(db);
+    const char *msg = message ?: sqlite3_errmsg(db);
     return DbError{err, status, msg};
 }
 

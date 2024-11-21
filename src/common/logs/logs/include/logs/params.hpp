@@ -29,7 +29,27 @@ namespace sm::logs {
     using ArgStore = fmt::dynamic_format_arg_store<fmt::format_context>;
 
     using FormatArg = fmt::basic_format_arg<fmt::format_context>;
-    using NamedArg = std::pair<std::string_view, FormatArg>;
+
+    template<typename T>
+    struct NamedArg {
+        std::string_view name;
+        T value;
+
+        NamedArg(fmt::detail::named_arg<char, T> arg) noexcept
+            : name(arg.name)
+            , value(arg.value)
+        { }
+
+        operator fmt::detail::named_arg<char, T>() const noexcept {
+            return { name.data(), value };
+        }
+    };
+
+    template<typename T>
+    constexpr bool kIsNamedArg = false;
+
+    template<typename T>
+    constexpr bool kIsNamedArg<NamedArg<T>> = true;
 
     class DynamicArgStore {
         virtual FormatArg getArg(int index) const noexcept = 0;
@@ -51,13 +71,8 @@ namespace sm::logs {
         }
     };
 
-    template<typename T>
-    consteval bool isNamedArg() noexcept {
-        return fmt::detail::is_named_arg<T>::value;
-    }
-
     template<typename... A>
-    constexpr int kNamedArgCount = fmt::detail::count_named_args<A...>();
+    constexpr int kNamedArgCount = fmt::detail::count<kIsNamedArg<A>...>();
 
     namespace detail {
         // c++ has some strange type rules around lvalue references to arrays
@@ -90,8 +105,29 @@ namespace sm::logs {
         };
 
         template<typename T>
+        struct ArgData<fmt::detail::named_arg<char, T>> {
+            using type = NamedArg<typename ArgData<T>::type>;
+        };
+
+        template<typename T>
         using ArgDataT = typename ArgData<T>::type;
+
+        template<typename T> requires (!kIsNamedArg<std::remove_cvref_t<T>>)
+        FormatArg makeFormatArg(T&& arg) noexcept {
+            return FormatArg(arg);
+        }
+
+        template<typename T>
+        fmt::detail::named_arg<char, T> makeFormatArg(const NamedArg<T>& arg) noexcept {
+            return fmt::detail::named_arg<char, T>(arg);
+        }
     }
+
+    static_assert(kIsNamedArg<bool> == false);
+    static_assert(kIsNamedArg<NamedArg<bool>> == true);
+    static_assert(kIsNamedArg<detail::ArgDataT<fmt::detail::named_arg<char, bool>>> == true);
+    static_assert(kIsNamedArg<detail::ArgDataT<bool>> == false);
+    static_assert(kIsNamedArg<std::remove_cvref_t<const sm::logs::NamedArg<int> &>> == true);
 
     template<typename... A>
     using ArgTuple = std::tuple<detail::ArgDataT<A>...>;
@@ -101,10 +137,10 @@ namespace sm::logs {
         return FormatArg{};
     }
 
-    template<size_t N, typename... A>
+    template<size_t N, typename... A> requires (sizeof...(A) > 0)
     FormatArg getArgByIndex(const ArgTuple<A...>& args, int index) noexcept {
         if (N == index) {
-            return FormatArg(std::get<N>(args));
+            return detail::makeFormatArg(std::get<N>(args));
         }
 
         if constexpr (N + 1 != sizeof...(A)) {
@@ -119,20 +155,19 @@ namespace sm::logs {
         return FormatArg{};
     }
 
-    template<size_t N, typename... A>
+    template<size_t N, typename... A> requires (sizeof...(A) > 0)
     FormatArg getArgByName(const ArgTuple<A...>& args, std::string_view name) noexcept {
-        if constexpr (isNamedArg<std::tuple_element_t<N, ArgTuple<A...>>>()) {
+        if constexpr (kIsNamedArg<std::tuple_element_t<N, ArgTuple<A...>>>) {
             if (std::get<N>(args).name == name)
-                return FormatArg(std::get<N>(args).value);
+                return detail::makeFormatArg(std::get<N>(args).value);
         }
 
         if constexpr (N + 1 != sizeof...(A)) {
             return getArgByName<N + 1, A...>(args, name);
         }
-        
+
         return FormatArg{};
     }
-
 
     template<typename... A>
     class ArgStoreData final : public DynamicArgStore {
@@ -156,7 +191,7 @@ namespace sm::logs {
             ArgStore store;
             store.reserve(sizeof...(A) - kNamedCount, kNamedCount);
             std::apply([&store](const auto&... args) {
-                (store.push_back(args), ...);
+                (store.push_back(detail::makeFormatArg(args)), ...);
             }, args);
             return store;
         }

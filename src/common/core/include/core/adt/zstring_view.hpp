@@ -98,10 +98,6 @@ namespace sm {
         }
     };
 
-    constexpr bool isNullTerminated(std::string_view view) {
-        return view[view.size()] == '\0';
-    }
-
     extern template class BasicZStringView<char>;
     extern template class BasicZStringView<char8_t>;
     extern template class BasicZStringView<char16_t>;

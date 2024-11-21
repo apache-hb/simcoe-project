@@ -53,6 +53,16 @@ void sqlite::CloseStmt::operator()(sqlite3_stmt *stmt) noexcept {
     sqlite3_finalize(stmt);
 }
 
+void *SqliteStatement::addBoundData(Blob data) {
+    DataHolder& holder = mBoundData.emplace_front(std::move(data));
+    return std::visit([](auto& data) -> void* { return (void*)data.data(); }, holder);
+}
+
+const char *SqliteStatement::addBoundData(std::string_view data) {
+    DataHolder& holder = mBoundData.emplace_front(std::string(data));
+    return std::visit([](auto& data) -> const char * { return (const char *)data.data(); }, holder);
+}
+
 DbError SqliteStatement::getStmtError(int err) const noexcept {
     if (err == SQLITE_DONE)
         return DbError::done(err);
@@ -112,7 +122,8 @@ DbError SqliteStatement::bindBooleanByIndex(int index, bool value) noexcept {
 }
 
 DbError SqliteStatement::bindStringByIndex(int index, std::string_view value) noexcept {
-    int err = sqlite3_bind_text(mStatement.get(), index + 1, value.data(), value.size(), SQLITE_STATIC);
+    const char *data = addBoundData(value);
+    int err = sqlite3_bind_text(mStatement.get(), index + 1, data, value.size(), SQLITE_STATIC);
     return getStmtError(err);
 }
 
@@ -122,7 +133,8 @@ DbError SqliteStatement::bindDoubleByIndex(int index, double value) noexcept {
 }
 
 DbError SqliteStatement::bindBlobByIndex(int index, Blob value) noexcept {
-    int err = sqlite3_bind_blob(mStatement.get(), index + 1, value.data(), value.size(), SQLITE_STATIC);
+    void *data = addBoundData(std::move(value));
+    int err = sqlite3_bind_blob(mStatement.get(), index + 1, data, value.size(), SQLITE_STATIC);
     return getStmtError(err);
 }
 

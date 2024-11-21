@@ -43,6 +43,13 @@ static constexpr sqlite3_mem_methods kMemoryMethods = {
     .xShutdown = sqliteShutdown,
 };
 
+static void setConfigMemory() {
+    int err = sqlite3_config(SQLITE_CONFIG_MALLOC, &kMemoryMethods);
+    if (err != SQLITE_OK) {
+        LOG_WARN(DbLog, "Failed to set SQLite memory: {} ({})", sqlite3_errstr(err), err);
+    }
+}
+
 static void setConfigLog() {
     auto fn = +[](void *ctx, int err, const char *msg) {
         LOG_INFO(DbLog, "sqlite: {}", msg);
@@ -54,20 +61,13 @@ static void setConfigLog() {
     }
 }
 
-static void setConfigMemory() {
-    int err = sqlite3_config(SQLITE_CONFIG_MALLOC, &kMemoryMethods);
-    if (err != SQLITE_OK) {
-        LOG_WARN(DbLog, "Failed to set SQLite memory: {} ({})", sqlite3_errstr(err), err);
-    }
-}
-
 DbError SqliteEnvironment::execute(sqlite3 *db, const std::string& sql) noexcept {
     char *message = nullptr;
     defer { if (message != nullptr) sqlite3_free(message); };
     int err = sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &message);
 
     if (err != SQLITE_OK) {
-        const char *msg = message != nullptr ? message : sqlite3_errmsg(db);
+        const char *msg = message ?: sqlite3_errmsg(db);
         return sqlite::getError(err, db, msg);
     }
 

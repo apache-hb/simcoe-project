@@ -2,6 +2,7 @@
 
 #include <sqlite3.h>
 
+#include <forward_list>
 #include "drivers/common.hpp"
 
 namespace sm::db::sqlite {
@@ -11,9 +12,15 @@ namespace sm::db::sqlite {
 
     using SqliteStmtHandle = sm::UniquePtr<sqlite3_stmt, CloseStmt>;
 
+    using DataHolder = std::variant<std::string, Blob>;
+
     class SqliteStatement final : public detail::IStatement {
         SqliteStmtHandle mStatement = nullptr;
+        std::forward_list<DataHolder> mBoundData;
         int mStatus = SQLITE_OK;
+
+        void *addBoundData(Blob data);
+        const char *addBoundData(std::string_view data);
 
         DbError getStmtError(int err) const noexcept;
         bool hasDataReady() const noexcept override { return mStatus == SQLITE_ROW; }

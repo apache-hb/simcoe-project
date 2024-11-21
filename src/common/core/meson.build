@@ -42,7 +42,7 @@ args = cpp.get_supported_arguments('-Wno-dangling-reference')
 
 libcore = library('core', src, simcoe_config,
     cpp_args : [ '-DSM_CORE_BUILD=1', args ],
-    # cpp_pch : 'src/stdafx.hpp',
+    cpp_pch : 'src/stdafx.hpp',
     include_directories : [ inc, core_include, config_include, 'src' ],
     dependencies : deps
 )

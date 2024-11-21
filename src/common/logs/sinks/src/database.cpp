@@ -115,13 +115,12 @@ class DbChannel final : public logs::IAsyncLogChannel {
     moodycamel::BlockingConcurrentQueue<LogEntryPacket> mQueue{1024};
 
     size_t mMaxPackets = 256;
-    sm::UniquePtr<LogEntryPacket[]> mPacketBuffer = new LogEntryPacket[mMaxPackets];
 
     std::jthread mWorkerThread;
 
     void attach() override { }
 
-    ~DbChannel() override {
+    ~DbChannel() noexcept override {
         mWorkerThread.request_stop();
 
         // this message is after the request_stop to prevent deadlocks.
@@ -146,7 +145,7 @@ class DbChannel final : public logs::IAsyncLogChannel {
         });
     }
 
-    void commit(std::span<const LogEntryPacket> packets) noexcept {
+    void commit(std::span<const LogEntryPacket> packets) {
         db::Transaction tx(&mConnection);
 
         for (const auto& [timestamp, message, params] : packets) {
@@ -193,19 +192,20 @@ class DbChannel final : public logs::IAsyncLogChannel {
         }
     }
 
-    void workerThread(const std::stop_token& stop) noexcept {
+    void workerThread(const std::stop_token& stop) {
+        std::unique_ptr<LogEntryPacket[]> buffer = std::make_unique_for_overwrite<LogEntryPacket[]>(mMaxPackets);
         while (!stop.stop_requested()) {
-            size_t count = mQueue.wait_dequeue_bulk(mPacketBuffer.get(), mMaxPackets);
-            commit(std::span(mPacketBuffer.get(), count));
+            size_t count = mQueue.wait_dequeue_bulk(buffer.get(), mMaxPackets);
+            commit(std::span(buffer.get(), count));
         }
 
         // commit any remaining packets
         while (true) {
-            size_t count = mQueue.try_dequeue_bulk(mPacketBuffer.get(), mMaxPackets);
+            size_t count = mQueue.try_dequeue_bulk(buffer.get(), mMaxPackets);
             if (count == 0)
                 break;
 
-            commit(std::span(mPacketBuffer.get(), count));
+            commit(std::span(buffer.get(), count));
         }
     }
 public:

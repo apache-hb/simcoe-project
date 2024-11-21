@@ -5,7 +5,9 @@
 #include "logs/sinks/channels.hpp"
 #include "logs/logger.hpp"
 
-#include "core/win32.hpp"
+#if _WIN32
+#   include "core/win32.hpp"
+#endif
 
 using namespace sm;
 using namespace std::chrono_literals;
@@ -22,7 +24,10 @@ using namespace std::chrono_literals;
 LOG_MESSAGE_CATEGORY(TestLog, "Tests");
 
 TEST_CASE("Setup logging") {
+#if _WIN32
     SetProcessAffinityMask(GetCurrentProcess(), 0b1111'1111'1111'1111);
+#endif
+
     logs::create(logs::LoggingConfig { });
 
     auto env = db::Environment::create(db::DbType::eSqlite3);

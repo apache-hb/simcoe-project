@@ -110,7 +110,7 @@ if has_odbc
 endif
 
 args = cpp.get_supported_arguments(
-    '-Wno-c99-designator', 
+    '-Wno-c99-designator',
     '-Wno-cast-function-type-mismatch',
 
     # bogus gcc warning
@@ -119,7 +119,7 @@ args = cpp.get_supported_arguments(
 
 libdb = library('db', [ src, db_config ],
     cpp_args : [ '-DSM_DB_BUILD=1', args ],
-    # cpp_pch : 'src/db/stdafx.hpp',
+    cpp_pch : 'src/db/stdafx.hpp',
     include_directories : [ db_include, db_private_include ],
     dependencies : [ deps, db_private_deps ],
     override_options : [ 'unity=off' ]
