@@ -262,7 +262,9 @@ static launch::LaunchResult commonMainInner(HINSTANCE hInstance, std::span<const
     LOG_INFO(LaunchLog, "args = [{}]", fmt::join(args, ", "));
 
     if (int err = sm::parseCommandLine(args.size(), args.data())) {
-        gGlobalInfo.exitCode = (err == -1) ? 0 : err;
+        if (!info.allowInvalidArgs) {
+            gGlobalInfo.exitCode = (err == -1) ? 0 : err;
+        }
     }
 
     return result;

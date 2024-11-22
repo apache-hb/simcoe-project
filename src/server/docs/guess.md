@@ -89,6 +89,10 @@ for managing incoming connections.
 ### 6100 - oraagent
 seems to be http traffic
 
+### 6100 - ipv6 ons
+alot of open sockets on 6100 but very little traffic, i guess
+its not enabled yet.
+
 ### 6200 - ipv4 ons
 encrypted with tls, this is the notification service.
 why is this encrypted when nothing else is?
@@ -224,4 +228,43 @@ tcp   ESTAB      0      0                          [::1]:6100                   
 tcp   ESTAB      0      0          [::ffff:172.16.1.102]:63428                  [::ffff:172.16.1.101]:5000                users:(("java",pid=959,fd=60))
 tcp   ESTAB      0      0                          [::1]:6100                                   [::1]:44938               users:(("ons",pid=3405,fd=10))
 tcp   ESTAB      0      0                          [::1]:6100                                   [::1]:27588               users:(("ons",pid=3405,fd=14))
+```
+
+## replacing /u01/app/19.3.0/grid/opmn/bin/ons
+```sh
+/u01/app/19.3.0/grid/bin/srvctl stop ons
+sudo cp /opt/shared/orarpc-test /u01/app/19.3.0/grid/opmn/bin/ons
+/u01/app/19.3.0/grid/bin/srvctl start ons
+```
+
+```log
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)[INFO][21:48:18.981] Net: WSAStartup  : SUCCESS
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)[INFO][21:48:18.981] Net: VERSION     : 1.0
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)[INFO][21:48:18.981] Net: DESCRIPTION : `POSIX SOCKETS`
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)[INFO][21:48:18.981] Net: STATUS      : `ACTIVE`
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)[INFO][21:48:18.981] Launch: args = [/u01/app/19.3.0/grid/opmn/bin/ons, -a, ping]
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)INVALID SYNTAX: Unexpected value (-a).
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)INVALID SYNTAX: Unexpected value (ping).
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)[INFO][21:48:19.006] Net: WSAStartup  : SUCCESS
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)[INFO][21:48:19.006] Net: VERSION     : 1.0
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)[INFO][21:48:19.006] Net: DESCRIPTION : `POSIX SOCKETS`
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)[INFO][21:48:19.006] Net: STATUS      : `ACTIVE`
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)[INFO][21:48:19.006] Launch: args = [/u01/app/19.3.0/grid/opmn/bin/ons, -d]
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)INVALID SYNTAX: Unexpected value (-d).
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)onsctl start: ons failed to start
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)
+2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)Utils:execCmd scls_process_join() uret 1
 ```

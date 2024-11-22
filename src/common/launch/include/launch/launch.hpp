@@ -35,6 +35,8 @@ namespace sm::launch {
         bool network = false;
         bool com = false;
         bool glfw = false;
+
+        bool allowInvalidArgs = false;
     };
 
     LaunchResult commonInit(HINSTANCE hInstance, const LaunchInfo& info);
