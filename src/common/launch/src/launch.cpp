@@ -1,11 +1,17 @@
 #include "launch/launch.hpp"
 
+#include "GLFW/glfw3.h"
 #include "fmt/ranges.h"
 #include "logs/logger.hpp"
 #include "logs/sinks/channels.hpp"
 
 #include "threads/threads.hpp"
-#include "system/system.hpp"
+
+#if _WIN32
+#   include "system/system.hpp"
+#   include "threads/topology.hpp"
+#   include <shellapi.h>
+#endif
 
 #include "db/environment.hpp"
 
@@ -13,6 +19,8 @@
 
 #include "config/config.hpp"
 #include "config/parse.hpp"
+
+#include "core/error.hpp"
 
 #include "core/macros.h"
 #include "core/memory.h"
@@ -22,17 +30,14 @@
 
 #include "format/backtrace.h"
 #include "format/colour.h"
-#include "threads/topology.hpp"
 
 #include "core/defer.hpp"
-#include "core/win32.hpp"
-#include <shellapi.h>
 
 using namespace sm;
 
-namespace launch = sm::launch;
-namespace db = sm::db;
-namespace config = sm::config;
+#ifndef _WIN32
+#define GetModuleHandleA(x) nullptr
+#endif
 
 LOG_MESSAGE_CATEGORY(LaunchLog, "Launch");
 
@@ -146,8 +151,10 @@ static sm::UniquePtr<LazyDatabaseEnv> gInfoEnv;
 static DefaultSystemError gDefaultError{};
 
 static void setupThreadState() {
+#if _WIN32
     // TODO: move to our own thread library which is aware of topology
     SetProcessAffinityMask(GetCurrentProcess(), 0b1111'1111'1111'1111);
+#endif
 }
 
 static void setupCthulhuRuntime() {
@@ -197,14 +204,18 @@ static void setupLogging(const fs::path& path, const db::ConnectionConfig& confi
 }
 
 static void setupSystem(HINSTANCE hInstance, bool enableCom) {
+#if _WIN32
     system::create(hInstance);
+#endif
 }
 
 static void setupThreads(bool enabled) {
     if (!enabled) return;
 
     threads::create();
+#if _WIN32
     threads::saveThreadInfo(gInfoEnv->connect());
+#endif
 }
 
 static void setupNetwork(bool enabled) {
@@ -213,10 +224,29 @@ static void setupNetwork(bool enabled) {
     net::create();
 }
 
+static void setupGlfw(bool enabled) {
+    glfwSetErrorCallback([](int error, const char *description) {
+        LOG_ERROR(LaunchLog, "GLFW error {}: `{}`", error, description);
+    });
+
+    if (!enabled) return;
+
+    if (!glfwInit()) {
+        LOG_ERROR(LaunchLog, "failed to initialize GLFW");
+        gGlobalInfo.exitCode = -1;
+    }
+}
+
 launch::LaunchResult::~LaunchResult() noexcept try {
     net::destroy();
     threads::destroy();
+
+#if _WIN32
     system::destroy();
+#endif
+
+    glfwTerminate();
+
     logs::sinks::destroy();
 } catch (const std::exception& err) {
     LOG_ERROR(LaunchLog, "unhandled exception: {}", err.what());
@@ -240,6 +270,7 @@ launch::LaunchResult launch::commonInit(HINSTANCE hInstance, const LaunchInfo& i
     setupSystem(hInstance, info.com);
     setupThreads(info.threads);
     setupNetwork(info.network);
+    setupGlfw(info.glfw);
 
     return LaunchResult {};
 }
@@ -271,6 +302,7 @@ launch::LaunchResult launch::commonInitMain(int argc, const char **argv, const L
     return commonMainInner(GetModuleHandleA(nullptr), args, info);
 }
 
+#if _WIN32
 launch::LaunchResult launch::commonInitWinMain(HINSTANCE hInstance, int nShowCmd, const LaunchInfo& info) noexcept {
     int argc = 0;
     LPWSTR *argvw = CommandLineToArgvW(GetCommandLineW(), &argc);
@@ -288,3 +320,4 @@ launch::LaunchResult launch::commonInitWinMain(HINSTANCE hInstance, int nShowCmd
 
     return commonMainInner(hInstance, argv, info);
 }
+#endif

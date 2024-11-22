@@ -2,7 +2,9 @@
 
 // IWYU pragma: begin_exports
 
-#include "core/win32.hpp"
+#if _WIN32
+#   include "core/win32.hpp"
+#endif
 
 #include "backtrace/backtrace.h"
 #include "base/panic.h"
@@ -29,6 +31,8 @@
 #include "config/config.hpp"
 #include "config/parse.hpp"
 
-#include "system/system.hpp"
+#if _WIN32
+#   include "system/system.hpp"
+#endif
 
 // IWYU pragma: end_exports

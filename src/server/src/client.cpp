@@ -20,6 +20,7 @@ static const launch::LaunchInfo kLaunchInfo {
     .logPath = "client.log",
 
     .network = true,
+    .glfw = true,
 };
 
 enum ClientState {
@@ -73,13 +74,13 @@ struct LobbyListWidget {
             for (const auto& session : lobbies.read()) {
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
-                ImGui::Text("%llu", session.id);
+                ImGui::Text("%" PRIu64, session.id);
                 ImGui::TableNextColumn();
                 std::string_view name = session.name.text();
                 ImGui::Text("%.*s", (int)name.size(), name.data());
                 ImGui::TableNextColumn();
                 game::SessionId host = session.getHost();
-                ImGui::Text("%llu", host);
+                ImGui::Text("%" PRIu64, host);
                 ImGui::TableNextColumn();
                 ImGui::Text("%d", session.getPlayerCount());
             }
@@ -152,7 +153,7 @@ struct SessionListWidget {
                 ImGui::TableNextRow();
 
                 ImGui::TableNextColumn();
-                ImGui::Text("%llu", session.id);
+                ImGui::Text("%" PRIu64, session.id);
 
                 ImGui::TableNextColumn();
                 std::string_view name = session.name.text();
@@ -240,8 +241,10 @@ static int commonMain() noexcept try {
         });
     };
 
-    GuiWindow window{"Client"};
-    while (window.next()) {
+    launch::GuiWindow window{"Client"};
+    while (!window.shouldClose()) {
+        window.begin();
+
         ImGui::ShowDemoWindow();
 
         if (ImGui::Begin("Client")) {
@@ -376,7 +379,7 @@ static int commonMain() noexcept try {
         }
         ImGui::End();
 
-        window.present();
+        window.end();
     }
 
     clientThread.request_stop();
@@ -391,40 +394,4 @@ static int commonMain() noexcept try {
     return -1;
 }
 
-int main(int argc, const char **argv) noexcept try {
-    launch::LaunchResult launch = launch::commonInitMain(argc, argv, kLaunchInfo);
-    if (launch.shouldExit()) {
-        return launch.exitCode();
-    }
-
-    int result = commonMain();
-
-    LOG_INFO(ClientLog, "editor exiting with {}", result);
-
-    return result;
-} catch (const std::exception& err) {
-    LOG_ERROR(ClientLog, "unhandled exception: {}", err.what());
-    return -1;
-} catch (...) {
-    LOG_ERROR(ClientLog, "unknown unhandled exception");
-    return -1;
-}
-
-int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) try {
-    launch::LaunchResult launch = launch::commonInitWinMain(hInstance, nShowCmd, kLaunchInfo);
-    if (launch.shouldExit()) {
-        return launch.exitCode();
-    }
-
-    int result = commonMain();
-
-    LOG_INFO(ClientLog, "editor exiting with {}", result);
-
-    return result;
-} catch (const std::exception& err) {
-    LOG_ERROR(ClientLog, "unhandled exception: {}", err.what());
-    return -1;
-} catch (...) {
-    LOG_ERROR(ClientLog, "unknown unhandled exception");
-    return -1;
-}
+SM_LAUNCH_MAIN("Client", commonMain, kLaunchInfo)

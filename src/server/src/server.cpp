@@ -35,9 +35,11 @@ static sm::opt<uint16_t> gServerPort {
 };
 
 static void serverGui(game::AccountServer &server) {
-    GuiWindow window{"Server"};
-    while (window.next()) {
-        window.present();
+    launch::GuiWindow window{"Server"};
+    while (!window.shouldClose()) {
+        window.begin();
+
+        window.end();
     }
 }
 
@@ -85,42 +87,7 @@ static const launch::LaunchInfo kLaunchInfo {
     .logPath = "server.log",
 
     .network = true,
+    .glfw = true,
 };
 
-int main(int argc, const char **argv) noexcept try {
-    launch::LaunchResult launch = launch::commonInitMain(argc, argv, kLaunchInfo);
-    if (launch.shouldExit()) {
-        return launch.exitCode();
-    }
-
-    int result = commonMain();
-
-    LOG_INFO(ServerLog, "editor exiting with {}", result);
-
-    return result;
-} catch (const std::exception& err) {
-    LOG_ERROR(ServerLog, "unhandled exception: {}", err.what());
-    return -1;
-} catch (...) {
-    LOG_ERROR(ServerLog, "unknown unhandled exception");
-    return -1;
-}
-
-int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) try {
-    launch::LaunchResult launch = launch::commonInitWinMain(hInstance, nShowCmd, kLaunchInfo);
-    if (launch.shouldExit()) {
-        return launch.exitCode();
-    }
-
-    int result = commonMain();
-
-    LOG_INFO(ServerLog, "editor exiting with {}", result);
-
-    return result;
-} catch (const std::exception& err) {
-    LOG_ERROR(ServerLog, "unhandled exception: {}", err.what());
-    return -1;
-} catch (...) {
-    LOG_ERROR(ServerLog, "unknown unhandled exception");
-    return -1;
-}
+SM_LAUNCH_MAIN("Server", commonMain, kLaunchInfo)

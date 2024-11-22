@@ -34,13 +34,9 @@ os::NetErrorCode os::destroySocket(SocketHandle socket) {
 
     clearSocketError(socket);
 
-    fmt::println(stderr, "closing socket {}", socket);
-
     if (::close(socket) == -1) {
         return lastNetError();
     }
-
-    fmt::println(stderr, "closed socket {}", socket);
 
     return kSuccess;
 }
@@ -60,10 +56,6 @@ bool os::connectWithTimeout(os::SocketHandle socket, const sockaddr *addr, sockl
 
     int rc = -1;
 
-    static int counter = 0;
-
-    int id = counter++;
-
     do {
         if (timeoutReached())
             return false;
@@ -71,8 +63,6 @@ bool os::connectWithTimeout(os::SocketHandle socket, const sockaddr *addr, sockl
         struct pollfd pfds[] = {
             { .fd = socket, .events = POLLOUT }
         };
-
-        fmt::println(stderr, "polling {}", id);
 
         rc = poll(pfds, std::size(pfds), timeout.count());
         if (rc > 0) {
@@ -83,8 +73,6 @@ bool os::connectWithTimeout(os::SocketHandle socket, const sockaddr *addr, sockl
             else rc = -1;
         }
     } while (rc == -1 && errno == EINTR);
-
-    fmt::println(stderr, "poll returned {} {}", id, rc);
 
     if (rc == 0) {
         errno = ETIMEDOUT;

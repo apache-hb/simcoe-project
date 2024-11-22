@@ -56,6 +56,7 @@ private:
     Functor func;
 };
 
+[[maybe_unused]]
 std::string ToLower(const std::string &s)
 {
     std::string ret = s;

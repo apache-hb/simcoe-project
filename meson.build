@@ -209,27 +209,6 @@ subdir('src/common/threads')
 
 subdir('src/common/net')
 
-if not is_windows
-    subdir_done()
-endif
-
-subdir('src/vendor/reflect')
-subdir('src/meta')
-
-dxc = find_program(dxc_id, native : true)
-msdf_atlas_gen = find_program('msdf-atlas-gen', native : true)
-compressonator = find_program('compressonatorcli', native : true)
-fastgltf = dependency('fastgltf')
-
-d3d12 = dependency('d3d12')
-d3dx12 = dependency('directx-headers')
-tracy = dependency('tracy')
-
-
-subdir('src/common/world')
-
-subdir('src/vendor/d3d12ma')
-
 # vendor imgui here to have access to our own math library
 subdir('src/vendor/imgui')
 subdir('src/vendor/implot')
@@ -238,23 +217,42 @@ subdir('src/vendor/imfilebrowser')
 subdir('src/vendor/imnodes')
 subdir('src/vendor/imgui_memory_editor')
 
-subdir('src/common/render')
-# subdir('src/common/graph')
-subdir('src/common/draw')
-subdir('src/common/game')
-
-###
-### plugins
-###
-
-subdir('src/plugins/ryzenmaster')
-
-###
-### game modules
-###
-
 subdir('src/game/account')
-subdir('src/game/thunderflash')
+
+if host_machine.system() == 'windows'
+    subdir('src/vendor/reflect')
+    subdir('src/meta')
+
+    dxc = find_program(dxc_id, native : true)
+    msdf_atlas_gen = find_program('msdf-atlas-gen', native : true)
+    compressonator = find_program('compressonatorcli', native : true)
+    fastgltf = dependency('fastgltf')
+
+    d3d12 = dependency('d3d12')
+    d3dx12 = dependency('directx-headers')
+    tracy = dependency('tracy')
+
+    subdir('src/common/world')
+
+    subdir('src/vendor/d3d12ma')
+
+    subdir('src/common/render')
+    # subdir('src/common/graph')
+    subdir('src/common/draw')
+    subdir('src/common/game')
+
+    ###
+    ### plugins
+    ###
+
+    subdir('src/plugins/ryzenmaster')
+
+    ###
+    ### game modules
+    ###
+
+    subdir('src/game/thunderflash')
+endif
 
 ###
 ### top level modules
@@ -266,139 +264,141 @@ subdir('src/common/launch')
 ### plugins
 ###
 
-subdir('src/plugins/contextmenu')
+if host_machine.system() == 'windows'
+    subdir('src/plugins/contextmenu')
 
-# windows specific dependencies
-d3d12 = subproject('d3d12')
-warp = subproject('d3dwarp')
-dxcompiler = subproject(dxc_id)
-winpixruntime = subproject('winpixruntime')
-dstorage = subproject('dstorage')
-windows = import('windows')
+    # windows specific dependencies
+    d3d12 = subproject('d3d12')
+    warp = subproject('d3dwarp')
+    dxcompiler = subproject(dxc_id)
+    winpixruntime = subproject('winpixruntime')
+    dstorage = subproject('dstorage')
+    windows = import('windows')
 
-magick = find_program('magick', native : true)
-convert_utf16 = find_program('scripts/convert_utf16.py', native : true)
+    magick = find_program('magick', native : true)
+    convert_utf16 = find_program('scripts/convert_utf16.py', native : true)
 
-default_ico = custom_target('default_icon',
-    input : [ 'data/assets/icon/icon_circle.png' ],
-    command : [ magick, '@INPUT@', '-define', 'icon:auto-resize=256,128,48,32,16', '@OUTPUT@' ],
-    output : [ 'icon_default.ico' ]
-)
+    default_ico = custom_target('default_icon',
+        input : [ 'data/assets/icon/icon_circle.png' ],
+        command : [ magick, '@INPUT@', '-define', 'icon:auto-resize=256,128,48,32,16', '@OUTPUT@' ],
+        output : [ 'icon_default.ico' ]
+    )
 
-rc_cdata = configuration_data()
-rc_cdata.merge_from(simcoe_cdata)
-rc_cdata.set('DEFAULT_ICON', default_ico.full_path().replace('\\', '\\\\'))
-rc_cdata.set('MAJOR', parts[0].to_int())
-rc_cdata.set('MINOR', parts[1].to_int())
-rc_cdata.set('PATCH', parts[2].to_int())
-rc_cdata.set('BUILD', 99)
-rc_cdata.set('COMPANY', 'Temptation Games')
-rc_cdata.set('PRODUCT', 'Priority Zero')
-rc_cdata.set('DESCRIPTION', 'Priority Zero')
+    rc_cdata = configuration_data()
+    rc_cdata.merge_from(simcoe_cdata)
+    rc_cdata.set('DEFAULT_ICON', default_ico.full_path().replace('\\', '\\\\'))
+    rc_cdata.set('MAJOR', parts[0].to_int())
+    rc_cdata.set('MINOR', parts[1].to_int())
+    rc_cdata.set('PATCH', parts[2].to_int())
+    rc_cdata.set('BUILD', 99)
+    rc_cdata.set('COMPANY', 'Temptation Games')
+    rc_cdata.set('PRODUCT', 'Priority Zero')
+    rc_cdata.set('DESCRIPTION', 'Priority Zero')
 
-rc_cdata.set('COMPANY_ID', 'TemptationGames')
-rc_cdata.set('PRODUCT_ID', 'PriorityZero')
+    rc_cdata.set('COMPANY_ID', 'TemptationGames')
+    rc_cdata.set('PRODUCT_ID', 'PriorityZero')
 
-rc = configure_file(
-    input : 'data/win32/client.rc.in',
-    output : 'client.temp.rc',
-    configuration : rc_cdata
-)
+    rc = configure_file(
+        input : 'data/win32/client.rc.in',
+        output : 'client.temp.rc',
+        configuration : rc_cdata
+    )
 
-rc_utf16 = custom_target('client.rc',
-    input : [ rc ],
-    output : [ 'client.rc' ],
-    command : [ convert_utf16, '@INPUT@', '@OUTPUT@' ]
-)
+    rc_utf16 = custom_target('client.rc',
+        input : [ rc ],
+        output : [ 'client.rc' ],
+        command : [ convert_utf16, '@INPUT@', '@OUTPUT@' ]
+    )
 
-# icky, rc actually depends on default_ico, but meson doesn't support
-# custom_target dependencies on generated files
-res = windows.compile_resources(rc,
-    depends : [ default_ico ],
-    include_directories : res_include
-)
+    # icky, rc actually depends on default_ico, but meson doesn't support
+    # custom_target dependencies on generated files
+    res = windows.compile_resources(rc,
+        depends : [ default_ico ],
+        include_directories : res_include
+    )
 
-bundle_cdata = configuration_data()
-bundle_cdata.set('DXC_EXE_PATH', dxc.full_path())
-bundle_cdata.set('MSDF_EXE_PATH', msdf_atlas_gen.full_path())
-bundle_cdata.set('COMPRESSOR_EXE_PATH', compressonator.full_path())
-bundle_cdata.set('AGILITY_REDIST_PATH', d3d12.get_variable('bindir'))
-bundle_cdata.set('DXCOMPILER_REDIST_PATH', dxcompiler.get_variable('bindir'))
-bundle_cdata.set('WARP_REDIST_PATH', warp.get_variable('bindir'))
-bundle_cdata.set('WINPIXRUNTIME_REDIST_PATH', winpixruntime.get_variable('bindir'))
-bundle_cdata.set('DSTORAGE_REDIST_PATH', dstorage.get_variable('bindir'))
+    bundle_cdata = configuration_data()
+    bundle_cdata.set('DXC_EXE_PATH', dxc.full_path())
+    bundle_cdata.set('MSDF_EXE_PATH', msdf_atlas_gen.full_path())
+    bundle_cdata.set('COMPRESSOR_EXE_PATH', compressonator.full_path())
+    bundle_cdata.set('AGILITY_REDIST_PATH', d3d12.get_variable('bindir'))
+    bundle_cdata.set('DXCOMPILER_REDIST_PATH', dxcompiler.get_variable('bindir'))
+    bundle_cdata.set('WARP_REDIST_PATH', warp.get_variable('bindir'))
+    bundle_cdata.set('WINPIXRUNTIME_REDIST_PATH', winpixruntime.get_variable('bindir'))
+    bundle_cdata.set('DSTORAGE_REDIST_PATH', dstorage.get_variable('bindir'))
 
-bundle_config = configure_file(
-    input : 'data/config/tools.in.ini',
-    output : 'tools.ini',
-    configuration : bundle_cdata
-)
+    bundle_config = configure_file(
+        input : 'data/config/tools.in.ini',
+        output : 'tools.ini',
+        configuration : bundle_cdata
+    )
 
-make_bundle = find_program('scripts/make_bundle.py')
+    make_bundle = find_program('scripts/make_bundle.py')
 
-bundle_cmd = [
-    make_bundle,
-    '--desc', '@INPUT@',
-    '--config', bundle_config,
-    '--dir', '@SOURCE_ROOT@/data/assets',
-    '--outdir', '@OUTDIR@',
-    '--bundle', '@OUTPUT@',
-    '--depfile', '@DEPFILE@',
-    '--root', meson.current_source_dir()
-]
+    bundle_cmd = [
+        make_bundle,
+        '--desc', '@INPUT@',
+        '--config', bundle_config,
+        '--dir', '@SOURCE_ROOT@/data/assets',
+        '--outdir', '@OUTDIR@',
+        '--bundle', '@OUTPUT@',
+        '--depfile', '@DEPFILE@',
+        '--root', meson.current_source_dir()
+    ]
 
-if is_debug
-    bundle_cmd += [ '--debug' ]
+    if is_debug
+        bundle_cmd += [ '--debug' ]
+    endif
+
+    game_bundle = custom_target('game_bundle',
+        input : [ 'data/assets/bundle.json' ],
+        output : 'bundle.tar',
+        install : true,
+        install_dir : 'bin',
+        depfile : 'bundle.d',
+        command : bundle_cmd
+    )
+
+    link_args = [
+        '/DELAYLOAD:dxcompiler.dll',
+        '/DELAYLOAD:dxil.dll',
+        '/DELAYLOAD:WinPixEventRuntime.dll',
+        '/DELAYLOAD:dstoragecore.dll',
+        '/DELAYLOAD:dstorage.dll',
+    ]
+
+    subdir('src/client')
+
+    manifest = meson.current_source_dir() / 'data/win32/client.exe.manifest'
+
+    executable('client', src, game_bundle,
+        cpp_pch : pch,
+        install : true,
+        export_dynamic : true,
+        win_subsystem : get_option('client_win_subsystem'),
+        link_depends : [ manifest, res ],
+        link_args : link_args + [
+            # embed the resource file
+            res[0].full_path(),
+
+            # embed the manifest file
+            '/manifest:embed', '/manifestinput:' + manifest,
+        ],
+        dependencies : deps
+    )
+
+    subdir('src/editor')
+
+    executable('editor', src, game_bundle,
+        cpp_pch : pch,
+        include_directories : inc,
+        install : true,
+        export_dynamic : true,
+        win_subsystem : get_option('editor_win_subsystem'),
+        link_depends : [ manifest, res ],
+        link_args : link_args,
+        dependencies : deps
+    )
 endif
-
-game_bundle = custom_target('game_bundle',
-    input : [ 'data/assets/bundle.json' ],
-    output : 'bundle.tar',
-    install : true,
-    install_dir : 'bin',
-    depfile : 'bundle.d',
-    command : bundle_cmd
-)
-
-link_args = [
-    '/DELAYLOAD:dxcompiler.dll',
-    '/DELAYLOAD:dxil.dll',
-    '/DELAYLOAD:WinPixEventRuntime.dll',
-    '/DELAYLOAD:dstoragecore.dll',
-    '/DELAYLOAD:dstorage.dll',
-]
-
-subdir('src/client')
-
-manifest = meson.current_source_dir() / 'data/win32/client.exe.manifest'
-
-executable('client', src, game_bundle,
-    cpp_pch : pch,
-    install : true,
-    export_dynamic : true,
-    win_subsystem : get_option('client_win_subsystem'),
-    link_depends : [ manifest, res ],
-    link_args : link_args + [
-        # embed the resource file
-        res[0].full_path(),
-
-        # embed the manifest file
-        '/manifest:embed', '/manifestinput:' + manifest,
-    ],
-    dependencies : deps
-)
-
-subdir('src/editor')
-
-executable('editor', src, game_bundle,
-    cpp_pch : pch,
-    include_directories : inc,
-    install : true,
-    export_dynamic : true,
-    win_subsystem : get_option('editor_win_subsystem'),
-    link_depends : [ manifest, res ],
-    link_args : link_args,
-    dependencies : deps
-)
 
 subdir('src/server')

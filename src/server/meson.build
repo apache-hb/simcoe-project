@@ -2,10 +2,11 @@ deps = [
     cthulhu.get_variable('format_core'),
     dependency('concurrentqueue'),
     core, system, threads, db,
-    net, launch, account, draw_next
+    net, launch, account,
 ]
 
 src = [ 'src/common.cpp' ]
+
 libserver_common = library('server-common', src,
     dependencies : deps
 )

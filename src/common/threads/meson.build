@@ -27,12 +27,13 @@ hwloc = dependency('hwloc')
 
 src = [
     'src/scheduler.cpp',
+    'src/status.cpp',
 ]
 
 if host_machine.system() == 'windows'
     src += [
         'src/topology.cpp',
-        'src/threads.cpp',
+        'src/save.cpp',
         'src/cpuinfo.cpp',
 
         'src/backends/common.cpp',
@@ -40,6 +41,8 @@ if host_machine.system() == 'windows'
         'src/backends/logical.cpp',
         'src/backends/default.cpp',
     ]
+elif host_machine.system() == 'linux'
+    src += [ 'src/threads.cpp' ]
 endif
 
 deps = [ core, config, logs, logs, system, db, hwloc, threads_meta ]
