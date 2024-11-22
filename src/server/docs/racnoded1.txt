@@ -1,0 +1,74 @@
+CONNECTED(00000003)
+depth=0 C = US, CN = ons_ssl
+verify error:num=18:self signed certificate
+verify return:1
+depth=0 C = US, CN = ons_ssl
+verify return:1
+---
+Certificate chain
+ 0 s:/C=US/CN=ons_ssl
+   i:/C=US/CN=ons_ssl
+---
+Server certificate
+-----BEGIN CERTIFICATE-----
+MIICtDCCAZwCAQEwDQYJKoZIhvcNAQELBQAwHzELMAkGA1UEBhMCVVMxEDAOBgNV
+BAMMB29uc19zc2wwIBcNMjQxMTIyMjE1ODM4WhgPMjEyNDEwMjkyMTU4MzhaMB8x
+CzAJBgNVBAYTAlVTMRAwDgYDVQQDDAdvbnNfc3NsMIIBIjANBgkqhkiG9w0BAQEF
+AAOCAQ8AMIIBCgKCAQEAof3aMjYN+ZWcdmWjxiFQ+H86bMHfPWA0w5OVeIFUvEIr
+9HUl+c8PLq9661WH2BKyTBqN0CR3VXhDg/USVwAJ3WLcRQ9gbTNEUsJRU2Letzen
+RJEkj7PoDbFASQyY/amA1kMQJsu0GWhmLAY5nhOWBkBACx6jrADLO8HkiajVLkTm
+Iz+1knlG35gAJkeCSHy2s463LbtNLuAHHJndCMZAYH5Ex2JLuVsUu2n2+CxbXU2L
+GhwtWKRdjtR3gsczMXEH/yIQ7FKxo1efZdJl07ghQWe1t5l1nGKOMAmNc3+n6hiB
+8m6/Z0pbkv+yh/o4RE8UdGwE+z5j6ZdCup20mtq2iQIDAQABMA0GCSqGSIb3DQEB
+CwUAA4IBAQCBGiDEcY1h2+AS6vVnWIlFvPx2YqjTGZw3cJmkfnMBE2+sYkYgBrOD
+fHW8ctATCfdvzKalgSywjIaF0EBCCrv1R1HAIdRymMrE1LGmADmiDQkv1BycmafN
+9WM95vhkbzvm6fJQgC6JQ36e6Dz18BJXDNJAS8H5jlNfgheaEPri3MiSnmki+HAC
+ryP3RZnUD3j6+MFFM25gxpVbBdOxR4f8q+kRfW6IDO+mSrBxSWB2zs2ECQLGq6WJ
+eBY03hEqEZF/cr9TnUOoWbpPMOHdXxweu5jt8iVGx9DwwnLAzup+5oBeV0VXwYsW
+Cu45tudKcFsoBGOvxOg+MahTH0l5wYdS
+-----END CERTIFICATE-----
+subject=/C=US/CN=ons_ssl
+issuer=/C=US/CN=ons_ssl
+---
+No client certificate CA names sent
+Client Certificate Types: RSA sign, DSA sign, ECDSA sign
+Requested Signature Algorithms: ECDSA+SHA256:ECDSA+SHA384:ECDSA+SHA512:0x07+0x08:0x08+0x08:0x09+0x08:0x0A+0x08:0x0B+0x08:0x04+0x08:0x05+0x08:0x06+0x08:RSA+SHA256:RSA+SHA384:RSA+SHA512:ECDSA+SHA224:RSA+SHA224:DSA+SHA224:DSA+SHA256:DSA+SHA384:DSA+SHA512
+Shared Requested Signature Algorithms: ECDSA+SHA256:ECDSA+SHA384:ECDSA+SHA512:RSA+SHA256:RSA+SHA384:RSA+SHA512:ECDSA+SHA224:RSA+SHA224:DSA+SHA224:DSA+SHA256:DSA+SHA384:DSA+SHA512
+Peer signing digest: SHA512
+Server Temp Key: ECDH, P-256, 256 bits
+---
+SSL handshake has read 1407 bytes and written 427 bytes
+---
+New, TLSv1/SSLv3, Cipher is ECDHE-RSA-AES256-GCM-SHA384
+Server public key is 2048 bit
+Secure Renegotiation IS supported
+Compression: NONE
+Expansion: NONE
+No ALPN negotiated
+SSL-Session:
+    Protocol  : TLSv1.2
+    Cipher    : ECDHE-RSA-AES256-GCM-SHA384
+    Session-ID: 16ECDE08DFC3679F66BD4AAECBE6C6F29EA2D304D90D6639D9BCA95D33D09157
+    Session-ID-ctx:
+    Master-Key: 67BCB940A9EE028653F962335978A3FFEEE57794013733C93223605A2FEAD100BC1643C463AA0F365CF5AA9554282671
+    Key-Arg   : None
+    Krb5 Principal: None
+    PSK identity: None
+    PSK identity hint: None
+    TLS session ticket lifetime hint: 7200 (seconds)
+    TLS session ticket:
+    0000 - 5e 05 f9 bb 24 de 1e aa-3a ba 7e 9a 05 28 9c 4e   ^...$...:.~..(.N
+    0010 - ec 90 73 2e 1b 8d 4d ad-fb ab 76 0f 3c 74 04 2c   ..s...M...v.<t.,
+    0020 - 64 03 71 0f f3 42 90 35-b0 2b 37 e2 ff 3d d6 0e   d.q..B.5.+7..=..
+    0030 - 6a 49 d4 a6 b9 e9 e2 d7-18 04 7f bb 9d 40 08 27   jI...........@.'
+    0040 - d0 ef b1 26 25 cf 3f 1b-a7 e8 2d 39 7d e7 0a d9   ...&%.?...-9}...
+    0050 - a2 b1 7d cb 0f eb 91 34-20 1b 7e 80 0e 33 10 d8   ..}....4 .~..3..
+    0060 - 6c aa b0 11 eb 61 95 ef-17 11 c8 e5 1d 89 e6 63   l....a.........c
+    0070 - 4e 17 b3 06 41 0c bc 7e-3c f9 ed 02 6b 8c 49 02   N...A..~<...k.I.
+    0080 - f2 4b d7 e4 b5 03 03 a2-ae 98 f2 33 83 c9 af 2c   .K.........3...,
+    0090 - 54 22 5b a1 e7 e0 33 ee-99 ff 65 97 71 73 ce 94   T"[...3...e.qs..
+
+    Start Time: 1732316273
+    Timeout   : 300 (sec)
+    Verify return code: 18 (self signed certificate)
+---

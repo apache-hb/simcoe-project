@@ -98,6 +98,8 @@ namespace sm::net {
 
         NetError setRecvTimeout(std::chrono::milliseconds timeout) noexcept;
         NetError setSendTimeout(std::chrono::milliseconds timeout) noexcept;
+
+        system::os::SocketHandle get() { return mSocket; }
     };
 
     class ListenSocket : public Socket {

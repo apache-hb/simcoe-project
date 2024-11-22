@@ -1,5 +1,6 @@
 src = [
     'src/orarpc.cpp',
+    'src/ssl.cpp',
 ]
 
 inc = include_directories('include')

@@ -232,9 +232,23 @@ tcp   ESTAB      0      0                          [::1]:6100                   
 
 ## replacing /u01/app/19.3.0/grid/opmn/bin/ons
 ```sh
-/u01/app/19.3.0/grid/bin/srvctl stop ons
+# copy daemon into shared volume
+sudo cp ./build/src/plugins/orarpc/orarpc-test ./src/server/data/container/shared/orarpc-test
+```
+
+```sh
+# from inside the container replace the daemon
+/u01/app/19.3.0/grid/opmn/bin/onsctl stop
 sudo cp /opt/shared/orarpc-test /u01/app/19.3.0/grid/opmn/bin/ons
+/u01/app/19.3.0/grid/opmn/bin/onsctl start
+```
+
+```sh
+# srvctl can also manage ons but is slower
+/u01/app/19.3.0/grid/bin/srvctl stop ons
 /u01/app/19.3.0/grid/bin/srvctl start ons
+
+tail -f /u01/app/grid/diag/crs/racnoded1/crs/trace/crsd_oraagent_grid.trc
 ```
 
 ```log
@@ -268,3 +282,211 @@ sudo cp /opt/shared/orarpc-test /u01/app/19.3.0/grid/opmn/bin/ons
 2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)
 2024-11-22 03:31:59.405 :CLSDYNAM:413181696: [ ora.ons]{1:11962:5476} [start] (:CLSN00010:)Utils:execCmd scls_process_join() uret 1
 ```
+
+ons uses a self signed 2048 bit rsa key using cipher ECDHE-RSA-AES256-GCM-SHA384
+Peer signing digest: SHA384
+Peer signature type: RSA
+looks as if a new key is generated every 100 years
+
+```sh
+# ons openssl tls cert
+CONNECTED(00000003)
+Can't use SSL_get_servername
+depth=0 C = US, CN = ons_ssl
+verify error:num=18:self-signed certificate
+verify return:1
+depth=0 C = US, CN = ons_ssl
+verify return:1
+40B78E8DF17F0000:error:0A000126:SSL routines:ssl3_read_n:unexpected eof while reading:../ssl/record/rec_layer_s3.c:317:
+---
+Certificate chain
+ 0 s:C = US, CN = ons_ssl
+   i:C = US, CN = ons_ssl
+   a:PKEY: rsaEncryption, 2048 (bit); sigalg: RSA-SHA256
+   v:NotBefore: Nov 17 00:00:00 2024 GMT; NotAfter: Nov 18 00:00:00 2124 GMT
+---
+Server certificate
+-----BEGIN CERTIFICATE-----
+MIIC3TCCAcWgAwIBAgIQLYol1hHtemb8yWSwSETa+jANBgkqhkiG9w0BAQsFADAf
+MQswCQYDVQQGEwJVUzEQMA4GA1UEAwwHb25zX3NzbDAgFw0yNDExMTcwMDAwMDBa
+GA8yMTI0MTExODAwMDAwMFowHzELMAkGA1UEBhMCVVMxEDAOBgNVBAMMB29uc19z
+c2wwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCdi4R+kQldV+o4QaX/
+qxT30qMGiX6ulmqGjgty0+XBUINs0lNsBwUYTItsJZR8ZFukuzGLAx17H0Xpk9rK
+3BLJAwcJ9GLnFfBdPAmIq7/wMIXCk5NNdy+VPXih/cUTvjFNmoUBJmRFG46dSsA2
+ei8IWX+xGP25gUoWhGo+1HNbv9KBXQKGL+eq314KO9p/qtdTREzVi+IOV12ZphoC
+uUI5R0pyGXJy1GkvCWjz2nJD4XF7h58fV6cFu0i0zqrchH/8tsjLzUnRhge6tNlC
+WnIcTk7KDKJ+yU7AmjlGVFMkYUJHIjxJ9l4UH1OHr/L9qGaig7+77veg29BQ8+4q
++JbfAgMBAAGjEzARMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEB
+AGZFQidcKYMJeOTvGE6s5TDK2G/whr3PWVkZiMKa2jqd4wR9mvW/oAWuB8Qy/LXD
+NZcjXsqyxZYAfNbu4j+2ol21PvntjngtXQdv2aXKtIdKVh3NcZMi/9KaN3ScOnrH
+4BCNT8j6QVlWMPkGVfpsKeZ8mhejAGon4MHnwzEFUP3eQZ8ps09JIEFBlsP6Drp7
+qtI86nQ782jvhRQWmMhCIMeeWn5/Iwt6gLRTNci0Ovwtm2rdcsqE7NnoKkMS6A3i
+UVO0W5Of2ZUDeH+y8Lln2lZxc34/wUAcDMHeffmsHKAZzoKoOAr9vajnbg8Ki+Jj
+zFiHY7JoOiKU3zPJ3vwf3g0=
+-----END CERTIFICATE-----
+subject=C = US, CN = ons_ssl
+issuer=C = US, CN = ons_ssl
+---
+Acceptable client certificate CA names
+C = US, CN = ons_ssl
+Client Certificate Types: ECDSA sign, RSA sign, DSA sign
+Requested Signature Algorithms: ECDSA+SHA256:ECDSA+SHA384:ECDSA+SHA512:RSA+SHA256:RSA+SHA384:RSA+SHA512:ECDSA+SHA224:RSA+SHA224:DSA+SHA224:DSA+SHA256:DSA+SHA384:DSA+SHA512
+Shared Requested Signature Algorithms: ECDSA+SHA256:ECDSA+SHA384:ECDSA+SHA512:RSA+SHA256:RSA+SHA384:RSA+SHA512:ECDSA+SHA224:RSA+SHA224:DSA+SHA224:DSA+SHA256:DSA+SHA384:DSA+SHA512
+Peer signing digest: SHA384
+Peer signature type: RSA
+Server Temp Key: ECDH, prime256v1, 256 bits
+---
+SSL handshake has read 1256 bytes and written 462 bytes
+Verification error: self-signed certificate
+---
+New, TLSv1.2, Cipher is ECDHE-RSA-AES256-GCM-SHA384
+Server public key is 2048 bit
+Secure Renegotiation IS supported
+Compression: NONE
+Expansion: NONE
+No ALPN negotiated
+SSL-Session:
+    Protocol  : TLSv1.2
+    Cipher    : ECDHE-RSA-AES256-GCM-SHA384
+    Session-ID: 16F9A44AE9B33BA98B447522B8AC7B0BA73700E3998E4AE369DAF148459E0F75
+    Session-ID-ctx:
+    Master-Key: 5558B8FDEEA902198888771FE0CCDD4EB6BFB6D090516B4E570324F007727054B028D8DC277D86BB572365DABFAC383E
+    PSK identity: None
+    PSK identity hint: None
+    SRP username: None
+    Start Time: 1732311720
+    Timeout   : 7200 (sec)
+    Verify return code: 18 (self-signed certificate)
+    Extended master secret: no
+---
+```
+
+```sh
+# local tls
+elliothb@ELLIOT-SERVER:~/github/simcoe-project/src/server/data$ openssl s_client -connect localhost:6200
+CONNECTED(00000003)
+Can't use SSL_get_servername
+depth=0 C = CA, O = Simcoe, CN = localhost
+verify error:num=18:self-signed certificate
+verify return:1
+depth=0 C = CA, O = Simcoe, CN = localhost
+verify return:1
+---
+Certificate chain
+ 0 s:C = CA, O = Simcoe, CN = localhost
+   i:C = CA, O = Simcoe, CN = localhost
+   a:PKEY: rsaEncryption, 2048 (bit); sigalg: RSA-SHA1
+   v:NotBefore: Nov 22 20:41:33 2024 GMT; NotAfter: Nov 22 20:41:33 2025 GMT
+---
+Server certificate
+-----BEGIN CERTIFICATE-----
+MIIC2DCCAcACAQEwDQYJKoZIhvcNAQEFBQAwMjELMAkGA1UEBhMCQ0ExDzANBgNV
+BAoMBlNpbWNvZTESMBAGA1UEAwwJbG9jYWxob3N0MB4XDTI0MTEyMjIwNDEzM1oX
+DTI1MTEyMjIwNDEzM1owMjELMAkGA1UEBhMCQ0ExDzANBgNVBAoMBlNpbWNvZTES
+MBAGA1UEAwwJbG9jYWxob3N0MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC
+AQEA1VRNnxI6tIFAi+s7qvv9e/fMXAszA015AF/mDnXALwFtIS69c8YkqAEMzc2m
+AOJpmM9F9+UnaowqtwRaJcd3gg1PeBQ890XP7FlzvCjfhTLu2manY8i7A6PqaPgQ
+1dkj1bqkmYs7gxgDc97RL6iCFNIqASmywZKAdgbI8L7sveq3mAqBaizMpnhCMIdR
+OvBmrCy4G4RhwkainrQ04tYIrYkbgEiKpWE5AUK7bO6QdDzuw/YiVwEJRfixLAyB
+fAnFW+4utK7buwRaFNpZefbg2mflniYVjDBocN/fySRMrnn6XMGpdiiFSbOFAbTe
+FrwueGyyeb5ZplEDcXApsDhU9wIDAQABMA0GCSqGSIb3DQEBBQUAA4IBAQBT3vAt
+V9TqrQ1sIz/i2KoL1FEDN33gbwtNxPNhjMpLizGBT+ILN6lm8jvXxSLoDzYhGpQN
+yM/5zJh8ER41CZ4Odgp3m4CxbDW7l/4OUR7uCTw99rwT4qssVBJ3d4wzyhDKqw2f
+Flnts5tNlM3+aCdoUJ0WU1beDXeuhAyPwQdPkVmEu68N/9WiC1rmXe5BcOG9AK3G
+pHNBUT+GywhVEPF3NpquvBDI5MKQHp5QIVCCCyq5k6xb1RaIqjvJfQcdDcMx2Yup
+BmLg4zRjLXR+72xoAbWBlo4IqbtwjKBGFYGpA9QQzaSe+tQRwJkypdpCwa1TXT7z
+7ULXWSc391dJaJFw
+-----END CERTIFICATE-----
+subject=C = CA, O = Simcoe, CN = localhost
+issuer=C = CA, O = Simcoe, CN = localhost
+---
+No client certificate CA names sent
+Peer signing digest: SHA256
+Peer signature type: RSA-PSS
+Server Temp Key: X25519, 253 bits
+---
+SSL handshake has read 1288 bytes and written 373 bytes
+Verification error: self-signed certificate
+---
+New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384
+Server public key is 2048 bit
+Secure Renegotiation IS NOT supported
+Compression: NONE
+Expansion: NONE
+No ALPN negotiated
+Early data was not sent
+Verify return code: 18 (self-signed certificate)
+---
+---
+Post-Handshake New Session Ticket arrived:
+SSL-Session:
+    Protocol  : TLSv1.3
+    Cipher    : TLS_AES_256_GCM_SHA384
+    Session-ID: E4F73A57F710190C7C67A19C6BB910AA278D2B5D06EFA68B0ED23EE1B8C7660A
+    Session-ID-ctx:
+    Resumption PSK: C19828831149B0261402EC70D81A682EEE504BA734D1F3722244C95595C6EBC6BE9288215A3B0FFAC430AAC23AF3741D
+    PSK identity: None
+    PSK identity hint: None
+    SRP username: None
+    TLS session ticket lifetime hint: 7200 (seconds)
+    TLS session ticket:
+    0000 - 59 cd ed 9f 8c bc be 42-12 5e 03 99 7f a8 a9 b3   Y......B.^......
+    0010 - 2b cb 22 38 37 56 98 ab-08 9a e1 9a d7 9d 9e 5b   +."87V.........[
+    0020 - 9e 3d e3 26 27 00 e2 68-b5 5f f8 f2 52 d4 b2 43   .=.&'..h._..R..C
+    0030 - 7d 43 1a 02 74 fa 13 9a-90 e4 b9 23 94 7f d0 b5   }C..t......#....
+    0040 - a4 d2 37 7d 78 4b 46 e7-97 bf 7b 39 d4 40 a0 1c   ..7}xKF...{9.@..
+    0050 - eb f5 03 40 ae 20 ac dc-06 52 25 96 a3 26 bf fd   ...@. ...R%..&..
+    0060 - 47 7f 06 dd ed 65 5c 2d-d3 94 f8 55 2f 14 d9 1d   G....e\-...U/...
+    0070 - a7 c6 7d d9 24 1d a0 8a-c3 89 d2 8e c8 d6 7c ca   ..}.$.........|.
+    0080 - bf 04 6c 99 76 7b 58 9a-5d 05 02 77 c4 a0 aa 1d   ..l.v{X.]..w....
+    0090 - f1 62 ac 78 d1 46 2c 99-63 91 85 ed fc f8 cd b5   .b.x.F,.c.......
+    00a0 - ea 3f 4d 48 d8 9a 09 ff-1a df dc 97 e6 9d e5 ab   .?MH............
+    00b0 - 68 c1 2b ef bd dd 34 33-49 5e c5 cd 03 92 a1 df   h.+...43I^......
+    00c0 - 2a 3e b7 8d a0 fd f4 d5-8d 82 49 f9 b2 ea 87 54   *>........I....T
+
+    Start Time: 1732311666
+    Timeout   : 7200 (sec)
+    Verify return code: 18 (self-signed certificate)
+    Extended master secret: no
+    Max Early Data: 0
+---
+read R BLOCK
+---
+Post-Handshake New Session Ticket arrived:
+SSL-Session:
+    Protocol  : TLSv1.3
+    Cipher    : TLS_AES_256_GCM_SHA384
+    Session-ID: AC315650627A465D405707A1447B666B46B50A9E59F27B8C3C3E0FF992A827B7
+    Session-ID-ctx:
+    Resumption PSK: C8ED07B034721B976319E1ADFBE6E156A198E7904CE52DE5865E6D8C14A4DEEA487CDC42300881524064DB96D4DC99FC
+    PSK identity: None
+    PSK identity hint: None
+    SRP username: None
+    TLS session ticket lifetime hint: 7200 (seconds)
+    TLS session ticket:
+    0000 - 59 cd ed 9f 8c bc be 42-12 5e 03 99 7f a8 a9 b3   Y......B.^......
+    0010 - ba 5e 4e ee 3d 43 a5 5f-cd 6a 34 35 d8 c0 b3 62   .^N.=C._.j45...b
+    0020 - d4 94 05 0f 01 8e 8f 73-4d e0 57 70 5c 57 fd aa   .......sM.Wp\W..
+    0030 - a3 18 9e 8f 38 bc 0e 50-03 f0 00 15 d2 f1 6a 55   ....8..P......jU
+    0040 - 58 85 f7 11 5f 66 a2 3a-b4 85 03 14 4c d2 3c 72   X..._f.:....L.<r
+    0050 - 23 5c b3 1b aa e1 08 11-50 09 43 fb ce 7a 51 87   #\......P.C..zQ.
+    0060 - 9b bb 1d e2 af 2c 06 53-cc 9a 71 fa 4b 6c f5 c2   .....,.S..q.Kl..
+    0070 - 7a 1b 4a 37 bd 95 bc 2a-c7 27 f4 7e 7a 26 19 39   z.J7...*.'.~z&.9
+    0080 - 93 ec 64 4b 74 95 98 0c-92 d0 5e 86 f9 3a d2 46   ..dKt.....^..:.F
+    0090 - 98 f6 d1 cd 12 58 f6 c7-ce 2c a1 76 18 9c 56 58   .....X...,.v..VX
+    00a0 - 7c 27 6c f1 16 fc de cf-e6 47 8a e9 70 88 d6 ea   |'l......G..p...
+    00b0 - 46 95 7f db eb 1d be 9f-39 4e b7 10 33 74 60 73   F.......9N..3t`s
+    00c0 - 47 e4 30 24 af bf a9 5a-f7 94 81 d1 c4 23 6d 02   G.0$...Z.....#m.
+
+    Start Time: 1732311666
+    Timeout   : 7200 (sec)
+    Verify return code: 18 (self-signed certificate)
+    Extended master secret: no
+    Max Early Data: 0
+---
+```
+
+ons seems to use its own ssl library sslnx/sslss.
+i think private keys are stored in /u01/app/grid/crsdata/racnoded1/onswallet/cwallet.sso
+but the default password is randomly generated so i cant get at the keys.
+not sure how oracle reads them either if it doesnt know the password.

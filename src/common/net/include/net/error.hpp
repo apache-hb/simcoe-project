@@ -13,9 +13,6 @@
 #define SNET_LAST_STATUS 12999
 
 namespace sm::net {
-    class NetException;
-    class NetError;
-
     class NetError : public errors::Error<NetError> {
         using Super = errors::Error<NetError>;
 
@@ -24,7 +21,7 @@ namespace sm::net {
         NetError(int code, std::string_view message);
 
     public:
-        using Exception = NetException;
+        using Exception = class NetException;
 
         NetError(int code);
 

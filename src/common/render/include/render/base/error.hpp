@@ -5,17 +5,15 @@
 #include "core/error.hpp"
 
 namespace sm::render {
-    class RenderException;
-    class RenderError;
-
     std::string errorString(HRESULT hr);
 
     class RenderError final : public errors::Error<RenderError> {
+        using Super = errors::Error<RenderError>;
+
         HRESULT mValue;
 
-        using Super = errors::Error<RenderError>;
     public:
-        using Exception = RenderException;
+        using Exception = class RenderException;
 
         RenderError(HRESULT value);
 

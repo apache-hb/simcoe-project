@@ -14,8 +14,6 @@
 #include <string_view>
 
 namespace sm {
-    class OsException;
-
     CT_NORETURN panic(source_info_t info, std::string_view msg);
 
     CT_NORETURN vpanic(source_info_t info, std::string_view msg, auto &&...args) {
@@ -29,7 +27,7 @@ namespace sm {
         OsError(os_error_t error, std::string_view message);
 
     public:
-        using Exception = OsException;
+        using Exception = class OsException;
 
         OsError(os_error_t error);
 

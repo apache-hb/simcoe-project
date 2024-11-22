@@ -1,7 +1,7 @@
 -- Get all log entries without any parameters
 SELECT
 	log_severity.name AS severity,
-	datetime(round(log_entry.timestamp / 10000000), 'unixepoch') AS timestamp,
+	datetime(round(log_entry.timestamp / 1000), 'unixepoch') AS timestamp,
 	log_message.path AS path,
 	log_message.line AS line,
 	log_message.function AS function,
@@ -16,13 +16,13 @@ ORDER BY timestamp;
 -- Get all log entries in most recent log session
 SELECT
 	log_severity.name AS severity,
-	datetime(round(log_entry.timestamp / 10000000), 'unixepoch') AS timestamp,
+	datetime(round(log_entry.timestamp / 1000), 'unixepoch') AS timestamp,
 	log_message.path AS path,
 	log_message.line AS line,
 	log_message.function AS function,
 	log_message.message AS message,
 	(
-		SELECT group_concat(log_message_attribute.key || ' = ' || log_entry_attribute.value, ', ')
+		SELECT group_concat(log_entry_attribute.value, ', ')
 		FROM log_entry_attribute
 		JOIN log_message_attribute ON log_message_attribute.message_hash = log_message.hash
 		WHERE log_entry_attribute.entry_id = log_entry.id
@@ -36,13 +36,13 @@ ORDER BY timestamp;
 -- Get all log entries in most recent log session
 SELECT
 	log_severity.name AS severity,
-	datetime(round(log_entry.timestamp / 10000000), 'unixepoch') AS timestamp,
+	datetime(round(log_entry.timestamp / 1000), 'unixepoch') AS timestamp,
 	log_message.path AS path,
 	log_message.line AS line,
 	log_message.function AS function,
 	log_message.message AS message,
 	(
-		SELECT group_concat(log_message_attribute.key || ' = ' || log_entry_attribute.value, ', ')
+		SELECT group_concat(log_entry_attribute.value, ', ')
 		FROM log_entry_attribute
 		JOIN log_message_attribute ON log_message_attribute.message_hash = log_message.hash
 		WHERE log_entry_attribute.entry_id = log_entry.id

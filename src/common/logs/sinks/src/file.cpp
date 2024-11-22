@@ -27,7 +27,7 @@ class FileChannel final : public logs::ILogChannel {
     }
 
     void postMessage(logs::MessagePacket packet) noexcept override {
-        auto message = ""; // fmt::vformat(packet.message.message, packet.args);
+        auto message = fmt::vformat(packet.message.getMessage(), packet.args.asDynamicArgStore());
 
         std::lock_guard guard(mMutex);
 
