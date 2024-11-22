@@ -1,6 +1,5 @@
 #include "launch/launch.hpp"
 
-#include "GLFW/glfw3.h"
 #include "fmt/ranges.h"
 #include "logs/logger.hpp"
 #include "logs/sinks/channels.hpp"
@@ -30,8 +29,6 @@
 
 #include "format/backtrace.h"
 #include "format/colour.h"
-
-#include "core/defer.hpp"
 
 using namespace sm;
 
@@ -224,19 +221,6 @@ static void setupNetwork(bool enabled) {
     net::create();
 }
 
-static void setupGlfw(bool enabled) {
-    glfwSetErrorCallback([](int error, const char *description) {
-        LOG_ERROR(LaunchLog, "GLFW error {}: `{}`", error, description);
-    });
-
-    if (!enabled) return;
-
-    if (!glfwInit()) {
-        LOG_ERROR(LaunchLog, "failed to initialize GLFW");
-        gGlobalInfo.exitCode = -1;
-    }
-}
-
 launch::LaunchResult::~LaunchResult() noexcept try {
     net::destroy();
     threads::destroy();
@@ -244,8 +228,6 @@ launch::LaunchResult::~LaunchResult() noexcept try {
 #if _WIN32
     system::destroy();
 #endif
-
-    glfwTerminate();
 
     logs::sinks::destroy();
 } catch (const std::exception& err) {
@@ -270,7 +252,6 @@ launch::LaunchResult launch::commonInit(HINSTANCE hInstance, const LaunchInfo& i
     setupSystem(hInstance, info.com);
     setupThreads(info.threads);
     setupNetwork(info.network);
-    setupGlfw(info.glfw);
 
     return LaunchResult {};
 }

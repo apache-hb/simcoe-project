@@ -2,7 +2,7 @@ deps = [
     cthulhu.get_variable('format_core'),
     dependency('concurrentqueue'),
     core, system, threads, db,
-    net, launch, account,
+    net, launch_gui, account,
 ]
 
 src = [ 'src/common.cpp' ]

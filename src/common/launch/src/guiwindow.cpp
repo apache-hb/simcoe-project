@@ -4,6 +4,7 @@
 
 #include "imgui/backends/imgui_impl_glfw.h"
 #include "imgui/backends/imgui_impl_opengl3.h"
+#include "logs/logging.hpp"
 #include "math/colour.hpp"
 
 using namespace sm;
@@ -16,6 +17,15 @@ static void throwGlfwError() {
 }
 
 static GLFWwindow *createWindow(const char *title) {
+    glfwSetErrorCallback([](int error, const char *description) {
+        LOG_ERROR(GlobalLog, "GLFW error {}: `{}`", error, description);
+    });
+
+    if (!glfwInit()) {
+        LOG_ERROR(GlobalLog, "failed to initialize GLFW");
+        throwGlfwError();
+    }
+
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
@@ -62,6 +72,8 @@ GuiWindow::~GuiWindow() {
     ImGui::DestroyContext();
 
     glfwDestroyWindow(mWindow);
+
+    glfwTerminate();
 }
 
 void GuiWindow::begin() {

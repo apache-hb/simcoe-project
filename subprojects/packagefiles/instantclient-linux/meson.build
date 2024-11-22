@@ -1,5 +1,5 @@
 project('instantclient', 'c',
-    version : '23.5.0',
+    version : '23.6.0',
     license : 'LicenseRef-Proprietary',
     license_files : [ 'SDK_LICENSE' ],
     meson_version : '>=1.1.0'

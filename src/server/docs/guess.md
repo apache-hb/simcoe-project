@@ -180,6 +180,8 @@ bash-4.2# readlink /proc/8783/exe # oraagent.bin
 /u01/app/19.3.0/grid/bin/oraagent.bin
 bash-4.2# readlink /proc/10367/exe # ons
 /u01/app/19.3.0/grid/opmn/bin/ons
+bash-4.2# readlink /proc/3769/exe # tnslsnr
+/u01/app/19.3.0/grid/bin/tnslsnr
 ```
 
 ### RACNODED3

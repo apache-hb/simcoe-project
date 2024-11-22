@@ -2,7 +2,6 @@ launch_include = include_directories('.', 'include')
 
 src = [
     'src/launch.cpp',
-    'src/guiwindow.cpp',
 ]
 
 deps = [
@@ -11,7 +10,25 @@ deps = [
     cthulhu.get_variable('backtrace'),
     cthulhu.get_variable('format_core'),
     cthulhu.get_variable('io'),
-    imgui,
+]
+
+liblaunch = library('launch', src,
+    include_directories : [ launch_include ],
+    dependencies : deps
+)
+
+launch_deps = [ core, db ]
+
+launch = declare_dependency(
+    link_with : liblaunch,
+    include_directories : [ launch_include ],
+    dependencies : launch_deps
+)
+
+deps = [ launch, imgui ]
+
+src = [
+    'src/guiwindow.cpp',
 ]
 
 if host_machine.system() == 'windows'
@@ -19,19 +36,17 @@ if host_machine.system() == 'windows'
     src += [ 'src/appwindow.cpp' ]
 endif
 
-liblaunch = library('launch', src,
+if host_machine.system() == 'windows'
+    deps += [ draw_next ]
+endif
+
+liblaunch_gui = library('launch-gui', src,
     include_directories : [ launch_include ],
     dependencies : deps
 )
 
-launch_deps = [ core, db, imgui ]
-
-if host_machine.system() == 'windows'
-    launch_deps += [ draw_next ]
-endif
-
-launch = declare_dependency(
-    link_with : liblaunch,
+launch_gui = declare_dependency(
+    link_with : liblaunch_gui,
     include_directories : [ launch_include ],
-    dependencies : launch_deps
+    dependencies : deps
 )

@@ -17,6 +17,7 @@ project('simcoe', [ 'c', 'cpp' ],
         'b_vscrt=mt',
 
         'licensedir=licenses',
+        'wrap_mode=forcefallback',
 
         # configure freetype before harfbuzz to pick up configuration
         # 'freetype2:auto_features=disabled',
@@ -263,6 +264,8 @@ subdir('src/common/launch')
 ###
 ### plugins
 ###
+
+subdir('src/plugins/orarpc')
 
 if host_machine.system() == 'windows'
     subdir('src/plugins/contextmenu')
