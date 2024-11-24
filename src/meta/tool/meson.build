@@ -24,7 +24,7 @@ deps = [
     fmtlib,
 
     dependency('zlib'),
-    dependency('zstd'),
+    dependency('libzstd'),
     dependency('argo')
 ]
 

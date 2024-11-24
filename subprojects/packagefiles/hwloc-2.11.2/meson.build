@@ -10,6 +10,7 @@ os = host_machine.system()
 arch = host_machine.cpu_family()
 cc = meson.get_compiler('c')
 fs = import('fs')
+cc = meson.get_compiler('c')
 
 deps = [ ]
 
@@ -152,8 +153,15 @@ elif os == 'windows'
     hwloc_private_config = fs.copyfile('contrib/windows/private_config.h', 'hwloc_private_config.h')
 endif
 
+args = cc.get_supported_arguments(
+    '-Wno-unused-parameter',
+    '-Wno-macro-redefined',
+    '-Wno-cast-function-type-mismatch',
+    '-Wno-deprecated-declarations'
+)
+
 libhwloc = library('hwloc', src, hwloc_autogen_config, hwloc_private_config,
-    c_args : [ '-D_GNU_SOURCE', '-DRUNSTATEDIR="/var/run"' ],
+    c_args : args + [ '-D_GNU_SOURCE', '-DRUNSTATEDIR="/var/run"', '-D_CRT_SECURE_NO_WARNINGS' ],
     include_directories : [ hwloc_include ],
     dependencies : deps,
     override_options : [ 'unity=off' ],

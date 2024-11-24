@@ -126,10 +126,10 @@ static void drawItemInspector(Inspector& self, world::IndexOf<world::Model> inde
 
     world::VertexFlags flags = model.getVertexBufferFlags();
     if (ImGui::TreeNodeEx("Flags")) {
-        drawFeature("Positions", flags.test(world::VertexFlags::ePositions));
-        drawFeature("Vertex normals", flags.test(world::VertexFlags::eNormals));
-        drawFeature("Texture coordinates", flags.test(world::VertexFlags::eTexCoords));
-        drawFeature("Tangents", flags.test(world::VertexFlags::eTangents));
+        drawFeature("Positions", bool(flags & world::VertexFlags::ePositions));
+        drawFeature("Vertex normals", bool(flags & world::VertexFlags::eNormals));
+        drawFeature("Texture coordinates", bool(flags & world::VertexFlags::eTexCoords));
+        drawFeature("Tangents", bool(flags & world::VertexFlags::eTangents));
 
         ImGui::TreePop();
     }

@@ -6,12 +6,33 @@
 #include <directx/dxgiformat.h>
 #include <directx/d3d12.h>
 
-#include "world.reflect.h"
+#include "reflect/reflect.h"
+
+#define REFLECT_ENUM_BITFLAGS_EX(ENUM) \
+    REFLECT_ENUM_BITFLAGS(ENUM, __underlying_type(ENUM)) \
+    constexpr inline ENUM operator|=(ENUM& a, ENUM b) { return a = a | b; } \
+    constexpr inline ENUM operator&=(ENUM& a, ENUM b) { return a = a & b; } \
+    constexpr inline ENUM operator^=(ENUM& a, ENUM b) { return a = a ^ b; }
 
 namespace sm::world {
     constexpr math::float3 kVectorForward = {1.f, 0.f, 0.f};
     constexpr math::float3 kVectorRight = {0.f, 0.f, 1.f};
     constexpr math::float3 kVectorUp = {0.f, 1.f, 0.f};
+
+    enum class IndexSize {
+        eShort, // 16-bit indices
+        eInt, // 32-bit indices
+    };
+
+    enum class VertexFlags {
+        eNone = 0,
+        ePositions = (1 << 0),
+        eNormals = (1 << 1),
+        eTexCoords = (1 << 2),
+        eTangents = (1 << 3),
+    };
+
+    REFLECT_ENUM_BITFLAGS_EX(VertexFlags);
 
     struct Vertex {
         math::float3 position;

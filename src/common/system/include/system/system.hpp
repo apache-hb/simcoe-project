@@ -23,6 +23,8 @@ namespace sm::system {
     fs::path getProgramPath();
     std::string getProgramName();
 
+    std::vector<std::string> getCommandLine();
+
     void create(HINSTANCE hInstance);
     void destroy(void) noexcept;
 }

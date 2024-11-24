@@ -167,7 +167,7 @@ void Editor::importGltf(const fs::path& path) {
         world::VertexFlags flags = world::VertexFlags::ePositions;
 
         if (uvAttr != primitive.attributes.end()) {
-            flags.set(world::VertexFlags::eTexCoords);
+            flags |= world::VertexFlags::eTexCoords;
             auto& uvAccess = asset.accessors[uvAttr->second];
             if (uvAccess.bufferViewIndex.has_value()) {
                 fg::iterateAccessorWithIndex<math::float2>(asset, uvAccess, [&](const math::float2& value, size_t index) {
@@ -177,7 +177,7 @@ void Editor::importGltf(const fs::path& path) {
         }
 
         if (normalAttr != primitive.attributes.end()) {
-            flags.set(world::VertexFlags::eNormals);
+            flags |= world::VertexFlags::eNormals;
             auto& normalAccess = asset.accessors[normalAttr->second];
             if (normalAccess.bufferViewIndex.has_value()) {
                 fg::iterateAccessorWithIndex<math::float3>(asset, normalAccess, [&](const math::float3& value, size_t index) {
@@ -187,7 +187,7 @@ void Editor::importGltf(const fs::path& path) {
         }
 
         if (tangentAttr != primitive.attributes.end()) {
-            flags.set(world::VertexFlags::eTangents);
+            flags |= world::VertexFlags::eTangents;
             auto& tangentAccess = asset.accessors[tangentAttr->second];
             if (tangentAccess.bufferViewIndex.has_value()) {
                 fg::iterateAccessorWithIndex<math::float4>(asset, tangentAccess, [&](const math::float4& value, size_t index) {

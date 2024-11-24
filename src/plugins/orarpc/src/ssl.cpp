@@ -1,7 +1,10 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "orarpc/ssl.hpp"
 #include "core/defer.hpp"
 
 #include <fmt/ranges.h>
+
 
 using namespace sm;
 using namespace sm::ssl;
@@ -65,7 +68,7 @@ PrivateKey::PrivateKey(unsigned bits)
 { }
 
 PrivateKey PrivateKey::open(const fs::path& path) {
-    FILE *file = fopen(path.c_str(), "r");
+    FILE *file = fopen(path.string().c_str(), "r");
     if (file == nullptr) {
         throw SslException{SslError::errorOf("fopen")};
     }
@@ -130,7 +133,7 @@ X509Certificate::X509Certificate(PrivateKey& key)
 { }
 
 X509Certificate X509Certificate::open(const fs::path& path) {
-    FILE *file = fopen(path.c_str(), "r");
+    FILE *file = fopen(path.string().c_str(), "r");
     if (file == nullptr) {
         throw SslException{SslError::errorOf("fopen")};
     }

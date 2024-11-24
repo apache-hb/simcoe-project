@@ -19,12 +19,14 @@ if host_machine.system() == 'windows'
 
         'src/win32/storage.cpp',
         'src/win32/network.cpp',
+        'src/win32/system.cpp',
     ]
     deps += [ dependency('wil'), cc.find_library('ws2_32') ]
 elif host_machine.system() == 'linux'
     src += [
         'src/posix/storage.cpp',
         'src/posix/network.cpp',
+        'src/posix/system.cpp',
     ]
 endif
 
@@ -44,8 +46,7 @@ system_core = declare_dependency(
 if is_windows
     delayimp = cc.find_library('delayimp')
     src = [
-        'src/delayload.cpp',
-        reflect.process('data/delayload.ct')
+        'src/delayload.cpp'
     ]
 
     libdelayload = shared_module('delayload', src,

@@ -56,7 +56,7 @@ librender_meta = library('render-meta', src,
 
 render_meta = declare_dependency(
     link_with : librender_meta,
-    include_directories : [ render_include, librender_meta.private_dir_include() ],
+    include_directories : [ render_include, reflect_include, librender_meta.private_dir_include() ],
     dependencies : deps
 )
 
@@ -70,7 +70,7 @@ src = [
     'src/core/error.cpp',
     'src/core/resource.cpp',
     'src/core/format.cpp',
-    
+
     # vendor
     'src/vendor/nvidia/nvapi.cpp',
     'src/vendor/amd/ags.cpp',
@@ -85,7 +85,7 @@ deps = [
 
     # microsoft
     wil,
-    d3d12, 
+    d3d12,
     d3dx12,
     dstorage,
     winpixruntime.partial_dependency(includes : true),

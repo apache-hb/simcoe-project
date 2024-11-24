@@ -32,7 +32,7 @@ contextmenu = declare_dependency(
 )
 
 exe = executable('contextmenu-test', 'test/tool.cpp',
-    dependencies : [ contextmenu, launch ],
+    dependencies : [ contextmenu, launch_gui ],
 )
 
 run_target('run-contextmenu-test', command : [ exe ])

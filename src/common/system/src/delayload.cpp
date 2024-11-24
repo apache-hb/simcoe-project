@@ -5,16 +5,12 @@
 
 #include "fmt/std.h" // IWYU pragma: export
 
-#include "delayimp.h"
-
-#include "delayload.reflect.h"
+#include <delayimp.h>
 
 using namespace sm;
 
 static FARPROC WINAPI dllDelayLoadHook(unsigned notify, PDelayLoadInfo info) {
-    delayload::LoadNotify it{notify};
-
-    if (it == delayload::LoadNotify::eFailLoadLibrary) {
+    if (notify == dliFailLoadLib) {
         fs::path path = sm::system::getProgramFolder() / "redist" / info->szDll;
 
         HMODULE library = LoadLibrary(path.string().c_str());

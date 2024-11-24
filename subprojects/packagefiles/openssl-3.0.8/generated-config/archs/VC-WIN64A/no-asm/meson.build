@@ -969,8 +969,9 @@ openssl_defines = [
   '_WINSOCK_DEPRECATED_NO_WARNINGS',
   'OPENSSL_PIC',
 ]
-openssl_cflags = [
-]
+openssl_cflags = compiler.get_supported_arguments(
+  '-Wno-constant-conversion'
+)
 openssl_libraries = [
   'ws2_32',
   'gdi32',
@@ -981,7 +982,7 @@ openssl_libraries = [
 openssl_include_directories = [
   'generated-config/archs/VC-WIN64A/no-asm',
   'generated-config/archs/VC-WIN64A/no-asm/include',
-  'generated-config/archs/VC-WIN64A/no-asm/crypto',
+  # 'generated-config/archs/VC-WIN64A/no-asm/crypto',
   'generated-config/archs/VC-WIN64A/no-asm/providers/common/include',
 ]
 

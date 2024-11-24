@@ -67,7 +67,7 @@ static system::os::SocketHandle findOpenSocket(addrinfo *info) noexcept(false) {
 
         // failing to connect is acceptable, we can try the next address
         int err = ::connect(socket, ptr->ai_addr, ptr->ai_addrlen);
-        if (err != system::os::kInvalidSocket)
+        if (err == 0)
             return socket;
 
         system::os::destroySocket(socket);

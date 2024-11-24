@@ -25,21 +25,22 @@ if host_machine.system() == 'windows'
         'backends/imgui_impl_dx12.cpp',
         'backends/imgui_impl_win32.cpp',
     ]
-    deps += [ d3d12 ]
+    deps += [ dependency('d3d12') ]
 endif
 
-args = cpp.get_supported_arguments('-Wno-nontrivial-memaccess')
+args = cpp.get_supported_arguments(
+    '-Wno-nontrivial-memaccess',
+    '-Wno-unused-function',
+    '-Wno-unused-variable',
+    '-Wno-unused-but-set-variable',
+    '/wd4702', '/wd4127',
+)
 
 imgui_include = include_directories('include')
 private_imgui_include = include_directories('include/imgui', 'include/imgui/backends', 'include/imgui/misc')
 
 libimgui = library('imgui', src,
-    cpp_args : args + cpp.get_supported_arguments(
-        '/wd4702', '/wd4127',
-        '-Wno-unused-function',
-        '-Wno-unused-variable',
-        '-Wno-unused-but-set-variable'
-    ),
+    cpp_args : args,
     include_directories : [ imgui_include, private_imgui_include ],
     dependencies : deps
 )

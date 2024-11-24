@@ -29,4 +29,13 @@ namespace sm::system::storage {
     /// This folder contains all data included with the installation
     /// of this program, and is readonly.
     fs::path getProgramDataFolder();
+
+    /// @brief Get the path to the folder containing the program executable.
+    fs::path getProgramFolder();
+
+    /// @brief Get the path of the program executable.
+    fs::path getProgramPath();
+
+    /// @brief Get the name of the program executable.
+    std::string getProgramName();
 }

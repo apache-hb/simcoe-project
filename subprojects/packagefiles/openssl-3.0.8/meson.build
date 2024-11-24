@@ -305,7 +305,7 @@ endif
 
 foreach library: openssl_libraries
   # MSVC fails with "ERROR: C static library 'ws2_32' not found" when `static` is specified at all
-  if compiler.get_id() == 'msvc'
+  if compiler.get_id() == 'msvc' or compiler.get_id() == 'clang-cl'
     dependencies += [
       compiler.find_library(library),
     ]

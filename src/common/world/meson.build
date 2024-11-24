@@ -4,8 +4,6 @@ src = [
     'src/mesh.cpp',
     'src/world.cpp',
     'src/ecs.cpp',
-
-    reflect.process('data/world.ct')
 ]
 
 deps = [
@@ -17,12 +15,12 @@ deps = [
 libworld = library('world', src,
     cpp_args : [ '-DSM_WORLD_BUILD=1' ],
     cpp_pch : 'src/stdafx.hpp',
-    include_directories : [ world_include ],
+    include_directories : [ world_include, reflect_include ],
     dependencies : deps
 )
 
 world = declare_dependency(
     link_with : libworld,
-    include_directories : [ world_include, libworld.private_dir_include() ],
+    include_directories : [ world_include, reflect_include ],
     dependencies : deps
 )

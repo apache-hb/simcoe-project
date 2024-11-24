@@ -19,6 +19,10 @@ if get_option('default_library') != 'static'
   add_project_arguments('-D_GLFW_BUILD_DLL', language: 'c')
 endif
 
+if sys_os == 'windows'
+  add_project_arguments('-D_CRT_SECURE_NO_WARNINGS', language: 'c')
+endif
+
 if opt_display == 'auto'
   if sys_os == 'windows'
     opt_display = 'win32'

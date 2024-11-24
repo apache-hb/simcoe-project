@@ -1,16 +1,12 @@
 #pragma once
 
-#include "graph.meta.hpp"
-
 namespace sm::graph {
-    REFLECT_ENUM(ResourceType)
     enum class ResourceType {
         eTransient,
         eImported,
         eManaged,
     };
 
-    REFLECT_ENUM(Usage)
     enum class Usage {
         eUnknown,
 

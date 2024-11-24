@@ -285,22 +285,13 @@ launch::LaunchResult launch::commonInitMain(int argc, const char **argv, const L
     return commonMainInner(GetModuleHandleA(nullptr), args, info);
 }
 
-#if _WIN32
 launch::LaunchResult launch::commonInitWinMain(HINSTANCE hInstance, int nShowCmd, const LaunchInfo& info) noexcept {
-    int argc = 0;
-    LPWSTR *argvw = CommandLineToArgvW(GetCommandLineW(), &argc);
-    defer { LocalFree((void*)argvw); };
+    std::vector<std::string> strings = system::getCommandLine();
 
-    std::vector<std::string> strings(argc);
-    for (int i = 0; i < argc; ++i) {
-        strings[i] = sm::narrow(argvw[i]);
-    }
-
-    std::vector<const char*> argv(argc);
-    for (int i = 0; i < argc; ++i) {
+    std::vector<const char*> argv(strings.size());
+    for (size_t i = 0; i < strings.size(); ++i) {
         argv[i] = strings[i].c_str();
     }
 
     return commonMainInner(hInstance, argv, info);
 }
-#endif

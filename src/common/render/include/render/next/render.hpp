@@ -2,9 +2,10 @@
 
 #include <directx/d3d12.h>
 
-#include "reflect/reflect.h"
+#include <string>
+#include <string_view>
 
-#include "render.meta.hpp"
+#include "reflect/reflect.h"
 
 #define REFLECT_ENUM_BITFLAGS_EX(ENUM) \
     REFLECT_ENUM_BITFLAGS(ENUM, __underlying_type(ENUM)) \
@@ -13,7 +14,6 @@
     constexpr inline ENUM operator^=(ENUM& a, ENUM b) { return a = a ^ b; }
 
 namespace sm::render::next {
-    REFLECT_ENUM(DebugFlags)
     enum class DebugFlags {
         eNone = 0,
         eDeviceDebugLayer = (1 << 0),
@@ -31,7 +31,6 @@ namespace sm::render::next {
 
     REFLECT_ENUM_BITFLAGS_EX(DebugFlags)
 
-    REFLECT_ENUM(FeatureLevel)
     enum class FeatureLevel {
         eLevel_11_0 = D3D_FEATURE_LEVEL_11_0,
         eLevel_11_1 = D3D_FEATURE_LEVEL_11_1,
@@ -39,4 +38,7 @@ namespace sm::render::next {
         eLevel_12_1 = D3D_FEATURE_LEVEL_12_1,
         eLevel_12_2 = D3D_FEATURE_LEVEL_12_2,
     };
+
+    std::string toString(DebugFlags flags);
+    std::string_view toString(FeatureLevel level);
 }

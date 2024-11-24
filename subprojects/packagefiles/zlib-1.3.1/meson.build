@@ -13,11 +13,7 @@ link_args = cc.get_supported_link_arguments(
   '-Wl,--version-script,@0@/zlib.map'.format(meson.current_source_dir()),
 )
 
-compile_args = []
-
-if cc.get_argument_syntax() == 'msvc'
-  compile_args += ['-D_CRT_SECURE_NO_DEPRECATE', '-D_CRT_NONSTDC_NO_DEPRECATE']
-endif
+compile_args = ['-D_CRT_SECURE_NO_WARNINGS', '-D_CRT_NONSTDC_NO_WARNINGS']
 
 add_project_arguments('-D_LARGEFILE64_SOURCE', language: 'c')
 
@@ -91,7 +87,9 @@ pkg.generate(
   extra_cflags: solo_args,
 )
 
-subdir('test')
+if get_option('tests').allowed()
+  subdir('test')
+endif
 
 install_data(meson.project_license_files(),
     install_dir : get_option('licensedir'),

@@ -10,7 +10,7 @@
 
 #include "orarpc/ssl.hpp"
 
-#include <ranges>
+#include "system/system.hpp"
 
 #include <csignal>
 #include <sys/stat.h>
@@ -34,25 +34,6 @@ static const launch::LaunchInfo kLaunchInfo {
     .com = false,
     .allowInvalidArgs = true,
 };
-
-static std::vector<std::string> getCommandLine() {
-    int fd = open("/proc/self/cmdline", O_RDONLY);
-    if (fd == -1)
-        return {};
-
-    defer { close(fd); };
-
-    char buffer[0x1000];
-    int size = read(fd, buffer, sizeof(buffer));
-
-    std::vector<std::string> args;
-
-    for (const auto& part : std::views::split(std::string_view(buffer, size), '\0')) {
-        args.push_back(std::string(part.begin(), part.end()));
-    }
-
-    return args;
-}
 
 static std::string getAt(const std::vector<std::string>& range, size_t index) {
     if (range.size() <= index) {
@@ -143,7 +124,7 @@ static ssl::X509Certificate loadCertificate(ssl::PrivateKey& key) {
 }
 
 int commonMain() noexcept try {
-    auto args = getCommandLine();
+    auto args = system::getCommandLine();
     if (args.size() < 2) {
         LOG_ERROR(GlobalLog, "Failed to read command line");
         return -1;

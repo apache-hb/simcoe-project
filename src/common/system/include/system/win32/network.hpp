@@ -56,5 +56,5 @@ namespace sm::system::os {
         return ::shutdown(socket, SD_BOTH) == 0;
     }
 
-    bool connectWithTimeout(SocketHandle socket, std::chrono::milliseconds timeout);
+    bool connectWithTimeout(SocketHandle socket, const sockaddr *addr, socklen_t len, std::chrono::milliseconds timeout);
 }

@@ -6,7 +6,7 @@
 using namespace sm;
 using namespace sm::world;
 
-static constexpr VertexFlags kPrimitiveVertexFlags = VertexFlags::none();
+static constexpr VertexFlags kPrimitiveVertexFlags = VertexFlags::eNone;
 
 Transform world::default_transform() {
     Transform result = {

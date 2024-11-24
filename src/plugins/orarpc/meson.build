@@ -22,9 +22,11 @@ orarpc = declare_dependency(
     dependencies : deps
 )
 
-exe = executable('orarpc-test', 'test/server.cpp',
-    dependencies : [ orarpc, launch ],
-    link_args : '-static'
-)
+if host_machine.system() == 'linux'
+    exe = executable('orarpc-test', 'test/server.cpp',
+        dependencies : [ orarpc, launch ],
+        link_args : '-static'
+    )
 
-run_target('run-orarpc-test', command : [ exe ])
+    run_target('run-orarpc-test', command : [ exe ])
+endif
