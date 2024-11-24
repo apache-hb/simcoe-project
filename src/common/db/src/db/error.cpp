@@ -7,24 +7,11 @@
 using namespace sm;
 using namespace sm::db;
 
-DbError::DbError(int code, int status, std::string message, bool enableStackTrace) noexcept
-    : mCode(code)
+DbError::DbError(int code, int status, std::string message, bool trace)
+    : Super(std::move(message), trace)
+    , mCode(code)
     , mStatus(status)
-    , mMessage(std::move(message))
-{
-    if (!isSuccess() && enableStackTrace) {
-        mStacktrace = std::stacktrace::current();
-    }
-}
-
-void DbError::raise() const noexcept(false) {
-    throw DbException{*this};
-}
-
-void DbError::throwIfFailed() const noexcept(false) {
-    if (!isSuccess())
-        raise();
-}
+{ }
 
 DbError DbError::ok() noexcept {
     return DbError{0, eOk, "OK"};

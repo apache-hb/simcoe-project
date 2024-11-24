@@ -6,6 +6,13 @@
 using namespace sm;
 using namespace sm::render;
 
+#define SM_ASSERT_WIN32(expr)                                  \
+    do {                                                       \
+        if (auto result = (expr); !result) {                   \
+            sm::system::assertLastError(CT_SOURCE_CURRENT, #expr); \
+        }                                                      \
+    } while (0)
+
 static sm::config::Group gRenderGroup = {
     name = "render",
     desc = "Render configuration options",

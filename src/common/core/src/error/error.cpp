@@ -4,9 +4,13 @@
 
 #include <fmtlib/format.h>
 
-namespace errors = sm::errors;
+using AnyError = sm::errors::AnyError;
 
-errors::AnyError::AnyError(std::string message, bool trace) noexcept
+AnyError::AnyError(std::string message, bool trace)
     : mMessage(std::move(message))
     , mStacktrace(trace ? std::stacktrace::current() : std::stacktrace{})
+{ }
+
+AnyError::AnyError()
+    : AnyError("SUCCESS")
 { }

@@ -1,23 +1,25 @@
 #pragma once
 
 #include "core/throws.hpp"
+#include "core/error/error.hpp"
 
 #include "db/db.hpp"
 
 #include <fmtlib/format.h>
 
-#include <stacktrace>
 #include <string>
 #include <string_view>
 
 namespace sm::db {
-    class [[nodiscard("Possibly ignoring error")]] DbError {
+    class DbError : public errors::Error<DbError> {
+        using Super = errors::Error<DbError>;
+
         int mCode = 0;
         int mStatus = eOk;
-        std::string mMessage;
-        std::stacktrace mStacktrace;
 
     public:
+        using Exception = class DbException;
+
         enum : int {
             eOk = 0,
             eError = 1,
@@ -27,21 +29,10 @@ namespace sm::db {
             eNoData = 5,
         };
 
-        DbError(int code, int status, std::string message, bool enableStackTrace = true) noexcept;
+        DbError(int code, int status, std::string message, bool trace = true);
 
         int code() const noexcept { return mCode; }
         int status() const noexcept { return mStatus; }
-        std::string_view message() const noexcept { return mMessage; }
-        const char *what() const noexcept { return mMessage.c_str(); }
-        const std::stacktrace& stacktrace() const noexcept { return mStacktrace; }
-
-        [[noreturn]]
-        void raise() const throws(DbException);
-        void throwIfFailed() const throws(DbException);
-
-        operator bool() const noexcept {
-            return mStatus != eOk && mStatus != eDone;
-        }
 
         bool isSuccess() const noexcept {
             return mStatus == eOk || mStatus == eDone;
@@ -71,7 +62,7 @@ namespace sm::db {
     };
 
     template<typename T>
-    using DbResult = std::expected<T, DbError>;
+    using DbResult = DbError::Result<T>;
 
     template<typename T>
     auto throwIfFailed(DbResult<T>&& result) throws(DbException) {
@@ -81,29 +72,12 @@ namespace sm::db {
         return std::move(result.value());
     }
 
-    class DbException : public std::exception {
-        DbError mError;
-        std::string mMessage;
-
+    class DbException : public errors::Exception<DbError> {
+        using Super = errors::Exception<DbError>;
     public:
-        DbException(const DbError& error) noexcept
-            : std::exception()
-            , mError(error)
-            , mMessage(error.message())
-        { }
+        using Super::Super;
 
-        DbException(const DbError& error, std::string_view context) noexcept
-            : std::exception()
-            , mError(error)
-            , mMessage(fmt::format("{}. {}", error.message(), context))
-        { }
-
-        DbError error() const noexcept { return mError; }
-        int code() const noexcept { return mError.code(); }
-        std::string_view message() const noexcept { return mMessage; }
-        const std::stacktrace& stacktrace() const noexcept { return mError.stacktrace(); }
-
-        virtual const char *what() const noexcept { return mMessage.c_str(); }
+        int code() const noexcept { return error().code(); }
     };
 
     class DbConnectionException : public DbException {

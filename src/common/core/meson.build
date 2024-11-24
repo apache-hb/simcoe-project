@@ -86,7 +86,7 @@ testcases = {
     'Priority queue' : 'test/adt/priority_queue.cpp',
     'Symbol names' : 'test/symbols.cpp',
     'Sync primitives' : 'test/sync.cpp',
-    'Combine' : 'test/combine.cpp',
+    'Combine' : 'test/adt/combine.cpp',
 }
 
 foreach name, source : testcases

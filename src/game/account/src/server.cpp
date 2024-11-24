@@ -4,6 +4,8 @@
 
 #include "core/defer.hpp"
 
+#include <fmtlib/format.h>
+
 #include "account.dao.hpp"
 
 using namespace std::chrono_literals;
@@ -283,9 +285,9 @@ void AccountServer::handleClient(const std::stop_token& stop, net::Socket socket
         }
     }
 } catch (const db::DbException& e) {
-    LOG_WARN(GlobalLog, "database error: {}", e.error());
+    LOG_WARN(GlobalLog, "database error: {}", e);
 } catch (const net::NetException& e) {
-    LOG_WARN(GlobalLog, "network error: {}", e);
+    // LOG_WARN(GlobalLog, "network error: {}", e);
 } catch (const std::exception& e) {
     LOG_ERROR(GlobalLog, "unhandled exception: {}", e.what());
 } catch (...) {

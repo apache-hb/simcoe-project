@@ -9,7 +9,6 @@
 using namespace sm;
 using namespace sm::db;
 
-
 std::string_view db::toString(DbType it) noexcept {
     using enum DbType;
     switch (it) {
@@ -73,6 +72,14 @@ std::string_view db::toString(AssumeRole it) noexcept {
     }
 }
 
+std::string db::toString(const ConnectionConfig& config) {
+    std::string_view role = config.user.empty() ? "anonymous" : std::string_view(config.user);
+    std::string database = config.database.empty() ? "" : fmt::format("/{}", config.database);
+    std::string port = (config.port == 0) ? "" : fmt::format(":{}", config.port);
+
+    return fmt::format("{}{}{} as {}", config.host, port, database, role);
+}
+
 void detail::destroyEnvironment(detail::IEnvironment *impl) noexcept {
     if (impl->close())
         delete impl;
@@ -113,16 +120,8 @@ Environment Environment::create(DbType type, const EnvConfig& config) {
     }
 }
 
-static std::string formatConnectionConfig(const ConnectionConfig& config) {
-    std::string_view role = config.user.empty() ? "anonymous" : std::string_view(config.user);
-    std::string database = config.database.empty() ? "" : fmt::format("/{}", config.database);
-    std::string port = (config.port == 0) ? "" : fmt::format(":{}", config.port);
-
-    return fmt::format("{}{}{} as `{}`", config.host, port, database, role);
-}
-
 static void logConnectionAttempt(const ConnectionConfig& config) {
-    std::string info = formatConnectionConfig(config);
+    std::string info = toString(config);
 
     if (config.timeout != kDefaultTimeout) {
         info += fmt::format(" (timeout: {})", config.timeout);

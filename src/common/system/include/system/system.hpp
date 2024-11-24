@@ -10,7 +10,9 @@
 
 #include "logs/logging.hpp"
 
-#include "core/win32.hpp"
+#if _WIN32
+#   include "core/win32.hpp"
+#endif
 
 LOG_MESSAGE_CATEGORY(SystemLog, "System");
 
@@ -28,10 +30,3 @@ namespace sm::system {
     void create(HINSTANCE hInstance);
     void destroy(void) noexcept;
 }
-
-#define SM_ASSERT_WIN32(expr)                                  \
-    do {                                                       \
-        if (auto result = (expr); !result) {                   \
-            sm::system::assertLastError(CT_SOURCE_CURRENT, #expr); \
-        }                                                      \
-    } while (0)

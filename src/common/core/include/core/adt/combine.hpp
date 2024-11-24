@@ -3,19 +3,13 @@
 #include "core/core.hpp"
 #include "core/macros.hpp"
 
-namespace sm {
+namespace sm::adt {
     template<typename T, typename... U> requires ((std::derived_from<U, T> && ...) && std::has_virtual_destructor_v<T>)
     class Combine {
-        union CompositeStorage {
-            alignas(std::max(alignof(U)...)) char derived[std::max(sizeof(U)...)];
+        alignas(std::max(alignof(U)...)) char storage[std::max(sizeof(U)...)];
 
-            ~CompositeStorage() noexcept {}
-        };
-
-        CompositeStorage storage;
-
-        T *pointer() noexcept { return reinterpret_cast<T *>(storage.derived); }
-        T **address() noexcept { return reinterpret_cast<T **>(&storage.derived); }
+        T *pointer() noexcept { return reinterpret_cast<T *>(storage); }
+        T **address() noexcept { return reinterpret_cast<T **>(&storage); }
 
     public:
         SM_NOCOPY(Combine);

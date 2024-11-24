@@ -25,7 +25,7 @@ namespace sm {
     class BitMapIndexAllocator {
         friend BitMapIndexIterator;
 
-        BitSet mBitSet;
+        adt::BitSet mBitSet;
 
         size_t acquireFirstFreeIndex() noexcept;
         size_t acquireFirstFreeRange(size_t count) noexcept;

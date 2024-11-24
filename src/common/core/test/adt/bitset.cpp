@@ -2,9 +2,11 @@
 
 #include "core/adt/bitset.hpp"
 
+namespace adt = sm::adt;
+
 TEST_CASE("bitset construction") {
     GIVEN("a bitset") {
-        sm::BitSet bs{64};
+        adt::BitSet bs{64};
 
         THEN("it initializes correctly") {
             CHECK(bs.popcount() == 0);
@@ -15,7 +17,7 @@ TEST_CASE("bitset construction") {
     }
 
     GIVEN("a multi word bitset") {
-        sm::BitSet bs{999};
+        adt::BitSet bs{999};
 
         THEN("it initializes correctly") {
             CHECK(bs.popcount() == 0);
@@ -28,7 +30,7 @@ TEST_CASE("bitset construction") {
 
 TEST_CASE("bitset operations") {
     GIVEN("a bitset") {
-        sm::BitSet bs{64};
+        adt::BitSet bs{64};
 
         THEN("setting bits works") {
             bs.set(0);
@@ -80,7 +82,7 @@ TEST_CASE("bitset operations") {
     }
 
     GIVEN("a bitset") {
-        sm::BitSet bs{999};
+        adt::BitSet bs{999};
 
         THEN("setting high bits") {
             bs.set(998);
@@ -139,7 +141,7 @@ TEST_CASE("bitset operations") {
 
 TEST_CASE("resizing a bitset") {
     GIVEN("a bitset") {
-        sm::BitSet bs{64};
+        adt::BitSet bs{64};
 
         THEN("resizing to a smaller size") {
             bs.resize(32);
@@ -161,7 +163,7 @@ TEST_CASE("resizing a bitset") {
     }
 
     GIVEN("a bitset") {
-        sm::BitSet bs{999};
+        adt::BitSet bs{999};
 
         THEN("resizing to a smaller size") {
             bs.resize(500);

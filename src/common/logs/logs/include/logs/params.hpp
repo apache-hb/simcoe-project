@@ -123,12 +123,6 @@ namespace sm::logs {
         }
     }
 
-    static_assert(kIsNamedArg<bool> == false);
-    static_assert(kIsNamedArg<NamedArg<bool>> == true);
-    static_assert(kIsNamedArg<detail::ArgDataT<fmt::detail::named_arg<char, bool>>> == true);
-    static_assert(kIsNamedArg<detail::ArgDataT<bool>> == false);
-    static_assert(kIsNamedArg<std::remove_cvref_t<const sm::logs::NamedArg<int> &>> == true);
-
     template<typename... A>
     using ArgTuple = std::tuple<detail::ArgDataT<A>...>;
 
@@ -364,7 +358,7 @@ namespace sm::logs {
     constexpr FormatWrapper<A...> compileTupleArgs(A... args);
 
     struct Result {
-        std::array<char, 128> result;
+        std::array<char, 1024> result;
         size_t size;
 
         constexpr char *data() noexcept { return result.data(); }

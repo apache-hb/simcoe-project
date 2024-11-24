@@ -32,8 +32,6 @@ namespace sm::render {
         using Super = errors::Exception<RenderError>;
     public:
         using Super::Super;
-
-        RenderException(HRESULT value, std::string_view expr);
     };
 
     template<typename V>

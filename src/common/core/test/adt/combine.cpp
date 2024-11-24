@@ -1,6 +1,8 @@
 #include "test/common.hpp"
 
-#include "core/combine.hpp"
+#include "core/adt/combine.hpp"
+
+namespace adt = sm::adt;
 
 class BaseClass {
 public:
@@ -35,7 +37,7 @@ public:
 };
 
 TEST_CASE("Combining inheritance") {
-    sm::Combine<BaseClass, DerivedOne, DerivedTwo> combined{DerivedTwo{}};
+    adt::Combine<BaseClass, DerivedOne, DerivedTwo> combined{DerivedTwo{}};
 
     THEN("The combined object uses the correct behavior") {
         REQUIRE(combined->compute(5) == 100);

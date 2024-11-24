@@ -4,6 +4,8 @@
 
 namespace render = sm::render;
 
+using RenderError = render::RenderError;
+
 std::string render::errorString(HRESULT hr) {
     static constexpr size_t kBufferSize = 512;
 
@@ -16,16 +18,12 @@ std::string render::errorString(HRESULT hr) {
     return buffer;
 }
 
-render::RenderError::RenderError(HRESULT value)
+RenderError::RenderError(HRESULT value)
     : Super(errorString(value), FAILED(value))
     , mValue(value)
 { }
 
-render::RenderError::RenderError(HRESULT value, std::string_view expr)
+RenderError::RenderError(HRESULT value, std::string_view expr)
     : Super(fmt::format("{}: {}", expr, errorString(value)), FAILED(value))
     , mValue(value)
-{ }
-
-render::RenderException::RenderException(HRESULT value, std::string_view expr)
-    : Super(RenderError(value, expr))
 { }

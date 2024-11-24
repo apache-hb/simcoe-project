@@ -1,5 +1,7 @@
 #include "system/input.hpp"
 
+#include "common.hpp"
+
 using namespace sm;
 
 using DesktopInput = system::DesktopInput;

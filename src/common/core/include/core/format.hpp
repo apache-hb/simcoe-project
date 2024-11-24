@@ -3,9 +3,7 @@
 #include <simcoe_config.h>
 
 #if __has_include("reflect/reflect.h")
-
-#include "reflect/reflect.h"
-
+#   include "reflect/reflect.h"
 #endif
 
 #include "fmtlib/format.h"
