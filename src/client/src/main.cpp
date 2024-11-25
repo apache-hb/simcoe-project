@@ -144,10 +144,6 @@ class CharacterMap {
 public:
     CharacterMap() = default;
 
-    CharacterMap(const fs::path& path) {
-        load(path);
-    }
-
     void load(const fs::path& path) {
         mData = readFileBytes<std::byte>(path);
         mPath = path.string();
@@ -180,6 +176,50 @@ public:
         } else {
             throw std::runtime_error("failed to open file: " + path.string());
         }
+    }
+};
+
+class ScreenMemory {
+    uint8_t mScreenColour[VIC20_SCREEN_CHARS_WIDTH * VIC20_SCREEN_CHARS_HEIGHT];
+    uint8_t mScreenCharacter[VIC20_SCREEN_CHARS_WIDTH * VIC20_SCREEN_CHARS_HEIGHT];
+
+public:
+    ScreenMemory() = default;
+
+    void load(const fs::path& path, Vic20DrawContext& context) {
+        memset(mScreenColour, 0, sizeof(mScreenColour));
+        memset(mScreenCharacter, 0, sizeof(mScreenCharacter));
+
+        std::vector<uint8_t> screen = readFileBytes<uint8_t>(path);
+        if (screen.size() != sizeof(mScreenColour) + sizeof(mScreenCharacter)) {
+            throw std::runtime_error("invalid screen memory map size");
+        }
+        memcpy(mScreenColour, screen.data(), sizeof(mScreenColour));
+        memcpy(mScreenCharacter, screen.data() + sizeof(mScreenColour), sizeof(mScreenCharacter));
+
+        for (uint8_t x = 0; x < VIC20_SCREEN_CHARS_WIDTH; x++) {
+            for (uint8_t y = 0; y < VIC20_SCREEN_CHARS_HEIGHT; y++) {
+                uint16_t index = x * VIC20_SCREEN_CHARS_HEIGHT + y;
+                context.write(x, y, mScreenColour[index], mScreenCharacter[index]);
+            }
+        }
+    }
+
+    void save(const fs::path& path) {
+        std::ofstream file(path, std::ios::binary);
+        if (file.is_open()) {
+            file.write(reinterpret_cast<const char *>(mScreenColour), sizeof(mScreenColour));
+            file.write(reinterpret_cast<const char *>(mScreenCharacter), sizeof(mScreenCharacter));
+        } else {
+            throw std::runtime_error("failed to open file: " + path.string());
+        }
+    }
+
+    void write(Vic20DrawContext& context, uint8_t x, uint8_t y, uint8_t colour, uint8_t character) {
+        uint16_t index = x * VIC20_SCREEN_CHARS_HEIGHT + y;
+        mScreenColour[index] = colour;
+        mScreenCharacter[index] = character;
+        context.write(x, y, colour, character);
     }
 };
 
@@ -227,13 +267,28 @@ static int commonMain() noexcept try {
     };
     saveCharacterMapRom.SetInputName("Save Character Map ROM");
 
+    ImGui::FileBrowser openScreenMemoryMap{ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_ConfirmOnEnter};
+    openScreenMemoryMap.SetInputName("Open Screen Memory Map");
+
+    ImGui::FileBrowser saveScreenMemoryMap{
+        ImGuiFileBrowserFlags_CreateNewDir |
+        ImGuiFileBrowserFlags_CloseOnEsc |
+        ImGuiFileBrowserFlags_EnterNewFilename |
+        ImGuiFileBrowserFlags_ConfirmOnEnter
+    };
+    saveScreenMemoryMap.SetInputName("Save Screen Memory Map");
+
+
     char userprofile[MAX_PATH];
     GetEnvironmentVariableA("USERPROFILE", userprofile, MAX_PATH);
 
     openCharacterMapRom.SetPwd(userprofile);
     saveCharacterMapRom.SetPwd(userprofile);
+    openScreenMemoryMap.SetPwd(userprofile);
+    saveScreenMemoryMap.SetPwd(userprofile);
 
     CharacterMap charmap;
+    ScreenMemory screen;
     std::string error;
     bool showCharacterMap = false;
     bool showDemoWindow = false;
@@ -244,6 +299,8 @@ static int commonMain() noexcept try {
 
         openCharacterMapRom.Display();
         saveCharacterMapRom.Display();
+        openScreenMemoryMap.Display();
+        saveScreenMemoryMap.Display();
 
         ImGui::DockSpaceOverViewport();
         if (ImGui::BeginMainMenuBar()) {
@@ -257,6 +314,16 @@ static int commonMain() noexcept try {
 
                 if (ImGui::MenuItem("Save Character Map ROM")) {
                     saveCharacterMapRom.Open();
+                }
+
+                ImGui::Separator();
+
+                if (ImGui::MenuItem("Open Screen Memory Map")) {
+                    openScreenMemoryMap.Open();
+                }
+
+                if (ImGui::MenuItem("Save Screen Memory Map")) {
+                    saveScreenMemoryMap.Open();
                 }
 
                 ImGui::EndMenu();
@@ -297,6 +364,29 @@ static int commonMain() noexcept try {
             }
 
             saveCharacterMapRom.ClearSelected();
+        }
+
+        if (openScreenMemoryMap.HasSelected()) {
+            try {
+                screen.load(openScreenMemoryMap.GetSelected(), context);
+                showScreenMemoryMap = true;
+            } catch (const std::exception& e) {
+                error = e.what();
+                ImGui::OpenPopup("Error");
+            }
+
+            openScreenMemoryMap.ClearSelected();
+        }
+
+        if (saveScreenMemoryMap.HasSelected()) {
+            try {
+                screen.save(saveScreenMemoryMap.GetSelected());
+            } catch (const std::exception& e) {
+                error = e.what();
+                ImGui::OpenPopup("Error");
+            }
+
+            saveScreenMemoryMap.ClearSelected();
         }
 
         if (ImGui::BeginPopupModal("Error")) {
@@ -429,7 +519,7 @@ static int commonMain() noexcept try {
                             ScreenPixel pixel = *reinterpret_cast<const ScreenPixel *>(payload->Data);
                             int x = i / VIC20_SCREEN_CHARS_HEIGHT;
                             int y = i % VIC20_SCREEN_CHARS_HEIGHT;
-                            context.write(x, y, pixel.colour, pixel.character);
+                            screen.write(context, x, y, pixel.colour, pixel.character);
                         }
                         ImGui::EndDragDropTarget();
                     }
@@ -474,14 +564,14 @@ static int commonMain() noexcept try {
             PaletteColourPicker("Foreground", &fg);
 
             if (ImGui::Button("Poke")) {
-                context.write(x, y, VIC20_CHAR_COLOUR(fg, bg), c);
+                screen.write(context, x, y, VIC20_CHAR_COLOUR(fg, bg), c);
             }
 
             if (ImGui::Button("Draw character map")) {
                 int index = 0;
                 for (int i = 0; i < VIC20_SCREEN_CHARS_WIDTH; i++) {
                     for (int j = 0; j < VIC20_SCREEN_CHARS_HEIGHT; j++) {
-                        context.write(i, j, VIC20_CHAR_COLOUR(fg, bg), index++);
+                        screen.write(context, i, j, VIC20_CHAR_COLOUR(fg, bg), index++);
                     }
                 }
             }
@@ -494,7 +584,7 @@ static int commonMain() noexcept try {
             if (fill) {
                 for (int i = 0; i < VIC20_SCREEN_CHARS_WIDTH; i++) {
                     for (int j = 0; j < VIC20_SCREEN_CHARS_HEIGHT; j++) {
-                        context.write(i, j, VIC20_CHAR_COLOUR(fg, bg), c);
+                        screen.write(context, i, j, VIC20_CHAR_COLOUR(fg, bg), c);
                     }
                 }
             }
@@ -504,7 +594,7 @@ static int commonMain() noexcept try {
 
             if (ImGui::Button("Draw text")) {
                 for (size_t i = 0; i < strlen(buffer); i++) {
-                    context.write(x + i, y, VIC20_CHAR_COLOUR(fg, bg), buffer[i]);
+                    screen.write(context, x + i, y, VIC20_CHAR_COLOUR(fg, bg), buffer[i]);
                 }
             }
         }
