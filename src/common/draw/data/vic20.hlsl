@@ -41,14 +41,6 @@ uint getCharacterColour(Vic20Screen screen, uint index) {
     return extractByte(screen.colour[elementIndex], byteIndex);
 }
 
-uint foregroundColour(uint colour) {
-    return (colour >> 4) & 0x0F;
-}
-
-uint backgroundColour(uint colour) {
-    return colour & 0x0F;
-}
-
 /// @pre index < VIC20_PALETTE_SIZE
 float4 getPaletteColourFromIndex(uint index) {
     return float4(kVic20Palette[index], 1.f);
@@ -88,8 +80,8 @@ void csMain(
 
     bool pickForeground = (character.data & (1ULL << groupIndex)) != 0;
     uint finalColour = pickForeground
-        ? foregroundColour(colour)
-        : backgroundColour(colour);
+        ? ((colour >> 4) & 0x0F) // pick foreground colour index
+        : (colour & 0x0F);       // pick background colour index
 
     uint2 pixel = groupId.xy * uint2(VIC20_THREADS_X, VIC20_THREADS_Y) + groupThreadId.xy;
     gPresentTexture[pixel] = getPaletteColourFromIndex(finalColour);

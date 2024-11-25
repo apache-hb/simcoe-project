@@ -4,10 +4,11 @@
 #include <new>
 
 namespace sm::threads {
-    /// @brief single slot mailbox for communicating between threads
+    /// @brief single slot mailbox for communicating between threads.
     /// single producer single consumer mailbox which garantees to never
-    /// block when reading.
-    /// @note can block when writing
+    /// block when reading. Useful for communicating between a worker thread
+    /// that only writes rarely and a main thread that reads frequently.
+    /// @warning can block when writing
     template<typename T>
     class NonBlockingMailBox {
         static constexpr size_t kIndexBit = 0b0001;
