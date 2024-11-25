@@ -1,4 +1,4 @@
-#include "test/common.hpp"
+#include <gtest/gtest.h>
 
 #include "core/sync.hpp"
 
@@ -11,8 +11,7 @@
 using ExclusiveVector = sm::ExclusiveSync<std::vector<int>>;
 using SharedVector = sm::Sync<std::vector<int>>;
 
-TEST_CASE("ExclusiveSync") {
-
+TEST(SyncTest, ExclusiveSync) {
     ExclusiveVector vec;
 
     const int count = 32;
@@ -31,11 +30,11 @@ TEST_CASE("ExclusiveSync") {
 
     std::sort(guard->begin(), guard->end());
     for (int i = 0; i < count; i++) {
-        REQUIRE(guard->at(i) == i * 100);
+        ASSERT_EQ(guard->at(i), i * 100);
     }
 }
 
-TEST_CASE("Sync") {
+TEST(SyncTest, Sync) {
     SharedVector vec;
     sm::ExclusiveSync<std::vector<std::string>> errors;
     const int count = 32;
@@ -80,12 +79,12 @@ TEST_CASE("Sync") {
     std::sort(guard->begin(), guard->end());
 
     for (int i = 0; i < count / 2; i++) {
-        REQUIRE(guard->at(i) == i * 200);
+        ASSERT_EQ(guard->at(i), i * 200);
     }
 
     auto err = errors.take();
 
-    CHECK(err->empty());
+    EXPECT_TRUE(err->empty());
     for (const auto& e : *err) {
         fmt::println(stderr, "{}", e);
     }

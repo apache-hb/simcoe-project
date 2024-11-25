@@ -1,77 +1,65 @@
-#include "test/common.hpp"
+#include <gtest/gtest.h>
 
 #include "core/adt/zstring_view.hpp"
 
 using namespace sm::literals;
 
-TEST_CASE("zstring view operations") {
-    GIVEN("default initialization") {
-        sm::ZStringView view;
+TEST(ZStringTest, DefaultInitialization) {
+    sm::ZStringView view;
 
-        THEN("it initializes correctly") {
-            CHECK(view.size() == 0);
-            CHECK(view.empty());
-        }
-    }
+    ASSERT_EQ(view.size(), 0);
+    ASSERT_TRUE(view.empty());
+}
 
-    GIVEN("string construction") {
-        sm::ZStringView view = "test";
+TEST(ZStringTest, StringConstruction) {
+    sm::ZStringView view = "test";
 
-        THEN("it initializes correctly") {
-            CHECK(view.size() == 4);
-            CHECK_FALSE(view.empty());
-            bool eq = view == "test"_zsv;
-            CHECK(eq);
-        }
-    }
+    ASSERT_EQ(view.size(), 4);
+    ASSERT_FALSE(view.empty());
+    bool eq = view == "test"_zsv;
+    ASSERT_TRUE(eq);
+}
 
-    GIVEN("array literal construction") {
-        sm::ZStringView view = "test";
+TEST(ZStringTest, ArrayLiteralInit) {
+    sm::ZStringView view = "test";
 
-        THEN("it initializes correctly") {
-            CHECK(view.size() == 4);
-            CHECK_FALSE(view.empty());
-            CHECK(view == "test");
-        }
-    }
+    ASSERT_EQ(view.size(), 4);
+    ASSERT_FALSE(view.empty());
+    ASSERT_EQ(view, "test");
+}
 
-    GIVEN("an empty string") {
-        sm::ZStringView view = "";
+TEST(ZStringTest, EmptyString) {
+    sm::ZStringView view = "";
 
-        THEN("it initializes correctly") {
-            CHECK(view.size() == 0);
-            CHECK(view.empty());
-            CHECK(view == "");
-        }
-    }
+    ASSERT_EQ(view.size(), 0);
+    ASSERT_TRUE(view.empty());
+    ASSERT_EQ(view, "");
+}
 
-    GIVEN("comparison with a string") {
-        sm::ZStringView view = "test";
+TEST(ZStringTest, Comparison) {
+    sm::ZStringView view = "test";
 
-        THEN("it compares correctly") {
-            CHECK(view == "test");
-            CHECK(view != "test2");
-            CHECK(view < "test2");
-            CHECK(view <= "test2");
-            CHECK(view <= "test");
-            CHECK(view > "tes1");
-            CHECK(view >= "tes");
-            CHECK(view >= "test");
-        }
-    }
+    ASSERT_TRUE(view == "test");
+    ASSERT_TRUE(view != "test2");
+    ASSERT_TRUE(view < "test2");
+    ASSERT_TRUE(view <= "test2");
+    ASSERT_TRUE(view <= "test");
+    ASSERT_TRUE(view > "tes1");
+    ASSERT_TRUE(view >= "tes");
+    ASSERT_TRUE(view >= "test");
+}
 
-    CHECK("test"_zsv.startsWith("te"));
-    CHECK("test"_zsv.endsWith("st"));
+TEST(ZStringTest, Operations) {
+    ASSERT_TRUE("test"_zsv.startsWith("te"));
+    ASSERT_TRUE("test"_zsv.endsWith("st"));
+}
 
-    GIVEN("a string") {
-        sm::ZStringView view = "test";
+TEST(ZStringTest, Indexing) {
+    sm::ZStringView view = "test";
 
-        THEN("its values are correct") {
-            CHECK(view.length() == 4);
-            CHECK(view[0] == 't');
-            CHECK(view[1] == 'e');
-            CHECK(view[2] == 's');
-            CHECK(view[3] == 't');
-        }
-    }
+    ASSERT_EQ(view.length(), 4);
+    ASSERT_EQ(view[0], 't');
+    ASSERT_EQ(view[1], 'e');
+    ASSERT_EQ(view[2], 's');
+    ASSERT_EQ(view[3], 't');
 }

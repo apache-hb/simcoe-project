@@ -56,6 +56,7 @@ core = declare_dependency(
     compile_args : args
 )
 
+gtest = dependency('gtest_main')
 catch2 = dependency('catch2-with-main')
 testargs = [ '--reporter=TAP', '--allow-running-no-tests' ]
 testkwargs = { 'protocol' : 'tap', 'args' : testargs, 'timeout': 5 }
@@ -80,15 +81,9 @@ coretest = declare_dependency(
 )
 
 testcases = {
-    'String' : 'test/string.cpp',
-    'Null terminated string view' : 'test/adt/zstring_view.cpp',
     'Vector' : 'test/adt/vector.cpp',
-    'Small vector': 'test/adt/small_vector.cpp',
     'Bit set' : 'test/adt/bitset.cpp',
     'Priority queue' : 'test/adt/priority_queue.cpp',
-    'Symbol names' : 'test/symbols.cpp',
-    'Sync primitives' : 'test/sync.cpp',
-    'Combine' : 'test/adt/combine.cpp',
 }
 
 foreach name, source : testcases
@@ -99,5 +94,25 @@ foreach name, source : testcases
     test(name, exe,
         suite : 'core',
         kwargs : testkwargs
+    )
+endforeach
+
+testcases = {
+    'Null terminated string view' : 'test/adt/zstring_view.cpp',
+    'String' : 'test/string.cpp',
+    'Sync primitives' : 'test/sync.cpp',
+    'Symbol names' : 'test/symbols.cpp',
+    'Combine' : 'test/adt/combine.cpp',
+    'Small vector': 'test/adt/small_vector.cpp',
+}
+
+foreach name, source : testcases
+    exe = executable('test-core-' + name.to_lower().replace(' ', '-'), source,
+        dependencies : [ core, gtest ]
+    )
+
+    test(name, exe,
+        suite : 'core',
+        kwargs : testkwargs + { 'protocol' : 'gtest' }
     )
 endforeach

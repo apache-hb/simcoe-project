@@ -1,4 +1,4 @@
-#include "test/common.hpp"
+#include <gtest/gtest.h>
 
 #include "core/macros.hpp"
 
@@ -10,17 +10,10 @@ namespace com::apache::simcoe {
 
 struct SomeType;
 
-TEST_CASE("symbol names") {
+TEST(SymbolNameTest, Simple) {
+    ASSERT_EQ(sm::getTypeName<SomeType>(), "SomeType");
+}
 
-    GIVEN("a type") {
-        THEN("it is formatted properly") {
-            REQUIRE(sm::getTypeName<SomeType>() == "SomeType");
-        }
-    }
-
-    GIVEN("a type in a namespace") {
-        THEN("it is formatted properly") {
-            REQUIRE(sm::getTypeName<com::apache::simcoe::Thing>() == "com.apache.simcoe.Thing");
-        }
-    }
+TEST(SymbolNameTest, HasNamespaces) {
+    ASSERT_EQ(sm::getTypeName<com::apache::simcoe::Thing>(), "com.apache.simcoe.Thing");
 }

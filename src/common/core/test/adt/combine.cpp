@@ -1,4 +1,6 @@
-#include "test/common.hpp"
+#include <gtest/gtest.h>
+
+#include <vector>
 
 #include "core/adt/combine.hpp"
 
@@ -36,15 +38,13 @@ public:
     int getInner() override { return mValues[mIndex]; }
 };
 
-TEST_CASE("Combining inheritance") {
+TEST(CombineTest, Inheritance) {
     adt::Combine<BaseClass, DerivedOne, DerivedTwo> combined{DerivedTwo{}};
 
-    THEN("The combined object uses the correct behavior") {
-        REQUIRE(combined->compute(5) == 100);
-        REQUIRE(combined->evaluate("hello"));
-        REQUIRE_FALSE(combined->evaluate(nullptr));
+    ASSERT_EQ(combined->compute(5), 100);
+    ASSERT_TRUE(combined->evaluate("hello"));
+    ASSERT_FALSE(combined->evaluate(nullptr));
 
-        combined->mutate(10);
-        REQUIRE(combined->getInner() == 10);
-    }
+    combined->mutate(10);
+    ASSERT_EQ(combined->getInner(), 10);
 }

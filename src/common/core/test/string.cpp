@@ -1,120 +1,108 @@
-#include "test/common.hpp"
+#include <gtest/gtest.h>
 
 #include "core/string.hpp"
 
-TEST_CASE("string split") {
-    GIVEN("An empty string") {
-        std::string str = "";
+TEST(StringTest, SplitEmptyString) {
+    std::string str = "";
 
-        THEN("it splits into an empty list") {
-            auto result = sm::splitAll(str, ',');
-            REQUIRE(result.empty());
-        }
-    }
+    auto result = sm::splitAll(str, ',');
+    ASSERT_TRUE(result.empty());
+}
 
-    GIVEN("a string with no delimiters") {
-        std::string str = "test";
+TEST(StringTest, SplitSingleEmtpy) {
+    std::string str = "test";
 
-        THEN("it splits into a single element") {
-            auto pair = sm::split(str, ',');
-            REQUIRE(pair.right.empty());
-        }
-    }
+    auto pair = sm::split(str, ',');
+    ASSERT_EQ(pair.right, "");
+}
 
-    GIVEN("a string with one delimiter") {
-        std::string str = "test,test";
+TEST(StringTest, SplitSingle) {
+    std::string str = "test,test";
 
-        THEN("it splits into two elements") {
-            auto pair = sm::split(str, ',');
-            REQUIRE(pair.left == "test");
-            REQUIRE(pair.right == "test");
-        }
-    }
+    auto pair = sm::split(str, ',');
+    ASSERT_EQ(pair.left, "test");
+    ASSERT_EQ(pair.right, "test");
+}
 
-    GIVEN("a string with multiple delimiters") {
-        std::string str = "test,test,test";
+TEST(StringTest, SplitMultiple) {
+    std::string str = "test,test,test";
 
-        THEN("it splits into multiple elements") {
-            auto pair = sm::split(str, ',');
-            REQUIRE(pair.left == "test");
-            REQUIRE(pair.right == "test,test");
-        }
-    }
+    auto pair = sm::split(str, ',');
+    ASSERT_EQ(pair.left, "test");
+    ASSERT_EQ(pair.right, "test,test");
+}
 
-    GIVEN("a string with a delimiter at the end") {
-        std::string str = "test,";
+TEST(StringTest, SplitEnd) {
+    std::string str = "test,";
 
-        THEN("it splits into two elements") {
-            auto pair = sm::split(str, ',');
-            REQUIRE(pair.left == "test");
-            REQUIRE(pair.right.empty());
-        }
-    }
+    auto pair = sm::split(str, ',');
+    ASSERT_EQ(pair.left, "test");
+    ASSERT_EQ(pair.right, "");
+}
 
-    GIVEN("a string with a delimiter at the beginning") {
-        std::string str = ",test";
+struct SplitAllCase {
+    std::string_view desc;
+    std::string_view input;
+    char delim;
+    std::vector<std::string_view> expected;
+};
 
-        THEN("it splits into two elements") {
-            auto pair = sm::split(str, ',');
-            REQUIRE(pair.left.empty());
-            REQUIRE(pair.right == "test");
-        }
+SplitAllCase splitCases[] = {
+    { "none", "hello", ',', { "hello" } },
+    { "one", "hello,world", ',', { "hello", "world" } },
+    { "leading", ",world", ',', { "", "world" } },
+    { "trailing", "hello,", ',', { "hello", "" } },
+    { "adjacent", "hello,,world", ',', { "hello", "", "world" } }
+};
+
+class StringSplitTest : public testing::TestWithParam<SplitAllCase> {};
+
+INSTANTIATE_TEST_SUITE_P(
+    SplitString, StringSplitTest,
+    testing::ValuesIn(splitCases),
+    [](const testing::TestParamInfo<SplitAllCase>& info) {
+        return std::string{info.param.desc};
+    });
+
+TEST_P(StringSplitTest, SplitAll) {
+    const SplitAllCase& it = GetParam();
+
+    auto result = sm::splitAll(it.input, it.delim);
+    ASSERT_EQ(result.size(), it.expected.size());
+    for (size_t i = 0; i < result.size(); i++) {
+        ASSERT_EQ(result[i], it.expected[i]);
     }
 }
 
-TEST_CASE("Split all string") {
-    struct SplitAllCase {
-        std::string_view desc;
-        std::string_view input;
-        char delim;
-        std::vector<std::string_view> expected;
-    };
+struct ReplaceAllCase {
+    std::string_view desc;
+    std::string_view input;
+    std::string_view search;
+    std::string_view replace;
+    std::string expected;
+};
 
-    SplitAllCase cases[] = {
-        { "a string with no seperator", "hello", ',', { "hello" } },
-        { "a string with one seperator", "hello,world", ',', { "hello", "world" } },
-        { "a string with a leading seperator", ",world", ',', { "", "world" } },
-        { "a string with a trailing seperator", "hello,", ',', { "hello", "" } },
-        { "a string with adjacent seperators", "hello,,world", ',', { "hello", "", "world" } }
-    };
+ReplaceAllCase replaceCases[] = {
+    { "none", "hello", "world", "earth", "hello" },
+    { "single", "hello world", "world", "earth", "hello earth" },
+    { "multiple", "hello world world", "world", "earth", "hello earth earth" },
+    { "end", "hello world", "world", "earth", "hello earth" },
+    { "beginning", "world hello", "world", "earth", "earth hello" }
+};
 
-    for (const SplitAllCase& it : cases) {
-        GIVEN(it.desc) {
-            THEN("the correct result is generated") {
-                auto result = sm::splitAll(it.input, it.delim);
-                CHECK(result.size() == it.expected.size());
-                for (size_t i = 0; i < result.size(); i++) {
-                    REQUIRE(result[i] == it.expected[i]);
-                }
-            }
-        }
-    }
-}
+class StringReplaceTest : public testing::TestWithParam<ReplaceAllCase> {};
 
-TEST_CASE("replaceAll") {
-    struct ReplaceAllCase {
-        std::string_view desc;
-        std::string_view input;
-        std::string_view search;
-        std::string_view replace;
-        std::string expected;
-    };
+INSTANTIATE_TEST_SUITE_P(
+    ReplaceString, StringReplaceTest,
+    testing::ValuesIn(replaceCases),
+    [](const testing::TestParamInfo<ReplaceAllCase>& info) {
+        return std::string{info.param.desc};
+    });
 
-    ReplaceAllCase cases[] = {
-        { "no replacements", "hello", "world", "earth", "hello" },
-        { "single replacement", "hello world", "world", "earth", "hello earth" },
-        { "multiple replacements", "hello world world", "world", "earth", "hello earth earth" },
-        { "replacement at the end", "hello world", "world", "earth", "hello earth" },
-        { "replacement at the beginning", "world hello", "world", "earth", "earth hello" }
-    };
+TEST_P(StringReplaceTest, ReplaceAll) {
+    const ReplaceAllCase& it = GetParam();
 
-    for (const ReplaceAllCase& it : cases) {
-        GIVEN(it.desc) {
-            THEN("the correct result is generated") {
-                std::string input{ it.input };
-                sm::replaceAll(input, it.search, it.replace);
-                REQUIRE(input == it.expected);
-            }
-        }
-    }
+    std::string input{ it.input };
+    sm::replaceAll(input, it.search, it.replace);
+    ASSERT_EQ(input, it.expected);
 }
