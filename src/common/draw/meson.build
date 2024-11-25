@@ -51,6 +51,30 @@ vic20_shader = custom_target('vic20-shader',
     ]
 )
 
+blit_ps_shader = custom_target('blit-ps-shader',
+    input : 'data/blit.hlsl',
+    output : '@BASENAME@.ps.cso',
+    command : [
+        dxc, '/Wx', '/Ges',
+        '-I@CURRENT_SOURCE_DIR@/include',
+        '-Tps_6_2', '-EpsMain',
+        '-Fo@OUTPUT@', '@INPUT@',
+        '/Zi', '-Qembed_debug'
+    ]
+)
+
+blit_vs_shader = custom_target('blit-vs-shader',
+    input : 'data/blit.hlsl',
+    output : '@BASENAME@.vs.cso',
+    command : [
+        dxc, '/Wx', '/Ges',
+        '-I@CURRENT_SOURCE_DIR@/include',
+        '-Tvs_6_2', '-EvsMain',
+        '-Fo@OUTPUT@', '@INPUT@',
+        '/Zi', '-Qembed_debug'
+    ]
+)
+
 src = [
     # next draw
     'src/components/camera.cpp',
@@ -77,7 +101,7 @@ libdraw_next = library('draw-next', src,
     cpp_pch : 'src/stdafx.hpp',
     include_directories : [ draw_include, 'src' ],
     dependencies : deps,
-    link_depends : vic20_shader
+    link_depends : [ vic20_shader, blit_ps_shader, blit_vs_shader ]
 )
 
 draw_next = declare_dependency(

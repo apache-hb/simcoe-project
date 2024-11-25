@@ -8,11 +8,33 @@ static std::vector<IEngineUnit*>& allEngineUnits() {
     return sUnits;
 }
 
+static UnitId addUnit(IEngineUnit *unit) {
+    std::vector<IEngineUnit*>& units = allEngineUnits();
+    size_t index = units.size();
+    units.emplace_back(unit);
+    return index;
+}
+
 IEngineUnit::IEngineUnit(UnitInfo unitInfo)
     : info(std::move(unitInfo))
-    , mSetupSuccess(false)
-{
-    allEngineUnits().emplace_back(this);
+    , id(addUnit(this))
+    , mState(InitState::ePending)
+{ }
+
+bool IEngineUnit::createUnit() try {
+    create();
+    mState = InitState::eSuccess;
+    return true;
+} catch (const errors::AnyException& e) {
+    mState = InitState::eFailure;
+    mSetupStatus = e.cause();
+    return false;
+}
+
+void IEngineUnit::destroyUnit() noexcept {
+    if (mState == InitState::eSuccess) {
+        destroy();
+    }
 }
 
 std::span<IEngineUnit*> IEngineUnit::all() {

@@ -2,13 +2,14 @@
 
 #include "account/packets.hpp"
 
+#include "account/stream.hpp"
 #include "net/net.hpp"
 
 #include <unordered_map>
 #include <functional>
 
 namespace game {
-    using RequestData = std::span<const std::byte>;
+    using RequestData = AnyPacket&;
     using MessageHandler = std::function<void(RequestData request, sm::net::Socket& response)>;
 
     class MessageRouter {
@@ -44,6 +45,6 @@ namespace game {
             addGenericRoute(type, messageHandler);
         }
 
-        bool handleMessage(sm::net::Socket& socket);
+        bool handleMessage(AnyPacket& packet, sm::net::Socket& socket);
     };
 }

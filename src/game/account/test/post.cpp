@@ -3,7 +3,6 @@
 using namespace sm;
 
 static constexpr net::Address kAddress = net::Address::loopback();
-static constexpr uint16_t kPort = 9996;
 static constexpr int kClientCount = 20;
 // static constexpr int kMessageCount = 3;
 
@@ -24,12 +23,13 @@ TEST_CASE("Account post message") {
         NetTestStream errors;
 
         // setup account server
-        game::AccountServer server = test.server(kAddress, kPort, 1234);
+        game::AccountServer server = test.server(kAddress, 0, 1234);
+        uint16_t port = server.getPort();
 
         std::jthread serverThread = test.run(server, errors, kClientCount);
 
         // create clients
-        createTestAccounts(test.network, kAddress, kPort, errors, kClientCount);
+        createTestAccounts(test.network, kAddress, port, errors, kClientCount);
     }
 
     db::Connection db2 = test.connect();

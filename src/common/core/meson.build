@@ -28,6 +28,8 @@ src = [
     'src/allocators/slab.cpp',
 
     'src/error/error.cpp',
+
+    'src/text/encoding.cpp',
 ]
 
 if is_windows
@@ -38,7 +40,7 @@ endif
 
 inc = include_directories('.', 'include', 'src')
 
-args = cpp.get_supported_arguments('-Wno-dangling-reference')
+args = cpp.get_supported_arguments('-Wno-dangling-reference', '-Wno-c99-designator')
 
 libcore = library('core', src, simcoe_config,
     cpp_args : [ '-DSM_CORE_BUILD=1', args ],

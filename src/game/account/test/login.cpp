@@ -5,7 +5,6 @@
 using namespace sm;
 
 static constexpr net::Address kAddress = net::Address::loopback();
-static constexpr uint16_t kPort = 9997;
 static constexpr int kClientCount = 20;
 
 namespace acd = sm::dao::account;
@@ -19,16 +18,17 @@ TEST_CASE("Account Create & Login") {
         NetTestStream errors;
 
         // setup account server
-        game::AccountServer server = test.server(kAddress, kPort, 1234);
+        game::AccountServer server = test.server(kAddress, 0, 1234);
+        uint16_t port = server.getPort();
 
         std::jthread serverThread = test.run(server, errors, kClientCount);
 
         // create clients
-        createTestAccounts(test.network, kAddress, kPort, errors, kClientCount);
+        createTestAccounts(test.network, kAddress, port, errors, kClientCount);
 
         // attempt to login with the created accounts
         doParallel(kClientCount, [&](int i, auto stop) {
-            game::AccountClient client { test.network, kAddress, kPort };
+            game::AccountClient client { test.network, kAddress, port };
             std::string name = newClientName(i);
             std::string password = "password";
 
@@ -37,7 +37,7 @@ TEST_CASE("Account Create & Login") {
 
         // login using incorrect password
         doParallel(kClientCount, [&](int i, auto stop) {
-            game::AccountClient client { test.network, kAddress, kPort };
+            game::AccountClient client { test.network, kAddress, port };
             std::string name = newClientName(i);
             std::string password = "wrong";
 
@@ -46,7 +46,7 @@ TEST_CASE("Account Create & Login") {
 
         // login with a non-existent account
         doParallel(kClientCount, [&](int i, auto stop) {
-            game::AccountClient client { test.network, kAddress, kPort };
+            game::AccountClient client { test.network, kAddress, port };
             std::string name = fmt::format("nonexistent{:02}", i);
             std::string password = "password";
 

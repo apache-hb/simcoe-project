@@ -83,6 +83,7 @@ namespace sm::errors {
     public:
         using Super::Super;
 
+        virtual AnyError cause() const noexcept = 0;
         virtual const std::stacktrace& stacktrace() const noexcept = 0;
     };
 
@@ -103,6 +104,7 @@ namespace sm::errors {
 
         const char *what() const noexcept override { return mError.what(); }
 
+        AnyError cause() const noexcept override { return mError; }
         const T& error() const noexcept { return mError; }
         const std::stacktrace& stacktrace() const noexcept override final { return mError.stacktrace(); }
     };

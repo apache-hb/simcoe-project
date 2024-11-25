@@ -8,7 +8,7 @@ deps = [
     cthulhu.get_variable('backtrace'),
     cthulhu.get_variable('format_core'),
     cthulhu.get_variable('io'),
-    tracy, launch
+    tracy, launch, launch_gui, filebrowser
 ]
 
 pch = meson.current_source_dir() / 'src/stdafx.hpp'

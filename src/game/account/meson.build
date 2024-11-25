@@ -31,6 +31,7 @@ src = [
     'src/server.cpp',
     'src/client.cpp',
     'src/router.cpp',
+    'src/stream.cpp',
 ]
 
 deps = [ logs, net, account_meta ]
@@ -74,6 +75,7 @@ testcases = {
     'Posting messages': 'test/post.cpp',
     'Get session list': 'test/session_list.cpp',
     'Get lobby list': 'test/lobby_list.cpp',
+    'Join lobby': 'test/join_lobby.cpp',
 }
 
 foreach name, source : testcases

@@ -5,7 +5,6 @@
 using namespace sm;
 
 static constexpr net::Address kAddress = net::Address::loopback();
-static constexpr uint16_t kPort = 9985;
 static constexpr int kClientCount = 20;
 
 namespace acd = sm::dao::account;
@@ -19,12 +18,13 @@ TEST_CASE("Account Create & Login") {
         NetTestStream errors;
 
         // setup account server
-        game::AccountServer server = test.server(kAddress, kPort, 1234);
+        game::AccountServer server = test.server(kAddress, 0, 1234);
+        uint16_t port = server.getPort();
 
         std::jthread serverThread = test.run(server, errors, kClientCount);
 
         // create clients
-        createTestAccounts(test.network, kAddress, kPort, errors, kClientCount);
+        createTestAccounts(test.network, kAddress, port, errors, kClientCount);
 
 
         // login with the created accounts but dont close connections
@@ -32,7 +32,7 @@ TEST_CASE("Account Create & Login") {
         std::latch alert{kClientCount + 1};
 
         std::jthread queryThread = std::jthread([&](const std::stop_token& stop) {
-            game::AccountClient client { test.network, kAddress, kPort };
+            game::AccountClient client { test.network, kAddress, port };
 
             errors.expect(client.createAccount("scanner", "password"), "failed to create scanner");
             errors.expect(client.login("scanner", "password"), "failed to login to scanner");
@@ -60,7 +60,7 @@ TEST_CASE("Account Create & Login") {
 
         // attempt to login with the created accounts
         doParallel(kClientCount, [&](int i, auto stop) {
-            game::AccountClient client { test.network, kAddress, kPort };
+            game::AccountClient client { test.network, kAddress, port };
             std::string name = newClientName(i);
             std::string password = "password";
 

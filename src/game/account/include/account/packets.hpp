@@ -30,6 +30,7 @@ namespace game {
         eCreateLobby,
         eJoinLobby,
         eLeaveLobby,
+        eStartGame,
 
         eCount
     };
@@ -61,7 +62,8 @@ namespace game {
         PacketType type;
         uint16_t size;
         uint16_t id;
-        uint8_t padding[2];
+        uint8_t stream;
+        uint8_t padding[1];
     };
 
     enum class Status : uint16_t {
@@ -78,8 +80,8 @@ namespace game {
 
         Response() = default;
 
-        Response(uint16_t id, Status status, uint16_t size = sizeof(Response))
-            : header(PacketType::eResponse, size, id)
+        Response(PacketHeader instigator, Status status, uint16_t size = sizeof(Response))
+            : header(PacketType::eResponse, size, instigator.id, instigator.stream)
             , status(status)
         { }
     };
@@ -89,8 +91,8 @@ namespace game {
 
         Ack() = default;
 
-        Ack(uint16_t id)
-            : header(PacketType::eAck, sizeof(Ack), id)
+        Ack(PacketHeader instigator)
+            : header(PacketType::eAck, sizeof(Ack), instigator.id, instigator.stream)
         { }
     };
 
@@ -101,8 +103,8 @@ namespace game {
 
         CreateAccount() = default;
 
-        CreateAccount(uint16_t id, std::string_view name, std::string_view pass)
-            : header(PacketType::eCreateAccount, sizeof(CreateAccount), id)
+        CreateAccount(uint16_t id, uint8_t stream, std::string_view name, std::string_view pass)
+            : header(PacketType::eCreateAccount, sizeof(CreateAccount), id, stream)
             , username(name)
             , password(pass)
         { }
@@ -123,8 +125,8 @@ namespace game {
 
         Login() = default;
 
-        Login(uint16_t id, std::string_view name, std::string_view pass)
-            : header(PacketType::eLogin, sizeof(Login), id)
+        Login(uint16_t id, uint8_t stream, std::string_view name, std::string_view pass)
+            : header(PacketType::eLogin, sizeof(Login), id, stream)
             , username(name)
             , password(pass)
         { }
@@ -144,16 +146,8 @@ namespace game {
 
         NewSession() = default;
 
-        NewSession(uint16_t id, SessionId session)
-            : NewSession(id, Status::eSuccess, session)
-        { }
-
-        NewSession(uint16_t id)
-            : NewSession(id, Status::eFailure, 0)
-        { }
-
-        NewSession(uint16_t id, Status status, SessionId session)
-            : response(id, status, sizeof(NewSession))
+        NewSession(PacketHeader instigator, SessionId session = UINT64_MAX)
+            : response(instigator, session == UINT64_MAX ? Status::eFailure : Status::eSuccess, sizeof(NewSession))
             , session(session)
         { }
     };
@@ -165,8 +159,8 @@ namespace game {
 
         CreateLobby() = default;
 
-        CreateLobby(uint16_t id, SessionId session, std::string_view name)
-            : header(PacketType::eCreateLobby, sizeof(CreateLobby), id)
+        CreateLobby(uint16_t id, uint8_t stream, SessionId session, std::string_view name)
+            : header(PacketType::eCreateLobby, sizeof(CreateLobby), id, stream)
             , session(session)
             , name(name)
         { }
@@ -178,14 +172,9 @@ namespace game {
 
         NewLobby() = default;
 
-        NewLobby(uint16_t id, LobbyId lobby)
-            : response(id, Status::eSuccess, sizeof(NewLobby))
+        NewLobby(PacketHeader instigator, LobbyId lobby = UINT64_MAX)
+            : response(instigator, lobby == UINT64_MAX ? Status::eFailure : Status::eSuccess, sizeof(NewLobby))
             , lobby(lobby)
-        { }
-
-        NewLobby(uint16_t id)
-            : response(id, Status::eFailure, sizeof(NewLobby))
-            , lobby(UINT64_MAX)
         { }
     };
 
@@ -196,8 +185,8 @@ namespace game {
 
         JoinLobby() = default;
 
-        JoinLobby(uint16_t id, SessionId session, LobbyId lobby)
-            : header(PacketType::eJoinLobby, sizeof(JoinLobby), id)
+        JoinLobby(uint16_t id, uint8_t stream, SessionId session, LobbyId lobby)
+            : header(PacketType::eJoinLobby, sizeof(JoinLobby), id, stream)
             , session(session)
             , lobby(lobby)
         { }
@@ -209,8 +198,8 @@ namespace game {
 
         GetSessionList() = default;
 
-        GetSessionList(uint16_t id, SessionId session)
-            : header(PacketType::eGetSessionList, sizeof(GetSessionList), id)
+        GetSessionList(uint16_t id, uint8_t stream, SessionId session)
+            : header(PacketType::eGetSessionList, sizeof(GetSessionList), id, stream)
             , session(session)
         { }
     };
@@ -231,16 +220,22 @@ namespace game {
 
         GetLobbyList() = default;
 
-        GetLobbyList(uint16_t id, SessionId session)
-            : header(PacketType::eGetLobbyList, sizeof(GetLobbyList), id)
+        GetLobbyList(uint16_t id, uint8_t stream, SessionId session)
+            : header(PacketType::eGetLobbyList, sizeof(GetLobbyList), id, stream)
             , session(session)
         { }
+    };
+
+    enum class LobbyState : uint8_t {
+        eWaiting,
+        ePlaying,
     };
 
     struct LobbyInfo {
         LobbyId id;
         SessionId players[4];
         Text<32> name;
+        LobbyState state;
 
         SessionId getHost() const {
             return players[0];
@@ -262,5 +257,31 @@ namespace game {
         LobbyInfo lobbies[];
     };
 
-    size_t getPacketDataSize(PacketHeader header);
+    struct LeaveLobby {
+        PacketHeader header;
+        SessionId session;
+        LobbyId lobby;
+
+        LeaveLobby() = default;
+
+        LeaveLobby(uint16_t id, uint8_t stream, SessionId session, LobbyId lobby)
+            : header(PacketType::eLeaveLobby, sizeof(LeaveLobby), id, stream)
+            , session(session)
+            , lobby(lobby)
+        { }
+    };
+
+    struct StartGame {
+        PacketHeader header;
+        SessionId session;
+        LobbyId lobby;
+
+        StartGame() = default;
+
+        StartGame(uint16_t id, uint8_t stream, SessionId session, LobbyId lobby)
+            : header(PacketType::eStartGame, sizeof(StartGame), id, stream)
+            , session(session)
+            , lobby(lobby)
+        { }
+    };
 }

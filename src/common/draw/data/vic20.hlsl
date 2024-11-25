@@ -26,11 +26,8 @@ uint getCharacterIndex(Vic20Screen screen, uint index) {
     return extractByte(screen.screen[elementIndex], byteIndex);
 }
 
+/// @pre index < VIC20_CHARMAP_SIZE
 Vic20Character getCharacter(Vic20CharacterMap characters, uint index) {
-    if (index >= VIC20_CHARMAP_SIZE) {
-        return Vic20Character(0b0101010101010101010101010101010101010101010101010101010101010101);
-    }
-
     return characters.characters[index];
 }
 
@@ -52,10 +49,8 @@ uint backgroundColour(uint colour) {
     return colour & 0x0F;
 }
 
+/// @pre index < VIC20_PALETTE_SIZE
 float4 getPaletteColourFromIndex(uint index) {
-    if (index >= VIC20_PALETTE_SIZE)
-        return float4(1, 0, 1, 1);
-
     return float4(kVic20Palette[index], 1.f);
 }
 
@@ -89,25 +84,13 @@ void csMain(
     uint index = getScreenIndex(groupId.xy);
     uint characterIndex = getCharacterIndex(screen, index);
     Vic20Character character = getCharacter(characters, characterIndex);
-    bool pickForeground = (character.data & (1ULL << groupIndex)) != 0;
     uint colour = getCharacterColour(screen, index);
 
+    bool pickForeground = (character.data & (1ULL << groupIndex)) != 0;
     uint finalColour = pickForeground
         ? foregroundColour(colour)
         : backgroundColour(colour);
 
     uint2 pixel = groupId.xy * uint2(VIC20_THREADS_X, VIC20_THREADS_Y) + groupThreadId.xy;
     gPresentTexture[pixel] = getPaletteColourFromIndex(finalColour);
-
-    // float ic = float(index) / VIC20_SCREEN_CHARBUFFER_SIZE;
-    // float u = float(threadId.x) / info.textureSize.x;
-    // float v = float(threadId.y) / info.textureSize.y;
-
-    // gPresentTexture[threadId + uint2(1, 0)] = getPaletteColourFromIndex(fg);
-    // gPresentTexture[threadId + uint2(2, 0)] = getPaletteColourFromIndex(fg);
-    // gPresentTexture[threadId + uint2(3, 0)] = getPaletteColourFromIndex(fg);
-    // gPresentTexture[threadId + uint2(4, 0)] = getPaletteColourFromIndex(bg);
-    // gPresentTexture[threadId + uint2(5, 0)] = getPaletteColourFromIndex(bg);
-    // gPresentTexture[threadId + uint2(6, 0)] = getPaletteColourFromIndex(bg);
-    // gPresentTexture[threadId + uint2(7, 0)] = getPaletteColourFromIndex(bg);
 }

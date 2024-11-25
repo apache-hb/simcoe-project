@@ -16,13 +16,22 @@ namespace sm::init {
         ctu_version_t version;
     };
 
+    using UnitId = size_t;
+
+    enum InitState {
+        ePending,
+        eSuccess,
+        eFailure,
+    };
+
     class IEngineUnit {
     public:
         const UnitInfo info;
+        const UnitId id;
 
     private:
-        errors::AnyError mSetupResult;
-        bool mSetupSuccess;
+        errors::AnyError mSetupStatus;
+        InitState mState;
 
         virtual void create() throws(AnyException) = 0;
         virtual void destroy() noexcept = 0;
@@ -30,8 +39,11 @@ namespace sm::init {
     public:
         IEngineUnit(UnitInfo unitInfo);
 
-        bool setupOk() const noexcept { return mSetupSuccess; }
-        const errors::AnyError& result() const noexcept { return mSetupResult; }
+        InitState state() const noexcept { return mState; }
+        const errors::AnyError& status() const noexcept { return mSetupStatus; }
+
+        bool createUnit();
+        void destroyUnit() noexcept;
 
         static std::span<IEngineUnit*> all();
     };
@@ -41,6 +53,10 @@ namespace sm::init {
         static T gInstance;
 
     public:
-        EngineUnit();
+        EngineUnit(UnitInfo info);
+    };
+
+    class UnitCollection {
+
     };
 }

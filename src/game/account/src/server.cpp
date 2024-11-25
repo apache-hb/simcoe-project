@@ -28,7 +28,6 @@ static std::optional<acd::User> getUserByName(db::Connection& db, std::string_vi
     throw;
 }
 
-
 bool AccountServer::authSession(SessionId id) {
     std::lock_guard guard(mDbMutex);
 
@@ -36,7 +35,6 @@ bool AccountServer::authSession(SessionId id) {
     stmt.bind("user").to(id);
     auto result = db::throwIfFailed(stmt.start());
 
-    fmt::println(stderr, "auth session: {} {}", result.at<int>(0), id);
     return result.at<int>(0) > 0;
 }
 
@@ -204,49 +202,49 @@ void AccountServer::handleClient(const std::stop_token& stop, net::Socket socket
     defer { dropSession(session); };
 
     router.addRoute<Ack>(PacketType::eAck, [](const Ack& req) {
-        fmt::println(stderr, "received ack: {}", req.header.id);
+        LOG_INFO(GlobalLog, "received ack: {}/{}", req.header.id, req.header.stream);
 
-        return Ack { req.header.id };
+        return Ack { req.header };
     });
 
     router.addRoute<CreateAccount>(PacketType::eCreateAccount, [this](const CreateAccount& req) {
         if (createAccount(req)) {
-            return Response { req.header.id, Status::eSuccess };
+            return Response { req.header, Status::eSuccess };
         } else {
-            return Response { req.header.id, Status::eFailure };
+            return Response { req.header, Status::eFailure };
         }
     });
 
     router.addRoute<Login>(PacketType::eLogin, [this, &session](const Login& req) {
         SessionId auth = login(req);
         if (auth == UINT64_MAX) {
-            return NewSession { req.header.id };
+            return NewSession { req.header };
         } else {
             session = auth;
-            return NewSession { req.header.id, auth };
+            return NewSession { req.header, auth };
         }
     });
 
     router.addRoute<CreateLobby>(PacketType::eCreateLobby, [this](const CreateLobby& req) {
         LobbyId id = createLobby(req);
         if (id == UINT64_MAX) {
-            return NewLobby { req.header.id };
+            return NewLobby { req.header };
         } else {
-            return NewLobby { req.header.id, id };
+            return NewLobby { req.header, id };
         }
     });
 
     router.addRoute<JoinLobby>(PacketType::eJoinLobby, [this](const JoinLobby& req) {
         if (joinLobby(req)) {
-            return Response { req.header.id, Status::eSuccess };
+            return Response { req.header, Status::eSuccess };
         } else {
-            return Response { req.header.id, Status::eFailure };
+            return Response { req.header, Status::eFailure };
         }
     });
 
     router.addFlexibleDataRoute<GetSessionList>(PacketType::eGetSessionList, [this](const GetSessionList& req, net::Socket& socket) {
         if (!authSession(req.session)) {
-            socket.send(Response { req.header.id, Status::eFailure }).throwIfFailed();
+            socket.send(Response { req.header, Status::eFailure }).throwIfFailed();
             return;
         }
 
@@ -256,14 +254,14 @@ void AccountServer::handleClient(const std::stop_token& stop, net::Socket socket
         auto count = getSessionList(std::span<SessionInfo>(list->sessions, kMaxSessions));
         uint16_t size = sizeof(SessionList) + (sizeof(SessionInfo) * count);
 
-        list->response = Response { req.header.id, Status::eSuccess, size };
+        list->response = Response { req.header, Status::eSuccess, size };
 
         net::throwIfFailed(socket.sendBytes(data.get(), size));
     });
 
     router.addFlexibleDataRoute<GetLobbyList>(PacketType::eGetLobbyList, [this](const GetLobbyList& req, net::Socket& socket) {
         if (!authSession(req.session)) {
-            socket.send(Response { req.header.id, Status::eFailure }).throwIfFailed();
+            socket.send(Response { req.header, Status::eFailure }).throwIfFailed();
             return;
         }
 
@@ -273,21 +271,29 @@ void AccountServer::handleClient(const std::stop_token& stop, net::Socket socket
         auto count = getLobbyList(std::span<LobbyInfo>(list->lobbies, kMaxLobbies));
         uint16_t size = sizeof(LobbyList) + (sizeof(LobbyInfo) * count);
 
-        list->response = Response { req.header.id, Status::eSuccess, size };
+        list->response = Response { req.header, Status::eSuccess, size };
 
         net::throwIfFailed(socket.sendBytes(data.get(), size));
     });
 
+    SocketMux mux;
+
     while (!stop.stop_requested()) {
-        if (!router.handleMessage(socket)) {
-            LOG_INFO(GlobalLog, "dropping client connection");
-            return;
+        mux.work(socket, 100ms);
+
+        if (AnyPacket packet = mux.pop(kClientStream)) {
+            if (!router.handleMessage(packet, socket)) {
+                LOG_INFO(GlobalLog, "dropping client connection");
+                return;
+            }
         }
+
+        mux.pop(kEventStream); // server doesnt handle events, just keep the queue empty
     }
 } catch (const db::DbException& e) {
     LOG_WARN(GlobalLog, "database error: {}", e);
 } catch (const net::NetException& e) {
-    // LOG_WARN(GlobalLog, "network error: {}", e);
+    LOG_WARN(GlobalLog, "network error: {}", e);
 } catch (const std::exception& e) {
     LOG_ERROR(GlobalLog, "unhandled exception: {}", e.what());
 } catch (...) {

@@ -7,18 +7,6 @@ using namespace game;
 
 using namespace std::chrono_literals;
 
-static std::unique_ptr<std::byte[]> readFlexiblePacket(sm::net::Socket& socket) {
-    PacketHeader header = net::throwIfFailed(socket.recv<PacketHeader>());
-    std::unique_ptr<std::byte[]> data = std::make_unique<std::byte[]>(header.size);
-    memcpy(data.get(), &header, sizeof(PacketHeader));
-
-    if (header.size > sizeof(PacketHeader)) {
-        net::throwIfFailed(socket.recvBytes(data.get() + sizeof(PacketHeader), header.size - sizeof(PacketHeader)));
-    }
-
-    return data;
-}
-
 AccountClient::AccountClient(sm::net::Network& net, const sm::net::Address& address, uint16_t port) noexcept(false)
     : mSocket{net.connect(address, port)}
 { }
@@ -27,28 +15,35 @@ bool AccountClient::createAccount(std::string_view name, std::string_view passwo
     if (name.size() > sizeof(CreateAccount::username) || password.size() > sizeof(CreateAccount::password))
         return false;
 
-    mSocket.send(CreateAccount { mNextId++, name, password }).throwIfFailed();
+    mSocket.send(CreateAccount { mNextId++, kClientStream, name, password }).throwIfFailed();
 
-    Response response = net::throwIfFailed(mSocket.recv<Response>());
+    if (AnyPacket packet = getNextMessage(kClientStream)) {
+        Response& response = *std::bit_cast<Response*>(packet.data());
+        return response.status == Status::eSuccess;
+    }
 
-    return response.status == Status::eSuccess;
+    return false;
 }
 
 bool AccountClient::login(std::string_view name, std::string_view password) {
     if (name.size() > sizeof(Login::username) || password.size() > sizeof(Login::password))
         return false;
 
-    mSocket.send(Login { mNextId++, name, password }).throwIfFailed();
+    mSocket.send(Login { mNextId++, kClientStream, name, password }).throwIfFailed();
 
-    NewSession session = net::throwIfFailed(mSocket.recv<NewSession>());
-    LOG_INFO(GlobalLog, "New session established with server. Assigned id {}", session.session);
+    if (AnyPacket packet = getNextMessage(kClientStream)) {
+        NewSession& session = *std::bit_cast<NewSession*>(packet.data());
+        LOG_INFO(GlobalLog, "New session established with server. Assigned id {}", session.session);
 
-    bool success = session.response.status == Status::eSuccess;
-    if (!success)
-        return false;
+        bool success = session.response.status == Status::eSuccess;
+        if (!success)
+            return false;
 
-    mCurrentSession = session.session;
-    return true;
+        mCurrentSession = session.session;
+        return true;
+    }
+
+    return false;
 }
 
 bool AccountClient::createLobby(std::string_view name) {
@@ -58,32 +53,68 @@ bool AccountClient::createLobby(std::string_view name) {
     if (!isAuthed())
         return false;
 
-    mSocket.send(CreateLobby { mNextId++, mCurrentSession, name }).throwIfFailed();
+    mSocket.send(CreateLobby { mNextId++, kClientStream, mCurrentSession, name }).throwIfFailed();
 
-    NewLobby lobby = net::throwIfFailed(mSocket.recv<NewLobby>());
+    if (AnyPacket packet = getNextMessage(kClientStream)) {
+        NewLobby& lobby = *std::bit_cast<NewLobby*>(packet.data());
 
-    bool success = lobby.response.status == Status::eSuccess;
-    if (!success)
-        return false;
+        bool success = lobby.response.status == Status::eSuccess;
+        if (!success)
+            return false;
 
-    mCurrentLobby = lobby.lobby;
-    return true;
+        mCurrentLobby = lobby.lobby;
+        return true;
+    }
+
+    return false;
 }
 
 bool AccountClient::joinLobby(LobbyId id) {
     if (!isAuthed())
         return false;
 
-    mSocket.send(JoinLobby { mNextId++, mCurrentSession, id }).throwIfFailed();
+    mSocket.send(JoinLobby { mNextId++, kClientStream, mCurrentSession, id }).throwIfFailed();
 
-    Response response = net::throwIfFailed(mSocket.recv<Response>());
+    if (AnyPacket packet = getNextMessage(kClientStream)) {
+        Response& response = *std::bit_cast<Response*>(packet.data());
+        bool success = response.status == Status::eSuccess;
+        if (!success)
+            return false;
 
-    bool success = response.status == Status::eSuccess;
-    if (!success)
+        mCurrentLobby = id;
+        return true;
+    }
+
+    return false;
+}
+
+bool AccountClient::startGame() {
+    if (!isAuthed())
         return false;
 
-    mCurrentLobby = id;
-    return true;
+    if (mCurrentLobby == UINT64_MAX)
+        return false;
+
+    mSocket.send(StartGame { mNextId++, kClientStream, mCurrentSession, mCurrentLobby }).throwIfFailed();
+
+    if (AnyPacket packet = getNextMessage(kClientStream)) {
+        Response& response = *std::bit_cast<Response*>(packet.data());
+        return response.status == Status::eSuccess;
+    }
+
+    return false;
+}
+
+void AccountClient::leaveLobby() {
+    if (!isAuthed())
+        return;
+
+    if (mCurrentLobby == UINT64_MAX)
+        return;
+
+    mSocket.send(LeaveLobby { mNextId++, kClientStream, mCurrentSession, mCurrentLobby }).throwIfFailed();
+
+    mCurrentLobby = UINT64_MAX;
 }
 
 static size_t getSessionListSize(const SessionList *list) {
@@ -94,25 +125,29 @@ static size_t getSessionListSize(const SessionList *list) {
     return size / sizeof(SessionInfo);
 }
 
-void AccountClient::refreshSessionList() {
+bool AccountClient::refreshSessionList() {
     if (!isAuthed())
         throw std::runtime_error("Not authenticated");
 
     std::vector<SessionInfo> sessions;
 
-    mSocket.send(GetSessionList { mNextId++, mCurrentSession }).throwIfFailed();
+    mSocket.send(GetSessionList { mNextId++, kClientStream, mCurrentSession }).throwIfFailed();
 
-    std::unique_ptr<std::byte[]> data = readFlexiblePacket(mSocket);
-    SessionList *list = reinterpret_cast<SessionList*>(data.get());
-    size_t count = getSessionListSize(list);
+    if (AnyPacket data = getNextMessage(kClientStream)) {
+        SessionList *list = reinterpret_cast<SessionList*>(data.data());
+        size_t count = getSessionListSize(list);
 
-    sessions.reserve(count);
+        sessions.reserve(count);
 
-    for (size_t i = 0; i < count; i++) {
-        sessions.push_back(list->sessions[i]);
+        for (size_t i = 0; i < count; i++) {
+            sessions.push_back(list->sessions[i]);
+        }
+
+        mSessions = std::move(sessions);
+        return true;
     }
 
-    mSessions = std::move(sessions);
+    return false;
 }
 
 static size_t getLobbyListSize(const LobbyList *list) {
@@ -123,41 +158,36 @@ static size_t getLobbyListSize(const LobbyList *list) {
     return size / sizeof(LobbyInfo);
 }
 
-void AccountClient::refreshLobbyList() {
+bool AccountClient::refreshLobbyList() {
     if (!isAuthed())
         throw std::runtime_error("Not authenticated");
 
     std::vector<LobbyInfo> lobbies;
 
-    mSocket.send(GetLobbyList { mNextId++, mCurrentSession }).throwIfFailed();
+    mSocket.send(GetLobbyList { mNextId++, kClientStream, mCurrentSession }).throwIfFailed();
 
-    std::unique_ptr<std::byte[]> data = readFlexiblePacket(mSocket);
-    LobbyList *list = reinterpret_cast<LobbyList*>(data.get());
-    size_t count = getLobbyListSize(list);
+    if (AnyPacket data = getNextMessage(kClientStream)) {
+        LobbyList *list = reinterpret_cast<LobbyList*>(data.data());
+        size_t count = getLobbyListSize(list);
 
-    lobbies.reserve(count);
+        lobbies.reserve(count);
 
-    for (size_t i = 0; i < count; i++) {
-        lobbies.push_back(list->lobbies[i]);
-    }
-
-    mLobbies = std::move(lobbies);
-}
-
-std::unique_ptr<std::byte[]> AccountClient::getNextMessage(std::chrono::milliseconds timeout) {
-    while (true) {
-        PacketHeader header = net::throwIfFailed(mSocket.recvTimed<PacketHeader>(timeout));
-        size_t size = std::max<size_t>(header.size, sizeof(PacketHeader));
-        std::unique_ptr<std::byte[]> packet = std::make_unique<std::byte[]>(size);
-        memcpy(packet.get(), &header, sizeof(PacketHeader));
-        mSocket.recvBytesTimeout(packet.get() + sizeof(PacketHeader), size - sizeof(PacketHeader), timeout).error.throwIfFailed();
-
-        if (auto it = mRequestSlots.find(header.id); it != mRequestSlots.end()) {
-            std::invoke(it->second, std::span(packet.get(), size));
-            mRequestSlots.erase(it);
-            continue;
+        for (size_t i = 0; i < count; i++) {
+            lobbies.push_back(list->lobbies[i]);
         }
 
-        return packet;
+        mLobbies = std::move(lobbies);
+        return true;
     }
+
+    return false;
+}
+
+AnyPacket AccountClient::getNextMessage(uint8_t stream) {
+    work();
+    return mSocketMux.pop(stream);
+}
+
+void AccountClient::work() {
+    mSocketMux.work(mSocket, 250ms);
 }

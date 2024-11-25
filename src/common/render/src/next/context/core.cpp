@@ -231,7 +231,7 @@ CoreContext::BackBufferList CoreContext::getSwapChainSurfaces(uint64_t initialVa
     for (UINT i = 0; i < length; i++) {
         ID3D12Resource *surface = mSwapChain->getSurface(i);
 
-        D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = mRtvHeap->host(i);
+        D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = mRtvHeap->allocateHost();
         mDevice->CreateRenderTargetView(surface, nullptr, rtvHandle);
 
         buffers[i] = BackBuffer {
@@ -246,6 +246,14 @@ CoreContext::BackBufferList CoreContext::getSwapChainSurfaces(uint64_t initialVa
 
 void CoreContext::createBackBuffers(uint64_t initialValue) {
     mBackBuffers = getSwapChainSurfaces(initialValue);
+}
+
+void CoreContext::resetBackBuffers() {
+    for (auto& buffer : mBackBuffers) {
+        mRtvHeap->free(buffer.rtvHandle);
+    }
+
+    mBackBuffers.clear();
 }
 
 uint64_t& CoreContext::fenceValueAt(UINT index) {
@@ -383,7 +391,7 @@ void CoreContext::updateSwapChain(SurfaceInfo info) {
 
     uint64_t current = fenceValueAt(mCurrentBackBuffer);
 
-    mBackBuffers.clear();
+    resetBackBuffers();
     mSwapChain->updateSurfaceInfo(info);
     mSwapChainInfo = info;
 

@@ -12,6 +12,9 @@
 #include <mutex>
 
 namespace game {
+    static constexpr uint8_t kClientStream = 0;
+    static constexpr uint8_t kEventStream = 1;
+
     class AccountServer {
         std::mutex mDbMutex;
         sm::db::Connection mAccountDb;
@@ -44,10 +47,13 @@ namespace game {
         void stop();
 
         bool isRunning() const;
+
+        uint16_t getPort() { return mServer.getBoundPort(); }
     };
 
     class AccountClient {
         sm::net::Socket mSocket;
+        SocketMux mSocketMux;
         uint16_t mNextId = 0;
 
         SessionId mCurrentSession = UINT64_MAX;
@@ -70,11 +76,17 @@ namespace game {
 
         bool createLobby(std::string_view name);
         bool joinLobby(LobbyId id);
+        bool startGame();
+        void leaveLobby();
 
-        void refreshSessionList();
-        void refreshLobbyList();
+        bool sendMessage(std::string_view message);
 
-        std::unique_ptr<std::byte[]> getNextMessage(std::chrono::milliseconds timeout);
+        bool refreshSessionList();
+        bool refreshLobbyList();
+
+        AnyPacket getNextMessage(uint8_t stream);
+
+        void work();
 
         std::vector<SessionInfo> getSessionInfo() { return mSessions; }
         std::vector<LobbyInfo> getLobbyInfo() { return mLobbies; }

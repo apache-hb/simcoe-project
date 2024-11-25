@@ -10,10 +10,6 @@ namespace chrono = std::chrono;
 
 static system::os::NetData gNetData{};
 
-static bool isNetSetup() noexcept {
-    return gNetData.isInitialized();
-}
-
 NetError lastNetError() {
     return NetError{system::os::lastNetError()};
 }
@@ -23,7 +19,7 @@ NetError lastNetError() {
 ///
 
 void net::create(void) {
-    CTASSERTF(!isNetSetup(), "network already initialized");
+    CTASSERTF(!net::isSetup(), "network already initialized");
 
     if (int result = system::os::setupNetwork(gNetData))
         throw NetException{result};
@@ -39,7 +35,7 @@ void net::create(void) {
 }
 
 void net::destroy(void) noexcept {
-    if (!isNetSetup())
+    if (!net::isSetup())
         return;
 
     int result = system::os::destroyNetwork(gNetData);
@@ -50,8 +46,12 @@ void net::destroy(void) noexcept {
     gNetData = system::os::NetData{};
 }
 
+bool net::isSetup(void) noexcept {
+    return gNetData.isInitialized();
+}
+
 Network Network::create() noexcept(false) {
-    if (!isNetSetup())
+    if (!net::isSetup())
         throw NetException{system::os::kNotInitialized};
 
     return Network{};

@@ -27,9 +27,9 @@ namespace sm::net {
         static constexpr int kBlockingFlag = (1 << 0);
         static constexpr int kShutdownFlag = (1 << 1);
 
-        std::atomic<int> mFlags;
-
         system::os::SocketHandle mSocket = system::os::kInvalidSocket;
+
+        std::atomic<int> mFlags;
 
     public:
         Socket(system::os::SocketHandle socket) noexcept
@@ -39,6 +39,7 @@ namespace sm::net {
         /// @note not internally synchronized
         Socket(Socket&& other) noexcept
             : mSocket(std::exchange(other.mSocket, system::os::kInvalidSocket))
+            , mFlags(other.mFlags.exchange(0))
         { }
 
         /// @note not internally synchronized
@@ -46,6 +47,7 @@ namespace sm::net {
             if (this != &other) {
                 closeSocket();
                 mSocket = std::exchange(other.mSocket, system::os::kInvalidSocket);
+                mFlags = other.mFlags.exchange(0);
             }
 
             return *this;
@@ -139,6 +141,7 @@ namespace sm::net {
 
     void create(void);
     void destroy(void) noexcept;
+    bool isSetup(void) noexcept;
 }
 
 template<>

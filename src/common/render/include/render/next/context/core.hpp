@@ -102,6 +102,7 @@ namespace sm::render::next {
         void resetDeviceResources();
         void createDeviceResources();
         void updateDeviceResources(SurfaceInfo info);
+        void resetBackBuffers();
 
         // recreate the current device
         void recreateCurrentDevice();
