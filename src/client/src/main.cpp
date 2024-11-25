@@ -107,8 +107,7 @@ static void PaletteColourPicker(const char *label, int *colour)
             // draw a little square with the colour of this choice
             // on the left side of the selectable as a visual preview
 
-            math::float3 palette = draw::shared::kVic20Palette[i];
-            ImGui::ColorButton("##colour", ImVec4(palette.r, palette.g, palette.b, 1.0f), ImGuiColorEditFlags_NoPicker);
+            ImGui::ColorButton("##colour", float4(draw::shared::kVic20Palette[i], 1.f), ImGuiColorEditFlags_NoPicker);
 
             ImGui::PopID();
 
@@ -184,6 +183,11 @@ public:
     }
 };
 
+struct ScreenPixel {
+    uint8_t colour;
+    uint8_t character;
+};
+
 static int commonMain() noexcept try {
     WindowEvents events{};
     system::WindowConfig windowConfig {
@@ -232,6 +236,8 @@ static int commonMain() noexcept try {
     CharacterMap charmap;
     std::string error;
     bool showCharacterMap = false;
+    bool showDemoWindow = false;
+    bool showScreenMemoryMap = false;
 
     while (nextMessage()) {
         context.begin();
@@ -258,6 +264,8 @@ static int commonMain() noexcept try {
 
             if (ImGui::BeginMenu("View")) {
                 ImGui::MenuItem("Character Map", nullptr, &showCharacterMap, charmap.bytes().size() > 0);
+                ImGui::MenuItem("Screen Memory Map", nullptr, &showScreenMemoryMap);
+                ImGui::MenuItem("Demo Window", nullptr, &showDemoWindow);
                 ImGui::EndMenu();
             }
 
@@ -299,7 +307,9 @@ static int commonMain() noexcept try {
             ImGui::EndPopup();
         }
 
-        ImGui::ShowDemoWindow();
+        if (showDemoWindow) {
+            ImGui::ShowDemoWindow(&showDemoWindow);
+        }
 
         if (showCharacterMap) {
             auto title = fmt::format("Character Map - {}##CharacterMap", charmap.name());
@@ -323,6 +333,15 @@ static int commonMain() noexcept try {
                             selected = i;
                         }
 
+                        if (ImGui::BeginDragDropSource()) {
+                            ScreenPixel pixel = {
+                                .colour = VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK),
+                                .character = uint8_t(i),
+                            };
+                            ImGui::SetDragDropPayload("CHARACTER_MAP_INDEX", &pixel, sizeof(ScreenPixel));
+                            ImGui::EndDragDropSource();
+                        }
+
                         float lastButtonX2 = ImGui::GetItemRectMax().x;
                         float nextButtonX2 = lastButtonX2 + style.ItemSpacing.x + size.x;
                         if (i + 1 < charmap.characters().size() && nextButtonX2 < windowVisibleX2) {
@@ -339,12 +358,19 @@ static int commonMain() noexcept try {
 
                 {
                     ImGui::BeginChild("ChildR");
+                    static int fg = VIC20_COLOUR_WHITE;
+                    static int bg = VIC20_COLOUR_BLACK;
+
+                    PaletteColourPicker("Background", &bg);
+                    PaletteColourPicker("Foreground", &fg);
 
                     std::span<draw::shared::Vic20Character> characters = charmap.characters();
                     draw::shared::Vic20Character& character = characters[selected];
 
                     // draw an 8x8 grid of buttons, with each being a pixel in the
                     // character.
+
+                    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(1, 1));
 
                     for (int i = 0; i < 8; i++) {
                         for (int j = 0; j < 8; j++) {
@@ -353,9 +379,9 @@ static int commonMain() noexcept try {
                             bool set = character.data & (1ull << index);
 
                             if (set) {
-                                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1, 1, 1, 1));
+                                ImGui::PushStyleColor(ImGuiCol_Button, float4(draw::shared::kVic20Palette[fg], 1.f));
                             } else {
-                                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 1));
+                                ImGui::PushStyleColor(ImGuiCol_Button, float4(draw::shared::kVic20Palette[bg], 1.f));
                             }
 
                             ImGui::PushID(index);
@@ -366,15 +392,54 @@ static int commonMain() noexcept try {
 
                             ImGui::PopStyleColor();
 
-
                             if (j < 7) {
                                 ImGui::SameLine();
                             }
                         }
                     }
 
+                    ImGui::PopStyleVar();
+
                     ImGui::EndChild();
                 }
+            }
+
+            ImGui::End();
+        }
+
+        if (showScreenMemoryMap) {
+            if (ImGui::Begin("Screen Memory Map", &showScreenMemoryMap)) {
+
+                ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(1, 1));
+
+                int size = VIC20_SCREEN_CHARS_WIDTH * VIC20_SCREEN_CHARS_HEIGHT;
+                for (int i = 0; i < size; i++) {
+                    ImGui::PushID(i);
+
+                    char label[32];
+                    (void)snprintf(label, sizeof(label), "%d##pixel", i);
+                    if (ImGui::Button(label, ImVec2(30, 22))) {
+                        // do something
+                    }
+
+                    ImGui::PopID();
+
+                    if (ImGui::BeginDragDropTarget()) {
+                        if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("CHARACTER_MAP_INDEX")) {
+                            ScreenPixel pixel = *reinterpret_cast<const ScreenPixel *>(payload->Data);
+                            int x = i / VIC20_SCREEN_CHARS_HEIGHT;
+                            int y = i % VIC20_SCREEN_CHARS_HEIGHT;
+                            context.write(x, y, pixel.colour, pixel.character);
+                        }
+                        ImGui::EndDragDropTarget();
+                    }
+
+                    if (i % VIC20_SCREEN_CHARS_WIDTH != VIC20_SCREEN_CHARS_WIDTH - 1) {
+                        ImGui::SameLine();
+                    }
+                }
+
+                ImGui::PopStyleVar();
             }
             ImGui::End();
         }
