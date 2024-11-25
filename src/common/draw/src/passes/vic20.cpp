@@ -184,7 +184,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE Vic20Display::getTargetSrv() const {
 }
 
 void Vic20Display::write(uint8_t x, uint8_t y, uint8_t colour, uint8_t character) noexcept {
-    uint16_t coord = y * VIC20_SCREEN_CHARS_WIDTH + x;
+    uint16_t coord = x * VIC20_SCREEN_CHARS_HEIGHT + y;
 
     uint16_t elementIndex = coord / sizeof(shared::ScreenElement);
     uint16_t elementOffset = coord % sizeof(shared::ScreenElement);
