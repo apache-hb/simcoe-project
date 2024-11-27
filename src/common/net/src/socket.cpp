@@ -11,18 +11,8 @@ namespace chrono = std::chrono;
 /// socket
 ///
 
-void Socket::closeSocket() noexcept {
-    mFlags |= kShutdownFlag;
-    system::os::destroySocket(mSocket);
-    mSocket = system::os::kInvalidSocket;
-}
-
-Socket::~Socket() noexcept {
-    closeSocket();
-}
-
 NetResult<size_t> Socket::sendBytes(const void *data, size_t size) noexcept {
-    int sent = ::send(mSocket, static_cast<const char *>(data), size, 0);
+    int sent = ::send(mSocket.get(), static_cast<const char *>(data), size, 0);
     if (sent == -1)
         return std::unexpected(lastNetError());
 
@@ -30,7 +20,7 @@ NetResult<size_t> Socket::sendBytes(const void *data, size_t size) noexcept {
 }
 
 NetResult<size_t> Socket::recvBytes(void *data, size_t size) noexcept {
-    int received = ::recv(mSocket, static_cast<char *>(data), size, 0);
+    int received = ::recv(mSocket.get(), static_cast<char *>(data), size, 0);
     if (received == -1)
         return std::unexpected(lastNetError());
 
@@ -50,7 +40,7 @@ ReadResult Socket::recvBytesTimeout(void *data, size_t size, std::chrono::millis
         char *ptr = static_cast<char *>(data) + consumed;
         int remaining = size - consumed;
 
-        int received = ::recv(mSocket, ptr, remaining, 0);
+        int received = ::recv(mSocket.get(), ptr, remaining, 0);
         if (received > 0) {
             consumed += received;
 
@@ -69,7 +59,7 @@ ReadResult Socket::recvBytesTimeout(void *data, size_t size, std::chrono::millis
 }
 
 NetError Socket::setBlocking(bool blocking) noexcept {
-    if (!system::os::ioctlSocketAsync(mSocket, blocking))
+    if (!system::os::ioctlSocketAsync(mSocket.get(), blocking))
         return lastNetError();
 
     if (blocking) {
@@ -88,7 +78,7 @@ NetError Socket::setRecvTimeout(std::chrono::milliseconds timeout) noexcept {
         .tv_usec = static_cast<long>(count % 1000)
     };
 
-    if (::setsockopt(mSocket, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&tv), sizeof(tv)))
+    if (::setsockopt(mSocket.get(), SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&tv), sizeof(tv)))
         return lastNetError();
 
     return NetError::ok();
@@ -101,7 +91,7 @@ NetError Socket::setSendTimeout(std::chrono::milliseconds timeout) noexcept {
         .tv_usec = static_cast<long>(count % 1000)
     };
 
-    if (::setsockopt(mSocket, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&tv), sizeof(tv)))
+    if (::setsockopt(mSocket.get(), SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&tv), sizeof(tv)))
         return lastNetError();
 
     return NetError::ok();
@@ -112,12 +102,8 @@ NetError Socket::setSendTimeout(std::chrono::milliseconds timeout) noexcept {
 /// listen socket
 ///
 
-ListenSocket::~ListenSocket() noexcept {
-    cancel();
-}
-
 NetResult<Socket> ListenSocket::tryAccept() noexcept {
-    system::os::SocketHandle client = ::accept(mSocket, nullptr, nullptr);
+    system::os::SocketHandle client = ::accept(mSocket.get(), nullptr, nullptr);
     if (client == system::os::kInvalidSocket) {
 
         // if we were shutdown then return an error
@@ -127,15 +113,15 @@ NetResult<Socket> ListenSocket::tryAccept() noexcept {
         return std::unexpected(lastNetError());
     }
 
-    return Socket{client};
+    return {client};
 }
 
 void ListenSocket::cancel() noexcept {
-    closeSocket();
+    mSocket.reset();
 }
 
 NetError ListenSocket::listen(int backlog) noexcept {
-    if (::listen(mSocket, backlog))
+    if (::listen(mSocket.get(), backlog))
         return lastNetError();
 
     return NetError::ok();
@@ -145,7 +131,7 @@ uint16_t ListenSocket::getBoundPort() {
     sockaddr_storage addr;
     socklen_t len = sizeof(addr);
 
-    if (::getsockname(mSocket, reinterpret_cast<sockaddr*>(&addr), &len))
+    if (::getsockname(mSocket.get(), reinterpret_cast<sockaddr*>(&addr), &len))
         throw NetException{lastNetError()};
 
     if (addr.ss_family == AF_INET) {

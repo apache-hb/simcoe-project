@@ -4,6 +4,8 @@
 
 #include <fmtlib/format.h>
 
+#include <stacktrace>
+
 using namespace sm::system;
 
 namespace chrono = std::chrono;

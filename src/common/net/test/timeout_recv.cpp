@@ -53,13 +53,9 @@ TEST_CASE("Network client server connection") {
     client.setBlocking(false).throwIfFailed();
     client.setRecvTimeout(256ms).throwIfFailed();
 
-    fmt::println(stderr, "client connected");
-
     // recv a buffer larger than what will ever be sent. this should timeout
     char buffer[kBufferSize * 16];
     auto [read, err] = client.recvBytesTimeout(buffer, sizeof(buffer), 256ms);
-
-    fmt::println(stderr, "client read {} bytes", read);
 
     errors.expect(err.timeout(), "Expected timeout, got: {}. read {} bytes", err.message(), read);
 }

@@ -222,7 +222,7 @@ subdir('src/game/account')
 
 if host_machine.system() == 'windows'
     subdir('src/vendor/reflect')
-    subdir('src/meta')
+    # subdir('src/meta')
 
     dxc = find_program(dxc_id, native : true)
     msdf_atlas_gen = find_program('msdf-atlas-gen', native : true)

@@ -41,6 +41,8 @@ TEST_CASE("Join lobby and start game") {
         client1.joinLobby(client1.getLobbyInfo()[0].id);
 
         client0.startGame();
+
+        serverThread.request_stop();
     }
 }
 

@@ -50,20 +50,24 @@ struct TestServerConfig {
         return env.connect(config);
     }
 
-    game::AccountServer server(net::Address address, uint16_t port, unsigned seed) {
+    game::AccountServer server(const net::Address& address, uint16_t port, unsigned seed) {
         auto db = connect();
         return game::AccountServer(std::move(db), network, address, port, seed);
     }
 
     std::jthread run(game::AccountServer& server, NetTestStream& errors, int count = 20) {
-        return std::jthread([&, count](const std::stop_token& stop) {
+        auto thread = std::jthread([&, count](const std::stop_token& stop) {
             try {
                 std::stop_callback cb(stop, [&] { server.stop(); });
                 server.listen(count);
             } catch (const std::exception& e) {
-                fmt::println(stderr, "Server exception {}", e.what());
                 errors.add("Server exception: {}", e.what());
             }
         });
+
+        while (!server.isRunning())
+            std::this_thread::yield();
+
+        return thread;
     }
 };

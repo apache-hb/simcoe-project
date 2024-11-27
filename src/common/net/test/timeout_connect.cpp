@@ -59,26 +59,18 @@ TEST_CASE("Network connect timeout") {
     std::vector<std::jthread> workers;
 
     for (int i = 0; i < clients; ++i) {
-        workers.emplace_back([&, i] {
+        workers.emplace_back([&] {
             latch.arrive_and_wait();
             try {
                 Socket client = network.connectWithTimeout(Address::loopback(), port, 25ms);
             } catch (const NetException& err) {
-                fmt::println(stderr, "Client failed to connect {}: {}", i, err.error());
-
                 errors.expect(err.error().timeout(), "Expected timeout, got: {}", err.error());
                 return;
             }
-
-            fmt::println(stderr, "Client connected");
         });
     }
 
-    fmt::println(stderr, "Waiting for clients to connect");
-
     workers.clear();
-
-    fmt::println(stderr, "All clients done");
 
     // recv a buffer larger than what will ever be sent. this should timeout
     char buffer[kBufferSize * 16];

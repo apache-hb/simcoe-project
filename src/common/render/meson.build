@@ -43,10 +43,6 @@ src = [
     reflect.process('data/render.ct'),
 
     daocc.process('data/render.xml'),
-
-    metacc.process('include/render/next/render.hpp'),
-
-    metacc.process('include/render/graph/graph.hpp'),
 ]
 
 librender_meta = library('render-meta', src,

@@ -2,6 +2,7 @@
 
 #include "common.hpp"
 #include "core/error.hpp"
+#include <stacktrace>
 
 using namespace sm;
 using namespace sm::net;
@@ -59,7 +60,6 @@ Network Network::create() noexcept(false) {
 
 static system::os::SocketHandle findOpenSocket(addrinfo *info) noexcept(false) {
     for (addrinfo *ptr = info; ptr != nullptr; ptr = ptr->ai_next) {
-
         // if we fail to even create a socket then throw an exception
         system::os::SocketHandle socket = ::socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
         if (socket == system::os::kInvalidSocket)
@@ -100,6 +100,7 @@ static system::os::SocketHandle findOpenSocketWithTimeout(addrinfo *info, std::c
 
 static addrinfo *getAddrInfo(const Address& address, uint16_t port) throws(NetException) {
     addrinfo hints = {
+        // .ai_flags = AI_CANONNAME,
         .ai_family = AF_UNSPEC,
         .ai_socktype = SOCK_STREAM,
         .ai_protocol = IPPROTO_TCP

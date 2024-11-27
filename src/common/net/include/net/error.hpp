@@ -65,7 +65,7 @@ namespace sm::net {
     }
 
     template<typename T>
-    T throwIfFailed(NetResult<T> result) throws(NetException) {
+    T throwIfFailed(NetResult<T>&& result) throws(NetException) {
         if (result.has_value())
             return std::move(result.value());
 

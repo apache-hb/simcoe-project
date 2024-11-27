@@ -23,6 +23,8 @@ TEST_CASE("Account Create") {
 
         // create clients
         createTestAccounts(test.network, kAddress, port, errors, kClientCount);
+    
+        serverThread.request_stop();
     }
 
     db::Connection db2 = test.connect();

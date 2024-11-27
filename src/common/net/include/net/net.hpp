@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/memory/unique.hpp"
 #include "net/error.hpp"
 #include "net/address.hpp"
 
@@ -20,42 +21,21 @@ namespace sm::net {
         NetError error;
     };
 
+    using SocketHandle = UniqueHandle<system::os::SocketHandle, decltype(&system::os::destroySocket)>;
+
     class Socket {
     protected:
-        void closeSocket() noexcept;
-
         static constexpr int kBlockingFlag = (1 << 0);
         static constexpr int kShutdownFlag = (1 << 1);
 
-        system::os::SocketHandle mSocket = system::os::kInvalidSocket;
+        SocketHandle mSocket;
 
         std::atomic<int> mFlags;
 
     public:
         Socket(system::os::SocketHandle socket) noexcept
-            : mSocket(socket)
+            : mSocket(SocketHandle{socket, &system::os::destroySocket})
         { }
-
-        /// @note not internally synchronized
-        Socket(Socket&& other) noexcept
-            : mSocket(std::exchange(other.mSocket, system::os::kInvalidSocket))
-            , mFlags(other.mFlags.exchange(0))
-        { }
-
-        /// @note not internally synchronized
-        Socket& operator=(Socket&& other) noexcept {
-            if (this != &other) {
-                closeSocket();
-                mSocket = std::exchange(other.mSocket, system::os::kInvalidSocket);
-                mFlags = other.mFlags.exchange(0);
-            }
-
-            return *this;
-        }
-
-        ~Socket() noexcept;
-
-        SM_NOCOPY(Socket);
 
         NetResult<size_t> sendBytes(const void *data, size_t size) noexcept;
         NetResult<size_t> recvBytes(void *data, size_t size) noexcept;
@@ -101,16 +81,11 @@ namespace sm::net {
         NetError setRecvTimeout(std::chrono::milliseconds timeout) noexcept;
         NetError setSendTimeout(std::chrono::milliseconds timeout) noexcept;
 
-        system::os::SocketHandle get() { return mSocket; }
+        system::os::SocketHandle get() { return mSocket.get(); }
     };
 
     class ListenSocket : public Socket {
     public:
-        SM_NOCOPY(ListenSocket);
-        SM_MOVE(ListenSocket, default);
-
-        ~ListenSocket() noexcept;
-
         using Socket::Socket;
 
         static constexpr int kMaxBacklog = SOMAXCONN;

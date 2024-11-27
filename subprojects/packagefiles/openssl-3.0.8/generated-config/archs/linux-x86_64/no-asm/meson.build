@@ -974,7 +974,6 @@ openssl_libraries = [
 openssl_include_directories = [
   'generated-config/archs/linux-x86_64/no-asm',
   'generated-config/archs/linux-x86_64/no-asm/include',
-  'generated-config/archs/linux-x86_64/no-asm/crypto',
   'generated-config/archs/linux-x86_64/no-asm/providers/common/include',
 ]
 
