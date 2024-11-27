@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root name="system">
+    <table name="window_info" syntheticPrimaryKey="ulong">
+        <column name="title" type="text" length="255" />
+        <column name="x" type="int" />
+        <column name="y" type="int" />
+        <column name="width" type="int" />
+        <column name="height" type="int" />
+    </table>
+</root>

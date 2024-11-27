@@ -6,6 +6,7 @@
 #include <imgui/imgui.h>
 #include <imgui/backends/imgui_impl_win32.h>
 #include <imgui/backends/imgui_impl_dx12.h>
+#include <imgui/backends/imgui_impl_glfw.h>
 
 #include <imfilebrowser.h>
 
@@ -28,10 +29,6 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
                                                              LPARAM lParam);
 
 class WindowEvents final : public system::IWindowEvents {
-    LRESULT event(system::Window& window, UINT message, WPARAM wparam, LPARAM lparam) override {
-        return ImGui_ImplWin32_WndProcHandler(window.get_handle(), message, wparam, lparam);
-    }
-
     void resize(system::Window& window, math::int2 size) override {
         if (context != nullptr) {
             SurfaceInfo info {
@@ -47,20 +44,6 @@ class WindowEvents final : public system::IWindowEvents {
 public:
     CoreContext *context = nullptr;
 };
-
-static bool nextMessage() {
-    MSG msg = {};
-    bool done = false;
-    while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)) {
-        TranslateMessage(&msg);
-        DispatchMessageA(&msg);
-        if (msg.message == WM_QUIT) {
-            done = true;
-        }
-    }
-
-    return !done;
-}
 
 static fmt_backtrace_t newPrintOptions(io_t *io) {
     fmt_backtrace_t print = {
@@ -179,6 +162,8 @@ int main(int argc, const char **argv) noexcept try {
     bt_init();
     os_init();
 
+    glfwInit();
+
     // TODO: popup window for panics and system errors
     gSystemError = gDefaultError;
 
@@ -233,7 +218,7 @@ int main(int argc, const char **argv) noexcept try {
         .swapChainFactory = &hwndSwapChain,
         .swapChainInfo = {
             .format = DXGI_FORMAT_R8G8B8A8_UNORM,
-            .size = window.getClientCoords().size(),
+            .size = window.getClientSize(),
             .length = 2,
         },
     };
@@ -241,7 +226,7 @@ int main(int argc, const char **argv) noexcept try {
     // math::uint2 ntscSize { 486, 440 };
 
     math::uint2 vic20Size { VIC20_SCREEN_WIDTH, VIC20_SCREEN_HEIGHT };
-    Vic20DrawContext context{config, window.getHandle(), vic20Size};
+    Vic20DrawContext context{config, window, vic20Size};
     events.context = &context;
 
     // context.write(
@@ -291,7 +276,9 @@ int main(int argc, const char **argv) noexcept try {
     fs::path selected;
     std::string error;
 
-    while (nextMessage()) {
+    while (!window.shouldClose()) {
+        window.pollEvents();
+
         context.begin();
 
         openCharacterMapRom.Display();

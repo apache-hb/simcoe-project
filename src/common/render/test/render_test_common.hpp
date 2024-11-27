@@ -115,19 +115,13 @@ struct WindowBaseTest {
         window.showWindow(system::ShowWindow::eHide);
     }
 
-    math::uint2 getClientSize() { return window.getClientCoords().size(); }
+    math::uint2 getClientSize() { return window.getClientSize(); }
 
     bool next() {
-        MSG msg = {};
-        bool done = false;
-        while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)) {
-            TranslateMessage(&msg);
-            DispatchMessageA(&msg);
-            if (msg.message == WM_QUIT) {
-                done = true;
-            }
+        bool done = window.shouldClose();
+        if (!done) {
+            window.pollEvents();
         }
-
         return !done && frames.next() > 0;
     }
 
@@ -143,7 +137,7 @@ struct WindowContextTest : WindowBaseTest<> {
 
     WindowContextTest(int frameCount)
         : WindowBaseTest(frameCount)
-        , context(window.getClientCoords().size(), &windowSwapChain)
+        , context(window.getClientSize(), &windowSwapChain)
     {
         events.context = &context.context;
     }

@@ -14,7 +14,6 @@ namespace sm::launch {
 
         AppWindow *mAppWindow;
 
-        LRESULT event(system::Window& window, UINT message, WPARAM wparam, LPARAM lparam) override;
         void resize(system::Window& window, math::int2 size) override;
     };
 

@@ -1,3 +1,4 @@
+#include "imgui/backends/imgui_impl_glfw.h"
 #include "stdafx.hpp"
 
 #include "world/ecs.hpp"
@@ -143,7 +144,7 @@ void Editor::draw_dockspace() {
 
 void Editor::begin_frame() {
     ImGui_ImplDX12_NewFrame();
-    ImGui_ImplWin32_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
     ImGuizmo::BeginFrame();
 

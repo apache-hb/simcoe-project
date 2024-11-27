@@ -12,7 +12,7 @@ namespace sm::draw::next {
         BlitPass *mBlit;
 
     public:
-        Vic20DrawContext(render::next::ContextConfig config, HWND hwnd, math::uint2 resolution);
+        Vic20DrawContext(render::next::ContextConfig config, system::Window& window, math::uint2 resolution);
 
         void begin();
         void end();

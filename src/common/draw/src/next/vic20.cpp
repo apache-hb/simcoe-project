@@ -6,8 +6,8 @@ using namespace sm;
 using namespace sm::render::next;
 using namespace sm::draw::next;
 
-Vic20DrawContext::Vic20DrawContext(render::next::ContextConfig config, HWND hwnd, math::uint2 resolution)
-    : Super(config, hwnd)
+Vic20DrawContext::Vic20DrawContext(render::next::ContextConfig config, system::Window& window, math::uint2 resolution)
+    : Super(config, window)
     , mVic20(addResource<Vic20Display>(math::uint2 { VIC20_SCREEN_WIDTH, VIC20_SCREEN_HEIGHT }))
     , mBlit(addResource<BlitPass>(resolution, DXGI_FORMAT_R8G8B8A8_UNORM))
 {

@@ -3,7 +3,6 @@
 #include "core/win32.hpp" // IWYU pragma: export
 
 extern HINSTANCE gInstance;
-extern LPTSTR gWindowClass;
 
 #define SM_ASSERT_WIN32(expr)                                  \
     do {                                                       \

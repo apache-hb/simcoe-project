@@ -27,7 +27,7 @@ class GuiWindow : public launch::AppWindow {
 public:
     GuiWindow(const std::string& title)
         : AppWindow(title)
-        , mContext(newContextConfig(), mWindow.getHandle())
+        , mContext(newContextConfig(), mWindow)
     {
         initWindow();
     }

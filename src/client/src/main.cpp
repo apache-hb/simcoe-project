@@ -2,6 +2,7 @@
 
 #include "archive/fs.hpp"
 #include "launch/launch.hpp"
+#include "launch/appwindow.hpp"
 
 #include "draw/next/vic20.hpp"
 
@@ -18,43 +19,25 @@ using namespace sm::math;
 using namespace sm::render::next;
 using namespace sm::draw::next;
 
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
-                                                             LPARAM lParam);
+static constexpr math::uint2 kNtscSize { 486, 440 };
 
-class WindowEvents final : public system::IWindowEvents {
-    LRESULT event(system::Window& window, UINT message, WPARAM wparam, LPARAM lparam) override {
-        return ImGui_ImplWin32_WndProcHandler(window.get_handle(), message, wparam, lparam);
-    }
+class ClientWindow final : public launch::AppWindow {
+    Vic20DrawContext mContext;
 
-    void resize(system::Window& window, math::int2 size) override {
-        if (context != nullptr) {
-            SurfaceInfo info {
-                .format = DXGI_FORMAT_R8G8B8A8_UNORM,
-                .size = math::uint2(size),
-                .length = 2,
-            };
-
-            context->updateSwapChain(info);
-        }
-    }
+    void begin() override { mContext.begin(); }
+    void end() override { mContext.end(); }
+    render::next::CoreContext& getContext() override { return mContext; }
 
 public:
-    CoreContext *context = nullptr;
-};
-
-static bool nextMessage() {
-    MSG msg = {};
-    bool done = false;
-    while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)) {
-        TranslateMessage(&msg);
-        DispatchMessageA(&msg);
-        if (msg.message == WM_QUIT) {
-            done = true;
-        }
+    ClientWindow(const std::string& title, db::Connection *db)
+        : AppWindow(title, db)
+        , mContext(newContextConfig(), mWindow, kNtscSize)
+    {
+        initWindow();
     }
 
-    return !done;
-}
+    Vic20DrawContext& vic20Context() { return mContext; }
+};
 
 template<typename T>
 static std::vector<T> readFileBytes(const sm::fs::path& path) {
@@ -229,32 +212,10 @@ struct ScreenPixel {
 };
 
 static int commonMain() noexcept try {
-    WindowEvents events{};
-    system::WindowConfig windowConfig {
-        .mode = system::WindowMode::eWindowed,
-        .width = 1280,
-        .height = 720,
-        .title = "Dear ImGui",
-    };
-
-    system::Window window{windowConfig, events};
-    window.showWindow(system::ShowWindow::eShow);
-
-    WindowSwapChainFactory hwndSwapChain{window.getHandle()};
-
-    ContextConfig config {
-        .targetLevel = FeatureLevel::eLevel_11_0,
-        .swapChainFactory = &hwndSwapChain,
-        .swapChainInfo = {
-            .format = DXGI_FORMAT_R8G8B8A8_UNORM,
-            .size = window.getClientCoords().size(),
-            .length = 2,
-        },
-    };
-
-    math::uint2 ntscSize { 486, 440 };
-    Vic20DrawContext context{config, window.getHandle(), ntscSize};
-    events.context = &context;
+    db::Environment env = db::Environment::create(db::DbType::eSqlite3);
+    db::Connection db = env.connect({ .host = "client.db" });
+    ClientWindow window{"VIC20", &db};
+    Vic20DrawContext& context = window.vic20Context();
 
     ImGui::FileBrowser openCharacterMapRom{ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_ConfirmOnEnter};
     openCharacterMapRom.SetInputName("Open Character Map ROM");
@@ -294,9 +255,7 @@ static int commonMain() noexcept try {
     bool showDemoWindow = false;
     bool showScreenMemoryMap = false;
 
-    while (nextMessage()) {
-        context.begin();
-
+    while (window.next()) {
         openCharacterMapRom.Display();
         saveCharacterMapRom.Display();
         openScreenMemoryMap.Display();
@@ -602,11 +561,11 @@ static int commonMain() noexcept try {
 
         if (ImGui::Begin("VIC20")) {
             D3D12_GPU_DESCRIPTOR_HANDLE srv = context.getVic20TargetSrv();
-            ImGui::Image(std::bit_cast<ImTextureID>(srv), ImVec2(ntscSize.width, ntscSize.height));
+            ImGui::Image(std::bit_cast<ImTextureID>(srv), ImVec2(kNtscSize.width, kNtscSize.height));
         }
         ImGui::End();
 
-        context.end();
+        window.present();
     }
 
     return 0;

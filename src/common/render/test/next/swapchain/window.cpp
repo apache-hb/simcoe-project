@@ -16,7 +16,7 @@ TEST_CASE("Create next::CoreContext with window swapchain") {
     SUCCEED("Created CoreContext successfully");
 
     test.event(30, [&] {
-        test.window.resize({ 400, 300 });
+        test.window.setSize({ 400, 300 });
     });
 
     test.event(45, [&] {

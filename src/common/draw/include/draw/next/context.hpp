@@ -15,7 +15,7 @@ namespace sm::draw::next {
         ComputeContext *mCompute;
 
     public:
-        DrawContext(render::next::ContextConfig config, HWND hwnd);
+        DrawContext(render::next::ContextConfig config, system::Window& window);
 
         void begin();
         void end();

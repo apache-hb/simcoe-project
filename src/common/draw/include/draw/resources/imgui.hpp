@@ -5,13 +5,13 @@
 namespace sm::draw::next {
     class ImGuiDrawContext final : public render::next::IContextResource {
         using Super = render::next::IContextResource;
-        HWND mWindow;
+        system::Window& mWindow;
         size_t mSrvHeapIndex;
 
         bool hasViewportSupport() const noexcept;
 
     public:
-        ImGuiDrawContext(render::next::CoreContext& ctx, HWND hwnd) noexcept
+        ImGuiDrawContext(render::next::CoreContext& ctx, system::Window& hwnd) noexcept
             : Super(ctx)
             , mWindow(hwnd)
         { }

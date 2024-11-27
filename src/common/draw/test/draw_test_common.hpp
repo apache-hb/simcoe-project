@@ -7,7 +7,6 @@
 using namespace sm::draw::next;
 
 struct ImGuiWindowEvents : public TestWindowEvents {
-    LRESULT event(system::Window& window, UINT message, WPARAM wparam, LPARAM lparam) override;
 };
 
 struct DrawWindowTestContext : WindowBaseTest<ImGuiWindowEvents> {
@@ -15,7 +14,7 @@ struct DrawWindowTestContext : WindowBaseTest<ImGuiWindowEvents> {
 
     DrawWindowTestContext(int frames, bool debug = true, std::string name = sm::system::getProgramName())
         : WindowBaseTest(frames, std::move(name))
-        , context(window.getClientCoords().size(), &windowSwapChain, debug, window.getHandle())
+        , context(window.getClientSize(), &windowSwapChain, debug, window)
     {
         window.showWindow(system::ShowWindow::eShow);
         events.context = &context.context;
@@ -28,10 +27,6 @@ struct DrawWindowTestContext : WindowBaseTest<ImGuiWindowEvents> {
         ctx.begin();
         ctx.end();
 
-        MSG msg = {};
-        while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)) {
-            TranslateMessage(&msg);
-            DispatchMessageA(&msg);
-        }
+        window.pollEvents();
     }
 };

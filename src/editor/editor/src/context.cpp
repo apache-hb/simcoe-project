@@ -9,6 +9,8 @@
 
 #include "world/ecs.hpp"
 
+#include "imgui/backends/imgui_impl_glfw.h"
+
 using namespace sm;
 using namespace sm::ed;
 
@@ -80,7 +82,7 @@ void EditorContext::render() {
 void EditorContext::on_create() {
     index = mSrvPool.allocate();
 
-    ImGui_ImplWin32_Init(mConfig.window.get_handle());
+    ImGui_ImplGlfw_InitForOther(mConfig.window.get(), true);
 
     const auto cpu = mSrvPool.cpu_handle(index);
     const auto gpu = mSrvPool.gpu_handle(index);
@@ -93,7 +95,7 @@ void EditorContext::on_destroy() {
     mSrvPool.release(index);
 
     ImGui_ImplDX12_Shutdown();
-    ImGui_ImplWin32_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
 }
 
 void EditorContext::on_setup() {

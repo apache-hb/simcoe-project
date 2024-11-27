@@ -22,7 +22,6 @@
 #include "db/environment.hpp"
 #include "db/connection.hpp"
 
-#include "archive/archive.hpp"
 #include "launch/launch.hpp"
 
 #include "archive.dao.hpp"
@@ -51,10 +50,6 @@ static sm::opt<bool> gBundlePacked {
     init = true
 };
 
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
-                                                             LPARAM lParam);
-
-
 class DefaultWindowEvents final : public system::IWindowEvents {
     db::Connection& mConnection;
     render::IDeviceContext *mContext = nullptr;
@@ -62,40 +57,16 @@ class DefaultWindowEvents final : public system::IWindowEvents {
 
     static constexpr math::int2 kMinWindowSize = { 128, 128 };
 
-    void saveWindowPlacement(const WINDOWPLACEMENT& placement) noexcept {
-        if (db::DbError error = mConnection.tryInsert(archive::fromWindowPlacement(placement))) {
-            LOG_WARN(GlobalLog, "update failed: {}", error);
-        }
+    void saveWindowPlacement(const system::Window &window) noexcept try {
+        system::saveWindowInfo(mConnection, window);
+    } catch (const db::DbException& e) {
+        LOG_WARN(GlobalLog, "failed to save window placement: {}", e.error());
     }
 
-    std::optional<WINDOWPLACEMENT> loadWindowPlacement() noexcept {
-        auto result = mConnection.trySelectOne<sm::dao::archive::WindowPlacement>();
-        if (!result.has_value()) {
-            LOG_WARN(GlobalLog, "failed to load window placement: {}", result.error());
-            return std::nullopt;
-        }
-
-        auto select = result.value();
-
-        WINDOWPLACEMENT placement = archive::toWindowPlacement(select);
-
-        if (LONG width = placement.rcNormalPosition.right - placement.rcNormalPosition.left; width < kMinWindowSize.x) {
-            LOG_WARN(GlobalLog, "window placement width too small {}, ignoring possibly corrupted data", width);
-            return std::nullopt;
-        }
-
-        if (LONG height = placement.rcNormalPosition.bottom - placement.rcNormalPosition.top; height < kMinWindowSize.y) {
-            LOG_WARN(GlobalLog, "window placement height too small {}, ignoring possibly corrupted data", height);
-            return std::nullopt;
-        }
-
-        return placement;
-    }
-
-    LRESULT event(system::Window &window, UINT message, WPARAM wparam, LPARAM lparam) override {
-        if (mInput) mInput->window_event(message, wparam, lparam);
-        return ImGui_ImplWin32_WndProcHandler(window.getHandle(), message, wparam, lparam);
-    }
+    // LRESULT event(system::Window &window, UINT message, WPARAM wparam, LPARAM lparam) override {
+    //     if (mInput) mInput->window_event(message, wparam, lparam);
+    //     return 0;
+    // }
 
     void resize(system::Window &window, math::int2 size) override {
         if (size.x < kMinWindowSize.x || size.y < kMinWindowSize.y) {
@@ -107,13 +78,13 @@ class DefaultWindowEvents final : public system::IWindowEvents {
             mContext->resize_swapchain(uint2(size));
         }
 
-        saveWindowPlacement(window.getPlacement());
+        saveWindowPlacement(window);
     }
 
     void create(system::Window &window) override {
-        if (auto placement = loadWindowPlacement()) {
+        if (auto placement = system::loadWindowInfo(mConnection, 0)) {
             LOG_INFO(GlobalLog, "create window with placement");
-            window.setPlacement(*placement);
+            system::applyWindowInfo(window, *placement);
         } else {
             LOG_INFO(GlobalLog, "create window without placement");
             window.centerWindow(system::MultiMonitor::ePrimary);
@@ -121,7 +92,7 @@ class DefaultWindowEvents final : public system::IWindowEvents {
     }
 
     bool close(system::Window &window) override {
-        saveWindowPlacement(window.getPlacement());
+        saveWindowPlacement(window);
         return true;
     }
 
@@ -130,7 +101,7 @@ public:
         : mConnection(connection)
     {
         try {
-            connection.createTable(sm::dao::archive::WindowPlacement::table());
+            connection.createTable(sm::dao::system::WindowInfo::table());
         } catch (const db::DbException& e) {
             LOG_WARN(GlobalLog, "failed to create table: {}", e.error());
         }
@@ -196,9 +167,9 @@ static void messageLoop(system::ShowWindow show) {
     system::DesktopInput desktop_input{window};
     events.attachInput(&desktop_input);
 
-    window.show_window(show);
+    window.showWindow(show);
 
-    auto client = window.get_client_coords().size();
+    math::int2 client = window.getClientSize();
 
     sm::Bundle bundle{mountArchive(gBundlePacked.getValue(), gBundlePath.getValue())};
 
@@ -282,18 +253,8 @@ static void messageLoop(system::ShowWindow show) {
 
     input::Toggle cameraActive = false;
 
-    bool done = false;
-    while (!done) {
-        MSG msg = {};
-        while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)) {
-            TranslateMessage(&msg);
-            DispatchMessageA(&msg);
-            if (msg.message == WM_QUIT) {
-                done = true;
-            }
-        }
-
-        if (done) break;
+    while (!window.shouldClose()) {
+        window.pollEvents();
         context.input.poll();
 
         float dt = clock.tick();

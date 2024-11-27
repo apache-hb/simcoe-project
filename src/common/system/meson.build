@@ -1,13 +1,36 @@
 system_include = include_directories('include')
 
+src = [
+    daocc.process('data/system.xml')
+]
+
+deps = [ core, db ]
+
+libsystem_meta = library('system-meta', src,
+    include_directories : [ system_include ],
+    dependencies : deps
+)
+
+system_meta = declare_dependency(
+    link_with : libsystem_meta,
+    include_directories : [ system_include, libsystem_meta.private_dir_include() ],
+    dependencies : deps
+)
+
 # TODO: splash screens, do them all in d3d12 rather than trying to grok
 # how gdi works. its quick enough to start a d3d12 software device and
 # render using that
 # 'src/splash.cpp',
 
-src = [ ]
+src = [ 'src/window.cpp' ]
 
-deps = [ core, logs, math, cthulhu.get_variable('os'), input, config ]
+deps = [
+    core, logs, math,
+    cthulhu.get_variable('os'),
+    input, config,
+    system_meta,
+    dependency('glfw3')
+]
 
 if host_machine.system() == 'windows'
     src += [
@@ -15,7 +38,6 @@ if host_machine.system() == 'windows'
         'src/system.cpp',
         'src/input.cpp',
         'src/registry.cpp',
-        'src/window.cpp',
 
         'src/win32/storage.cpp',
         'src/win32/network.cpp',

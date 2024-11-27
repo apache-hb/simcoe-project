@@ -116,7 +116,7 @@ static math::int2 getMousePosition(HWND hwnd) {
 
 static math::int2 getWindowCenter(system::Window& hwnd) {
     RECT rect;
-    SM_ASSERT_WIN32(GetWindowRect(hwnd.get_handle(), &rect));
+    SM_ASSERT_WIN32(GetWindowRect(hwnd.getHandle(), &rect));
 
     return {
         (rect.left + rect.right) / 2,
@@ -153,7 +153,7 @@ static constexpr auto kMouseX = (size_t)input::Axis::eMouseX;
 static constexpr auto kMouseY = (size_t)input::Axis::eMouseY;
 
 bool DesktopInput::pollMouseState(input::InputState& state) {
-    auto pos = getMousePosition(mWindow.get_handle());
+    auto pos = getMousePosition(mWindow.getHandle());
 
     // TODO: maybe add this back in if the ecs system doesnt work out
     // if (pos == mMousePosition) return false;
@@ -175,7 +175,7 @@ bool DesktopInput::pollMouseState(input::InputState& state) {
 DesktopInput::DesktopInput(system::Window& window)
     : ISource(input::DeviceType::eDesktop)
     , mWindow(window)
-    , mMousePosition(getMousePosition(window.get_handle()))
+    , mMousePosition(getMousePosition(window.getHandle()))
 { }
 
 bool DesktopInput::poll(input::InputState& state) {

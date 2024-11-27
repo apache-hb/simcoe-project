@@ -2,39 +2,46 @@
 
 #include <simcoe_config.h>
 
+#include "db/connection.hpp"
+#include "system.dao.hpp"
+
 #include "system/system.hpp"
 
 #include "math/math.hpp"
 #include "core/macros.hpp"
 
+#if _WIN32
+#   define GLFW_EXPOSE_NATIVE_WIN32
+#endif
+
+#include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
+
 namespace sm::system {
     enum class ShowWindow {
-        eHide = SW_HIDE,
-        eShowNormal = SW_SHOWNORMAL,
-        eShow = SW_SHOW,
-        eRestore = SW_RESTORE,
-        eShowDefault = SW_SHOWDEFAULT,
+        eHide,
+        eShowNormal,
+        eShow,
+        eRestore,
+        eShowDefault,
     };
 
     enum class MultiMonitor {
-        eNull = MONITOR_DEFAULTTONULL,
-        ePrimary = MONITOR_DEFAULTTOPRIMARY,
-        eNearest = MONITOR_DEFAULTTONEAREST,
+        eNearest, ///< center on whichever monitors center is nearest to the window
+        ePrimary, ///< center on the primary monitor
     };
 
-    enum class WindowMode : DWORD {
-        eWindowed = WS_OVERLAPPEDWINDOW,
-        eBorderless = WS_POPUP,
+    enum class WindowMode {
+        eWindowed,
+        eBorderless,
     };
 
-    using WindowPlacement = WINDOWPLACEMENT;
-    using Point = POINT;
+    struct WindowPlacement {
+        math::int2 size;
+        math::int2 position;
 
-    struct WindowCoords : RECT {
-        constexpr WindowCoords(RECT rect) : RECT(rect) {}
-
-        constexpr math::int2 size() const {
-            return {right - left, bottom - top};
+        math::int2 center() const noexcept {
+            return (position + size) / 2;
         }
     };
 
@@ -43,6 +50,9 @@ namespace sm::system {
         int width;
         int height;
         std::string title;
+
+        math::int2 minSize = { 64, 64 };
+        math::int2 maxSize = { 4096, 4096 };
     };
 
     class IWindowEvents {
@@ -50,10 +60,6 @@ namespace sm::system {
 
     protected:
         virtual ~IWindowEvents() = default;
-
-        virtual LRESULT event(Window &window, UINT message, WPARAM wparam, LPARAM lparam) {
-            return 0;
-        }
 
         virtual void resize(Window &window, math::int2 size) {}
         virtual void create(Window &window) {}
@@ -63,51 +69,42 @@ namespace sm::system {
         }
     };
 
+    using WindowHandle = std::unique_ptr<GLFWwindow, decltype(&glfwDestroyWindow)>;
+
     class Window {
-        HWND mWindow = nullptr;
+        WindowHandle mWindow;
+        std::string mTitle;
         IWindowEvents& mEvents;
 
-        static LRESULT CALLBACK proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
-
-        void create(const WindowConfig &config);
-        void destroy_window();
-        void destroyWindow() { destroy_window(); }
-
-        friend void create(HINSTANCE hInstance);
-
     public:
-        SM_NOCOPY(Window)
-        SM_NOMOVE(Window)
-
         Window(const WindowConfig &config, IWindowEvents& events);
-        ~Window();
+
+        math::int2 getPosition() const;
+        void setPosition(math::int2 position);
+
+        math::int2 getSize() const;
+        void setSize(math::int2 size);
 
         WindowPlacement getPlacement() const;
+        void setPlacement(WindowPlacement placement);
 
-        void setPlacement(const WindowPlacement &placement);
+        bool shouldClose() const;
+        void pollEvents();
 
-        void show_window(ShowWindow show);
-        void showWindow(ShowWindow show) { show_window(show); }
+        void showWindow(ShowWindow show);
 
-        void resize(math::int2 size);
+        void setTitle(const std::string& title);
+        std::string getTitle() const;
 
-        void set_title(const char *title);
-        void setTitle(const char *title) { set_title(title); }
+        void centerWindow(MultiMonitor monitor = MultiMonitor::eNearest, bool topmost = false);
 
-        bool center_window(MultiMonitor monitor = MultiMonitor{}, bool topmost = false);
-        bool centerWindow(MultiMonitor monitor = MultiMonitor{}, bool topmost = false) {
-            return center_window(monitor, topmost);
-        }
+        math::uint2 getClientSize() const { return getPlacement().size; }
 
-        WindowCoords get_coords() const;
-        WindowCoords get_client_coords() const;
-
-        WindowCoords getCoords() const { return get_coords(); }
-        WindowCoords getClientCoords() const { return get_client_coords(); }
-
-        math::uint2 getClientSize() const { return getClientCoords().size(); }
-
-        HWND get_handle() const { return mWindow; }
-        HWND getHandle() const { return get_handle(); }
+        HWND getHandle() const { return glfwGetWin32Window(mWindow.get()); }
+        GLFWwindow* get() const { return mWindow.get(); }
     };
+
+    uint64_t saveWindowInfo(db::Connection& db, const Window& window);
+    std::optional<dao::system::WindowInfo> loadWindowInfo(db::Connection& db, uint64_t id);
+    void applyWindowInfo(Window& window, const dao::system::WindowInfo& info);
 }

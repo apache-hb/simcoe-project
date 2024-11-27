@@ -7,7 +7,6 @@
 using namespace sm;
 
 HINSTANCE gInstance = nullptr;
-LPTSTR gWindowClass = nullptr;
 
 OsError system::getLastError() {
     return GetLastError();

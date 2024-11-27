@@ -12,9 +12,9 @@ static render::next::ContextConfig updateConfig(render::next::ContextConfig curr
     return config;
 }
 
-DrawContext::DrawContext(render::next::ContextConfig config, HWND hwnd)
+DrawContext::DrawContext(render::next::ContextConfig config, system::Window& window)
     : Super(updateConfig(config))
-    , mImGui(addResource<ImGuiDrawContext>(hwnd))
+    , mImGui(addResource<ImGuiDrawContext>(window))
     , mCompute(addResource<ComputeContext>())
 {
     mImGui->setup();
