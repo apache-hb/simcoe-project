@@ -6,8 +6,9 @@
 
 #include "threads/threads.hpp"
 
+#include "system/system.hpp"
+
 #if _WIN32
-#   include "system/system.hpp"
 #   include "threads/topology.hpp"
 #   include <shellapi.h>
 #endif

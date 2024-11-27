@@ -11,10 +11,14 @@ namespace sm::threads {
     /// @warning can block when writing
     template<typename T>
     class NonBlockingMailBox {
-        static constexpr size_t kIndexBit = 0b0001;
-        static constexpr size_t kWriteBit = 0b0010;
+        static constexpr int kIndexBit = 0b0001;
+        static constexpr int kWriteBit = 0b0010;
 
-        alignas(std::hardware_destructive_interference_size)
+        // clang bug maybe, on linux adding this alignas causes clang to
+        // generate all kinds of strange layout info for this class.
+        // on windows it works fine, the performance difference is well into
+        // placebo territory so i'll leave it out for now.
+        // alignas(std::hardware_destructive_interference_size)
         std::atomic<int> mState = 0;
 
         T mSlots[2];
@@ -27,21 +31,21 @@ namespace sm::threads {
         }
 
         void unlock() {
-            mState ^= kWriteBit;
+            mState.fetch_xor(kWriteBit, std::memory_order_release);
         }
 
         const T& read() {
-            return mSlots[!(mState.load(std::memory_order_relaxed) & kIndexBit)];
+            return mSlots[!(mState.load(std::memory_order_acquire) & kIndexBit)];
         }
 
-        void write(T data) {
+        void write(const T& data) {
             int state = 0;
             while ((state = mState.load(std::memory_order_acquire)) & kWriteBit) {
                 /* spin */
             }
 
             int newIndex = (state & kIndexBit);
-            mSlots[newIndex] = std::move(data);
+            mSlots[newIndex] = data;
 
             mState.store(state ^ (kIndexBit | kWriteBit), std::memory_order_release);
         }

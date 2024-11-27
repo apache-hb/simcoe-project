@@ -1,3 +1,5 @@
+#define _GLIBCXX_DEBUG
+
 #include "test/common.hpp"
 
 #include "threads/mailbox.hpp"
@@ -45,22 +47,26 @@ struct MultiThreadedTestStream {
 TEST_CASE("Non-blocking mailbox") {
     static constexpr size_t kArraySize = 0x10000;
     using BigArray = std::array<uint8_t, kArraySize>;
+    using BigArrayMailbox = threads::NonBlockingMailBox<BigArray>;
+
+    static_assert(sizeof(BigArray) == kArraySize);
+    static_assert(sizeof(BigArrayMailbox) == (kArraySize * 2) + 4);
 
     // a little too big for the stack
-    std::unique_ptr mailbox = std::make_unique<threads::NonBlockingMailBox<BigArray>>();
+    auto *ptr = new BigArrayMailbox;
 
     {
         MultiThreadedTestStream errors;
 
-        std::latch latch{2};
+        std::latch latch{1};
 
-        std::jthread reader = std::jthread([&](const std::stop_token& stop) {
-            latch.arrive_and_wait();
+        std::jthread reader = std::jthread([ptr, &latch, &errors](const std::stop_token& stop) {
+            latch.wait();
 
             while (!stop.stop_requested()) {
-                std::lock_guard guard(*mailbox);
+                std::lock_guard guard(*ptr);
 
-                const BigArray& data = mailbox->read();
+                const BigArray& data = ptr->read();
                 uint8_t first = data[0];
                 uint8_t last = data[kArraySize - 1];
 
@@ -69,7 +75,7 @@ TEST_CASE("Non-blocking mailbox") {
             }
         });
 
-        std::jthread writer = std::jthread([&](const std::stop_token& stop) {
+        std::jthread writer = std::jthread([ptr, &latch](const std::stop_token& stop) {
             uint8_t value = 1;
             std::once_flag once;
             while (!stop.stop_requested()) {
@@ -82,9 +88,9 @@ TEST_CASE("Non-blocking mailbox") {
 
                 data.fill(next);
 
-                mailbox->write(data);
+                ptr->write(data);
 
-                std::call_once(once, [&] { latch.count_down(); });
+                std::call_once(once, [&] {  latch.count_down(); });
             }
         });
 

@@ -11,7 +11,7 @@ using namespace sm;
 std::vector<std::string> system::getCommandLine() {
     int fd = open("/proc/self/cmdline", O_RDONLY);
     if (fd == -1)
-        throw OsException{OsError{errno}, "open /proc/self/cmdline"};
+        throw OsException{OsError{os_error_t(errno)}, "open /proc/self/cmdline"};
 
     defer { close(fd); };
 

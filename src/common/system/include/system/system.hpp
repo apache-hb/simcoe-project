@@ -12,6 +12,8 @@
 
 #if _WIN32
 #   include "core/win32.hpp"
+#else
+typedef void *HINSTANCE;
 #endif
 
 LOG_MESSAGE_CATEGORY(SystemLog, "System");

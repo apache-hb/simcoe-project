@@ -42,22 +42,26 @@ namespace sm::launch {
     LaunchResult commonInitWinMain(HINSTANCE hInstance, int nShowCmd, const LaunchInfo& info) noexcept;
 }
 
-#define SM_LAUNCH_WINMAIN_BODY(NAME, ENTRY, INFO) \
-    int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) try { \
-            launch::LaunchResult launch = launch::commonInitWinMain(hInstance, nShowCmd, INFO); \
-            if (launch.shouldExit()) { \
-                return launch.exitCode(); \
-            } \
-            int result = ENTRY(); \
-            LOG_INFO(GlobalLog, NAME " exiting with {}", result); \
-            return result; \
-        } catch (const std::exception& err) { \
-            LOG_ERROR(GlobalLog, "unhandled exception: {}", err.what()); \
-            return -1; \
-        } catch (...) { \
-            LOG_ERROR(GlobalLog, "unknown unhandled exception"); \
-            return -1; \
-        }
+#if _WIN32
+#   define SM_LAUNCH_WINMAIN_BODY(NAME, ENTRY, INFO) \
+        int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) try { \
+                launch::LaunchResult launch = launch::commonInitWinMain(hInstance, nShowCmd, INFO); \
+                if (launch.shouldExit()) { \
+                    return launch.exitCode(); \
+                } \
+                int result = ENTRY(); \
+                LOG_INFO(GlobalLog, NAME " exiting with {}", result); \
+                return result; \
+            } catch (const std::exception& err) { \
+                LOG_ERROR(GlobalLog, "unhandled exception: {}", err.what()); \
+                return -1; \
+            } catch (...) { \
+                LOG_ERROR(GlobalLog, "unknown unhandled exception"); \
+                return -1; \
+            }
+#else
+#   define SM_LAUNCH_WINMAIN_BODY(NAME, ENTRY, INFO)
+#endif
 
 #define SM_LAUNCH_MAIN_BODY(NAME, ENTRY, INFO) \
     int main(int argc, const char **argv) noexcept try { \
