@@ -334,7 +334,7 @@ void AccountServer::listen(uint16_t connections) {
 
         net::Socket socket = net::throwIfFailed(std::move(client));
 
-        threads.emplace(std::make_unique<std::jthread>([this, socket = std::move(socket)](const std::stop_token& stop) mutable {
+        threads.emplace(std::make_unique<std::jthread>([&, socket = std::move(socket)](const std::stop_token& stop) mutable {
             handleClient(stop, std::move(socket));
         }));
     }

@@ -57,6 +57,7 @@ if get_option('tracy_enable')
     add_global_arguments('-DTRACY_ENABLE', language : [ 'c', 'cpp' ])
 endif
 
+fs = import('fs')
 dxc_id = 'dxc-' + host_machine.system()
 dxcompiler_id = 'dxcompiler-' + host_machine.system()
 

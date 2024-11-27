@@ -51,6 +51,10 @@ bool net::isSetup(void) noexcept {
     return gNetData.isInitialized();
 }
 
+void net::destroyHandle(system::os::SocketHandle& handle) {
+    system::os::destroySocket(handle);
+}
+
 Network Network::create() noexcept(false) {
     if (!net::isSetup())
         throw NetException{system::os::kNotInitialized};

@@ -65,9 +65,9 @@ namespace sm::net {
     }
 
     template<typename T>
-    T throwIfFailed(NetResult<T>&& result) throws(NetException) {
+    auto throwIfFailed(NetResult<T>&& result) throws(NetException) -> decltype(auto) {
         if (result.has_value())
-            return std::move(result.value());
+            return std::move(result).value();
 
         throw NetException(result.error());
     }

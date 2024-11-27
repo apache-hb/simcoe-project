@@ -18,14 +18,14 @@ namespace sm {
     /// value that represents an empty handle. For example mmap returns MAP_FAILED on failure
     template<typename T, typename TDelete, T TEmpty = T()>
     class UniqueHandle {
-        T mHandle = TEmpty;
-
         SM_NO_UNIQUE_ADDRESS TDelete mDelete{};
+
+        T mHandle = TEmpty;
 
     public:
         constexpr UniqueHandle(T handle = TEmpty, TDelete del = TDelete{}) noexcept
-            : mHandle(handle)
-            , mDelete(del)
+            : mDelete(del)
+            , mHandle(handle)
         { }
 
         constexpr UniqueHandle &operator=(T handle) noexcept {
@@ -45,6 +45,9 @@ namespace sm {
             reset(other.release());
             return *this;
         }
+
+        constexpr UniqueHandle(const UniqueHandle&) = delete;
+        constexpr UniqueHandle &operator=(const UniqueHandle&) = delete;
 
         constexpr auto get(this auto& self) noexcept {
             CTASSERT(self.isValid());

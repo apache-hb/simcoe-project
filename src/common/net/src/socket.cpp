@@ -63,9 +63,9 @@ NetError Socket::setBlocking(bool blocking) noexcept {
         return lastNetError();
 
     if (blocking) {
-        mFlags |= kBlockingFlag;
+        mFlags->fetch_or(kBlockingFlag);
     } else {
-        mFlags &= ~kBlockingFlag;
+        mFlags->fetch_and(~kBlockingFlag);
     }
 
     return NetError::ok();
@@ -114,6 +114,10 @@ NetResult<Socket> ListenSocket::tryAccept() noexcept {
     }
 
     return {client};
+}
+
+Socket ListenSocket::accept() noexcept(false) {
+    return throwIfFailed(tryAccept());
 }
 
 void ListenSocket::cancel() noexcept {

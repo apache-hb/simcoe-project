@@ -21,7 +21,9 @@ namespace sm::net {
         NetError error;
     };
 
-    using SocketHandle = UniqueHandle<system::os::SocketHandle, decltype(&system::os::destroySocket)>;
+    void destroyHandle(system::os::SocketHandle& handle);
+
+    using SocketHandle = FnUniqueHandle<system::os::SocketHandle, &destroyHandle>;
 
     class Socket {
     protected:
@@ -30,12 +32,16 @@ namespace sm::net {
 
         SocketHandle mSocket;
 
-        std::atomic<int> mFlags;
+        // TODO: cmon c++, please let me move a damn atomic
+        std::unique_ptr<std::atomic<int>> mFlags = std::make_unique<std::atomic<int>>(0);
 
     public:
         Socket(system::os::SocketHandle socket) noexcept
-            : mSocket(SocketHandle{socket, &system::os::destroySocket})
+            : mSocket(SocketHandle{socket})
         { }
+
+        SM_NOCOPY(Socket);
+        SM_MOVE(Socket, default);
 
         NetResult<size_t> sendBytes(const void *data, size_t size) noexcept;
         NetResult<size_t> recvBytes(void *data, size_t size) noexcept;
@@ -75,8 +81,8 @@ namespace sm::net {
         }
 
         NetError setBlocking(bool blocking) noexcept;
-        bool isBlocking() const noexcept { return mFlags.load(std::memory_order_seq_cst) & kBlockingFlag; }
-        bool isActive() const noexcept { return !(mFlags.load(std::memory_order_seq_cst) & kShutdownFlag); }
+        bool isBlocking() const noexcept { return mFlags->load(std::memory_order_seq_cst) & kBlockingFlag; }
+        bool isActive() const noexcept { return !(mFlags->load(std::memory_order_seq_cst) & kShutdownFlag); }
 
         NetError setRecvTimeout(std::chrono::milliseconds timeout) noexcept;
         NetError setSendTimeout(std::chrono::milliseconds timeout) noexcept;
@@ -91,9 +97,7 @@ namespace sm::net {
         static constexpr int kMaxBacklog = SOMAXCONN;
 
         NetResult<Socket> tryAccept() noexcept;
-        Socket accept() throws(NetException) {
-            return throwIfFailed(tryAccept());
-        }
+        Socket accept() throws(NetException);
 
         void cancel() noexcept;
 
