@@ -92,6 +92,10 @@ std::string SqliteConnection::setupSelect(const dao::TableInfo& table) noexcept(
     return sqlite::setupSelect(table);
 }
 
+std::string SqliteConnection::setupSelectByPrimaryKey(const dao::TableInfo& table) noexcept(false) {
+    return sqlite::setupSelectByPrimaryKey(table);
+}
+
 std::string SqliteConnection::setupSingletonTrigger(const dao::TableInfo& table) noexcept(false) {
     return sqlite::setupCreateSingletonTrigger(table.name);
 }

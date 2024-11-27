@@ -314,17 +314,28 @@ std::string oracle::setupCreateTable(const dao::TableInfo& info, bool hasBoolTyp
     return ss.str();
 }
 
-std::string oracle::setupSelect(const dao::TableInfo& info) {
-    std::ostringstream ss;
-    ss << "SELECT ";
+static void buildSelectColumns(const dao::TableInfo& info, std::ostream& os) {
+    os << "SELECT ";
     for (size_t i = 0; i < info.columns.size(); i++) {
-        ss << info.columns[i].name;
+        os << info.columns[i].name;
         if (i != info.columns.size() - 1) {
-            ss << ", ";
+            os << ", ";
         }
     }
-    ss << " FROM " << info.name;
+    os << " FROM " << info.name;
+}
 
+std::string oracle::setupSelect(const dao::TableInfo& info) {
+    std::ostringstream ss;
+    buildSelectColumns(info, ss);
+    return ss.str();
+}
+
+std::string oracle::setupSelectByPrimaryKey(const dao::TableInfo& info) {
+    const dao::ColumnInfo& pk = info.getPrimaryKey();
+    std::stringstream ss;
+    buildSelectColumns(info, ss);
+    ss << " WHERE " << pk.name << " = :id";
     return ss.str();
 }
 

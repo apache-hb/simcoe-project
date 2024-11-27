@@ -372,6 +372,11 @@ namespace sm::math {
     }
 
     template<IsVector T>
+    constexpr typename T::Type distance(T lhs, T rhs) {
+        return (lhs - rhs).length();
+    }
+
+    template<IsVector T>
     constexpr typename T::Type length(T x) {
         return x.length();
     }

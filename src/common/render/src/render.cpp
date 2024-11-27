@@ -381,7 +381,7 @@ void IDeviceContext::create_pipeline() {
     };
 
     IDXGIFactory4 *factory = mInstance.factory();
-    HWND hwnd = mConfig.window.get_handle();
+    HWND hwnd = mConfig.window.getHandle();
 
     Object<IDXGISwapChain1> swapchain1;
     SM_ASSERT_HR(factory->CreateSwapChainForHwnd(*mDirectQueue, hwnd, &kSwapChainDesc, nullptr, nullptr, &swapchain1));
@@ -929,7 +929,7 @@ void IDeviceContext::create() {
         return mInstance.getDefaultAdapter();
     }();
 
-    PIXSetTargetWindow(mConfig.window.get_handle());
+    PIXSetTargetWindow(mConfig.window.getHandle());
 
     createStorageContext();
 

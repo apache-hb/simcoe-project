@@ -19,6 +19,7 @@ namespace sm::db::oracle {
     std::string setupCommentOnTable(std::string_view name, std::string_view comment);
     std::string setupCommentOnColumn(std::string_view table, std::string_view column, std::string_view comment);
     std::string setupSelect(const dao::TableInfo& info);
+    std::string setupSelectByPrimaryKey(const dao::TableInfo& info);
     std::string setupUpdate(const dao::TableInfo& info);
     std::string setupSingletonTrigger(std::string_view name);
 

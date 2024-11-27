@@ -27,6 +27,7 @@ namespace sm::db::oracle {
         std::string setupTruncate(const dao::TableInfo& table) noexcept(false) override;
 
         std::string setupSelect(const dao::TableInfo& table) noexcept(false) override;
+        std::string setupSelectByPrimaryKey(const dao::TableInfo& table) noexcept(false) override;
 
         std::string setupUpdate(const dao::TableInfo& table) noexcept(false) override;
 

@@ -36,6 +36,7 @@ namespace sm::db {
         PreparedStatement prepareUpdateAllImpl(const dao::TableInfo& table);
 
         PreparedStatement prepareSelectAllImpl(const dao::TableInfo& table);
+        PreparedStatement prepareSelectByPrimaryKeyImpl(const dao::TableInfo& table);
 
         PreparedStatement prepareDropTableImpl(const dao::TableInfo& table);
 
@@ -300,6 +301,18 @@ namespace sm::db {
         T selectOne() throws(DbException) {
             PreparedSelect<T> stmt = prepareSelectAll<T>();
             return stmt.fetchOne();
+        }
+
+        template<dao::HasPrimaryKey T>
+        PreparedSelectByPrimaryKey<T> prepareSelectByPrimaryKey(typename T::PrimaryKey pk) throws(DbException) {
+            PreparedSelectByPrimaryKey<T> prepared{prepareSelectByPrimaryKeyImpl(T::table())};
+            return prepared;
+        }
+
+        template<dao::HasPrimaryKey T>
+        T selectByPrimaryKey(typename T::PrimaryKey pk) throws(DbException) {
+            PreparedSelectByPrimaryKey<T> stmt = prepareSelectByPrimaryKey<T>(pk);
+            return stmt.fetchOne(pk);
         }
 
         template<dao::DaoInterface T>

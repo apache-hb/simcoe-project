@@ -101,6 +101,10 @@ namespace sm::db::detail {
             throw DbException{DbError::todoFn()};
         }
 
+        virtual std::string setupSelectByPrimaryKey(const dao::TableInfo& table) throws(DbException) {
+            throw DbException{DbError::todoFn()};
+        }
+
         /** Update */
 
         virtual std::string setupUpdate(const dao::TableInfo& table) throws(DbException) {

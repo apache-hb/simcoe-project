@@ -40,4 +40,28 @@ namespace sm::db {
             return result.getRow<T>();
         }
     };
+
+    template<dao::HasPrimaryKey T>
+    class PreparedSelectByPrimaryKey {
+        friend Connection;
+
+        PreparedStatement mStatement;
+
+        PreparedSelectByPrimaryKey(PreparedStatement statement) noexcept
+            : mStatement(std::move(statement))
+        { }
+
+    public:
+        SM_MOVE(PreparedSelectByPrimaryKey, default);
+
+        T fetchOne(typename T::PrimaryKey pk) throws(DbException) {
+            mStatement.bind("id").to(pk);
+            ResultSet result = db::throwIfFailed(mStatement.start());
+
+            if (result.isDone())
+                throw DbException{DbError::noData()};
+
+            return result.getRow<T>();
+        }
+    };
 }

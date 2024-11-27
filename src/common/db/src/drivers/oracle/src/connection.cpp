@@ -124,6 +124,10 @@ std::string OraConnection::setupSelect(const dao::TableInfo& table) noexcept(fal
     return oracle::setupSelect(table);
 }
 
+std::string OraConnection::setupSelectByPrimaryKey(const dao::TableInfo& table) noexcept(false) {
+    return oracle::setupSelectByPrimaryKey(table);
+}
+
 std::string OraConnection::setupUpdate(const dao::TableInfo& table) noexcept(false) {
     return oracle::setupUpdate(table);
 }

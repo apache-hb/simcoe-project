@@ -109,6 +109,11 @@ PreparedStatement Connection::prepareSelectAllImpl(const dao::TableInfo& table) 
     return prepareQuery(sql);
 }
 
+PreparedStatement Connection::prepareSelectByPrimaryKeyImpl(const dao::TableInfo& table) noexcept(false) {
+    std::string sql = mImpl->setupSelectByPrimaryKey(table);
+    return prepareQuery(sql);
+}
+
 PreparedStatement Connection::prepareDropTableImpl(const dao::TableInfo& table) noexcept(false) {
     std::string sql = fmt::format("DROP TABLE {}", table.name);
     return prepareUpdate(sql);
