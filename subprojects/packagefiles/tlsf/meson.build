@@ -1,4 +1,7 @@
-project('tlsf', 'c')
+project('tlsf', 'c',
+    meson_version : '>=1.1.0',
+    license : 'BSD'
+)
 
 cc = meson.get_compiler('c')
 args = cc.get_supported_arguments([ '-Wno-format-pedantic', '-Wno-format' ])

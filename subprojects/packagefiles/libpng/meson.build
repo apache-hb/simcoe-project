@@ -2,7 +2,8 @@ project(
   'libpng',
   'c',
   version: '1.6.40', license: 'libpng',
-  meson_version: '>=0.64.0',
+  meson_version: '>=1.1.0',
+  license_files : 'LICENSE'
 )
 
 fs = import('fs')
@@ -159,3 +160,9 @@ if get_option('tests').enabled()
     png_test = executable('pngtest', 'pngtest.c', dependencies: libpng_dep)
     test('pngtest', png_test, args: files('pngtest.png'))
 endif
+
+install_data(meson.project_license_files(),
+    install_dir : get_option('licensedir'),
+    rename : meson.project_name() + '.LICENSE.txt',
+    install_tag : 'legal',
+)

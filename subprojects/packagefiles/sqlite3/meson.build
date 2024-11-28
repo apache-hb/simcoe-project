@@ -1,5 +1,8 @@
 project('sqlite3', 'c',
-    version : '3.4.6'
+    version : '3.4.6',
+    meson_version: '>=1.1.0',
+    license_files : 'LICENSE',
+    license : 'sqlite'
 )
 
 src = [
@@ -178,3 +181,9 @@ sqlite3_dep = declare_dependency(
 )
 
 meson.override_dependency('sqlite3', sqlite3_dep)
+
+install_data(meson.project_license_files(),
+    install_dir : get_option('licensedir'),
+    rename : meson.project_name() + '.LICENSE.txt',
+    install_tag : 'legal',
+)

@@ -36,7 +36,7 @@ static constexpr TimeUnits getTimeUnits(uint32_t timestamp) {
 static size_t buildMessageInner(sm::Span<char> buffer, uint32_t timestamp, const logs::MessageInfo& message, const char *colour, const char *reset) {
     auto [h, m, s, ms] = getTimeUnits(timestamp);
 
-    return fmt::format_to_n(buffer.data(), buffer.size(), "{}[{}]{}[{:02}:{:02}:{:02}.{:03}] {}:", colour, message.getSeverity(), reset, h, m, s, ms, message.getCategory().name).size;
+    return fmt::format_to_n(buffer.data(), buffer.size(), "{}[{:<5}]{}[{:02}:{:02}:{:02}.{:03}] {:<6}:", colour, toString(message.getSeverity()), reset, h, m, s, ms, message.getCategory().name).size;
 }
 
 size_t logs::detail::buildMessageHeader(sm::Span<char> buffer, uint32_t timestamp, const logs::MessageInfo& message) noexcept {

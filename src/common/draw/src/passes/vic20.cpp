@@ -1,7 +1,10 @@
 #include "draw/passes/vic20.hpp"
 
+#include "system/storage.hpp"
+
 #include <directx/d3dx12_barriers.h>
 
+using namespace sm;
 using namespace sm::render::next;
 using namespace sm::draw::next;
 
@@ -26,7 +29,7 @@ enum BindIndex {
     eBindCount
 };
 
-static std::vector<uint8_t> readFileBytes(const sm::fs::path& path) {
+static std::vector<uint8_t> readFileBytes(const fs::path& path) {
     std::ifstream file(path, std::ios::binary);
     if (!file.is_open()) {
         throw std::runtime_error("failed to open file: " + path.string());
@@ -63,7 +66,7 @@ void Vic20Display::createComputeShader() {
     mVic20RootSignature = createRootSignature(device, rootSignatureDesc);
 
     /// create pipeline state
-    auto cs = readFileBytes(system::getProgramFolder() / ".." / "vic20.cs.cso");
+    auto cs = readFileBytes(system::getProgramDataFolder() / "vic20.cs.cso");
 
     D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc = {
         .pRootSignature = mVic20RootSignature.get(),
@@ -204,9 +207,9 @@ void Vic20Display::write(uint8_t x, uint8_t y, uint8_t colour, uint8_t character
 
 void Vic20Display::writeCharacter(uint8_t id, shared::Vic20Character character) noexcept {
     // reverse each byte before writing to the buffer
-    // https://graphics.stanford.edu/~seander/bithacks.html#ReverseByteWith64BitsDiv
+    // https://graphics.stanford.edu/~seander/bithacks.html#ReverseByteWith64Bits
     auto reverseByte = [](uint8_t x) -> uint8_t {
-        return ((x * 0x0202020202ULL & 0x010884422010ULL) % 1023);
+        return ((x * 0x80200802ULL) & 0x0884422110ULL) * 0x0101010101ULL >> 32;
     };
 
     uint64_t result = 0;
@@ -216,4 +219,14 @@ void Vic20Display::writeCharacter(uint8_t id, shared::Vic20Character character) 
     }
 
     mCharacterData.characters[id] = shared::Vic20Character{ result };
+}
+
+void Vic20Display::setCharacterMap(shared::Vic20CharacterMap characterMap) {
+    for (int i = 0; i < VIC20_CHARMAP_SIZE; i++) {
+        writeCharacter(i, characterMap.characters[i]);
+    }
+}
+
+void Vic20Display::setScreen(draw::shared::Vic20Screen screen) {
+    mScreenData = screen;
 }

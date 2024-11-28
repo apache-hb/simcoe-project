@@ -10,6 +10,7 @@
 #include <imfilebrowser.h>
 
 #include "system/system.hpp"
+#include "system/storage.hpp"
 
 #include "core/macros.h"
 #include "core/memory.h"
@@ -102,7 +103,7 @@ class DefaultSystemError final : public sm::ISystemError {
 static DefaultSystemError gDefaultError{};
 
 template<typename T>
-static std::vector<T> readFileBytes(const sm::fs::path& path) {
+static std::vector<T> readFileBytes(const fs::path& path) {
     std::ifstream file(path, std::ios::binary);
     if (!file.is_open()) {
         throw std::runtime_error("failed to open file: " + path.string());

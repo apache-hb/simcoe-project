@@ -3,6 +3,9 @@
 #ifndef __HLSL_VERSION
 #include "math/math.hpp"
 namespace sm::draw::shared { using namespace sm::math;
+#define CXX_CONSTEXPR constexpr
+#else
+#define CXX_CONSTEXPR
 #endif
 
 struct Vic20Info {

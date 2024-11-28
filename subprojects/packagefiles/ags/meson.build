@@ -31,7 +31,10 @@ ags_dep = declare_dependency(
 
 meson.override_dependency('amd_ags', ags_dep)
 
-install_data(dll, install_dir : get_option('bindir') / 'redist')
+install_data(dll,
+    install_dir : get_option('bindir') / 'redist',
+    install_tag : 'runtime'
+)
 
 install_data(meson.project_license_files(),
     install_dir : get_option('licensedir'),

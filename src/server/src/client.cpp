@@ -19,6 +19,8 @@ static const launch::LaunchInfo kLaunchInfo {
     .logDbConfig = { .host = "client-logs.db" },
     .logPath = "client.log",
 
+    .infoDbConfig = { .host = "client.db" },
+
     .network = true,
     .glfw = true,
 };
@@ -200,7 +202,7 @@ struct SessionListWidget {
     }
 };
 
-static int commonMain() noexcept try {
+static int commonMain(launch::LaunchResult&) noexcept try {
     net::Network network = net::Network::create();
     EventQueue events;
     moodycamel::ConcurrentQueue<std::function<void()>> responses;
@@ -386,11 +388,17 @@ static int commonMain() noexcept try {
     events.enqueue([] {});
 
     return 0;
+} catch (const errors::AnyException& err) {
+    LOG_ERROR(GlobalLog, "{}", err.what());
+    for (const auto& frame : err.stacktrace()) {
+        LOG_ERROR(GlobalLog, "{}:{} - {}", frame.source_file(), frame.source_line(), frame.description());
+    }
+    return -1;
 } catch (const std::exception& err) {
-    LOG_ERROR(ClientLog, "unhandled exception: {}", err.what());
+    LOG_ERROR(GlobalLog, "{}", err.what());
     return -1;
 } catch (...) {
-    LOG_ERROR(ClientLog, "unknown unhandled exception");
+    LOG_ERROR(GlobalLog, "Unknown unhandled exception.");
     return -1;
 }
 

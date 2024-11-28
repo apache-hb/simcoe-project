@@ -3,10 +3,11 @@ project(
   'c',
   version: '3.0.8',
   license : 'Apache-2.0',
-  meson_version: '>= 0.55',
+  meson_version: '>=1.1.0',
   default_options: [
     'warning_level=1',
   ],
+  license_files : [ 'LICENSE.txt' ]
 )
 
 # Make sure to generate configs in case they are not already
@@ -392,3 +393,9 @@ if cli_opt
     install: cli_opt,
   )
 endif
+
+install_data(meson.project_license_files(),
+    install_dir : get_option('licensedir'),
+    rename : meson.project_name() + '.LICENSE.txt',
+    install_tag : 'legal',
+)

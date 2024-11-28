@@ -1,5 +1,7 @@
 #include "draw/passes/blit.hpp"
 
+#include "system/storage.hpp"
+
 #include <directx/d3dx12_barriers.h>
 
 using namespace sm;
@@ -100,8 +102,8 @@ void BlitPass::createShader() {
 
     mRootSignature = createRootSignature(device, rootSignatureDesc);
 
-    auto ps = readFileBytes(system::getProgramFolder() / ".." / "blit.ps.cso");
-    auto vs = readFileBytes(system::getProgramFolder() / ".." / "blit.vs.cso");
+    auto ps = readFileBytes(system::getProgramDataFolder() / "blit.ps.cso");
+    auto vs = readFileBytes(system::getProgramDataFolder() / "blit.vs.cso");
 
     constexpr D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
         { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(Vertex, position) },

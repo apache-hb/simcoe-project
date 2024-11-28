@@ -137,6 +137,10 @@ DbResult<Connection> Environment::tryConnect(const ConnectionConfig& config) noe
 }
 
 Connection Environment::connect(const ConnectionConfig& config) {
+    if (config.host.empty()) {
+        throw DbException{DbError::invalidHost("Host name is empty")};
+    }
+
     logConnectionAttempt(config);
 
     detail::IConnection *connection = mImpl->connect(config);

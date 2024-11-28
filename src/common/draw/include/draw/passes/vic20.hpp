@@ -65,6 +65,9 @@ namespace sm::draw::next {
 
         void writeCharacter(uint8_t id, shared::Vic20Character character) noexcept;
 
+        void setCharacterMap(shared::Vic20CharacterMap characterMap);
+        void setScreen(draw::shared::Vic20Screen screen);
+
         // IContextResource
         void reset() noexcept override;
         void create() override;

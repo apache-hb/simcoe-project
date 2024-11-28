@@ -42,7 +42,8 @@ meson.override_dependency('dxcompiler-windows', dxcompiler_dep)
 # TODO: dxc now ships seperate zips for the compiler and debug symbols
 # meson has no way of handling that.
 install_data([ bindir / 'dxil.dll', bindir / 'dxcompiler.dll' ],
-    install_dir : get_option('bindir') / 'redist'
+    install_dir : get_option('bindir') / 'redist',
+    install_tag : 'runtime'
 )
 
 install_data([ 'LICENSE-MS.txt', 'LICENSE-MIT.txt', 'LICENSE-LLVM.txt' ],

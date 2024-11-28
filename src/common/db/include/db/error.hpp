@@ -42,23 +42,24 @@ namespace sm::db {
             return mStatus == eDone || mStatus == eError;
         }
 
-        static DbError ok() noexcept;
-        static DbError todo() noexcept;
-        static DbError todo(std::string_view subject) noexcept;
-        static DbError todoFn(std::source_location location = std::source_location::current()) noexcept;
-        static DbError error(int code, std::string message) noexcept;
-        static DbError outOfMemory() noexcept;
-        static DbError noData() noexcept;
-        static DbError columnIsNull(std::string_view name) noexcept;
-        static DbError done(int code) noexcept;
-        static DbError unsupported(std::string_view subject) noexcept;
-        static DbError unsupported(DbType type) noexcept;
-        static DbError columnNotFound(std::string_view column) noexcept;
-        static DbError typeMismatch(std::string_view column, DataType actual, DataType expected) noexcept;
-        static DbError bindNotFound(std::string_view bind) noexcept;
-        static DbError bindNotFound(int bind) noexcept;
-        static DbError connectionError(std::string_view message) noexcept;
-        static DbError notReady(std::string message) noexcept;
+        static DbError ok();
+        static DbError todo();
+        static DbError todo(std::string_view subject);
+        static DbError todoFn(std::source_location location = std::source_location::current());
+        static DbError error(int code, std::string message);
+        static DbError outOfMemory();
+        static DbError noData();
+        static DbError columnIsNull(std::string_view name);
+        static DbError done(int code);
+        static DbError unsupported(std::string_view subject);
+        static DbError unsupported(DbType type);
+        static DbError columnNotFound(std::string_view column);
+        static DbError typeMismatch(std::string_view column, DataType actual, DataType expected);
+        static DbError bindNotFound(std::string_view bind);
+        static DbError bindNotFound(int bind);
+        static DbError connectionError(std::string_view message);
+        static DbError notReady(std::string message);
+        static DbError invalidHost(std::string_view reason);
     };
 
     template<typename T>

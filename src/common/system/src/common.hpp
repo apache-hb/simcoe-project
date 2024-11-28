@@ -5,6 +5,8 @@
 extern HINSTANCE gInstance;
 extern LPTSTR gWindowClass;
 
+void initStorage();
+
 #define SM_ASSERT_WIN32(expr)                                  \
     do {                                                       \
         if (auto result = (expr); !result) {                   \

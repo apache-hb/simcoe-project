@@ -24,7 +24,8 @@ project('postgresql',
     # d:/somepath it'll install to d:/usr/local/pgsql)
     'prefix=/usr/local/pgsql',
     'c_std=c11,c99'
-  ]
+  ],
+  license_files : [ 'LICENSE' ]
 )
 
 
@@ -3379,3 +3380,9 @@ if meson.version().version_compare('>=0.57')
   )
 
 endif
+
+install_data(meson.project_license_files(),
+    install_dir : get_option('licensedir'),
+    rename : meson.project_name() + '.LICENSE.txt',
+    install_tag : 'legal',
+)

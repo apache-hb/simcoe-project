@@ -28,5 +28,13 @@ namespace sm::draw::next {
         void writeCharacter(uint8_t id, shared::Vic20Character character) {
             mVic20->writeCharacter(id, character);
         }
+
+        void setCharacterMap(shared::Vic20CharacterMap characterMap) {
+            mVic20->setCharacterMap(characterMap);
+        }
+
+        void setScreen(draw::shared::Vic20Screen screen) {
+            mVic20->setScreen(screen);
+        }
     };
 }

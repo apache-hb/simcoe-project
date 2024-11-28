@@ -35,7 +35,8 @@ meson.override_find_program('dxc-linux', dxc)
 meson.override_dependency('dxcompiler-linux', dxcompiler_dep)
 
 install_data([ libdir / 'libdxil.so', libdir / 'libdxcompiler.so' ],
-    install_dir : get_option('libdir')
+    install_dir : get_option('libdir'),
+    install_tag : 'runtime'
 )
 
 install_data([ 'LICENSE-MS.txt', 'LICENSE-LLVM.txt' ],

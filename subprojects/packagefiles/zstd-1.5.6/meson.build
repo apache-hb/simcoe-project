@@ -24,7 +24,10 @@ project('zstd',
     #'werror=true'
   ],
   version: '1.5.6',
-  meson_version: '>=0.50.0')
+  meson_version: '>=1.1.0',
+  license : 'BSD',
+  license_files : 'LICENSE'
+)
 
 cc = meson.get_compiler('c')
 cxx = meson.get_compiler('cpp')
@@ -146,3 +149,9 @@ endif
 if bin_contrib
   subdir('build/meson/contrib')
 endif
+
+install_data(meson.project_license_files(),
+    install_dir : get_option('licensedir'),
+    rename : meson.project_name() + '.LICENSE.txt',
+    install_tag : 'legal',
+)

@@ -1,7 +1,5 @@
 project('simcoe', [ 'c', 'cpp' ],
-    # UNLICENSED does not mean public domain, this is my code. please ask me
-    # if you want to make a commercial product with it
-    license : 'UNLICENSED',
+    license : 'GPL-3.0-only',
     version : '1.1.0',
     default_options : [
         'cpp_std=c++latest,gnu++23',
@@ -357,8 +355,8 @@ if host_machine.system() == 'windows'
     game_bundle = custom_target('game_bundle',
         input : [ 'data/assets/bundle.json' ],
         output : 'bundle.tar',
-        install : true,
-        install_dir : 'bin',
+        # install : true,
+        # install_dir : 'bin',
         depfile : 'bundle.d',
         command : bundle_cmd
     )

@@ -225,16 +225,17 @@ static void setupNetwork(bool enabled) {
 launch::LaunchResult::~LaunchResult() noexcept try {
     net::destroy();
     threads::destroy();
-
-#if _WIN32
     system::destroy();
-#endif
-
     logs::sinks::destroy();
+} catch (const errors::AnyException& err) {
+    LOG_ERROR(GlobalLog, "Unhandled exception during launch: {}.", err.what());
+    for (const auto& frame : err.stacktrace()) {
+        LOG_ERROR(GlobalLog, "{}:{} - {}", frame.source_file(), frame.source_line(), frame.description());
+    }
 } catch (const std::exception& err) {
-    LOG_ERROR(LaunchLog, "unhandled exception: {}", err.what());
+    LOG_ERROR(LaunchLog, "Unhandled exception during launch: {}.", err.what());
 } catch (...) {
-    LOG_ERROR(LaunchLog, "unknown unhandled exception");
+    LOG_ERROR(LaunchLog, "Unknown unhandled exception.");
 }
 
 bool launch::LaunchResult::shouldExit() const noexcept {
@@ -243,6 +244,10 @@ bool launch::LaunchResult::shouldExit() const noexcept {
 
 int launch::LaunchResult::exitCode() const noexcept {
     return gGlobalInfo.exitCode.value_or(0);
+}
+
+db::Connection& launch::LaunchResult::getInfoDb() noexcept {
+    return gInfoEnv->connect();
 }
 
 launch::LaunchResult launch::commonInit(HINSTANCE hInstance, const LaunchInfo& info) {
@@ -269,13 +274,21 @@ static launch::LaunchResult commonMainInner(HINSTANCE hInstance, std::span<const
     }
 
     return result;
+} catch (const errors::AnyException& err) {
+    LOG_ERROR(GlobalLog, "Exception during launch: {}", err.what());
+    for (const auto& frame : err.stacktrace()) {
+        LOG_ERROR(GlobalLog, "{}:{} - {}", frame.source_file(), frame.source_line(), frame.description());
+    }
+    gGlobalInfo.exitCode = -1;
+
+    return launch::LaunchResult {};
 } catch (const std::exception& err) {
-    LOG_ERROR(LaunchLog, "unhandled exception: {}", err.what());
+    LOG_ERROR(GlobalLog, "{}", err.what());
     gGlobalInfo.exitCode = -1;
 
     return launch::LaunchResult {};
 } catch (...) {
-    LOG_ERROR(LaunchLog, "unknown unhandled exception");
+    LOG_ERROR(GlobalLog, "Unknown unhandled exception.");
     gGlobalInfo.exitCode = -1;
 
     return launch::LaunchResult {};

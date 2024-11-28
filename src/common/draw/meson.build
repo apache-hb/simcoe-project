@@ -38,6 +38,12 @@ draw = declare_dependency(
 ### next implementation
 ###
 
+shader_kwarg = {
+    'install': true,
+    'install_tag': 'runtime',
+    'install_dir': get_option('bindir')
+}
+
 vic20_shader = custom_target('vic20-shader',
     input : 'data/vic20.hlsl',
     output : '@BASENAME@.cs.cso',
@@ -48,7 +54,8 @@ vic20_shader = custom_target('vic20-shader',
         '-Fo@OUTPUT@', '@INPUT@',
         # '-enable-16bit-types',
         '/Zi', '-Qembed_debug'
-    ]
+    ],
+    kwargs : shader_kwarg,
 )
 
 blit_ps_shader = custom_target('blit-ps-shader',
@@ -60,7 +67,8 @@ blit_ps_shader = custom_target('blit-ps-shader',
         '-Tps_6_2', '-EpsMain',
         '-Fo@OUTPUT@', '@INPUT@',
         '/Zi', '-Qembed_debug'
-    ]
+    ],
+    kwargs : shader_kwarg,
 )
 
 blit_vs_shader = custom_target('blit-vs-shader',
@@ -72,7 +80,8 @@ blit_vs_shader = custom_target('blit-vs-shader',
         '-Tvs_6_2', '-EvsMain',
         '-Fo@OUTPUT@', '@INPUT@',
         '/Zi', '-Qembed_debug'
-    ]
+    ],
+    kwargs : shader_kwarg,
 )
 
 src = [

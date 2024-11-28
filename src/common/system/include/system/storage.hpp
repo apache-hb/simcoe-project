@@ -2,11 +2,7 @@
 
 #include "core/fs.hpp"
 
-namespace sm::system::storage {
-    bool isSetup() noexcept;
-    void create(void);
-    void destroy(void) noexcept;
-
+namespace sm::system {
     /// @brief Get the path to the roaming configuration folder.
     /// This folder is intended for user-specific configuration
     /// data that should follow the user between different machines.

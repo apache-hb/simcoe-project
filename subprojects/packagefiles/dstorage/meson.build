@@ -44,7 +44,7 @@ meson.override_dependency('dstorage', dstorage_dep)
 
 install_data(bindir / 'dstorage.dll', bindir / 'dstoragecore.dll',
     install_dir : get_option('bindir') / 'redist',
-    install_tag : 'bin',
+    install_tag : 'runtime',
 )
 
 install_data('LICENSE.txt',

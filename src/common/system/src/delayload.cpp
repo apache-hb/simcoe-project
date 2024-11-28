@@ -1,7 +1,9 @@
 #include "core/win32.hpp" // IWYU pragma: export
 
 #include "core/format.hpp" // IWYU pragma: export
+
 #include "system/system.hpp"
+#include "system/storage.hpp"
 
 #include "fmt/std.h" // IWYU pragma: export
 

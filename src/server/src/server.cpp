@@ -68,7 +68,7 @@ static int serverMain() {
     return 0;
 }
 
-static int commonMain() noexcept try {
+static int commonMain(launch::LaunchResult&) noexcept try {
     LOG_INFO(GlobalLog, "SMC_DEBUG = {}", SMC_DEBUG);
     LOG_INFO(GlobalLog, "CTU_DEBUG = {}", CTU_DEBUG);
 

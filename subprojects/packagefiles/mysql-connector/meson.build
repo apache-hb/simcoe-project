@@ -17,8 +17,6 @@ src = [
     'devapi/document.cc',
     'devapi/result.cc',
     'devapi/session.cc',
-
-    'cdk/'
 ]
 
 openssl = dependency('openssl')
@@ -36,3 +34,9 @@ devapi = declare_dependency(
 )
 
 meson.override_dependency('devapi', devapi)
+
+install_data(meson.project_license_files(),
+    install_dir : get_option('licensedir'),
+    rename : meson.project_name() + '.LICENSE.txt',
+    install_tag : 'legal',
+)

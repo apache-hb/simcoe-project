@@ -6,7 +6,8 @@ project(
   version: '3.3.10',
   license: 'Zlib',
   default_options: ['b_ndebug=if-release', 'c_std=c99', 'warning_level=0'],
-  meson_version: '>=0.58.0',
+  meson_version: '>1.1.0',
+  license_files : 'LICENSE.md'
 )
 #@ Project variables
 sys_os = host_machine.system()
@@ -256,3 +257,9 @@ if get_option('install')
     filebase: 'glfw3',
   )
 endif
+
+install_data(meson.project_license_files(),
+    install_dir : get_option('licensedir'),
+    rename : meson.project_name() + '.LICENSE.txt',
+    install_tag : 'legal',
+)

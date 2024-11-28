@@ -17,4 +17,12 @@
         <column name="normal_pos_right"  type="long" />
         <column name="normal_pos_bottom" type="long" />
     </table>
+
+    <table name="window_info" syntheticPrimaryKey="ulong">
+        <column name="name" type="text" length="256" />
+        <column name="x" type="int" />
+        <column name="y" type="int" />
+        <column name="width" type="int" />
+        <column name="height" type="int" />
+    </table>
 </root>

@@ -6,6 +6,8 @@
 #include "render/next/surface/virtual.hpp"
 #include "render/next/surface/swapchain.hpp"
 
+#include "system/storage.hpp"
+
 using namespace sm;
 using namespace sm::render;
 

@@ -18,6 +18,8 @@ namespace sm::launch {
 
         bool shouldExit() const noexcept;
         int exitCode() const noexcept;
+
+        db::Connection& getInfoDb() noexcept;
     };
 
     struct LaunchInfo {
@@ -42,6 +44,20 @@ namespace sm::launch {
     LaunchResult commonInitWinMain(HINSTANCE hInstance, int nShowCmd, const LaunchInfo& info) noexcept;
 }
 
+#define SM_LAUNCH_CATCH_IMPL                                                                                   \
+    catch (const errors::AnyException& err) {                                                                  \
+        LOG_ERROR(GlobalLog, "Exception during launch: {}", err.what());                                       \
+        for (const auto& frame : err.stacktrace()) {                                                           \
+            LOG_ERROR(GlobalLog, "{}:{} - {}", frame.source_file(), frame.source_line(), frame.description()); \
+        }                                                                                                      \
+    } catch (const std::exception& err) {                                                                      \
+        LOG_ERROR(GlobalLog, "{}", err.what());                                                                \
+        return -1;                                                                                             \
+    } catch (...) {                                                                                            \
+        LOG_ERROR(GlobalLog, "Unknown unhandled exception.");                                                  \
+        return -1;                                                                                             \
+    }
+
 #if _WIN32
 #   define SM_LAUNCH_WINMAIN_BODY(NAME, ENTRY, INFO) \
         int WinMain(HINSTANCE hInstance, SM_UNUSED HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) try { \
@@ -49,16 +65,10 @@ namespace sm::launch {
                 if (launch.shouldExit()) { \
                     return launch.exitCode(); \
                 } \
-                int result = ENTRY(); \
+                int result = ENTRY(launch); \
                 LOG_INFO(GlobalLog, NAME " exiting with {}", result); \
                 return result; \
-            } catch (const std::exception& err) { \
-                LOG_ERROR(GlobalLog, "unhandled exception: {}", err.what()); \
-                return -1; \
-            } catch (...) { \
-                LOG_ERROR(GlobalLog, "unknown unhandled exception"); \
-                return -1; \
-            }
+            } SM_LAUNCH_CATCH_IMPL
 #else
 #   define SM_LAUNCH_WINMAIN_BODY(NAME, ENTRY, INFO)
 #endif
@@ -69,16 +79,10 @@ namespace sm::launch {
         if (launch.shouldExit()) { \
             return launch.exitCode(); \
         } \
-        int result = ENTRY(); \
+        int result = ENTRY(launch); \
         LOG_INFO(GlobalLog, NAME " exiting with {}", result); \
         return result; \
-    } catch (const std::exception& err) { \
-        LOG_ERROR(GlobalLog, "unhandled exception: {}", err.what()); \
-        return -1; \
-    } catch (...) { \
-        LOG_ERROR(GlobalLog, "unknown unhandled exception"); \
-        return -1; \
-    }
+    } SM_LAUNCH_CATCH_IMPL
 
 #define SM_LAUNCH_MAIN(NAME, ENTRY, INFO) \
     SM_LAUNCH_MAIN_BODY(NAME, ENTRY, INFO) \

@@ -11,24 +11,8 @@ namespace sys = sm::system;
 
 static constexpr const char *kClassName = "simcoe";
 
-static fs::path gProgramPath;
-static fs::path gProgramDir;
-static std::string gProgramName;
-
 static bool isSystemSetup() noexcept {
     return gWindowClass != nullptr && gInstance != nullptr;
-}
-
-fs::path sys::getProgramFolder() {
-    return gProgramDir;
-}
-
-fs::path sys::getProgramPath() {
-    return gProgramPath;
-}
-
-std::string sys::getProgramName() {
-    return gProgramName;
 }
 
 void sys::create(HINSTANCE hInstance) {
@@ -72,23 +56,7 @@ void sys::create(HINSTANCE hInstance) {
         gWindowClass = MAKEINTATOM(atom);
     }
 
-    static constexpr size_t kPathMax = 0x1000;
-    TCHAR gExecutablePath[kPathMax];
-    DWORD gExecutablePathLength = 0;
-
-    gExecutablePathLength = GetModuleFileNameA(nullptr, gExecutablePath, kPathMax);
-
-    if (gExecutablePathLength == 0) {
-        assertLastError(CT_SOURCE_CURRENT, "GetModuleFileNameA");
-    }
-
-    if (gExecutablePathLength >= kPathMax) {
-        LOG_WARN(SystemLog, "executable path longer than {}, may be truncated", kPathMax);
-    }
-
-    gProgramPath = fs::path{gExecutablePath, gExecutablePath + gExecutablePathLength};
-    gProgramDir = gProgramPath.parent_path();
-    gProgramName = gProgramPath.stem().string();
+    initStorage();
 }
 
 void sys::destroy(void) noexcept {
