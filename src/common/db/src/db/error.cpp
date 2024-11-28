@@ -14,7 +14,7 @@ DbError::DbError(int code, int status, std::string message, bool trace)
 { }
 
 DbError DbError::ok() noexcept {
-    return DbError{0, eOk, "OK"};
+    return DbError{0, eOk, "OK", false};
 }
 
 DbError DbError::todo() noexcept {
