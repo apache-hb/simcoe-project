@@ -8,6 +8,9 @@
 
 using namespace sm;
 
+static constexpr int kBufferSize = 512;
+
+// TODO: test this
 std::vector<std::string> system::getCommandLine() {
     int fd = open("/proc/self/cmdline", O_RDONLY);
     if (fd == -1)
@@ -17,14 +20,39 @@ std::vector<std::string> system::getCommandLine() {
 
     std::vector<std::string> args;
 
-    char buffer[0x1000];
-    int size = read(fd, buffer, sizeof(buffer));
+    char buffer[kBufferSize];
+    std::string arg;
+    while (true) {
+        int size = read(fd, buffer, sizeof(buffer));
+        if (size == 0 || size == -1)
+            break; // done reading
 
-    // TODO: handle large command lines
-
-    for (const auto& part : std::views::split(std::string_view(buffer, size), '\0')) {
-        args.push_back(std::string(part.begin(), part.end()));
+        size_t offset = 0;
+        while (offset < size_t(size)) {
+            size_t len = strnlen(buffer + offset, size);
+            if (len != size - offset) {
+                args.emplace_back(arg);
+                arg = "";
+            }
+            arg.append_range(std::string_view(buffer + offset, len));
+            offset += len;
+        }
     }
 
+    args.emplace_back(arg);
+
     return args;
+}
+
+std::string system::getMachineId() {
+    int fd = open("/etc/machine-id");
+    if (fd == -1)
+        return std::string(32, '0');
+
+    defer { close(fd); };
+
+    char buffer[32];
+    int size = read(fd, buffer, sizeof(buffer));
+
+    return std::string(buffer, size);
 }

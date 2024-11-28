@@ -5,7 +5,6 @@
 #include "core/source_info.h"
 
 #include "core/error.hpp"
-#include "core/fs.hpp"
 #include "logs/logs.hpp" // IWYU pragma: export
 
 #include "logs/logging.hpp"
@@ -23,10 +22,7 @@ namespace sm::system {
 
     OsError getLastError();
 
-    fs::path getProgramFolder();
-    fs::path getProgramPath();
-    std::string getProgramName();
-
+    std::string getMachineId();
     std::vector<std::string> getCommandLine();
 
     void create(HINSTANCE hInstance);

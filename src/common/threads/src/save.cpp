@@ -1,10 +1,11 @@
 #include "threads/threads.hpp"
 
+#include "system/system.hpp"
 #include "backends/common.hpp"
-#include <unordered_map>
 
 #include "db/connection.hpp"
 
+#include <unordered_map>
 #include <immintrin.h>
 
 #include "topology.dao.hpp"
@@ -50,19 +51,6 @@ void ICpuGeometry::createCoreGroups() {
 
 namespace topology = sm::dao::topology;
 
-static std::string getUniqueComputerId() {
-    const char *key = "SOFTWARE\\Microsoft\\Cryptography";
-    const char *value = "MachineGuid";
-
-    char buffer[256];
-    DWORD size = sizeof(buffer);
-    if (RegGetValueA(HKEY_LOCAL_MACHINE, key, value, RRF_RT_REG_SZ, nullptr, buffer, &size) != ERROR_SUCCESS) {
-        return "";
-    }
-
-    return buffer;
-}
-
 static std::string getProcessorString() {
     union {
         int data[12];
@@ -103,7 +91,7 @@ void sm::threads::saveThreadInfo(db::Connection& connection) {
     auto [cpuSetData, cpuSetSize] = detail::readSystemCpuSetInformation(library.pfnGetSystemCpuSetInformation);
     auto [layoutData, layoutSize] = detail::readLogicalProcessorInformationEx(library.pfnGetLogicalProcessorInformationEx, RelationAll);
 
-    auto computerId = getUniqueComputerId();
+    auto computerId = system::getMachineId();
     auto processor = getProcessorString();
 
     if (cpuSetData != nullptr) {

@@ -96,6 +96,7 @@ render::next::ContextConfig AppWindow::newContextConfig() {
 
 void AppWindow::initWindow() {
     if (mConnection) {
+        mConnection->createTable(sm::dao::archive::WindowPlacement::table());
         if (auto placement = loadWindowPlacement(*mConnection)) {
             mWindow.setPlacement(*placement);
             goto show;
