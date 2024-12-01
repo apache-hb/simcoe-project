@@ -90,6 +90,9 @@ namespace sm {
 
     template<typename T>
     constexpr T roundup(T value, T multiple) noexcept {
+        if (value == 0)
+            return multiple;
+
         return (value + multiple - 1) / multiple * multiple;
     }
 }

@@ -24,8 +24,3 @@ executable('client', src,
     ],
     dependencies : deps
 )
-
-install_data('data/vic20-uk.bin',
-    install_dir : get_option('bindir'),
-    install_tag : 'bin'
-)

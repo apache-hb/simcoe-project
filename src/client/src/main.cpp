@@ -121,6 +121,7 @@ static void PaletteColourPicker(const char *label, int *colour)
         ImGui::EndCombo();
     }
 }
+
 class CharacterMapDocument {
     std::vector<std::byte> mCharacterData;
     draw::shared::Vic20CharacterMap mCharacterMap = {};
@@ -140,13 +141,18 @@ class CharacterMapDocument {
         , mName(std::move(name))
     {
         // round up data size to next sizeof(Vic20CharacterMap)
-        mCharacterData.resize(roundup(mCharacterData.size(), sizeof(draw::shared::Vic20CharacterMap)));
+        size_t sz = roundup(mCharacterData.size(), sizeof(draw::shared::Vic20CharacterMap));
+        mCharacterData.resize(sz);
         memcpy(&mCharacterMap, mCharacterData.data(), sizeof(mCharacterMap));
     }
 
 public:
     static CharacterMapDocument newInMemory() {
         return CharacterMapDocument { "Untitled", { } };
+    }
+
+    static CharacterMapDocument newInMemory(const CharacterMapDocument& screen) {
+        return CharacterMapDocument { fmt::format("{} Copy", screen.mName), screen.mCharacterData };
     }
 
     static CharacterMapDocument open(const fs::path& path) {
@@ -171,17 +177,17 @@ public:
         mSaved = true;
     }
 
-    bool hasBackingFile() { return !mPath.empty(); }
-    bool isSavedToDisk() { return mSaved; }
-    const fs::path& path() { return mPath; }
+    bool hasBackingFile() const { return !mPath.empty(); }
+    bool isSavedToDisk() const { return mSaved; }
+    const fs::path& path() const { return mPath; }
 
     draw::shared::Vic20CharacterMap& characterMap() { return mCharacterMap; }
-    draw::shared::Vic20Character& characterAt(size_t index) { return mCharacterMap.characters[index]; }
+    draw::shared::Vic20Character& characterAt(size_t index) { return characters()[index]; }
     size_t size() const { return mCharacterData.size(); }
     std::span<std::byte> bytes() { return std::span<std::byte>(mCharacterData); }
 
-    size_t charmapCount() { return characterCount() / VIC20_CHARMAP_SIZE; }
-    size_t characterCount() { return (mCharacterData.size() / sizeof(draw::shared::Vic20Character)); }
+    size_t charmapCount() const { return characterCount() / VIC20_CHARMAP_SIZE; }
+    size_t characterCount() const { return (mCharacterData.size() / sizeof(draw::shared::Vic20Character)); }
     std::span<draw::shared::Vic20Character> characters() {
         draw::shared::Vic20Character *characters = reinterpret_cast<draw::shared::Vic20Character *>(mCharacterData.data());
         return std::span<draw::shared::Vic20Character>(characters, characterCount());
@@ -214,6 +220,10 @@ public:
         return ScreenDocument { "Untitled", { } };
     }
 
+    static ScreenDocument newInMemory(const ScreenDocument& other) {
+        return ScreenDocument { fmt::format("{} Copy", other.mName), other.mScreen };
+    }
+
     static ScreenDocument open(const fs::path& path) {
         std::vector<std::byte> data = readFileBytes<std::byte>(path);
         data.resize(roundup(data.size(), sizeof(draw::shared::Vic20Screen)));
@@ -239,6 +249,7 @@ public:
 
     void write(Vic20DrawContext& context, size_t index, uint8_t character, uint8_t colour) {
         writeColour(index, colour);
+        writeCharacter(index, character);
         context.setScreen(mScreen);
     }
 
@@ -257,7 +268,8 @@ public:
         uint32_t offset = index / sizeof(draw::shared::ScreenElement);
         uint32_t byte = index % sizeof(draw::shared::ScreenElement);
         mScreen.screen[offset] &= ~(0xFF << (byte * 8));
-        mScreen.screen[offset] |= (character << (byte * 8));
+        mScreen.screen[offset] |= (uint32_t(character) << (byte * 8));
+        mSaved = false;
     }
 
     uint8_t colourAt(size_t index) const {
@@ -272,8 +284,8 @@ public:
     void writeColour(size_t index, uint8_t colour) {
         uint32_t offset = index / sizeof(draw::shared::ScreenElement);
         uint32_t byte = index % sizeof(draw::shared::ScreenElement);
-        mScreen.colour[offset] &= ~(0x0F << (byte * 4));
-        mScreen.colour[offset] |= (colour << (byte * 4));
+        mScreen.colour[offset] &= ~(0xFF << (byte * 8));
+        mScreen.colour[offset] |= (uint32_t(colour) << (byte * 8));
         mSaved = false;
     }
 
@@ -321,6 +333,8 @@ void DrawCharacterEditor(draw::shared::Vic20Character& character, int fg, int bg
     ImGui::PopStyleVar();
 }
 
+static const char *kPixelPayloadName = "TILE_DATA";
+
 class CharacterMapWidget {
     void DrawSelectionGrid(size_t& selected) {
         ImVec2 avail = ImGui::GetContentRegionAvail();
@@ -338,16 +352,16 @@ class CharacterMapWidget {
 
             if (ImGui::BeginDragDropSource()) {
                 ScreenPixel pixel = {
-                    .colour = VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK),
+                    .colour = getColour(),
                     .index = uint8_t(i),
                     .character = charmap.characterAt(i),
                 };
-                ImGui::SetDragDropPayload("CHARACTER_MAP_INDEX", &pixel, sizeof(ScreenPixel));
+                ImGui::SetDragDropPayload(kPixelPayloadName, &pixel, sizeof(ScreenPixel));
                 ImGui::EndDragDropSource();
             }
 
             if (ImGui::BeginDragDropTarget()) {
-                if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("CHARACTER_MAP_INDEX")) {
+                if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload(kPixelPayloadName)) {
                     ScreenPixel pixel = *reinterpret_cast<const ScreenPixel *>(payload->Data);
                     charmap.characterAt(i) = pixel.character;
                 }
@@ -376,6 +390,10 @@ class CharacterMapWidget {
         PaletteColourPicker("Background", &bg);
         PaletteColourPicker("Foreground", &fg);
 
+        if (ImGui::Button("Swap Colours")) {
+            std::swap(fg, bg);
+        }
+
         DrawCharacterEditor(character, fg, bg);
 
         ImGui::EndChild();
@@ -387,16 +405,29 @@ public:
     int bg = VIC20_COLOUR_BLACK;
     int first = 0;
 
-    void Draw(size_t& selected, ScreenDocument *screen, Vic20DrawContext& context) {
+    uint8_t getColour() const noexcept {
+        return uint8_t(VIC20_CHAR_COLOUR(uint8_t(fg), uint8_t(bg)));
+    }
+
+    void Draw(size_t& selected, ScreenDocument *screen, Vic20DrawContext& context, std::list<CharacterMapWidget>& charmaps) {
         if (!open) return;
 
         auto title = fmt::format("Character Map - {}", charmap.nameString());
-        ImGuiWindowFlags flags = ImGuiWindowFlags_None;
+        ImGuiWindowFlags flags = ImGuiWindowFlags_MenuBar;
         if (!charmap.isSavedToDisk()) {
             flags |= ImGuiWindowFlags_UnsavedDocument;
         }
 
-        if (ImGui::Begin(title.c_str(), &open)) {
+        if (ImGui::Begin(title.c_str(), &open, flags)) {
+            if (ImGui::BeginMenuBar()) {
+                if (ImGui::MenuItem("Clone")) {
+                    CharacterMapDocument doc = CharacterMapDocument::newInMemory(charmap);
+                    charmaps.emplace_back(doc);
+                }
+
+                ImGui::EndMenuBar();
+            }
+
             size_t size = charmap.characterCount();
             ImGui::Text("%s - %zu characters - %zu bytes", charmap.pathString(), size, charmap.size());
 
@@ -426,8 +457,8 @@ public:
             ImGui::SameLine();
 
             if (ImGui::DragInt("First Character", &first, 1.f, 0, size - UCHAR_MAX - 1)) {
-                for (int i = 0; i > UCHAR_MAX; i++) {
-                    context.writeCharacter(i, charmap.characters()[i + first]);
+                for (uint8_t i = 0; i > UCHAR_MAX; i++) {
+                    context.writeCharacter(i, charmap.characters()[first + i]);
                 }
 
                 context.setScreen(screen->screen());
@@ -452,9 +483,6 @@ class ScreenMemoryWidget {
 
         int size = VIC20_SCREEN_CHARS_WIDTH * VIC20_SCREEN_CHARS_HEIGHT;
         for (int i = 0; i < size; i++) {
-            int x = i / VIC20_SCREEN_CHARS_HEIGHT;
-            int y = i % VIC20_SCREEN_CHARS_HEIGHT;
-
             ImGui::PushID(i);
 
             char label[32];
@@ -472,11 +500,22 @@ class ScreenMemoryWidget {
             ImGui::PopID();
 
             if (ImGui::BeginDragDropTarget()) {
-                if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("CHARACTER_MAP_INDEX")) {
+                if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload(kPixelPayloadName, ImGuiDragDropFlags_AcceptBeforeDelivery)) {
                     ScreenPixel pixel = *reinterpret_cast<const ScreenPixel *>(payload->Data);
-                    screen.write(context, i, pixel.index, pixel.colour);
+                    if (ImGui::IsKeyDown(ImGuiKey_LeftShift) || payload->IsDelivery()) {
+                        screen.write(context, i, pixel.index, pixel.colour);
+                    }
                 }
                 ImGui::EndDragDropTarget();
+            }
+
+            if (ImGui::BeginDragDropSource()) {
+                ScreenPixel pixel = {
+                    .colour = screen.colourAt(i),
+                    .index = uint8_t(screen.characterAt(i)),
+                };
+                ImGui::SetDragDropPayload(kPixelPayloadName, &pixel, sizeof(ScreenPixel));
+                ImGui::EndDragDropSource();
             }
 
             if (i % VIC20_SCREEN_CHARS_WIDTH != VIC20_SCREEN_CHARS_WIDTH - 1) {
@@ -493,10 +532,25 @@ public:
     bool showCharacter = false;
     size_t selected = 0;
 
-    void Draw(CharacterMapDocument *charmap, Vic20DrawContext& context) {
+    void Draw(CharacterMapDocument *charmap, Vic20DrawContext& context, std::list<ScreenMemoryWidget>& screens) {
         if (!open) return;
 
-        if (ImGui::Begin("Screen Memory Map", &open)) {
+        ImGuiWindowFlags flags = ImGuiWindowFlags_MenuBar;
+        if (!screen.isSavedToDisk()) {
+            flags |= ImGuiWindowFlags_UnsavedDocument;
+        }
+
+        auto title = fmt::format("Screen Memory - {}", screen.nameString());
+        if (ImGui::Begin(title.c_str(), &open, flags)) {
+            if (ImGui::BeginMenuBar()) {
+                if (ImGui::MenuItem("Clone")) {
+                    ScreenDocument doc = ScreenDocument::newInMemory(screen);
+                    screens.emplace_back(doc);
+                }
+
+                ImGui::EndMenuBar();
+            }
+
             ImGui::Checkbox("Show Charmap Index", &showCharmapIndex);
             ImGui::SameLine();
 
@@ -556,7 +610,7 @@ static int commonMain(launch::LaunchResult& launch) noexcept try {
     };
     saveScreenMemoryMap.SetInputName("Save Screen Memory Map");
 
-    fs::path home = sm::system::getHomeFolder();
+    fs::path home = sm::system::getProgramFolder();
     openCharacterMapRom.SetPwd(home);
     saveCharacterMapRom.SetPwd(home);
     openScreenMemoryMap.SetPwd(home);
@@ -654,6 +708,25 @@ static int commonMain(launch::LaunchResult& launch) noexcept try {
                 ImGui::EndMenu();
             }
 
+
+            if (ImGui::BeginMenu("Edit", !screens.empty() || !charmaps.empty())) {
+                for (ScreenMemoryWidget& screen : screens) {
+                    bool isActive = activeScreen == &screen;
+                    if (ImGui::MenuItem(screen.screen.nameString(), nullptr, &isActive)) {
+                        activeScreen = &screen;
+                    }
+                }
+
+                for (CharacterMapWidget& charmap : charmaps) {
+                    bool isActive = activeCharMap == &charmap;
+                    if (ImGui::MenuItem(charmap.charmap.nameString(), nullptr, &isActive)) {
+                        activeCharMap = &charmap;
+                    }
+                }
+
+                ImGui::EndMenu();
+            }
+
             ImGui::EndMainMenuBar();
         }
 
@@ -722,11 +795,19 @@ static int commonMain(launch::LaunchResult& launch) noexcept try {
         ScreenDocument *screenDocument = activeScreen ? &activeScreen->screen : nullptr;
 
         for (CharacterMapWidget& charmap : charmaps) {
-            charmap.Draw(selected, screenDocument, context);
+            charmap.Draw(selected, screenDocument, context, charmaps);
         }
 
         for (ScreenMemoryWidget& screen : screens) {
-            screen.Draw(charmapDocument, context);
+            screen.Draw(charmapDocument, context, screens);
+        }
+
+        if (charmapDocument != nullptr) {
+            context.setCharacterMap(charmapDocument->characterMap());
+        }
+
+        if (screenDocument != nullptr) {
+            context.setScreen(screenDocument->screen());
         }
 
         if (ImGui::Begin("VIC20", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar)) {

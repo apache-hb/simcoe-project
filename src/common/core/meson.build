@@ -104,6 +104,7 @@ testcases = {
     'Symbol names' : 'test/symbols.cpp',
     'Combine' : 'test/adt/combine.cpp',
     'Small vector': 'test/adt/small_vector.cpp',
+    'Units': 'test/units.cpp',
 }
 
 foreach name, source : testcases

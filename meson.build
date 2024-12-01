@@ -374,17 +374,6 @@ if host_machine.system() == 'windows'
     subdir('src/client')
 
     subdir('src/editor')
-
-    executable('editor', src, game_bundle,
-        cpp_pch : pch,
-        include_directories : inc,
-        install : true,
-        export_dynamic : true,
-        win_subsystem : get_option('editor_win_subsystem'),
-        link_depends : [ manifest, res ],
-        link_args : link_args,
-        dependencies : deps
-    )
 endif
 
 subdir('src/server')
