@@ -52,7 +52,12 @@ meson.override_dependency('d3d12', d3d12_dep)
 
 install_data(bindir / 'D3D12Core.dll',
     install_dir : get_option('bindir') / 'redist/d3d12',
-    install_tag : 'runtime',
+    install_tag : 'bin',
+)
+
+install_data(bindir / 'd3d12SDKLayers.dll',
+    install_dir : get_option('bindir') / 'redist/d3d12',
+    install_tag : 'bin-devel',
 )
 
 install_data('LICENSE.txt',

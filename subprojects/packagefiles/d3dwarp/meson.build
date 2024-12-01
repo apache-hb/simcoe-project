@@ -19,3 +19,8 @@ else
 endif
 
 bindir = meson.current_source_dir() / bindir
+
+install_data(bindir / 'd3d10warp.dll',
+    install_dir : get_option('bindir'),
+    install_tag : 'bin-devel',
+)

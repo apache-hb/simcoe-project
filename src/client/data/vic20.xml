@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root name="vic20">
+    <table name="character" syntheticPrimaryKey="uint">
+        <column name="name"  type="varchar" length="32" />
+        <column name="index" type="uint" />
+        <column name="character_map_id" type="uint">
+            <constraint references="character_map.id" />
+        </column>
+    </table>
+
+    <table name="character_map" syntheticPrimaryKey="uint">
+        <column name="name" type="varchar" length="32" />
+        <column name="data" type="blob"    length="2048" />
+    </table>
+
+    <table name="screen" syntheticPrimaryKey="uint">
+        <column name="name"       type="varchar" length="32" />
+        <column name="colour"     type="blob"    length="506" />
+        <column name="characters" type="blob"    length="506" />
+    </table>
+</root>

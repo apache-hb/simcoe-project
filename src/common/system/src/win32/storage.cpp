@@ -19,6 +19,7 @@ static fs::path gRoamingDataFolder;
 static fs::path gLocalDataFolder;
 static fs::path gMachineDataFolder;
 static fs::path gProgramDataFolder;
+static fs::path gHomeFolder;
 static fs::path gProgramPath;
 static fs::path gProgramFolder;
 static std::string gProgramName;
@@ -38,6 +39,8 @@ void initStorage() {
     gLocalDataFolder = getKnownFolderPath(FOLDERID_LocalAppData) / SMC_ENGINE_NAME;
     gMachineDataFolder = getKnownFolderPath(FOLDERID_ProgramData) / SMC_ENGINE_NAME;
     gProgramDataFolder = getKnownFolderPath(FOLDERID_ProgramFiles) / SMC_ENGINE_NAME;
+
+    gHomeFolder = getKnownFolderPath(FOLDERID_Profile);
 
     static constexpr size_t kPathMax = 0x1000;
     TCHAR gExecutablePath[kPathMax];
@@ -80,6 +83,10 @@ fs::path system::getProgramFolder() {
 
 fs::path system::getProgramPath() {
     return gProgramPath;
+}
+
+fs::path system::getHomeFolder() {
+    return gHomeFolder;
 }
 
 std::string system::getProgramName() {

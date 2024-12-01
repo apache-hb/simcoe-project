@@ -369,25 +369,9 @@ if host_machine.system() == 'windows'
         '/DELAYLOAD:dstorage.dll',
     ]
 
-    subdir('src/client')
-
     manifest = meson.current_source_dir() / 'data/win32/client.exe.manifest'
 
-    executable('client', src, game_bundle,
-        cpp_pch : pch,
-        install : true,
-        export_dynamic : true,
-        win_subsystem : get_option('client_win_subsystem'),
-        link_depends : [ manifest, res ],
-        link_args : link_args + [
-            # embed the resource file
-            res[0].full_path(),
-
-            # embed the manifest file
-            '/manifest:embed', '/manifestinput:' + manifest,
-        ],
-        dependencies : deps
-    )
+    subdir('src/client')
 
     subdir('src/editor')
 

@@ -5,10 +5,6 @@
 
 #include "backtrace/backtrace.h"
 #include "base/panic.h"
-#include "format/backtrace.h"
-#include "format/colour.h"
-#include "io/console.h"
-#include "io/io.h"
 
 #include "core/memory.h"
 #include "core/error.hpp"

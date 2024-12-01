@@ -1,19 +1,19 @@
 #include "stdafx.hpp"
 
-#include "core/defer.hpp"
-#include "archive/fs.hpp"
 #include "launch/launch.hpp"
 #include "launch/appwindow.hpp"
 
 #include "draw/next/vic20.hpp"
 
-#include "render/next/surface/swapchain.hpp"
+#include "system/storage.hpp"
 
 #include <imgui/imgui.h>
 #include <imgui/backends/imgui_impl_win32.h>
 #include <imgui/backends/imgui_impl_dx12.h>
 
 #include <imfilebrowser.h>
+
+#include "vic20.dao.hpp"
 
 using namespace sm;
 using namespace sm::math;
@@ -141,7 +141,7 @@ class CharacterMapDocument {
     {
         // round up data size to next sizeof(Vic20CharacterMap)
         mCharacterData.resize(roundup(mCharacterData.size(), sizeof(draw::shared::Vic20CharacterMap)));
-        memcpy(&mCharacterMap, mCharacterData.data(), std::min(sizeof(mCharacterMap), mCharacterData.size()));
+        memcpy(&mCharacterMap, mCharacterData.data(), sizeof(mCharacterMap));
     }
 
 public:
@@ -274,6 +274,7 @@ public:
         uint32_t byte = index % sizeof(draw::shared::ScreenElement);
         mScreen.colour[offset] &= ~(0x0F << (byte * 4));
         mScreen.colour[offset] |= (colour << (byte * 4));
+        mSaved = false;
     }
 
     const char *pathString() const { return mPathString.c_str(); }
@@ -282,7 +283,8 @@ public:
 
 struct ScreenPixel {
     uint8_t colour;
-    uint8_t character;
+    uint8_t index;
+    draw::shared::Vic20Character character;
 };
 
 void DrawCharacterEditor(draw::shared::Vic20Character& character, int fg, int bg) {
@@ -337,10 +339,19 @@ class CharacterMapWidget {
             if (ImGui::BeginDragDropSource()) {
                 ScreenPixel pixel = {
                     .colour = VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK),
-                    .character = uint8_t(i),
+                    .index = uint8_t(i),
+                    .character = charmap.characterAt(i),
                 };
                 ImGui::SetDragDropPayload("CHARACTER_MAP_INDEX", &pixel, sizeof(ScreenPixel));
                 ImGui::EndDragDropSource();
+            }
+
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("CHARACTER_MAP_INDEX")) {
+                    ScreenPixel pixel = *reinterpret_cast<const ScreenPixel *>(payload->Data);
+                    charmap.characterAt(i) = pixel.character;
+                }
+                ImGui::EndDragDropTarget();
             }
 
             float lastButtonX2 = ImGui::GetItemRectMax().x;
@@ -359,7 +370,7 @@ class CharacterMapWidget {
         draw::shared::Vic20Character& character = charmap.characterAt(selected);
 
         ImGui::BeginChild("ChildR");
-        std::string title = fmt::format("Selected: {} - {:0<64Lb}", selected, character.data);
+        std::string title = fmt::format("Selected: {} - {:0>64Lb}", selected, character.data);
         ImGui::TextUnformatted(title.c_str());
 
         PaletteColourPicker("Background", &bg);
@@ -424,7 +435,6 @@ public:
 
             ImGui::EndDisabled();
 
-
             DrawSelectionGrid(selected);
 
             ImGui::SameLine();
@@ -464,7 +474,7 @@ class ScreenMemoryWidget {
             if (ImGui::BeginDragDropTarget()) {
                 if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("CHARACTER_MAP_INDEX")) {
                     ScreenPixel pixel = *reinterpret_cast<const ScreenPixel *>(payload->Data);
-                    screen.write(context, i, pixel.character, pixel.colour);
+                    screen.write(context, i, pixel.index, pixel.colour);
                 }
                 ImGui::EndDragDropTarget();
             }
@@ -546,13 +556,11 @@ static int commonMain(launch::LaunchResult& launch) noexcept try {
     };
     saveScreenMemoryMap.SetInputName("Save Screen Memory Map");
 
-    char userprofile[MAX_PATH];
-    GetEnvironmentVariableA("USERPROFILE", userprofile, MAX_PATH);
-
-    openCharacterMapRom.SetPwd(userprofile);
-    saveCharacterMapRom.SetPwd(userprofile);
-    openScreenMemoryMap.SetPwd(userprofile);
-    saveScreenMemoryMap.SetPwd(userprofile);
+    fs::path home = sm::system::getHomeFolder();
+    openCharacterMapRom.SetPwd(home);
+    saveCharacterMapRom.SetPwd(home);
+    openScreenMemoryMap.SetPwd(home);
+    saveScreenMemoryMap.SetPwd(home);
 
     std::string error;
     bool showDemoWindow = false;
@@ -653,10 +661,7 @@ static int commonMain(launch::LaunchResult& launch) noexcept try {
             try {
                 CharacterMapWidget& widget = charmaps.emplace_back(CharacterMapDocument::open(openCharacterMapRom.GetSelected()));
                 activeCharMap = &widget;
-                std::span<draw::shared::Vic20Character> characters = widget.charmap.characters();
-                for (size_t i = 0; i < characters.size(); i++) {
-                    context.writeCharacter(i, characters[i]);
-                }
+                context.setCharacterMap(widget.charmap.characterMap());
             } catch (const std::exception& e) {
                 error = e.what();
                 ImGui::OpenPopup("Error");
@@ -668,6 +673,7 @@ static int commonMain(launch::LaunchResult& launch) noexcept try {
         if (saveCharacterMapRom.HasSelected()) {
             try {
                 pendingSaveCharMap->saveToFile(saveCharacterMapRom.GetSelected());
+                pendingSaveCharMap = nullptr;
             } catch (const std::exception& e) {
                 error = e.what();
                 ImGui::OpenPopup("Error");
@@ -691,6 +697,7 @@ static int commonMain(launch::LaunchResult& launch) noexcept try {
         if (saveScreenMemoryMap.HasSelected()) {
             try {
                 pendingSaveScreen->saveToFile(saveScreenMemoryMap.GetSelected());
+                pendingSaveScreen = nullptr;
             } catch (const std::exception& e) {
                 error = e.what();
                 ImGui::OpenPopup("Error");

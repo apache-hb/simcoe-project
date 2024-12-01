@@ -32,6 +32,9 @@ namespace sm::system {
     /// @brief Get the path of the program executable.
     fs::path getProgramPath();
 
+    /// @brief Get the home folder of the current user.
+    fs::path getHomeFolder();
+
     /// @brief Get the name of the program executable.
     std::string getProgramName();
 }
