@@ -38,21 +38,65 @@ public:
     Vic20DrawContext& getVic20Context() { return mContext; }
 };
 
-void writeCharacter(draw::shared::Vic20Screen& screen, size_t index, uint8_t character) {
+static void writeCharacter(draw::shared::Vic20Screen& screen, size_t index, uint8_t character) {
     uint32_t offset = index / sizeof(draw::shared::ScreenElement);
     uint32_t byte = index % sizeof(draw::shared::ScreenElement);
     screen.screen[offset] &= ~(0xFF << (byte * 8));
     screen.screen[offset] |= (uint32_t(character) << (byte * 8));
 }
 
-void writeColour(draw::shared::Vic20Screen& screen, size_t index, uint8_t colour) {
+static void writeColour(draw::shared::Vic20Screen& screen, size_t index, uint8_t colour) {
     uint32_t offset = index / sizeof(draw::shared::ScreenElement);
     uint32_t byte = index % sizeof(draw::shared::ScreenElement);
     screen.colour[offset] &= ~(0xFF << (byte * 8));
     screen.colour[offset] |= (uint32_t(colour) << (byte * 8));
 }
 
+static void writeScreen(draw::shared::Vic20Screen& screen, size_t index, uint8_t character, uint8_t colour) {
+    writeCharacter(screen, index, character);
+    writeColour(screen, index, colour);
+}
+
 #define VIC20_PPC (VIC20_SCREEN_WIDTH / VIC20_SCREEN_CHARS_WIDTH)
+
+#define ENTITY_COLUMN(ent) ((ent) / VIC20_PPC)
+
+const int kPlayerRow = 21;
+const int kGridLimit = 8;
+const int kAlienRow = 2;
+
+static void drawPlayerShip(draw::shared::Vic20Screen& screen, int player) {
+    int offset = kPlayerRow * VIC20_SCREEN_CHARS_WIDTH + ENTITY_COLUMN(player);
+    writeScreen(screen, offset, CC_PLAYER_SHIP_1, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK));
+}
+
+static void drawAlienShip(draw::shared::Vic20Screen& screen, int alien) {
+    int offset = kAlienRow * VIC20_SCREEN_CHARS_WIDTH + ENTITY_COLUMN(alien);
+    writeScreen(screen, offset, CC_BIG_SHIP, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK));
+}
+
+static void drawThunderGrid(draw::shared::Vic20Screen& screen) {
+    for (int y = kAlienRow + 1; y < VIC20_SCREEN_CHARS_HEIGHT - kGridLimit; y += 2) {
+        for (int x = 0; x < VIC20_SCREEN_CHARS_WIDTH; x++) {
+            int i = y * VIC20_SCREEN_CHARS_WIDTH + x;
+            if (x % 2 == 0) {
+                writeScreen(screen, i, CC_FILLED_BOX, VIC20_CHAR_COLOUR(VIC20_COLOUR_DARK_PURPLE, VIC20_COLOUR_BLACK));
+            }
+        }
+    }
+}
+
+static void drawCopyright(draw::shared::Vic20Screen& screen) {
+    int row = (VIC20_SCREEN_CHARS_HEIGHT - 1) * VIC20_SCREEN_CHARS_WIDTH;
+    writeScreen(screen, row + 0, CC_COPYRIGHT, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK));
+    writeScreen(screen, row + 1, CC_BRAND0, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK));
+    writeScreen(screen, row + 2, CC_BRAND1, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK));
+    writeScreen(screen, row + 3, CC_BRAND2, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK));
+    writeScreen(screen, row + 4, CC_BRAND3, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK));
+    writeScreen(screen, row + 5, CC_BRAND4, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK));
+    writeScreen(screen, row + 6, CC_BRAND5, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK));
+    writeScreen(screen, row + 7, CC_BRAND6, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK));
+}
 
 static int commonMain(launch::LaunchResult& launch) noexcept try {
     ClientWindow clientWindow{"VIC20", &launch.getInfoDb()};
@@ -63,9 +107,15 @@ static int commonMain(launch::LaunchResult& launch) noexcept try {
     context.setCharacterMap(charmapUpload);
 
     int player = 0;
-    // math::int2 player = { 0, 22 };
+    int movespeed = 3;
     uint32_t score = 0;
     uint32_t highscore = 0;
+
+    int alien = 0;
+    bool aliendir = false;
+    int alienspeed = 1;
+    int shiprate = 5;
+    int nextship = 0;
 
     float tickrate = 1.0f / 60.0f;
     float accumulator = 0.0f;
@@ -92,43 +142,42 @@ static int commonMain(launch::LaunchResult& launch) noexcept try {
             score++;
 
             if (ImGui::IsKeyDown(ImGuiKey_LeftArrow)) {
-                player--;
+                player -= movespeed;
             }
 
             if (ImGui::IsKeyDown(ImGuiKey_RightArrow)) {
-                player++;
+                player += movespeed;
+            }
+
+            if (aliendir) {
+                alien += alienspeed;
+            } else {
+                alien -= alienspeed;
+            }
+
+            if (alien < 0 || alien >= VIC20_SCREEN_WIDTH - 1) {
+                aliendir = !aliendir;
             }
         }
 
         player = std::clamp(player, 0, VIC20_SCREEN_WIDTH - 1);
+        score = std::clamp(score, 0u, 99999u);
+        highscore = std::max(score, highscore);
 
-        draw::shared::Vic20Screen screenUpload;
-        memset(&screenUpload, 0, sizeof(draw::shared::Vic20Screen));
+        draw::shared::Vic20Screen screen;
+        memset(&screen, 0, sizeof(draw::shared::Vic20Screen));
 
-        {
-            int tile = player / VIC20_PPC;
-            int height = 21;
-            int offset = height * VIC20_SCREEN_CHARS_WIDTH + tile;
-            writeCharacter(screenUpload, offset, CC_FILLED_BOX);
-            writeColour(screenUpload, offset, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK));
-        }
+        drawPlayerShip(screen, player);
+        drawAlienShip(screen, alien);
+        drawThunderGrid(screen);
+
+        drawCopyright(screen);
 
         // for (int i = 0; i < VIC20_SCREEN_CHARBUFFER_SIZE; i++) {
-        //     writeCharacter(screenUpload, i, i);
-        //     writeColour(screenUpload, i, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK));
+        //     writeScreen(screen, i, i, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK));
         // }
 
-        for (int y = 3; y < VIC20_SCREEN_CHARS_HEIGHT - 8; y += 2) {
-            for (int x = 0; x < VIC20_SCREEN_CHARS_WIDTH; x++) {
-                int i = y * VIC20_SCREEN_CHARS_WIDTH + x;
-                if (x % 2 == 0) {
-                    writeCharacter(screenUpload, i, CC_FILLED_BOX);
-                    writeColour(screenUpload, i, VIC20_CHAR_COLOUR(VIC20_COLOUR_DARK_PURPLE, VIC20_COLOUR_BLACK));
-                }
-            }
-        }
-
-        context.setScreen(screenUpload);
+        context.setScreen(screen);
 
         if (ImGui::Begin("VIC20", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar)) {
             ImVec2 avail = ImGui::GetContentRegionAvail();
