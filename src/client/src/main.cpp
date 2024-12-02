@@ -52,6 +52,8 @@ void writeColour(draw::shared::Vic20Screen& screen, size_t index, uint8_t colour
     screen.colour[offset] |= (uint32_t(colour) << (byte * 8));
 }
 
+#define VIC20_PPC (VIC20_SCREEN_WIDTH / VIC20_SCREEN_CHARS_WIDTH)
+
 static int commonMain(launch::LaunchResult& launch) noexcept try {
     ClientWindow clientWindow{"VIC20", &launch.getInfoDb()};
     Vic20DrawContext& context = clientWindow.getVic20Context();
@@ -60,20 +62,61 @@ static int commonMain(launch::LaunchResult& launch) noexcept try {
     memcpy(&charmapUpload, charmap, sizeof(draw::shared::Vic20CharacterMap));
     context.setCharacterMap(charmapUpload);
 
-    math::int2 player = { 0, 22 };
+    int player = 0;
+    // math::int2 player = { 0, 22 };
     uint32_t score = 0;
     uint32_t highscore = 0;
+
+    float tickrate = 1.0f / 60.0f;
+    float accumulator = 0.0f;
+
+    float last = ImGui::GetTime();
 
     while (clientWindow.next()) {
         ImGui::DockSpaceOverViewport();
 
+        if (ImGui::Begin("Game")) {
+            ImGui::Text("Player: %d", player);
+            ImGui::Text("Place: %d", player / VIC20_PPC);
+        }
+        ImGui::End();
+
+        float now = ImGui::GetTime();
+        float delta = now - last;
+        last = now;
+
+        accumulator += delta;
+
+        while (accumulator >= tickrate) {
+            accumulator -= tickrate;
+            score++;
+
+            if (ImGui::IsKeyDown(ImGuiKey_LeftArrow)) {
+                player--;
+            }
+
+            if (ImGui::IsKeyDown(ImGuiKey_RightArrow)) {
+                player++;
+            }
+        }
+
+        player = std::clamp(player, 0, VIC20_SCREEN_WIDTH - 1);
+
         draw::shared::Vic20Screen screenUpload;
         memset(&screenUpload, 0, sizeof(draw::shared::Vic20Screen));
 
-        for (int i = 0; i < VIC20_SCREEN_CHARBUFFER_SIZE; i++) {
-            writeCharacter(screenUpload, i, i);
-            writeColour(screenUpload, i, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK));
+        {
+            int tile = player / VIC20_PPC;
+            int height = 21;
+            int offset = height * VIC20_SCREEN_CHARS_WIDTH + tile;
+            writeCharacter(screenUpload, offset, CC_FILLED_BOX);
+            writeColour(screenUpload, offset, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK));
         }
+
+        // for (int i = 0; i < VIC20_SCREEN_CHARBUFFER_SIZE; i++) {
+        //     writeCharacter(screenUpload, i, i);
+        //     writeColour(screenUpload, i, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK));
+        // }
 
         for (int y = 3; y < VIC20_SCREEN_CHARS_HEIGHT - 8; y += 2) {
             for (int x = 0; x < VIC20_SCREEN_CHARS_WIDTH; x++) {

@@ -9,7 +9,21 @@
 #define CC_TE 4
 #define CC_ENEMY_MISSILE 5
 #define CC_ENEMY_BOMB 6
-#define CC_PLAYER_SHIP
+
+#define CC_PLAYER_SHIP_1 7
+#define CC_PLAYER_SHIP_2 8
+#define CC_PLAYER_SHIP_3L 9
+#define CC_PLAYER_SHIP_3R 10
+#define CC_PLAYER_SHIP_4L 11
+#define CC_PLAYER_SHIP_4R 12
+#define CC_PLAYER_SHIP_5L 13
+#define CC_PLAYER_SHIP_5R 14
+#define CC_PLAYER_SHIP_6L 15
+#define CC_PLAYER_SHIP_6R 16
+#define CC_PLAYER_SHIP_7L 17
+#define CC_PLAYER_SHIP_7R 18
+#define CC_PLAYER_SHIP_8L 19
+#define CC_PLAYER_SHIP_8R 20
 
 const uint64_t charmap[] = {
   [CC_FILLED_BOX]    = 0xff'ff'ff'ff'ff'ff'ff'ff,
@@ -20,6 +34,23 @@ const uint64_t charmap[] = {
   [CC_ENEMY_MISSILE] = 0x18'18'3c'3c'3c'3c'42'00,
   [CC_ENEMY_BOMB]    = 0x00'0c'08'5e'7a'10'30'00,
 
+  // player ship segments
+  [CC_PLAYER_SHIP_1]  = 0x44'6c'54'10'38'54'ba'92,
+  [CC_PLAYER_SHIP_2]  = 0x22'36'2a'08'1c'2a'5d'49,
+  [CC_PLAYER_SHIP_3L] = 0x11'1b'15'04'0e'15'2e'24,
+  [CC_PLAYER_SHIP_3R] = 0x00'00'00'00'00'00'80'80,
+  [CC_PLAYER_SHIP_4L] = 0x08'0d'0a'02'07'0a'17'12,
+  [CC_PLAYER_SHIP_4R] = 0x80'80'80'00'00'80'40'40,
+  [CC_PLAYER_SHIP_5L] = 0x04'06'05'01'03'05'0b'09,
+  [CC_PLAYER_SHIP_5R] = 0x40'c0'40'00'80'40'a0'20,
+  [CC_PLAYER_SHIP_6L] = 0x02'03'02'00'01'02'05'04,
+  [CC_PLAYER_SHIP_6R] = 0x20'60'a0'80'c0'a0'd0'90,
+  [CC_PLAYER_SHIP_7L] = 0x01'01'01'00'00'01'02'02,
+  [CC_PLAYER_SHIP_7R] = 0x10'b0'50'40'e0'50'e8'48,
+  [CC_PLAYER_SHIP_8L] = 0x00'00'00'00'00'00'01'01,
+  [CC_PLAYER_SHIP_8R] = 0x88'd8'a8'20'70'a8'74'24,
+
+  // text
   0x00'00'00'e7'a1'e7'a5'e5,
   0x00'00'00'ee'28'e8'88'ee,
   0x00'00'00'ea'ac'ae'aa'ee,
@@ -27,21 +58,8 @@ const uint64_t charmap[] = {
   0x00'00'00'ab'aa'ea'aa'ab,
   0x00'00'00'a8'a8'3b'28'a8,
   0x00'00'00'80'40'e0'40'80,
-  0x44'6c'54'10'38'54'ba'92,
-  0x22'36'2a'08'1c'2a'5d'49,
-  0x11'1b'15'04'0e'15'2e'24,
-  0x00'00'00'00'00'00'80'80,
-  0x08'0d'0a'02'07'0a'17'12,
-  0x00'00'00'00'00'80'40'40,
-  0x04'06'05'01'03'05'0b'09,
-  0x40'c0'40'00'80'40'a0'20,
-  0x02'03'02'00'01'02'05'04,
-  0x20'60'a0'80'c0'a0'd0'90,
-  0x01'01'01'00'00'01'02'02,
-  0x10'30'50'40'e0'50'e8'48,
-  0x00'00'00'00'00'00'01'01,
-  0x88'd8'a8'20'70'a8'74'24,
 
+  // regular characters
   0x00'1e'20'4c'56'4a'22'1c,
   0x00'42'42'42'7e'42'24'18,
   0x00'7c'22'22'3c'22'22'7c,
