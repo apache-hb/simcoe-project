@@ -50,16 +50,17 @@ const uint64_t charmap[] = {
   [CC_BIG_SHIP]      = 0xc3'3c'18'24'7e'ff'bd'7e,
   [CC_ENEMY_MISSILE] = 0x18'18'3c'3c'3c'3c'42'00,
   [CC_ENEMY_BOMB]    = 0x00'0c'08'5e'7a'10'30'00,
-  [CC_ENEMY_HIT] = 0x89'42'24'81'00'24'42'95,
+  [CC_ENEMY_HIT]     = 0x89'42'24'81'00'24'42'95,
 
-  [CC_COPYRIGHT]  = 0x7e'81'bd'a1'a1'bd'81'7e,
-  [CC_BRAND0]     = 0x2d'29'2d'29'2d'20'ff'00,
-  [CC_BRAND1] = 0x14'57'55'b7'00'00'00'00,
-  [CC_BRAND2] = 0x25'27'25'77'00'00'00'00,
-  [CC_BRAND3] = 0x25'25'25'75'00'00'00'00,
-  [CC_BRAND4] = 0xd4'54'54'dc'00'00'00'00,
-  [CC_BRAND5] = 0xee'ca'2a'ce'00'00'00'00,
-  [CC_BRAND6] = 0xe2'ce'26'c2'00'00'00'00,
+  [CC_COPYRIGHT]  = 0x7c'82'ba'a2'ba'82'7c'00,
+
+  [CC_BRAND0] = 0x2d'29'2d'29'2d'20'ff'00,
+  [CC_BRAND1] = 0x14'14'57'55'b7'00'00'00,
+  [CC_BRAND2] = 0x25'25'27'25'77'00'00'00,
+  [CC_BRAND3] = 0x25'25'25'25'75'00'00'00,
+  [CC_BRAND4] = 0xd4'54'54'54'dc'00'00'00,
+  [CC_BRAND5] = 0xee'8a'4a'2a'ce'00'00'00,
+  [CC_BRAND6] = 0xe2'8e'4a'26'c2'00'00'00,
 
   [CC_BY]         = 0x00'00'00'e7'a1'e7'a5'e5,
 

@@ -61,7 +61,7 @@ static void writeScreen(draw::shared::Vic20Screen& screen, size_t index, uint8_t
 
 #define ENTITY_COLUMN(ent) ((ent) / VIC20_PPC)
 
-const int kPlayerRow = 21;
+const int kPlayerRow = 20;
 const int kGridLimit = 8;
 const int kAlienRow = 2;
 
