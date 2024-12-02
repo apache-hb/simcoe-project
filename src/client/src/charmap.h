@@ -3,9 +3,45 @@
 #include <stdint.h>
 
 #define CC_FILLED_BOX 0
+#define CC_SMALL_SHIP 1
+#define CC_BIG_SHIP 2
+#define CC_COPYRIGHT 3
+#define CC_TE 4
+#define CC_ENEMY_MISSILE 5
+#define CC_ENEMY_BOMB 6
+#define CC_PLAYER_SHIP
 
 const uint64_t charmap[] = {
-  [CC_FILLED_BOX] = 0xffffffffffffffff,
+  [CC_FILLED_BOX]    = 0xff'ff'ff'ff'ff'ff'ff'ff,
+  [CC_SMALL_SHIP]    = 0x18'3c'5a'bd'18'18'24'c3,
+  [CC_BIG_SHIP]      = 0xc3'3c'18'24'7e'ff'bd'7e,
+  [CC_COPYRIGHT]     = 0x7e'81'bd'a1'a1'bd'81'7e,
+  [CC_TE]            = 0x16'14'16'14'16'10'ff'00,
+  [CC_ENEMY_MISSILE] = 0x18'18'3c'3c'3c'3c'42'00,
+  [CC_ENEMY_BOMB]    = 0x00'0c'08'5e'7a'10'30'00,
+
+  0x00'00'00'e7'a1'e7'a5'e5,
+  0x00'00'00'ee'28'e8'88'ee,
+  0x00'00'00'ea'ac'ae'aa'ee,
+  0x00'00'00'c4'82'df'82'c4,
+  0x00'00'00'ab'aa'ea'aa'ab,
+  0x00'00'00'a8'a8'3b'28'a8,
+  0x00'00'00'80'40'e0'40'80,
+  0x44'6c'54'10'38'54'ba'92,
+  0x22'36'2a'08'1c'2a'5d'49,
+  0x11'1b'15'04'0e'15'2e'24,
+  0x00'00'00'00'00'00'80'80,
+  0x08'0d'0a'02'07'0a'17'12,
+  0x00'00'00'00'00'80'40'40,
+  0x04'06'05'01'03'05'0b'09,
+  0x40'c0'40'00'80'40'a0'20,
+  0x02'03'02'00'01'02'05'04,
+  0x20'60'a0'80'c0'a0'd0'90,
+  0x01'01'01'00'00'01'02'02,
+  0x10'30'50'40'e0'50'e8'48,
+  0x00'00'00'00'00'00'01'01,
+  0x88'd8'a8'20'70'a8'74'24,
+
   0x00'1e'20'4c'56'4a'22'1c,
   0x00'42'42'42'7e'42'24'18,
   0x00'7c'22'22'3c'22'22'7c,

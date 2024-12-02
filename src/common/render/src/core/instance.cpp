@@ -38,10 +38,8 @@ bool Instance::enumAdaptersByPreference() {
         return false;
     }
 
-    LOG_INFO(GpuLog, "Enumerating for {} adapter.", mAdapterSearch);
-
     auto enumAdapter = [&](UINT i, IDXGIAdapter1 **adapter) {
-        return factory6->EnumAdapterByGpuPreference(i, mAdapterSearch.as_facade(), IID_PPV_ARGS(adapter)) != DXGI_ERROR_NOT_FOUND;
+        return factory6->EnumAdapterByGpuPreference(i, DXGI_GPU_PREFERENCE(mAdapterSearch), IID_PPV_ARGS(adapter)) != DXGI_ERROR_NOT_FOUND;
     };
 
     IDXGIAdapter1 *adapter;

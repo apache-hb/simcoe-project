@@ -11,13 +11,6 @@ using ILogger = opaque("sm::logs::ILogger")
 ///
 
 [[facade]]
-variant AdapterPreference : opaque(DXGI_GPU_PREFERENCE) {
-    [[format("any")]] default Default = opaque(DXGI_GPU_PREFERENCE_UNSPECIFIED)
-    [[format("low power")]] case MinimumPower = opaque(DXGI_GPU_PREFERENCE_MINIMUM_POWER)
-    [[format("high performance")]] case HighPerformance = opaque(DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE)
-}
-
-[[facade]]
 variant ShaderMinPrecisionSupport : opaque(D3D12_SHADER_MIN_PRECISION_SUPPORT) {
     [[format("none")]] default None = opaque(D3D12_SHADER_MIN_PRECISION_SUPPORT_NONE)
     [[format("10 bit")]] case Support10Bit = opaque(D3D12_SHADER_MIN_PRECISION_SUPPORT_10_BIT)

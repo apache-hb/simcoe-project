@@ -39,6 +39,13 @@ namespace sm::render::next {
         eLevel_12_2 = D3D_FEATURE_LEVEL_12_2,
     };
 
+    enum class AdapterPreference {
+        eDefault = DXGI_GPU_PREFERENCE_UNSPECIFIED,
+        eMinimumPower = DXGI_GPU_PREFERENCE_MINIMUM_POWER,
+        eHighPerformance = DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
+    };
+
     std::string toString(DebugFlags flags);
     std::string_view toString(FeatureLevel level);
+    std::string_view toString(AdapterPreference pref);
 }

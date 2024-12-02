@@ -96,3 +96,14 @@ std::string_view sm::render::next::toString(FeatureLevel level) {
 
     return "Unknown";
 }
+
+
+std::string_view sm::render::next::toString(AdapterPreference pref) {
+    switch (pref) {
+    case AdapterPreference::eDefault: return "any";
+    case AdapterPreference::eMinimumPower: return "low power";
+    case AdapterPreference::eHighPerformance: return "high performance";
+    }
+
+    return "Unknown";
+}

@@ -17,6 +17,7 @@ namespace sm::db {
 namespace sm::render {
     using DebugFlags = next::DebugFlags;
     using FeatureLevel = next::FeatureLevel;
+    using AdapterPreference = next::AdapterPreference;
 
     struct InstanceConfig {
         DebugFlags flags;
