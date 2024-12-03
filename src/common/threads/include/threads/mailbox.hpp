@@ -26,19 +26,19 @@ namespace sm::threads {
     public:
         NonBlockingMailBox() = default;
 
-        void lock() {
+        void lock() noexcept [[clang::nonblocking]] {
 
         }
 
-        void unlock() {
+        void unlock() noexcept [[clang::nonblocking]] {
             mState.fetch_xor(kWriteBit, std::memory_order_release);
         }
 
-        const T& read() {
+        const T& read() noexcept [[clang::nonblocking]] {
             return mSlots[!(mState.load(std::memory_order_acquire) & kIndexBit)];
         }
 
-        void write(const T& data) {
+        void write(const T& data) [[clang::blocking]] {
             int state = 0;
             while ((state = mState.load(std::memory_order_acquire)) & kWriteBit) {
                 /* spin */

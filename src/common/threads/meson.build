@@ -65,6 +65,7 @@ threads = declare_dependency(
 
 testcases = {
     'Nonblocking mailbox': 'test/mailbox.cpp',
+    # 'Triplebuffer': 'test/triplebuffer.cpp',
 }
 
 if host_machine.system() == 'windows'
