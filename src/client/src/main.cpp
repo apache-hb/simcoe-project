@@ -61,9 +61,10 @@ static void writeScreen(draw::shared::Vic20Screen& screen, size_t index, uint8_t
 
 #define ENTITY_COLUMN(ent) ((ent) / VIC20_PPC)
 
-#define PLAYER_COLOUR VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK)
+#define PLAYER_COLOUR VIC20_CHAR_COLOUR(VIC20_COLOUR_LIGHT_BLUE, VIC20_COLOUR_BLACK)
 #define ALIEN_COLOUR VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK)
 #define CELL_COLOUR VIC20_CHAR_COLOUR(VIC20_COLOUR_DARK_PURPLE, VIC20_COLOUR_BLACK)
+#define SHOT_COLOUR VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK)
 
 const int kPlayerRow = 20;
 const int kGridLimit = 8;
@@ -77,6 +78,10 @@ struct GameState {
 
     uint8_t gridColours[VIC20_SCREEN_CHARS_WIDTH / 2];
 };
+
+static bool isPlayerShot(uint8_t c) {
+    return c >= CC_SHOT_0 && c <= CC_SHOT_7;
+}
 
 static void drawPlayerShip(draw::shared::Vic20Screen& screen, int player, uint8_t colour) {
     player -= kPlayerSlide;
@@ -147,7 +152,11 @@ static void drawGameState(draw::shared::Vic20Screen& screen, GameState& state) {
         int y = (i / VIC20_SCREEN_CHARS_WIDTH);
 
         if (state.cell[i] != 0) {
-            writeScreen(screen, i, state.cell[i], VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK));
+            if (isPlayerShot(state.cell[i])) {
+                writeScreen(screen, i, state.cell[i], SHOT_COLOUR);
+            } else {
+                writeScreen(screen, i, state.cell[i], VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK));
+            }
         }
     }
 }
@@ -165,13 +174,29 @@ static void drawCopyright(draw::shared::Vic20Screen& screen) {
     writeScreen(screen, row + 7, CC_BRAND6, c);
 }
 
-static constexpr uint8_t kCellColours[] = {
-    VIC20_COLOUR_LIGHT_YELLOW,
-    VIC20_COLOUR_GREEN,
-    VIC20_COLOUR_BLUE,
-    VIC20_COLOUR_PINK,
+static uint8_t nextCellColour(uint8_t current) {
+    uint8_t fg = (current >> 4) & 0x0F;
+    uint8_t bg = current & 0x0F;
+    uint8_t next = (fg + 2) % 0x0F;
+    return VIC20_CHAR_COLOUR(next, bg);
+}
+
+static const uint8_t kAlienColours[] = {
+    VIC20_COLOUR_WHITE,
     VIC20_COLOUR_LIGHT_RED,
+    VIC20_COLOUR_GREEN,
+    VIC20_COLOUR_LIGHT_PURPLE,
+    VIC20_COLOUR_BLUE,
+    VIC20_COLOUR_LIGHT_BLUE,
 };
+
+void everyCountFrames(int count, auto&& fn) {
+    static int counter = 0;
+    if (counter % count == 0) {
+        fn();
+    }
+    counter++;
+}
 
 static int commonMain(launch::LaunchResult& launch) noexcept try {
     ClientWindow clientWindow{"VIC20", &launch.getInfoDb()};
@@ -195,6 +220,7 @@ static int commonMain(launch::LaunchResult& launch) noexcept try {
     int alienspeed = 1;
     int shiprate = 5;
     int nextship = 0;
+    int aliencolour = 0;
 
     float tickrate = 1.0f / 60.0f;
     float accumulator = 0.0f;
@@ -232,15 +258,17 @@ static int commonMain(launch::LaunchResult& launch) noexcept try {
                 player += movespeed;
             }
 
-            if (aliendir) {
-                alien += alienspeed;
-            } else {
-                alien -= alienspeed;
-            }
+            everyCountFrames(2, [&] {
+                if (alien < 0 || alien >= VIC20_SCREEN_WIDTH - 1) {
+                    aliendir = !aliendir;
+                }
 
-            if (alien < 0 || alien >= VIC20_SCREEN_WIDTH - 1) {
-                aliendir = !aliendir;
-            }
+                if (aliendir) {
+                    alien += alienspeed;
+                } else {
+                    alien -= alienspeed;
+                }
+            });
 
             memset(&state.cell, 0, VIC20_SCREEN_CHARS_WIDTH);
             for (size_t i = 1; i < GameState::kHeight - 1; i++) {
@@ -255,9 +283,13 @@ static int commonMain(launch::LaunchResult& launch) noexcept try {
                 if (state.cell[row + i] != 0) {
                     state.cell[row + i] = 0;
 
-                    state.gridColours[i / 2] = VIC20_CHAR_COLOUR(kCellColours[counter++ % std::size(kCellColours)], VIC20_COLOUR_BLACK);
+                    state.gridColours[i / 2] = nextCellColour(state.gridColours[i / 2]);
                 }
             }
+
+            everyCountFrames(10, [&] {
+                aliencolour = (aliencolour + 1) % std::size(kAlienColours);
+            });
         }
 
         if (ImGui::IsKeyPressed(ImGuiKey_Space, false)) {
@@ -275,7 +307,7 @@ static int commonMain(launch::LaunchResult& launch) noexcept try {
 
         drawGameState(screen, state);
         drawPlayerShip(screen, player, PLAYER_COLOUR);
-        drawAlienShip(screen, alien, ALIEN_COLOUR);
+        drawAlienShip(screen, alien, VIC20_CHAR_COLOUR(kAlienColours[aliencolour], VIC20_COLOUR_BLACK));
         drawThunderGrid(screen, state);
 
         drawCopyright(screen);
