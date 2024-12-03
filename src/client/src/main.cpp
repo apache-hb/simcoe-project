@@ -68,20 +68,154 @@ static void writeScreen(draw::shared::Vic20Screen& screen, size_t index, uint8_t
 
 const int kPlayerRow = 20;
 const int kGridLimit = 8;
-const int kAlienRow = 2;
+const int kAlienRow = 3;
 const int kPlayerSlide = 3;
+
+static bool isPlayerShot(uint8_t c) {
+    return c >= CC_SHOT_0 && c <= CC_SHOT_7;
+}
+
+struct Ship {
+    uint8_t x;
+    uint8_t y;
+    enum { eEmpty, eMoveLeft, eMoveRight, eMoveDown } state = eEmpty;
+
+    void update() {
+        switch (state) {
+        case eMoveLeft: x--; break;
+        case eMoveRight: x++; break;
+        case eMoveDown: y++; break;
+        default: break;
+        }
+    }
+
+    bool atLeftBoundary() const { return x <= 2; }
+    bool atRightBoundary() const { return x >= VIC20_SCREEN_CHARS_WIDTH - 3; }
+
+    void updateAction(int& rng) {
+        if (state == eEmpty) {
+            return;
+        }
+
+        int next = rng++;
+
+        if (atLeftBoundary())
+            next = 1 + (next % 2);
+        else if (atRightBoundary())
+            next = 1 - (next % 2);
+        else
+            next = next % 3;
+
+        switch (next) {
+        case 0: state = eMoveLeft; break;
+        case 1: state = eMoveDown; break;
+        case 2: state = eMoveRight; break;
+        default: break;
+        }
+    }
+};
 
 struct GameState {
     static constexpr size_t kHeight = VIC20_SCREEN_CHARS_HEIGHT - kAlienRow - 1;
     static constexpr size_t kGridStart = VIC20_SCREEN_CHARS_HEIGHT - kGridLimit - 1;
     uint8_t cell[VIC20_SCREEN_CHARS_WIDTH * kHeight];
 
-    uint8_t gridColours[VIC20_SCREEN_CHARS_WIDTH / 2];
-};
+    uint8_t &getCell(int x, int y) {
+        return cell[y * VIC20_SCREEN_CHARS_WIDTH + x];
+    }
 
-static bool isPlayerShot(uint8_t c) {
-    return c >= CC_SHOT_0 && c <= CC_SHOT_7;
-}
+    Ship ships[8] = {};
+
+    Ship *shipAt(int x, int y) {
+        for (Ship& ship : ships) {
+            if (ship.state != Ship::eEmpty && ship.x == x && ship.y == y) {
+                return &ship;
+            }
+        }
+
+        return nullptr;
+    }
+
+    void spawnShip(int alien) {
+        int col = ENTITY_COLUMN(alien);
+        if (col % 2 == 0) {
+            return;
+        }
+
+        for (Ship& ship : ships) {
+            if (ship.state == Ship::eEmpty) {
+                ship.x = col;
+                ship.y = 4;
+                ship.state = Ship::eMoveDown;
+                break;
+            }
+        }
+    }
+
+    uint8_t gridColours[VIC20_SCREEN_CHARS_WIDTH / 2];
+
+    void movePlayerShots(uint32_t& score) {
+        // clear all shots that go above the screen
+        memset(&cell, 0, VIC20_SCREEN_CHARS_WIDTH * 2);
+
+        for (size_t i = 1; i < GameState::kHeight - 1; i++) {
+            for (int x = 0; x < VIC20_SCREEN_CHARS_WIDTH; x++) {
+
+                // player shots move upwards
+                uint8_t& v = getCell(x, i + 1);
+                if (isPlayerShot(v)) {
+                    if (Ship *ship = shipAt(x, i)) {
+                        ship->state = Ship::eEmpty;
+                        v = CC_ENEMY_HIT;
+                        score += 25;
+                    }
+                    else if (Ship *ship = shipAt(x, i + 1)) {
+                        ship->state = Ship::eEmpty;
+                        v = CC_ENEMY_HIT;
+                        score += 25;
+                    }
+
+                    getCell(x, i) = v;
+                    v = 0;
+                }
+
+                if (v == CC_ENEMY_HIT) {
+                    v = 0;
+                }
+            }
+        }
+    }
+
+    bool tryKillShip(Ship& ship, int x, int y) {
+        uint8_t& c = getCell(x, y);
+        if (c != 0) {
+            ship.state = Ship::eEmpty;
+            getCell(ship.x, ship.y) = CC_ENEMY_HIT;
+            return true;
+        }
+
+        return false;
+    }
+
+    void moveEnemyShips(int& rng) {
+        for (Ship& ship : ships) {
+            if (ship.y >= kHeight) {
+                ship.state = Ship::eEmpty;
+                continue;
+            }
+
+            if (ship.state == Ship::eEmpty) {
+                continue;
+            }
+
+            if (ship.x % 2 != 0 && ship.y % 2 != 0) {
+                ship.updateAction(rng);
+            }
+
+            ship.update();
+        }
+    }
+};
 
 static void drawPlayerShip(draw::shared::Vic20Screen& screen, int player, uint8_t colour) {
     player -= kPlayerSlide;
@@ -130,17 +264,15 @@ static void drawAlienShip(draw::shared::Vic20Screen& screen, int alien, uint8_t 
 }
 
 static void drawThunderGrid(draw::shared::Vic20Screen& screen, GameState& state) {
-    for (int y = kAlienRow + 1; y < VIC20_SCREEN_CHARS_HEIGHT - kGridLimit - 1; y += 2) {
-        for (int x = 0; x < VIC20_SCREEN_CHARS_WIDTH; x++) {
-            int i = y * VIC20_SCREEN_CHARS_WIDTH + x;
-            if (x % 2 == 0) {
-                writeScreen(screen, i, CC_FILLED_BOX, CELL_COLOUR);
-            }
+    for (int y = 0; y < 5; y++) {
+        for (int x = 0; x < VIC20_SCREEN_CHARS_WIDTH / 2; x++) {
+            int i = ((y * 2) + kAlienRow + 1) * VIC20_SCREEN_CHARS_WIDTH + (x * 2);
+            writeScreen(screen, i, CC_FILLED_BOX, CELL_COLOUR);
         }
     }
 
     for (int x = 0; x < VIC20_SCREEN_CHARS_WIDTH / 2; x++) {
-        int y = VIC20_SCREEN_CHARS_HEIGHT - kGridLimit;
+        int y = kAlienRow + 12 - 1;
         int i = y * VIC20_SCREEN_CHARS_WIDTH + (x * 2);
         writeScreen(screen, i, CC_FILLED_BOX, state.gridColours[x]);
     }
@@ -154,9 +286,16 @@ static void drawGameState(draw::shared::Vic20Screen& screen, GameState& state) {
         if (state.cell[i] != 0) {
             if (isPlayerShot(state.cell[i])) {
                 writeScreen(screen, i, state.cell[i], SHOT_COLOUR);
-            } else {
-                writeScreen(screen, i, state.cell[i], VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK));
+            } else if (state.cell[i] == CC_ENEMY_HIT) {
+                writeScreen(screen, i, CC_ENEMY_HIT, PLAYER_COLOUR);
             }
+        }
+    }
+
+    for (Ship& ship : state.ships) {
+        if (ship.state != Ship::eEmpty) {
+            int offset = ship.y * VIC20_SCREEN_CHARS_WIDTH + ship.x;
+            writeScreen(screen, offset, CC_SMALL_SHIP, ALIEN_COLOUR);
         }
     }
 }
@@ -174,10 +313,50 @@ static void drawCopyright(draw::shared::Vic20Screen& screen) {
     writeScreen(screen, row + 7, CC_BRAND6, c);
 }
 
+static void drawScore(draw::shared::Vic20Screen& screen, uint32_t score) {
+    int row = 2 * VIC20_SCREEN_CHARS_WIDTH;
+
+    uint8_t sc = VIC20_CHAR_COLOUR(VIC20_COLOUR_PURPLE, VIC20_COLOUR_BLACK);
+
+    writeScreen(screen, row + 2, CC_SCORE0, sc);
+    writeScreen(screen, row + 3, CC_SCORE1, sc);
+    writeScreen(screen, row + 4, CC_SCORE2, sc);
+
+    char buffer[6];
+    (void)snprintf(buffer, sizeof(buffer), "%05d", score);
+
+    for (int i = 0; i < 5; i++) {
+        writeScreen(screen, row + 5 + i, CC_NUMBER_0 + (buffer[i] - '0'), VIC20_CHAR_COLOUR(VIC20_COLOUR_LIGHT_YELLOW, VIC20_COLOUR_BLACK));
+    }
+}
+
+static void drawHighScore(draw::shared::Vic20Screen& screen, uint32_t highscore) {
+    int row = 2 * VIC20_SCREEN_CHARS_WIDTH;
+
+    uint8_t sc = VIC20_CHAR_COLOUR(VIC20_COLOUR_LIGHT_YELLOW, VIC20_COLOUR_BLACK);
+
+    int start = 11;
+
+    writeScreen(screen, row + start + 0, CC_HIGHSCORE0, sc);
+    writeScreen(screen, row + start + 1, CC_HIGHSCORE1, sc);
+    writeScreen(screen, row + start + 2, CC_HIGHSCORE2, sc);
+
+    char buffer[6];
+    (void)snprintf(buffer, sizeof(buffer), "%05d", highscore);
+
+    for (int i = 0; i < 5; i++) {
+        writeScreen(screen, row + start + 3 + i, CC_NUMBER_0 + (buffer[i] - '0'), VIC20_CHAR_COLOUR(VIC20_COLOUR_LIGHT_YELLOW, VIC20_COLOUR_BLACK));
+    }
+}
+
 static uint8_t nextCellColour(uint8_t current) {
     uint8_t fg = (current >> 4) & 0x0F;
     uint8_t bg = current & 0x0F;
     uint8_t next = (fg + 2) % 0x0F;
+    if (next == VIC20_COLOUR_BLACK) {
+        next = VIC20_COLOUR_WHITE;
+    }
+
     return VIC20_CHAR_COLOUR(next, bg);
 }
 
@@ -218,13 +397,14 @@ static int commonMain(launch::LaunchResult& launch) noexcept try {
     int alien = 0;
     bool aliendir = false;
     int alienspeed = 1;
-    int shiprate = 5;
+    int shiprate = 16;
     int nextship = 0;
     int aliencolour = 0;
 
     float tickrate = 1.0f / 60.0f;
     float accumulator = 0.0f;
     int counter = 0;
+    int rng = 0;
 
     float last = ImGui::GetTime();
 
@@ -248,7 +428,10 @@ static int commonMain(launch::LaunchResult& launch) noexcept try {
 
         while (accumulator >= tickrate) {
             accumulator -= tickrate;
-            score++;
+
+            everyCountFrames(60, [&] {
+                score += 10;
+            });
 
             if (ImGui::IsKeyDown(ImGuiKey_LeftArrow)) {
                 player -= movespeed;
@@ -270,12 +453,21 @@ static int commonMain(launch::LaunchResult& launch) noexcept try {
                 }
             });
 
-            memset(&state.cell, 0, VIC20_SCREEN_CHARS_WIDTH);
-            for (size_t i = 1; i < GameState::kHeight - 1; i++) {
-                memcpy(&state.cell[i * VIC20_SCREEN_CHARS_WIDTH], &state.cell[(i + 1) * VIC20_SCREEN_CHARS_WIDTH], VIC20_SCREEN_CHARS_WIDTH);
-            }
-            memset(&state.cell[(GameState::kHeight - 1) * VIC20_SCREEN_CHARS_WIDTH], 0, VIC20_SCREEN_CHARS_WIDTH);
+            everyCountFrames(shiprate, [&] {
+                state.spawnShip(alien);
+            });
 
+            // move all player shots up the screen
+
+            everyCountFrames(2, [&] {
+                state.movePlayerShots(score);
+            });
+
+            everyCountFrames(10, [&] {
+                state.moveEnemyShips(rng);
+            });
+
+            // if a player bullet hits a grid tile change its colour
             for (int i = 0; i < VIC20_SCREEN_CHARS_WIDTH; i++) {
                 if (i % 2 != 0) continue;
 
@@ -309,6 +501,9 @@ static int commonMain(launch::LaunchResult& launch) noexcept try {
         drawPlayerShip(screen, player, PLAYER_COLOUR);
         drawAlienShip(screen, alien, VIC20_CHAR_COLOUR(kAlienColours[aliencolour], VIC20_COLOUR_BLACK));
         drawThunderGrid(screen, state);
+
+        drawScore(screen, score);
+        drawHighScore(screen, highscore);
 
         drawCopyright(screen);
 
