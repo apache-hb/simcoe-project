@@ -102,8 +102,6 @@ namespace sm::errors {
             , mError(std::move(error))
         { }
 
-        const char *what() const noexcept override { return mError.what(); }
-
         AnyError cause() const noexcept override { return mError; }
         const T& error() const noexcept { return mError; }
         const std::stacktrace& stacktrace() const noexcept override final { return mError.stacktrace(); }

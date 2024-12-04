@@ -43,6 +43,9 @@ namespace game {
         AccountServer(sm::db::Connection db, sm::net::Network& net, const sm::net::Address& address, uint16_t port) throws(sm::db::DbException);
         AccountServer(sm::db::Connection db, sm::net::Network& net, const sm::net::Address& address, uint16_t port, unsigned seed) throws(sm::db::DbException);
 
+        SM_NOCOPY(AccountServer);
+        SM_NOMOVE(AccountServer);
+
         void listen(uint16_t connections);
         void stop();
 
@@ -68,6 +71,9 @@ namespace game {
 
     public:
         AccountClient(sm::net::Network& net, const sm::net::Address& address, uint16_t port) throws(sm::net::NetException);
+
+        SM_NOCOPY(AccountClient);
+        SM_NOMOVE(AccountClient);
 
         bool isAuthed() { return mCurrentSession != UINT64_MAX; }
 

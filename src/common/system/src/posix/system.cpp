@@ -1,5 +1,7 @@
 #include "system/system.hpp"
 
+#include "common.hpp"
+
 #include "core/defer.hpp"
 
 #include <fcntl.h>
@@ -10,11 +12,15 @@ using namespace sm;
 
 static constexpr int kBufferSize = 512;
 
+OsError system::getLastError() {
+    return errno;
+}
+
 // TODO: test this
 std::vector<std::string> system::getCommandLine() {
     int fd = open("/proc/self/cmdline", O_RDONLY);
     if (fd == -1)
-        throw OsException{OsError{os_error_t(errno)}, "open /proc/self/cmdline"};
+        throw OsException{OsError{os_error_t(errno)}, "open(\"/proc/self/cmdline\")"};
 
     defer { close(fd); };
 
@@ -34,7 +40,7 @@ std::vector<std::string> system::getCommandLine() {
                 args.emplace_back(arg);
                 arg = "";
             }
-            arg.append_range(std::string_view(buffer + offset, len));
+            arg.append(std::string_view(buffer + offset, len));
             offset += len;
         }
     }
@@ -45,7 +51,7 @@ std::vector<std::string> system::getCommandLine() {
 }
 
 std::string system::getMachineId() {
-    int fd = open("/etc/machine-id");
+    int fd = open("/etc/machine-id", O_RDONLY);
     if (fd == -1)
         return std::string(32, '0');
 
@@ -55,4 +61,12 @@ std::string system::getMachineId() {
     int size = read(fd, buffer, sizeof(buffer));
 
     return std::string(buffer, size);
+}
+
+void system::create(HINSTANCE hInstance) {
+    initStorage();
+}
+
+void system::destroy(void) noexcept {
+    // empty for now
 }

@@ -35,7 +35,7 @@ TEST_CASE("Network client server connection") {
                     }();
 
                     if (!client.has_value()) {
-                        const auto& err = client.error();
+                        const NetError& err = client.error();
                         if (!err.cancelled())
                             errors.add("Failed to accept client: {}", err.message());
 

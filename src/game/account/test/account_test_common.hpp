@@ -22,8 +22,16 @@ void doParallel(int iters, auto&& fn) {
     std::latch ready{iters};
     for (int i = 0; i < iters; i++) {
         threads.emplace_back(std::jthread([&fn, &ready, i](const std::stop_token& stop) {
-            ready.arrive_and_wait();
-            fn(i, stop);
+            try {
+                ready.arrive_and_wait();
+                fn(i, stop);
+            } catch (const errors::AnyException& e) {
+                for (const auto& frame : e.stacktrace()) {
+                    fmt::print(stderr, "{}\n", frame.description());
+                }
+
+                throw;
+            }
         }));
     }
 }
@@ -60,6 +68,12 @@ struct TestServerConfig {
             try {
                 std::stop_callback cb(stop, [&] { server.stop(); });
                 server.listen(count);
+            } catch (const errors::AnyException& e) {
+                for (const auto& frame : e.stacktrace()) {
+                    fmt::print(stderr, "{}\n", frame.description());
+                }
+
+                throw;
             } catch (const std::exception& e) {
                 errors.add("Server exception: {}", e.what());
             }

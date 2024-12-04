@@ -5,6 +5,10 @@
 
 using namespace sm;
 
+OsError system::getLastError() {
+    return GetLastError();
+}
+
 std::vector<std::string> system::getCommandLine() {
     int argc = 0;
     if (LPWSTR *argvw = CommandLineToArgvW(GetCommandLineW(), &argc)) {

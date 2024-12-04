@@ -123,7 +123,7 @@ static ssl::X509Certificate loadCertificate(ssl::PrivateKey& key) {
     return cert;
 }
 
-int commonMain() noexcept try {
+int commonMain(launch::LaunchResult&) noexcept try {
     auto args = system::getCommandLine();
     if (args.size() < 2) {
         LOG_ERROR(GlobalLog, "Failed to read command line");

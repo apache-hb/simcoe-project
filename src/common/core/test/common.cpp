@@ -70,6 +70,10 @@ void RunListener::testRunStarting(Catch::TestRunInfo const& testRunInfo) {
         auto err = sm::vformat(msg, args);
 
         fmt::println(stderr, "{}", err);
+        auto stacktrace = std::stacktrace::current();
+        for (const auto& frame : stacktrace) {
+            fmt::println(stderr, "{} {}:{}", frame.description(), frame.source_file(), frame.source_line());
+        }
 
         FAIL(err);
     };

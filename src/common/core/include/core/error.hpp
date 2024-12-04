@@ -24,14 +24,13 @@ namespace sm {
         using Super = errors::Error<OsError>;
         os_error_t mError;
 
-        OsError(os_error_t error, std::string_view message);
-
     public:
         using Exception = class OsException;
 
         OsError(os_error_t error);
+        OsError(os_error_t error, std::string_view message);
 
-        template<typename... A>
+        template<typename... A> requires (sizeof...(A) > 0)
         OsError(os_error_t error, fmt::format_string<A...> fmt, A&&... args)
             : OsError(error, fmt::vformat(fmt, fmt::make_format_args(args...)))
         { }
@@ -48,7 +47,7 @@ namespace sm {
 
         template<typename... A>
         OsException(os_error_t error, fmt::format_string<A...> fmt, A&&... args)
-            : Super(OsError(error, fmt, args...))
+            : Super(OsError(error, fmt::vformat(fmt, fmt::make_format_args(args...))))
         { }
     };
 

@@ -32,7 +32,7 @@ endif
 
 libsystem = library('system', src,
     cpp_args : [ '-DSM_SYSTEM_BUILD=1' ],
-    include_directories : [ system_include, res_include ],
+    include_directories : [ system_include, res_include, 'src' ],
     dependencies : deps
 )
 

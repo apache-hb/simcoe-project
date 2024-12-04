@@ -76,6 +76,7 @@ testcases = {
     'Get session list': 'test/session_list.cpp',
     'Get lobby list': 'test/lobby_list.cpp',
     'Join lobby': 'test/join_lobby.cpp',
+    'Multiple join lobby': 'test/join_lobby_multi.cpp',
 }
 
 foreach name, source : testcases
@@ -86,6 +87,6 @@ foreach name, source : testcases
 
     test(name, exe,
         suite : 'account',
-        kwargs : testkwargs
+        kwargs : testkwargs + { 'timeout': 15 }
     )
 endforeach
