@@ -1,3 +1,4 @@
+#include "imgui/imgui.h"
 #include "stdafx.hpp"
 #include "common.hpp"
 #include "db/connection.hpp"
@@ -39,16 +40,6 @@ enum ClientState {
 
 using EventQueue = moodycamel::BlockingConcurrentQueue<std::function<void()>>;
 
-static void refreshMessages(EventQueue& events, game::AccountClient& client) {
-    events.enqueue([&] {
-        try {
-            client.refreshMessageList();
-        } catch (const std::exception& e) {
-            LOG_ERROR(ClientLog, "Failed to refresh messages: {}", e.what());
-        }
-    });
-}
-
 namespace ImGui
 {
     void Spinner(const char *title, float frequency = 0.05f)
@@ -66,7 +57,7 @@ struct MessageListWidget {
     std::atomic<bool> updating = false;
 
     float lastUpdate = 0;
-    float updateRate = 0.5f;
+    float updateRate = 1.f;
 
     void refreshMessages(EventQueue& events, game::AccountClient& client) {
         events.enqueue([&] {
@@ -78,8 +69,9 @@ struct MessageListWidget {
                 updating = true;
                 defer { updating = false; };
 
+                client.work();
                 client.refreshMessageList();
-                messages.write(client.getMessages());
+                messages.write(auto(client.getMessages()));
             } catch (const std::exception& e) {
                 LOG_ERROR(ClientLog, "Failed to refresh messages: {}", e.what());
             }
@@ -91,11 +83,11 @@ struct MessageListWidget {
             refreshMessages(events, client);
         }
 
-        float now = ImGui::GetTime();
-        if (now - lastUpdate > updateRate) {
-            refreshMessages(events, client);
-            lastUpdate = now;
-        }
+        // float now = ImGui::GetTime();
+        // if (now - lastUpdate > updateRate) {
+        //     refreshMessages(events, client);
+        //     lastUpdate = now;
+        // }
 
         if (ImGui::BeginTable("Messages", 2)) {
             ImGui::TableSetupColumn("Author", ImGuiTableColumnFlags_WidthFixed, 100);
@@ -105,17 +97,23 @@ struct MessageListWidget {
 
             std::lock_guard guard(messages);
             for (const auto& message : messages.read()) {
-                ImGui::Text("%s: %s", message.author.c_str(), message.message.c_str());
+                ImGui::TableNextRow();
+
+                ImGui::NextColumn();
+                ImGui::TextUnformatted(message.author.c_str());
+                ImGui::NextColumn();
+                ImGui::TextUnformatted(message.message.c_str());
             }
 
             ImGui::EndTable();
         }
 
         if (ImGui::InputText("Send", &message, ImGuiInputTextFlags_EnterReturnsTrue)) {
-            events.enqueue([message = message, &client] {
+            events.enqueue([&, message = message] {
                 try {
                     client.sendMessage(message);
-                    client.getMessages().push_back({ "You", message });
+                    messages.write(auto(client.getMessages()));
+                    client.work();
                 } catch (const std::exception& e) {
                     LOG_ERROR(ClientLog, "Failed to send message: {}", e.what());
                 }
@@ -292,13 +290,20 @@ static int commonMain(launch::LaunchResult&) noexcept try {
     std::jthread clientThread = std::jthread([&](const std::stop_token& stop) {
         while (!stop.stop_requested()) {
             std::function<void()> event;
+
+            LOG_INFO(GlobalLog, "Waiting for event");
+            
             events.wait_dequeue(event);
+            
+            LOG_INFO(GlobalLog, "New event");
 
             event();
 
-            if (client) {
-                client->work();
-            }
+            LOG_INFO(GlobalLog, "Event executed");
+
+            // if (client) {
+            //     client->work();
+            // }
         }
     });
 
@@ -320,7 +325,7 @@ static int commonMain(launch::LaunchResult&) noexcept try {
             try {
                 client = std::make_unique<game::AccountClient>(network, host, port);
                 state.store(eConnected);
-            } catch (const net::NetException& err) {
+            } catch (const std::exception& err) {
                 std::strncpy(error, err.what(), sizeof(error));
                 state.store(eConnectError);
             }
@@ -399,7 +404,7 @@ static int commonMain(launch::LaunchResult&) noexcept try {
                                 std::strncpy(error, "Account creation failed", sizeof(error));
                                 state.store(eLoginError);
                             }
-                        } catch (const net::NetException& err) {
+                        } catch (const std::exception& err) {
                             std::strncpy(error, err.what(), sizeof(error));
                             state.store(eLoginError);
                         }

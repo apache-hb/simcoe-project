@@ -127,6 +127,8 @@ bool AccountClient::sendMessage(std::string_view message) {
 
     mSocket.send(SendMessage { mNextId++, kClientStream, mCurrentSession, 0, message }).throwIfFailed();
 
+    mMessages.push_back(Message { .author = "You", .message = std::string{message} });
+
     return true;
 }
 
