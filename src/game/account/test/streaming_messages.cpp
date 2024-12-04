@@ -39,9 +39,9 @@ TEST_CASE("Join lobby and send messages") {
 
         client1.joinLobby(client1.getLobbyInfo()[0].id);
 
-        client0.sendMessage("Hello, world!");
+        CHECK(client0.sendMessage("Hello, world!"));
 
-        client1.sendMessage("Hello, back!");
+        CHECK(client1.sendMessage("Hello, back!"));
 
         // usually these are run on worker threads, but
         // for testing its easier to run on the main thread
@@ -50,8 +50,8 @@ TEST_CASE("Join lobby and send messages") {
         client0.refreshMessageList();
         client1.refreshMessageList();
 
-        CHECK(client0.getMessages().size() == 1);
-        CHECK(client1.getMessages().size() == 1);
+        REQUIRE(client0.getMessages().size() == 1);
+        REQUIRE(client1.getMessages().size() == 1);
         CHECK(client0.getMessages()[0].message == "Hello, back!");
         CHECK(client1.getMessages()[0].message == "Hello, world!");
     }

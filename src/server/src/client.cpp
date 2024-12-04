@@ -1,6 +1,5 @@
 #include "stdafx.hpp"
 #include "common.hpp"
-
 #include "db/connection.hpp"
 
 #include "threads/mailbox.hpp"
@@ -10,7 +9,10 @@
 #include "launch/launch.hpp"
 #include "account/account.hpp"
 
+#include <imgui/misc/imgui_stdlib.h>
 #include <blockingconcurrentqueue.h>
+
+using namespace std::chrono_literals;
 
 LOG_MESSAGE_CATEGORY(ClientLog, "Client");
 
@@ -37,6 +39,16 @@ enum ClientState {
 
 using EventQueue = moodycamel::BlockingConcurrentQueue<std::function<void()>>;
 
+static void refreshMessages(EventQueue& events, game::AccountClient& client) {
+    events.enqueue([&] {
+        try {
+            client.refreshMessageList();
+        } catch (const std::exception& e) {
+            LOG_ERROR(ClientLog, "Failed to refresh messages: {}", e.what());
+        }
+    });
+}
+
 namespace ImGui
 {
     void Spinner(const char *title, float frequency = 0.05f)
@@ -46,6 +58,73 @@ namespace ImGui
         ImGui::Text("%s %c", title, symbol);
     }
 }
+
+struct MessageListWidget {
+    threads::NonBlockingMailBox<std::vector<game::Message>> messages;
+    std::string message;
+
+    std::atomic<bool> updating = false;
+
+    float lastUpdate = 0;
+    float updateRate = 0.5f;
+
+    void refreshMessages(EventQueue& events, game::AccountClient& client) {
+        events.enqueue([&] {
+            if (updating)
+                return;
+
+            try {
+                // very bad rate limiting
+                updating = true;
+                defer { updating = false; };
+
+                client.refreshMessageList();
+                messages.write(client.getMessages());
+            } catch (const std::exception& e) {
+                LOG_ERROR(ClientLog, "Failed to refresh messages: {}", e.what());
+            }
+        });
+    }
+
+    void draw(EventQueue& events, game::AccountClient& client) {
+        if (ImGui::Button("Refresh##Messages")) {
+            refreshMessages(events, client);
+        }
+
+        float now = ImGui::GetTime();
+        if (now - lastUpdate > updateRate) {
+            refreshMessages(events, client);
+            lastUpdate = now;
+        }
+
+        if (ImGui::BeginTable("Messages", 2)) {
+            ImGui::TableSetupColumn("Author", ImGuiTableColumnFlags_WidthFixed, 100);
+            ImGui::TableSetupColumn("Message", ImGuiTableColumnFlags_WidthStretch);
+
+            ImGui::TableHeadersRow();
+
+            std::lock_guard guard(messages);
+            for (const auto& message : messages.read()) {
+                ImGui::Text("%s: %s", message.author.c_str(), message.message.c_str());
+            }
+
+            ImGui::EndTable();
+        }
+
+        if (ImGui::InputText("Send", &message, ImGuiInputTextFlags_EnterReturnsTrue)) {
+            events.enqueue([message = message, &client] {
+                try {
+                    client.sendMessage(message);
+                    client.getMessages().push_back({ "You", message });
+                } catch (const std::exception& e) {
+                    LOG_ERROR(ClientLog, "Failed to send message: {}", e.what());
+                }
+            });
+
+            message.clear();
+        }
+    }
+};
 
 struct LobbyListWidget {
     enum State {
@@ -216,6 +295,10 @@ static int commonMain(launch::LaunchResult&) noexcept try {
             events.wait_dequeue(event);
 
             event();
+
+            if (client) {
+                client->work();
+            }
         }
     });
 
@@ -229,6 +312,7 @@ static int commonMain(launch::LaunchResult&) noexcept try {
 
     SessionListWidget sessionList;
     LobbyListWidget lobbyList;
+    MessageListWidget messages;
 
     auto connectToServerAsync = [&] {
         state.store(eConnecting);
@@ -380,6 +464,13 @@ static int commonMain(launch::LaunchResult&) noexcept try {
             }
         }
         ImGui::End();
+
+        if (state == eLoggedIn) {
+            if (ImGui::Begin("Messages")) {
+                messages.draw(events, *client);
+            }
+            ImGui::End();
+        }
 
         window.end();
     }

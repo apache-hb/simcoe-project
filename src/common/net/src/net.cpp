@@ -26,7 +26,7 @@ void net::create(void) {
         throw NetException{result};
 
     LOG_INFO(NetLog,
-        "WSAStartup  : SUCCESS\n"
+        "STARTUP     : SUCCESS\n"
         "VERSION     : {}.{}\n"
         "DESCRIPTION : `{}`\n"
         "STATUS      : `{}`",

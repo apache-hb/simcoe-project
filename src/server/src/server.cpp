@@ -55,12 +55,14 @@ static int serverMain() {
     };
 
     std::jthread serverThread = std::jthread([&](const std::stop_token& stop) {
-        server.listen(16);
+        server.begin(16);
 
         std::stop_callback cb(stop, [&] {
             LOG_INFO(ServerLog, "Stopping server");
             server.stop();
         });
+
+        server.work();
     });
 
     serverGui(server);
