@@ -57,12 +57,25 @@ static void writeScreen(draw::shared::Vic20Screen& screen, size_t index, uint8_t
     writeColour(screen, index, colour);
 }
 
+static uint8_t getCharacter(draw::shared::Vic20Screen& screen, size_t index) {
+    uint32_t offset = index / sizeof(draw::shared::ScreenElement);
+    uint32_t byte = index % sizeof(draw::shared::ScreenElement);
+    return (screen.screen[offset] >> (byte * 8)) & 0xFF;
+}
+
+static uint8_t getColour(draw::shared::Vic20Screen& screen, size_t index) {
+    uint32_t offset = index / sizeof(draw::shared::ScreenElement);
+    uint32_t byte = index % sizeof(draw::shared::ScreenElement);
+    return (screen.colour[offset] >> (byte * 8)) & 0xFF;
+}
+
 #define VIC20_PPC (VIC20_SCREEN_WIDTH / VIC20_SCREEN_CHARS_WIDTH)
 
 #define ENTITY_COLUMN(ent) ((ent) / VIC20_PPC)
 
 #define PLAYER_COLOUR VIC20_CHAR_COLOUR(VIC20_COLOUR_LIGHT_BLUE, VIC20_COLOUR_BLACK)
 #define ALIEN_COLOUR VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK)
+#define MISSILE_COLOUR VIC20_CHAR_COLOUR(VIC20_COLOUR_LIGHT_RED, VIC20_COLOUR_BLACK)
 #define CELL_COLOUR VIC20_CHAR_COLOUR(VIC20_COLOUR_DARK_PURPLE, VIC20_COLOUR_BLACK)
 #define SHOT_COLOUR VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK)
 
@@ -75,10 +88,12 @@ static bool isPlayerShot(uint8_t c) {
     return c >= CC_SHOT_0 && c <= CC_SHOT_7;
 }
 
+enum { eEmpty, eMoveLeft, eMoveRight, eMoveDown };
+
 struct Ship {
     uint8_t x;
     uint8_t y;
-    enum { eEmpty, eMoveLeft, eMoveRight, eMoveDown } state = eEmpty;
+    int state = eEmpty;
 
     void update() {
         switch (state) {
@@ -115,6 +130,12 @@ struct Ship {
     }
 };
 
+struct Missile {
+    uint8_t x;
+    uint8_t y;
+    int state = eEmpty;
+};
+
 struct GameState {
     static constexpr size_t kHeight = VIC20_SCREEN_CHARS_HEIGHT - kAlienRow - 1;
     static constexpr size_t kGridStart = VIC20_SCREEN_CHARS_HEIGHT - kGridLimit - 1;
@@ -125,11 +146,22 @@ struct GameState {
     }
 
     Ship ships[8] = {};
+    Missile missiles[16] = {};
 
     Ship *shipAt(int x, int y) {
         for (Ship& ship : ships) {
-            if (ship.state != Ship::eEmpty && ship.x == x && ship.y == y) {
+            if (ship.state != eEmpty && ship.x == x && ship.y == y) {
                 return &ship;
+            }
+        }
+
+        return nullptr;
+    }
+
+    Missile *missileAt(int x, int y) {
+        for (Missile& missile : missiles) {
+            if (missile.state != eEmpty && missile.x == x && missile.y == y) {
+                return &missile;
             }
         }
 
@@ -143,10 +175,10 @@ struct GameState {
         }
 
         for (Ship& ship : ships) {
-            if (ship.state == Ship::eEmpty) {
+            if (ship.state == eEmpty) {
                 ship.x = col;
                 ship.y = 4;
-                ship.state = Ship::eMoveDown;
+                ship.state = eMoveDown;
                 break;
             }
         }
@@ -165,12 +197,22 @@ struct GameState {
                 uint8_t& v = getCell(x, i + 1);
                 if (isPlayerShot(v)) {
                     if (Ship *ship = shipAt(x, i)) {
-                        ship->state = Ship::eEmpty;
+                        ship->state = eEmpty;
                         v = CC_ENEMY_HIT;
                         score += 25;
                     }
                     else if (Ship *ship = shipAt(x, i + 1)) {
-                        ship->state = Ship::eEmpty;
+                        ship->state = eEmpty;
+                        v = CC_ENEMY_HIT;
+                        score += 25;
+                    }
+                    else if (Missile *missile = missileAt(x, i)) {
+                        missile->state = eEmpty;
+                        v = CC_ENEMY_HIT;
+                        score += 25;
+                    }
+                    else if (Missile *missile = missileAt(x, i + 1)) {
+                        missile->state = eEmpty;
                         v = CC_ENEMY_HIT;
                         score += 25;
                     }
@@ -186,25 +228,69 @@ struct GameState {
         }
     }
 
-    bool tryKillShip(Ship& ship, int x, int y) {
-        uint8_t& c = getCell(x, y);
-        if (c != 0) {
-            ship.state = Ship::eEmpty;
-            getCell(ship.x, ship.y) = CC_ENEMY_HIT;
-            return true;
+    void addMissile(int x, int y, int dir) {
+        for (Missile& missile : missiles) {
+            if (missile.state == eEmpty) {
+                missile.x = x;
+                missile.y = y;
+                missile.state = dir;
+                break;
+            }
         }
-
-        return false;
     }
 
-    void moveEnemyShips(int& rng) {
-        for (Ship& ship : ships) {
-            if (ship.y >= kHeight) {
-                ship.state = Ship::eEmpty;
+    bool moveEnemyShips(int& rng, int player) {
+        bool playerhit = false;
+        for (Missile& missile : missiles) {
+            if (missile.state == eEmpty) {
                 continue;
             }
 
-            if (ship.state == Ship::eEmpty) {
+            if (missile.y == kHeight && missile.x == ENTITY_COLUMN(player)) {
+                playerhit = true;
+                missile.state = eEmpty;
+                continue;
+            }
+
+            if (missile.y >= kHeight) {
+                missile.state = eEmpty;
+                continue;
+            }
+
+
+            if (missile.state == eMoveDown) {
+                missile.y++;
+                continue;
+            }
+
+            if (missile.state == eMoveLeft) {
+                missile.x--;
+                missile.y++;
+                continue;
+            }
+
+            if (missile.state == eMoveRight) {
+                missile.x++;
+                missile.y++;
+                continue;
+            }
+        }
+
+        for (Ship& ship : ships) {
+            if (ship.y >= kHeight) {
+                ship.state = eEmpty;
+                continue;
+            }
+
+            if (ship.state == eEmpty) {
+                continue;
+            }
+
+            if (ship.y >= kGridStart) {
+                ship.state = eEmpty;
+                addMissile(ship.x, ship.y, eMoveDown);
+                addMissile(ship.x, ship.y, eMoveLeft);
+                addMissile(ship.x, ship.y, eMoveRight);
                 continue;
             }
 
@@ -214,6 +300,8 @@ struct GameState {
 
             ship.update();
         }
+
+        return playerhit;
     }
 };
 
@@ -293,9 +381,18 @@ static void drawGameState(draw::shared::Vic20Screen& screen, GameState& state) {
     }
 
     for (Ship& ship : state.ships) {
-        if (ship.state != Ship::eEmpty) {
+        if (ship.state != eEmpty) {
             int offset = ship.y * VIC20_SCREEN_CHARS_WIDTH + ship.x;
-            writeScreen(screen, offset, CC_SMALL_SHIP, ALIEN_COLOUR);
+            uint8_t tile = ship.y > (kAlienRow + 12) ? CC_ENEMY_MISSILE : CC_SMALL_SHIP;
+            uint8_t colour = ship.y > (kAlienRow + 12) ? ALIEN_COLOUR : PLAYER_COLOUR;
+            writeScreen(screen, offset, tile, colour);
+        }
+    }
+
+    for (Missile& missile : state.missiles) {
+        if (missile.state != eEmpty) {
+            int offset = missile.y * VIC20_SCREEN_CHARS_WIDTH + missile.x;
+            writeScreen(screen, offset, CC_ENEMY_BOMB, MISSILE_COLOUR);
         }
     }
 }
@@ -405,6 +502,8 @@ static int commonMain(launch::LaunchResult& launch) noexcept try {
     float accumulator = 0.0f;
     int counter = 0;
     int rng = 0;
+    int hitframe = -1;
+    int health = 3;
 
     float last = ImGui::GetTime();
 
@@ -428,6 +527,11 @@ static int commonMain(launch::LaunchResult& launch) noexcept try {
 
         while (accumulator >= tickrate) {
             accumulator -= tickrate;
+
+            if (hitframe > -1) {
+                hitframe -= 1;
+                continue;
+            }
 
             everyCountFrames(60, [&] {
                 score += 10;
@@ -464,7 +568,9 @@ static int commonMain(launch::LaunchResult& launch) noexcept try {
             });
 
             everyCountFrames(10, [&] {
-                state.moveEnemyShips(rng);
+                if (state.moveEnemyShips(rng, player)) {
+                    hitframe = 60;
+                }
             });
 
             // if a player bullet hits a grid tile change its colour
@@ -506,6 +612,38 @@ static int commonMain(launch::LaunchResult& launch) noexcept try {
         drawHighScore(screen, highscore);
 
         drawCopyright(screen);
+
+        if (hitframe > 0) {
+            int rounded = hitframe / 15;
+
+            // pick a random colour based on rounded and fill the background with it
+            uint8_t colour = rounded % 15;
+            for (int i = 0; i < VIC20_SCREEN_CHARS_WIDTH * VIC20_SCREEN_CHARS_HEIGHT; i++) {
+                uint8_t colour = getColour(screen, i);
+                colour = ((rounded + 7 % 15) << 4) | (rounded % 15);
+                writeColour(screen, i, colour);
+            }
+
+            if (rounded % 2 == 0) {
+                // slide all the characters to the right
+                for (int i = 0; i < VIC20_SCREEN_CHARS_WIDTH * VIC20_SCREEN_CHARS_HEIGHT; i++) {
+                    uint8_t c = getCharacter(screen, i);
+                    if (c == 0) {
+                        continue;
+                    }
+
+                    int x = i % VIC20_SCREEN_CHARS_WIDTH;
+                    int y = i / VIC20_SCREEN_CHARS_WIDTH;
+
+                    if (x == 0) {
+                        continue;
+                    }
+
+                    writeScreen(screen, i - 1, c, getColour(screen, i - 1));
+                    writeScreen(screen, i, 0, 0);
+                }
+            }
+        }
 
         if (debugchars) {
             for (int i = 0; i < VIC20_SCREEN_CHARBUFFER_SIZE; i++) {
