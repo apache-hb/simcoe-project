@@ -2,6 +2,8 @@
 
 #include "account/guid.hpp"
 
+#include <string_view>
+
 /**
  * Network packets for game and account actions.
  * Features 0 protection from mitm attacks or packet tampering. :^)
@@ -282,6 +284,22 @@ namespace game {
             : header(PacketType::eStartGame, sizeof(StartGame), id, stream)
             , session(session)
             , lobby(lobby)
+        { }
+    };
+
+    struct SendMessage {
+        PacketHeader header;
+        SessionId author;
+        uint64_t timestamp;
+        Text<256> message;
+
+        SendMessage() = default;
+
+        SendMessage(uint16_t id, uint8_t stream, SessionId author, uint64_t timestamp, std::string_view message)
+            : header(PacketType::ePostMessage, sizeof(SendMessage), id, stream)
+            , author(author)
+            , timestamp(timestamp)
+            , message(message)
         { }
     };
 }

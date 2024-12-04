@@ -17,11 +17,6 @@ static void closeSocket(std::atomic<system::os::SocketHandle> *socket) {
     if (socket != nullptr) {
         system::os::SocketHandle handle = socket->exchange(system::os::kInvalidSocket);
         if (handle != system::os::kInvalidSocket) {
-            fmt::println(stderr, "closing socket {}", handle);
-            auto stacktrace = std::stacktrace::current();
-            for (const auto& frame : stacktrace) {
-                fmt::print(stderr, "{}\n", frame.description());
-            }
             system::os::destroySocket(handle);
         }
     }

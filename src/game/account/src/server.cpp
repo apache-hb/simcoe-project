@@ -4,6 +4,7 @@
 
 #include "core/defer.hpp"
 
+#include <cstdio>
 #include <fmtlib/format.h>
 
 #include "account.dao.hpp"
@@ -107,11 +108,9 @@ LobbyId AccountServer::createLobby(game::CreateLobby info) {
 
     auto result = mAccountDb.tryInsertReturningPrimaryKey(lobby);
     if (!result.has_value()) {
-        fmt::println(stderr, "failed to create lobby: {}", result.error());
         return UINT64_MAX;
     }
 
-    fmt::println(stderr, "created lobby: {}", result.value());
     return result.value();
 }
 
@@ -193,6 +192,19 @@ void AccountServer::dropSession(SessionId session) {
     if (db::DbError error = stmt.execute()) {
         LOG_WARN(GlobalLog, "Failed to remove data associated with session {}. {}", session, error);
     }
+
+    mOpenClients.erase(session);
+}
+
+void AccountServer::broadcastMessage(SendMessage message) {
+    std::lock_guard guard(mDbMutex);
+
+    for (auto& [id, clients] : mOpenClients) {
+        if (id == message.author)
+            continue;
+
+        clients.push_back(message);
+    }
 }
 
 void AccountServer::handleClient(const std::stop_token& stop, net::Socket socket) noexcept try {
@@ -216,11 +228,17 @@ void AccountServer::handleClient(const std::stop_token& stop, net::Socket socket
     });
 
     router.addRoute<Login>(PacketType::eLogin, [this, &session](const Login& req) {
+        if (session != UINT64_MAX) {
+            return NewSession { req.header, session };
+        }
+
         SessionId auth = login(req);
         if (auth == UINT64_MAX) {
             return NewSession { req.header };
         } else {
             session = auth;
+            std::lock_guard guard(mDbMutex);
+            mOpenClients[session] = {};
             return NewSession { req.header, auth };
         }
     });
@@ -276,6 +294,17 @@ void AccountServer::handleClient(const std::stop_token& stop, net::Socket socket
         net::throwIfFailed(socket.sendBytes(data.get(), size));
     });
 
+    router.addRoute<SendMessage>(PacketType::ePostMessage, [&](const SendMessage& req) {
+        if (!authSession(req.author)) {
+            return Response { req.header, Status::eFailure };
+        }
+
+        broadcastMessage(req);
+
+        LOG_INFO(GlobalLog, "received message: {}", req.message.text());
+        return Response { req.header, Status::eSuccess };
+    });
+
     SocketMux mux;
 
     while (!stop.stop_requested()) {
@@ -286,6 +315,20 @@ void AccountServer::handleClient(const std::stop_token& stop, net::Socket socket
                 LOG_INFO(GlobalLog, "dropping client connection");
                 return;
             }
+        }
+
+        if (session != UINT64_MAX) {
+            std::lock_guard guard(mDbMutex);
+            auto& messages = mOpenClients[session];
+            for (auto& message : messages) {
+                message.header.stream = kMessageStream;
+                if (net::NetError error = socket.send(message); error) {
+                    LOG_WARN(GlobalLog, "failed to send message: {}", error);
+                    return;
+                }
+            }
+
+            messages.clear();
         }
 
         mux.pop(kEventStream); // server doesnt handle events, just keep the queue empty
@@ -341,9 +384,11 @@ void AccountServer::work() {
 
         net::Socket socket = net::throwIfFailed(std::move(client));
 
-        threads.emplace(std::make_unique<std::jthread>([&, socket = std::move(socket)](const std::stop_token& stop) mutable {
-            handleClient(stop, std::move(socket));
-        }));
+        threads.emplace(
+            std::make_unique<std::jthread>([&, socket = std::move(socket)](const std::stop_token& stop) mutable {
+                handleClient(stop, std::move(socket));
+            })
+        );
     }
 }
 

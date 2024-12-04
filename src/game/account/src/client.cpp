@@ -117,6 +117,19 @@ void AccountClient::leaveLobby() {
     mCurrentLobby = UINT64_MAX;
 }
 
+bool AccountClient::sendMessage(std::string_view message) {
+    if (!isAuthed())
+        return false;
+
+    if (message.size() > sizeof(SendMessage::message)) {
+        return false;
+    }
+
+    mSocket.send(SendMessage { mNextId++, kClientStream, mCurrentSession, 0, message }).throwIfFailed();
+
+    return true;
+}
+
 static size_t getSessionListSize(const SessionList *list) {
     size_t size = std::max<size_t>(list->response.header.size, sizeof(SessionList)) - sizeof(SessionList);
     if (size % sizeof(SessionInfo) != 0)
@@ -181,6 +194,17 @@ bool AccountClient::refreshLobbyList() {
     }
 
     return false;
+}
+
+bool AccountClient::refreshMessageList() {
+    work();
+    
+    while (AnyPacket packet = mSocketMux.pop(kMessageStream)) {
+        SendMessage& message = *std::bit_cast<SendMessage*>(packet.data());
+        mMessages.push_back(Message { .author = "TODO", .message = std::string{message.message.text()} });
+    }
+
+    return true;
 }
 
 AnyPacket AccountClient::getNextMessage(uint8_t stream) {

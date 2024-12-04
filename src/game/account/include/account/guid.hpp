@@ -4,6 +4,7 @@
 #include <cstring>
 
 #include <utility>
+#include <functional>
 
 namespace game {
     struct Guid {

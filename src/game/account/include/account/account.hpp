@@ -14,6 +14,7 @@
 namespace game {
     static constexpr uint8_t kClientStream = 0;
     static constexpr uint8_t kEventStream = 1;
+    static constexpr uint8_t kMessageStream = 2;
 
     class AccountServer {
         std::mutex mDbMutex;
@@ -24,6 +25,8 @@ namespace game {
 
         std::mutex mSaltMutex;
         Salt mSalt;
+
+        std::unordered_map<SessionId, std::vector<SendMessage>> mOpenClients;
 
         bool authSession(SessionId id);
 
@@ -38,6 +41,8 @@ namespace game {
         void handleClient(const std::stop_token& stop, sm::net::Socket socket) noexcept;
 
         void dropSession(SessionId session);
+
+        void broadcastMessage(SendMessage message);
 
     public:
         AccountServer(sm::db::Connection db, sm::net::Network& net, const sm::net::Address& address, uint16_t port) throws(sm::db::DbException);
@@ -58,6 +63,11 @@ namespace game {
         uint16_t getPort() { return mServer.getBoundPort(); }
     };
 
+    struct Message {
+        std::string author;
+        std::string message;
+    };
+
     class AccountClient {
         sm::net::Socket mSocket;
         SocketMux mSocketMux;
@@ -72,6 +82,8 @@ namespace game {
 
         std::vector<SessionInfo> mSessions;
         std::vector<LobbyInfo> mLobbies;
+
+        std::vector<Message> mMessages;
 
     public:
         AccountClient(sm::net::Network& net, const sm::net::Address& address, uint16_t port) throws(sm::net::NetException);
@@ -93,6 +105,7 @@ namespace game {
 
         bool refreshSessionList();
         bool refreshLobbyList();
+        bool refreshMessageList();
 
         AnyPacket getNextMessage(uint8_t stream);
 
@@ -100,5 +113,6 @@ namespace game {
 
         std::vector<SessionInfo> getSessionInfo() { return mSessions; }
         std::vector<LobbyInfo> getLobbyInfo() { return mLobbies; }
+        std::vector<Message> getMessages() { return mMessages; }
     };
 }
