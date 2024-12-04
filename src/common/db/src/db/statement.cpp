@@ -39,6 +39,10 @@ DbError PreparedStatement::execute() noexcept {
     return mImpl->execute();
 }
 
+int64_t PreparedStatement::rowsAffected() const noexcept {
+    return mImpl->getRowsAffected();
+}
+
 template<typename T>
 void tryBindField(BindPoint& binding, const void *field, bool nullable) {
     using Option = std::optional<T>;

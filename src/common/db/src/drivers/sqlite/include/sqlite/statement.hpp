@@ -18,11 +18,13 @@ namespace sm::db::sqlite {
         SqliteStmtHandle mStatement = nullptr;
         std::forward_list<DataHolder> mBoundData;
         int mStatus = SQLITE_OK;
+        uint64_t mRowsAffected = -1;
 
         void *addBoundData(Blob data);
         const char *addBoundData(std::string_view data);
 
         DbError getStmtError(int err) const noexcept;
+        DbError getExecuteResult(int status) noexcept;
         bool hasDataReady() const noexcept override { return mStatus == SQLITE_ROW; }
 
     public:
@@ -32,6 +34,7 @@ namespace sm::db::sqlite {
         std::string getSql() const override;
 
         int getBindCount() const noexcept override;
+        int64_t getRowsAffected() const noexcept override;
 
         DbError getBindIndex(std::string_view name, int& index) const noexcept override;
 

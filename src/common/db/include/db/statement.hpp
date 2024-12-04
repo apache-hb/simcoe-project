@@ -39,6 +39,9 @@ namespace sm::db {
 
         [[nodiscard]]
         StatementType type() const noexcept { return mType; }
+
+        [[nodiscard]]
+        int64_t rowsAffected() const noexcept;
     };
 
     void bindRowToStatement(PreparedStatement& stmt, const dao::TableInfo& info, bool returning, const void *data) throws(DbException);

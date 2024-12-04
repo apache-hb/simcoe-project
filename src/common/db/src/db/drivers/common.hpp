@@ -199,6 +199,10 @@ namespace sm::db::detail {
             return -1;
         }
 
+        virtual int64_t getRowsAffected() const noexcept {
+            return -1;
+        }
+
         virtual bool hasDataReady() const noexcept {
             return true;
         }

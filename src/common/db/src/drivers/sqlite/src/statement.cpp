@@ -64,21 +64,32 @@ const char *SqliteStatement::addBoundData(std::string_view data) {
 }
 
 DbError SqliteStatement::getStmtError(int err) const noexcept {
-    if (err == SQLITE_DONE)
+    if (err == SQLITE_DONE) {
         return DbError::done(err);
+    }
 
     return getError(err, sqlite3_db_handle(mStatement.get()));
 }
 
+DbError SqliteStatement::getExecuteResult(int status) noexcept {
+    if (status == SQLITE_DONE) {
+        mRowsAffected = sqlite3_changes64(sqlite3_db_handle(mStatement.get()));
+        return DbError::done(status);
+    }
+
+    return getError(status, sqlite3_db_handle(mStatement.get()));
+}
+
 DbError SqliteStatement::start(bool autoCommit, StatementType type) noexcept {
     mStatus = runUntilData(mStatement.get());
-    return getStmtError(mStatus);
+    return getExecuteResult(mStatus);
 }
 
 DbError SqliteStatement::execute() noexcept {
     if (mStatus != SQLITE_DONE)
         runUntilComplete(mStatement.get());
 
+    mRowsAffected = sqlite3_changes64(sqlite3_db_handle(mStatement.get()));
     sqlite3_reset(mStatement.get());
 
     if (int err = sqlite3_clear_bindings(mStatement.get()); err != SQLITE_OK)
@@ -89,7 +100,7 @@ DbError SqliteStatement::execute() noexcept {
 
 DbError SqliteStatement::next() noexcept {
     mStatus = doStep(mStatement.get());
-    return getStmtError(mStatus);
+    return getExecuteResult(mStatus);
 }
 
 std::string SqliteStatement::getSql() const {
@@ -98,6 +109,10 @@ std::string SqliteStatement::getSql() const {
 
 int SqliteStatement::getBindCount() const noexcept {
     return sqlite3_bind_parameter_count(mStatement.get());
+}
+
+int64_t SqliteStatement::getRowsAffected() const noexcept {
+    return mRowsAffected;
 }
 
 DbError SqliteStatement::getBindIndex(std::string_view name, int& index) const noexcept {

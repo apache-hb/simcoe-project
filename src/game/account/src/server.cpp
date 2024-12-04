@@ -129,7 +129,7 @@ bool AccountServer::joinLobby(game::JoinLobby info) {
     stmt.bind("lobby").to(info.lobby);
     auto result = stmt.execute();
 
-    return result.isSuccess();
+    return result.isSuccess() && stmt.rowsAffected() > 0;
 }
 
 uint64_t AccountServer::getSessionList(std::span<SessionInfo> sessions) {
