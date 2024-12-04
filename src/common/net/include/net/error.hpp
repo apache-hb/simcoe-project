@@ -18,14 +18,14 @@ namespace sm::net {
 
         int mCode;
 
-        NetError(int code, std::string_view message);
 
     public:
         using Exception = class NetException;
 
         NetError(int code);
+        NetError(int code, std::string_view message);
 
-        template<typename... A>
+        template<typename... A> requires (sizeof...(A) > 0)
         NetError(int code, fmt::format_string<A...> fmt, A&&... args)
             : NetError(code, fmt::vformat(fmt, fmt::make_format_args(args...)))
         { }
@@ -47,7 +47,7 @@ namespace sm::net {
 
         template<typename... A>
         NetException(int code, fmt::format_string<A...> fmt, A&&... args)
-            : Super(NetError(code, fmt, args...))
+            : Super(NetError(code, fmt::vformat(fmt, fmt::make_format_args(args...))))
         { }
     };
 

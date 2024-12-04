@@ -64,11 +64,21 @@ struct TestServerConfig {
     }
 
     std::jthread run(game::AccountServer& server, NetTestStream& errors, int count = 20) {
-        auto thread = std::jthread([&, count](const std::stop_token& stop) {
+        std::latch latch{1};
+        std::jthread thread = std::jthread([&, count](const std::stop_token& stop) {
             try {
-                std::stop_callback cb(stop, [&] { server.stop(); });
+                fmt::println(stderr, "Begin server");
+
+                std::stop_callback cb(stop, [&] { 
+                    fmt::println(stderr, "Cancel server");
+                    server.stop(); 
+                });
+
+                latch.count_down();
+
                 server.listen(count);
             } catch (const errors::AnyException& e) {
+                fmt::println(stderr, "Server exception: {}", e.what());
                 for (const auto& frame : e.stacktrace()) {
                     fmt::print(stderr, "{}\n", frame.description());
                 }
@@ -79,8 +89,7 @@ struct TestServerConfig {
             }
         });
 
-        while (!server.isRunning())
-            std::this_thread::yield();
+        latch.arrive_and_wait();
 
         return thread;
     }

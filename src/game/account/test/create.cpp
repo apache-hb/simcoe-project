@@ -19,12 +19,10 @@ TEST_CASE("Account Create") {
         game::AccountServer server = test.server(kAddress, 0, 1234);
         uint16_t port = server.getPort();
 
-        std::jthread serverThread = test.run(server, errors, kClientCount);
+        auto serverThread = test.run(server, errors, kClientCount);
 
         // create clients
         createTestAccounts(test.network, kAddress, port, errors, kClientCount);
-    
-        serverThread.request_stop();
     }
 
     db::Connection db2 = test.connect();

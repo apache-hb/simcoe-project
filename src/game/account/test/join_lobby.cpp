@@ -21,7 +21,7 @@ TEST_CASE("Join lobby and start game") {
         game::AccountServer server = test.server(kAddress, 0, 1234);
         uint16_t port = server.getPort();
 
-        std::jthread serverThread = test.run(server, errors, kClientCount);
+        auto serverThread = test.run(server, errors, kClientCount);
 
         game::AccountClient client0 { test.network, kAddress, port };
         game::AccountClient client1 { test.network, kAddress, port };
@@ -41,8 +41,6 @@ TEST_CASE("Join lobby and start game") {
         client1.joinLobby(client1.getLobbyInfo()[0].id);
 
         client0.startGame();
-
-        serverThread.request_stop();
     } catch (const errors::AnyException& e) {
         for (const auto& frame : e.stacktrace()) {
             fmt::print(stderr, "{}\n", frame.description());
