@@ -24,3 +24,5 @@ executable('client', src,
     ],
     dependencies : deps
 )
+
+install_data('data/imgui.ini', install_dir : 'bin', install_tag : 'bin')

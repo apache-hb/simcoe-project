@@ -731,13 +731,6 @@ static int commonMain(launch::LaunchResult& launch) noexcept try {
     while (clientWindow.next()) {
         ImGui::DockSpaceOverViewport();
 
-        static bool debugchars = false;
-
-        if (ImGui::Begin("Game")) {
-            ImGui::Checkbox("Debug Characters", &debugchars);
-        }
-        ImGui::End();
-
         float now = ImGui::GetTime();
         float delta = now - last;
         last = now;
@@ -766,12 +759,6 @@ static int commonMain(launch::LaunchResult& launch) noexcept try {
             game.draw(screen);
         } else {
             start.draw(screen);
-        }
-
-        if (debugchars) {
-            for (int i = 0; i < VIC20_SCREEN_CHARBUFFER_SIZE; i++) {
-                writeScreen(screen, i, i, VIC20_CHAR_COLOUR(VIC20_COLOUR_WHITE, VIC20_COLOUR_BLACK));
-            }
         }
 
         context.setScreen(screen);

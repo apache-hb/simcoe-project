@@ -12,6 +12,31 @@ $env:DISPLAY = "localhost:0"
 ## values
 common values
 
+## interfaces
+
+00000000-0000-0000-a9fe-1a4a00000000
+
+00000000-0000-0000-a9fe-017000000000
+
+00000000-0000-0000-a9fe-00ce00000000
+
+as far as i can tell these are the big 3 interfaces,
+I cant tell much about which operations are being called on them
+as oracles implementation of dce/rpc either isnt compliant or has
+extensions that change the header, so wireshark isnt able to grok
+much of it sensibly. interface versions and opnums are pretty mangled
+in the packet headers.
+
+I know oracledb engineers really like their enums with ascii representations
+so im guessing that `Tm#`, `Mm#`, `Sm#` all mean something important. they
+turn up alot in the message stream. Wild guess i'd say something to do with
+data encoding, Sm# seems to be sent alot in repeating blocks so maybe arrays
+have Sm# at the header of each element depending on the type?
+Tm# seems to only be sent once per message so maybe its part of an internal header.
+
+The actual packet header is very wrong, its marked as EBCDIC encoding when its
+actually ascii encoded.
+
 ### fourcc
 * KSXP
 * MRON
