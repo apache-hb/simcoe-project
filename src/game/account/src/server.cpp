@@ -31,8 +31,8 @@ static std::optional<acd::User> getUserByName(db::Connection& db, std::string_vi
 bool AccountServer::authSession(SessionId id) {
     std::lock_guard guard(mDbMutex);
 
-    auto stmt = mAccountDb.prepareQuery("SELECT COUNT(*) FROM session WHERE id = :user");
-    stmt.bind("user").to(id);
+    auto stmt = mAccountDb.prepareQuery("SELECT COUNT(*) FROM session WHERE id = :id");
+    stmt.bind("id").to(id);
     auto result = db::throwIfFailed(stmt.start());
 
     return result.at<int>(0) > 0;
@@ -120,7 +120,7 @@ bool AccountServer::joinLobby(game::JoinLobby info) {
 
     std::string_view sql = R"(
         UPDATE lobby
-        SET state = 'J', user = :user
+        SET state = 'J', client = :user
         WHERE id = :lobby AND state = 'O'
     )";
 
@@ -324,8 +324,15 @@ AccountServer::AccountServer(db::Connection db, net::Network& net, const net::Ad
 }
 
 void AccountServer::listen(uint16_t connections) {
-    mServer.listen(connections).throwIfFailed();
+    begin(connections);
+    work();
+}
 
+void AccountServer::begin(uint16_t connections) {
+    mServer.listen(connections).throwIfFailed();
+}
+
+void AccountServer::work() {
     std::unordered_set<std::unique_ptr<std::jthread>> threads;
     while (mServer.isActive()) {
         net::NetResult<net::Socket> client = mServer.tryAccept();

@@ -3,7 +3,6 @@
 using namespace sm;
 
 static constexpr net::Address kAddress = net::Address::loopback();
-static constexpr int kClientCount = 20;
 
 namespace acd = sm::dao::account;
 

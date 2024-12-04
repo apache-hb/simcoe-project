@@ -2,6 +2,7 @@
 
 #include "common.hpp"
 #include "system/posix/network.hpp"
+#include <cstdio>
 
 using namespace sm;
 using namespace sm::net;
@@ -14,12 +15,15 @@ namespace chrono = std::chrono;
 
 static void closeSocket(std::atomic<system::os::SocketHandle> *socket) {
     if (socket != nullptr) {
-        fmt::println(stderr, "Destroy socket {}", socket->load());
-        auto stacktrace = std::stacktrace::current();
-        for (const auto& frame : stacktrace) {
-            fmt::print(stderr, "{}\n", frame.description());
+        system::os::SocketHandle handle = socket->exchange(system::os::kInvalidSocket);
+        if (handle != system::os::kInvalidSocket) {
+            fmt::println(stderr, "closing socket {}", handle);
+            auto stacktrace = std::stacktrace::current();
+            for (const auto& frame : stacktrace) {
+                fmt::print(stderr, "{}\n", frame.description());
+            }
+            system::os::destroySocket(handle);
         }
-        system::os::destroySocket(socket->exchange(system::os::kInvalidSocket));
     }
 }
 

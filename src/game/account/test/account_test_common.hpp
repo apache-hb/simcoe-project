@@ -13,6 +13,8 @@ using namespace sm;
 
 namespace acd = sm::dao::account;
 
+static const unsigned kClientCount = std::clamp(std::thread::hardware_concurrency(), 4u, 20u);
+
 std::string newClientName(int i);
 void createTestAccounts(net::Network& network, net::Address address, uint16_t port, NetTestStream& errors, int count);
 
@@ -64,19 +66,16 @@ struct TestServerConfig {
     }
 
     std::jthread run(game::AccountServer& server, NetTestStream& errors, int count = 20) {
-        std::latch latch{1};
+        std::latch latch{2};
         std::jthread thread = std::jthread([&, count](const std::stop_token& stop) {
             try {
-                fmt::println(stderr, "Begin server");
+                std::stop_callback cb(stop, [&] { server.stop();  });
 
-                std::stop_callback cb(stop, [&] { 
-                    fmt::println(stderr, "Cancel server");
-                    server.stop(); 
-                });
+                server.begin(count);
 
                 latch.count_down();
 
-                server.listen(count);
+                server.work();
             } catch (const errors::AnyException& e) {
                 fmt::println(stderr, "Server exception: {}", e.what());
                 for (const auto& frame : e.stacktrace()) {

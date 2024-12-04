@@ -46,7 +46,11 @@ namespace game {
         SM_NOCOPY(AccountServer);
         SM_NOMOVE(AccountServer);
 
+        [[deprecated("Use begin() and work() to prevent race conditions")]]
         void listen(uint16_t connections);
+
+        void begin(uint16_t connections);
+        void work();
         void stop();
 
         bool isRunning() const;
