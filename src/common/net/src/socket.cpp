@@ -1,7 +1,7 @@
 #include "stdafx.hpp"
 
 #include "common.hpp"
-#include "system/posix/network.hpp"
+
 #include <cstdio>
 
 using namespace sm;
@@ -93,7 +93,7 @@ bool Socket::isActive() const noexcept {
 
     int error = 0;
     socklen_t len = sizeof(error);
-    if (::getsockopt(handle, SOL_SOCKET, SO_ERROR, &error, &len) == -1)
+    if (::getsockopt(handle, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&error), &len) == -1)
         return false;
 
     return error == 0;

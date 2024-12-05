@@ -33,7 +33,7 @@ namespace sm::threads {
         template<typename F>
         ThreadHandle launch(F &&fn) {
             auto thunk = [](void *param) noexcept -> unsigned long {
-                auto fn = sm::makeUnique<F>(reinterpret_cast<F*>(param));
+                auto fn = std::make_unique<F>(reinterpret_cast<F*>(param));
 
                 try {
                     (*fn)();

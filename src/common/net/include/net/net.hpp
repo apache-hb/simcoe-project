@@ -8,7 +8,6 @@
 #include "core/throws.hpp"
 
 #include "system/network.hpp"
-#include "system/posix/network.hpp"
 
 #include <atomic>
 #include <expected>
@@ -100,7 +99,7 @@ namespace sm::net {
         NetError setRecvTimeout(std::chrono::milliseconds timeout) noexcept;
         NetError setSendTimeout(std::chrono::milliseconds timeout) noexcept;
 
-        system::os::SocketHandle get() const noexcept { 
+        system::os::SocketHandle get() const noexcept {
             return mSocket ? mSocket->load() : system::os::kInvalidSocket;
         }
     };

@@ -356,7 +356,6 @@ math::float3 CharacterBody::getUpVector() const {
 
 void CharacterBody::setUpVector(const math::float3& up) {
     mImpl->body->SetUp(to_jph(up));
-    // mImpl->body->SetUp(to_jph(up));
 }
 
 math::float3 CharacterBody::getPosition() const {
@@ -369,7 +368,6 @@ math::quatf CharacterBody::getRotation() const {
 
 void CharacterBody::setRotation(const math::quatf& rotation) {
     mImpl->body->SetRotation(to_jph(rotation));
-    // mImpl->body->SetRotation(to_jph(rotation));
 }
 
 math::float3 CharacterBody::getGroundNormal() const {

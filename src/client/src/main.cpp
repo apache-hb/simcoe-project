@@ -549,11 +549,11 @@ struct MainGameLoop {
             score += 10;
         });
 
-        if (ImGui::IsKeyDown(ImGuiKey_LeftArrow)) {
+        if (ImGui::IsKeyDown(ImGuiKey_LeftArrow) || ImGui::IsKeyDown(ImGuiKey_GamepadDpadLeft)) {
             player -= movespeed;
         }
 
-        if (ImGui::IsKeyDown(ImGuiKey_RightArrow)) {
+        if (ImGui::IsKeyDown(ImGuiKey_RightArrow) || ImGui::IsKeyDown(ImGuiKey_GamepadDpadRight)) {
             player += movespeed;
         }
 
@@ -606,7 +606,7 @@ struct MainGameLoop {
     }
 
     void draw(draw::shared::Vic20Screen& screen) {
-        if (ImGui::IsKeyPressed(ImGuiKey_Space, false)) {
+        if (ImGui::IsKeyPressed(ImGuiKey_Space, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadFaceDown, false)) {
             int shot = player % VIC20_PPC;
             int row = (GameState::kHeight - 1) * VIC20_SCREEN_CHARS_WIDTH;
             state.cell[row + ENTITY_COLUMN(player)] = CC_SHOT_0 + shot;
@@ -665,7 +665,7 @@ struct GameStartScreen {
     bool start = false;
 
     bool update() {
-        if (ImGui::IsKeyDown(ImGuiKey_Space)) {
+        if (ImGui::IsKeyDown(ImGuiKey_Space) || ImGui::IsKeyDown(ImGuiKey_GamepadFaceDown)) {
             start = true;
         }
 

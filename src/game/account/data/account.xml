@@ -34,5 +34,8 @@
         </column>
 
         <column name="state" type="char" length="1" />
+
+        <!-- tic-tac-toe can be encoded into a single uint, so just do that -->
+        <column name="board" type="uint" />
     </table>
 </root>
