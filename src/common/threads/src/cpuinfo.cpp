@@ -1,31 +1,69 @@
 #include "cpuinfo.hpp"
 
-using namespace sm::threads::detail;
+namespace threads = sm::threads;
+namespace detail = sm::threads::detail;
 
-template <typename T>
-T *advance(T *ptr, size_t bytes) noexcept {
-    return reinterpret_cast<T *>(reinterpret_cast<std::byte *>(ptr) + bytes);
+detail::CpuInfoLibrary detail::CpuInfoLibrary::load() {
+    sm::Library kernel32{"kernel32.dll"};
+    auto pfnGetSystemCpuSetInformation = DLSYM(kernel32, GetSystemCpuSetInformation);
+    auto pfnGetLogicalProcessorInformationEx = DLSYM(kernel32, GetLogicalProcessorInformationEx);
+
+    return CpuInfoLibrary {
+        std::move(kernel32),
+        pfnGetSystemCpuSetInformation,
+        pfnGetLogicalProcessorInformationEx
+    };
 }
 
-SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *ProcessorInfoExIterator::operator++() noexcept {
-    CTASSERT(mRemaining > 0);
-
-    mRemaining -= mBuffer->Size;
-    if (mRemaining > 0) {
-        mBuffer = advance(mBuffer, mBuffer->Size);
+detail::DataBuffer detail::readSystemCpuSetInformation(FnGetSystemCpuSetInformation fn) {
+    if (fn == nullptr) {
+        LOG_WARN(ThreadLog, "GetSystemCpuSetInformation not available");
+        return DataBuffer{};
     }
 
-    return mBuffer;
+    HANDLE process = GetCurrentProcess();
+    ULONG size = 0;
+    if (fn(nullptr, 0, &size, process, 0)) {
+        LOG_WARN(ThreadLog, "GetSystemCpuSetInformation failed with error {}", sm::OsError(GetLastError()));
+        return DataBuffer{};
+    }
+
+    if (sm::OsError err = GetLastError(); err != sm::OsError(ERROR_INSUFFICIENT_BUFFER)) {
+        LOG_WARN(ThreadLog, "GetSystemCpuSetInformation failed with error {}", err);
+        return DataBuffer{};
+    }
+
+    auto memory = std::make_unique<uint8_t[]>(size);
+    if (!fn((PSYSTEM_CPU_SET_INFORMATION)memory.get(), size, &size, process, 0)) {
+        LOG_WARN(ThreadLog, "GetSystemCpuSetInformation failed with error {}", sm::OsError(GetLastError()));
+        return DataBuffer{};
+    }
+
+    return DataBuffer{ std::move(memory), size };
 }
 
-std::optional<ProcessorInfoEx> ProcessorInfoEx::create(LOGICAL_PROCESSOR_RELATIONSHIP relation, detail::FnGetLogicalProcessorInformationEx fn) noexcept {
-    auto memory = detail::readLogicalProcessorInformationEx(fn, relation);
-    if (memory.data == nullptr)
-        return std::nullopt;
+detail::DataBuffer detail::readLogicalProcessorInformationEx(FnGetLogicalProcessorInformationEx fn, LOGICAL_PROCESSOR_RELATIONSHIP relation) {
+    if (fn == nullptr) {
+        LOG_WARN(ThreadLog, "GetLogicalProcessorInformationEx not available");
+        return DataBuffer{};
+    }
 
-    return ProcessorInfoEx::fromMemory(std::move(memory.data), memory.size);
-}
+    DWORD size = 0;
+    if (fn(relation, nullptr, &size)) {
+        LOG_WARN(ThreadLog, "GetLogicalProcessorInformationEx failed with error {}", OsError(GetLastError()));
+        return DataBuffer{};
+    }
 
-ProcessorInfoEx ProcessorInfoEx::fromMemory(std::unique_ptr<uint8_t[]> memory, DWORD size) noexcept {
-    return ProcessorInfoEx{std::move(memory), size};
+    if (OsError err = OsError(GetLastError()); err != OsError(ERROR_INSUFFICIENT_BUFFER)) {
+        LOG_WARN(ThreadLog, "GetLogicalProcessorInformationEx failed with error {}", err);
+        return DataBuffer{};
+    }
+
+    auto memory = std::make_unique<uint8_t[]>(size);
+    if (!fn(relation, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)memory.get(), &size)) {
+        LOG_WARN(ThreadLog, "GetLogicalProcessorInformationEx failed with error {}", OsError(GetLastError()));
+        return DataBuffer{};
+    }
+
+    return DataBuffer{ std::move(memory), size };
 }

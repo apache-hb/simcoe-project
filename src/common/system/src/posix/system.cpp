@@ -50,17 +50,21 @@ std::vector<std::string> system::getCommandLine() {
     return args;
 }
 
-std::string system::getMachineId() {
+os_error_t system::getMachineId(char buffer[kMachineIdSize]) noexcept {
     int fd = open("/etc/machine-id", O_RDONLY);
-    if (fd == -1)
-        return std::string(32, '0');
+    if (fd == -1) {
+        memset(buffer, '0', kMachineIdSize);
+        return errno;
+    }
 
-    defer { close(fd); };
+    defer { close(fd); }
 
-    char buffer[32];
-    int size = read(fd, buffer, sizeof(buffer));
+    int size = read(fd, buffer, kMachineIdSize);
+    if (size < kMachineIdSize) {
+        memset(buffer + size, '-', kMachineIdSize - size);
+    }
 
-    return std::string(buffer, size);
+    return 0;
 }
 
 void system::create(HINSTANCE hInstance) {

@@ -5,7 +5,9 @@ system_include = include_directories('include')
 # render using that
 # 'src/splash.cpp',
 
-src = [ ]
+src = [
+    'src/shared.cpp'
+]
 
 deps = [ core, logs, math, cthulhu.get_variable('os'), input, config ]
 

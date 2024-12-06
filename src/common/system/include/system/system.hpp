@@ -4,8 +4,13 @@
 
 #include "core/source_info.h"
 
+#if CT_OS_WINDOWS
+#   include "system/win32/system.hpp"
+#elif CT_OS_LINUX
+#   include "system/posix/system.hpp"
+#endif
+
 #include "core/error.hpp"
-#include "logs/logs.hpp" // IWYU pragma: export
 
 #include "logs/logging.hpp"
 
@@ -21,6 +26,8 @@ namespace sm::system {
     CT_NORETURN assertLastError(source_info_t panic, const char *expr);
 
     OsError getLastError();
+
+    os_error_t getMachineId(char buffer[kMachineIdSize]) noexcept;
 
     std::string getMachineId();
     std::vector<std::string> getCommandLine();

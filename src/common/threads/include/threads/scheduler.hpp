@@ -1,8 +1,7 @@
 #pragma once
 
 #include "core/error.hpp"
-
-#include "core/memory/unique.hpp"
+#include "core/macros.hpp"
 
 #include "system/threads.hpp"
 
@@ -10,18 +9,38 @@
 
 namespace sm::threads {
     class ThreadHandle {
-        system::os::Thread mHandle;
-        system::os::ThreadId mThreadId;
+        std::stop_source mStop;
+        system::os::Thread mHandle = system::os::kInvalidThread;
+        system::os::ThreadId mThreadId = 0;
 
     public:
-        ThreadHandle(system::os::Thread handle, system::os::ThreadId threadId) noexcept;
-
+        ThreadHandle(system::os::Thread handle, system::os::ThreadId threadId);
         ~ThreadHandle() noexcept;
+
+        ThreadHandle(ThreadHandle &&other) noexcept {
+            swap(*this, other);
+        }
+
+        ThreadHandle &operator=(ThreadHandle &&other) noexcept {
+            swap(*this, other);
+            return *this;
+        }
+
+        SM_NOCOPY(ThreadHandle);
+
+        bool isStopping() const noexcept { return mStop.stop_requested(); }
+        bool stop() noexcept { return mStop.request_stop(); }
 
         OsError join() noexcept;
 
         system::os::Thread getHandle() const noexcept { return mHandle; }
         system::os::ThreadId getThreadId() const noexcept { return mThreadId; }
+
+        friend void swap(ThreadHandle &lhs, ThreadHandle &rhs) noexcept {
+            std::swap(lhs.mStop, rhs.mStop);
+            std::swap(lhs.mHandle, rhs.mHandle);
+            std::swap(lhs.mThreadId, rhs.mThreadId);
+        }
     };
 
     class IScheduler {
@@ -49,7 +68,13 @@ namespace sm::threads {
 
             // launchThread frees this when the thread exits
             F *param = new F(std::forward<F>(fn));
-            return launchThread(param, thunk);
+
+            try {
+                return launchThread(param, thunk);
+            } catch (...) {
+                delete param;
+                throw;
+            }
         }
     };
 }

@@ -28,27 +28,24 @@ hwloc = dependency('hwloc')
 src = [
     'src/scheduler.cpp',
     'src/status.cpp',
+    'src/threads.cpp',
+    'src/common.cpp',
 ]
 
 if host_machine.system() == 'windows'
     src += [
         'src/topology.cpp',
         'src/save.cpp',
-        'src/cpuinfo.cpp',
 
-        'src/backends/common.cpp',
-        'src/backends/cpuset.cpp',
-        'src/backends/logical.cpp',
-        'src/backends/default.cpp',
+        'src/cpuinfo.cpp',
     ]
-elif host_machine.system() == 'linux'
-    src += [ 'src/threads.cpp' ]
 endif
 
 deps = [ core, config, logs, logs, system, db, hwloc, threads_meta ]
 
 libthreads = library('threads', src,
     cpp_args : [ '-DSM_THREADS_BUILD=1' ],
+    cpp_pch : 'src/stdafx.hpp',
     include_directories : [ threads_include, 'src' ],
     dependencies : deps
 )
@@ -65,15 +62,9 @@ threads = declare_dependency(
 
 testcases = {
     'Nonblocking mailbox': 'test/mailbox.cpp',
+    'Save processor topology data': 'test/topology.cpp',
     # 'Triplebuffer': 'test/triplebuffer.cpp',
 }
-
-if host_machine.system() == 'windows'
-    testcases += {
-        'Processor geometry parsing': 'test/geometry.cpp',
-        'Save processor topology data': 'test/topology.cpp',
-    }
-endif
 
 foreach name, source : testcases
     exe = executable('test-threads-' + name.to_lower().replace(' ', '-'), source,
@@ -86,6 +77,24 @@ foreach name, source : testcases
         kwargs : testkwargs + { 'timeout': 10 }
     )
 endforeach
+
+if host_machine.system() == 'windows'
+    testcases = {
+        'Processor geometry saving': 'test/cpuinfo.cpp',
+    }
+
+    foreach name, source : testcases
+        exe = executable('test-threads-' + name.to_lower().replace(' ', '-'), source,
+            include_directories : 'src',
+            dependencies : [ threads, gtest ]
+        )
+
+        test(name, exe,
+            suite : 'threads',
+            kwargs : gtestkwargs
+        )
+    endforeach
+endif
 
 ###
 ### benchmarks

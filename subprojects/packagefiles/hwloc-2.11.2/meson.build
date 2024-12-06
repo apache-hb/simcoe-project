@@ -10,7 +10,6 @@ os = host_machine.system()
 arch = host_machine.cpu_family()
 cc = meson.get_compiler('c')
 fs = import('fs')
-cc = meson.get_compiler('c')
 
 deps = [ ]
 
@@ -53,23 +52,31 @@ endif
 
 version_parts = meson.project_version().split('.')
 
-if os == 'linux'
-    cdata = configuration_data()
-    cdata.set_quoted('HWLOC_VERSION', meson.project_version())
-    cdata.set('HWLOC_VERSION_MAJOR', version_parts[0])
-    cdata.set('HWLOC_VERSION_MINOR', version_parts[1])
-    cdata.set('HWLOC_VERSION_RELEASE', version_parts[2])
-    cdata.set_quoted('HWLOC_VERSION_GREEK', '')
-    cdata.set('HWLOC_HAVE_WINDOWS_H', os == 'windows')
-    cdata.set('HWLOC_DECLSPEC', '')
+cdata = configuration_data()
+cdata.set_quoted('HWLOC_VERSION', meson.project_version())
+cdata.set('HWLOC_VERSION_MAJOR', version_parts[0])
+cdata.set('HWLOC_VERSION_MINOR', version_parts[1])
+cdata.set('HWLOC_VERSION_RELEASE', version_parts[2])
+cdata.set_quoted('HWLOC_VERSION_GREEK', '')
+cdata.set('HWLOC_HAVE_WINDOWS_H', os == 'windows')
+cdata.set10('HWLOC_HAVE_ATTRIBUTE_UNUSED', cc.has_function_attribute('unused'))
+cdata.set10('HWLOC_HAVE_ATTRIBUTE_MALLOC', cc.has_function_attribute('malloc'))
+cdata.set10('HWLOC_HAVE_ATTRIBUTE_CONST', cc.has_function_attribute('const'))
+cdata.set10('HWLOC_HAVE_ATTRIBUTE_PURE', cc.has_function_attribute('pure'))
+cdata.set10('HWLOC_HAVE_ATTRIBUTE_DEPRECATED', cc.has_function_attribute('deprecated'))
+cdata.set10('HWLOC_HAVE_ATTRIBUTE_MAY_ALIAS', cc.has_function_attribute('may_alias'))
+cdata.set10('HWLOC_HAVE_ATTRIBUTE_WARN_UNUSED_RESULT', cc.has_function_attribute('warn_unused_result'))
 
-    if os == 'windows'
-        cdata.set('hwloc_pid_t', 'HANDLE')
-        cdata.set('hwloc_thread_t', 'HANDLE')
-    elif os == 'linux'
-        cdata.set('hwloc_pid_t', 'pid_t')
-        cdata.set('hwloc_thread_t', 'pthread_t')
-    endif
+if os == 'windows'
+    cdata.set('hwloc_pid_t', 'HANDLE')
+    cdata.set('hwloc_thread_t', 'HANDLE')
+elif os == 'linux'
+    cdata.set('hwloc_pid_t', 'pid_t')
+    cdata.set('hwloc_thread_t', 'pthread_t')
+endif
+
+if os == 'linux'
+    cdata.set('HWLOC_DECLSPEC', '')
 
     cdata.set10('HWLOC_HAVE_STDINT_H', true)
     cdata.set('HWLOC_SYM_PREFIX', 'hwloc_')
@@ -115,9 +122,25 @@ if os == 'linux'
         'sys/utsname.h',
         'sys/sysctl.h',
         'sys/param.h',
+        'sys/cpuset.h',
+        'sys/lgrp_user.h',
         'unistd.h',
         'malloc.h',
+        'dlfcn.h',
+        'langinfo.h',
+        'kstat.h',
+        'mach/mach_init.h',
+        'mach/mach_host.h',
+        'numaif.h',
+        'picl.h',
+        'pthread_np.h'
     ]
+
+    functions = {
+        'cpuset_setaffinity': [ '#include <sched.h>' ],
+        'cpuset_setid': [ '#include <sched.h>' ],
+        'sched_setaffinity': [ '#include <sched.h>' ],
+    }
 
     cdata = configuration_data()
     cdata.set10('HAVE_SSIZE_T', true)
@@ -136,6 +159,10 @@ if os == 'linux'
         cdata.set10('HAVE_DECL_' + define.to_upper(), cc.has_define(define, prefix : '#include <unistd.h>'))
     endforeach
 
+    foreach name, prefix : functions
+        cdata.set10('HWLOC_HAVE_' + name.to_upper(), cc.has_function(name, prefix : prefix))
+    endforeach
+
     cdata.set10('HAVE_OPENAT', cc.has_function('openat', prefix : '#include <fcntl.h>'))
 
     cdata.set10('HAVE_DECL_FABSF', true)
@@ -143,7 +170,6 @@ if os == 'linux'
     cdata.set10('HWLOC_HAVE_PTHREAD_MUTEX', true)
 
     cdata.set10('HWLOC_HAVE_SYSCALL', true)
-    cdata.set10('HWLOC_HAVE_SCHED_SETAFFINITY', true)
 
     hwloc_private_config = configure_file(
         output : 'hwloc_private_config.h',
@@ -157,7 +183,11 @@ args = cc.get_supported_arguments(
     '-Wno-unused-parameter',
     '-Wno-macro-redefined',
     '-Wno-cast-function-type-mismatch',
-    '-Wno-deprecated-declarations'
+    '-Wno-deprecated-declarations',
+)
+
+public_args = cc.get_supported_arguments(
+    '-Wno-macro-redefined',
 )
 
 libhwloc = library('hwloc', src, hwloc_autogen_config, hwloc_private_config,
@@ -169,6 +199,8 @@ libhwloc = library('hwloc', src, hwloc_autogen_config, hwloc_private_config,
 
 hwloc = declare_dependency(
     link_with : libhwloc,
+    compile_args : public_args,
+    sources : [ hwloc_autogen_config, hwloc_private_config ],
     include_directories : [ hwloc_include ],
     dependencies : [ deps ]
 )

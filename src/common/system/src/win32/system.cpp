@@ -27,15 +27,15 @@ std::vector<std::string> system::getCommandLine() {
     throw OsException{OsError{GetLastError()}, "CommandLineToArgvW"};
 }
 
-std::string system::getMachineId() {
+os_error_t system::getMachineId(char buffer[kMachineIdSize]) noexcept {
     const char *key = "SOFTWARE\\Microsoft\\Cryptography";
     const char *value = "MachineGuid";
 
-    char buffer[256];
-    DWORD size = sizeof(buffer);
-    if (RegGetValueA(HKEY_LOCAL_MACHINE, key, value, RRF_RT_REG_SZ, nullptr, buffer, &size) != ERROR_SUCCESS) {
-        return "00000000-0000-0000-0000-000000000000";
+    DWORD size = kMachineIdSize;
+    if (LSTATUS status = RegGetValueA(HKEY_LOCAL_MACHINE, key, value, RRF_RT_REG_SZ, nullptr, buffer, &size)) {
+        memcpy(buffer, "00000000-0000-0000-0000-000000000000", kMachineIdSize);
+        return status;
     }
 
-    return buffer;
+    return ERROR_SUCCESS;
 }

@@ -7,15 +7,13 @@
 
 using namespace sm;
 
-namespace sys = sm::system;
-
 static constexpr const char *kClassName = "simcoe";
 
 static bool isSystemSetup() noexcept {
     return gWindowClass != nullptr && gInstance != nullptr;
 }
 
-void sys::create(HINSTANCE hInstance) {
+void system::create(HINSTANCE hInstance) {
     CTASSERTF(hInstance != nullptr, "system::create() invalid hInstance");
 
     if (isSystemSetup()) {
@@ -59,7 +57,7 @@ void sys::create(HINSTANCE hInstance) {
     initStorage();
 }
 
-void sys::destroy(void) noexcept {
+void system::destroy(void) noexcept {
     if (!isSystemSetup())
         return;
 

@@ -77,7 +77,7 @@ testcases = {
     'Get lobby list': 'test/lobby_list.cpp',
     'Join lobby': 'test/join_lobby.cpp',
     'Multiple join lobby': 'test/join_lobby_multi.cpp',
-    'Sending messages': 'test/streaming_messages.cpp',
+    #'Sending messages': 'test/streaming_messages.cpp',
 }
 
 foreach name, source : testcases

@@ -2,26 +2,25 @@
 
 using namespace sm::threads;
 
-#if _WIN32
-ThreadHandle::ThreadHandle(system::os::Thread handle, system::os::ThreadId threadId) noexcept
+ThreadHandle::ThreadHandle(system::os::Thread handle, system::os::ThreadId threadId)
     : mHandle(handle)
     , mThreadId(threadId)
 { }
 
 ThreadHandle::~ThreadHandle() noexcept {
-    if (auto result = join()) {
-        LOG_ERROR(ThreadLog, "Failed to join thread: {}", result);
-    }
+    if (mHandle != system::os::kInvalidThread) {
+        if (auto result = join()) {
+            LOG_ERROR(ThreadLog, "Failed to join thread: {}", result);
+        }
 
-    CloseHandle(mHandle);
+        system::os::destroyThread(mHandle);
+    }
 }
 
 sm::OsError ThreadHandle::join() noexcept {
-    DWORD result = WaitForSingleObject(mHandle, INFINITE);
-    switch (result) {
-    case WAIT_OBJECT_0: return OsError(ERROR_SUCCESS);
-    case WAIT_TIMEOUT: return OsError(ERROR_TIMEOUT);
-    default: return OsError(GetLastError());
+    if (!isStopping()) {
+        stop();
     }
+
+    return system::os::joinThread(mHandle);
 }
-#endif

@@ -12,4 +12,14 @@ namespace sm::system::os {
     using Thread = pthread_t;
     using ThreadId = pthread_t;
     using StartRoutine = void *(*)(void *);
+
+    constexpr Thread kInvalidThread = 0;
+
+    inline void destroyThread(Thread thread) {
+        joinThread(thread);
+    }
+
+    inline os_error_t joinThread(Thread thread) {
+        return pthread_join(thread, nullptr);
+    }
 }

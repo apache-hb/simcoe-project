@@ -1,78 +1,28 @@
 #include "threads/threads.hpp"
 
+#include "cpuinfo.hpp"
+
 #include "system/system.hpp"
-#include "backends/common.hpp"
 
 #include "db/connection.hpp"
 
-#include <unordered_map>
-#include <immintrin.h>
+#include "core/cpuid.hpp"
 
 #include "topology.dao.hpp"
 
 using namespace sm::threads;
 
-static std::vector<Cache> getCachesOfLevel(const std::vector<Cache>& caches, uint32_t level) {
-    std::vector<Cache> result;
-    for (const auto& cache : caches) {
-        if (cache.level != level)
-            continue;
-
-        result.push_back(cache);
-    }
-
-    return result;
-}
-
-std::vector<Cache> ICpuGeometry::l3Caches() const {
-    return getCachesOfLevel(mCaches, 3);
-}
-
-std::vector<Cache> ICpuGeometry::l2Caches() const {
-    return getCachesOfLevel(mCaches, 2);
-}
-
-std::vector<Cache> ICpuGeometry::l1Caches() const {
-    return getCachesOfLevel(mCaches, 1);
-}
-
-void ICpuGeometry::createCoreGroups() {
-    std::unordered_map<WORD, Group> groups;
-
-    for (const auto& core : mLogicalCores) {
-        Group& group = groups[core.group];
-        group.logicalCores.push_back(core);
-    }
-
-    for (auto& [id, group] : groups) {
-        mCoreGroups.push_back(group);
-    }
-}
-
 namespace topology = sm::dao::topology;
 
 static std::string getProcessorString() {
-    union {
-        int data[12];
-        uint32_t regs[12];
-    };
-
-    __cpuid(data, 0x80000000);
-
-    if (regs[0] < 0x80000004)
+    char brand[sm::kBrandStringSize];
+    if (!sm::CpuId::getBrandString(brand))
         return "";
 
-    __cpuid(data + 0, 0x80000002);
-    __cpuid(data + 4, 0x80000003);
-    __cpuid(data + 8, 0x80000004);
-
-    char buffer[sizeof(regs) + 1];
-    memcpy(buffer, regs, sizeof(regs));
-    buffer[sizeof(buffer) - 1] = '\0';
-
-    return buffer;
+    return std::string(brand, sizeof(brand));
 }
 
+// TODO: should use a proper hash library rather than this
 static uint64_t hashBlob(std::span<const uint8_t> data) {
     uint64_t hash = 0x84222325;
     for (uint8_t byte : data) {

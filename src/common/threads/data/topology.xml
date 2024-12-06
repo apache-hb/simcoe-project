@@ -7,16 +7,17 @@
         and to assist in optimal thread placement during game runtime."
     >
     <!ENTITY cpu_comment "
-        The vendor string of the currently installed processor.&#xA;
+        The vendor brand string of the currently installed processor.&#xA;
         This data is collected via CPUID leafs 0x80000002-0x80000004.&#xA;
         More information can be found in the Intel Software Developer's Manual.&#xA;
         Vol. 2A 3-246 Table 1-17."
     >
     <!ENTITY os_comment "
-        This is a unique identifier for the currently installed copy of windows.&#xA;
-        This cannot be used to identify the user or the machine, and serves&#xA;
-        to prevent duplicate submissions from the same machine.&#xA;
-        The value is queried from the registry key HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Cryptography\MachineGuid."
+        This is a unique identifier for the currently installed operating system.&#xA;
+        This CANNOT be used to identify the user or the machine, and serves&#xA;
+        only to prevent duplicate submissions from the same machine.&#xA;
+        On windows this value is queried from the registry key HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Cryptography\MachineGuid.&#xA;
+        On linux this value is queried from /etc/machine-id."
     >
     <!ENTITY hash_comment "A hash of the data column, used to create a unique constraint.">
 ]>
@@ -27,12 +28,12 @@
            This table stores the result of GetSystemCpuSetInformation.&#xA;
            This is correlated with a copy of windows, the currently&#xA;
            installed processor, and the current version of windows.&#xA;
+           This data is NOT personally identifiable, and is not used to track users.&#xA;
            This data is collected to drive optimization decisions, aid in debugging,&#xA;
            and to assist in optimal thread placement during game runtime.
            ">
 
         <column name="cpu" type="text" length="128" comment="&cpu_comment;" />
-
         <column name="os" type="text" length="128" comment="&os_comment;" />
 
         <column name="hash" type="ulong"
@@ -54,6 +55,7 @@
            This table stores the result of GetLogicalProcessorInformationEx.&#xA;
            This is correlated with a copy of windows, the currently&#xA;
            installed processor, and the current version of windows.&#xA;
+           This data is NOT personally identifiable, and is not used to track users.&#xA;
            This data is collected to drive optimization decisions, aid in debugging,&#xA;
            and to assist in optimal thread placement during game runtime.
            ">
@@ -74,60 +76,26 @@
         </unique>
     </table>
 
-    <table name="system_cpu_set" primaryKey="cpu_set_id">
-        <column name="cpu_set_id" type="uint" />
-        <column name="group" type="uint" />
-        <column name="logical_processor_index" type="uint" />
-        <column name="core_index" type="uint" />
-        <column name="last_level_cache_index" type="uint" />
-        <column name="numa_node_index" type="uint" />
-        <column name="efficiency_class" type="uint" />
-    </table>
+    <table name="hwloc_topology"
+           syntheticPrimaryKey="ulong"
+           comment="
+           This table stores the result of hwloc_topology_load and hwloc_topology_export_xml.&#xA;
+           This data is NOT personally identifiable, and is not used to track users.&#xA;
+           This data is collected to drive optimization decisions, aid in debugging,&#xA;
+           and to assist in optimal thread placement during game runtime.
+           ">
 
-    <table name="logical_core" syntheticPrimaryKey="ulong">
-        <column name="cpuset_id" type="ulong">
-            <unique />
-        </column>
+        <column name="os" type="text" length="128" comment="&os_comment;" />
 
-        <column name="core_id" type="ulong">
-            <constraint references="physical_core.id" />
-        </column>
+        <column name="hash" type="ulong"
+                comment="&hash_comment;" />
 
-        <column name="thread_index" type="ulong" />
-    </table>
+        <column name="data" type="blob"
+                comment="The output of hwloc_topology_export_xml." />
 
-    <table name="physical_core" syntheticPrimaryKey="ulong">
-        <column name="package_id" type="ulong">
-            <constraint references="package.id" />
-        </column>
-
-        <column name="core_index" type="ulong" />
-
-        <column name="smt" type="bool" />
-
-        <column name="l3_cache_id" type="ulong">
-            <constraint references="cache.id" />
-        </column>
-    </table>
-
-    <table name="cache" syntheticPrimaryKey="ulong">
-        <column name="level" type="uint"             />
-        <column name="associativity" type="uint"     />
-        <column name="size" type="uint"              />
-        <column name="line_size" type="uint"         />
-        <column name="type" type="text" length="32"  />
-        <column name="mask" type="blob" length="512" />
-    </table>
-
-    <table name="package" syntheticPrimaryKey="ulong">
-        <column name="numa_id" type="ulong">
-            <constraint references="numa_region.id" />
-        </column>
-
-        <column name="mask" type="blob" length="512" />
-    </table>
-
-    <table name="numa_region" syntheticPrimaryKey="ulong">
-        <column name="mask" type="blob" length="512" />
+        <unique>
+            <column>os</column>
+            <column>hash</column>
+        </unique>
     </table>
 </root>

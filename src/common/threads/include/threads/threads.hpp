@@ -15,20 +15,20 @@ namespace sm::db {
 namespace sm::threads {
     static constexpr size_t kMaxThreads = 512;
 
-    enum class ThreadClass : uint8 {
+    enum class ThreadClass : uint8_t {
         eRealtime,
         eNormal,
         eWorker,
         eIdle
     };
 
-    enum class PriorityClass : int16 {
+    enum class PriorityClass : int64_t {
         eHigh = system::os::kHighPriorityClass,
         eNormal = system::os::kNormalPriorityClass,
         eIdle = system::os::kIdlePriorityClass,
     };
 
-    enum class CacheType : uint8 {
+    enum class CacheType : uint8_t {
         eUnified,
         eInstruction,
         eData,

@@ -22,6 +22,8 @@ src = [
     'src/typeindex.cpp',
     'src/core.cpp',
 
+    'src/cpuid.cpp',
+
     'src/adt/zstring_view.cpp',
 
     'src/allocators/bitmap.cpp',
@@ -60,6 +62,7 @@ gtest = dependency('gtest_main')
 catch2 = dependency('catch2-with-main')
 testargs = [ '--reporter=TAP', '--allow-running-no-tests' ]
 testkwargs = { 'protocol' : 'tap', 'args' : testargs, 'timeout': 5 }
+gtestkwargs = { 'protocol' : 'gtest', 'timeout': 5 }
 benchkwargs = { 'timeout': 600 }
 
 deps = [ core, catch2 ]
@@ -114,6 +117,6 @@ foreach name, source : testcases
 
     test(name, exe,
         suite : 'core',
-        kwargs : testkwargs + { 'protocol' : 'gtest' }
+        kwargs : gtestkwargs
     )
 endforeach
