@@ -6,4 +6,6 @@
 
 #include <hwloc.h>
 
+#include "db/connection.hpp"
+
 // IWYU pragma: end_exports

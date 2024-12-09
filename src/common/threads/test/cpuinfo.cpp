@@ -31,4 +31,6 @@ TEST(GeometryTest, ProcessorInfo) {
 TEST(GeometryTest, BuildGeometry) {
     threads::create();
     threads::destroy();
+
+    GTEST_SUCCEED() << "Created and destroyed thread system";
 }

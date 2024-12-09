@@ -1,186 +1,181 @@
-#include "test/common.hpp"
+#include "test/gtest_common.hpp"
 
 #include "core/adt/bitset.hpp"
 
 namespace adt = sm::adt;
 
-TEST_CASE("bitset construction") {
-    GIVEN("a bitset") {
-        adt::BitSet bs{64};
+TEST(BitsetTest, Construction) {
+    adt::BitSet bs{64};
 
-        THEN("it initializes correctly") {
-            CHECK(bs.popcount() == 0);
-            CHECK(bs.freecount() == 64);
-            CHECK(bs.getBitCapacity() == 64);
-            CHECK_FALSE(bs.any());
-        }
-    }
-
-    GIVEN("a multi word bitset") {
-        adt::BitSet bs{999};
-
-        THEN("it initializes correctly") {
-            CHECK(bs.popcount() == 0);
-            CHECK(bs.freecount() == 999);
-            CHECK(bs.getBitCapacity() == 999);
-            CHECK_FALSE(bs.any());
-        }
-    }
+    EXPECT_EQ(bs.popcount(), 0);
+    EXPECT_EQ(bs.freecount(), 64);
+    EXPECT_EQ(bs.getBitCapacity(), 64);
+    EXPECT_FALSE(bs.any());
 }
 
-TEST_CASE("bitset operations") {
-    GIVEN("a bitset") {
-        adt::BitSet bs{64};
+TEST(BitsetTest, MultiWordConstruction) {
+    adt::BitSet bs{999};
 
-        THEN("setting bits works") {
-            bs.set(0);
-            bs.set(1);
-            bs.set(2);
-            bs.set(3);
-
-            CHECK(bs.popcount() == 4);
-            CHECK(bs.freecount() == 60);
-            CHECK(bs.getBitCapacity() == 64);
-            CHECK(bs.any());
-        }
-
-        THEN("clearing bits works") {
-            bs.set(0);
-            bs.set(1);
-            bs.set(2);
-            bs.set(3);
-
-            bs.clear(1);
-            bs.clear(3);
-
-            CHECK(bs.popcount() == 2);
-            CHECK(bs.freecount() == 62);
-            CHECK(bs.getBitCapacity() == 64);
-            CHECK(bs.any());
-        }
-
-        THEN("flipping bits works") {
-            bs.flip(0);
-            bs.flip(1);
-            bs.flip(2);
-            bs.flip(3);
-
-            CHECK(bs.popcount() == 4);
-            CHECK(bs.freecount() == 60);
-            CHECK(bs.getBitCapacity() == 64);
-            CHECK(bs.any());
-        }
-
-        THEN("clearing all bits works") {
-            bs.clear();
-
-            CHECK(bs.popcount() == 0);
-            CHECK(bs.freecount() == 64);
-            CHECK(bs.getBitCapacity() == 64);
-            CHECK_FALSE(bs.any());
-        }
-    }
-
-    GIVEN("a bitset") {
-        adt::BitSet bs{999};
-
-        THEN("setting high bits") {
-            bs.set(998);
-            bs.set(997);
-            bs.set(996);
-            bs.set(995);
-
-            CHECK(bs.popcount() == 4);
-            CHECK(bs.freecount() == 995);
-            CHECK(bs.getBitCapacity() == 999);
-            CHECK(bs.any());
-
-            CHECK(bs.test(998));
-            CHECK(bs.test(997));
-            CHECK(bs.test(996));
-            CHECK(bs.test(995));
-        }
-
-        THEN("clearing high bits") {
-            bs.set(998);
-            bs.set(997);
-            bs.set(996);
-            bs.set(995);
-
-            bs.clear(997);
-            bs.clear(995);
-
-            CHECK(bs.popcount() == 2);
-            CHECK(bs.freecount() == 997);
-            CHECK(bs.getBitCapacity() == 999);
-            CHECK(bs.any());
-        }
-
-        THEN("flipping high bits") {
-            bs.flip(998);
-            bs.flip(997);
-            bs.flip(996);
-            bs.flip(995);
-
-            CHECK(bs.popcount() == 4);
-            CHECK(bs.freecount() == 995);
-            CHECK(bs.getBitCapacity() == 999);
-            CHECK(bs.any());
-        }
-
-        THEN("clearing all high bits") {
-            bs.clear();
-
-            CHECK(bs.popcount() == 0);
-            CHECK(bs.freecount() == 999);
-            CHECK(bs.getBitCapacity() == 999);
-            CHECK_FALSE(bs.any());
-        }
-    }
+    EXPECT_EQ(bs.popcount(), 0);
+    EXPECT_EQ(bs.freecount(), 999);
+    EXPECT_EQ(bs.getBitCapacity(), 999);
+    EXPECT_FALSE(bs.any());
 }
 
-TEST_CASE("resizing a bitset") {
-    GIVEN("a bitset") {
-        adt::BitSet bs{64};
+TEST(BitsetTest, SettingBits) {
+    adt::BitSet bs{64};
 
-        THEN("resizing to a smaller size") {
-            bs.resize(32);
+    bs.set(0);
+    bs.set(1);
+    bs.set(2);
+    bs.set(3);
 
-            CHECK(bs.popcount() == 0);
-            CHECK(bs.freecount() == 32);
-            CHECK(bs.getBitCapacity() == 32);
-            CHECK_FALSE(bs.any());
-        }
+    EXPECT_EQ(bs.popcount(), 4);
+    EXPECT_EQ(bs.freecount(), 60);
+    EXPECT_EQ(bs.getBitCapacity(), 64);
+    EXPECT_TRUE(bs.any());
+}
 
-        THEN("resizing to a larger size") {
-            bs.resize(128);
+TEST(BitsetTest, ClearingBits) {
+    adt::BitSet bs{64};
 
-            CHECK(bs.popcount() == 0);
-            CHECK(bs.freecount() == 128);
-            CHECK(bs.getBitCapacity() == 128);
-            CHECK_FALSE(bs.any());
-        }
-    }
+    bs.set(0);
+    bs.set(1);
+    bs.set(2);
+    bs.set(3);
 
-    GIVEN("a bitset") {
+    bs.clear(1);
+    bs.clear(3);
+
+    EXPECT_EQ(bs.popcount(), 2);
+    EXPECT_EQ(bs.freecount(), 62);
+    EXPECT_EQ(bs.getBitCapacity(), 64);
+    EXPECT_TRUE(bs.any());
+}
+
+TEST(BitsetTest, FlippingBits) {
+    adt::BitSet bs{64};
+
+    bs.flip(0);
+    bs.flip(1);
+    bs.flip(2);
+    bs.flip(3);
+
+    EXPECT_EQ(bs.popcount(), 4);
+    EXPECT_EQ(bs.freecount(), 60);
+    EXPECT_EQ(bs.getBitCapacity(), 64);
+    EXPECT_TRUE(bs.any());
+}
+
+TEST(BitsetTest, ClearingAllBits) {
+    adt::BitSet bs{64};
+
+    bs.clear();
+
+    EXPECT_EQ(bs.popcount(), 0);
+    EXPECT_EQ(bs.freecount(), 64);
+    EXPECT_EQ(bs.getBitCapacity(), 64);
+    EXPECT_FALSE(bs.any());
+}
+
+TEST(BitsetTest, SettingHighBits) {
+    adt::BitSet bs{999};
+
+    bs.set(998);
+    bs.set(997);
+    bs.set(996);
+    bs.set(995);
+
+    EXPECT_EQ(bs.popcount(), 4);
+    EXPECT_EQ(bs.freecount(), 995);
+    EXPECT_EQ(bs.getBitCapacity(), 999);
+    EXPECT_TRUE(bs.any());
+
+    EXPECT_TRUE(bs.test(998));
+    EXPECT_TRUE(bs.test(997));
+    EXPECT_TRUE(bs.test(996));
+    EXPECT_TRUE(bs.test(995));
+}
+
+TEST(BitsetTest, ClearingHighBits) {
+    adt::BitSet bs{999};
+
+    bs.set(998);
+    bs.set(997);
+    bs.set(996);
+    bs.set(995);
+
+    bs.clear(997);
+    bs.clear(995);
+
+    EXPECT_EQ(bs.popcount(), 2);
+    EXPECT_EQ(bs.freecount(), 997);
+    EXPECT_EQ(bs.getBitCapacity(), 999);
+    EXPECT_TRUE(bs.any());
+}
+
+TEST(BitsetTest, FlippingHighBits) {
+    adt::BitSet bs{999};
+
+    bs.flip(998);
+    bs.flip(997);
+    bs.flip(996);
+    bs.flip(995);
+
+    EXPECT_EQ(bs.popcount(), 4);
+    EXPECT_EQ(bs.freecount(), 995);
+    EXPECT_EQ(bs.getBitCapacity(), 999);
+    EXPECT_TRUE(bs.any());
+}
+
+TEST(BitsetTest, ClearingAllHighBits) {
+    adt::BitSet bs{999};
+
+    bs.clear();
+
+    EXPECT_EQ(bs.popcount(), 0);
+    EXPECT_EQ(bs.freecount(), 999);
+    EXPECT_EQ(bs.getBitCapacity(), 999);
+    EXPECT_FALSE(bs.any());
+}
+
+TEST(BitsetTest, ResizingBigger) {
+    adt::BitSet bs{64};
+
+    bs.resize(128);
+
+    EXPECT_EQ(bs.popcount(), 0);
+    EXPECT_EQ(bs.freecount(), 128);
+    EXPECT_EQ(bs.getBitCapacity(), 128);
+    EXPECT_FALSE(bs.any());
+}
+
+TEST(BitsetTest, ResizingSmaller) {
+    adt::BitSet bs{999};
+
+    bs.resize(500);
+
+    EXPECT_EQ(bs.popcount(), 0);
+    EXPECT_EQ(bs.freecount(), 500);
+    EXPECT_EQ(bs.getBitCapacity(), 500);
+    EXPECT_FALSE(bs.any());
+}
+
+TEST(BitsetTest, ResizingSame) {
+    adt::BitSet bs{999};
+
+    bs.resize(999);
+
+    EXPECT_EQ(bs.popcount(), 0);
+    EXPECT_EQ(bs.freecount(), 999);
+    EXPECT_EQ(bs.getBitCapacity(), 999);
+    EXPECT_FALSE(bs.any());
+}
+
+TEST(BitsetTest, ResizingToZero) {
+    ASSERT_DEATH({
         adt::BitSet bs{999};
 
-        THEN("resizing to a smaller size") {
-            bs.resize(500);
-
-            CHECK(bs.popcount() == 0);
-            CHECK(bs.freecount() == 500);
-            CHECK(bs.getBitCapacity() == 500);
-            CHECK_FALSE(bs.any());
-        }
-
-        THEN("resizing to a larger size") {
-            bs.resize(2000);
-
-            CHECK(bs.popcount() == 0);
-            CHECK(bs.freecount() == 2000);
-            CHECK(bs.getBitCapacity() == 2000);
-            CHECK_FALSE(bs.any());
-        }
-    }
+        bs.resize(0);
+    }, "");
 }

@@ -37,6 +37,10 @@ static fs::path getHome() {
     }
 
     size_t sz = sysconf(_SC_GETPW_R_SIZE_MAX);
+    if (sz == 0) {
+        throw OsException{getLastError(), "sysconf(_SC_GETPW_R_SIZE_MAX)"};
+    }
+
     if (sz == SIZE_MAX) sz = 0x1000;
 
     std::unique_ptr<char[]> buffer{new char[sz]};
@@ -51,7 +55,7 @@ static fs::path getHome() {
 
         throw OsException{getLastError(), "getpwuid_r"};
     }
-    
+
     return pw.pw_dir;
 }
 

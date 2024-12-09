@@ -1,11 +1,11 @@
 #pragma once
 
+#include <queue>
 #include <simcoe_render_config.h>
 
 #include "archive/bundle.hpp"
 
 #include "core/adt/array.hpp"
-#include "core/adt/queue.hpp"
 
 #include "render/base/instance.hpp"
 #include "render/base/resource.hpp"
@@ -235,7 +235,7 @@ namespace sm::render {
             { }
         };
 
-        sm::PriorityQueue<HostCopySource> mCopyData;
+        std::priority_queue<HostCopySource> mCopyData;
 
         void upload_image(world::IndexOf<world::Image> index);
 

@@ -84,9 +84,6 @@ coretest = declare_dependency(
 )
 
 testcases = {
-    'Vector' : 'test/adt/vector.cpp',
-    'Bit set' : 'test/adt/bitset.cpp',
-    'Priority queue' : 'test/adt/priority_queue.cpp',
 }
 
 foreach name, source : testcases
@@ -101,6 +98,7 @@ foreach name, source : testcases
 endforeach
 
 testcases = {
+    'Vector' : 'test/adt/vector.cpp',
     'Null terminated string view' : 'test/adt/zstring_view.cpp',
     'String' : 'test/string.cpp',
     'Sync primitives' : 'test/sync.cpp',
@@ -108,6 +106,7 @@ testcases = {
     'Combine' : 'test/adt/combine.cpp',
     'Small vector': 'test/adt/small_vector.cpp',
     'Units': 'test/units.cpp',
+    'Bit set' : 'test/adt/bitset.cpp',
 }
 
 foreach name, source : testcases

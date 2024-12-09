@@ -2,7 +2,6 @@
 
 #include <simcoe_config.h>
 
-#include "core/adt/small_string.hpp"
 #include "core/error/error.hpp"
 
 #include "backtrace/backtrace.h"

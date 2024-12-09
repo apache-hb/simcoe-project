@@ -2,8 +2,7 @@
 
 #include "core/error.hpp"
 #include "core/macros.hpp"
-
-#include "system/threads.hpp"
+#include "core/defer.hpp"
 
 #include "threads/threads.hpp"
 
@@ -66,15 +65,12 @@ namespace sm::threads {
                 return -1;
             };
 
-            // launchThread frees this when the thread exits
+            // launchThread frees this when the thread exits, unless creation fails
+            // in which case we need to cleanup
             F *param = new F(std::forward<F>(fn));
+            errdefer { delete param; };
 
-            try {
-                return launchThread(param, thunk);
-            } catch (...) {
-                delete param;
-                throw;
-            }
+            return launchThread(param, thunk);
         }
     };
 }

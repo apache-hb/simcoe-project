@@ -770,7 +770,7 @@ void IDeviceContext::end_upload() {
     }
 
     // remove everything from the copy data queue thats been processed
-    while (!mCopyData.is_empty() && mCopyData.top().fence <= completed) {
+    while (!mCopyData.empty() && mCopyData.top().fence <= completed) {
         mCopyData.pop();
     }
 }

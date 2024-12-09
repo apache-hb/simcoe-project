@@ -5,7 +5,7 @@
 #include <fmtlib/format.h>
 
 namespace sm::render {
-    sm::String format(D3D12_RESOURCE_STATES states);
+    std::string format(D3D12_RESOURCE_STATES states);
 
     template<typename T>
     consteval DXGI_FORMAT bufferFormatOf() { return DXGI_FORMAT_UNKNOWN; }

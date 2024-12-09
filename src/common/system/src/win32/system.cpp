@@ -1,5 +1,6 @@
 #include "system/system.hpp"
 #include "core/defer.hpp"
+#include "core/string.hpp"
 
 #include <shellapi.h>
 

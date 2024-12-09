@@ -7,7 +7,7 @@
 
 #include <fmt/ranges.h>
 
-sm::String sm::render::format(D3D12_RESOURCE_STATES states) {
+std::string sm::render::format(D3D12_RESOURCE_STATES states) {
     struct StateFlag {
         D3D12_RESOURCE_STATES state;
         const char *name;
@@ -45,7 +45,7 @@ sm::String sm::render::format(D3D12_RESOURCE_STATES states) {
         FLAG_NAME(D3D12_RESOURCE_STATE_VIDEO_ENCODE_WRITE),
     };
 
-    sm::SmallVector<sm::StringView, std::size(kStates)> parts;
+    sm::SmallVector<std::string_view, std::size(kStates)> parts;
     for (auto [bit, name] : kStates) {
         if (states & bit) {
             parts.push_back(name);

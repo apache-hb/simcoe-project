@@ -26,5 +26,7 @@ constexpr auto operator+(ErrorDeferTag, F fn) {
 #define CONCAT2(a, b) a##b
 #define CONCAT(a, b) CONCAT2(a, b)
 #define EXPAND(x) x
+
 #define defer const auto CONCAT(defer, __COUNTER__) = DeferTag::eTag + [&] ()
-#define errdefer const auto CONCAT(defer, __COUNTER__) = ErrorDeferTag::eTag + [&] ()
+
+#define errdefer const auto CONCAT(errdefer, __COUNTER__) = ErrorDeferTag::eTag + [&] ()

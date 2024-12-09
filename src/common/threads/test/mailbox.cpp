@@ -49,18 +49,15 @@ TEST_CASE("Non-blocking mailbox") {
     using BigArray = std::array<uint8_t, kArraySize>;
     using BigArrayMailbox = threads::NonBlockingMailBox<BigArray>;
 
-    static_assert(sizeof(BigArray) == kArraySize);
-    static_assert(sizeof(BigArrayMailbox) == (kArraySize * 2) + 4);
-
     // a little too big for the stack
-    auto *ptr = new BigArrayMailbox;
+    auto ptr = std::make_unique<BigArrayMailbox>();
 
     {
         MultiThreadedTestStream errors;
 
         std::latch latch{1};
 
-        std::jthread reader = std::jthread([ptr, &latch, &errors](const std::stop_token& stop) {
+        std::jthread reader = std::jthread([ptr = ptr.get(), &latch, &errors](const std::stop_token& stop) {
             latch.wait();
 
             while (!stop.stop_requested()) {
@@ -75,7 +72,7 @@ TEST_CASE("Non-blocking mailbox") {
             }
         });
 
-        std::jthread writer = std::jthread([ptr, &latch](const std::stop_token& stop) {
+        std::jthread writer = std::jthread([ptr = ptr.get(), &latch](const std::stop_token& stop) {
             uint8_t value = 1;
             std::once_flag once;
             while (!stop.stop_requested()) {

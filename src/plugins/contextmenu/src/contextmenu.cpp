@@ -29,6 +29,7 @@ namespace cmdao = sm::dao::contextmenu;
 // installed application lists
 // i think ProgIDs is the most canonical list to enumerate when finding appx packages
 // Packages seems to have multiple copies of each installed program in it
+// HKEY_CLASSES_ROOT\PackagedCom\Package
 // HKEY_LOCAL_MACHINE\SOFTWARE\Classes\PackagedCom\Package
 // HKEY_LOCAL_MACHINE\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\PackageRepository\Packages
 // HKEY_LOCAL_MACHINE\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\PackageRepository\Extensions\ProgIDs

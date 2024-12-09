@@ -29,25 +29,24 @@ src = [
     'src/scheduler.cpp',
     'src/status.cpp',
     'src/threads.cpp',
-    'src/common.cpp',
+    'src/topology.cpp',
 ]
 
 if host_machine.system() == 'windows'
     src += [
-        'src/topology.cpp',
         'src/save.cpp',
 
         'src/cpuinfo.cpp',
     ]
 endif
 
-deps = [ core, config, logs, logs, system, db, hwloc, threads_meta ]
+deps = [ core, config, logs, logs, system, db, threads_meta ]
 
 libthreads = library('threads', src,
     cpp_args : [ '-DSM_THREADS_BUILD=1' ],
     cpp_pch : 'src/stdafx.hpp',
     include_directories : [ threads_include, 'src' ],
-    dependencies : deps
+    dependencies : deps + [ hwloc ]
 )
 
 threads = declare_dependency(

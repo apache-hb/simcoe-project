@@ -3,6 +3,7 @@
 #include "core/error.hpp"
 #include "core/macros.h"
 #include "core/memory.h"
+#include "core/string.hpp"
 #include "format/backtrace.h"
 #include "format/colour.h"
 #include "io/console.h"

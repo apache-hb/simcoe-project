@@ -21,6 +21,7 @@
 #include "config/parse.hpp"
 
 #include "core/error.hpp"
+#include "core/string.hpp"
 
 #include "core/macros.h"
 #include "core/memory.h"
