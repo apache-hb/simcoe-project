@@ -23,15 +23,12 @@ LOG_MESSAGE_CATEGORY(AgsLog, "AMD Gpu Services");
 static AGSContext *gAgsContext = nullptr;
 static AGSGPUInfo gAgsGpuInfo = {};
 
-template<typename T>
-static T getLibrarySymbol(HMODULE module, const char *name) {
-    auto symbol = reinterpret_cast<T>(::GetProcAddress(module, name));
-    if (!symbol) {
-        LOG_ERROR(AgsLog, "Failed to get symbol: {}", name);
-        return nullptr;
-    }
+static void *agsMalloc(size_t size) {
+    return ::malloc(size);
+}
 
-    return symbol;
+static void agsFree(void *ptr) {
+    ::free(ptr);
 }
 
 #define ENUM_CASE(x) case x: return #x
@@ -47,21 +44,22 @@ AgsString AgsError::message() const {
     ENUM_CASE(AGS_EXTENSION_NOT_SUPPORTED);
     ENUM_CASE(AGS_ADL_FAILURE);
     ENUM_CASE(AGS_DX_FAILURE);
+    ENUM_CASE(AGS_D3DDEVICE_NOT_CREATED);
 
-    default: return fmt::format("Unknown error: {}", mStatus);
+    default: return fmt::format("AGS_UNKNOWN({:#X})", mStatus);
     }
 }
 
-AgsError ags::startup() {
+AgsError ags::create(void) {
     AGSConfiguration config = {
-        .allocCallback = malloc,
-        .freeCallback = free,
+        .allocCallback = agsMalloc,
+        .freeCallback = agsFree,
     };
 
     return agsInitialize(AGS_CURRENT_VERSION, &config, &gAgsContext, &gAgsGpuInfo);
 }
 
-AgsError ags::shutdown() {
+AgsError ags::destroy(void) noexcept {
     return agsDeInitialize(gAgsContext);
 }
 
@@ -72,5 +70,11 @@ AgsVersion ags::getVersion() {
     int minor = (version >> 16) & 0xFF;
     int patch = version & 0xFFFF;
 
-    return AgsVersion{ major, minor, patch };
+    return AgsVersion {
+        .driver = gAgsGpuInfo.driverVersion,
+        .runtime = gAgsGpuInfo.radeonSoftwareVersion,
+        .major = major,
+        .minor = minor,
+        .patch = patch
+    };
 }

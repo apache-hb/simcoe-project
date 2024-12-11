@@ -55,7 +55,7 @@ static bool isCorrectType(detail::IConnection *connection, DataType expected, Da
 
 // TODO: deduplicate
 
-DbError ResultSet::checkColumnAccess(int index, DataType expected) noexcept {
+DbError ResultSet::checkColumnAccess(int index, DataType expected) const noexcept {
     if (!mImpl->hasDataReady())
         return DbError::noData();
 
@@ -72,7 +72,7 @@ DbError ResultSet::checkColumnAccess(int index, DataType expected) noexcept {
     return DbError::ok();
 }
 
-DbError ResultSet::checkColumnAccess(std::string_view column, DataType expected) noexcept {
+DbError ResultSet::checkColumnAccess(std::string_view column, DataType expected) const noexcept {
     if (!mImpl->hasDataReady())
         return DbError::noData();
 
@@ -97,7 +97,7 @@ DbResult<ColumnInfo> ResultSet::getColumnInfo(int index) const noexcept {
     return column;
 }
 
-DbResult<double> ResultSet::getDouble(int index) noexcept {
+DbResult<double> ResultSet::getDouble(int index) const noexcept {
     if (DbError error = checkColumnAccess(index, DataType::eDouble))
         return std::unexpected(error);
 
@@ -108,18 +108,18 @@ DbResult<double> ResultSet::getDouble(int index) noexcept {
     return value;
 }
 
-DbResult<sm::int64> ResultSet::getInt(int index) noexcept {
+DbResult<int64_t> ResultSet::getInt(int index) const noexcept {
     if (DbError error = checkColumnAccess(index, DataType::eInteger))
         return std::unexpected(error);
 
-    int64 value = 0;
+    int64_t value = 0;
     if (DbError error = mImpl->getIntByIndex(index, value))
         return error;
 
     return value;
 }
 
-DbResult<bool> ResultSet::getBool(int index) noexcept {
+DbResult<bool> ResultSet::getBool(int index) const noexcept {
     if (DbError error = checkColumnAccess(index, DataType::eBoolean))
         return std::unexpected(error);
 
@@ -130,7 +130,7 @@ DbResult<bool> ResultSet::getBool(int index) noexcept {
     return value;
 }
 
-DbResult<std::string_view> ResultSet::getString(int index) noexcept {
+DbResult<std::string_view> ResultSet::getString(int index) const noexcept {
     if (DbError error = checkColumnAccess(index, DataType::eVarChar))
         return std::unexpected(error);
 
@@ -141,7 +141,7 @@ DbResult<std::string_view> ResultSet::getString(int index) noexcept {
     return value;
 }
 
-DbResult<Blob> ResultSet::getBlob(int index) noexcept {
+DbResult<Blob> ResultSet::getBlob(int index) const noexcept {
     if (DbError error = checkColumnAccess(index, DataType::eBlob))
         return std::unexpected(error);
 
@@ -152,7 +152,7 @@ DbResult<Blob> ResultSet::getBlob(int index) noexcept {
     return value;
 }
 
-DbResult<DateTime> ResultSet::getDateTime(int index) noexcept {
+DbResult<DateTime> ResultSet::getDateTime(int index) const noexcept {
     if (DbError error = checkColumnAccess(index, DataType::eDateTime))
         return std::unexpected(error);
 
@@ -171,7 +171,7 @@ std::string_view ResultSet::getStringReturn(int index) {
     return mImpl->getStringReturnByIndex(index);
 }
 
-DbResult<double> ResultSet::getDouble(std::string_view column) noexcept {
+DbResult<double> ResultSet::getDouble(std::string_view column) const noexcept {
     if (DbError error = checkColumnAccess(column, DataType::eDouble))
         return std::unexpected(error);
 
@@ -182,18 +182,18 @@ DbResult<double> ResultSet::getDouble(std::string_view column) noexcept {
     return value;
 }
 
-DbResult<sm::int64> ResultSet::getInt(std::string_view column) noexcept {
+DbResult<int64_t> ResultSet::getInt(std::string_view column) const noexcept {
     if (DbError error = checkColumnAccess(column, DataType::eInteger))
         return std::unexpected(error);
 
-    int64 value = 0;
+    int64_t value = 0;
     if (DbError error = mImpl->getIntByName(column, value))
         return error;
 
     return value;
 }
 
-DbResult<bool> ResultSet::getBool(std::string_view column) noexcept {
+DbResult<bool> ResultSet::getBool(std::string_view column) const noexcept {
     if (DbError error = checkColumnAccess(column, DataType::eBoolean))
         return std::unexpected(error);
 
@@ -204,7 +204,7 @@ DbResult<bool> ResultSet::getBool(std::string_view column) noexcept {
     return value;
 }
 
-DbResult<std::string_view> ResultSet::getString(std::string_view column) noexcept {
+DbResult<std::string_view> ResultSet::getString(std::string_view column) const noexcept {
     if (DbError error = checkColumnAccess(column, DataType::eVarChar))
         return std::unexpected(error);
 
@@ -215,7 +215,7 @@ DbResult<std::string_view> ResultSet::getString(std::string_view column) noexcep
     return value;
 }
 
-DbResult<Blob> ResultSet::getBlob(std::string_view column) noexcept {
+DbResult<Blob> ResultSet::getBlob(std::string_view column) const noexcept {
     if (DbError error = checkColumnAccess(column, DataType::eBlob))
         return std::unexpected(error);
 
@@ -226,7 +226,7 @@ DbResult<Blob> ResultSet::getBlob(std::string_view column) noexcept {
     return value;
 }
 
-DbResult<DateTime> ResultSet::getDateTime(std::string_view column) noexcept {
+DbResult<DateTime> ResultSet::getDateTime(std::string_view column) const noexcept {
     if (DbError error = checkColumnAccess(column, DataType::eDateTime))
         return std::unexpected(error);
 
@@ -237,7 +237,7 @@ DbResult<DateTime> ResultSet::getDateTime(std::string_view column) noexcept {
     return value;
 }
 
-DbResult<bool> ResultSet::isNull(int index) noexcept {
+DbResult<bool> ResultSet::isNull(int index) const noexcept {
     if (index < 0 || index >= getColumnCount())
         return std::unexpected{DbError::columnNotFound(fmt::format(":{}", index))};
 
@@ -248,7 +248,7 @@ DbResult<bool> ResultSet::isNull(int index) noexcept {
     return value;
 }
 
-DbResult<bool> ResultSet::isNull(std::string_view column) noexcept {
+DbResult<bool> ResultSet::isNull(std::string_view column) const noexcept {
     if (!mImpl->hasDataReady())
         return std::unexpected{DbError::noData()};
 
@@ -260,7 +260,7 @@ DbResult<bool> ResultSet::isNull(std::string_view column) noexcept {
 }
 
 template<typename T>
-void setColumnField(ResultSet& results, void *dst, std::string_view name, bool nullable) {
+void setColumnField(const ResultSet& results, void *dst, std::string_view name, bool nullable) {
     using Option = std::optional<T>;
     bool isNull = results.isNull(name).value_or(false);
     if (isNull && !nullable)
@@ -279,7 +279,7 @@ void setColumnField(ResultSet& results, void *dst, std::string_view name, bool n
     }
 }
 
-static void getColumnData(ResultSet& results, const dao::ColumnInfo& info, void *dst) {
+static void getColumnData(const ResultSet& results, const dao::ColumnInfo& info, void *dst) {
     std::string_view name = info.name;
     bool nullable = info.nullable;
 
@@ -320,7 +320,7 @@ static void getColumnData(ResultSet& results, const dao::ColumnInfo& info, void 
     }
 }
 
-void ResultSet::getRowData(const dao::TableInfo& info, void *dst) {
+void ResultSet::getRowData(const dao::TableInfo& info, void *dst) const {
     for (size_t i = 0; i < info.columns.size(); ++i) {
         auto& column = info.columns[i];
         void *col = static_cast<char*>(dst) + column.offset;

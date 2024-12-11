@@ -5,13 +5,13 @@
 #include <type_traits>
 
 namespace sm {
-    uint32 next_index() noexcept;
+    uint32_t next_index() noexcept;
 
     template <typename T>
     class TypeIndex {
     public:
-        static uint32 index() noexcept {
-            static uint32 index = next_index();
+        static uint32_t index() noexcept {
+            static uint32_t index = next_index();
             return index;
         }
     };

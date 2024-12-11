@@ -56,7 +56,7 @@ namespace sm::render {
         Object<ID3D12Resource> target;
         Object<ID3D12CommandAllocator> allocator;
         RtvIndex rtvIndex;
-        uint64 fenceValue;
+        uint64_t fenceValue;
     };
 
     class Viewport {
@@ -157,7 +157,7 @@ namespace sm::render {
         Result createBufferResource(
             Resource& resource,
             D3D12_HEAP_TYPE heap,
-            uint64 width,
+            uint64_t width,
             D3D12_RESOURCE_STATES state,
             D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE);
 
@@ -223,15 +223,15 @@ namespace sm::render {
 
         // a region of memory currently being copied from host to device
         struct HostCopySource {
-            uint64 fence; // the storage fence value that must be reached before this can be deleted
-            sm::UniquePtr<uint8> buffer;
+            uint64_t fence; // the storage fence value that must be reached before this can be deleted
+            sm::UniquePtr<uint8_t> buffer;
 
             constexpr auto operator<=>(const HostCopySource& other) const noexcept { return fence <=> other.fence; }
 
             template<typename T> requires std::is_trivially_destructible_v<T>
-            HostCopySource(uint64 fence, sm::VectorBase<T>&& data)
+            HostCopySource(uint64_t fence, sm::VectorBase<T>&& data)
                 : fence(fence)
-                , buffer(reinterpret_cast<uint8*>(data.release()))
+                , buffer(reinterpret_cast<uint8_t*>(data.release()))
             { }
         };
 
@@ -286,7 +286,7 @@ namespace sm::render {
         StorageQueue mFileQueue;
         StorageQueue mMemoryQueue;
 
-        uint64 mStorageFenceValue = 1;
+        uint64_t mStorageFenceValue = 1;
         sm::HashMap<world::IndexOf<world::File>, Object<IDStorageFile>> mStorageFiles;
         sm::HashMap<size_t, world::Mesh> mStorageMeshes;
 
@@ -300,7 +300,7 @@ namespace sm::render {
         void destroyStorageDeviceData();
 
         IDStorageFile *getStorageFile(world::IndexOf<world::File> index);
-        const uint8 *getStorageBuffer(world::IndexOf<world::Buffer> index);
+        const uint8_t *getStorageBuffer(world::IndexOf<world::Buffer> index);
 
         void upload_buffer_view(RequestBuilder& request, const world::BufferView& view);
 
@@ -351,7 +351,7 @@ namespace sm::render {
 
         Adapter& get_current_adapter() { return *mCurrentAdapter; }
 
-        uint64 get_image_footprint(
+        uint64_t get_image_footprint(
             world::IndexOf<world::Image> image,
             sm::Span<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> footprints);
 

@@ -25,7 +25,7 @@ void StorageQueue::enqueue(const DSTORAGE_REQUEST& request) {
     mHasPendingRequests = true;
 }
 
-void StorageQueue::signal(ID3D12Fence *fence, uint64 value) {
+void StorageQueue::signal(ID3D12Fence *fence, uint64_t value) {
     CTASSERTF(mHasPendingRequests, "Cannot enqueue a signal with no pending requests");
     mQueue->EnqueueSignal(fence, value);
 }
@@ -77,7 +77,7 @@ Result CopyStorage::open(const fs::path& path, IDStorageFile **file) {
 /// storage request builder
 ///
 
-RequestBuilder& RequestBuilder::compression(DSTORAGE_COMPRESSION_FORMAT format, uint32 size) {
+RequestBuilder& RequestBuilder::compression(DSTORAGE_COMPRESSION_FORMAT format, uint32_t size) {
     Options.CompressionFormat = format;
     UncompressedSize = size;
     return *this;
@@ -94,7 +94,7 @@ RequestBuilder& RequestBuilder::src(void const *data, uint size) {
     return *this;
 }
 
-RequestBuilder& RequestBuilder::src(IDStorageFile *file, uint64 offset, uint size) {
+RequestBuilder& RequestBuilder::src(IDStorageFile *file, uint64_t offset, uint size) {
     DSTORAGE_SOURCE_FILE source = {
         .Source = file,
         .Offset = offset,
@@ -106,7 +106,7 @@ RequestBuilder& RequestBuilder::src(IDStorageFile *file, uint64 offset, uint siz
     return *this;
 }
 
-RequestBuilder& RequestBuilder::dst(ID3D12Resource *resource, uint64 offset, uint size) {
+RequestBuilder& RequestBuilder::dst(ID3D12Resource *resource, uint64_t offset, uint size) {
     DSTORAGE_DESTINATION_BUFFER destination = {
         .Resource = resource,
         .Offset = offset,
@@ -124,7 +124,7 @@ RequestBuilder& RequestBuilder::dst(DSTORAGE_DESTINATION_MULTIPLE_SUBRESOURCES i
     return *this;
 }
 
-RequestBuilder& RequestBuilder::tag(uint64 tag) {
+RequestBuilder& RequestBuilder::tag(uint64_t tag) {
     CancellationTag = tag;
     return *this;
 }

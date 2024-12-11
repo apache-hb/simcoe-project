@@ -20,8 +20,8 @@ namespace sm::db {
         { }
 
     public:
-        void to(int64 value) throws(DbException) { toInt(value); }
-        void to(uint64 value) throws(DbException) { toUInt(value); }
+        void to(int64_t value) throws(DbException) { toInt(value); }
+        void to(uint64_t value) throws(DbException) { toUInt(value); }
         void to(bool value) throws(DbException) { toBool(value); }
         void to(std::string_view value) throws(DbException) { toString(value); }
         void to(double value) throws(DbException) { toDouble(value); }
@@ -29,8 +29,8 @@ namespace sm::db {
         void to(DateTime value) throws(DbException) { toDateTime(value); }
         void to(std::nullptr_t) throws(DbException) { toNull(); }
 
-        void toInt(int64 value) throws(DbException) { return tryBindInt(value).throwIfFailed(); }
-        void toUInt(uint64 value) throws(DbException) { return tryBindUInt(value).throwIfFailed(); }
+        void toInt(int64_t value) throws(DbException) { return tryBindInt(value).throwIfFailed(); }
+        void toUInt(uint64_t value) throws(DbException) { return tryBindUInt(value).throwIfFailed(); }
         void toBool(bool value) throws(DbException) { return tryBindBool(value).throwIfFailed(); }
         void toString(std::string_view value) throws(DbException) { return tryBindString(value).throwIfFailed(); }
         void toDouble(double value) throws(DbException) { return tryBindDouble(value).throwIfFailed(); }
@@ -38,8 +38,8 @@ namespace sm::db {
         void toDateTime(DateTime value) throws(DbException) { return tryBindDateTime(value).throwIfFailed(); }
         void toNull() throws(DbException) { return tryBindNull().throwIfFailed(); }
 
-        DbError tryBindInt(int64 value) noexcept;
-        DbError tryBindUInt(uint64 value) noexcept;
+        DbError tryBindInt(int64_t value) noexcept;
+        DbError tryBindUInt(uint64_t value) noexcept;
         DbError tryBindBool(bool value) noexcept;
         DbError tryBindString(std::string_view value) noexcept;
         DbError tryBindDouble(double value) noexcept;
@@ -78,7 +78,7 @@ namespace sm::db {
         DbError tryBind(DateTime value) noexcept { return tryBindDateTime(value); }
         DbError tryBind(std::nullptr_t) noexcept { return tryBindNull(); }
 
-        void operator=(int64 value) throws(DbException) { to(value); }
+        void operator=(int64_t value) throws(DbException) { to(value); }
         void operator=(bool value) throws(DbException) { to(value); }
         void operator=(std::string_view value) throws(DbException) { to(value); }
         void operator=(double value) throws(DbException) { to(value); }

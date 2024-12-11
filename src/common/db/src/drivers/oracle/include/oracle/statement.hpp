@@ -17,7 +17,7 @@ namespace sm::db::oracle {
         char *text;
         OCINumber num;
         OraDateTime date;
-        int64 integer;
+        int64_t integer;
         double bdouble;
         void *lob;
 
@@ -107,7 +107,7 @@ namespace sm::db::oracle {
 
         int getBindCount() const noexcept override;
 
-        DbError bindIntByIndex(int index, int64 value) noexcept override;
+        DbError bindIntByIndex(int index, int64_t value) noexcept override;
         DbError bindBooleanByIndex(int index, bool value) noexcept override;
         DbError bindStringByIndex(int index, std::string_view value) noexcept override;
         DbError bindDoubleByIndex(int index, double value) noexcept override;
@@ -115,7 +115,7 @@ namespace sm::db::oracle {
         DbError bindDateTimeByIndex(int index, DateTime value) noexcept override;
         DbError bindNullByIndex(int index) noexcept override;
 
-        DbError bindIntByName(std::string_view name, int64 value) noexcept override;
+        DbError bindIntByName(std::string_view name, int64_t value) noexcept override;
         DbError bindBooleanByName(std::string_view name, bool value) noexcept override;
         DbError bindStringByName(std::string_view name, std::string_view value) noexcept override;
         DbError bindDoubleByName(std::string_view name, double value) noexcept override;
@@ -137,7 +137,7 @@ namespace sm::db::oracle {
         int64_t getIntReturnByIndex(int index) noexcept(false) override;
         std::string_view getStringReturnByIndex(int index) noexcept(false) override;
 
-        DbError getIntByIndex(int index, int64& value) noexcept override;
+        DbError getIntByIndex(int index, int64_t& value) noexcept override;
         DbError getBooleanByIndex(int index, bool& value) noexcept override;
         DbError getStringByIndex(int index, std::string_view& value) noexcept override;
         DbError getDoubleByIndex(int index, double& value) noexcept override;

@@ -11,11 +11,11 @@ using namespace sm::db;
 /// named bindpoint
 ///
 
-DbError BindPoint::tryBindInt(int64 value) noexcept {
+DbError BindPoint::tryBindInt(int64_t value) noexcept {
     return mImpl->bindIntByName(mName, value);
 }
 
-DbError BindPoint::tryBindUInt(uint64 value) noexcept {
+DbError BindPoint::tryBindUInt(uint64_t value) noexcept {
     return mImpl->bindIntByName(mName, value);
 }
 

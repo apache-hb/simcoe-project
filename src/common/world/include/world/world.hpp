@@ -8,7 +8,7 @@
 #include <variant>
 
 namespace sm::world {
-    static constexpr uint16 kInvalidIndex = UINT16_MAX;
+    static constexpr uint16_t kInvalidIndex = UINT16_MAX;
 
     enum IndexType {
         eNone,
@@ -33,10 +33,10 @@ namespace sm::world {
 
     template<IsWorldObject T>
     class IndexOf {
-        uint16 mIndex;
+        uint16_t mIndex;
 
     public:
-        IndexOf(uint16 index = kInvalidIndex)
+        IndexOf(uint16_t index = kInvalidIndex)
             : mIndex(index)
         { }
 
@@ -45,8 +45,8 @@ namespace sm::world {
 
         bool is_valid() const { return mIndex != kInvalidIndex; }
 
-        operator uint16() const { return mIndex; }
-        uint16 get() const { return mIndex; }
+        operator uint16_t() const { return mIndex; }
+        uint16_t get() const { return mIndex; }
 
         static IndexType type() { return T::kType; }
     };
@@ -77,10 +77,10 @@ namespace sm::world {
         static constexpr sm::StringView kName = "Buffer";
 
         sm::String name;
-        sm::Vector<uint8> data;
+        sm::Vector<uint8_t> data;
 
         template<typename T> requires (std::is_trivial_v<T>)
-        sm::Span<const T> view(uint64 offset, uint32 count) const {
+        sm::Span<const T> view(uint64_t offset, uint32_t count) const {
             return sm::Span<const T>(reinterpret_cast<const T*>(data.data() + offset), count);
         }
     };
@@ -88,19 +88,19 @@ namespace sm::world {
     struct BufferView {
         ChoiceOf<File, Buffer> source;
 
-        uint64 offset;
-        uint32 source_size;
+        uint64_t offset;
+        uint32_t source_size;
         // uint32 buffer_size;
 
-        static BufferView file(IndexOf<File> file, uint64 offset, uint32 size) {
+        static BufferView file(IndexOf<File> file, uint64_t offset, uint32_t size) {
             return {IndexOf<File>(file), offset, size};
         }
 
-        static BufferView buffer(IndexOf<Buffer> buffer, uint64 offset, uint32 size) {
+        static BufferView buffer(IndexOf<Buffer> buffer, uint64_t offset, uint32_t size) {
             return {IndexOf<Buffer>(buffer), offset, size};
         }
 
-        uint32 getBufferSize() const { return source_size; }
+        uint32_t getBufferSize() const { return source_size; }
     };
 
     struct Image {
@@ -131,8 +131,8 @@ namespace sm::world {
     };
 
     struct Object {
-        uint32 vertexCount;
-        uint32 indexCount;
+        uint32_t vertexCount;
+        uint32_t indexCount;
 
         IndexSize indexBufferFormat = IndexSize::eShort;
         VertexFlags vertexBufferFlags = VertexFlags::eNone;
@@ -140,8 +140,8 @@ namespace sm::world {
         BufferView vertices;
         BufferView indices;
 
-        uint32 getVertexCount() const { return vertexCount; }
-        uint32 getIndexCount() const { return indexCount; }
+        uint32_t getVertexCount() const { return vertexCount; }
+        uint32_t getIndexCount() const { return indexCount; }
 
         DXGI_FORMAT getIndexBufferFormat() const;
         uint getVertexStride() const;
@@ -250,7 +250,7 @@ namespace sm::world {
 
     template<IsWorldObject T>
     class IndexIterator {
-        uint16 mIndex;
+        uint16_t mIndex;
 
     public:
         IndexIterator(IndexOf<T> index)
@@ -292,7 +292,7 @@ namespace sm::world {
         template<IsWorldObject T>
         IndexOf<T> add(T&& value) {
             auto& vec = get_vector<T>();
-            uint16 index = sm::int_cast<uint16>(vec.size());
+            uint16_t index = sm::int_cast<uint16_t>(vec.size());
             vec.push_back(std::forward<T>(value));
             return IndexOf<T>(index);
         }
@@ -319,7 +319,7 @@ namespace sm::world {
         template<IsWorldObject T>
         IndexRange<T> indices() const {
             const auto& vec = all<T>();
-            return IndexRange<T>{0, int_cast<uint16>(vec.size())};
+            return IndexRange<T>{0, int_cast<uint16_t>(vec.size())};
         }
 
         auto visit(AnyIndex index, auto&& fn) {
@@ -366,6 +366,6 @@ namespace sm::world {
 template<typename T>
 struct std::hash<sm::world::IndexOf<T>> { // NOLINT
     size_t operator()(sm::world::IndexOf<T> index) const {
-        return std::hash<sm::uint16>{}(index.get());
+        return std::hash<uint16_t>{}(index.get());
     }
 };

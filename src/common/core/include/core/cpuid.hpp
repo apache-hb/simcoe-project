@@ -8,7 +8,7 @@ namespace sm {
         int32_t ireg[4];
         struct { uint32_t eax; uint32_t ebx; uint32_t ecx; uint32_t edx; };
 
-        void asString(char dst[4 * 4]) const noexcept;
+        void asString(char dst[16]) const noexcept;
 
         static CpuId of(int leaf) noexcept;
         static CpuId count(int leaf, int subleaf) noexcept;

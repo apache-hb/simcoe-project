@@ -45,7 +45,7 @@ std::expected<ImageData, std::string> sm::loadImage(std::span<const byte> data) 
         .pxformat = getChannelFormat(4),
         .size = { int_cast<uint32_t>(width), int_cast<uint32_t>(height) },
         // TODO: this is a full copy, maybe theres a way to use a single buffer
-        .data = sm::Vector<uint8>(pixels, pixels + int_cast<ptrdiff_t>(width * height * 4)),
+        .data = sm::Vector<uint8_t>(pixels, pixels + int_cast<ptrdiff_t>(width * height * 4)),
     };
 
     stbi_image_free(pixels);

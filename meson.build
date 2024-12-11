@@ -2,17 +2,17 @@ project('simcoe', [ 'c', 'cpp' ],
     license : 'GPL-3.0-only',
     version : '1.1.0',
     default_options : [
+        'warning_level=3',
+        'werror=true',
+
         'cpp_std=c++latest,gnu++23',
+        'default_library=static',
+        'b_vscrt=mt',
 
         'cpp_rtti=false',
         'cpp_eh=default',
 
-        'warning_level=3',
-        'werror=true',
-
         'unity=subprojects',
-        'default_library=static',
-        'b_vscrt=mt',
 
         'licensedir=licenses',
         'wrap_mode=forcefallback',

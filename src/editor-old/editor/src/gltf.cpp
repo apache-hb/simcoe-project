@@ -151,12 +151,12 @@ void Editor::importGltf(const fs::path& path) {
         // place all the primitive data in a single buffer
         // indices first, then vertices
         // TODO: is there a way to get these buffers merged automatically?
-        sm::Vector<uint8> data(indexAccess.count * sizeof(uint16) + posAccess.count * sizeof(world::Vertex));
+        sm::Vector<uint8_t> data(indexAccess.count * sizeof(uint16_t) + posAccess.count * sizeof(world::Vertex));
 
-        sm::Span<uint16> indices(reinterpret_cast<uint16*>(data.data()), indexAccess.count);
+        sm::Span<uint16_t> indices(reinterpret_cast<uint16_t*>(data.data()), indexAccess.count);
         sm::Span<world::Vertex> vertices(reinterpret_cast<world::Vertex*>(data.data() + indices.size_bytes()), posAccess.count);
 
-        fg::iterateAccessorWithIndex<uint16>(asset, indexAccess, [&](uint16 value, size_t index) {
+        fg::iterateAccessorWithIndex<uint16_t>(asset, indexAccess, [&](uint16_t value, size_t index) {
             indices[index] = value;
         });
 

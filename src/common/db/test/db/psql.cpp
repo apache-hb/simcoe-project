@@ -53,7 +53,7 @@ TEST_CASE("sqlite updates") {
 
         int count = 1;
         while (results.next().isSuccess()) {
-            int64 id = getValue(results.getInt(0));
+            int64_t id = getValue(results.getInt(0));
             std::string_view name = getValue(results.getString(1));
 
             REQUIRE(id == count);

@@ -11,13 +11,11 @@ namespace sm::render {
         int mStatus;
 
     public:
-        NvStatus() = default;
-
-        constexpr NvStatus(int status)
+        constexpr NvStatus(int status = 0) noexcept
             : mStatus(status)
         { }
 
-        constexpr bool success() const { return mStatus == 0; }
+        constexpr bool success() const noexcept { return mStatus == 0; }
 
         NvString message() const;
     };
@@ -26,15 +24,16 @@ namespace sm::render {
     using NvResult = std::expected<T, NvStatus>;
 
     struct NvVersion {
-        uint32 version;
+        uint32_t version;
         NvString build;
     };
 
     namespace nvapi {
-        NvStatus startup();
+        NvStatus create(void);
+        NvStatus destroy(void) noexcept;
+
         NvResult<NvString> getInterfaceVersionString();
         NvResult<NvString> getInterfaceVersionStringEx();
         NvResult<NvVersion> getDriverVersion();
-        NvStatus shutdown();
     }
 }

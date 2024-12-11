@@ -38,7 +38,7 @@ namespace sm::db::sqlite {
 
         DbError getBindIndex(std::string_view name, int& index) const noexcept override;
 
-        DbError bindIntByIndex(int index, int64 value) noexcept override;
+        DbError bindIntByIndex(int index, int64_t value) noexcept override;
         DbError bindBooleanByIndex(int index, bool value) noexcept override;
         DbError bindStringByIndex(int index, std::string_view value) noexcept override;
         DbError bindDoubleByIndex(int index, double value) noexcept override;
@@ -68,7 +68,7 @@ namespace sm::db::sqlite {
             return value;
         }
 
-        DbError getIntByIndex(int index, int64& value) noexcept override;
+        DbError getIntByIndex(int index, int64_t& value) noexcept override;
         DbError getBooleanByIndex(int index, bool& value) noexcept override;
         DbError getStringByIndex(int index, std::string_view& value) noexcept override;
         DbError getDoubleByIndex(int index, double& value) noexcept override;

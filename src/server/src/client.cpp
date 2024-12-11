@@ -1,5 +1,6 @@
-#include "imgui/imgui.h"
 #include "stdafx.hpp"
+
+#include "imgui/imgui.h"
 #include "common.hpp"
 #include "db/connection.hpp"
 
@@ -292,9 +293,9 @@ static int commonMain(launch::LaunchResult&) noexcept try {
             std::function<void()> event;
 
             LOG_INFO(GlobalLog, "Waiting for event");
-            
+
             events.wait_dequeue(event);
-            
+
             LOG_INFO(GlobalLog, "New event");
 
             event();

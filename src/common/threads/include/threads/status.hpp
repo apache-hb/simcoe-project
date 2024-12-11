@@ -1,8 +1,8 @@
 #pragma once
 
 namespace sm::threads {
-    bool isRealtimeThread();
-    void setCurrentThreadClass(bool realtime);
+    bool isRealtimeThread() noexcept [[clang::nonblocking]];
+    void setCurrentThreadClass(bool realtime) noexcept [[clang::nonblocking]];
 }
 
 #define SM_BLOCKING_ZONE(name) \

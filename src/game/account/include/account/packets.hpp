@@ -38,21 +38,20 @@ namespace game {
     };
 
     template<size_t N>
-    struct Text {
+    class Text {
         char data[N] = {};
 
-        std::string_view text() const {
+    public:
+        constexpr std::string_view text() const noexcept {
             size_t length = strnlen(data, N);
             return { data, length };
         }
 
-        operator std::string_view() const {
+        constexpr operator std::string_view() const noexcept {
             return text();
         }
 
-        Text() = default;
-
-        Text(std::string_view text) {
+        constexpr Text(std::string_view text = "") noexcept {
             std::memcpy(data, text.data(), std::min(text.size(), N));
         }
     };

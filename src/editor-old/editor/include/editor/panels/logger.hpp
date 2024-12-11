@@ -11,10 +11,10 @@ namespace sm::ed {
 
         struct Message {
             logs::Severity severity;
-            uint32 timestamp;
-            uint16 thread;
+            uint32_t timestamp;
+            uint16_t thread;
 
-            sm::String message;
+            std::string message;
         };
 
         using LogMessages = std::vector<Message>;

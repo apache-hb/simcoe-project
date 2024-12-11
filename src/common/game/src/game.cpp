@@ -117,11 +117,11 @@ struct CContactListener final : public JPH::ContactListener {
 };
 
 struct CBodyActivationListener final : public JPH::BodyActivationListener {
-    void OnBodyActivated(const JPH::BodyID& id, uint64 user) override {
+    void OnBodyActivated(const JPH::BodyID& id, uint64_t user) override {
         LOG_INFO(PhysicsLog, "Body activated: {}", id.GetIndex());
     }
 
-    void OnBodyDeactivated(const JPH::BodyID& id, uint64 user) override {
+    void OnBodyDeactivated(const JPH::BodyID& id, uint64_t user) override {
         LOG_INFO(PhysicsLog, "Body deactivated: {}", id.GetIndex());
     }
 };

@@ -133,12 +133,13 @@ NetError Socket::setSendTimeout(std::chrono::milliseconds timeout) noexcept {
 NetResult<Socket> ListenSocket::tryAccept() noexcept {
     system::os::SocketHandle client = ::accept(get(), nullptr, nullptr);
     if (client == system::os::kInvalidSocket) {
+        NetError result = lastNetError();
 
         // if we were shutdown then return an error
         if (!isActive())
             return std::unexpected(NetError{system::os::kErrorInterrupted});
 
-        return std::unexpected(lastNetError());
+        return std::unexpected(result);
     }
 
     return {client};

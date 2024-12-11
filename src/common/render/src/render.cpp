@@ -172,7 +172,7 @@ IDStorageFile *IDeviceContext::getStorageFile(world::IndexOf<world::File> index)
     return fd.get();
 }
 
-const uint8 *IDeviceContext::getStorageBuffer(world::IndexOf<world::Buffer> index) {
+const uint8_t *IDeviceContext::getStorageBuffer(world::IndexOf<world::Buffer> index) {
     auto& buffer = mWorld.get(index);
 
     return buffer.data.data();
@@ -458,7 +458,7 @@ Result IDeviceContext::createTextureResource(Resource& resource, D3D12_HEAP_TYPE
 Result IDeviceContext::createBufferResource(
     Resource& resource,
     D3D12_HEAP_TYPE heap,
-    uint64 width,
+    uint64_t width,
     D3D12_RESOURCE_STATES state,
     D3D12_RESOURCE_FLAGS flags
 )
@@ -487,8 +487,8 @@ static void buildFileUploadRequest(
     render::IDeviceContext& self,
     render::RequestBuilder& request,
     world::IndexOf<world::File> file,
-    uint64 offset,
-    uint32 size)
+    uint64_t offset,
+    uint32_t size)
 {
     IDStorageFile *storage = self.getStorageFile(file);
 
@@ -499,10 +499,10 @@ static void buildBufferUploadRequest(
     render::IDeviceContext& self,
     render::RequestBuilder& request,
     world::IndexOf<world::Buffer> buffer,
-    uint64 offset,
-    uint32 size)
+    uint64_t offset,
+    uint32_t size)
 {
-    const uint8 *data = self.getStorageBuffer(buffer) + offset;
+    const uint8_t *data = self.getStorageBuffer(buffer) + offset;
 
     self.mMemoryQueue.enqueue(request.src(data, size).name("Load Buffer Region"));
 }
@@ -685,7 +685,7 @@ render::ecs::VertexBuffer IDeviceContext::uploadVertexBuffer(world::VertexBuffer
 
     D3D12_VERTEX_BUFFER_VIEW view = {
         .BufferLocation = resource.getDeviceAddress(),
-        .SizeInBytes = uint32(size),
+        .SizeInBytes = uint32_t(size),
         .StrideInBytes = sizeof(world::Vertex)
     };
 
@@ -711,7 +711,7 @@ render::ecs::IndexBuffer IDeviceContext::uploadIndexBuffer(world::IndexBuffer&& 
 
     D3D12_INDEX_BUFFER_VIEW view = {
         .BufferLocation = resource.getDeviceAddress(),
-        .SizeInBytes = uint32(size),
+        .SizeInBytes = uint32_t(size),
         .Format = DXGI_FORMAT_R16_UINT
     };
 
@@ -762,8 +762,8 @@ void IDeviceContext::end_upload() {
     }
 
     // only wait on the cpu side if commands were submitted
-    uint64 expected = mStorageFenceValue - 1;
-    uint64 completed = mStorageFence->GetCompletedValue();
+    uint64_t expected = mStorageFenceValue - 1;
+    uint64_t completed = mStorageFence->GetCompletedValue();
     if (completed < expected) {
         mStorageFence->SetEventOnCompletion(expected, mStorageFenceEvent);
         WaitForSingleObject(mStorageFenceEvent, INFINITE);
@@ -840,7 +840,7 @@ void IDeviceContext::destroy_framegraph() {
     mFrameGraph.reset();
 }
 
-uint64 IDeviceContext::get_image_footprint(
+uint64_t IDeviceContext::get_image_footprint(
     world::IndexOf<world::Image> image,
     sm::Span<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> footprints)
 {
@@ -848,7 +848,7 @@ uint64 IDeviceContext::get_image_footprint(
     const auto& data = mImages.at(image);
 
     D3D12_RESOURCE_DESC desc = data.resource.get()->GetDesc();
-    uint64 offset = 0;
+    uint64_t offset = 0;
 
     if (!D3DX12GetCopyableFootprints(desc, 0, info.mips, 0, footprints.data(), nullptr, nullptr, &offset))
         CT_NEVER("failed to get image footprints");
@@ -1008,7 +1008,7 @@ void IDeviceContext::recreate_device() {
 void IDeviceContext::update_swapchain_length(uint length) {
     wait_for_gpu();
 
-    uint64 current = mFrames[mFrameIndex].fenceValue;
+    uint64_t current = mFrames[mFrameIndex].fenceValue;
 
     for (auto& frame : mFrames) {
         frame.target.reset();
@@ -1064,7 +1064,7 @@ void IDeviceContext::update_framegraph() {
 }
 
 void IDeviceContext::move_to_next_frame() {
-    const uint64 current = mFrames[mFrameIndex].fenceValue;
+    const uint64_t current = mFrames[mFrameIndex].fenceValue;
     SM_ASSERT_HR(mDirectQueue->Signal(*mFence, current));
 
     mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
@@ -1079,7 +1079,7 @@ void IDeviceContext::move_to_next_frame() {
 }
 
 void IDeviceContext::wait_for_gpu() {
-    const uint64 current = mFrames[mFrameIndex].fenceValue++;
+    const uint64_t current = mFrames[mFrameIndex].fenceValue++;
     SM_ASSERT_HR(mDirectQueue->Signal(*mFence, current));
 
     SM_ASSERT_HR(mFence->SetEventOnCompletion(current, mFenceEvent));

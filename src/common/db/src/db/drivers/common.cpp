@@ -17,7 +17,7 @@ DbError IStatement::isNullByName(std::string_view column, bool& value) noexcept 
 
 /** Getting results */
 
-DbError IStatement::getIntByName(std::string_view column, int64& value) noexcept {
+DbError IStatement::getIntByName(std::string_view column, int64_t& value) noexcept {
     return getValue(column, value, &IStatement::getIntByIndex);
 }
 
@@ -43,7 +43,7 @@ DbError IStatement::getDateTimeByName(std::string_view column, DateTime& value) 
 
 /** Binding */
 
-DbError IStatement::bindIntByName(std::string_view name, int64 value) noexcept {
+DbError IStatement::bindIntByName(std::string_view name, int64_t value) noexcept {
     return bindValue(name, value, &IStatement::bindIntByIndex);
 }
 

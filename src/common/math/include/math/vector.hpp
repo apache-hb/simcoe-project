@@ -423,15 +423,15 @@ namespace sm::math {
 
     enum Side { A = 0, B = 0xFFFFFFFF };
 
-    constexpr uint8 swizzle_mask(Channel x, Channel y, Channel z, Channel w) {
+    constexpr uint8_t swizzle_mask(Channel x, Channel y, Channel z, Channel w) {
         return (x << 0) | (y << 2) | (z << 4) | (w << 6);
     }
 
-    constexpr Channel swizzle_get(uint8 mask, Channel channel) {
+    constexpr Channel swizzle_get(uint8_t mask, Channel channel) {
         return static_cast<Channel>((mask >> (channel * 2)) & 0x3);
     }
 
-    constexpr uint8 swizzle_set(uint8 mask, Channel channel, Channel value) {
+    constexpr uint8_t swizzle_set(uint8_t mask, Channel channel, Channel value) {
         return (mask & ~(0x3 << (channel * 2))) | (value << (channel * 2));
     }
 
@@ -446,7 +446,7 @@ namespace sm::math {
     }
 
     template<IsVector T>
-    constexpr T swizzle(T v, uint8 mask) {
+    constexpr T swizzle(T v, uint8_t mask) {
         T out;
         for (size_t i = 0; i < T::kSize; i++) {
             out.fields[i] = v.fields[(mask >> (i * 2)) & 0x3];

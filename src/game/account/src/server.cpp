@@ -4,7 +4,6 @@
 
 #include "core/defer.hpp"
 
-#include <cstdio>
 #include <fmtlib/format.h>
 
 #include "account.dao.hpp"
@@ -17,10 +16,11 @@ using namespace sm;
 namespace acd = sm::dao::account;
 
 static std::optional<acd::User> getUserByName(db::Connection& db, std::string_view name) try {
-    // TODO: horrible evil, need to support arbitrary prepared statements
-    std::string query = fmt::format("SELECT * FROM user WHERE name = '{}'", name);
+    auto stmt = db.prepareQuery("SELECT * FROM user WHERE name = :name");
+    stmt.bind("name").to(name);
+    db::ResultSet result = db::throwIfFailed(stmt.start());
 
-    return db.selectOneWhere<acd::User>(query);
+    return result.row<acd::User>();
 } catch (const db::DbException& e) {
     if (e.error().noData()) {
         return std::nullopt;
@@ -73,13 +73,11 @@ SessionId AccountServer::login(game::Login info) {
 
     auto user = getUserByName(mAccountDb, info.username);
     if (!user.has_value()) {
-        fmt::println(stderr, "user not found: `{}`", info.username.text());
         return UINT64_MAX;
     }
 
     uint64_t password = hashWithSalt(info.password, user->salt);
     if (user->password != password) {
-        fmt::println(stderr, "invalid password for user: `{}`", info.username.text());
         return UINT64_MAX;
     }
 
@@ -89,11 +87,11 @@ SessionId AccountServer::login(game::Login info) {
 
     auto result = mAccountDb.tryInsertReturningPrimaryKey(session);
     if (!result.has_value()) {
-        fmt::println(stderr, "failed to create session: {}", result.error());
         return UINT64_MAX;
     }
 
-    fmt::println(stderr, "created session: {}", result.value());
+    LOG_INFO(GlobalLog, "created session: {}", result.value());
+
     return result.value();
 }
 
@@ -181,7 +179,7 @@ uint64_t AccountServer::getLobbyList(std::span<LobbyInfo> lobbies) try {
     throw;
 }
 
-void AccountServer::dropSession(SessionId session) {
+void AccountServer::dropSession(SessionId session) try {
     if (session == UINT64_MAX)
         return;
 
@@ -194,6 +192,10 @@ void AccountServer::dropSession(SessionId session) {
     }
 
     mOpenClients.erase(session);
+} catch (const std::exception& e) {
+    LOG_WARN(GlobalLog, "Failed to drop session: {}", e.what());
+} catch (...) {
+    LOG_ERROR(GlobalLog, "Failed to drop session");
 }
 
 void AccountServer::broadcastMessage(SendMessage message) {
@@ -212,6 +214,10 @@ void AccountServer::handleClient(const std::stop_token& stop, net::Socket socket
     SessionId session = UINT64_MAX;
 
     defer { dropSession(session); };
+
+    socket.setBlocking(false);
+    socket.setRecvTimeout(250ms);
+    socket.setSendTimeout(250ms);
 
     router.addRoute<Ack>(PacketType::eAck, [](const Ack& req) {
         LOG_INFO(GlobalLog, "received ack: {}/{}", req.header.id, req.header.stream);
@@ -299,9 +305,10 @@ void AccountServer::handleClient(const std::stop_token& stop, net::Socket socket
             return Response { req.header, Status::eFailure };
         }
 
+        LOG_INFO(GlobalLog, "received message: {}", req.message.text());
+
         broadcastMessage(req);
 
-        LOG_INFO(GlobalLog, "received message: {}", req.message.text());
         return Response { req.header, Status::eSuccess };
     });
 
@@ -360,25 +367,20 @@ AccountServer::AccountServer(db::Connection db, net::Network& net, const net::Ad
 AccountServer::AccountServer(db::Connection db, net::Network& net, const net::Address& address, uint16_t port, unsigned seed) noexcept(false)
     : mAccountDb(std::move(db))
     , mNetwork(net)
-    , mServer(mNetwork.bind(address, port))
+    , mSocket(mNetwork.bind(address, port))
     , mSalt(seed)
 {
     createSchema(mAccountDb);
 }
 
-void AccountServer::listen(uint16_t connections) {
-    begin(connections);
-    work();
-}
-
 void AccountServer::begin(uint16_t connections) {
-    mServer.listen(connections).throwIfFailed();
+    mSocket.listen(connections).throwIfFailed();
 }
 
 void AccountServer::work() {
     std::unordered_set<std::unique_ptr<std::jthread>> threads;
-    while (mServer.isActive()) {
-        net::NetResult<net::Socket> client = mServer.tryAccept();
+    while (mSocket.isActive()) {
+        net::NetResult<net::Socket> client = mSocket.tryAccept();
         if (isCancelled(client))
             break;
 
@@ -393,9 +395,9 @@ void AccountServer::work() {
 }
 
 void AccountServer::stop() {
-    mServer.cancel();
+    mSocket.cancel();
 }
 
 bool AccountServer::isRunning() const {
-    return mServer.isActive();
+    return mSocket.isActive();
 }

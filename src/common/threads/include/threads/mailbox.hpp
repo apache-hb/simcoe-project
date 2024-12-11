@@ -50,4 +50,7 @@ namespace sm::threads {
             mState.store(state ^ (kIndexBit | kWriteBit), std::memory_order_release);
         }
     };
+
+    template<typename T>
+    using WaitFreeMailBox = NonBlockingMailBox<T>;
 }

@@ -38,7 +38,7 @@ Clear Clear::colour(math::float4 value, DXGI_FORMAT format) {
     return clear;
 }
 
-Clear Clear::depthStencil(float depth, uint8 stencil, DXGI_FORMAT format) {
+Clear Clear::depthStencil(float depth, uint8_t stencil, DXGI_FORMAT format) {
     Clear clear;
     clear.mClearType = ClearType::eDepth;
     clear.mFormat = format;
@@ -1136,7 +1136,7 @@ void FrameGraph::execute() {
                 ID3D12CommandQueue *wait = mContext.getQueue(sync.wait);
                 auto& [fence, value] = getFence(sync.fence);
 
-                uint64 it = value++;
+                uint64_t it = value++;
 
                 SM_ASSERT_HR(signal->Signal(fence.get(), it));
                 SM_ASSERT_HR(wait->Wait(fence.get(), it));

@@ -283,7 +283,7 @@ DbError OraStatement::getColumnIndex(std::string_view name, int& index) const no
     return DbError::columnNotFound(name);
 }
 
-DbError OraStatement::bindIntByIndex(int index, int64 value) noexcept {
+DbError OraStatement::bindIntByIndex(int index, int64_t value) noexcept {
     int64_t *data = addBindValue(value);
     return bindAtPosition(index, data, sizeof(*data), SQLT_INT);
 }
@@ -388,7 +388,7 @@ DbError OraStatement::bindNullByIndex(int index) noexcept {
     return bindAtPosition(index, nullptr, 0, SQLT_STR);
 }
 
-DbError OraStatement::bindIntByName(std::string_view name, int64 value) noexcept {
+DbError OraStatement::bindIntByName(std::string_view name, int64_t value) noexcept {
     int64_t *addr = addBindValue(value);
     return bindAtName(name, addr, sizeof(*addr), SQLT_INT);
 }
@@ -632,7 +632,7 @@ DbError OraStatement::getColumnInfo(std::string_view name, ColumnInfo& info) con
     return getColumnInfo(index, info);
 }
 
-DbError OraStatement::getIntByIndex(int index, int64& value) noexcept {
+DbError OraStatement::getIntByIndex(int index, int64_t& value) noexcept {
     const OraColumnInfo& column = mColumnInfo[index];
     if (column.indicator) {
         value = 0;

@@ -154,12 +154,14 @@ namespace sm::db {
         /// @warning Only used if @a connection is not set
         std::string alias;
 
-        uint16 port = 0;
+        uint16_t port = 0;
         std::string host;
         std::string user;
         std::string password;
         std::string database;
 
+        /// @brief Connection timeout
+        /// How long to wait for a connection to be established
         std::chrono::seconds timeout = kDefaultTimeout;
 
         bool autoCommit = true;

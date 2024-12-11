@@ -200,7 +200,7 @@ bool AccountClient::refreshLobbyList() {
 
 bool AccountClient::refreshMessageList() {
     work();
-    
+
     while (AnyPacket packet = mSocketMux.pop(kMessageStream)) {
         SendMessage& message = *std::bit_cast<SendMessage*>(packet.data());
         mMessages.push_back(Message { .author = "TODO", .message = std::string{message.message.text()} });

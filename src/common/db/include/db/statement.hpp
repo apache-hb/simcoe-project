@@ -21,7 +21,7 @@ namespace sm::db {
         SM_MOVE(PreparedStatement, default);
 
         BindPoint bind(std::string_view name) noexcept;
-        void bind(std::string_view name, int64 value) noexcept { bind(name).toInt(value); }
+        void bind(std::string_view name, int64_t value) noexcept { bind(name).toInt(value); }
         void bind(std::string_view name, std::string_view value) noexcept { bind(name).toString(value); }
         void bind(std::string_view name, double value) noexcept { bind(name).toDouble(value); }
         void bind(std::string_view name, bool value) noexcept { bind(name).toBool(value); }

@@ -105,7 +105,7 @@ TEST_F(SqliteTest, SelectValues) {
 
     ASSERT_FALSE(results.isDone());
 
-    int64 id = getValue(results.getInt(0));
+    int64_t id = getValue(results.getInt(0));
     std::string_view name = getValue(results.getString(1));
 
     ASSERT_EQ(id, 1);
@@ -126,7 +126,7 @@ TEST_F(SqliteTest, DoWhileSelect) {
 
     int count = 1;
     do {
-        int64 id = getValue(results.getInt(0));
+        int64_t id = getValue(results.getInt(0));
         std::string_view name = getValue(results.getString(1));
 
         ASSERT_EQ(id, count);
@@ -149,8 +149,8 @@ TEST_F(SqliteTest, RangedForSelect) {
     auto results = getValue(conn.trySelectSql("SELECT * FROM test ORDER BY id ASC"));
 
     int count = 1;
-    for (auto row : results) {
-        int64 id = getValue(row.getInt(0));
+    for (ResultSet& row : results) {
+        int64_t id = getValue(row.getInt(0));
         std::string_view name = getValue(row.getString(1));
 
         ASSERT_EQ(id, count);
@@ -174,7 +174,7 @@ TEST_F(SqliteTest, Update) {
 
     ASSERT_FALSE(results.isDone());
 
-    int64 id = getValue(results.getInt(0));
+    int64_t id = getValue(results.getInt(0));
     std::string_view name = getValue(results.getString(1));
 
     ASSERT_EQ(id, 1);
@@ -306,8 +306,8 @@ TEST_F(SqliteTest, ErrorHandling) {
     conn.updateSql("INSERT INTO test (id, name) VALUES (1, 'test')");
 
     ResultSet results = conn.selectSql("SELECT * FROM test");
-    for (auto row : results) {
-        int64 id = getValue(row.getInt(0));
+    for (ResultSet& row : results) {
+        int64_t id = getValue(row.getInt(0));
         std::string_view name = getValue(row.getString(1));
 
         ASSERT_EQ(id, 1);

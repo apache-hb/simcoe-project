@@ -54,7 +54,7 @@ TEST_CASE("updates") {
             int count = 0;
 
             while (!results.isDone()) {
-                int64 id = getValue(results.getInt(0));
+                int64_t id = getValue(results.getInt(0));
                 std::string_view name = getValue(results.getString(1));
 
                 REQUIRE(id == 1);
@@ -81,7 +81,7 @@ TEST_CASE("updates") {
 
             ResultSet results = getValue(conn.trySelectSql("SELECT * FROM test ORDER BY id ASC"));
             for (auto& row : results) {
-                int64 id = getValue(row.getInt(0));
+                int64_t id = getValue(row.getInt(0));
                 auto name = getValue(row.getString(1));
 
                 REQUIRE(id == 1);

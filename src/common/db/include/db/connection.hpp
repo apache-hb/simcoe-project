@@ -55,6 +55,8 @@ namespace sm::db {
 
         void setAutoCommit(bool enabled) noexcept { mAutoCommit = enabled; }
 
+        /// @brief get the current auto-commit state
+        /// @return true if auto-commit is enabled, false otherwise
         [[nodiscard]]
         bool autoCommit() const noexcept { return mAutoCommit; }
 
@@ -333,6 +335,9 @@ namespace sm::db {
         /// utils
         ///
 
+        /// @brief Replace or create a table.
+        /// @param info table to replace.
+        /// @note This will drop the table if it exists and then create it.
         void replaceTable(const dao::TableInfo& info) throws(DbException);
 
         ///
@@ -391,7 +396,12 @@ namespace sm::db {
         /// @note sqlite does not support users.
         bool hasUsers() const noexcept;
 
+        /// @brief Get the version of the database driver
+        /// @return version information
         Version clientVersion() const;
+
+        /// @brief Get the version of the database server
+        /// @return version information
         Version serverVersion() const;
     };
 }

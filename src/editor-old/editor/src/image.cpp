@@ -62,7 +62,7 @@ void Editor::importBlockCompressedImage(const fs::path& path) {
 
     world::Buffer buffer = {
         .name = path.filename().string(),
-        .data = std::vector<uint8>(image.GetPixels(), image.GetPixels() + len),
+        .data = std::vector<uint8_t>(image.GetPixels(), image.GetPixels() + len),
     };
 
     auto idx = mContext.mWorld.add(std::move(buffer));

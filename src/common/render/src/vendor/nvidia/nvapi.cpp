@@ -44,10 +44,10 @@ NvResult<NvVersion> nvapi::getDriverVersion() {
     return NvVersion{version, NvString(build)};
 }
 
-NvStatus nvapi::startup() {
+NvStatus nvapi::create(void) {
     return NvAPI_Initialize();
 }
 
-NvStatus nvapi::shutdown() {
+NvStatus nvapi::destroy(void) noexcept {
     return NvAPI_Unload();
 }

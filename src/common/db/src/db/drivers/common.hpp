@@ -219,7 +219,7 @@ namespace sm::db::detail {
             return DbError::todo("getColumnInfo");
         }
 
-        virtual DbError getIntByIndex(int index, int64& value) noexcept {
+        virtual DbError getIntByIndex(int index, int64_t& value) noexcept {
             return DbError::todo("getIntByIndex");
         }
 
@@ -243,7 +243,7 @@ namespace sm::db::detail {
             return DbError::todo("getDateTimeByIndex");
         }
 
-        virtual DbError getIntByName(std::string_view column, int64& value) noexcept;
+        virtual DbError getIntByName(std::string_view column, int64_t& value) noexcept;
         virtual DbError getBooleanByName(std::string_view column, bool& value) noexcept;
         virtual DbError getStringByName(std::string_view column, std::string_view& value) noexcept;
         virtual DbError getDoubleByName(std::string_view column, double& value) noexcept;
@@ -292,7 +292,7 @@ namespace sm::db::detail {
 
         /** Binding input variables */
 
-        virtual DbError bindIntByIndex(int index, int64 value) noexcept {
+        virtual DbError bindIntByIndex(int index, int64_t value) noexcept {
             return DbError::todo("bindIntByIndex");
         }
 
@@ -320,7 +320,7 @@ namespace sm::db::detail {
             return DbError::todo("bindNullByIndex");
         }
 
-        virtual DbError bindIntByName(std::string_view name, int64 value) noexcept;
+        virtual DbError bindIntByName(std::string_view name, int64_t value) noexcept;
         virtual DbError bindBooleanByName(std::string_view name, bool value) noexcept;
         virtual DbError bindStringByName(std::string_view name, std::string_view value) noexcept;
         virtual DbError bindDoubleByName(std::string_view name, double value) noexcept;

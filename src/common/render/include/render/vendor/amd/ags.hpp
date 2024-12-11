@@ -11,13 +11,11 @@ namespace sm::render {
         int mStatus;
 
     public:
-        AgsError() = default;
-
-        constexpr AgsError(int status)
+        constexpr AgsError(int status = 0) noexcept
             : mStatus(status)
         { }
 
-        constexpr bool success() const { return mStatus == 0; }
+        constexpr bool success() const noexcept { return mStatus == 0; }
 
         AgsString message() const;
     };
@@ -26,14 +24,16 @@ namespace sm::render {
     using AgsResult = std::expected<T, AgsError>;
 
     struct AgsVersion {
+        std::string_view driver;
+        std::string_view runtime;
         int major;
         int minor;
         int patch;
     };
 
     namespace ags {
-        AgsError startup();
-        AgsError shutdown();
+        AgsError create(void);
+        AgsError destroy(void) noexcept;
         AgsVersion getVersion();
     }
 }

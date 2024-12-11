@@ -266,7 +266,7 @@ launch::LaunchResult launch::commonInit(HINSTANCE hInstance, const LaunchInfo& i
 static launch::LaunchResult commonMainInner(HINSTANCE hInstance, std::span<const char*> args, const launch::LaunchInfo& info) noexcept try {
     launch::LaunchResult result = commonInit(hInstance, info);
 
-    LOG_INFO(LaunchLog, "args = [{}]", fmt::join(args, ", "));
+    LOG_INFO(LaunchLog, "Arguments = [{}]", fmt::join(args, ", "));
 
     if (int err = sm::parseCommandLine(args.size(), args.data())) {
         if (!info.allowInvalidArgs) {

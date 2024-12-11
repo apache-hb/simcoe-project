@@ -4,7 +4,7 @@
 
 using namespace sm;
 
-void CpuId::asString(char dst[4 * 4]) const noexcept {
+void CpuId::asString(char dst[16]) const noexcept {
     memcpy(dst, ureg, sizeof(ureg));
 }
 
@@ -25,9 +25,9 @@ bool CpuId::getBrandString(char dst[kBrandStringSize]) noexcept {
     if (check.eax < 0x80000004)
         return false;
 
-    CpuId::of(0x80000002).asString(dst + 0 * 4);
-    CpuId::of(0x80000003).asString(dst + 1 * 4);
-    CpuId::of(0x80000004).asString(dst + 2 * 4);
+    CpuId::of(0x80000002).asString(dst + 0);
+    CpuId::of(0x80000003).asString(dst + 16);
+    CpuId::of(0x80000004).asString(dst + 32);
 
     return true;
 }

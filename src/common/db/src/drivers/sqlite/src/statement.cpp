@@ -126,7 +126,7 @@ DbError SqliteStatement::getBindIndex(std::string_view name, int& index) const n
     return DbError::ok();
 }
 
-DbError SqliteStatement::bindIntByIndex(int index, int64 value) noexcept {
+DbError SqliteStatement::bindIntByIndex(int index, int64_t value) noexcept {
     int err = sqlite3_bind_int64(mStatement.get(), index + 1, value);
     return getStmtError(err);
 }
@@ -206,7 +206,7 @@ DbError SqliteStatement::getColumnInfo(std::string_view name, ColumnInfo& info) 
     return getColumnInfo(index, info);
 }
 
-DbError SqliteStatement::getIntByIndex(int index, int64& value) noexcept {
+DbError SqliteStatement::getIntByIndex(int index, int64_t& value) noexcept {
     value = sqlite3_column_int64(mStatement.get(), index);
     return DbError::ok();
 }

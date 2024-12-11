@@ -88,6 +88,8 @@ static const launch::LaunchInfo kLaunchInfo {
     .logDbConfig = { .host = "server-logs.db" },
     .logPath = "server.log",
 
+    .infoDbConfig = { .host = "server.db" },
+
     .network = true,
     .glfw = true,
 };

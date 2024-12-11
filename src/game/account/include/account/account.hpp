@@ -16,12 +16,20 @@ namespace game {
     static constexpr uint8_t kEventStream = 1;
     static constexpr uint8_t kMessageStream = 2;
 
+    class AccountService {
+
+    };
+
+    class AccountInterface {
+
+    };
+
     class AccountServer {
         std::mutex mDbMutex;
         sm::db::Connection mAccountDb;
 
         sm::net::Network& mNetwork;
-        sm::net::ListenSocket mServer;
+        sm::net::ListenSocket mSocket;
 
         std::mutex mSaltMutex;
         Salt mSalt;
@@ -51,16 +59,13 @@ namespace game {
         SM_NOCOPY(AccountServer);
         SM_NOMOVE(AccountServer);
 
-        [[deprecated("Use begin() and work() to prevent race conditions")]]
-        void listen(uint16_t connections);
-
         void begin(uint16_t connections);
         void work();
         void stop();
 
         bool isRunning() const;
 
-        uint16_t getPort() { return mServer.getBoundPort(); }
+        uint16_t getPort() { return mSocket.getBoundPort(); }
     };
 
     struct Message {
@@ -91,7 +96,7 @@ namespace game {
         SM_NOCOPY(AccountClient);
         SM_NOMOVE(AccountClient);
 
-        bool isAuthed() { return mCurrentSession != UINT64_MAX; }
+        bool isAuthed() const noexcept { return mCurrentSession != UINT64_MAX; }
 
         bool createAccount(std::string_view name, std::string_view password);
         bool login(std::string_view name, std::string_view password);

@@ -113,7 +113,7 @@ namespace sm::world {
     Transform default_transform();
 
     using VertexBuffer = sm::VectorBase<Vertex>;
-    using IndexBuffer = sm::VectorBase<uint16>;
+    using IndexBuffer = sm::VectorBase<uint16_t>;
 
     struct Mesh {
         VertexBuffer vertices;

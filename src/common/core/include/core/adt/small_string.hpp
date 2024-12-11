@@ -15,7 +15,7 @@ namespace sm {
         static constexpr size_t kAlignedSize = (N + 1 + 1) & ~1;
 
         char mBuffer[kAlignedSize];
-        uint16 mLength;
+        uint16_t mLength;
 
     public:
         static constexpr size_t kCapacity = N;
@@ -34,7 +34,7 @@ namespace sm {
             : SmallString(str, str + std::strlen(str))
         { }
 
-        constexpr SmallString(const char *str, int16 length) noexcept
+        constexpr SmallString(const char *str, int16_t length) noexcept
             : SmallString(str, str + length)
         { }
 
@@ -61,7 +61,7 @@ namespace sm {
         }
 
         [[nodiscard]] constexpr const char *data() const noexcept { return mBuffer; }
-        [[nodiscard]] constexpr int16 size() const noexcept { return mLength; }
+        [[nodiscard]] constexpr int16_t size() const noexcept { return mLength; }
         [[nodiscard]] constexpr const char *c_str() const noexcept { return mBuffer; }
     };
 }

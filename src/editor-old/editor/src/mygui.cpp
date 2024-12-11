@@ -34,7 +34,7 @@ bool MyGui::DragAngle3(const char *label, radf3 *value, degf speed, degf min, de
     return false;
 }
 
-bool MyGui::EditSwizzle(const char *label, uint8 *mask, int components) {
+bool MyGui::EditSwizzle(const char *label, uint8_t *mask, int components) {
     CTASSERTF(label != nullptr, "Invalid label");
     CTASSERTF(mask != nullptr, "Invalid mask");
     CTASSERTF(components <= 4, "Invalid number of components: %d", components);
@@ -46,7 +46,7 @@ bool MyGui::EditSwizzle(const char *label, uint8 *mask, int components) {
     ImGui::TextUnformatted(label);
     ImGui::PushID(label);
     ImGui::PushItemWidth(32.f);
-    uint8 it = *mask;
+    uint8_t it = *mask;
     for (int i = 0; i < components; ++i) {
         ImGui::SameLine();
         int v = math::swizzle_get(it, Channel(i));

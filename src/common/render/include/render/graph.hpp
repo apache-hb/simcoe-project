@@ -45,7 +45,7 @@ namespace sm::graph {
 
             struct {
                 float mClearDepth;
-                uint8 mClearStencil;
+                uint8_t mClearStencil;
             };
         };
 
@@ -58,7 +58,7 @@ namespace sm::graph {
 
         static Clear empty();
         static Clear colour(math::float4 value, DXGI_FORMAT format);
-        static Clear depthStencil(float depth, uint8 stencil, DXGI_FORMAT format);
+        static Clear depthStencil(float depth, uint8_t stencil, DXGI_FORMAT format);
     };
 
     struct Tex2dInfo {
@@ -112,7 +112,7 @@ namespace sm::graph {
             return *this;
         }
 
-        ResourceInfo& clearDepthStencil(float depth, uint8 stencil, DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN) {
+        ResourceInfo& clearDepthStencil(float depth, uint8_t stencil, DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN) {
             mClearValue = Clear::depthStencil(depth, stencil, (format == DXGI_FORMAT_UNKNOWN) ? getFormat() : format);
             return *this;
         }
@@ -151,7 +151,7 @@ namespace sm::graph {
 
         struct FenceData {
             render::Object<ID3D12Fence> fence;
-            uint64 value = 1;
+            uint64_t value = 1;
         };
 
         using FrameSchedule = sm::Vector<events::Event>;
@@ -233,7 +233,7 @@ namespace sm::graph {
         sm::Span<ResourceData> getAllResourceData(Handle handle);
         DescriptorPack& getResourceDescriptors(Handle handle);
 
-        sm::HashMap<uint32, sm::UniquePtr<IDeviceData>> mDeviceData;
+        sm::HashMap<uint32_t, sm::UniquePtr<IDeviceData>> mDeviceData;
 
         uint mFrameIndex;
         int mFrameGraphVersion = 0;
@@ -380,14 +380,14 @@ namespace sm::graph {
                     data = std::move(exec(context));
                 }
 
-                bool has_type(uint32 index) const override {
+                bool has_type(uint32_t index) const override {
                     return TypeIndex<ActualData>::index() == index;
                 }
 
                 DeviceData(F&& exec) : exec(std::move(exec)) { }
             };
 
-            uint32 index = TypeIndex<ActualData>::index();
+            uint32_t index = TypeIndex<ActualData>::index();
             if (auto it = mDeviceData.find(index); it != mDeviceData.end()) {
                 auto& [_, result] = *it;
                 return static_cast<DeviceData*>(result.get())->data;

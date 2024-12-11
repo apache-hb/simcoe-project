@@ -19,10 +19,10 @@ namespace sm::math {
 
     using rectf = Rect<float>;
     using rectd = Rect<double>;
-    using rect32 = Rect<uint32>;
+    using rect32 = Rect<uint32_t>;
     static_assert(sizeof(rectf) == sizeof(float) * 4);
     static_assert(sizeof(rectd) == sizeof(double) * 4);
-    static_assert(sizeof(rect32) == sizeof(uint32) * 4);
+    static_assert(sizeof(rect32) == sizeof(uint32_t) * 4);
 
     using int2 = Vec2<int>;
     using int3 = Vec3<int>;
@@ -31,12 +31,12 @@ namespace sm::math {
     static_assert(sizeof(int3) == sizeof(int) * 3);
     static_assert(sizeof(int4) == sizeof(int) * 4);
 
-    using uint2 = Vec2<uint32>;
-    using uint3 = Vec3<uint32>;
-    using uint4 = Vec4<uint32>;
-    static_assert(sizeof(uint2) == sizeof(uint32) * 2);
-    static_assert(sizeof(uint3) == sizeof(uint32) * 3);
-    static_assert(sizeof(uint4) == sizeof(uint32) * 4);
+    using uint2 = Vec2<uint32_t>;
+    using uint3 = Vec3<uint32_t>;
+    using uint4 = Vec4<uint32_t>;
+    static_assert(sizeof(uint2) == sizeof(uint32_t) * 2);
+    static_assert(sizeof(uint3) == sizeof(uint32_t) * 3);
+    static_assert(sizeof(uint4) == sizeof(uint32_t) * 4);
 
     using size2 = Vec2<size_t>;
     using size3 = Vec3<size_t>;
@@ -64,27 +64,27 @@ namespace sm::math {
     static_assert(sizeof(degf2) == sizeof(float) * 2);
     static_assert(sizeof(degf3) == sizeof(float) * 3);
 
-    using uint8x2 = Vec2<uint8>;
-    using uint8x3 = Vec3<uint8>;
-    using uint8x4 = Vec4<uint8>;
-    static_assert(sizeof(uint8x2) == sizeof(uint8) * 2);
-    static_assert(sizeof(uint8x3) == sizeof(uint8) * 3);
-    static_assert(sizeof(uint8x4) == sizeof(uint8) * 4);
+    using uint8x2 = Vec2<uint8_t>;
+    using uint8x3 = Vec3<uint8_t>;
+    using uint8x4 = Vec4<uint8_t>;
+    static_assert(sizeof(uint8x2) == sizeof(uint8_t) * 2);
+    static_assert(sizeof(uint8x3) == sizeof(uint8_t) * 3);
+    static_assert(sizeof(uint8x4) == sizeof(uint8_t) * 4);
 
-    using uint16x2 = Vec2<uint16>;
-    using uint16x3 = Vec3<uint16>;
-    using uint16x4 = Vec4<uint16>;
-    static_assert(sizeof(uint16x2) == sizeof(uint16) * 2);
-    static_assert(sizeof(uint16x3) == sizeof(uint16) * 3);
-    static_assert(sizeof(uint16x4) == sizeof(uint16) * 4);
+    using uint16x2 = Vec2<uint16_t>;
+    using uint16x3 = Vec3<uint16_t>;
+    using uint16x4 = Vec4<uint16_t>;
+    static_assert(sizeof(uint16x2) == sizeof(uint16_t) * 2);
+    static_assert(sizeof(uint16x3) == sizeof(uint16_t) * 3);
+    static_assert(sizeof(uint16x4) == sizeof(uint16_t) * 4);
 
-    using uint32x2 = Vec2<uint32>;
-    using uint32x3 = Vec3<uint32>;
-    using uint32x4 = Vec4<uint32>;
+    using uint32x2 = Vec2<uint32_t>;
+    using uint32x3 = Vec3<uint32_t>;
+    using uint32x4 = Vec4<uint32_t>;
 
-    static_assert(sizeof(uint32x2) == sizeof(uint32) * 2);
-    static_assert(sizeof(uint32x3) == sizeof(uint32) * 3);
-    static_assert(sizeof(uint32x4) == sizeof(uint32) * 4);
+    static_assert(sizeof(uint32x2) == sizeof(uint32_t) * 2);
+    static_assert(sizeof(uint32x3) == sizeof(uint32_t) * 3);
+    static_assert(sizeof(uint32x4) == sizeof(uint32_t) * 4);
 
     using bool2 = Vec2<bool>;
     using bool3 = Vec3<bool>;

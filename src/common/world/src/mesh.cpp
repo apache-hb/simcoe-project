@@ -62,12 +62,12 @@ struct std::hash<Vertex> {
 
 struct MeshBuilder {
     // TODO: probably want to merge verticies that are nearly the same
-    sm::HashMap<Vertex, uint16> lookup;
+    sm::HashMap<Vertex, uint16_t> lookup;
     world::VertexBuffer vertices;
     world::IndexBuffer indices;
 
-    uint16 addVertex(const Vertex &vertex) {
-        auto [it, inserted] = lookup.try_emplace(vertex, uint16(vertices.size()));
+    uint16_t addVertex(const Vertex &vertex) {
+        auto [it, inserted] = lookup.try_emplace(vertex, uint16_t(vertices.size()));
         if (inserted) {
             vertices.push_back(vertex);
         }
@@ -245,12 +245,12 @@ static Mesh sphere(const world::Sphere& sphere) {
     }
 
     // Fill the index buffer with triangles joining each pair of latitude rings.
-    const uint16 stride = horizontalSegments + 1;
+    const uint16_t stride = horizontalSegments + 1;
 
     for (int i = 0; i < verticalSegments; i++) {
         for (int j = 0; j <= horizontalSegments; j++) {
-            const uint16 nextI = i + 1;
-            const uint16 nextJ = (j + 1) % stride;
+            const uint16_t nextI = i + 1;
+            const uint16_t nextJ = (j + 1) % stride;
 
             builder.indices.push_back(i * stride + j);
             builder.indices.push_back(nextI * stride + j);
@@ -581,7 +581,7 @@ static Mesh geosphere(const world::GeoSphere& geosphere) {
         { math::float3(-z, -x, 0) * radius },
     };
 
-	static constexpr uint16 kIndices[60] = {
+	static constexpr uint16_t kIndices[60] = {
 		1,4,0,  4,9,0,  4,5,9,  8,5,4,  1,8,4,
 		1,10,8, 10,3,8, 8,3,5,  3,2,5,  3,7,2,
 		3,10,7, 10,6,7, 6,11,7, 6,0,11, 6,1,0,

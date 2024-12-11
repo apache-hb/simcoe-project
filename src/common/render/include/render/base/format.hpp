@@ -13,8 +13,8 @@ namespace sm::render {
     template<> consteval DXGI_FORMAT bufferFormatOf<float>() { return DXGI_FORMAT_R32_FLOAT; }
     template<> consteval DXGI_FORMAT bufferFormatOf<uint>() { return DXGI_FORMAT_R32_UINT; }
     template<> consteval DXGI_FORMAT bufferFormatOf<int>() { return DXGI_FORMAT_R32_SINT; }
-    template<> consteval DXGI_FORMAT bufferFormatOf<uint16>() { return DXGI_FORMAT_R16_UINT; }
-    template<> consteval DXGI_FORMAT bufferFormatOf<int16>() { return DXGI_FORMAT_R16_SINT; }
+    template<> consteval DXGI_FORMAT bufferFormatOf<uint16_t>() { return DXGI_FORMAT_R16_UINT; }
+    template<> consteval DXGI_FORMAT bufferFormatOf<int16_t>() { return DXGI_FORMAT_R16_SINT; }
 
     constexpr DXGI_FORMAT getDepthTextureFormat(DXGI_FORMAT depth) {
         switch (depth) {

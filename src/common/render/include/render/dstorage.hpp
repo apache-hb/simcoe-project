@@ -22,7 +22,7 @@ namespace sm::render {
         void reset();
 
         void enqueue(const DSTORAGE_REQUEST& request);
-        void signal(ID3D12Fence *fence, uint64 value);
+        void signal(ID3D12Fence *fence, uint64_t value);
         void submit();
 
         bool hasPendingRequests() const { return mHasPendingRequests; }
@@ -49,15 +49,15 @@ namespace sm::render {
             : DSTORAGE_REQUEST()
         { }
 
-        RequestBuilder& compression(DSTORAGE_COMPRESSION_FORMAT format, uint32 size);
+        RequestBuilder& compression(DSTORAGE_COMPRESSION_FORMAT format, uint32_t size);
 
         RequestBuilder& src(void const *data, uint size);
-        RequestBuilder& src(IDStorageFile *file, uint64 offset, uint size);
+        RequestBuilder& src(IDStorageFile *file, uint64_t offset, uint size);
 
-        RequestBuilder& dst(ID3D12Resource *resource, uint64 offset, uint size);
+        RequestBuilder& dst(ID3D12Resource *resource, uint64_t offset, uint size);
         RequestBuilder& dst(DSTORAGE_DESTINATION_MULTIPLE_SUBRESOURCES it);
 
-        RequestBuilder& tag(uint64 tag);
+        RequestBuilder& tag(uint64_t tag);
 
         RequestBuilder& name(char const *name);
     };

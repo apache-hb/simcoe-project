@@ -14,21 +14,21 @@ namespace sm::font {
     };
 
     struct GlyphPair {
-        char32 first;
-        char32 second;
+        char32_t first;
+        char32_t second;
 
         constexpr auto operator<=>(const GlyphPair &other) const = default;
     };
 
     struct KerningPair {
-        char32 first;
-        char32 second;
+        char32_t first;
+        char32_t second;
         Advance advance;
     };
 
     struct Glyph {
-        char32 codepoint;
-        uint16 image;
+        char32_t codepoint;
+        uint16_t image;
         Bounds plane;
         Bounds texbounds;
         Advance advance;

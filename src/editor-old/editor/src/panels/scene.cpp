@@ -109,7 +109,7 @@ static const char *get_payload_type(ItemType type) {
     }
 }
 
-void ScenePanel::draw_node(uint16 index) {
+void ScenePanel::draw_node(uint16_t index) {
     auto& world = mContext.mWorld.info;
     const auto& node = world.nodes[index];
     ImGui::PushID(index);
@@ -130,7 +130,7 @@ void ScenePanel::draw_node(uint16 index) {
     ImGui::PopID();
 }
 
-void ScenePanel::draw_leaf(uint16 index) {
+void ScenePanel::draw_leaf(uint16_t index) {
     begin_tree_item({ItemType::eNode, index}, kLeafNodeFlags);
     ImGui::TableNextColumn();
 
@@ -138,7 +138,7 @@ void ScenePanel::draw_leaf(uint16 index) {
     ImGui::TextUnformatted("Node");
 }
 
-void ScenePanel::draw_group(uint16 index) {
+void ScenePanel::draw_group(uint16_t index) {
     bool is_open = begin_tree_item({ItemType::eNode, index}, kGroupNodeFlags);
 
     ImGui::TableNextColumn();
@@ -157,7 +157,7 @@ void ScenePanel::draw_group(uint16 index) {
             ImGui::PushStyleColor(ImGuiCol_Text, cyan);
             if (ImGui::TreeNodeEx("Objects", kGroupNodeFlags)) {
                 ImGui::PopStyleColor();
-                for (uint16 i : node.objects) {
+                for (uint16_t i : node.objects) {
                     ImGui::TableNextRow();
                     ImGui::TableNextColumn();
                     begin_tree_item({ItemType::eMesh, i}, kLeafNodeFlags);

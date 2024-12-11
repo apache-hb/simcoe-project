@@ -21,7 +21,7 @@ namespace sm::graph {
         virtual ~IDeviceData() = default;
 
         virtual void setup(render::IDeviceContext& context) = 0;
-        virtual bool has_type(uint32 index) const = 0;
+        virtual bool has_type(uint32_t index) const = 0;
     };
 
     struct AccessHandle {

@@ -50,9 +50,9 @@ TEST_CASE("Join lobby and send messages") {
         client0.refreshMessageList();
         client1.refreshMessageList();
 
-        REQUIRE(client0.getMessages().size() == 1);
-        REQUIRE(client1.getMessages().size() == 1);
-        CHECK(client0.getMessages()[0].message == "Hello, back!");
-        CHECK(client1.getMessages()[0].message == "Hello, world!");
+        REQUIRE(client0.getMessages().size() == 2);
+        REQUIRE(client1.getMessages().size() == 2);
+        CHECK(client0.getMessages()[1].message == "Hello, back!");
+        CHECK(client1.getMessages()[1].message == "Hello, world!");
     }
 }

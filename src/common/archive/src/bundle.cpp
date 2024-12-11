@@ -15,7 +15,7 @@ Bundle::Bundle(IFileSystem *fs)
     : mFileSystem(fs)
 { }
 
-sm::Span<const uint8> Bundle::getFileData(sm::StringView dir, sm::StringView name) {
+std::span<const uint8_t> Bundle::getFileData(sm::StringView dir, sm::StringView name) {
     auto path = fmt::format("bundle/{}/{}", dir, name);
     sm::View data = mFileSystem->readFileData(path);
     if (data.empty()) {
@@ -82,7 +82,7 @@ static constexpr font::Glyph convert_glyph(const artery::Glyph& glyph) {
     const auto& [cp, _0, plane, image, advance] = glyph;
     const font::Glyph result = {
         .codepoint = cp,
-        .image = sm::int_cast<uint16>(glyph.image),
+        .image = sm::int_cast<uint16_t>(glyph.image),
         .plane = { plane.l, plane.t, plane.r, plane.b, },
         .texbounds = { image.l, image.t, image.r, image.b, },
         .advance = {

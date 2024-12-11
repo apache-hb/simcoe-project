@@ -30,6 +30,7 @@ src = [
     'src/status.cpp',
     'src/threads.cpp',
     'src/topology.cpp',
+    'src/mutex.cpp',
 ]
 
 if host_machine.system() == 'windows'
