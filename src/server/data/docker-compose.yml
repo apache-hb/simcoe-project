@@ -78,7 +78,7 @@ services:
     container_name: ${RACNODE1_HOSTNAME}
     hostname: ${RACNODE1_HOSTNAME}
     dns_search: ${DNS_DOMAIN}
-    restart: always
+    restart: unless-stopped
     volumes:
       - ./racnode/chronyd.conf:/etc/chrony.conf:ro
       - ./racnode/boot:/boot:ro
@@ -134,7 +134,6 @@ services:
       timeout: ${HEALTHCHECK_TIMEOUT}
       retries: ${HEALTHCHECK_RETRIES}
 
-
   racnoded2:
     depends_on:
       ntp:
@@ -149,7 +148,7 @@ services:
     container_name: ${RACNODE2_HOSTNAME}
     hostname: ${RACNODE2_HOSTNAME}
     dns_search: ${DNS_DOMAIN}
-    restart: always
+    restart: unless-stopped
     volumes:
       - ./racnode/chronyd.conf:/etc/chrony.conf:ro
       - ./racnode/boot:/boot:ro
@@ -221,7 +220,7 @@ services:
     container_name: ${RACNODE3_HOSTNAME}
     hostname: ${RACNODE3_HOSTNAME}
     dns_search: ${DNS_DOMAIN}
-    restart: always
+    restart: unless-stopped
     volumes:
       - ./racnode/chronyd.conf:/etc/chrony.conf:ro
       - ./racnode/boot:/boot:ro
@@ -289,7 +288,7 @@ services:
     hostname: ${CMAN_HOSTNAME}
     image: ${CMAN_IMAGE_NAME}
     dns_search: ${DNS_DOMAIN}
-    restart: always
+    restart: unless-stopped
     privileged: true
     environment:
       DOMAIN: ${DNS_DOMAIN}
