@@ -1,0 +1,11 @@
+[wrap-file]
+directory = fuzztest-2024-10-28
+
+source_url = https://github.com/google/fuzztest/releases/download/2024-10-28/fuzztest-2024-10-28.tar.gz
+source_filename = fuzztest-2024-10-28.tar.gz
+source_hash = e75adc87fc71417cc5561c68c9648d91012b61922fdd97601cedcb3558014f7d
+
+patch_directory = fuzztest-2024-10-28
+
+[provide]
+dependency_names = fuzztest

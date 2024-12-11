@@ -62,7 +62,7 @@ gtest = dependency('gtest_main')
 catch2 = dependency('catch2-with-main')
 testargs = [ '--reporter=TAP', '--allow-running-no-tests' ]
 testkwargs = { 'protocol' : 'tap', 'args' : testargs, 'timeout': 5 }
-gtestkwargs = { 'protocol' : 'gtest', 'timeout': 5 }
+gtestkwargs = { 'protocol' : 'gtest', 'args': [ '--gtest_stack_trace_depth=64' ], 'timeout': 5 }
 benchkwargs = { 'timeout': 600 }
 
 deps = [ core, catch2 ]
@@ -83,19 +83,10 @@ coretest = declare_dependency(
     dependencies : deps
 )
 
-testcases = {
-}
-
-foreach name, source : testcases
-    exe = executable('test-core-' + name.to_lower().replace(' ', '-'), source,
-        dependencies : [ core, coretest ]
-    )
-
-    test(name, exe,
-        suite : 'core',
-        kwargs : testkwargs
-    )
-endforeach
+coregtest = declare_dependency(
+    include_directories : '.',
+    dependencies : [ core, gtest ]
+)
 
 testcases = {
     'Vector' : 'test/adt/vector.cpp',
@@ -111,7 +102,7 @@ testcases = {
 
 foreach name, source : testcases
     exe = executable('test-core-' + name.to_lower().replace(' ', '-'), source,
-        dependencies : [ core, gtest ]
+        dependencies : [ core, coregtest ]
     )
 
     test(name, exe,

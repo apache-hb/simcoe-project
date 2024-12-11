@@ -1,0 +1,11 @@
+[wrap-file]
+directory = riegeli-a562a4075e92962d81a4a84c078f100d40c33f37
+
+source_url = https://github.com/google/riegeli/archive/a562a4075e92962d81a4a84c078f100d40c33f37.zip
+source_filename = riegeli-a562a4075e92962d81a4a84c078f100d40c33f37.zip
+source_hash = 7bed6e80a73b7a8a27a561919204e07c22cc3fb360bb9d732173bccbddbe4bdc
+
+patch_directory = riegeli
+
+[provide]
+dependency_names = riegeli
