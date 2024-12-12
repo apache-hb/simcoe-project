@@ -27,7 +27,6 @@ account_meta = declare_dependency(
 
 src = [
     'src/salt.cpp',
-    'src/packets.cpp',
     'src/server.cpp',
     'src/client.cpp',
     'src/router.cpp',

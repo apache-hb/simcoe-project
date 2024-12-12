@@ -40,7 +40,7 @@ Guid Salt::newGuid() noexcept {
     return guid;
 }
 
-uint64_t game::hashWithSalt(std::string_view password, std::string_view salt) {
+uint64_t game::hashWithSalt(std::string_view password, std::string_view salt) noexcept {
     size_t hash = 0x9e3779b9uz;
     sm::hash_combine(hash, password, salt);
     return hash;

@@ -19,5 +19,5 @@ namespace game {
         Guid newGuid() noexcept;
     };
 
-    uint64_t hashWithSalt(std::string_view password, std::string_view salt);
+    uint64_t hashWithSalt(std::string_view password, std::string_view salt) noexcept;
 }

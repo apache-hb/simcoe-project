@@ -340,6 +340,9 @@ namespace sm::db {
         /// @note This will drop the table if it exists and then create it.
         void replaceTable(const dao::TableInfo& info) throws(DbException);
 
+        template<typename... A>
+        ResultSet execute(A&&... args) throws(DbException);
+
         ///
         /// raw access
         ///

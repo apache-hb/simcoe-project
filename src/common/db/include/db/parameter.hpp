@@ -1,12 +1,16 @@
 #pragma once
 
+#include "core/adt/combine.hpp"
+
 #include "dao/info.hpp"
 
 #include "db/statement.hpp"
 
 namespace sm::db {
-    class IPlaceholder {
+    class IParam {
     public:
+        virtual ~IParam() = default;
+
         virtual void setBool(PreparedStatement& stmt, bool value) = 0;
         virtual void setInt(PreparedStatement& stmt, int64_t value) = 0;
         virtual void setUint(PreparedStatement& stmt, uint64_t value) = 0;
@@ -18,7 +22,7 @@ namespace sm::db {
         virtual void setDuration(PreparedStatement& stmt, Duration value) = 0;
     };
 
-    class PositionalPlaceholder final : public IPlaceholder {
+    class PositionalParam final : public IParam {
         int mPosition;
 
         void setBool(PreparedStatement& stmt, bool value);
@@ -32,7 +36,7 @@ namespace sm::db {
         void setDuration(PreparedStatement& stmt, Duration value);
     };
 
-    class NamedPlaceholder final : public IPlaceholder {
+    class NamedParam final : public IParam {
         std::string mName;
 
         void setBool(PreparedStatement& stmt, bool value);
@@ -46,13 +50,12 @@ namespace sm::db {
         void setDuration(PreparedStatement& stmt, Duration value);
     };
 
-    class Placeholder final : public IPlaceholder {
-        std::variant<PositionalPlaceholder, NamedPlaceholder> mImpl;
-        IPlaceholder *mVtable;
+    class Param final : public IParam {
+        sm::adt::Combine<IParam, PositionalParam, NamedParam> mImpl;
 
     public:
-        Placeholder(std::string_view name);
-        Placeholder(int index);
+        Param(std::string_view name);
+        Param(int index);
 
         void setBool(PreparedStatement& stmt, bool value);
         void setInt(PreparedStatement& stmt, int64_t value);
@@ -65,10 +68,14 @@ namespace sm::db {
         void setDuration(PreparedStatement& stmt, Duration value);
     };
 
-    Placeholder param(std::string_view name);
-    Placeholder param(int index);
+    Param param(std::string_view name);
+    Param param(int index);
 
-    class StatementParameters {
-        std::unordered_multimap<std::string, Placeholder> mPlaceholders;
+    struct Value {
+        std::variant<bool, int64_t, uint64_t, double, std::string, Blob, DateTime, Duration> value;
     };
+
+    Value value(auto it) {
+        return Value{std::move(it)};
+    }
 }
