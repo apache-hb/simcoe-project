@@ -7,6 +7,10 @@
 #include "db/statement.hpp"
 
 namespace sm::db {
+    struct Value {
+        std::variant<bool, int64_t, uint64_t, double, std::string, Blob, DateTime, Duration> value;
+    };
+
     class IParam {
     public:
         virtual ~IParam() = default;
@@ -68,12 +72,11 @@ namespace sm::db {
         void setDuration(PreparedStatement& stmt, Duration value);
     };
 
+    template<typename T>
     Param param(std::string_view name);
-    Param param(int index);
 
-    struct Value {
-        std::variant<bool, int64_t, uint64_t, double, std::string, Blob, DateTime, Duration> value;
-    };
+    template<typename T>
+    Param param(int index);
 
     Value value(auto it) {
         return Value{std::move(it)};

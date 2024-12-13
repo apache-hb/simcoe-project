@@ -79,6 +79,7 @@ namespace sm::db {
         DbError tryBind(std::nullptr_t) noexcept { return tryBindNull(); }
 
         void operator=(int64_t value) throws(DbException) { to(value); }
+        void operator=(uint64_t value) throws(DbException) { to(value); }
         void operator=(bool value) throws(DbException) { to(value); }
         void operator=(std::string_view value) throws(DbException) { to(value); }
         void operator=(double value) throws(DbException) { to(value); }

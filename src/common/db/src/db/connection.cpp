@@ -182,3 +182,7 @@ DbError Connection::commit() noexcept {
 DbError Connection::rollback() noexcept {
     return mImpl->rollback();
 }
+
+Permission Connection::permissions() noexcept(false) {
+    return mImpl->getPermissions();
+}

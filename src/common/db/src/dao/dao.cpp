@@ -7,18 +7,18 @@ using namespace sm::dao;
 
 std::string_view dao::toString(ColumnType type) noexcept {
     switch (type) {
-    case ColumnType::eInt: return "eInt";
-    case ColumnType::eUint: return "eUint";
-    case ColumnType::eLong: return "eLong";
-    case ColumnType::eUlong: return "eUlong";
-    case ColumnType::eBool: return "eBool";
-    case ColumnType::eVarChar: return "eVarChar";
-    case ColumnType::eChar: return "eChar";
-    case ColumnType::eFloat: return "eFloat";
-    case ColumnType::eDouble: return "eDouble";
-    case ColumnType::eBlob: return "eBlob";
-    case ColumnType::eDateTime: return "eDateTime";
-    default: return "ColumnType::unknown";
+    case ColumnType::eInt: return "INT";
+    case ColumnType::eUint: return "UINT";
+    case ColumnType::eLong: return "LONG";
+    case ColumnType::eUlong: return "ULONG";
+    case ColumnType::eBool: return "BOOL";
+    case ColumnType::eVarChar: return "VARCHAR";
+    case ColumnType::eChar: return "CHAR";
+    case ColumnType::eFloat: return "FLOAT";
+    case ColumnType::eDouble: return "DOUBLE";
+    case ColumnType::eBlob: return "BLOB";
+    case ColumnType::eDateTime: return "DATETIME";
+    default: return "UNKNOWN";
     }
 }
 

@@ -1,70 +1,13 @@
 #pragma once
 
+#include "dao/column.hpp"
+
 #include <span>
 #include <string_view>
-#include <vector>
-#include <chrono>
-
-namespace sm::db {
-    using Blob = std::vector<std::uint8_t>;
-    using DateTime = std::chrono::time_point<std::chrono::system_clock>;
-    using Duration = std::chrono::milliseconds;
-}
 
 namespace sm::dao {
     struct ColumnInfo;
     struct TableInfo;
-
-    enum class ColumnType : uint_least8_t {
-        eInt, // int32
-        eUint, // uint32,
-        eLong, // int64
-        eUlong, // uint64
-        eBool, // bool
-
-        /// @note variable length string
-        eVarChar, // std::string
-
-        /// @note fixed length string
-        eChar,    // std::string
-
-        eFloat, // float
-        eDouble, // double
-        eBlob, // Blob
-        eDateTime, // DateTime
-        eDuration, // Duration
-
-        eCount
-    };
-
-    constexpr bool isStringType(ColumnType type) noexcept {
-        return type == ColumnType::eVarChar || type == ColumnType::eChar;
-    }
-
-    enum class AutoIncrement : uint_least8_t {
-        eNever, // never auto-increment
-        eAlways, // always auto-increment, prevents manual setting
-        eDefault, // auto-increment if not set
-
-        eCount
-    };
-
-    enum class OnDelete : uint_least8_t {
-        eRestrict,
-        eSetNull,
-        eCascade,
-
-        eCount
-    };
-
-    enum class OnUpdate : uint_least8_t {
-        eRestrict,
-        eCascade,
-
-        eCount
-    };
-
-    std::string_view toString(ColumnType type) noexcept;
 
     struct ColumnInfo {
         std::string_view name;
@@ -141,5 +84,4 @@ namespace sm::dao {
 
         bool isSingleton() const noexcept { return singleton; }
     };
-
 }

@@ -18,18 +18,18 @@ static Version getSqliteVersion() {
     return Version{name, major, minor, patch};
 }
 
-static detail::ConnectionInfo buildConnectionInfo() {
-    Version client = getSqliteVersion();
-    Version server = getSqliteVersion();
+static detail::ConnectionInfo buildConnectionInfo(sqlite3 *db) {
+    Version version = getSqliteVersion();
 
     return detail::ConnectionInfo {
-        .clientVersion = client,
-        .serverVersion = server,
+        .clientVersion = version,
+        .serverVersion = version,
         .boolType = DataType::eInteger,
         .dateTimeType = DataType::eInteger,
         .hasCommentOn = false,
         .hasNamedParams = true,
         .hasUsers = false,
+        .permissions = sqlite3_db_readonly(db, nullptr) ? Permission::eRead : Permission::eAll,
     };
 }
 
@@ -132,7 +132,7 @@ static void isBlankStringImpl(sqlite3_context *ctx, int argc, sqlite3_value **ar
 }
 
 SqliteConnection::SqliteConnection(Sqlite3Handle connection)
-    : detail::IConnection(buildConnectionInfo())
+    : detail::IConnection(buildConnectionInfo(connection.get()))
     , mConnection(std::move(connection))
     , mBeginStmt(newStatement("BEGIN;"))
     , mCommitStmt(newStatement("COMMIT;"))

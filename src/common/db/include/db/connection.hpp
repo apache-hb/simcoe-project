@@ -60,6 +60,8 @@ namespace sm::db {
         [[nodiscard]]
         bool autoCommit() const noexcept { return mAutoCommit; }
 
+        Permission permissions() throws(DbException);
+
         /// @brief create a table
         /// @param table table to create
         /// @return true if the table was created, false if it already exists
@@ -342,6 +344,9 @@ namespace sm::db {
 
         template<typename... A>
         ResultSet execute(A&&... args) throws(DbException);
+
+        template<typename... A>
+        PreparedStatement prepare(A&&... args) throws(DbException);
 
         ///
         /// raw access

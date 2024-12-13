@@ -52,6 +52,9 @@ namespace sm::db::detail {
         /// differences between CHAR and VARCHAR column types.
         /// some databases only have TEXT types, such as sqlite.
         bool hasDistinctTextTypes = false;
+
+        /// Permissions of the current user connection
+        Permission permissions = Permission::eNone;
     };
 
     class IConnection {
@@ -173,6 +176,10 @@ namespace sm::db::detail {
 
         bool hasDistinctTextTypes() const noexcept {
             return mInfo.hasDistinctTextTypes;
+        }
+
+        Permission getPermissions() const noexcept {
+            return mInfo.permissions;
         }
     };
 

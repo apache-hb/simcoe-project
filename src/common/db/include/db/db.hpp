@@ -112,6 +112,15 @@ namespace sm::db {
         eCount
     };
 
+    enum class Permission {
+        eNone = 0,
+
+        eRead = (1 << 0),
+        eWrite = (1 << 1),
+
+        eAll = eRead | eWrite
+    };
+
     std::string_view toString(DbType type) noexcept;
     std::string_view toString(DataType type) noexcept;
     std::string_view toString(StatementType type) noexcept;
