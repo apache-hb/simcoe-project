@@ -16,8 +16,6 @@ LOG_MESSAGE_CATEGORY(DbLog, "DB");
 
 namespace sm::db {
     class ResultSet;
-    class QueryIterator;
-    class Query;
     class PreparedStatement;
     class Connection;
     class Environment;

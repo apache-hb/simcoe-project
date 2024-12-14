@@ -638,11 +638,6 @@ void IDeviceContext::create_node(world::IndexOf<world::Node> node) {
     }
 }
 
-template<typename... T>
-struct overloaded : T... {
-    using T::operator()...;
-};
-
 void IDeviceContext::upload_model(world::IndexOf<world::Model> model) {
     if (mMeshes.contains(model)) return;
 

@@ -40,9 +40,18 @@ namespace sm::dao {
         eBinary,
     };
 
-    class QueryExpr {
+    template<typename... T>
+    class Select {
+    public:
+        Select(auto&&... args);
+
+        Select from(auto table);
+        Select where(auto expr);
+    };
+
+    class Query {
         struct ColumnExpr {
-            const ColumnInfo& column;
+            std::string_view name;
         };
 
         struct ValueExpr {
@@ -50,13 +59,13 @@ namespace sm::dao {
         };
 
         struct UnaryExpr {
-            std::unique_ptr<QueryExpr> expr;
+            std::unique_ptr<Query> expr;
             UnaryQueryOp unary;
         };
 
         struct BinaryExpr {
-            std::unique_ptr<QueryExpr> lhs;
-            std::unique_ptr<QueryExpr> rhs;
+            std::unique_ptr<Query> lhs;
+            std::unique_ptr<Query> rhs;
             BinaryQueryOp binary;
         };
 
@@ -64,12 +73,21 @@ namespace sm::dao {
 
         ExprData mQuery;
 
-        template<typename T>
-        QueryExpr(const T& data) noexcept
-            : mQuery(data)
+        Query(ExprData data) noexcept
+            : mQuery(std::move(data))
         { }
 
     public:
+        template<typename... T>
+        Query(Select<T...> select) noexcept;
+
+        Query(ColumnValue value) noexcept;
+
+        template<std::integral T>
+        Query(T value) noexcept;
+
+        Query(bool value) noexcept;
+
         QueryOp op() const noexcept;
 
         // QueryOp::eColumn
@@ -79,23 +97,27 @@ namespace sm::dao {
         const ColumnValue& value() const noexcept;
 
         // QueryOp::eUnary
-        const QueryExpr& expr() const noexcept;
+        const Query& expr() const noexcept;
         UnaryQueryOp unary() const noexcept;
 
         // QueryOp::eBinary
-        const QueryExpr& lhs() const noexcept;
-        const QueryExpr& rhs() const noexcept;
+        const Query& lhs() const noexcept;
+        const Query& rhs() const noexcept;
         BinaryQueryOp binary() const noexcept;
 
-        friend QueryExpr operator||(QueryExpr lhs, QueryExpr rhs);
-        friend QueryExpr operator&&(QueryExpr lhs, QueryExpr rhs);
+        Query isNull() const noexcept;
+        Query isNotNull() const noexcept;
 
-        static QueryExpr ofColumn(const ColumnInfo& column);
-        static QueryExpr ofValue(ColumnValue value);
-        static QueryExpr ofUnary(QueryExpr expr, UnaryQueryOp unary);
-        static QueryExpr ofBinary(QueryExpr lhs, QueryExpr rhs, BinaryQueryOp binary);
+        friend Query operator||(Query lhs, Query rhs);
+        friend Query operator&&(Query lhs, Query rhs);
+
+        friend Query operator==(Query lhs, Query rhs);
+
+        static Query ofColumn(std::string_view name);
+        static Query ofValue(ColumnValue value);
+        static Query ofUnary(Query expr, UnaryQueryOp unary);
+        static Query ofBinary(Query lhs, Query rhs, BinaryQueryOp binary);
     };
 
-    QueryExpr isNull(QueryExpr expr);
-    QueryExpr isNotNull(QueryExpr expr);
+    int table(std::string_view name);
 }

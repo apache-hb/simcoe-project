@@ -1116,18 +1116,13 @@ void FrameGraph::compile() {
     init_frame_commands();
 }
 
-template<typename... T>
-struct overloaded : T... {
-    using T::operator()...;
-};
-
 void FrameGraph::execute() {
     SM_UNUSED BYTE colour = PIX_COLOR_DEFAULT;
 
     LOG_INFO(RenderLog, "Executing frame graph (generation {})", mFrameGraphVersion);
 
     for (auto& step : mFrameSchedule) {
-        std::visit(overloaded {
+        std::visit(sm::Overloaded {
             [&](events::DeviceSync sync) {
 #if SMC_RENDER_FRAMEGRAPH_TRACE
                 LOG_INFO(RenderLog, "Sync(signal: {}, wait: {})", sync.signal, sync.wait);

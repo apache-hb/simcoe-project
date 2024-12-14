@@ -74,9 +74,8 @@ DbError SqliteEnvironment::execute(sqlite3 *db, const std::string& sql) noexcept
     return DbError::ok();
 }
 
-DbError SqliteEnvironment::pragma(sqlite3 *db, std::string_view option, std::string_view value) noexcept {
-    std::string sql = fmt::format("PRAGMA {} = {}", option, value);
-    return execute(db, sql);
+void SqliteEnvironment::pragma(sqlite3 *db, std::string_view option, std::string_view value) noexcept(false) {
+    execute(db, fmt::format("PRAGMA {} = {}", option, value)).throwIfFailed();
 }
 
 bool SqliteEnvironment::close() noexcept {
@@ -105,22 +104,21 @@ static constexpr std::string_view kLockingMode[(int)LockingMode::eCount] = {
 };
 
 detail::IConnection *SqliteEnvironment::connect(const ConnectionConfig& config) noexcept(false) {
-    std::string dbPath = std::string{config.host};
     sqlite::Sqlite3Handle db;
-    if (int err = sqlite3_open(dbPath.c_str(), &db)) {
+    if (int err = sqlite3_open(config.host.c_str(), &db)) {
         throw DbConnectionException{sqlite::getError(err), config};
     }
 
     if (config.journalMode != JournalMode::eDefault) {
-        pragma(db.get(), "journal_mode", kJournalMode[std::to_underlying(config.journalMode)]).throwIfFailed();
+        pragma(db.get(), "journal_mode", kJournalMode[std::to_underlying(config.journalMode)]);
     }
 
     if (config.synchronous != Synchronous::eDefault) {
-        pragma(db.get(), "synchronous", kSynchronous[std::to_underlying(config.synchronous)]).throwIfFailed();
+        pragma(db.get(), "synchronous", kSynchronous[std::to_underlying(config.synchronous)]);
     }
 
     if (config.lockingMode != LockingMode::eDefault) {
-        pragma(db.get(), "locking_mode", kLockingMode[std::to_underlying(config.lockingMode)]).throwIfFailed();
+        pragma(db.get(), "locking_mode", kLockingMode[std::to_underlying(config.lockingMode)]);
     }
 
     return new SqliteConnection{std::move(db)};

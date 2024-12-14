@@ -53,6 +53,11 @@ namespace sm {
     bool isStaticStorage(const auto *ptr, bool fallback = false) noexcept {
         return isStaticStorageImpl((const void *)ptr, fallback);
     }
+
+    template<typename... T>
+    struct Overloaded : T... {
+        using T::operator()...;
+    };
 }
 
 /// @brief debug member variables and required macros

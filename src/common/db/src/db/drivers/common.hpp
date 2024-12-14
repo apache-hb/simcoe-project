@@ -273,10 +273,6 @@ namespace sm::db::detail {
             return DbError::todo("getBindIndex");
         }
 
-        virtual DbError getBindInfo(int index, BindInfo& info) const noexcept {
-            return DbError::todo("getBindInfo");
-        }
-
         /** Binding returning output variables */
 
         virtual DbError prepareIntReturnByName(std::string_view name) throws(DbException) {

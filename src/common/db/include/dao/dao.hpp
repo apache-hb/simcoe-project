@@ -14,7 +14,7 @@ namespace sm::dao {
 
         const ColumnInfo *column() const noexcept { return mColumn; }
 
-        operator QueryExpr() const noexcept;
+        operator Query() const noexcept;
     };
 
     template<typename T>

@@ -4,17 +4,24 @@
 #include "db/environment.hpp"
 #include "db/parameter.hpp"
 
+#include "dao/query.hpp"
+
 // #include "tests.dao.hpp"
 
 using namespace sm;
 using namespace sm::db;
+using namespace sm::dao;
 
 int main() {
     auto env = Environment::create(db::DbType::eSqlite3);
     auto db = env.connect({ .host = "test.db" });
 
     {
-        ResultSet result = db.execute("UPDATE test SET name = ", value("jeff"), " WHERE id = ", value(25));
+        dao::Query query = Select<uint64_t, std::string>("id", "name")
+            .from(table("test"))
+            .where(Query::ofColumn("id") == 25);
+
+        ResultSet result = db.execute(query);
     }
 
     {
