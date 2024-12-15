@@ -47,27 +47,20 @@ static DbError getConnectionError(const PGconn *conn) noexcept {
     return DbError::error(status, text);
 }
 
+using PgResultHandle = std::unique_ptr<PGresult, decltype(&PQclear)>;
+
 class PgResult {
-    PGresult *mResult = nullptr;
+    PgResultHandle mHandle;
 
 public:
     SM_NOCOPY(PgResult);
-    SM_SWAP_MOVE(PgResult);
 
     PgResult(PGresult *result) noexcept
-        : mResult(result)
+        : mHandle(result, &PQclear)
     { }
 
     operator PGresult*() const noexcept {
-        return mResult;
-    }
-
-    ~PgResult() noexcept {
-        PQclear(mResult);
-    }
-
-    friend void swap(PgResult& a, PgResult& b) noexcept {
-        std::swap(a.mResult, b.mResult);
+        return mHandle.get();
     }
 };
 
@@ -167,7 +160,7 @@ public:
 };
 
 class PgEnvironment final : public detail::IEnvironment {
-    DbError connect(const ConnectionConfig& config, detail::IConnection **connection) noexcept override {
+    DbError connect(const ConnectionConfig& config, detail::IConnection **connection) noexcept(false) override {
         auto seconds = chrono::duration_cast<chrono::seconds>(config.timeout).count();
         std::string conn = fmt::format("postgresql://{}:{}@{}:{}/{}?connect_timeout={}", config.user, config.password, config.host, config.port, config.database, seconds);
         PGconn *pgconn = PQconnectdb(conn.c_str());

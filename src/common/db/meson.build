@@ -92,7 +92,10 @@ if db2.found()
 endif
 
 if postgres.found()
-    src += 'src/db/drivers/postgres.cpp'
+    src += [
+        'src/drivers/postgres/src/postgres.cpp'
+    ]
+    db_private_include += [ include_directories('src/drivers/postgres/include') ]
     db_private_deps += [ postgres ]
 endif
 

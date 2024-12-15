@@ -6,7 +6,8 @@
 #include "dao/info.hpp"
 
 namespace sm::db::detail {
-    struct IEnvironment {
+    class IEnvironment {
+    public:
         virtual ~IEnvironment() = default;
 
         /** Lifecycle */
@@ -183,7 +184,8 @@ namespace sm::db::detail {
         }
     };
 
-    struct IStatement {
+    class IStatement {
+    public:
         virtual ~IStatement() = default;
 
         /** Execution */
@@ -356,6 +358,7 @@ namespace sm::db::detail {
 
     IEnvironment *newSqliteEnvironment(const EnvConfig& config);
     IEnvironment *newOracleEnvironment(const EnvConfig& config);
+    IEnvironment *newPostgresEnvironment(const EnvConfig& config);
     IEnvironment *newDb2Environment();
 
     // removes any empty lines and trims whitespace

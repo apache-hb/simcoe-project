@@ -110,6 +110,11 @@ Environment Environment::create(DbType type, const EnvConfig& config) {
         return detail::newOracleEnvironment(config);
 #endif
 
+#if SMC_DB_HAS_POSTGRES
+    case DbType::ePostgreSQL:
+        return detail::newPostgresEnvironment(config);
+#endif
+
 #if SMC_DB_HAS_DB2
     case DbType::eDB2:
         return detail::newDb2Environment();

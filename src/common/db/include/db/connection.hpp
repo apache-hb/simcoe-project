@@ -67,8 +67,6 @@ namespace sm::db {
         /// @return true if the table was created, false if it already exists
         bool createTable(const dao::TableInfo& table) throws(DbException);
 
-        DbError tryDropTable(const dao::TableInfo& table) noexcept;
-
         ///
         /// prepare insert
         ///
@@ -214,12 +212,6 @@ namespace sm::db {
         ///
         /// drop
         ///
-
-        template<dao::DaoInterface T>
-        DbError tryDropTable() noexcept {
-            auto stmt = TRY_UNWRAP(tryPrepareDropTable<T>());
-            return stmt.execute();
-        }
 
         template<dao::DaoInterface T>
         void dropTable() throws(DbException) {
@@ -388,8 +380,14 @@ namespace sm::db {
             return throwIfFailed(tryPrepareControl(sql));
         }
 
+        /// @brief Check if a table exists
+        /// @param name table to check
+        /// @return true if the table exists
         bool tableExists(std::string_view name) throws(DbException);
 
+        /// @brief Check if a table exists
+        /// @param info table to check
+        /// @return true if the table exists
         bool tableExists(const dao::TableInfo& info) throws(DbException);
 
         /// @brief Check if a user exists

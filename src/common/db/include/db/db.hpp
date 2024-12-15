@@ -5,12 +5,12 @@
 #include "core/core.hpp"
 #include "core/memory/unique.hpp"
 
+#include "logs/logging.hpp"
+
 #include <expected>
 #include <memory>
 #include <string>
 #include <chrono>
-
-#include "logs/logging.hpp"
 
 LOG_MESSAGE_CATEGORY(DbLog, "DB");
 
@@ -21,9 +21,16 @@ namespace sm::db {
     class Environment;
 
     namespace detail {
-        struct IStatement;
-        class IConnection;
-        struct IEnvironment;
+        class ITable;    ///< A table in a logical database.
+        class IColumn;   ///< A column in a table or view.
+        class ISchema;   ///< A schema in a logical database.
+        class IUser;     ///< A user in a logical database.
+        class IInstance; ///< A physical instance in a cluster.
+        class ICluster;  ///< A logical database, consisting of one or more instances.
+
+        class IStatement;   ///< A prepared statement.
+        class IConnection;  ///< A connection to a database.
+        class IEnvironment; ///< A database environment.
 
         void destroyStatement(detail::IStatement *impl) noexcept;
         void destroyConnection(detail::IConnection *impl) noexcept;

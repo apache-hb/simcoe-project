@@ -25,7 +25,7 @@ project('postgresql',
     'prefix=/usr/local/pgsql',
     'c_std=c11,c99'
   ],
-  license_files : [ 'LICENSE' ]
+  license_files : [ 'COPYRIGHT' ]
 )
 
 
@@ -1268,14 +1268,15 @@ if sslopt in ['auto', 'openssl']
       ssl_int = [ssl_lib, crypto_lib]
       ssl = declare_dependency(dependencies: ssl_int, include_directories: postgres_inc)
     endif
-  elif cc.has_header('openssl/ssl.h', args: test_c_args, dependencies: ssl, required: openssl_required) and \
+  elif ssl.type_name() != 'internal' and \
+       cc.has_header('openssl/ssl.h', args: test_c_args, dependencies: ssl, required: openssl_required) and \
        cc.has_header('openssl/err.h', args: test_c_args, dependencies: ssl, required: openssl_required)
     ssl_int = [ssl]
   else
     ssl = not_found_dep
   endif
 
-  if ssl.found()
+  if ssl.found() and ssl.type_name() != 'internal'
     check_funcs = [
       ['CRYPTO_new_ex_data', {'required': true}],
       ['SSL_new', {'required': true}],
