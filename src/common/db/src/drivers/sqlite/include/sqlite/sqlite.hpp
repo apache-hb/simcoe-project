@@ -4,6 +4,10 @@
 
 #include "drivers/common.hpp"
 
+// TODO: need a good way to communicate these categories to the outside
+// to prevent recursive use in structured logging
+// LOG_MESSAGE_CATEGORY(SqliteLog, "SQLite3");
+
 namespace sm::db::sqlite {
     std::string setupCreateTable(const dao::TableInfo& info);
     std::string setupCreateSingletonTrigger(std::string_view name);

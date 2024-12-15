@@ -14,7 +14,7 @@ static std::optional<std::string> getServerInfo(SQLHDBC hdbc, SQLUSMALLINT field
     SQLSMALLINT length;
     if (SqlResult result = SQLGetInfo(hdbc, field, buffer, sizeof(buffer), &length)) {
         DbError error = db2::getConnectionErrorInfo(result, hdbc);
-        LOG_WARN(DbLog, "Failed to get sql info {}: {}", field, error);
+        LOG_WARN(DbLog, "SQLGetInfo failed to locate field {}: {}", field, error);
         return std::nullopt;
     }
 
@@ -25,7 +25,7 @@ static bool hasGetInfoSupport(SQLHDBC hdbc) {
     SQLUSMALLINT supported;
     if (SqlResult result = SQLGetFunctions(hdbc, SQL_API_SQLGETINFO, &supported)) {
         DbError error = db2::getConnectionErrorInfo(result, hdbc);
-        LOG_WARN(DbLog, "Failed to get server version: {}", error);
+        LOG_WARN(DbLog, "SQLGetFunctions failed to locate function SQL_API_SQLGETINFO: {}", error);
         return false;
     }
 

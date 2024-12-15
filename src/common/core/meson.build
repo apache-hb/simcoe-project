@@ -22,6 +22,9 @@ src = [
     'src/typeindex.cpp',
     'src/core.cpp',
 
+    'src/uuid.cpp',
+    'src/random.cpp',
+
     'src/cpuid.cpp',
 
     'src/adt/zstring_view.cpp',
@@ -50,6 +53,8 @@ libcore = library('core', src, simcoe_config,
     include_directories : [ inc, core_include, config_include, 'src' ],
     dependencies : deps
 )
+
+unset_variable('src')
 
 core = declare_dependency(
     link_with : libcore,
@@ -98,6 +103,7 @@ testcases = {
     'Small vector': 'test/adt/small_vector.cpp',
     'Units': 'test/units.cpp',
     'Bit set' : 'test/adt/bitset.cpp',
+    'UUID': 'test/uuid.cpp',
 }
 
 foreach name, source : testcases

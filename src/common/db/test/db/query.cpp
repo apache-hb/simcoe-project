@@ -17,7 +17,7 @@ int main() {
     auto db = env.connect({ .host = "test.db" });
 
     {
-        dao::Query query = Select<uint64_t, std::string>("id", "name")
+        dao::Select<uint64_t, std::string> query = Select("id", "name")
             .from(table("test"))
             .where(Query::ofColumn("id") == 25);
 

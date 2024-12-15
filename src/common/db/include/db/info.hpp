@@ -6,19 +6,20 @@
 #include <string_view>
 #include <span>
 
-namespace sm::dao {
+namespace sm::db {
+#if 0
     class Column;
     class Table;
 
     class Column {
         std::string mName;
         std::string mComment;
-        ColumnType mType;
-        AutoIncrement mAutoIncrement;
+        dao::ColumnType mType;
+        dao::AutoIncrement mAutoIncrement;
         bool mNullable;
 
     public:
-        Column(std::string name, std::string comment, ColumnType type, AutoIncrement autoIncrement, bool nullable)
+        Column(std::string name, std::string comment, dao::ColumnType type, dao::AutoIncrement autoIncrement, bool nullable)
             : mName(std::move(name))
             , mComment(std::move(comment))
             , mType(type)
@@ -28,8 +29,8 @@ namespace sm::dao {
 
         std::string_view name() const noexcept { return mName; }
         std::string_view comment() const noexcept { return mComment; }
-        ColumnType type() const noexcept { return mType; }
-        AutoIncrement autoIncrement() const noexcept { return mAutoIncrement; }
+        dao::ColumnType type() const noexcept { return mType; }
+        dao::AutoIncrement autoIncrement() const noexcept { return mAutoIncrement; }
         bool nullable() const noexcept { return mNullable; }
     };
 
@@ -61,11 +62,11 @@ namespace sm::dao {
         const Table *mTable;
         const Column *mColumn;
         const Column *mKey;
-        OnDelete mOnDelete;
-        OnUpdate mOnUpdate;
+        dao::OnDelete mOnDelete;
+        dao::OnUpdate mOnUpdate;
 
     public:
-        ForeignKey(std::string name, const Table *table, const Column *column, const Column *key, OnDelete onDelete, OnUpdate onUpdate)
+        ForeignKey(std::string name, const Table *table, const Column *column, const Column *key, dao::OnDelete onDelete, dao::OnUpdate onUpdate)
             : Constraint(std::move(name))
             , mTable(table)
             , mColumn(column)
@@ -77,8 +78,8 @@ namespace sm::dao {
         const Table *table() const noexcept { return mTable; }
         const Column *column() const noexcept { return mColumn; }
         const Column *key() const noexcept { return mKey; }
-        OnDelete onDelete() const noexcept { return mOnDelete; }
-        OnUpdate onUpdate() const noexcept { return mOnUpdate; }
+        dao::OnDelete onDelete() const noexcept { return mOnDelete; }
+        dao::OnUpdate onUpdate() const noexcept { return mOnUpdate; }
     };
 
     class Table {
@@ -92,7 +93,7 @@ namespace sm::dao {
         const Column *mPrimaryKey = nullptr;
 
         [[maybe_unused]]
-        bool mSingleRow = false;;
+        bool mSingleRow = false;
 
     public:
         Table(std::string schema, std::string name, std::string comment, std::vector<Column> columns)
@@ -107,4 +108,5 @@ namespace sm::dao {
         std::string_view comment() const noexcept { return mComment; }
         std::span<const Column> columns() const noexcept { return mColumns; }
     };
+#endif
 }

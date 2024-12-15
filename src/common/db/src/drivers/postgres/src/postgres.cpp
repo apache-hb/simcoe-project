@@ -129,7 +129,7 @@ static std::string buildConnectionString(const ConnectionConfig& config) {
     }
 
     std::stringstream ss;
-    ss << "postgresql:///";
+    ss << "postgresql://";
     bool userspec = !config.user.empty();
     bool hostspec = !config.host.empty();
     bool dbname = !config.database.empty();

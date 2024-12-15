@@ -77,14 +77,14 @@ struct TestServerConfig {
 
                 server.work();
             } catch (const errors::AnyException& e) {
-                fmt::println(stderr, "Server exception: {}", e.what());
                 for (const auto& frame : e.stacktrace()) {
                     fmt::print(stderr, "{}\n", frame.description());
                 }
-
-                throw;
+                errors.add("Server exception: {}", e.what());
             } catch (const std::exception& e) {
                 errors.add("Server exception: {}", e.what());
+            } catch (...) {
+                errors.add("Server exception: unknown");
             }
         });
 
