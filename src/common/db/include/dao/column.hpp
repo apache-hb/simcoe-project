@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/traits.hpp"
+#include "base/traits.hpp"
 
 #include <chrono>
 #include <vector>

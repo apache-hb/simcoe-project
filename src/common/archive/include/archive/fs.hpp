@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/fs.hpp"
+#include "base/fs.hpp"
 #include "core/span.hpp"
 
 namespace sm {

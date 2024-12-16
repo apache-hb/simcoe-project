@@ -5,7 +5,7 @@
 #include "io/io.h"
 
 #include "core/memory/unique.hpp"
-#include "core/fs.hpp"
+#include "base/fs.hpp"
 
 #include "logs/logging.hpp"
 

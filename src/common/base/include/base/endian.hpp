@@ -22,11 +22,11 @@ namespace sm {
      * @tparam T the type of the value
      * @tparam order the desired byte order of the value
      */
-    template<typename T, ByteOrder order>
+    template<typename T, ByteOrder Order>
     struct EndianValue {
-        constexpr EndianValue() = default;
-        constexpr EndianValue(T v)
-            : underlying((order == ByteOrder::eNative) ? v : std::byteswap(v))
+        constexpr EndianValue() noexcept = default;
+        constexpr EndianValue(T v) noexcept
+            : underlying((Order == ByteOrder::eNative) ? v : std::byteswap(v))
         { }
 
         /**
@@ -34,25 +34,35 @@ namespace sm {
          * @see EndianValue::get
          * @return T the value
          */
-        constexpr operator T() const { return get(); }
+        constexpr operator T() const noexcept {
+            return load();
+        }
 
         /**
          * @brief get the value converted to the platforms byte ordering
          *
          * @return T the converted value
          */
-        constexpr T get() const {
-            return (order == ByteOrder::eNative) ? underlying : std::byteswap(underlying);
+        constexpr T load() const noexcept {
+            return (Order == ByteOrder::eNative) ? underlying : std::byteswap(underlying);
         }
 
-        constexpr EndianValue& operator=(T v) {
-            underlying = (order == ByteOrder::eNative) ? v : std::byteswap(v);
+        constexpr EndianValue& operator=(T v) noexcept {
+            underlying = (Order == ByteOrder::eNative) ? v : std::byteswap(v);
             return *this;
         }
 
+        constexpr T little() const noexcept {
+            return (Order == ByteOrder::eLittle) ? underlying : std::byteswap(underlying);
+        }
+
+        constexpr T big() const noexcept {
+            return (Order == ByteOrder::eBig) ? underlying : std::byteswap(underlying);
+        }
+
         template<typename V> requires (sizeof(V) == sizeof(T))
-        constexpr V as() const {
-            return std::bit_cast<V>(get());
+        constexpr V as() const noexcept {
+            return std::bit_cast<V>(load());
         }
 
         /// the native value

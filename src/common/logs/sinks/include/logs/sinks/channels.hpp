@@ -3,7 +3,7 @@
 #include "logs/channel.hpp"
 #include "db/connection.hpp"
 
-#include "core/fs.hpp"
+#include "base/fs.hpp"
 
 namespace sm::db {
     class Connection;

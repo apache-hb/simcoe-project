@@ -2,7 +2,7 @@
 
 #include "base/panic.h"
 
-#include "core/macros.hpp"
+#include "core/typename.hpp"
 
 using namespace std::string_view_literals;
 

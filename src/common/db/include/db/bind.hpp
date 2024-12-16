@@ -5,7 +5,7 @@
 
 #include "dao/dao.hpp"
 
-#include "core/throws.hpp"
+#include "base/throws.hpp"
 
 namespace sm::db {
     class BindPoint {

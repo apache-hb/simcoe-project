@@ -2,7 +2,7 @@
 
 #include <simcoe_config.h>
 
-#include "core/traits.hpp"
+#include "base/traits.hpp"
 
 #include <limits>
 

@@ -2,6 +2,11 @@
 
 #include <simcoe_config.h>
 
+#include "base/macros.hpp"
+#include "core/adt/vector.hpp"
+
+#include "config/init.hpp"
+
 #include <atomic>
 #include <mutex>
 #include <span>
@@ -9,11 +14,6 @@
 #include <unordered_map>
 
 #include <fmtlib/format.h>
-
-#include "core/adt/vector.hpp"
-#include "core/macros.hpp"
-
-#include "config/init.hpp"
 
 namespace sm::config {
     enum class UpdateStatus {

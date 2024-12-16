@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/macros.hpp"
+#include "base/macros.hpp"
 #include "core/win32.hpp"
 
 namespace sm::threads {

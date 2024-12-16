@@ -1,7 +1,8 @@
 #pragma once
 
-#include "core/core.hpp"
-#include "core/macros.hpp"
+#include "base/macros.hpp"
+
+#include <algorithm>
 
 namespace sm::adt {
     template<typename T, typename... U> requires ((std::derived_from<U, T> && ...) && std::has_virtual_destructor_v<T>)

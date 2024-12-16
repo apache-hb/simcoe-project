@@ -2,9 +2,9 @@
 
 #include "base/panic.h" // IWYU pragma: keep
 
+#include "base/macros.hpp"
+#include "base/traits.hpp"
 #include "core/core.hpp"
-#include "core/macros.hpp"
-#include "core/traits.hpp"
 
 #include <utility>
 

@@ -2,7 +2,7 @@
 
 #include "base/panic.h"
 
-#include "core/endian.hpp"
+#include "base/endian.hpp"
 
 #include <stdint.h>
 #include <string.h>
@@ -11,12 +11,88 @@
 #include <functional>
 
 namespace sm {
+    namespace detail {
+        using namespace std::chrono_literals;
+
+        static constexpr std::chrono::system_clock::time_point kGregorianReform = std::chrono::sys_days{1582y/10/15};
+
+        static constexpr std::chrono::system_clock::duration distance(std::chrono::system_clock::time_point from, std::chrono::system_clock::time_point to) {
+            auto begin = from.time_since_epoch();
+            auto end = to.time_since_epoch();
+
+            return (begin > end) ? begin - end : end - begin;
+        }
+
+        class rfc9562_clock {
+        public:
+            // 100ns intervals since 1582-10-15T00:00:00Z
+            using duration = std::chrono::duration<uint64_t, std::ratio_multiply<std::nano, std::ratio<100>>>;
+            using rep = duration::rep;
+            using period = duration::period;
+            using time_point = std::chrono::time_point<rfc9562_clock>;
+
+            static time_point from_sys(std::chrono::system_clock::time_point time) {
+                // our epoch is 1582-10-15T00:00:00Z, the gregorian reform
+                // we need to convert from the system clock epoch to the rfc9562 epoch.
+
+                return rfc9562_clock::time_point{distance(kGregorianReform, time)};
+            }
+
+            static std::chrono::system_clock::time_point to_sys(time_point time) {
+                return std::chrono::system_clock::time_point{std::chrono::duration_cast<std::chrono::system_clock::duration>((kGregorianReform.time_since_epoch() + time.time_since_epoch()))};
+            }
+        };
+    }
+
+    struct MacAddress {
+        uint8_t octets[6];
+
+        constexpr MacAddress() = default;
+        constexpr MacAddress(uint64_t value) noexcept
+            : octets {
+                static_cast<uint8_t>(value >> 40),
+                static_cast<uint8_t>(value >> 32),
+                static_cast<uint8_t>(value >> 24),
+                static_cast<uint8_t>(value >> 16),
+                static_cast<uint8_t>(value >> 8),
+                static_cast<uint8_t>(value),
+            }
+        { }
+
+        uint32_t organizationId() const noexcept {
+            return (octets[0] << 16) | (octets[1] << 8) | octets[2];
+        }
+
+        uint32_t networkId() const noexcept {
+            return (octets[3] << 16) | (octets[4] << 8) | octets[5];
+        }
+
+        bool multicast() const noexcept {
+            return (octets[0] & 0x01) == 0x01;
+        }
+
+        bool unicast() const noexcept {
+            return !multicast();
+        }
+
+        bool localUnique() const noexcept {
+            return (octets[0] & 0x02) == 0x02;
+        }
+
+        bool globalUnique() const noexcept {
+            return !localUnique();
+        }
+
+        constexpr bool operator==(const MacAddress& other) const noexcept = default;
+    };
+
     // https://www.rfc-editor.org/rfc/rfc9562.html#name-uuid-version-1
     struct uuidv1 {
-        be<uint64_t> time; // bits 48-51 are version
+        be<uint32_t> time0;
+        be<uint16_t> time1;
+        be<uint16_t> time2; // bits 48-51 are version
         be<uint16_t> clockSeq; // top 2 bits are variant
-        be<uint16_t> node0;
-        be<uint32_t> node1;
+        MacAddress node;
     };
 
     struct uuidfields {
@@ -34,7 +110,7 @@ namespace sm {
         static constexpr size_t kStringSize = 36;
 
         enum Version {
-            eVersion1 = 0b1000
+            eVersion1 = 0b0001
         };
 
         enum Variant {
@@ -102,15 +178,12 @@ namespace sm {
 
         // v1 uuid api
 
-        static uuid v1(std::chrono::utc_clock::time_point time, uint16_t clockSeq, uint64_t node);
+        static uuid v1(std::chrono::utc_clock::time_point time, uint16_t clockSeq, MacAddress node);
 
-        constexpr uint16_t v1ClockSeq() const noexcept {
-            return (octets[8] & 0b0011'1111) << 8 | octets[9];
-        }
+        uint16_t v1ClockSeq() const noexcept;
+        MacAddress v1Node() const noexcept;
 
-        constexpr uint64_t v1Node() const noexcept {
-            return uint64_t(uv1.node0) | (uint64_t(uv1.node1) << 16);
-        }
+        std::chrono::utc_clock::time_point v1Time() const noexcept;
 
         /// @brief Convert the uuid to a string
         /// Converts the uuid to a string in the format 8-4-4-4-12

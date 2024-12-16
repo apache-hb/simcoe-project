@@ -21,7 +21,7 @@
 #include "core/string.hpp"
 #include "core/units.hpp"
 #include "core/adt/array.hpp"
-#include "core/defer.hpp"
+#include "base/defer.hpp"
 #include "core/timer.hpp"
 
 #include "fmt/ranges.h"

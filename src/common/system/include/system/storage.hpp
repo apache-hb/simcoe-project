@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/fs.hpp"
+#include "base/fs.hpp"
 
 namespace sm::system {
     /// @brief Get the path to the roaming configuration folder.

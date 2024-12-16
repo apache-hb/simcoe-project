@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "core/macros.hpp"
+#include "core/typename.hpp"
 
 namespace com::apache::simcoe {
     class Thing {

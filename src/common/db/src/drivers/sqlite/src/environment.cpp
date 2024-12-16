@@ -6,7 +6,7 @@
 
 #include "core/memory.hpp"
 #include "core/units.hpp"
-#include "core/defer.hpp"
+#include "base/defer.hpp"
 
 #include <tlsf.h>
 

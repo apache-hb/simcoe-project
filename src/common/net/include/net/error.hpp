@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/throws.hpp"
+#include "base/throws.hpp"
 #include "core/error/error.hpp"
 
 // 12000 to 12999 are available for use by applications

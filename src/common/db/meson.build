@@ -227,7 +227,7 @@ foreach name, source : tests
 
     test(name, exe,
         suite : 'db',
-        kwargs : testkwargs
+        kwargs : testkwargs + { 'timeout': 10 }
     )
 endforeach
 

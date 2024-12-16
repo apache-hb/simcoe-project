@@ -2,7 +2,7 @@
 
 #include "db/transaction.hpp"
 
-#include "core/defer.hpp"
+#include "base/defer.hpp"
 
 using namespace sm;
 using namespace sm::db;

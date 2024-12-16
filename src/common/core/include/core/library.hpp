@@ -3,7 +3,7 @@
 #ifdef _WIN32
 #include "core/error.hpp"
 #include "core/memory/unique.hpp"
-#include "core/fs.hpp"
+#include "base/fs.hpp"
 
 #include "os/os.h"
 

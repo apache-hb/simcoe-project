@@ -4,7 +4,7 @@
 #   include "core/win32.hpp"
 #endif
 
-#include "core/fs.hpp"
+#include "base/fs.hpp"
 
 #include "db/db.hpp"
 

@@ -4,8 +4,8 @@
 #include "net/error.hpp"
 #include "net/address.hpp"
 
-#include "core/macros.hpp"
-#include "core/throws.hpp"
+#include "base/macros.hpp"
+#include "base/throws.hpp"
 
 #include "system/network.hpp"
 

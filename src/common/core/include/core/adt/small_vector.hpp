@@ -1,8 +1,9 @@
 #pragma once
 
+#include "base/macros.hpp"
+
 #include "core/adt/range.hpp"
 #include "core/core.hpp"
-#include "core/macros.hpp"
 
 #include "base/panic.h"
 

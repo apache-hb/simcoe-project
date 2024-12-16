@@ -1,7 +1,7 @@
 #pragma once
 
 #include "test/common.hpp"
-#include "core/fs.hpp"
+#include "base/fs.hpp"
 
 // IWYU pragma: begin_exports
 #include "db/environment.hpp"

@@ -6,7 +6,7 @@
 #include <fmtlib/format.h>
 #include <fmt/ostream.h>
 
-#include "core/fs.hpp"
+#include "base/fs.hpp"
 
 using namespace sm;
 using namespace sm::db;

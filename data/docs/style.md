@@ -2,7 +2,7 @@
 
 ## Checked exceptions
 
-* use `throws(...)` defined in `core/throws.hpp` on functions to mark them as throwing
+* use `throws(...)` defined in `base/throws.hpp` on functions to mark them as throwing
 * only use the throws macro on the header definition, use `noexcept(false)` on source files
     * makes maintanence easier
 * all functions should either be `noexcept` or `throws(...)`

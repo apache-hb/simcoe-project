@@ -5,7 +5,7 @@
 #include "db/results.hpp"
 #include "db/statement.hpp"
 
-#include "core/macros.hpp"
+#include "base/macros.hpp"
 
 #include "db/prepared/insert.hpp"
 #include "db/prepared/select.hpp"

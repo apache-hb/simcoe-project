@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/throws.hpp"
+#include "base/throws.hpp"
 
 #include <expected>
 #include <stacktrace>

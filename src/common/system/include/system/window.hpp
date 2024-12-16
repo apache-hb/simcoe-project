@@ -2,10 +2,11 @@
 
 #include <simcoe_config.h>
 
+#include "base/macros.hpp"
+
 #include "system/system.hpp"
 
 #include "math/math.hpp"
-#include "core/macros.hpp"
 
 namespace sm::system {
     enum class ShowWindow {

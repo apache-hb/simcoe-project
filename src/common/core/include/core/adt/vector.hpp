@@ -1,8 +1,7 @@
 #pragma once
 
-#include "core/core.hpp"
-#include "core/throws.hpp"
-#include "core/macros.hpp"
+#include "base/throws.hpp"
+#include "base/macros.hpp"
 
 #include "core/adt/range.hpp"
 

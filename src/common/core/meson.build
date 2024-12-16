@@ -1,6 +1,7 @@
 core_include = include_directories('.', 'include')
 
 deps = [
+    base,
     fmtlib,
     cthulhu.get_variable('core'),
     cthulhu.get_variable('base'),
@@ -53,8 +54,6 @@ libcore = library('core', src, simcoe_config,
     include_directories : [ inc, core_include, config_include, 'src' ],
     dependencies : deps
 )
-
-unset_variable('src')
 
 core = declare_dependency(
     link_with : libcore,
