@@ -1,19 +1,9 @@
 #pragma once
 
 #include <bit>
+#include <concepts>
 
 namespace sm {
-    enum class ByteOrder {
-        /// big endian byte order (ppc64, sparcv9)
-        eBig = __ORDER_BIG_ENDIAN__,
-
-        /// little endian byte order (x86_64)
-        eLittle = __ORDER_LITTLE_ENDIAN__,
-
-        /// byte order of the current platform
-        eNative = __BYTE_ORDER__,
-    };
-
     /**
      * @brief an endian type
      *
@@ -22,11 +12,11 @@ namespace sm {
      * @tparam T the type of the value
      * @tparam order the desired byte order of the value
      */
-    template<typename T, ByteOrder Order>
+    template<std::integral T, std::endian Order>
     struct EndianValue {
         constexpr EndianValue() noexcept = default;
         constexpr EndianValue(T v) noexcept
-            : underlying((Order == ByteOrder::eNative) ? v : std::byteswap(v))
+            : underlying((Order == std::endian::native) ? v : std::byteswap(v))
         { }
 
         /**
@@ -44,20 +34,20 @@ namespace sm {
          * @return T the converted value
          */
         constexpr T load() const noexcept {
-            return (Order == ByteOrder::eNative) ? underlying : std::byteswap(underlying);
+            return (Order == std::endian::native) ? underlying : std::byteswap(underlying);
         }
 
         constexpr EndianValue& operator=(T v) noexcept {
-            underlying = (Order == ByteOrder::eNative) ? v : std::byteswap(v);
+            underlying = (Order == std::endian::native) ? v : std::byteswap(v);
             return *this;
         }
 
         constexpr T little() const noexcept {
-            return (Order == ByteOrder::eLittle) ? underlying : std::byteswap(underlying);
+            return (Order == std::endian::little) ? underlying : std::byteswap(underlying);
         }
 
         constexpr T big() const noexcept {
-            return (Order == ByteOrder::eBig) ? underlying : std::byteswap(underlying);
+            return (Order == std::endian::big) ? underlying : std::byteswap(underlying);
         }
 
         template<typename V> requires (sizeof(V) == sizeof(T))
@@ -75,7 +65,7 @@ namespace sm {
      * @tparam T the type of the value
      */
     template<typename T>
-    using be = EndianValue<T, ByteOrder::eBig>;
+    using be = EndianValue<T, std::endian::big>;
 
     /**
      * @brief a little endian value
@@ -83,5 +73,5 @@ namespace sm {
      * @tparam T the type of the value
      */
     template<typename T>
-    using le = EndianValue<T, ByteOrder::eLittle>;
+    using le = EndianValue<T, std::endian::little>;
 }

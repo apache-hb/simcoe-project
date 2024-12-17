@@ -137,3 +137,112 @@ std::chrono::system_clock::time_point uuid::v7Time() const noexcept {
 
     return chrono::system_clock::time_point{chrono::milliseconds{ts}};
 }
+
+// string formatting
+
+void uuid::strfuid(char dst[kStringSize], uuid uuid) noexcept {
+    auto writeOctets = [&](size_t start, size_t n, size_t o) {
+        constexpr char kHex[] = "0123456789abcdef";
+        for (size_t i = start; i < n; i++) {
+            dst[i * 2 + o + 0] = kHex[uuid.octets[i] >> 4];
+            dst[i * 2 + o + 1] = kHex[uuid.octets[i] & 0x0F];
+        }
+    };
+
+    writeOctets(0, 4, 0);
+    dst[8] = '-';
+    writeOctets(4, 6, 1);
+    dst[13] = '-';
+    writeOctets(6, 8, 2);
+    dst[18] = '-';
+    writeOctets(8, 10, 3);
+    dst[23] = '-';
+    writeOctets(10, 16, 4);
+}
+
+// parsing
+
+static bool isHex(char c) {
+    return (c >= '0' && c <= '9')
+        || (c >= 'a' && c <= 'f')
+        || (c >= 'A' && c <= 'F');
+}
+
+static uint8_t fromHex(char c) {
+    if (c >= '0' && c <= '9') {
+        return c - '0';
+    } else if (c >= 'a' && c <= 'f') {
+        return c - 'a' + 10;
+    } else if (c >= 'A' && c <= 'F') {
+        return c - 'A' + 10;
+    }
+
+    return 0;
+}
+
+static bool readOctets(const char *str, size_t n, uint8_t *dst) {
+    for (size_t i = 0; i < n; i++) {
+        char c0 = str[(i * 2) + 0];
+        char c1 = str[(i * 2) + 1];
+
+        if (!isHex(c0) || !isHex(c1)) {
+            return false;
+        }
+
+        dst[i] = (fromHex(c0) << 4) | fromHex(c1);
+    }
+
+    return true;
+}
+
+bool uuid::parse(const char str[kStringSize], uuid& result) noexcept {
+    uuid tmp = uuid::nil();
+
+    if (!readOctets(str, 4, tmp.octets)) return false;
+    if (str[8] != '-') return false;
+
+    if (!readOctets(str + 9, 2, tmp.octets + 4)) return false;
+    if (str[13] != '-') return false;
+
+    if (!readOctets(str + 14, 2, tmp.octets + 6)) return false;
+    if (str[18] != '-') return false;
+
+    if (!readOctets(str + 19, 2, tmp.octets + 8)) return false;
+    if (str[23] != '-') return false;
+
+    if (!readOctets(str + 24, 6, tmp.octets + 10)) return false;
+
+    result = tmp;
+    return true;
+}
+
+bool uuid::parseMicrosoft(const char str[kMicrosoftStringSize], uuid& result) noexcept {
+    if (str[0] != '{') return false;
+    if (str[37] != '}') return false;
+
+    return parse(str + 1, result);
+}
+
+bool uuid::parseHex(const char str[kHexStringSize], uuid &result) noexcept {
+    uuid tmp = uuid::nil();
+
+    if (!readOctets(str, 16, tmp.octets)) return false;
+
+    result = tmp;
+    return true;
+}
+
+bool uuid::parseAny(const char str[kMaxStringSize], uuid& result) noexcept {
+    // probably a microsoft uuid
+    if (str[0] == '{' && str[37] == '}') {
+        return parseMicrosoft(str, result);
+    }
+
+    // probably an 8-4-4-4-12 uuid
+    if (str[8] == '-') {
+        return parse(str, result);
+    }
+
+    // best guess is a raw hex uuid
+    return parseHex(str, result);
+}

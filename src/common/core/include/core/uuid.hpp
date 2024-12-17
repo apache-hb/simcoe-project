@@ -111,6 +111,18 @@ namespace sm {
         /// @note Not including nul terminator.
         static constexpr size_t kStringSize = 36;
 
+        /// @brief Total characters required to represent a microsoft uuid in {8-4-4-4-12} format.
+        /// @note Not including nul terminator.
+        static constexpr size_t kMicrosoftStringSize = kStringSize + 2;
+
+        /// @brief Total characters required to represent a uuid in raw hex format.
+        /// @note Not including nul terminator.
+        static constexpr size_t kHexStringSize = 32;
+
+        /// @brief The maximum size required to represent a uuid in any format.
+        /// @note Not including nul terminator.
+        static constexpr size_t kMaxStringSize = std::max({ kStringSize, kMicrosoftStringSize, kHexStringSize });
+
         enum Version {
             eVersion1 = 0b0001,
             eVersion6 = 0b0110,
@@ -144,6 +156,17 @@ namespace sm {
             return uuid {
                 {{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}},
             };
+        }
+
+        static constexpr uuid of(be<uint32_t> a, be<uint16_t> b, be<uint16_t> c, be<uint16_t> d, be<uint64_t> e) noexcept {
+            e = e << 16;
+            uuid result;
+            memcpy(result.octets, &a, sizeof(a));
+            memcpy(result.octets + 4, &b, sizeof(b));
+            memcpy(result.octets + 6, &c, sizeof(c));
+            memcpy(result.octets + 8, &d, sizeof(d));
+            memcpy(result.octets + 10, &e, 6);
+            return result;
         }
 
         constexpr uint8_t version() const noexcept {
@@ -218,25 +241,41 @@ namespace sm {
         /// Converts the uuid to a string in the format 8-4-4-4-12
         /// @param dst the buffer to write the string to
         /// @note The buffer must be at least kStringSize + 1 bytes long
-        constexpr static void strfuid(char dst[kStringSize], uuid uuid) noexcept {
-            auto writeOctets = [&](size_t start, size_t n, size_t o) {
-                constexpr char kHex[] = "0123456789abcdef";
-                for (size_t i = start; i < n; i++) {
-                    dst[i * 2 + o + 0] = kHex[uuid.octets[i] >> 4];
-                    dst[i * 2 + o + 1] = kHex[uuid.octets[i] & 0x0F];
-                }
-            };
+        static void strfuid(char dst[kStringSize], uuid uuid) noexcept;
 
-            writeOctets(0, 4, 0);
-            dst[8] = '-';
-            writeOctets(4, 6, 1);
-            dst[13] = '-';
-            writeOctets(6, 8, 2);
-            dst[18] = '-';
-            writeOctets(8, 10, 3);
-            dst[23] = '-';
-            writeOctets(10, 16, 4);
-        }
+        /// @brief parse a uuid from a string
+        /// Only supports 8-4-4-4-12 hex format with hyphens, use @a parseMicrosoft for microsoft format
+        /// or @a parseHex for raw hex format. On success the result will be written to @a result.
+        /// On failure will return false and @a result will be unchanged.
+        /// @param str the string to parse
+        /// @param result the uuid to write the result to
+        /// @return true if the string was successfully parsed
+        static bool parse(const char str[kStringSize], uuid& result) noexcept;
+
+        /// @brief parse a microsoft uuid from a string
+        /// Only supports {8-4-4-4-12} format with braces, use @a parse for standard format
+        /// or @a parseHex for raw hex format. On success the result will be written to @a result.
+        /// On failure will return false and @a result will be unchanged.
+        /// @param str the string to parse
+        /// @param result the uuid to write the result to
+        /// @return true if the string was successfully parsed
+        static bool parseMicrosoft(const char str[kMicrosoftStringSize], uuid& result) noexcept;
+
+        /// @brief parse a uuid from a raw hex string
+        /// Only supports 32 character hex strings. On success the result will be written to @a result.
+        /// On failure will return false and @a result will be unchanged.
+        /// @param str the string to parse
+        /// @param result the uuid to write the result to
+        /// @return true if the string was successfully parsed
+        static bool parseHex(const char str[kHexStringSize], uuid& result) noexcept;
+
+        /// @brief parse a uuid from any format
+        /// Attempts to parse the uuid from any format. On success the result will be written to @a result.
+        /// On failure will return false and @a result will be unchanged.
+        /// @param str the string to parse
+        /// @param result the uuid to write the result to
+        /// @return true if the string was successfully parsed
+        static bool parseAny(const char str[kMaxStringSize], uuid& result) noexcept;
     };
 
     static_assert(sizeof(uuidv1) == 16);

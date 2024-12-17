@@ -2,6 +2,8 @@
 
 #include "core/uuid.hpp"
 
+#include <array>
+
 using uuid = sm::uuid;
 using rfc9562_clock = sm::detail::rfc9562_clock;
 
@@ -60,6 +62,16 @@ TEST(UuidTest, Variant) {
     EXPECT_EQ(uuid::eDCE, it.variant()) << buffer;
 }
 
+static void TestRoundTrip(uuid before) {
+    char buffer[uuid::kStringSize + 1] = {};
+    uuid::strfuid(buffer, before);
+
+    uuid after;
+    EXPECT_TRUE(uuid::parse(buffer, after));
+
+    EXPECT_EQ(before, after) << buffer;
+}
+
 TEST(UuidTest, V1) {
     chrono::utc_clock::time_point today = chrono::clock_cast<chrono::utc_clock>(chrono::sys_days{2024y/5/6} + 15h + 14min + 47s + 73ms);
     sm::MacAddress node = 0xBC'A3'23'0A'8F'12;
@@ -75,6 +87,8 @@ TEST(UuidTest, V1) {
     EXPECT_EQ(0x1234, gen.v1ClockSeq()) << buffer;
     EXPECT_EQ(node, gen.v1Node()) << buffer;
     EXPECT_EQ(today, gen.v1Time()) << buffer;
+
+    TestRoundTrip(gen);
 }
 
 TEST(UuidTest, V6) {
@@ -95,6 +109,8 @@ TEST(UuidTest, V6) {
     EXPECT_EQ(3386, gen.v6ClockSeq()) << buffer;
     EXPECT_EQ(node, gen.v6Node()) << buffer;
     EXPECT_EQ(birth, gen.v6Time()) << buffer;
+
+    TestRoundTrip(gen);
 }
 
 TEST(UuidTest, V7) {
@@ -113,4 +129,104 @@ TEST(UuidTest, V7) {
     EXPECT_EQ(std::string_view(buffer), "0193d338-17d8-7ff3-9a19-92804240430c");
 
     EXPECT_EQ(initial, gen.v7Time()) << buffer;
+
+    TestRoundTrip(gen);
+}
+
+class UuidParseTest : public testing::TestWithParam<std::tuple<std::string, bool, uuid>> {};
+
+INSTANTIATE_TEST_SUITE_P(
+    ParseBasic, UuidParseTest,
+    testing::Values(
+        std::make_tuple("10b11760-bb0b-11ef-9234-bca3230a8f12", true, uuid::of(0x10b11760, 0xbb0b, 0x11ef, 0x9234, 0xbca3230a8f12)),
+        std::make_tuple("1efbc3e7-a711-6400-8d3a-bca3230a8f12", true, uuid::of(0x1efbc3e7, 0xa711, 0x6400, 0x8d3a, 0xbca3230a8f12)),
+        std::make_tuple("0193d338-17d8-7ff3-9a19-92804240430c", true, uuid::of(0x0193d338, 0x17d8, 0x7ff3, 0x9a19, 0x92804240430c)),
+        std::make_tuple("0193d33817d87ff39a1992804240430c", false, uuid::nil()),
+        std::make_tuple("", false, uuid::nil())
+    ),
+    [](const testing::TestParamInfo<std::tuple<std::string, bool, uuid>>& info) {
+        std::string title = std::get<0>(info.param);
+        std::replace(title.begin(), title.end(), '-', '_');
+        return title.empty() ? "Empty" : title;
+    });
+
+TEST_P(UuidParseTest, ParseBasic) {
+    auto [input, expected, result] = GetParam();
+
+    // its the callers responsibility to ensure the buffer is large enough
+    std::array<char, uuid::kStringSize> buffer;
+    std::copy(input.begin(), input.end(), buffer.begin());
+
+    uuid out = uuid::nil();
+    EXPECT_EQ(expected, uuid::parse(buffer.data(), out));
+
+    if (expected) {
+        EXPECT_EQ(result, out);
+    }
+}
+
+class UuidParseMsTest : public testing::TestWithParam<std::tuple<std::string, bool, uuid>> {};
+
+INSTANTIATE_TEST_SUITE_P(
+    ParseMicrosoft, UuidParseMsTest,
+    testing::Values(
+        std::make_tuple("{10b11760-bb0b-11ef-9234-bca3230a8f12}", true, uuid::of(0x10b11760, 0xbb0b, 0x11ef, 0x9234, 0xbca3230a8f12)),
+        std::make_tuple("{1efbc3e7-a711-6400-8d3a-bca3230a8f12}", true, uuid::of(0x1efbc3e7, 0xa711, 0x6400, 0x8d3a, 0xbca3230a8f12)),
+        std::make_tuple("{0193d338-17d8-7ff3-9a19-92804240430c}", true, uuid::of(0x0193d338, 0x17d8, 0x7ff3, 0x9a19, 0x92804240430c)),
+        // microsoft uuids must have both braces to parse successfully
+        std::make_tuple("{c24bc4e9-d566-484a-97a2-0dc59675563a", false, uuid::nil()),
+        std::make_tuple("e5876a2c-7ab6-419c-be88-b1dce9027059}", false, uuid::nil()),
+        std::make_tuple("cee5413e-4387-4f76-9ea2-5ae62d213677", false, uuid::nil()),
+        std::make_tuple("{0193d33817d87ff39a1992804240430c}", false, uuid::nil()),
+        std::make_tuple("", false, uuid::nil())
+    ),
+    [](const testing::TestParamInfo<std::tuple<std::string, bool, uuid>>& info) {
+        std::string title = std::get<0>(info.param);
+        std::replace(title.begin(), title.end(), '-', '_');
+        title.erase(std::remove(title.begin(), title.end(), '{'), title.end());
+        title.erase(std::remove(title.begin(), title.end(), '}'), title.end());
+        return title.empty() ? "Empty" : fmt::format("MS_{}", title);
+    });
+
+TEST_P(UuidParseMsTest, ParseMicrosoft) {
+    auto [input, expected, result] = GetParam();
+
+    // its the callers responsibility to ensure the buffer is large enough
+    std::array<char, uuid::kMicrosoftStringSize> buffer;
+    std::copy(input.begin(), input.end(), buffer.begin());
+
+    uuid out = uuid::nil();
+    EXPECT_EQ(expected, uuid::parseMicrosoft(buffer.data(), out));
+
+    if (expected) {
+        EXPECT_EQ(result, out);
+    }
+}
+
+TEST(UuidTest, ParseNoPartialWrite) {
+    {
+        uuid out = uuid::nil();
+        EXPECT_FALSE(uuid::parse("im not a uuid", out));
+        EXPECT_EQ(uuid::nil(), out);
+    }
+
+    {
+        uuid out = uuid::max();
+        EXPECT_FALSE(uuid::parse("im not a uuid either", out));
+        EXPECT_EQ(uuid::max(), out);
+    }
+}
+
+TEST(UuidTest, ParseMicrosoftNoPartialWrite) {
+    {
+        uuid out = uuid::nil();
+        EXPECT_FALSE(uuid::parseMicrosoft("im not a uuid", out));
+        EXPECT_EQ(uuid::nil(), out);
+    }
+
+    {
+        uuid out = uuid::max();
+        EXPECT_FALSE(uuid::parseMicrosoft("im not a uuid either", out));
+        EXPECT_EQ(uuid::max(), out);
+    }
 }
