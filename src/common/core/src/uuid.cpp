@@ -84,8 +84,7 @@ uuid uuid::v6(std::chrono::utc_clock::time_point time, uint16_t clockSeq, MacAdd
         | (clockSeq & kClockSeqMask); // 66:79
 
     uuidv6 result = {
-        .time2 = intervals >> 28,
-        .time1 = intervals >> 12,
+        .time1 = uint48_t(intervals >> 12),
         .time0 = (intervals & 0x0FFF) | (uuid::eVersion6 << 12),
         .clockSeq = uuidClockSeq,
         .node = node,
@@ -104,8 +103,7 @@ MacAddress uuid::v6Node() const noexcept {
 
 std::chrono::utc_clock::time_point uuid::v6Time() const noexcept {
     uint64_t intervals
-        = uint64_t(uv6.time2) << 28
-        | uint64_t(uv6.time1) << 12
+        = uint64_t(uv6.time1.load()) << 12
         | uint64_t(uv6.time0 & 0x0FFF);
 
     return chrono::clock_cast<chrono::utc_clock>(detail::rfc9562_clock::time_point{detail::rfc9562_clock::duration{intervals}});
@@ -119,8 +117,7 @@ uuid uuid::v7(std::chrono::system_clock::time_point time, const uint8_t random[1
 
     // TODO: this may be a touch innacurate
     uuidv7 result = {
-        .time0 = ts >> 16,
-        .time1 = ts,
+        .time = uint48_t(ts),
     };
 
     memcpy(result.rand, random, sizeof(result.rand));
@@ -131,9 +128,7 @@ uuid uuid::v7(std::chrono::system_clock::time_point time, const uint8_t random[1
 }
 
 std::chrono::system_clock::time_point uuid::v7Time() const noexcept {
-    uint64_t ts
-        = uint64_t(uv7.time0) << 16
-        | uint64_t(uv7.time1);
+    uint64_t ts = uv7.time.load();
 
     return chrono::system_clock::time_point{chrono::milliseconds{ts}};
 }

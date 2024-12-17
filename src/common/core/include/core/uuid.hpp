@@ -1,8 +1,7 @@
 #pragma once
 
-#include "base/panic.h"
-
-#include "base/endian.hpp"
+#include "core/digit.hpp"
+#include "core/endian.hpp"
 
 #include <stdint.h>
 #include <string.h>
@@ -93,16 +92,14 @@ namespace sm {
     };
 
     struct uuidv6 {
-        be<uint32_t> time2;
-        be<uint16_t> time1;
+        be<uint48_t> time1;
         be<uint16_t> time0;
         be<uint16_t> clockSeq;
         MacAddress node;
     };
 
     struct uuidv7 {
-        be<uint32_t> time0;
-        be<uint16_t> time1;
+        be<uint48_t> time;
         uint8_t rand[10];
     };
 
@@ -158,14 +155,22 @@ namespace sm {
             };
         }
 
-        static constexpr uuid of(be<uint32_t> a, be<uint16_t> b, be<uint16_t> c, be<uint16_t> d, be<uint64_t> e) noexcept {
-            e = e << 16;
+        static constexpr uuid of(uint32_t a, uint16_t b, uint16_t c, uint16_t d, uint48_t e) noexcept {
             uuid result;
-            memcpy(result.octets, &a, sizeof(a));
-            memcpy(result.octets + 4, &b, sizeof(b));
-            memcpy(result.octets + 6, &c, sizeof(c));
-            memcpy(result.octets + 8, &d, sizeof(d));
-            memcpy(result.octets + 10, &e, 6);
+            be<uint32_t> a2 = a;
+            memcpy(result.octets, &a2, sizeof(a2));
+
+            be<uint16_t> b2 = b;
+            memcpy(result.octets + 4, &b2, sizeof(b2));
+
+            be<uint16_t> c2 = c;
+            memcpy(result.octets + 6, &c2, sizeof(c2));
+
+            be<uint16_t> d2 = d;
+            memcpy(result.octets + 8, &d2, sizeof(d2));
+
+            be<uint48_t> e2 = e;
+            memcpy(result.octets + 10, &e2, 6);
             return result;
         }
 

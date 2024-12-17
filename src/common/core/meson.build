@@ -103,6 +103,7 @@ testcases = {
     'Units': 'test/units.cpp',
     'Bit set' : 'test/adt/bitset.cpp',
     'UUID': 'test/uuid.cpp',
+    'Sized Integers': 'test/digit.cpp',
 }
 
 foreach name, source : testcases

@@ -3,7 +3,19 @@
 #include <bit>
 #include <concepts>
 
+#include "core/digit.hpp"
+
 namespace sm {
+    template<size_t N, typename T>
+    constexpr SizedInteger<N, T> byteswap(SizedInteger<N, T> value) noexcept {
+        return value.byteswap();
+    }
+
+    template<std::integral T>
+    constexpr T byteswap(T value) noexcept {
+        return std::byteswap(value);
+    }
+
     /**
      * @brief an endian type
      *
@@ -12,12 +24,12 @@ namespace sm {
      * @tparam T the type of the value
      * @tparam order the desired byte order of the value
      */
-    template<std::integral T, std::endian Order>
+    template<typename T, std::endian Order>
     struct EndianValue {
         constexpr EndianValue() noexcept = default;
-        constexpr EndianValue(T v) noexcept
-            : underlying((Order == std::endian::native) ? v : std::byteswap(v))
-        { }
+        constexpr EndianValue(T v) noexcept {
+            store(v);
+        }
 
         /**
          * @brief get the value converted to the platforms native byte ordering
@@ -34,20 +46,40 @@ namespace sm {
          * @return T the converted value
          */
         constexpr T load() const noexcept {
-            return (Order == std::endian::native) ? underlying : std::byteswap(underlying);
+            if constexpr (Order == std::endian::native) {
+                return underlying;
+            } else {
+                return byteswap(underlying);
+            }
+        }
+
+        constexpr void store(T v) noexcept {
+            if constexpr (Order == std::endian::native) {
+                underlying = v;
+            } else {
+                underlying = byteswap(v);
+            }
         }
 
         constexpr EndianValue& operator=(T v) noexcept {
-            underlying = (Order == std::endian::native) ? v : std::byteswap(v);
+            store(v);
             return *this;
         }
 
         constexpr T little() const noexcept {
-            return (Order == std::endian::little) ? underlying : std::byteswap(underlying);
+            if constexpr (Order == std::endian::little) {
+                return underlying;
+            } else {
+                return byteswap(underlying);
+            }
         }
 
         constexpr T big() const noexcept {
-            return (Order == std::endian::big) ? underlying : std::byteswap(underlying);
+            if constexpr (Order == std::endian::big) {
+                return underlying;
+            } else {
+                return byteswap(underlying);
+            }
         }
 
         template<typename V> requires (sizeof(V) == sizeof(T))
