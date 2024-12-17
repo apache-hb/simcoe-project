@@ -77,6 +77,13 @@ library_type = get_option('default_library')
 # the perfect library
 cthulhu = subproject('cthulhu')
 
+rtsan_args = cpp.get_supported_arguments(
+    '-Wfunction-effects',
+    '-Wperf-effect-implies-noexcept',
+)
+
+add_project_arguments(rtsan_args, language : [ 'c', 'cpp' ])
+
 args = cpp.get_supported_arguments(
     '-fstrict-aliasing',
     '-fno-keep-static-consts',
@@ -89,7 +96,7 @@ args = cpp.get_supported_arguments(
     '-fansi-escape-codes',
 
     # fmtlib forgot to mark a single argument as [[maybe_unused]]. pain
-    '-Wno-unused-parameter'
+    '-Wno-unused-parameter',
 )
 
 cpp_args = cpp.get_supported_arguments(

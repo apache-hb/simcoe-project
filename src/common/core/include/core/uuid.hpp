@@ -16,13 +16,6 @@ namespace sm {
 
         static constexpr std::chrono::system_clock::time_point kGregorianReform = std::chrono::sys_days{1582y/10/15};
 
-        static constexpr std::chrono::system_clock::duration distance(std::chrono::system_clock::time_point from, std::chrono::system_clock::time_point to) {
-            auto begin = from.time_since_epoch();
-            auto end = to.time_since_epoch();
-
-            return (begin > end) ? begin - end : end - begin;
-        }
-
         class rfc9562_clock {
         public:
             // 100ns intervals since 1582-10-15T00:00:00Z
@@ -31,16 +24,8 @@ namespace sm {
             using period = duration::period;
             using time_point = std::chrono::time_point<rfc9562_clock>;
 
-            static time_point from_sys(std::chrono::system_clock::time_point time) {
-                // our epoch is 1582-10-15T00:00:00Z, the gregorian reform
-                // we need to convert from the system clock epoch to the rfc9562 epoch.
-
-                return rfc9562_clock::time_point{distance(kGregorianReform, time)};
-            }
-
-            static std::chrono::system_clock::time_point to_sys(time_point time) {
-                return std::chrono::system_clock::time_point{std::chrono::duration_cast<std::chrono::system_clock::duration>((kGregorianReform.time_since_epoch() + time.time_since_epoch()))};
-            }
+            static time_point from_sys(std::chrono::system_clock::time_point time);
+            static std::chrono::system_clock::time_point to_sys(time_point time);
         };
     }
 
@@ -68,19 +53,19 @@ namespace sm {
         }
 
         bool multicast() const noexcept {
-            return (octets[0] & 0x01) == 0x01;
+            return (octets[0] & 0b1);
         }
 
         bool unicast() const noexcept {
-            return !multicast();
+            return !(octets[0] & 0b1);
         }
 
         bool localUnique() const noexcept {
-            return (octets[0] & 0x02) == 0x02;
+            return (octets[0] & 0b10);
         }
 
         bool globalUnique() const noexcept {
-            return !localUnique();
+            return !(octets[0] & 0b10);
         }
 
         constexpr bool operator==(const MacAddress& other) const noexcept = default;
@@ -88,20 +73,37 @@ namespace sm {
 
     // https://www.rfc-editor.org/rfc/rfc9562.html#name-uuid-version-1
     struct uuidv1 {
-        be<uint32_t> time0;
-        be<uint16_t> time1;
+        le<uint32_t> time0;
+        le<uint16_t> time1;
         be<uint16_t> time2; // bits 48-51 are version
         be<uint16_t> clockSeq; // top 2 bits are variant
         MacAddress node;
     };
 
-    struct uuidfields {
-        be<uint32_t> f0;
-        be<uint16_t> f1;
-        be<uint16_t> f2;
-        be<uint16_t> f3;
-        be<uint16_t> f4;
-        be<uint32_t> f5;
+    // X/Open CAE Specification A.1 (Universal Unique Identifier)
+    // https://pubs.opengroup.org/onlinepubs/9696999099/toc.pdf
+    // DCE security UUID with embedded POSIX UID
+    struct uuidv2 {
+        // unimplemented for now, i cant find the actual spec for this :(
+    };
+
+    // https://www.rfc-editor.org/rfc/rfc9562.html#name-uuid-version-3
+    struct uuidv3 {
+        uint8_t md5[16];
+    };
+
+    struct uuidv6 {
+        be<uint32_t> time2;
+        be<uint16_t> time1;
+        be<uint16_t> time0;
+        be<uint16_t> clockSeq;
+        MacAddress node;
+    };
+
+    struct uuidv7 {
+        be<uint32_t> time0;
+        be<uint16_t> time1;
+        uint8_t rand[10];
     };
 
     struct uuid {
@@ -110,12 +112,14 @@ namespace sm {
         static constexpr size_t kStringSize = 36;
 
         enum Version {
-            eVersion1 = 0b0001
+            eVersion1 = 0b0001,
+            eVersion6 = 0b0110,
+            eVersion7 = 0b0111,
         };
 
         enum Variant {
             eReserved  = 0b0,
-            eRfc9562   = 0b10,
+            eDCE       = 0b10,
             eMicrosoft = 0b110,
             eFuture    = 0b1110,
         };
@@ -123,8 +127,12 @@ namespace sm {
         union {
             uint8_t octets[16];
             uuidv1 uv1;
-            uuidfields ufs;
+            uuidv3 uv3;
+            uuidv6 uv6;
+            uuidv7 uv7;
         };
+
+        // factory functions
 
         static constexpr uuid nil() noexcept {
             return uuid {
@@ -185,6 +193,27 @@ namespace sm {
 
         std::chrono::utc_clock::time_point v1Time() const noexcept;
 
+        // v3 uuid api
+
+        static uuid v3(const uint8_t md5[16]);
+
+        void v3Md5Hash(uint8_t md5[16]) const noexcept;
+
+        // v6 uuid api
+
+        static uuid v6(std::chrono::utc_clock::time_point time, uint16_t clockSeq, MacAddress node);
+
+        uint16_t v6ClockSeq() const noexcept;
+        MacAddress v6Node() const noexcept;
+
+        std::chrono::utc_clock::time_point v6Time() const noexcept;
+
+        // v7 uuid api
+
+        static uuid v7(std::chrono::system_clock::time_point time, const uint8_t random[10]);
+
+        std::chrono::system_clock::time_point v7Time() const noexcept;
+
         /// @brief Convert the uuid to a string
         /// Converts the uuid to a string in the format 8-4-4-4-12
         /// @param dst the buffer to write the string to
@@ -211,6 +240,9 @@ namespace sm {
     };
 
     static_assert(sizeof(uuidv1) == 16);
+    static_assert(sizeof(uuidv3) == 16);
+    static_assert(sizeof(uuidv6) == 16);
+    static_assert(sizeof(uuidv7) == 16);
     static_assert(sizeof(uuid) == 16);
 }
 
