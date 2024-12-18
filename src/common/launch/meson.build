@@ -32,12 +32,8 @@ src = [
 ]
 
 if host_machine.system() == 'windows'
-    deps += [ render_next, draw_next ]
+    deps += [ render, draw ]
     src += [ 'src/appwindow.cpp' ]
-endif
-
-if host_machine.system() == 'windows'
-    deps += [ draw_next ]
 endif
 
 liblaunch_gui = library('launch-gui', src,

@@ -6,8 +6,12 @@ import subprocess
 
 builddir = sys.argv[1]
 
+meson_path = [ 'meson' ]
+if os.path.exists('K:/github/meson/meson.py'):
+    meson_path = [ 'python', 'K:/github/meson/meson.py' ]
+
 def install_component(tags: list[str], skip_subprojects = False):
-    args = [ 'meson', 'install', '-C', builddir ]
+    args = meson_path + [ 'install', '-C', builddir ]
     if skip_subprojects is True:
         args.append('--skip-subprojects')
     elif skip_subprojects is False:

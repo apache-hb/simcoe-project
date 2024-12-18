@@ -130,55 +130,6 @@ agility_export = declare_dependency(
 )
 
 ###
-### monolithic render core
-###
-
-src = [
-    # utils
-    'src/result.cpp',
-
-    # base render classes
-    'src/dstorage.cpp',
-
-    # core render context
-    'src/render.cpp',
-
-    'src/descriptor_heap.cpp',
-
-    'src/viewport.cpp',
-
-    # render graph
-    'src/graph/render_pass.cpp',
-    'src/graph.cpp',
-]
-
-deps = [
-    # internal libraries
-    core, logs, system, math, archive,
-    world, config,
-
-    render_base,
-
-    # microsoft
-    dstorage,
-
-    # exports
-    ihv_export, dstorage_export, agility_export,
-]
-
-librender_core = library('rendercore', src,
-    cpp_pch : 'src/stdafx.hpp',
-    include_directories : [ render_include, reflect_include, 'src' ],
-    dependencies : deps
-)
-
-render_core = declare_dependency(
-    link_with : librender_core,
-    include_directories : [ render_include ],
-    dependencies : deps
-)
-
-###
 ### next render
 ###
 
@@ -221,14 +172,14 @@ deps = [
     ihv_export
 ]
 
-librender_next = library('render-next', src,
+librender = library('render', src,
     cpp_pch : 'src/stdafx.hpp',
     include_directories : [ render_include, reflect_include, 'src' ],
     dependencies : deps
 )
 
-render_next = declare_dependency(
-    link_with : librender_next,
+render = declare_dependency(
+    link_with : librender,
     include_directories : [ render_include ],
     dependencies : deps
 )

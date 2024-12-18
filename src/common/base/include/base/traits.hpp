@@ -19,12 +19,12 @@ namespace sm {
     /// @tparam Test type to check
     /// @tparam Ref template to check against
     /// @see https://stackoverflow.com/questions/16337610/how-to-know-if-a-type-is-a-specialization-of-stdvector
-    template<typename Test, template<auto...> class Ref>
+    template<typename Test, template<typename...> class Ref>
     struct is_specialization : std::false_type {};
 
-    template<template<auto...> class Ref, auto... Args>
+    template<template<typename...> class Ref, typename... Args>
     struct is_specialization<Ref<Args...>, Ref>: std::true_type {};
 
-    template<template<auto...> class C, typename T>
+    template<template<typename...> class C, typename T>
     concept IsSpecialization = is_specialization<T, C>::value;
 }

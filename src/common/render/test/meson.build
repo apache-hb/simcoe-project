@@ -1,8 +1,3 @@
-# awful
-fs.copyfile(dstorage.get_variable('bindir') / 'dstorage.dll')
-subdir('redist')
-subdir('redist/d3d12')
-
 ###
 ### common render tests
 ###
@@ -27,17 +22,16 @@ rendertest = declare_dependency(
 )
 
 ###
-### testcases for current render implementation
+### testcases for basic render
 ###
 
 testcases = {
-    'Setup render instance': 'instance.cpp',
     'Save render device data': 'store.cpp',
 }
 
 foreach name, source : testcases
     exe = executable('test-render-' + name.to_lower().replace(' ', '-'), source,
-        dependencies : [ rendertest, render_core ]
+        dependencies : [ rendertest, render_base ]
     )
 
     test(name, exe,
@@ -67,7 +61,7 @@ testcases = {
 
 foreach name, source : testcases
     exe = executable('test-render-' + name.to_lower().replace(' ', '-'), source,
-        dependencies : [ rendertest, render_next ]
+        dependencies : [ rendertest, render ]
     )
 
     test(name, exe,

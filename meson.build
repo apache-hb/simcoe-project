@@ -229,12 +229,11 @@ subdir('src/game/account')
 
 if host_machine.system() == 'windows'
     subdir('src/vendor/reflect')
-    # subdir('src/meta')
 
     dxc = find_program(dxc_id, native : true)
-    msdf_atlas_gen = find_program('msdf-atlas-gen', native : true)
-    compressonator = find_program('compressonatorcli', native : true)
-    fastgltf = dependency('fastgltf')
+    # msdf_atlas_gen = find_program('msdf-atlas-gen', native : true)
+    # compressonator = find_program('compressonatorcli', native : true)
+    # fastgltf = dependency('fastgltf')
 
     d3d12 = dependency('d3d12')
     d3dx12 = dependency('directx-headers')
@@ -245,9 +244,9 @@ if host_machine.system() == 'windows'
     subdir('src/vendor/d3d12ma')
 
     subdir('src/common/render')
-    # subdir('src/common/graph')
+    subdir('src/common/graph')
     subdir('src/common/draw')
-    subdir('src/common/game')
+    # subdir('src/common/game')
 
     ###
     ### plugins
@@ -259,7 +258,7 @@ if host_machine.system() == 'windows'
     ### game modules
     ###
 
-    subdir('src/game/thunderflash')
+    # subdir('src/game/thunderflash')
 endif
 
 ###
@@ -278,11 +277,11 @@ if host_machine.system() == 'windows'
     subdir('src/plugins/contextmenu')
 
     # windows specific dependencies
-    d3d12 = subproject('d3d12')
-    warp = subproject('d3dwarp')
-    dxcompiler = subproject(dxc_id)
-    winpixruntime = subproject('winpixruntime')
-    dstorage = subproject('dstorage')
+    # d3d12 = subproject('d3d12')
+    # warp = subproject('d3dwarp')
+    # dxcompiler = subproject(dxc_id)
+    # winpixruntime = subproject('winpixruntime')
+    # dstorage = subproject('dstorage')
     windows = import('windows')
 
     magick = find_program('magick', native : true)
@@ -327,55 +326,55 @@ if host_machine.system() == 'windows'
         include_directories : res_include
     )
 
-    bundle_cdata = configuration_data()
-    bundle_cdata.set('DXC_EXE_PATH', dxc.full_path())
-    bundle_cdata.set('MSDF_EXE_PATH', msdf_atlas_gen.full_path())
-    bundle_cdata.set('COMPRESSOR_EXE_PATH', compressonator.full_path())
-    bundle_cdata.set('AGILITY_REDIST_PATH', d3d12.get_variable('bindir'))
-    bundle_cdata.set('DXCOMPILER_REDIST_PATH', dxcompiler.get_variable('bindir'))
-    bundle_cdata.set('WARP_REDIST_PATH', warp.get_variable('bindir'))
-    bundle_cdata.set('WINPIXRUNTIME_REDIST_PATH', winpixruntime.get_variable('bindir'))
-    bundle_cdata.set('DSTORAGE_REDIST_PATH', dstorage.get_variable('bindir'))
+    # bundle_cdata = configuration_data()
+    # bundle_cdata.set('DXC_EXE_PATH', dxc.full_path())
+    # bundle_cdata.set('MSDF_EXE_PATH', msdf_atlas_gen.full_path())
+    # bundle_cdata.set('COMPRESSOR_EXE_PATH', compressonator.full_path())
+    # bundle_cdata.set('AGILITY_REDIST_PATH', d3d12.get_variable('bindir'))
+    # bundle_cdata.set('DXCOMPILER_REDIST_PATH', dxcompiler.get_variable('bindir'))
+    # bundle_cdata.set('WARP_REDIST_PATH', warp.get_variable('bindir'))
+    # bundle_cdata.set('WINPIXRUNTIME_REDIST_PATH', winpixruntime.get_variable('bindir'))
+    # bundle_cdata.set('DSTORAGE_REDIST_PATH', dstorage.get_variable('bindir'))
 
-    bundle_config = configure_file(
-        input : 'data/config/tools.in.ini',
-        output : 'tools.ini',
-        configuration : bundle_cdata
-    )
+    # bundle_config = configure_file(
+    #     input : 'data/config/tools.in.ini',
+    #     output : 'tools.ini',
+    #     configuration : bundle_cdata
+    # )
 
-    make_bundle = find_program('scripts/make_bundle.py')
+    # make_bundle = find_program('scripts/make_bundle.py')
 
-    bundle_cmd = [
-        make_bundle,
-        '--desc', '@INPUT@',
-        '--config', bundle_config,
-        '--dir', '@SOURCE_ROOT@/data/assets',
-        '--outdir', '@OUTDIR@',
-        '--bundle', '@OUTPUT@',
-        '--depfile', '@DEPFILE@',
-        '--root', meson.current_source_dir()
-    ]
+    # bundle_cmd = [
+    #     make_bundle,
+    #     '--desc', '@INPUT@',
+    #     '--config', bundle_config,
+    #     '--dir', '@SOURCE_ROOT@/data/assets',
+    #     '--outdir', '@OUTDIR@',
+    #     '--bundle', '@OUTPUT@',
+    #     '--depfile', '@DEPFILE@',
+    #     '--root', meson.current_source_dir()
+    # ]
 
-    if is_debug
-        bundle_cmd += [ '--debug' ]
-    endif
+    # if is_debug
+    #     bundle_cmd += [ '--debug' ]
+    # endif
 
-    game_bundle = custom_target('game_bundle',
-        input : [ 'data/assets/bundle.json' ],
-        output : 'bundle.tar',
-        # install : true,
-        # install_dir : 'bin',
-        depfile : 'bundle.d',
-        command : bundle_cmd
-    )
+    # game_bundle = custom_target('game_bundle',
+    #     input : [ 'data/assets/bundle.json' ],
+    #     output : 'bundle.tar',
+    #     # install : true,
+    #     # install_dir : 'bin',
+    #     depfile : 'bundle.d',
+    #     command : bundle_cmd
+    # )
 
-    link_args = [
-        '/DELAYLOAD:dxcompiler.dll',
-        '/DELAYLOAD:dxil.dll',
-        '/DELAYLOAD:WinPixEventRuntime.dll',
-        '/DELAYLOAD:dstoragecore.dll',
-        '/DELAYLOAD:dstorage.dll',
-    ]
+    # link_args = [
+    #     '/DELAYLOAD:dxcompiler.dll',
+    #     '/DELAYLOAD:dxil.dll',
+    #     '/DELAYLOAD:WinPixEventRuntime.dll',
+    #     '/DELAYLOAD:dstoragecore.dll',
+    #     '/DELAYLOAD:dstorage.dll',
+    # ]
 
     manifest = meson.current_source_dir() / 'data/win32/client.exe.manifest'
 
