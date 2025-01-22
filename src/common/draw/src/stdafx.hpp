@@ -7,8 +7,6 @@
 #include "math/math.hpp"
 #include "math/format.hpp"
 
-#include <flecs.h>
-
 #include <directx/d3dx12_core.h>
 #include <directx/d3dx12_root_signature.h>
 

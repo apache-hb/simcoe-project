@@ -239,7 +239,7 @@ if host_machine.system() == 'windows'
     d3dx12 = dependency('directx-headers')
     tracy = dependency('tracy')
 
-    subdir('src/common/world')
+    # subdir('src/common/world')
 
     subdir('src/vendor/d3d12ma')
 
@@ -378,9 +378,9 @@ if host_machine.system() == 'windows'
 
     manifest = meson.current_source_dir() / 'data/win32/client.exe.manifest'
 
-    subdir('src/client')
+    subdir('src/projects/thunderflash/client')
 
-    subdir('src/editor')
+    subdir('src/projects/thunderflash/editor')
 endif
 
 subdir('src/server')

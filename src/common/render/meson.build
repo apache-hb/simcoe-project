@@ -77,7 +77,7 @@ deps = [
     render_meta,
 
     # internal libraries
-    core, logs, math, db, world,
+    core, logs, math, db,
 
     # microsoft
     wil,
@@ -158,7 +158,7 @@ src = [
 deps = [
     # internal libraries
     core, logs, system, math, archive,
-    world, config,
+    config,
 
     render_base,
 

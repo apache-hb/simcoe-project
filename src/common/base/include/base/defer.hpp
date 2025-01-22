@@ -1,5 +1,7 @@
 #pragma once
 
+#include <exception>
+
 enum class DeferTag { eTag };
 enum class ErrorDeferTag { eTag };
 

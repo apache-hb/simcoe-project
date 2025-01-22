@@ -21,6 +21,33 @@ namespace sm::render::next {
 namespace sm::render {
     struct IDeviceContext;
 
+    struct Pipeline {
+        Object<ID3D12RootSignature> signature;
+        Object<ID3D12PipelineState> pso;
+
+        void reset();
+
+        void rename(std::string_view name);
+    };
+
+    class Viewport {
+        D3D12_VIEWPORT mViewport;
+        D3D12_RECT mScissorRect;
+
+    public:
+        Viewport() = default;
+        Viewport(math::uint2 size);
+        Viewport(D3D12_VIEWPORT viewport, D3D12_RECT scissor)
+            : mViewport(viewport)
+            , mScissorRect(scissor)
+        { }
+
+        const D3D12_VIEWPORT *viewport() const { return &mViewport; }
+        const D3D12_RECT *scissor() const { return &mScissorRect; }
+
+        static Viewport letterbox(math::uint2 display, math::uint2 render);
+    };
+
     struct Resource {
         Object<ID3D12Resource> mResource;
         Object<D3D12MA::Allocation> mAllocation;

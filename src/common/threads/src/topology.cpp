@@ -117,24 +117,3 @@ void HwlocTopology::save(db::Connection& db) {
         .data = db::Blob((uint8_t*)xml, (uint8_t*)xml + size - 1)
     });
 }
-
-// /SYS/PM1/CMP0/DVRM_M0/V_+1V5 failed to read good POK state
-
-// 0:0:0>Dimms Present:
-// 0:0:0>NODE 0:
-// 0:0:0>/SYS/PM0/CMP0/BOB0/CH0/D0 (J1701)  Size = 00000004.00000000
-// 0:0:0>/SYS/PM0/CMP0/BOB1/CH0/D0 (J2501)  Size = 00000004.00000000
-// 0:0:0>/SYS/PM0/CMP0/BOB0/CH1/D0 (J1901)  Size = 00000004.00000000
-// 0:0:0>/SYS/PM0/CMP0/BOB1/CH1/D0 (J2701)  Size = 00000004.00000000
-// 0:0:0>/SYS/PM0/CMP0/BOB2/CH0/D0 (J3301)  Size = 00000004.00000000
-// 0:0:0>/SYS/PM0/CMP0/BOB3/CH0/D0 (J4101)  Size = 00000004.00000000
-// 0:0:0>/SYS/PM0/CMP0/BOB2/CH1/D0 (J3501)  Size = 00000004.00000000
-// 0:0:0>/SYS/PM0/CMP0/BOB3/CH1/D0 (J4301)  Size = 00000004.00000000
-// 0:0:0>NODE 1:
-// 0:0:0>/SYS/PM0/CMP1/BOB2/CH1/D0 (J7801)  Size = 00000004.00000000
-// 0:0:0>/SYS/PM0/CMP1/BOB3/CH1/D0 (J8601)  Size = 00000004.00000000
-// 0:0:0>CMP 2998 MHz SMI 6.4 Gb/s DRAM 533MHz
-// L3 Enabled
-// ERROR:   POST Timed out.Not all system components tested.
-
-// seems BOB0 and BOB1 on CMP1 arent responding to POST
