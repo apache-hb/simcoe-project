@@ -1,94 +1,89 @@
-$llvm_url = "https://elliot-static-site.s3.amazonaws.com/data/llvm.zip"
-$meson_url = "https://elliot-static-site.s3.amazonaws.com/data/meson.zip"
+function Enable-WindowsModuleInstaller-Service {
+    $ServiceName = "TrustedInstaller"
+    $Service = Get-Service -Name $ServiceName
+    if ($Service.Status -ne "Running") {
+        Write-Host "Service $ServiceName not running, enabling it now."
+        Set-Service -Name $ServiceName -StartupType Automatic
+        Start-Service -Name $ServiceName
+    } else {
+        Write-Host "Service $ServiceName is already running."
+    }
+}
 
-$cwd = Get-Location
+function Install-Chocolatey {
+    $HasChocolatey = (Get-Command choco -ErrorAction SilentlyContinue) -ne $null
+    if ($HasChocolatey) {
+        return
+    }
 
-# cachedir is our root directory, everything we do happens in here
-$cachedir = "$cwd/.buildcache"
+    Write-Host "Chocolatey not found, installing it now."
 
-# packagecache is the directory where we store downloaded zip files
-$packagecache = "$cachedir/packages"
+    Set-ExecutionPolicy Bypass -Scope Process -Force
+    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+    iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+}
 
-# datacache is the directory where we store extracted files
-$datacache = "$cachedir/data"
+function Choco-Install {
+    param(
+        [string]$PackageName
+    )
 
-# Add VS Devenv
+    $HasPackage = (& "choco" list $PackageName -e) -match $PackageName
+    if ($HasPackage) {
+        return
+    }
+
+    Write-Host "$PackageName not found, installing it now."
+    & "choco" install $PackageName -y
+}
+
+function Install-Python {
+    Choco-Install "python"
+}
+
+function Install-Python-Pip {
+    $HasPip = (Get-Command pip -ErrorAction SilentlyContinue) -ne $null
+    if ($HasPip) {
+        return
+    }
+
+    Write-Host "Pip not found, installing it now."
+
+    & "C:\Python313\python.exe" -m pip install pip
+}
+
+function Install-Meson {
+    $HasMeson = (Get-Command meson -ErrorAction SilentlyContinue) -ne $null
+    if ($HasMeson) {
+        return
+    }
+
+    Write-Host "Meson not found, installing it now."
+
+    & "C:\Python313\python.exe" -m "C:\Python313\Scripts\pip.py" install meson
+}
+
+function Install-Build-Deps {
+    Choco-Install "winflexbison3"
+    Choco-Install "ninja"
+    Choco-Install "git"
+    Choco-Install "LLVM"
+    Choco-Install "visualstudio2022buildtools"
+    Choco-Install "visualstudio2022community"
+}
+
+function Configure-Project {
+    & "C:\Python313\python.exe" setup.py build devel -Dorcl=disabled -Ddb2=disabled -Dpsql=disabled -Dmysql=disabled --backend=vs2022
+}
+
+Enable-WindowsModuleInstaller-Service
+Install-Chocolatey
+Install-Python
+Install-Python-Pip
+Install-Build-Deps
+Install-Meson
+
 Import-Module "$env:ProgramFiles\Microsoft Visual Studio\2022\Community\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
 Enter-VsDevShell -VsInstallPath "$env:ProgramFiles\Microsoft Visual Studio\2022\Community" -DevCmdArguments '-arch=x64'
 
-# set the current directory to the old one
-Set-Location $cwd
-
-# Ensure a directory exists, creating it if it doesn't
-function Ensure-Directory {
-    param(
-        [string]$dir
-    )
-
-    if (-not (Test-Path $dir)) {
-        New-Item -ItemType Directory -Path $dir
-    }
-}
-
-# Download a file and extract it to the cache directory
-# only if it doesn't already exist
-function Cache-File {
-    param(
-        [string]$url,
-        [string]$filename
-    )
-
-    # packagedir is the directory where the file will be extracted
-    $packagedir = "$datacache/$filename"
-
-    # zipfile is the path to the downloaded zip file
-    $zipfile = "$packagecache/$filename.zip"
-    if (-not (Test-Path $zipfile)) {
-        # download the file
-        Invoke-WebRequest -Uri $url -OutFile $zipfile
-
-        # extract the file
-        Expand-Archive -Path $zipfile -Destination $packagedir
-    }
-}
-
-# ensure all the directories we need exist
-Ensure-Directory $cachedir
-Ensure-Directory $packagecache
-Ensure-Directory $datacache
-
-# Cache the LLVM and Meson packages
-Cache-File -url $llvm_url -filename "llvm"
-Cache-File -url $meson_url -filename "meson"
-
-$llvmdir = "$datacache/llvm/llvm"
-$bindir = "$llvmdir/bin"
-
-# install python using winget
-& "winget" install -e -i --id=9NCVDN91XZQP --source=msstore
-
-# install ninja using pip
-& "python" -m pip install ninja
-
-# create a native file for meson that references the cached LLVM
-$cfgpath = "$cachedir/meson-native.ini"
-$config = @"
-[constants]
-llvmdir = '$llvmdir'
-llvmbindir = '$bindir'
-
-[binaries]
-c = llvmbindir + '\\clang-cl.exe'
-cpp = llvmbindir + '\\clang-cl.exe'
-ar = llvmbindir + '\\llvm-ar.exe'
-strip = llvmbindir + '\\llvm-strip.exe'
-ld = llvmbindir + '\\lld-link.exe'
-"@
-
-Set-Content -Path $cfgpath -Value $config
-
-# generate the build files for the project
-& "python" "$datacache/meson/meson-master/meson.py" setup builddir --native-file $cfgpath
-
-# build the project
-& "ninja" -C builddir
+Configure-Project
