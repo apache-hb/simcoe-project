@@ -68,8 +68,25 @@ function Install-Build-Deps {
     Choco-Install "ninja"
     Choco-Install "git"
     Choco-Install "LLVM"
+    Choco-Install "cmake"
     Choco-Install "visualstudio2022buildtools"
     Choco-Install "visualstudio2022community"
+}
+
+function Install-Toolchain {
+    $Cwd = Get-Location
+    if (-not (Test-Path "$Cwd\llvm")) {
+        & "git" clone --depth 1 https://github.com/llvm/llvm-project.git "$Cwd\llvm"
+    }
+
+    Set-Location "$Cwd\llvm"
+    & "cmake" -B build -S llvm -G "Ninja" -DLLVM_ENABLE_PROJECTS="clang;lld" -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX="C:\Program Files\LLVM" -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_ENABLE_ASSERTIONS=OFF
+    & "cmake" --build build --target install
+    Set-Location $Cwd
+
+    # Add llvm to path permanently
+    $env:PATH += ";C:\Program Files\LLVM\bin"
+    [Environment]::SetEnvironmentVariable("PATH", $env:PATH, [System.EnvironmentVariableTarget]::Machine)
 }
 
 function Configure-Project {
@@ -82,6 +99,7 @@ Install-Python
 Install-Python-Pip
 Install-Build-Deps
 Install-Meson
+Install-Toolchain
 
 Import-Module "$env:ProgramFiles\Microsoft Visual Studio\2022\Community\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
 Enter-VsDevShell -VsInstallPath "$env:ProgramFiles\Microsoft Visual Studio\2022\Community" -DevCmdArguments '-arch=x64'
