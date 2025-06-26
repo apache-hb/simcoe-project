@@ -3,13 +3,13 @@
 using namespace sm;
 using namespace sm::input;
 
-bool InputState::update_button(Button button, size_t next) {
+bool InputState::updateButton(Button button, size_t next) {
     bool updated = buttons[std::to_underlying(button)] != next;
     buttons[std::to_underlying(button)] = next;
     return updated;
 }
 
-float InputState::button_axis(ButtonAxis pair) const {
+float InputState::buttonAxis(ButtonAxis pair) const {
     size_t n = buttons[std::to_underlying(pair.negative)];
     size_t p = buttons[std::to_underlying(pair.positive)];
 
@@ -18,16 +18,46 @@ float InputState::button_axis(ButtonAxis pair) const {
     else return 0.f;
 }
 
-math::float2 InputState::button_axis2d(ButtonAxis horizontal, ButtonAxis vertical) const {
-    float h = button_axis(horizontal);
-    float v = button_axis(vertical);
+math::float2 InputState::buttonAxis2d(ButtonAxis horizontal, ButtonAxis vertical) const {
+    float h = buttonAxis(horizontal);
+    float v = buttonAxis(vertical);
     return {h, v};
 }
 
-math::float3 InputState::button_axis3d(ButtonAxis horizontal, ButtonAxis vertical, ButtonAxis depth) const {
-    float h = button_axis(horizontal);
-    float v = button_axis(vertical);
-    float d = button_axis(depth);
+math::float3 InputState::buttonAxis3d(ButtonAxis horizontal, ButtonAxis vertical, ButtonAxis depth) const {
+    float h = buttonAxis(horizontal);
+    float v = buttonAxis(vertical);
+    float d = buttonAxis(depth);
+    return {h, v, d};
+}
+
+float InputState::buttonAxis(ButtonSetAxis pair) const {
+    auto maxButtonOf = [&](const ButtonSet& set) -> size_t {
+        size_t max = 0;
+        for (Button button : set.buttons) {
+            max = std::max(max, buttons[std::to_underlying(button)]);
+        }
+        return max;
+    };
+
+    size_t n = maxButtonOf(pair.negative);
+    size_t p = maxButtonOf(pair.positive);
+
+    if (n > p) return -1.f;
+    if (p > n) return 1.f;
+    else return 0.f;
+}
+
+math::float2 InputState::buttonAxis2d(ButtonSetAxis horizontal, ButtonSetAxis vertical) const {
+    float h = buttonAxis(horizontal);
+    float v = buttonAxis(vertical);
+    return {h, v};
+}
+
+math::float3 InputState::buttonAxis3d(ButtonSetAxis horizontal, ButtonSetAxis vertical, ButtonSetAxis depth) const {
+    float h = buttonAxis(horizontal);
+    float v = buttonAxis(vertical);
+    float d = buttonAxis(depth);
     return {h, v, d};
 }
 
@@ -41,31 +71,31 @@ math::float2 InputState::axis2d(Axis horizontal, Axis vertical) const {
     return {h, v};
 }
 
-bool InputState::is_button_down(Button button) const {
+bool InputState::isButtonDown(Button button) const {
     return buttons[std::to_underlying(button)] != 0;
 }
 
-void InputService::add_source(ISource* source) {
-    mSources.push_back(source);
+void InputService::addSource(ISource* source) {
+    mSources.emplace(source);
 }
 
-void InputService::add_client(IClient* client) {
-    mClients.push_back(client);
+void InputService::addClient(IClient* client) {
+    mClients.emplace(client);
 }
 
-void InputService::erase_source(ISource* source) {
-    mSources.erase(std::remove(mSources.begin(), mSources.end(), source), mSources.end());
+void InputService::eraseSource(ISource* source) {
+    mSources.erase(source);
 }
 
-void InputService::erase_client(IClient* client) {
-    mClients.erase(std::remove(mClients.begin(), mClients.end(), client), mClients.end());
+void InputService::eraseClient(IClient* client) {
+    mClients.erase(client);
 }
 
 void InputService::poll() {
     bool dirty = false;
     for (ISource *source : mSources) {
         if (source->poll(mState)) {
-            mState.device = source->get_type();
+            mState.device = source->getType();
             dirty = true;
         }
     }
@@ -78,8 +108,8 @@ void InputService::poll() {
     }
 }
 
-void InputService::capture_cursor(bool capture) {
+void InputService::captureCursor(bool capture) {
     for (ISource *source : mSources) {
-        source->capture_cursor(capture);
+        source->captureCursor(capture);
     }
 }

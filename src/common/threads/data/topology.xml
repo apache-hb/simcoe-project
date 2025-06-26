@@ -2,7 +2,7 @@
 <!DOCTYPE docs [
     <!ENTITY info_comment_body "
         This is correlated with a copy of windows, the currently&#xA;
-        installed processor, and the current version of windows.&#xA;
+        installed processor, and the current version of Windows.&#xA;
         This data is collected to drive optimization decisions, aid in debugging,&#xA;
         and to assist in optimal thread placement during game runtime."
     >
@@ -16,8 +16,8 @@
         This is a unique identifier for the currently installed operating system.&#xA;
         This CANNOT be used to identify the user or the machine, and serves&#xA;
         only to prevent duplicate submissions from the same machine.&#xA;
-        On windows this value is queried from the registry key HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Cryptography\MachineGuid.&#xA;
-        On linux this value is queried from /etc/machine-id."
+        On Windows this value is queried from the registry key HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Cryptography\MachineGuid.&#xA;
+        On Linux this value is queried from /etc/machine-id."
     >
     <!ENTITY hash_comment "A hash of the data column, used to create a unique constraint.">
 ]>
@@ -26,10 +26,10 @@
            syntheticPrimaryKey="ulong"
            comment="
            This table stores the result of GetSystemCpuSetInformation.&#xA;
-           This is correlated with a copy of windows, the currently&#xA;
-           installed processor, and the current version of windows.&#xA;
+           This is correlated with a copy of Windows, the currently&#xA;
+           installed processor, and the current version of Windows.&#xA;
            This data is NOT personally identifiable, and is not used to track users.&#xA;
-           This data is collected to drive optimization decisions, aid in debugging,&#xA;
+           This is collected to drive optimization decisions, aid in debugging,&#xA;
            and to assist in optimal thread placement during game runtime.
            ">
 
@@ -53,10 +53,10 @@
            syntheticPrimaryKey="ulong"
            comment="
            This table stores the result of GetLogicalProcessorInformationEx.&#xA;
-           This is correlated with a copy of windows, the currently&#xA;
-           installed processor, and the current version of windows.&#xA;
+           This is correlated with a copy of Windows, the currently&#xA;
+           installed processor, and the current version of Windows.&#xA;
            This data is NOT personally identifiable, and is not used to track users.&#xA;
-           This data is collected to drive optimization decisions, aid in debugging,&#xA;
+           This is collected to drive optimization decisions, aid in debugging,&#xA;
            and to assist in optimal thread placement during game runtime.
            ">
 
@@ -81,7 +81,7 @@
            comment="
            This table stores the result of hwloc_topology_load and hwloc_topology_export_xml.&#xA;
            This data is NOT personally identifiable, and is not used to track users.&#xA;
-           This data is collected to drive optimization decisions, aid in debugging,&#xA;
+           This is collected to drive optimization decisions, aid in debugging,&#xA;
            and to assist in optimal thread placement during game runtime.
            ">
 

@@ -22,7 +22,7 @@ Camera::Camera(sm::StringView name, const ViewportConfig& config)
 void Camera::accept(const input::InputState& state, InputService& service) {
     constexpr auto key = input::Button::eTilde;
     if (mCameraActive.update(state.buttons[(size_t)key])) {
-        service.capture_cursor(mCameraActive.is_active());
+        service.captureCursor(mCameraActive.is_active());
         system::mouse::set_visible(!mCameraActive.is_active());
     }
 
@@ -31,8 +31,8 @@ void Camera::accept(const input::InputState& state, InputService& service) {
         return;
     }
 
-    math::float2 move = state.button_axis2d(kMoveStrafe, kMoveForward);
-    float ascend = state.button_axis(kMoveUp);
+    math::float2 move = state.buttonAxis2d(kMoveStrafe, kMoveForward);
+    float ascend = state.buttonAxis(kMoveUp);
 
     mMoveInput = (move.x * world::kVectorForward) + (move.y * world::kVectorRight) + (ascend * world::kVectorUp);
 

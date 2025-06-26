@@ -28,7 +28,7 @@ struct ButtonMap { unsigned key; input::Button button; };
 
 template<size_t N>
 static consteval auto makeTable(const ButtonMap(&data)[N]) {
-    Array<input::Button, 256> table{};
+    std::array<input::Button, 256> table{};
     for (const auto& entry : data) {
         table[entry.key] = entry.button;
     }
@@ -181,7 +181,7 @@ DesktopInput::DesktopInput(system::Window& window)
 bool DesktopInput::poll(input::InputState& state) {
     bool dirty = pollMouseState(state);
 
-    for (unsigned i = 0; i < kButtons.length(); ++i) {
+    for (unsigned i = 0; i < kButtons.size(); ++i) {
         if (auto button = kButtons[i]; button != input::Button::eInvalid) {
             dirty |= update(state.buttons[std::to_underlying(button)], mButtons[std::to_underlying(button)]);
         }
@@ -239,7 +239,7 @@ void DesktopInput::window_event(UINT msg, WPARAM wparam, LPARAM lparam) {
     }
 }
 
-void DesktopInput::capture_cursor(bool capture) {
+void DesktopInput::captureCursor(bool capture) {
     mCaptureMouse = capture;
     if (mCaptureMouse) {
         centerMouse();

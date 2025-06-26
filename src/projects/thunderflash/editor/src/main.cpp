@@ -13,6 +13,8 @@
 
 #include <imfilebrowser.h>
 
+#include <vulkan/vulkan.h>
+
 #include "vic20.dao.hpp"
 
 using namespace sm;

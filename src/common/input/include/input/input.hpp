@@ -1,9 +1,10 @@
 #pragma once
 
-#include "core/adt/vector.hpp"
-#include "core/adt/array.hpp"
-
 #include "math/math.hpp"
+
+#include <unordered_set>
+#include <array>
+#include <span>
 
 namespace sm::input {
     enum class DeviceType : uint8_t {
@@ -83,8 +84,8 @@ namespace sm::input {
         eCount
     };
 
-    using ButtonState = sm::Array<size_t, (int)Button::eCount>;
-    using AxisState = sm::Array<float, (int)Axis::eCount>;
+    using ButtonState = std::array<size_t, (int)Button::eCount>;
+    using AxisState = std::array<float, (int)Axis::eCount>;
 
     class InputService;
 
@@ -93,21 +94,35 @@ namespace sm::input {
         Button positive;
     };
 
+    struct ButtonSet {
+        /// @pre there are no duplicates in the list
+        std::span<Button> buttons;
+    };
+
+    struct ButtonSetAxis {
+        ButtonSet negative;
+        ButtonSet positive;
+    };
+
     struct InputState {
         DeviceType device;
         ButtonState buttons;
         AxisState axes;
 
-        bool update_button(Button button, size_t next);
+        bool updateButton(Button button, size_t next);
 
-        float button_axis(ButtonAxis pair) const;
-        math::float2 button_axis2d(ButtonAxis horizontal, ButtonAxis vertical) const;
-        math::float3 button_axis3d(ButtonAxis horizontal, ButtonAxis vertical, ButtonAxis depth) const;
+        float buttonAxis(ButtonAxis pair) const;
+        math::float2 buttonAxis2d(ButtonAxis horizontal, ButtonAxis vertical) const;
+        math::float3 buttonAxis3d(ButtonAxis horizontal, ButtonAxis vertical, ButtonAxis depth) const;
+
+        float buttonAxis(ButtonSetAxis pair) const;
+        math::float2 buttonAxis2d(ButtonSetAxis horizontal, ButtonSetAxis vertical) const;
+        math::float3 buttonAxis3d(ButtonSetAxis horizontal, ButtonSetAxis vertical, ButtonSetAxis depth) const;
 
         float axis(Axis id) const;
         math::float2 axis2d(Axis horizontal, Axis vertical) const;
 
-        bool is_button_down(Button button) const;
+        bool isButtonDown(Button button) const;
     };
 
     class ISource {
@@ -116,10 +131,10 @@ namespace sm::input {
         virtual ~ISource() = default;
         constexpr ISource(DeviceType type) : mDeviceType(type) { }
 
-        constexpr DeviceType get_type() const { return mDeviceType; }
+        constexpr DeviceType getType() const { return mDeviceType; }
 
         virtual bool poll(InputState& state) = 0;
-        virtual void capture_cursor(bool capture) { }
+        virtual void captureCursor(bool capture) { }
     };
 
     class IClient {
@@ -130,21 +145,21 @@ namespace sm::input {
     };
 
     class InputService {
-        sm::Vector<ISource*> mSources;
-        sm::Vector<IClient*> mClients;
+        std::unordered_set<ISource*> mSources;
+        std::unordered_set<IClient*> mClients;
 
         InputState mState{};
 
     public:
         constexpr InputService() = default;
 
-        void add_source(ISource* source);
-        void add_client(IClient* client);
+        void addSource(ISource* source);
+        void addClient(IClient* client);
 
-        void erase_source(ISource* source);
-        void erase_client(IClient* client);
+        void eraseSource(ISource* source);
+        void eraseClient(IClient* client);
 
-        void capture_cursor(bool capture);
+        void captureCursor(bool capture);
 
         void poll();
 

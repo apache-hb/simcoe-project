@@ -30,7 +30,7 @@ namespace sm::system {
 
         void window_event(UINT msg, WPARAM wparam, LPARAM lparam);
 
-        void capture_cursor(bool capture) override;
+        void captureCursor(bool capture) override;
     };
 
     namespace mouse {

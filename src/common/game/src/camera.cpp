@@ -73,7 +73,7 @@ void ecs::updateCamera(flecs::entity camera, float dt, const input::InputState& 
     // read input
     math::float2 mouseInput = state.axis2d(input::Axis::eMouseX, input::Axis::eMouseY);
     math::float2 mouse = mouseInput * controller.mouseSensitivity;
-    math::float3 move = state.button_axis3d(kMoveStrafe, kMoveUp, kMoveForward) * controller.speed * dt;
+    math::float3 move = state.buttonAxis3d(kMoveStrafe, kMoveUp, kMoveForward) * controller.speed * dt;
 
     // orientation
 

@@ -222,7 +222,7 @@ static void messageLoop(system::ShowWindow show) {
 
     ed::EditorContext context{renderConfig};
 
-    context.input.add_source(&desktop_input);
+    context.input.addSource(&desktop_input);
 
     events.attachRenderContext(&context);
 
@@ -300,7 +300,7 @@ static void messageLoop(system::ShowWindow show) {
 
         const auto& state = context.input.getState();
         if (cameraActive.update(state.buttons[(size_t)input::Button::eTilde])) {
-            context.input.capture_cursor(cameraActive.is_active());
+            context.input.captureCursor(cameraActive.is_active());
             system::mouse::set_visible(!cameraActive.is_active());
             world.set<ed::ecs::MouseCaptured>({ cameraActive.is_active() });
         }
