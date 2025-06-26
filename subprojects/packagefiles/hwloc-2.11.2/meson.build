@@ -5,7 +5,7 @@ project('hwloc', 'c',
     license_files : 'COPYING',
 )
 
-hwloc_include = include_directories('include')
+hwloc_include = include_directories('include', '.')
 os = host_machine.system()
 arch = host_machine.cpu_family()
 cc = meson.get_compiler('c')
@@ -64,7 +64,7 @@ cdata.set10('HWLOC_HAVE_ATTRIBUTE_MALLOC', cc.has_function_attribute('malloc'))
 cdata.set10('HWLOC_HAVE_ATTRIBUTE_CONST', cc.has_function_attribute('const'))
 cdata.set10('HWLOC_HAVE_ATTRIBUTE_PURE', cc.has_function_attribute('pure'))
 cdata.set10('HWLOC_HAVE_ATTRIBUTE_DEPRECATED', cc.has_function_attribute('deprecated'))
-cdata.set10('HWLOC_HAVE_ATTRIBUTE_MAY_ALIAS', cc.has_function_attribute('may_alias'))
+cdata.set10('HWLOC_HAVE_ATTRIBUTE_MAY_ALIAS', false)
 cdata.set10('HWLOC_HAVE_ATTRIBUTE_WARN_UNUSED_RESULT', cc.has_function_attribute('warn_unused_result'))
 
 if os == 'windows'
@@ -88,7 +88,7 @@ if os == 'linux'
 
     hwloc_autogen_config = configure_file(
         output : 'hwloc_autogen_config.h',
-        configuration : cdata
+        configuration : cdata,
     )
 elif os == 'windows'
     hwloc_autogen_config = fs.copyfile('contrib/windows/hwloc_config.h', 'hwloc_autogen_config.h')
@@ -173,7 +173,7 @@ if os == 'linux'
 
     hwloc_private_config = configure_file(
         output : 'hwloc_private_config.h',
-        configuration : cdata
+        configuration : cdata,
     )
 elif os == 'windows'
     hwloc_private_config = fs.copyfile('contrib/windows/private_config.h', 'hwloc_private_config.h')

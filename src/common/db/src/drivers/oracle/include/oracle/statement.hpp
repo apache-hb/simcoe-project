@@ -5,6 +5,7 @@
 #include "datetime.hpp"
 #include "object.hpp"
 
+#include <forward_list>
 #include <utility>
 #include <variant>
 

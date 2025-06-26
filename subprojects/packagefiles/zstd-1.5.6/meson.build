@@ -19,6 +19,8 @@ project('zstd',
     'cpp_std=c++11',
     'buildtype=release',
     'warning_level=3',
+    'unity=off',
+    'unity_size=1',
     # -Wdocumentation does not actually pass, nor do the test binaries,
     # so this isn't safe
     #'werror=true'

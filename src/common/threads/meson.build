@@ -47,7 +47,7 @@ libthreads = library('threads', src,
     cpp_args : [ '-DSM_THREADS_BUILD=1' ],
     cpp_pch : 'src/stdafx.hpp',
     include_directories : [ threads_include, 'src' ],
-    dependencies : deps + [ hwloc ]
+    dependencies : [ hwloc, deps ],
 )
 
 threads = declare_dependency(

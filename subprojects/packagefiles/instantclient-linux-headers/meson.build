@@ -1,19 +1,18 @@
 project('instantclient', 'c',
     version : '23.6.0',
     license : 'LicenseRef-Proprietary',
-    license_files : [ 'instantclient_23_8/BASIC_LITE_LICENSE' ],
+    license_files : [ 'instantclient_23_8/SDK_LICENSE' ],
     meson_version : '>=1.1.0'
 )
 
 c = meson.get_compiler('c')
-clntsh = c.find_library('clntsh', dirs : meson.current_source_dir() / 'instantclient_23_8')
-clntshcore = c.find_library('clntshcore', dirs : meson.current_source_dir() / 'instantclient_23_8')
+inc = include_directories('instantclient_23_8/sdk/include')
 
 instantclient_dep = declare_dependency(
-    dependencies : [clntsh, clntshcore],
+    include_directories : inc,
 )
 
-meson.override_dependency('instantclient-linux', instantclient_dep)
+meson.override_dependency('instantclient-linux-headers', instantclient_dep)
 
 install_data(meson.project_license_files(),
     install_dir : get_option('licensedir'),

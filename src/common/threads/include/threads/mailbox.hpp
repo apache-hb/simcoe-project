@@ -1,7 +1,6 @@
 #pragma once
 
 #include <atomic>
-#include <new>
 
 namespace sm::threads {
     /// @brief single slot mailbox for communicating between threads.

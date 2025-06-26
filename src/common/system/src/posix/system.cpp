@@ -6,8 +6,6 @@
 
 #include <fcntl.h>
 
-#include <ranges>
-
 using namespace sm;
 
 static constexpr int kBufferSize = 512;
@@ -57,9 +55,9 @@ os_error_t system::getMachineId(char buffer[kMachineIdSize]) noexcept {
         return errno;
     }
 
-    defer { close(fd); }
+    defer { close(fd); };
 
-    int size = read(fd, buffer, kMachineIdSize);
+    ssize_t size = read(fd, buffer, kMachineIdSize);
     if (size < kMachineIdSize) {
         memset(buffer + size, '-', kMachineIdSize - size);
     }

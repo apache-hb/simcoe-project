@@ -1,6 +1,7 @@
 #include "core/cpuid.hpp"
 
 #include <cpuid.h>
+#include <string.h>
 
 using namespace sm;
 

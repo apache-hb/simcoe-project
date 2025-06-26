@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h>
+
 namespace sm {
     static constexpr unsigned kBrandStringSize = 3 * 4 * 4;
 

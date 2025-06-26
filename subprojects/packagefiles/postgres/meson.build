@@ -1268,8 +1268,9 @@ if sslopt in ['auto', 'openssl']
       ssl_int = [ssl_lib, crypto_lib]
       ssl = declare_dependency(dependencies: ssl_int, include_directories: postgres_inc)
     endif
-  elif ssl.type_name() != 'internal' and \
-       cc.has_header('openssl/ssl.h', args: test_c_args, dependencies: ssl, required: openssl_required) and \
+  elif ssl.type_name() == 'internal'
+    ssl_int = [ssl]
+  elif cc.has_header('openssl/ssl.h', args: test_c_args, dependencies: ssl, required: openssl_required) and \
        cc.has_header('openssl/err.h', args: test_c_args, dependencies: ssl, required: openssl_required)
     ssl_int = [ssl]
   else
@@ -1306,20 +1307,34 @@ if sslopt in ['auto', 'openssl']
     ]
 
     are_openssl_funcs_complete = true
-    foreach c : check_funcs
-      func = c.get(0)
-      val = cc.has_function(func, args: test_c_args, dependencies: ssl_int)
-      required = c.get(1, {}).get('required', false)
-      if required and not val
-        are_openssl_funcs_complete = false
-        if openssl_required
-          error('openssl function @0@ is required'.format(func))
+    if ssl.type_name() == 'internal'
+      cdata.set('HAVE_CRYPTO_new_ex_data'.to_upper(), 1)
+      cdata.set('HAVE_SSL_new'.to_upper(), 1)
+      cdata.set('HAVE_X509_get_signature_nid'.to_upper(), 1)
+      cdata.set('HAVE_SSL_CTX_set_cert_cb'.to_upper(), 1)
+      cdata.set('HAVE_OPENSSL_init_ssl'.to_upper(), 1)
+      cdata.set('HAVE_BIO_meth_new'.to_upper(), 1)
+      cdata.set('HAVE_ASN1_STRING_get0_data'.to_upper(), 1)
+      cdata.set('HAVE_HMAC_CTX_new'.to_upper(), 1)
+      cdata.set('HAVE_HMAC_CTX_free'.to_upper(), 1)
+      cdata.set('HAVE_CRYPTO_lock'.to_upper(), 1)
+      cdata.set('HAVE_X509_get_signature_info'.to_upper(), 1)
+    else
+      foreach c : check_funcs
+        func = c.get(0)
+        val = cc.has_function(func, args: test_c_args, dependencies: ssl_int)
+        required = c.get(1, {}).get('required', false)
+        if required and not val
+          are_openssl_funcs_complete = false
+          if openssl_required
+            error('openssl function @0@ is required'.format(func))
+          endif
+          break
+        elif not required
+          cdata.set('HAVE_' + func.to_upper(), val ? 1 : false)
         endif
-        break
-      elif not required
-        cdata.set('HAVE_' + func.to_upper(), val ? 1 : false)
-      endif
-    endforeach
+      endforeach
+    endif
 
     if are_openssl_funcs_complete
       cdata.set('USE_OPENSSL', 1,

@@ -45,7 +45,7 @@ export_file = custom_target('libpq.exports',
 
 # port needs to be in include path due to pthread-win32.h
 libpq_inc = include_directories('.', '../../port')
-libpq_c_args = ['-DSO_MAJOR_VERSION=5']
+libpq_c_args = ['-DSO_MAJOR_VERSION=5', '-Wno-tautological-pointer-compare']
 
 # Not using both_libraries() here as
 # 1) resource files should only be in the shared library

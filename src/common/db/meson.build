@@ -7,6 +7,7 @@ cfg = configuration_data()
 tlsf = dependency('tlsf')
 sqlite3 = dependency('sqlite3')
 oci = dependency('instantclient-' + host_machine.system(), required : get_option('orcl'))
+oci_headers = dependency('instantclient-' + host_machine.system() + '-headers', required : get_option('orcl'))
 db2 = subproject('db2-client', required : get_option('db2'))
 postgres = dependency('libpq', required : get_option('psql'))
 devapi = dependency('devapi', required : get_option('mysql'))
@@ -75,7 +76,7 @@ if oci.found()
         'src/drivers/oracle/src/environment.cpp',
     ]
     db_private_include += [ include_directories('src/drivers/oracle/include') ]
-    db_private_deps += [ oci ]
+    db_private_deps += [ oci, oci_headers ]
 endif
 
 if db2.found()

@@ -88,6 +88,10 @@ class PgConnection final : public detail::IConnection {
 
     int mCounter = 0;
 
+    detail::IStatement *prepare(std::string_view sql) override {
+
+    }
+
     DbError execute(std::string_view sql) noexcept {
         PgResult result = PQexec(mConnection, sql.data());
 
@@ -140,7 +144,7 @@ class PgConnection final : public detail::IConnection {
         return execute("ROLLBACK TRANSACTION");
     }
 
-    DbError tableExists(std::string_view name, bool& exists) noexcept override {
+    DbError tableExists(std::string_view name, bool& exists) override {
         std::string_view sql = "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = :name)";
         std::array types = std::to_array<Oid>({ TEXTOID });
         std::array data = std::to_array<const void*>({ name.data() });
@@ -157,21 +161,38 @@ public:
     PgConnection(PGconn *conn) noexcept
         : mConnection(conn)
     { }
+
+    ~PgConnection() noexcept override {
+        if (mConnection) {
+            PQfinish(mConnection);
+        }
+    }
 };
 
+static constexpr Version parseServerVersion(int version) {
+    int majorVersion = (version / 10000);
+    int minorVersion = ((majorVersion < 10) ? (version / 100) : version) % 100;
+    return Version { };
+}
+
+static detail::ConnectionInfo getConnectionInfo(const PGconn *conn) {
+    int serverVersionNumber = PQserverVersion(conn);
+    int majorVersion = (serverVersionNumber / 10000);
+    int minorVersion = ((majorVersion < 10) ? (serverVersionNumber / 100) : serverVersionNumber) % 100;
+    Version serverVersion { };
+}
+
 class PgEnvironment final : public detail::IEnvironment {
-    DbError connect(const ConnectionConfig& config, detail::IConnection **connection) noexcept(false) override {
+    detail::IConnection *connect(const ConnectionConfig& config) override {
         auto seconds = chrono::duration_cast<chrono::seconds>(config.timeout).count();
         std::string conn = fmt::format("postgresql://{}:{}@{}:{}/{}?connect_timeout={}", config.user, config.password, config.host, config.port, config.database, seconds);
         PGconn *pgconn = PQconnectdb(conn.c_str());
         if (DbError err = getConnectionError(pgconn)) {
             PQfinish(pgconn);
-            return err;
+            throw DbException{err};
         }
 
-        *connection = new PgConnection{pgconn};
-
-        return DbError::ok();
+        return new PgConnection{pgconn};
     }
 
     bool close() noexcept override {
@@ -182,8 +203,7 @@ public:
     PgEnvironment() noexcept = default;
 };
 
-DbError detail::getPostgresEnv(IEnvironment **env) noexcept {
+detail::IEnvironment *detail::newPostgresEnvironment(const EnvConfig& config) {
     static PgEnvironment instance;
-    *env = &instance;
-    return DbError::ok();
+    return &instance;
 }

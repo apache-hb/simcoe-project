@@ -74,6 +74,9 @@ is_debug = build_type.contains('debug')
 is_release = build_type.contains('release')
 library_type = get_option('default_library')
 
+# funny things happen if something else pulls this in before us
+dependency('libzstd')
+
 # the perfect library
 cthulhu = subproject('cthulhu')
 
