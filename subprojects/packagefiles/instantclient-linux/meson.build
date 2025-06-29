@@ -6,11 +6,13 @@ project('instantclient', 'c',
 )
 
 c = meson.get_compiler('c')
-clntsh = c.find_library('clntsh', dirs : meson.current_source_dir() / 'instantclient_23_8')
-clntshcore = c.find_library('clntshcore', dirs : meson.current_source_dir() / 'instantclient_23_8')
 
 instantclient_dep = declare_dependency(
-    dependencies : [clntsh, clntshcore],
+    link_args : [
+        '-L' + meson.current_source_dir() / 'instantclient_23_8',
+        '-Wl,-Bdynamic,-l:libclntsh.so.23.1',
+        '-Wl,-Bdynamic,-l:libclntshcore.so.23.1',
+    ]
 )
 
 meson.override_dependency('instantclient-linux', instantclient_dep)

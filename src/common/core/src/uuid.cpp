@@ -9,34 +9,12 @@ namespace chrono = std::chrono;
 
 using namespace std::chrono_literals;
 
-// time handling
-static constexpr std::chrono::system_clock::duration distance(std::chrono::system_clock::time_point from, std::chrono::system_clock::time_point to) {
-    auto begin = from.time_since_epoch();
-    auto end = to.time_since_epoch();
-
-    return (begin > end) ? begin - end : end - begin;
-}
-
-
-detail::rfc9562_clock::time_point detail::rfc9562_clock::from_sys(std::chrono::system_clock::time_point time) {
-    // our epoch is 1582-10-15T00:00:00Z, the gregorian reform
-    // we need to convert from the system clock epoch to the rfc9562 epoch.
-
-    CTASSERTF(time >= kGregorianReform, "%s is before the gregorian reform, 1582-10-15", fmt::format("{}", time).c_str());
-
-    return rfc9562_clock::time_point{distance(kGregorianReform, time)};
-}
-
-std::chrono::system_clock::time_point detail::rfc9562_clock::to_sys(time_point time) {
-    return std::chrono::system_clock::time_point{std::chrono::duration_cast<std::chrono::system_clock::duration>((kGregorianReform.time_since_epoch() + time.time_since_epoch()))};
-}
-
 // v1
 
 static constexpr uint16_t kClockSeqMask = 0b0011'1111'1111'1111;
 
 uuid uuid::v1(std::chrono::utc_clock::time_point time, uint16_t clockSeq, MacAddress node) {
-    detail::rfc9562_clock::time_point clockOffset = chrono::clock_cast<detail::rfc9562_clock>(time);
+    detail::rfc9562_clock::time_point clockOffset = chrono::floor<detail::rfc9562_clock::duration>(chrono::clock_cast<detail::rfc9562_clock>(time));
 
     uint64_t intervals = clockOffset.time_since_epoch().count();
 
@@ -75,7 +53,7 @@ std::chrono::utc_clock::time_point uuid::v1Time() const noexcept {
 // v6
 
 uuid uuid::v6(std::chrono::utc_clock::time_point time, uint16_t clockSeq, MacAddress node) {
-    detail::rfc9562_clock::time_point clockOffset = chrono::clock_cast<detail::rfc9562_clock>(time);
+    detail::rfc9562_clock::time_point clockOffset = chrono::floor<detail::rfc9562_clock::duration>(chrono::clock_cast<detail::rfc9562_clock>(time));
 
     uint64_t intervals = clockOffset.time_since_epoch().count();
 

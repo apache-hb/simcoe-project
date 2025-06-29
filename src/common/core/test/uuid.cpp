@@ -14,7 +14,7 @@ using namespace std::chrono_literals;
 static constexpr chrono::system_clock::time_point kBirth = chrono::sys_days{2002y/7/27};
 
 TEST(UuidTest, Rfc9562Clock) {
-    rfc9562_clock::time_point there = chrono::clock_cast<rfc9562_clock>(kBirth);
+    rfc9562_clock::time_point there = chrono::floor<rfc9562_clock::duration>(chrono::clock_cast<rfc9562_clock>(kBirth));
     chrono::system_clock::time_point back = chrono::clock_cast<chrono::system_clock>(there);
 
     EXPECT_EQ(kBirth, back);
@@ -26,7 +26,7 @@ TEST(UuidTest, Rfc9562Clock) {
 }
 
 TEST(UuidTest, Rfc9562ClockEpoch) {
-    rfc9562_clock::time_point there = chrono::clock_cast<rfc9562_clock>(kBirth);
+    rfc9562_clock::time_point there = chrono::floor<rfc9562_clock::duration>(chrono::clock_cast<rfc9562_clock>(kBirth));
 
     EXPECT_EQ(there.time_since_epoch().count(), 132470208000000000ull);
 }

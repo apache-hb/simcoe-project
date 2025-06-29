@@ -30,14 +30,17 @@ src = [
     'src/status.cpp',
     'src/threads.cpp',
     'src/topology.cpp',
-    'src/mutex.cpp',
 ]
 
 if host_machine.system() == 'windows'
     src += [
         'src/save.cpp',
-
+        'src/mutex.cpp',
         'src/cpuinfo.cpp',
+    ]
+else
+    src += [
+        'src/linux_save.cpp'
     ]
 endif
 

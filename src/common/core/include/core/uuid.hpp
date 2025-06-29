@@ -13,18 +13,33 @@ namespace sm {
     namespace detail {
         using namespace std::chrono_literals;
 
-        static constexpr std::chrono::system_clock::time_point kGregorianReform = std::chrono::sys_days{1582y/10/15};
-
         class rfc9562_clock {
+            template<typename Duration>
+            using rfc9562_time = std::chrono::time_point<rfc9562_clock, Duration>;
+
         public:
             // 100ns intervals since 1582-10-15T00:00:00Z
             using duration = std::chrono::duration<uint64_t, std::ratio_multiply<std::nano, std::ratio<100>>>;
             using rep = duration::rep;
             using period = duration::period;
-            using time_point = std::chrono::time_point<rfc9562_clock>;
+            using time_point = rfc9562_time<duration>;
 
-            static time_point from_sys(std::chrono::system_clock::time_point time);
-            static std::chrono::system_clock::time_point to_sys(time_point time);
+            template<typename Duration>
+            static constexpr auto from_sys(std::chrono::sys_time<Duration> time) {
+                using namespace std::chrono;
+                return rfc9562_time{time - sys_days{1582y/10/15}};
+            }
+
+            template<typename Duration>
+            static constexpr auto to_sys(std::chrono::time_point<rfc9562_clock, Duration> time) {
+                using namespace std::chrono;
+                return sys_time{time - clock_cast<rfc9562_clock>(sys_days{})};
+            }
+
+            static time_point now() noexcept {
+                using namespace std::chrono;
+                return floor<duration>(clock_cast<rfc9562_clock>(system_clock::now()));
+            }
         };
     }
 
