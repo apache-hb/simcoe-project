@@ -44,9 +44,9 @@ static constexpr ConnectionConfig kDB2Config = {
 static constexpr ConnectionConfig kPostgresConfig = {
     .port = 5432,
     .host = "localhost",
-    .user = "TEST_USER",
-    .password = "TEST_USER",
-    .database = "TESTDB",
+    .user = "simcoe",
+    .password = "simcoe",
+    .database = "simcoe",
     .timeout = 1s,
 };
 

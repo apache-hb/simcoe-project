@@ -922,6 +922,12 @@ static void emitCxxBody(
     header.writeln("}}");
 }
 
+#if 0
+static void emitJavaBody(const Root& dao, const fs::path& inputPath) {
+    std::filesystem::create_directories("src/java");
+}
+#endif
+
 int main(int argc, const char **argv) {
     LIBXML_TEST_VERSION
 

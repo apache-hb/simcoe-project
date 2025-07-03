@@ -67,7 +67,7 @@ static Version parseVersion(const char *name, int version) {
 }
 
 static Version getLibpqVersion() {
-    return parseVersion(PG_VERSION_STR, PQlibVersion());
+    return Version{PG_VERSION_STR, PG_MAJORVERSION_NUM, PG_MINORVERSION_NUM};
 }
 
 static Version getDbVersion(const PGconn *conn) {
@@ -103,7 +103,15 @@ DbError postgres::PgConnection::execute(const char *sql) noexcept {
 }
 
 detail::IStatement *postgres::PgConnection::prepare(std::string_view sql) noexcept(false) {
-    return nullptr;
+    throw db::DbException{db::DbError::todoFn()};
+}
+
+std::string postgres::PgConnection::setupTableExists() noexcept(false) {
+    return "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename = $1";
+}
+
+std::string postgres::PgConnection::setupUserExists() noexcept(false) {
+    return "SELECT COUNT(*) FROM pg_catalog.pg_user WHERE username = $1";
 }
 
 DbError postgres::PgConnection::begin() noexcept {

@@ -16,6 +16,9 @@ namespace sm::db::postgres {
 
         detail::IStatement *prepare(std::string_view sql) noexcept(false) override;
 
+        std::string setupTableExists() noexcept(false) override;
+        std::string setupUserExists() noexcept(false) override;
+
         DbError begin() noexcept override;
         DbError commit() noexcept override;
         DbError rollback() noexcept override;
