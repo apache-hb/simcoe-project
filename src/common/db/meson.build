@@ -142,6 +142,7 @@ db = declare_dependency(
 
 src = [ 'src/daocc/main.cpp' ]
 
+argparse = dependency('argparse')
 libxml = dependency('libxml-2.0')
 
 dao = declare_dependency(
@@ -152,7 +153,7 @@ daocc_exe = executable('daocc', src,
     cpp_pch : 'src/daocc/stdafx.hpp',
     cpp_args : cpp.get_supported_arguments('-Wno-unused-variable'),
     include_directories : 'include',
-    dependencies : [ core, libxml ]
+    dependencies : [ core, libxml, argparse ]
 )
 
 daocc = generator(daocc_exe,
@@ -193,17 +194,17 @@ run_target('create-oracle-test-user',
     ]
 )
 
-docker = find_program('docker', required : false)
+docker_exe = find_program('docker', required : false)
 
-if docker.found()
+if docker_exe.found()
     compose_cfg = '@CURRENT_SOURCE_DIR@/data/docker/docker-compose.yml'
 
     run_target('start-oracledb',
-        command : [ docker, 'compose', '-f', compose_cfg, 'up', '-d', 'oracle' ]
+        command : [ docker_exe, 'compose', '-f', compose_cfg, 'up', '-d', 'oracle' ]
     )
 
     run_target('start-db2',
-        command : [ docker, 'compose', '-f', compose_cfg, 'up', '-d', 'db2' ]
+        command : [ docker_exe, 'compose', '-f', compose_cfg, 'up', '-d', 'db2' ]
     )
 endif
 

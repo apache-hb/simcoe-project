@@ -22,6 +22,8 @@
 #include "llvm/Support/CommandLine.h"
 #endif
 
+#include <argparse/argparse.hpp>
+
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xinclude.h>

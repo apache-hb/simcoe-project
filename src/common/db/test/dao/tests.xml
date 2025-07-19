@@ -22,6 +22,7 @@
         <column name="floating" type="float" />
         <column name="double_value" type="double" />
         <column name="start_date" type="datetime" />
+        <!-- <column name="start_date_tz" type="tz_datetime" /> -->
 
         <column name="opt_name" type="text" length="255" nullable="true" />
         <column name="opt_yesno" type="bool" nullable="true" />
@@ -34,6 +35,7 @@
         <column name="opt_floating" type="float" nullable="true" />
         <column name="opt_double" type="double" nullable="true" />
         <column name="opt_start_date" type="datetime" nullable="true" />
+        <!-- <column name="opt_start_date_tz" type="tz_datetime" nullable="true" /> -->
     </table>
 
     <table name="example_upsert" primaryKey="id">
@@ -54,4 +56,24 @@
         <column name="id" type="int" autoIncrement="always" />
         <column name="name" type="text" length="255" />
     </table>
+
+    <!-- <table name="test_with_index" primaryKey="id">
+        <column name="id" type="int" autoIncrement="always" />
+        <column name="x" type="int" />
+        <column name="y" type="int" />
+        <column name="z" type="int" />
+
+        <index unique="true">
+            <column name="x" />
+            <column name="y" />
+        </index>
+    </table>
+
+    <table name="person" primaryKey="id">
+        <column name="id" type="int" autoIncrement="always" />
+        <column name="name" type="text" length="255" />
+        <column name="parent_id" type="int" nullable="true" />
+
+        <list name="children" of="person" foreignKey="parent_id" />
+    </table> -->
 </root>

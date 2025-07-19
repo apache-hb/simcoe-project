@@ -12,7 +12,7 @@ project('simcoe', [ 'c', 'cpp' ],
         'cpp_rtti=false',
         'cpp_eh=default',
 
-        'unity=subprojects',
+        # 'unity=subprojects',
 
         'licensedir=licenses',
         'wrap_mode=forcefallback',
@@ -206,6 +206,8 @@ subdir('src/common/core')
 # structured logging
 subdir('src/common/logs/logs')
 
+subdir('src/common/docker')
+
 subdir('src/common/db')
 
 subdir('src/common/logs/sinks')
@@ -229,6 +231,8 @@ subdir('src/vendor/imnodes')
 subdir('src/vendor/imgui_memory_editor')
 
 subdir('src/game/account')
+
+subdir('test/common/docker')
 
 if host_machine.system() == 'windows'
     subdir('src/vendor/reflect')

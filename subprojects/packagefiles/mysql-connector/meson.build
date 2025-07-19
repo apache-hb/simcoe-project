@@ -19,12 +19,17 @@ src = [
     'devapi/session.cc',
 ]
 
+version_info = configure_file(
+    output : 'version_info.h'
+)
+
 openssl = dependency('openssl')
+rapidjson = dependency('rapidjson')
 
 inc = include_directories('include', 'cdk/include')
 
-libdevapi = static_library('devapi', src,
-    dependencies : openssl,
+libdevapi = static_library('devapi', src, version_info,
+    dependencies : [ openssl, rapidjson ],
     include_directories : inc
 )
 

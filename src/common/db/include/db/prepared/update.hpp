@@ -1,12 +1,11 @@
 #pragma once
 
-#include "db/results.hpp"
 #include "db/statement.hpp"
 
 #include "dao/dao.hpp"
 
 namespace sm::db {
-template<dao::DaoInterface T>
+    template<dao::DaoInterface T>
     class PreparedUpdate {
         friend Connection;
 

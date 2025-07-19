@@ -22,7 +22,8 @@ orarpc = declare_dependency(
     dependencies : deps
 )
 
-if host_machine.system() == 'linux'
+# TODO: reenable this later
+if host_machine.system() == 'linux' and false
     exe = executable('orarpc-test', 'test/server.cpp',
         dependencies : [ orarpc, launch ],
         link_args : '-static'

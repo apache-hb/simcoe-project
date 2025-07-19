@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE docs [
     <!ENTITY info_comment_body "
-        This is correlated with a copy of windows, the currently&#xA;
-        installed processor, and the current version of Windows.&#xA;
-        This data is collected to drive optimization decisions, aid in debugging,&#xA;
+        This is correlated with a copy of windows, the currently
+        installed processor, and the current version of Windows.
+        This data is collected to drive optimization decisions, aid in debugging,
         and to assist in optimal thread placement during game runtime."
     >
     <!ENTITY cpu_comment "
-        The vendor brand string of the currently installed processor.&#xA;
-        This data is collected via CPUID leafs 0x80000002-0x80000004.&#xA;
-        More information can be found in the Intel Software Developer's Manual.&#xA;
+        The vendor brand string of the currently installed processor.
+        This data is collected via CPUID leafs 0x80000002-0x80000004.
+        More information can be found in the Intel Software Developer's Manual.
         Vol. 2A 3-246 Table 1-17."
     >
     <!ENTITY os_comment "
-        This is a unique identifier for the currently installed operating system.&#xA;
-        This CANNOT be used to identify the user or the machine, and serves&#xA;
-        only to prevent duplicate submissions from the same machine.&#xA;
-        On Windows this value is queried from the registry key HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Cryptography\MachineGuid.&#xA;
+        This is a unique identifier for the currently installed operating system.
+        This CANNOT be used to identify the user or the machine, and serves
+        only to prevent duplicate submissions from the same machine.
+        On Windows this value is queried from the registry key HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Cryptography\MachineGuid.
         On Linux this value is queried from /etc/machine-id."
     >
     <!ENTITY hash_comment "A hash of the data column, used to create a unique constraint.">

@@ -10,6 +10,7 @@
 namespace sm::db {
     using Blob = std::vector<std::uint8_t>;
     using DateTime = std::chrono::time_point<std::chrono::system_clock>;
+    using DateTimeTZ = std::chrono::zoned_time<std::chrono::system_clock>;
     using Duration = std::chrono::milliseconds;
 }
 
@@ -33,6 +34,7 @@ namespace sm::dao {
         eDouble,   ///< double
         eBlob,     ///< Blob
         eDateTime, ///< DateTime
+        eDateTimeWithTZ, ///< DateTime with TZ info
         eDuration, ///< Duration
 
         eCount
@@ -96,6 +98,11 @@ namespace sm::dao {
     template<>
     struct ColumnTypeOf<db::DateTime> {
         static constexpr ColumnType value = ColumnType::eDateTime;
+    };
+
+    template<>
+    struct ColumnTypeOf<db::DateTimeTZ> {
+        static constexpr ColumnType value = ColumnType::eDateTimeWithTZ;
     };
 
     template<typename T> requires IsSpecialization<std::chrono::duration, T>

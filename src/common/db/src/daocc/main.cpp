@@ -86,6 +86,7 @@ static std::string makeCxxType(const Type& type, bool optional) {
             case eDouble: return "double";
             case eBlob: return "sm::db::Blob";
             case eDateTime: return "sm::db::DateTime";
+            case eDateTimeWithTZ: return "sm::db::DateTimeTZ";
             default: CT_NEVER("Invalid type %d", (int)type.kind);
         }
     }();
@@ -108,6 +109,7 @@ static std::string makeColumnType(const Type& type) {
     STRCASE(eDouble);
     STRCASE(eBlob);
     STRCASE(eDateTime);
+    STRCASE(eDateTimeWithTZ);
 
     default: CT_NEVER("Invalid type %d", (int)type.kind);
     }
@@ -211,7 +213,6 @@ struct Table {
     bool columnExists(std::string_view name) const {
         return getColumnIndex(name) != SIZE_MAX;
     }
-
 };
 
 struct Root {
@@ -310,7 +311,8 @@ static const std::map<std::string_view, ColumnType> kTypeMap = {
     {"float", eFloat},
     {"double", eDouble},
     {"blob", eBlob},
-    {"datetime", eDateTime}
+    {"datetime", eDateTime},
+    {"tz_datetime", eDateTimeWithTZ}
 };
 
 static std::map<std::string, ColumnType> gAliasMap;
@@ -930,6 +932,43 @@ static void emitJavaBody(const Root& dao, const fs::path& inputPath) {
 
 int main(int argc, const char **argv) {
     LIBXML_TEST_VERSION
+
+#if 0
+    argparse::ArgumentParser args("daocc");
+
+    args.add_argument("--help")
+        .help("Show this help message");
+
+    args.add_argument("--version")
+        .help("Show version information");
+
+    args.add_argument("--language", "-L")
+        .default_value(std::string{"cxx"})
+        .help("Output language (cxx, java)");
+
+    args.add_argument("-d")
+        .help("Output dependency file");
+
+    args.add_argument("--cxx-header")
+        .default_value(std::string{"dao.hpp"})
+        .help("Output C++ header file");
+
+    args.add_argument("--cxx-source")
+        .default_value(std::string{"dao.cpp"})
+        .help("Output C++ source file");
+
+    args.add_argument("--java-output")
+        .default_value(std::string{"src/main/java"})
+        .help("Output Java source directory");
+
+    try {
+        args.parse_args(argc, argv);
+    } catch (const std::runtime_error& err) {
+        fmt::println(stderr, "Error: {}", err.what());
+        fmt::println(stderr, "Use --help to see available options.");
+        return 1;
+    }
+#endif
 
     if (argc < 8) {
         fmt::println(stderr, "Usage: {} <input> --header <header> --source <source> -d <depfile> <includes...>", argv[0]);

@@ -5,14 +5,27 @@ project('instantclient', 'c',
     meson_version : '>=1.1.0'
 )
 
-c = meson.get_compiler('c')
+cc = meson.get_compiler('cpp')
+fixup_symlinks = find_program('fixup_symlinks.py')
+
+here = meson.current_source_dir() / 'instantclient_23_8'
+
+libclntsh_name = run_command(fixup_symlinks, here / 'libclntsh.so', here / 'libclntsh.so.23.1',
+    check : true,
+    capture : true
+)
+
+libclntshcore_name = run_command(fixup_symlinks, here / 'libclntshcore.so', here / 'libclntshcore.so.23.1',
+    check : true,
+    capture : true
+)
+
+libclntsh = cc.find_library(libclntsh_name.stdout(), dirs : [here])
+libclntshcore = cc.find_library(libclntshcore_name.stdout(), dirs : [here])
+libnnz = cc.find_library('nnz', dirs : [here])
 
 instantclient_dep = declare_dependency(
-    link_args : [
-        '-L' + meson.current_source_dir() / 'instantclient_23_8',
-        '-Wl,-Bdynamic,-l:libclntsh.so.23.1',
-        '-Wl,-Bdynamic,-l:libclntshcore.so.23.1',
-    ]
+    dependencies : [ libclntsh, libclntshcore, libnnz ],
 )
 
 meson.override_dependency('instantclient-linux', instantclient_dep)
