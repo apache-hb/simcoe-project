@@ -82,6 +82,10 @@ detail::IConnection *OraEnvironment::connect(const ConnectionConfig& config) noe
     return new OraConnection{*this, error.release(), server.release(), service.release(), session.release()};
 }
 
+OraEnvironment::~OraEnvironment() noexcept {
+    OCITerminate(OCI_DEFAULT);
+}
+
 void *OraEnvironment::malloc(size_t size) noexcept {
     void *ptr = std::malloc(size);
     return ptr;

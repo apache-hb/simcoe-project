@@ -19,9 +19,9 @@ std::string newClientName(int i);
 void createTestAccounts(net::Network& network, net::Address address, uint16_t port, NetTestStream& errors, int count);
 
 void doParallel(int iters, auto&& fn) {
+    std::latch ready{iters + 1};
     std::vector<std::jthread> threads;
     threads.reserve(iters);
-    std::latch ready{iters};
     for (int i = 0; i < iters; i++) {
         threads.emplace_back(std::jthread([&fn, &ready, i](const std::stop_token& stop) {
             try {
@@ -36,6 +36,7 @@ void doParallel(int iters, auto&& fn) {
             }
         }));
     }
+    ready.arrive_and_wait();
 }
 
 struct TestServerConfig {

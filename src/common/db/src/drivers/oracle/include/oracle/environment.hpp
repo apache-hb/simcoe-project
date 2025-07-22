@@ -15,7 +15,7 @@ namespace sm::db::oracle {
         }
 
     public:
-
+        ~OraEnvironment() noexcept override;
         void *malloc(size_t size) noexcept;
         void *realloc(void *ptr, size_t size) noexcept;
         void free(void *ptr) noexcept;

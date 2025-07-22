@@ -13,11 +13,19 @@ static constexpr const char *kDockerSocketPath = "/var/run/docker.sock";
 
 using sm::docker::DockerClient;
 
+[[maybe_unused]]
 static size_t curlWriteCallback(char *ptr, size_t size, size_t nmemb, void *user) {
-    std::string *data = static_cast<std::string *>(user);
+    std::ostream *data = static_cast<std::ostream *>(user);
     size_t totalSize = size * nmemb;
-    data->append(ptr, totalSize);
+    data->write(ptr, totalSize);
     return totalSize;
+}
+
+[[maybe_unused]]
+static size_t curlReadCallback(char *ptr, size_t size, size_t nmemb, void *user) {
+    std::istream *data = static_cast<std::istream *>(user);
+    data->read(ptr, size * nmemb);
+    return data->gcount();
 }
 
 void sm::docker::init() {
@@ -42,19 +50,18 @@ DockerClient DockerClient::local() {
     return DockerClient(true, "http://localhost/v1.47");
 }
 
-std::string DockerClient::get(std::string_view path) {
+void DockerClient::get(std::string_view path, std::ostream& stream) {
     CURL *curl = curl_easy_init();
     if (!curl) {
         throw sm::docker::DockerException("Failed to initialize CURL");
     }
 
     std::string url = std::format("{}{}", mHost, path);
-    std::string response;
     struct curl_slist *headers = nullptr;
     headers = curl_slist_append(headers, "Accept: application/json");
     headers = curl_slist_append(headers, "Content-Type: application/json");
 
-    LOG_TRACE(DockerLog, "http get: {}", url);
+    LOG_TRACE(DockerLog, "GET: {}", url);
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "curl/7.81.0");
@@ -65,7 +72,7 @@ std::string DockerClient::get(std::string_view path) {
     curl_easy_setopt(curl, CURLOPT_TCP_KEEPALIVE, 1L);
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlWriteCallback);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&response);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&stream);
 
     if (mLocal) {
         curl_easy_setopt(curl, CURLOPT_UNIX_SOCKET_PATH, kDockerSocketPath);
@@ -88,10 +95,52 @@ std::string DockerClient::get(std::string_view path) {
 
     curl_easy_cleanup(curl);
     curl_slist_free_all(headers);
+}
 
-    LOG_TRACE(DockerLog, "http get response: {}", response);
+void DockerClient::post(std::string_view path, const std::string& fields, const std::string& contentType, std::istream& input, std::ostream& output) {
+    CURL *curl = curl_easy_init();
+    if (!curl) {
+        throw sm::docker::DockerException("Failed to initialize CURL");
+    }
 
-    return response;
+    std::string url = std::format("{}{}", mHost, path);
+
+    LOG_TRACE(DockerLog, "POST: {}?{}", url, fields);
+
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "curl/7.81.0");
+    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 50L);
+    curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, (long)CURL_HTTP_VERSION_2TLS);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, fields.c_str());
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE_LARGE, (curl_off_t)fields.size());
+    curl_easy_setopt(curl, CURLOPT_FTP_SKIP_PASV_IP, 1L);
+    curl_easy_setopt(curl, CURLOPT_TCP_KEEPALIVE, 1L);
+    curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "POST");
+
+    if (mLocal) {
+        curl_easy_setopt(curl, CURLOPT_UNIX_SOCKET_PATH, kDockerSocketPath);
+    }
+
+    CURLcode res = curl_easy_perform(curl);
+    if (res != CURLE_OK) {
+        curl_easy_cleanup(curl);
+        throw sm::docker::DockerException("POST {} CURL error: {}", url, curl_easy_strerror(res));
+    }
+
+    long status = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status);
+    if (status != 200) {
+        curl_easy_cleanup(curl);
+        throw sm::docker::DockerException("Failed to POST {}: {}", url, status);
+    }
+
+    curl_easy_cleanup(curl);
+}
+
+std::string DockerClient::get(std::string_view path) {
+    std::stringstream response;
+    get(path, response);
+    return response.str();
 }
 
 std::vector<sm::docker::Container> DockerClient::listContainers() {
@@ -113,6 +162,23 @@ std::vector<sm::docker::Image> DockerClient::listImages() {
         images.emplace_back(item);
     }
     return images;
+}
+
+void DockerClient::importImage(std::string_view name, std::istream& stream) {
+    std::stringstream response;
+    post("/images/create", "fromSrc=-", "Content-Type: application/tar", stream, response);
+}
+
+void DockerClient::exportImage(std::string_view name, std::string_view tag, std::ostream& stream) {
+    auto path = std::format("/images/{}%3A{}/get", name, tag);
+    get(path, stream);
+}
+
+void DockerClient::pullImage(std::string_view name, std::string_view tag) {
+    auto params = std::format("fromImage={}&tag={}", name, tag);
+    std::stringstream input;
+    std::stringstream response;
+    post("/images/create", params, "Content-Type: application/json", input, response);
 }
 
 sm::docker::Image::Image(const argo::json& json) {

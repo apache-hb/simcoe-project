@@ -45,3 +45,18 @@ TEST_F(DockerClientTest, ConnectLocal) {
         }
     });
 }
+
+TEST_F(DockerClientTest, PullImage) {
+    sm::docker::DockerClient client = sm::docker::DockerClient::local();
+    EXPECT_NO_THROW({
+        client.pullImage("postgres", "16.9-alpine");
+    });
+}
+
+TEST_F(DockerClientTest, ExportImage) {
+    sm::docker::DockerClient client = sm::docker::DockerClient::local();
+    std::fstream output("postgresql.tar", std::ios::out | std::ios::binary);
+    EXPECT_NO_THROW({
+        client.exportImage("postgres", "16.9-alpine", output);
+    });
+}

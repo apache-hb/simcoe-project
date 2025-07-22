@@ -4,7 +4,6 @@
 #include <fmtlib/format.h>
 #include <stdint.h>
 
-#include <memory>
 #include <map>
 #include <string>
 #include <vector>
@@ -51,8 +50,10 @@ namespace sm::docker {
             , mHost(std::move(host))
         { }
 
+        void get(std::string_view path, std::ostream& stream);
         std::string get(std::string_view path);
-        std::string post(std::string_view path, const std::string& data);
+
+        void post(std::string_view path, const std::string& fields, const std::string& contentType, std::istream& input, std::ostream& output);
 
     public:
         DockerClient();
@@ -62,6 +63,11 @@ namespace sm::docker {
 
         std::vector<Container> listContainers();
         std::vector<Image> listImages();
+
+        void importImage(std::string_view name, std::istream& stream);
+        void exportImage(std::string_view name, std::string_view tag, std::ostream& stream);
+
+        void pullImage(std::string_view name, std::string_view tag);
     };
 
     void init();
