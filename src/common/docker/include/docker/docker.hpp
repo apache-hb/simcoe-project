@@ -11,10 +11,6 @@
 typedef void CURL;
 
 namespace sm::docker {
-    class Container {
-
-    };
-
     class Image {
         std::string mId;
         std::string mParentId;
@@ -41,6 +37,44 @@ namespace sm::docker {
         const std::map<std::string, std::string>& getLabels() const { return labels; }
     };
 
+    enum class ContainerStatus {
+        Running,
+        Exited,
+        Created,
+        Paused,
+        Dead,
+        Unknown
+    };
+
+    struct MappedPort {
+        uint16_t privatePort;
+        uint16_t publicPort;
+        std::string type;
+    };
+
+    class Container {
+        Image mImage;
+        ContainerStatus mStatus;
+        std::string mId;
+        std::vector<std::string> mNames;
+        std::vector<MappedPort> mPorts;
+
+    public:
+        Container() = default;
+        Container(const argo::json& json);
+    };
+
+    struct ContainerCreateInfo {
+        std::string name;
+        std::string image;
+        std::string tag;
+        std::map<std::string, std::string> labels;
+        std::vector<std::string> entrypoint;
+        std::vector<std::string> commands;
+        std::map<std::string, std::string> env;
+        std::vector<MappedPort> ports;
+    };
+
     class DockerClient {
         bool mLocal;
         std::string mHost;
@@ -63,6 +97,9 @@ namespace sm::docker {
 
         std::vector<Container> listContainers();
         std::vector<Image> listImages();
+
+        std::optional<Container> findContainer(const std::string& id);
+        Container createContainer(const ContainerCreateInfo& createInfo);
 
         void importImage(std::string_view name, std::istream& stream);
         void exportImage(std::string_view name, std::string_view tag, std::ostream& stream);

@@ -4,6 +4,7 @@
 #include "logs/logging.hpp"
 
 #include <json.hpp>
+#include <unparser.hpp>
 #include <parser.hpp>
 #include <curl/curl.h>
 
@@ -148,7 +149,12 @@ std::vector<sm::docker::Container> DockerClient::listContainers() {
     std::unique_ptr<argo::json> json = argo::parser::parse(response);
     LOG_INFO(DockerLog, "Received JSON response: {}", response);
 
-    return {};
+    std::vector<Container> containers;
+    auto& array = json->get_array();
+    for (const auto& item : array) {
+        containers.emplace_back(item);
+    }
+    return containers;
 }
 
 std::vector<sm::docker::Image> DockerClient::listImages() {
@@ -162,6 +168,37 @@ std::vector<sm::docker::Image> DockerClient::listImages() {
         images.emplace_back(item);
     }
     return images;
+}
+
+sm::docker::Container DockerClient::createContainer(const sm::docker::ContainerCreateInfo& createInfo) {
+    argo::json requestJson;
+    requestJson["Image"] = std::format("{}:{}", createInfo.image, createInfo.tag);
+
+    if (!createInfo.env.empty()) {
+        argo::json::json_array env{};
+        for (const auto& envVar : createInfo.env) {
+            env.push_back(std::format("{}={}", envVar.first, envVar.second));
+        }
+        requestJson["Env"] = env;
+    }
+
+    if (!createInfo.labels.empty()) {
+        argo::json::json_object labels{};
+        for (const auto& label : createInfo.labels) {
+            labels[label.first] = label.second;
+        }
+        requestJson["Labels"] = labels;
+    }
+
+    std::stringstream requestStream;
+    requestStream << requestJson;
+    requestStream.seekg(0);
+    std::stringstream responseStream;
+
+    post("/containers/create", "name=" + createInfo.name, "Content-Type: application/json", requestStream, responseStream);
+
+    std::unique_ptr<argo::json> responseJson = argo::parser::parse(responseStream.str());
+    return Container(*responseJson);
 }
 
 void DockerClient::importImage(std::string_view name, std::istream& stream) {
@@ -210,4 +247,36 @@ sm::docker::Image::Image(const argo::json& json) {
             labels[key] = (std::string)value;
         }
     }
+}
+
+static sm::docker::ContainerStatus parseContainerStatus(const std::string& status) {
+    using enum sm::docker::ContainerStatus;
+    if (status == "created") {
+        return Created;
+    } else if (status == "running") {
+        return Running;
+    } else if (status == "paused") {
+        return Paused;
+    } else if (status == "exited") {
+        return Exited;
+    } else if (status == "dead") {
+        return Dead;
+    }
+    return Unknown;
+}
+
+sm::docker::Container::Container(const argo::json& json) {
+    const auto& object = json.get_object();
+
+    mId = (std::string)object.at("Id");
+
+    if (object.contains("Names") && object.at("Names").get_instance_type() == argo::json::array_e) {
+        auto& namesArray = object.at("Names").get_array();
+        for (const auto& name : namesArray) {
+            mNames.push_back((std::string)name);
+        }
+    }
+
+    mImage = Image(object.at("Image"));
+    mStatus = parseContainerStatus((std::string)object.at("Status"));
 }
