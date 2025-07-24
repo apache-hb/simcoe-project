@@ -60,3 +60,29 @@ TEST_F(DockerClientTest, ExportImage) {
         client.exportImage("postgres", "16.9-alpine", output);
     });
 }
+
+TEST_F(DockerClientTest, CreateContainer) {
+    sm::docker::DockerClient client = sm::docker::DockerClient::local();
+    auto containers = client.listContainers();
+    for (const auto& container : containers) {
+        if (container.isNamed("test-container")) {
+            client.destroyContainer(container.getId());
+        }
+    }
+
+    sm::docker::ContainerCreateInfo createInfo;
+    createInfo.name = "test-container";
+    createInfo.image = "postgres";
+    createInfo.tag = "16.9-alpine";
+    createInfo.ports.push_back({5432, 0, "tcp"});
+    createInfo.env["POSTGRES_PASSWORD"] = "testpassword";
+
+    sm::docker::ContainerId container;
+
+    EXPECT_NO_THROW({
+        container = client.createContainer(createInfo);
+    });
+
+    // auto port = container.getMappedPort(5432);
+    // ASSERT_NE(port, 0) << "Mapped port should not be zero";
+}

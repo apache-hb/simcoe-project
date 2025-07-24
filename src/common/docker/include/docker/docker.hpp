@@ -11,6 +11,16 @@
 typedef void CURL;
 
 namespace sm::docker {
+    class ContainerId {
+        std::string mId;
+
+    public:
+        ContainerId() = default;
+        explicit ContainerId(std::string id) : mId(std::move(id)) { }
+
+        const std::string& getId() const { return mId; }
+    };
+
     class Image {
         std::string mId;
         std::string mParentId;
@@ -49,12 +59,12 @@ namespace sm::docker {
     struct MappedPort {
         uint16_t privatePort;
         uint16_t publicPort;
-        std::string type;
+        std::string protocol;
     };
 
     class Container {
-        Image mImage;
-        ContainerStatus mStatus;
+        std::string mImageId;
+        ContainerStatus mState;
         std::string mId;
         std::vector<std::string> mNames;
         std::vector<MappedPort> mPorts;
@@ -62,6 +72,28 @@ namespace sm::docker {
     public:
         Container() = default;
         Container(const argo::json& json);
+
+        uint16_t getMappedPort(uint16_t privatePort) const {
+            for (const auto& port : mPorts) {
+                if (port.privatePort == privatePort) {
+                    return port.publicPort;
+                }
+            }
+
+            return 0; // Not found
+        }
+
+        std::string getId() const { return mId; }
+        const std::vector<std::string>& getNames() const { return mNames; }
+        bool isNamed(const std::string& name) const {
+            return std::find(mNames.begin(), mNames.end(), "/" + name) != mNames.end();
+        }
+
+        ContainerStatus getState() const { return mState; }
+
+        void start();
+        void stop();
+        void restart();
     };
 
     struct ContainerCreateInfo {
@@ -87,6 +119,8 @@ namespace sm::docker {
         void get(std::string_view path, std::ostream& stream);
         std::string get(std::string_view path);
 
+        void del(std::string_view path);
+
         void post(std::string_view path, const std::string& fields, const std::string& contentType, std::istream& input, std::ostream& output);
 
     public:
@@ -99,7 +133,9 @@ namespace sm::docker {
         std::vector<Image> listImages();
 
         std::optional<Container> findContainer(const std::string& id);
-        Container createContainer(const ContainerCreateInfo& createInfo);
+        ContainerId createContainer(const ContainerCreateInfo& createInfo);
+        void destroyContainer(const std::string& id);
+        Container getContainer(const ContainerId& id);
 
         void importImage(std::string_view name, std::istream& stream);
         void exportImage(std::string_view name, std::string_view tag, std::ostream& stream);

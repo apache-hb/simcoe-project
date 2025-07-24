@@ -2,6 +2,7 @@
 #include "docker/error.hpp"
 
 #include "logs/logging.hpp"
+#include "base/defer.hpp"
 
 #include <json.hpp>
 #include <unparser.hpp>
@@ -62,6 +63,10 @@ void DockerClient::get(std::string_view path, std::ostream& stream) {
     headers = curl_slist_append(headers, "Accept: application/json");
     headers = curl_slist_append(headers, "Content-Type: application/json");
 
+    defer {
+        curl_slist_free_all(headers);
+    };
+
     LOG_TRACE(DockerLog, "GET: {}", url);
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
@@ -80,22 +85,20 @@ void DockerClient::get(std::string_view path, std::ostream& stream) {
     }
 
     CURLcode res = curl_easy_perform(curl);
-    if (res != CURLE_OK) {
+
+    defer {
         curl_easy_cleanup(curl);
-        curl_slist_free_all(headers);
+    };
+
+    if (res != CURLE_OK) {
         throw sm::docker::DockerException("GET {} CURL error: {}", url, curl_easy_strerror(res));
     }
 
     long status = 0;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status);
     if (status != 200) {
-        curl_easy_cleanup(curl);
-        curl_slist_free_all(headers);
         throw sm::docker::DockerException("Failed to GET {}: {}", url, status);
     }
-
-    curl_easy_cleanup(curl);
-    curl_slist_free_all(headers);
 }
 
 void DockerClient::post(std::string_view path, const std::string& fields, const std::string& contentType, std::istream& input, std::ostream& output) {
@@ -105,6 +108,13 @@ void DockerClient::post(std::string_view path, const std::string& fields, const 
     }
 
     std::string url = std::format("{}{}", mHost, path);
+    struct curl_slist *headers = nullptr;
+    headers = curl_slist_append(headers, "Accept: application/json");
+    headers = curl_slist_append(headers, contentType.c_str());
+
+    defer {
+        curl_slist_free_all(headers);
+    };
 
     LOG_TRACE(DockerLog, "POST: {}?{}", url, fields);
 
@@ -117,25 +127,31 @@ void DockerClient::post(std::string_view path, const std::string& fields, const 
     curl_easy_setopt(curl, CURLOPT_FTP_SKIP_PASV_IP, 1L);
     curl_easy_setopt(curl, CURLOPT_TCP_KEEPALIVE, 1L);
     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "POST");
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_READFUNCTION, curlReadCallback);
+    curl_easy_setopt(curl, CURLOPT_READDATA, (void*)&input);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlWriteCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&output);
 
     if (mLocal) {
         curl_easy_setopt(curl, CURLOPT_UNIX_SOCKET_PATH, kDockerSocketPath);
     }
 
     CURLcode res = curl_easy_perform(curl);
-    if (res != CURLE_OK) {
+
+    defer {
         curl_easy_cleanup(curl);
+    };
+
+    if (res != CURLE_OK) {
         throw sm::docker::DockerException("POST {} CURL error: {}", url, curl_easy_strerror(res));
     }
 
     long status = 0;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status);
-    if (status != 200) {
-        curl_easy_cleanup(curl);
+    if (status != 200 && status != 201) {
         throw sm::docker::DockerException("Failed to POST {}: {}", url, status);
     }
-
-    curl_easy_cleanup(curl);
 }
 
 std::string DockerClient::get(std::string_view path) {
@@ -144,8 +160,52 @@ std::string DockerClient::get(std::string_view path) {
     return response.str();
 }
 
+void DockerClient::del(std::string_view path) {
+    CURL *curl = curl_easy_init();
+    if (!curl) {
+        throw sm::docker::DockerException("Failed to initialize CURL");
+    }
+
+    std::string url = std::format("{}{}", mHost, path);
+    struct curl_slist *headers = nullptr;
+    headers = curl_slist_append(headers, "Accept: application/json");
+
+    defer {
+        curl_slist_free_all(headers);
+    };
+
+    LOG_TRACE(DockerLog, "DELETE: {}", url);
+
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "curl/7.81.0");
+    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 50L);
+    curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, (long)CURL_HTTP_VERSION_2TLS);
+    curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+    if (mLocal) {
+        curl_easy_setopt(curl, CURLOPT_UNIX_SOCKET_PATH, kDockerSocketPath);
+    }
+
+    CURLcode res = curl_easy_perform(curl);
+
+    defer {
+        curl_easy_cleanup(curl);
+    };
+
+    if (res != CURLE_OK) {
+        throw sm::docker::DockerException("DELETE {} CURL error: {}", url, curl_easy_strerror(res));
+    }
+
+    long status = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status);
+    if (status != 204) {
+        throw sm::docker::DockerException("Failed to DELETE {}: {}", url, status);
+    }
+}
+
 std::vector<sm::docker::Container> DockerClient::listContainers() {
-    std::string response = get("/containers/json");
+    std::string response = get("/containers/json?all=true");
     std::unique_ptr<argo::json> json = argo::parser::parse(response);
     LOG_INFO(DockerLog, "Received JSON response: {}", response);
 
@@ -170,8 +230,8 @@ std::vector<sm::docker::Image> DockerClient::listImages() {
     return images;
 }
 
-sm::docker::Container DockerClient::createContainer(const sm::docker::ContainerCreateInfo& createInfo) {
-    argo::json requestJson;
+sm::docker::ContainerId DockerClient::createContainer(const sm::docker::ContainerCreateInfo& createInfo) {
+    argo::json requestJson{argo::json::object_e};
     requestJson["Image"] = std::format("{}:{}", createInfo.image, createInfo.tag);
 
     if (!createInfo.env.empty()) {
@@ -190,15 +250,41 @@ sm::docker::Container DockerClient::createContainer(const sm::docker::ContainerC
         requestJson["Labels"] = labels;
     }
 
+    if (!createInfo.ports.empty()) {
+        argo::json ports{argo::json::object_e};
+        for (const auto& port : createInfo.ports) {
+            ports[fmt::format("{}/{}", port.privatePort, port.protocol)] = argo::json{argo::json::object_e};
+        }
+        requestJson["ExposedPorts"] = ports;
+    }
+
     std::stringstream requestStream;
     requestStream << requestJson;
+    std::string requestBody = requestStream.str();
     requestStream.seekg(0);
+    LOG_TRACE(DockerLog, "Creating container with request JSON: {}", requestBody);
+    requestStream.seekg(0);
+
     std::stringstream responseStream;
 
-    post("/containers/create", "name=" + createInfo.name, "Content-Type: application/json", requestStream, responseStream);
+    post("/containers/create?name=" + createInfo.name, requestBody, "Content-Type: application/json", requestStream, responseStream);
+    responseStream.seekg(0);
+    std::unique_ptr<argo::json> responseJson = argo::parser::parse(responseStream);
+    return ContainerId((*responseJson)["Id"]);
+}
 
-    std::unique_ptr<argo::json> responseJson = argo::parser::parse(responseStream.str());
-    return Container(*responseJson);
+void DockerClient::destroyContainer(const std::string& id) {
+    auto path = std::format("/containers/{}", id);
+    LOG_TRACE(DockerLog, "Destroying container with ID: {}", id);
+    del(path);
+}
+
+sm::docker::Container DockerClient::getContainer(const ContainerId& id) {
+    auto path = std::format("/containers/{}/json", id.getId());
+    LOG_TRACE(DockerLog, "Getting container with ID: {}", id.getId());
+    std::string response = get(path);
+    std::unique_ptr<argo::json> json = argo::parser::parse(response);
+    return Container(*json);
 }
 
 void DockerClient::importImage(std::string_view name, std::istream& stream) {
@@ -215,7 +301,7 @@ void DockerClient::pullImage(std::string_view name, std::string_view tag) {
     auto params = std::format("fromImage={}&tag={}", name, tag);
     std::stringstream input;
     std::stringstream response;
-    post("/images/create", params, "Content-Type: application/json", input, response);
+    post("/images/create", params, "Content-Type: application/x-www-form-urlencoded", input, response);
 }
 
 sm::docker::Image::Image(const argo::json& json) {
@@ -270,6 +356,10 @@ sm::docker::Container::Container(const argo::json& json) {
 
     mId = (std::string)object.at("Id");
 
+    if (object.contains("Name") && object.at("Name").get_instance_type() == argo::json::string_e) {
+        mNames.push_back((std::string)object.at("Name"));
+    }
+
     if (object.contains("Names") && object.at("Names").get_instance_type() == argo::json::array_e) {
         auto& namesArray = object.at("Names").get_array();
         for (const auto& name : namesArray) {
@@ -277,6 +367,6 @@ sm::docker::Container::Container(const argo::json& json) {
         }
     }
 
-    mImage = Image(object.at("Image"));
-    mStatus = parseContainerStatus((std::string)object.at("Status"));
+    mImageId = (std::string)object.at("Image");
+    mState = parseContainerStatus((std::string)object.at("State"));
 }
