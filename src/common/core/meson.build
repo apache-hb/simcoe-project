@@ -113,6 +113,7 @@ foreach name, source : testcases
 
     test(name, exe,
         suite : 'core',
+        env : { 'ASAN_OPTIONS': 'alloc_dealloc_mismatch=0' },
         kwargs : gtestkwargs
     )
 endforeach

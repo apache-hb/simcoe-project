@@ -71,7 +71,6 @@ namespace sm::docker {
 
     public:
         Container() = default;
-        Container(const argo::json& json);
 
         uint16_t getMappedPort(uint16_t privatePort) const {
             for (const auto& port : mPorts) {
@@ -83,7 +82,7 @@ namespace sm::docker {
             return 0; // Not found
         }
 
-        std::string getId() const { return mId; }
+        const std::string& getId() const { return mId; }
         const std::vector<std::string>& getNames() const { return mNames; }
         bool isNamed(const std::string& name) const {
             return std::find(mNames.begin(), mNames.end(), "/" + name) != mNames.end();
@@ -91,9 +90,8 @@ namespace sm::docker {
 
         ContainerStatus getState() const { return mState; }
 
-        void start();
-        void stop();
-        void restart();
+        static Container ofInspect(const argo::json& json);
+        static Container ofListElement(const argo::json& json);
     };
 
     struct ContainerCreateInfo {
@@ -141,6 +139,24 @@ namespace sm::docker {
         void exportImage(std::string_view name, std::string_view tag, std::ostream& stream);
 
         void pullImage(std::string_view name, std::string_view tag);
+
+        bool isConnected();
+
+        void start(const ContainerId& id);
+        void stop(const ContainerId& id);
+        void restart(const ContainerId& id);
+
+        void start(const Container& container) {
+            start(ContainerId(container.getId()));
+        }
+
+        void stop(const Container& container) {
+            stop(ContainerId(container.getId()));
+        }
+
+        void restart(const Container& container) {
+            restart(ContainerId(container.getId()));
+        }
     };
 
     void init();

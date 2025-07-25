@@ -224,12 +224,12 @@ tests = {
 foreach name, source : tests
     exe = executable('test-db-' + name.to_lower().replace(' ', '-'), source,
         include_directories : 'test',
-        dependencies : [ db, dbtest ]
+        dependencies : [ db, dbtest, docker ]
     )
 
     test(name, exe,
         suite : 'db',
-        kwargs : testkwargs + { 'timeout': 10 }
+        kwargs : testkwargs + { 'timeout': 30 }
     )
 endforeach
 

@@ -9,6 +9,6 @@ foreach name, source : testcases
 
     test(name, exe,
         suite : 'docker',
-        kwargs : gtestkwargs
+        kwargs : gtestkwargs + { 'timeout': 15 }
     )
 endforeach

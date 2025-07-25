@@ -66,6 +66,9 @@ TEST_F(DockerClientTest, CreateContainer) {
     auto containers = client.listContainers();
     for (const auto& container : containers) {
         if (container.isNamed("test-container")) {
+            if (container.getState() == sm::docker::ContainerStatus::Running) {
+                client.stop(container);
+            }
             client.destroyContainer(container.getId());
         }
     }
@@ -77,11 +80,28 @@ TEST_F(DockerClientTest, CreateContainer) {
     createInfo.ports.push_back({5432, 0, "tcp"});
     createInfo.env["POSTGRES_PASSWORD"] = "testpassword";
 
-    sm::docker::ContainerId container;
+    sm::docker::ContainerId containerId;
 
     EXPECT_NO_THROW({
-        container = client.createContainer(createInfo);
+        containerId = client.createContainer(createInfo);
     });
+
+    EXPECT_TRUE(!containerId.getId().empty()) << "Container ID should not be empty";
+
+    auto container = client.getContainer(containerId);
+    EXPECT_EQ(container.getId(), containerId.getId());
+    EXPECT_EQ(container.getState(), sm::docker::ContainerStatus::Created);
+
+    client.start(containerId);
+
+    container = client.getContainer(containerId);
+    EXPECT_EQ(container.getState(), sm::docker::ContainerStatus::Running);
+
+    uint16_t mappedPort = container.getMappedPort(5432);
+    EXPECT_NE(mappedPort, 0) << "Mapped port should not be zero";
+
+    client.stop(containerId);
+    client.destroyContainer(containerId.getId());
 
     // auto port = container.getMappedPort(5432);
     // ASSERT_NE(port, 0) << "Mapped port should not be zero";

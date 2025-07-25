@@ -149,7 +149,7 @@ void DockerClient::post(std::string_view path, const std::string& fields, const 
 
     long status = 0;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status);
-    if (status != 200 && status != 201) {
+    if (status != 200 && status != 201 && status != 204) {
         throw sm::docker::DockerException("Failed to POST {}: {}", url, status);
     }
 }
@@ -212,7 +212,7 @@ std::vector<sm::docker::Container> DockerClient::listContainers() {
     std::vector<Container> containers;
     auto& array = json->get_array();
     for (const auto& item : array) {
-        containers.emplace_back(item);
+        containers.emplace_back(Container::ofListElement(item));
     }
     return containers;
 }
@@ -250,12 +250,18 @@ sm::docker::ContainerId DockerClient::createContainer(const sm::docker::Containe
         requestJson["Labels"] = labels;
     }
 
+    requestJson["HostConfig"] = argo::json{argo::json::object_e};
+
     if (!createInfo.ports.empty()) {
         argo::json ports{argo::json::object_e};
         for (const auto& port : createInfo.ports) {
-            ports[fmt::format("{}/{}", port.privatePort, port.protocol)] = argo::json{argo::json::object_e};
+            ports[fmt::format("{}/{}", port.privatePort, port.protocol)] = argo::json::from_array({
+                argo::json::from_object({
+                    {"HostPort", port.publicPort == 0 ? "" : std::to_string(port.publicPort)}
+                })
+            });
         }
-        requestJson["ExposedPorts"] = ports;
+        requestJson["HostConfig"]["PortBindings"] = ports;
     }
 
     std::stringstream requestStream;
@@ -283,8 +289,9 @@ sm::docker::Container DockerClient::getContainer(const ContainerId& id) {
     auto path = std::format("/containers/{}/json", id.getId());
     LOG_TRACE(DockerLog, "Getting container with ID: {}", id.getId());
     std::string response = get(path);
+    LOG_TRACE(DockerLog, "Received container JSON: {}", response);
     std::unique_ptr<argo::json> json = argo::parser::parse(response);
-    return Container(*json);
+    return Container::ofInspect(*json);
 }
 
 void DockerClient::importImage(std::string_view name, std::istream& stream) {
@@ -302,6 +309,16 @@ void DockerClient::pullImage(std::string_view name, std::string_view tag) {
     std::stringstream input;
     std::stringstream response;
     post("/images/create", params, "Content-Type: application/x-www-form-urlencoded", input, response);
+}
+
+bool DockerClient::isConnected() {
+    try {
+        get("/_ping");
+        return true;
+    } catch (const sm::docker::DockerException& e) {
+        LOG_ERROR(DockerLog, "Docker connection failed: {}", e.what());
+        return false;
+    }
 }
 
 sm::docker::Image::Image(const argo::json& json) {
@@ -351,22 +368,89 @@ static sm::docker::ContainerStatus parseContainerStatus(const std::string& statu
     return Unknown;
 }
 
-sm::docker::Container::Container(const argo::json& json) {
+sm::docker::Container sm::docker::Container::ofInspect(const argo::json& json) {
     const auto& object = json.get_object();
 
-    mId = (std::string)object.at("Id");
+    Container result;
 
-    if (object.contains("Name") && object.at("Name").get_instance_type() == argo::json::string_e) {
-        mNames.push_back((std::string)object.at("Name"));
+    result.mId = (std::string)object.at("Id");
+    result.mNames.push_back((std::string)object.at("Name"));
+    result.mImageId = (std::string)object.at("Image");
+
+    const auto& state = object.at("State").get_object();
+    result.mState = parseContainerStatus((std::string)state.at("Status"));
+
+    const auto& networkSettings = object.at("NetworkSettings").get_object();
+    const auto& ports = networkSettings.at("Ports").get_object();
+    for (const auto& [portKey, portValue] : ports) {
+        if (portValue.get_instance_type() == argo::json::array_e) {
+            for (const auto& portItem : portValue.get_array()) {
+                if (portItem.get_instance_type() == argo::json::object_e) {
+                    const auto& portObject = portItem.get_object();
+                    uint16_t privatePort = std::stoi(portKey.substr(0, portKey.find('/')));
+                    uint16_t publicPort = portObject.contains("HostPort") ? std::stoi(portObject.at("HostPort")) : 0;
+                    std::string protocol = portObject.contains("Type") ? (std::string)portObject.at("Type") : "tcp";
+                    result.mPorts.push_back({privatePort, publicPort, protocol});
+                }
+            }
+        }
     }
+
+    return result;
+}
+
+sm::docker::Container sm::docker::Container::ofListElement(const argo::json& json) {
+    const auto& object = json.get_object();
+
+    Container result;
 
     if (object.contains("Names") && object.at("Names").get_instance_type() == argo::json::array_e) {
         auto& namesArray = object.at("Names").get_array();
         for (const auto& name : namesArray) {
-            mNames.push_back((std::string)name);
+            result.mNames.push_back((std::string)name);
         }
     }
 
-    mImageId = (std::string)object.at("Image");
-    mState = parseContainerStatus((std::string)object.at("State"));
+    if (object.contains("Ports") && object.at("Ports").get_instance_type() == argo::json::array_e) {
+        auto& portsArray = object.at("Ports").get_array();
+        for (const auto& port : portsArray) {
+            if (port.get_instance_type() == argo::json::object_e) {
+                const auto& portObject = port.get_object();
+                uint16_t privatePort = portObject.contains("PrivatePort") ? (int)portObject.at("PrivatePort") : 0;
+                uint16_t publicPort = portObject.contains("PublicPort") ? (int)portObject.at("PublicPort") : 0;
+                std::string protocol = portObject.contains("Type") ? (std::string)portObject.at("Type") : "tcp";
+                result.mPorts.push_back({privatePort, publicPort, protocol});
+            }
+        }
+    }
+
+    result.mId = (std::string)object.at("Id");
+    result.mImageId = (std::string)object.at("Image");
+    result.mState = parseContainerStatus((std::string)object.at("State"));
+
+    return result;
+}
+
+void DockerClient::start(const ContainerId& id) {
+    auto path = std::format("/containers/{}/start", id.getId());
+    LOG_TRACE(DockerLog, "Starting container with ID: {}", id.getId());
+    std::stringstream requestStream;
+    std::stringstream responseStream;
+    post(path, "", "Content-Type: application/json", requestStream, responseStream);
+}
+
+void DockerClient::stop(const ContainerId& id) {
+    auto path = std::format("/containers/{}/stop", id.getId());
+    LOG_TRACE(DockerLog, "Stopping container with ID: {}", id.getId());
+    std::stringstream requestStream;
+    std::stringstream responseStream;
+    post(path, "", "Content-Type: application/json", requestStream, responseStream);
+}
+
+void DockerClient::restart(const ContainerId& id) {
+    auto path = std::format("/containers/{}/restart", id.getId());
+    LOG_TRACE(DockerLog, "Restarting container with ID: {}", id.getId());
+    std::stringstream requestStream;
+    std::stringstream responseStream;
+    post(path, "", "Content-Type: application/json", requestStream, responseStream);
 }

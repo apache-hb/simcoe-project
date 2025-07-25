@@ -15,7 +15,7 @@ namespace logs = sm::logs;
 namespace sinks = sm::logs::sinks;
 
 class ConsoleChannel final : public logs::ILogChannel {
-    char mBuffer[0x1000 * 4];
+    char mBuffer[0x1000 * 16];
     os::Console mConsole = os::Console::get();
     std::mutex mMutex;
 

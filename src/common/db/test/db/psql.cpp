@@ -1,5 +1,8 @@
 #include "db_test_common.hpp"
 
+#include "docker/docker.hpp"
+#include "base/defer.hpp"
+
 using namespace std::chrono_literals;
 
 TEST_CASE("sqlite updates") {
@@ -9,7 +12,62 @@ TEST_CASE("sqlite updates") {
 
     auto env = Environment::create(DbType::ePostgreSQL);
 
-    auto connResult = env.tryConnect(kPostgresConfig);
+    auto docker = sm::docker::DockerClient::local();
+    if (!docker.isConnected()) {
+        SKIP("Docker is not connected");
+    }
+
+    docker.pullImage("postgres", "16.9-alpine");
+    auto containerId = docker.createContainer({
+        .name = "test-postgres",
+        .image = "postgres",
+        .tag = "16.9-alpine",
+        .env = {
+            { "POSTGRES_PASSWORD", "simcoe" },
+            { "POSTGRES_USER", "simcoe" },
+        },
+        .ports = { { 5432, 0, "tcp" } },
+    });
+
+    docker.start(containerId);
+    defer {
+        docker.stop(containerId);
+        docker.destroyContainer(containerId.getId());
+    };
+
+    auto container = docker.getContainer(containerId);
+    REQUIRE(container.getState() == sm::docker::ContainerStatus::Running);
+
+    DbResult<Connection> connResult = env.tryConnect({
+        .port = container.getMappedPort(5432),
+        .host = "localhost",
+        .user = "simcoe",
+        .password = "simcoe",
+        .database = "postgres",
+        .timeout = 10s,
+    });
+
+    for (size_t i = 0; i < 10 && !connResult.has_value(); ++i) {
+        if (connResult.has_value()) {
+            break;
+        }
+
+        connResult = env.tryConnect({
+            .port = container.getMappedPort(5432),
+            .host = "localhost",
+            .user = "simcoe",
+            .password = "simcoe",
+            .database = "postgres",
+            .timeout = 10s,
+        });
+
+        if (connResult.has_value()) {
+            break;
+        }
+
+        std::this_thread::sleep_for(1s);
+    }
+
     if (!connResult.has_value()) {
         SKIP("Failed to connect to database " << connResult.error().message());
     }
