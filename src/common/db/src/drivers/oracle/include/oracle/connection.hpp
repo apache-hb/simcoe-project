@@ -35,8 +35,10 @@ namespace sm::db::oracle {
 
         std::string setupTableExists() noexcept(false) override;
         std::string setupUserExists() noexcept(false) override;
+        std::string setupTableSpaceExists() noexcept(false) override;
 
         std::string setupCreateTable(const dao::TableInfo& table) noexcept(false) override;
+
 
         std::string setupCommentOnTable(std::string_view table, std::string_view comment) noexcept(false) override;
 

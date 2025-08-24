@@ -1,7 +1,88 @@
-#include "db_test_common.hpp"
+#include "test/gtest_common.hpp"
+
+#include "docker/databases/oracle.hpp"
+#include "db/db.hpp"
+#include "db/environment.hpp"
 
 using namespace std::chrono_literals;
+using namespace sm;
+using namespace sm::db;
 
+void checkError(const DbError& err) {
+    if (!err.isSuccess()) {
+        for (const auto& frame : err.stacktrace()) {
+            fmt::println(stderr, "[{}:{}] {}", frame.source_file(), frame.source_line(), frame.description());
+        }
+        GTEST_FAIL() << err.message() << " (" << err.code() << ")";
+    }
+}
+
+template<typename T>
+auto getValue(DbResult<T> result, std::string_view msg = "") {
+    if (result.has_value()) {
+        GTEST_SUCCEED() << msg;
+        return std::move(result.value());
+    }
+
+    checkError(result.error());
+    throw std::runtime_error("unexpected error");
+}
+
+class OracleTest : public testing::Test {
+    static docker::OracleDbContainer oracledb;
+public:
+    static Environment env;
+    Connection connection;
+
+    static void SetUpTestSuite() {
+        if (!Environment::isSupported(DbType::eOracleDB)) {
+            GTEST_SKIP() << "OracleDB not supported";
+        }
+
+        oracledb = docker::OracleDbContainer({
+            .image = docker::OracleDbImage::eOracle23Lite,
+        });
+
+        env = Environment::create(DbType::eOracleDB);
+
+        ConnectionConfig config = {
+            .port = oracledb.getPort(),
+            .host = oracledb.getHost(),
+            .user = oracledb.getUsername(),
+            .password = oracledb.getPassword(),
+            .database = oracledb.getDatabaseName(),
+            .role = AssumeRole::eSYSDBA,
+        };
+
+        auto admin = getValue(env.tryConnect(config), "Connecting to OracleDB");
+        if (!admin.tableSpaceExists("TEST_USER_TBS")) {
+            admin.updateSql(R"(CREATE TABLESPACE TEST_USER_TBS
+                DATAFILE '/opt/oracle/oradata/FREE/FREEPDB1/test_user_tbs.dbf'
+                SIZE 100M;
+            )");
+        }
+
+        if (!admin.userExists("TEST_USER")) {
+            admin.updateSql(R"(CREATE USER TEST_USER IDENTIFIED BY TEST_USER
+                DEFAULT TABLESPACE TEST_USER_TBS
+                QUOTA 100M ON TEST_USER_TBS;
+            )");
+
+            admin.updateSql("GRANT CONNECT, RESOURCE TO TEST_USER");
+            admin.updateSql("GRANT CREATE SESSION TO TEST_USER");
+            admin.updateSql("GRANT UPDATE ANY TABLE TO TEST_USER");
+            admin.updateSql("GRANT DELETE ANY TABLE TO TEST_USER");
+            admin.updateSql("GRANT INSERT ANY TABLE TO TEST_USER");
+            admin.updateSql("GRANT SELECT ANY TABLE TO TEST_USER");
+            admin.updateSql("GRANT CREATE ANY TABLE TO TEST_USER");
+        }
+    }
+
+    void SetUp() override {
+    }
+};
+
+#if 0
 TEST_CASE("updates") {
     if (!Environment::isSupported(DbType::eOracleDB)) {
         SKIP("OracleDB not supported");
@@ -121,3 +202,4 @@ TEST_CASE("updates") {
         CHECK(results.next().isDone());
     }
 }
+#endif

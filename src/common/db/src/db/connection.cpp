@@ -39,8 +39,42 @@ bool Connection::userExists(std::string_view name, bool fallback) noexcept(false
     return results.at<int>(0) > 0;
 }
 
+bool Connection::tableSpaceExists(std::string_view name, bool fallback) noexcept(false) {
+    if (!mImpl->hasTableSpaces())
+        return fallback;
+
+    std::string sql = mImpl->setupTableSpaceExists();
+
+    PreparedStatement stmt = prepareQuery(sql);
+    stmt.bind("name").to(name);
+    ResultSet results = db::throwIfFailed(stmt.start());
+
+    return results.at<int>(0) > 0;
+}
+
+bool Connection::schemaExists(std::string_view name, bool fallback) noexcept(false) {
+    if (!mImpl->hasSchemas())
+        return fallback;
+
+    std::string sql = mImpl->setupSchemaExists();
+
+    PreparedStatement stmt = prepareQuery(sql);
+    stmt.bind("name").to(name);
+    ResultSet results = db::throwIfFailed(stmt.start());
+
+    return results.at<int>(0) > 0;
+}
+
 bool Connection::hasUsers() const noexcept {
     return mImpl->hasUsers();
+}
+
+bool Connection::hasTableSpaces() const noexcept {
+    return mImpl->hasTableSpaces();
+}
+
+bool Connection::hasSchemas() const noexcept {
+    return mImpl->hasSchemas();
 }
 
 Version Connection::clientVersion() const {

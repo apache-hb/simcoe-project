@@ -213,7 +213,6 @@ endif
 ###
 
 tests = {
-    'Oracle DB': 'test/db/orcl.cpp',
     'PostgreSQL': 'test/db/psql.cpp',
     # TODO: disabled until i figure out a sane way to remap named parameters
     # onto positional parameters
@@ -234,6 +233,7 @@ foreach name, source : tests
 endforeach
 
 tests = {
+    'Oracle DB': 'test/db/orcl.cpp',
     'Sqlite3': 'test/db/sqlite.cpp',
 }
 
@@ -241,7 +241,7 @@ foreach name, source : tests
     exe = executable('test-db-' + name.to_lower().replace(' ', '-'), source,
         include_directories : 'test',
         cpp_args : cpp.get_supported_arguments('-Wno-sign-compare'),
-        dependencies : [ db, coregtest ]
+        dependencies : [ db, coregtest, docker ]
     )
 
     test(name, exe,

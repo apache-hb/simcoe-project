@@ -32,7 +32,7 @@ TEST_CASE("sqlite updates") {
     docker.start(containerId);
     defer {
         docker.stop(containerId);
-        docker.destroyContainer(containerId.getId());
+        docker.destroyContainer(containerId);
     };
 
     auto container = docker.getContainer(containerId);

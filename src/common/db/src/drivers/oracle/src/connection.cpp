@@ -65,6 +65,8 @@ static detail::ConnectionInfo buildConnectionInfo(oracle::OraError& error, oracl
         .hasCommentOn = true,
         .hasNamedParams = true,
         .hasUsers = true,
+        .hasTableSpaces = true,
+        .hasSchemas = false,
         .hasDistinctTextTypes = true,
     };
 }
@@ -137,11 +139,15 @@ std::string OraConnection::setupSingletonTrigger(const dao::TableInfo& table) no
 }
 
 std::string OraConnection::setupTableExists() noexcept(false) {
-    return "SELECT COUNT(*) FROM user_tables WHERE table_name = UPPER(:name)";
+    return "SELECT COUNT(*) FROM SYS.ALL_TABLES WHERE table_name = UPPER(:name)";
 }
 
 std::string OraConnection::setupUserExists() noexcept(false) {
     return "SELECT COUNT(*) from SYS.ALL_USERS WHERE username = UPPER(:name)";
+}
+
+std::string OraConnection::setupTableSpaceExists() noexcept(false) {
+    return "SELECT COUNT(*) FROM SYS.DBA_DATA_FILES WHERE tablespace_name = UPPER(:name)";
 }
 
 std::string OraConnection::setupCreateTable(const dao::TableInfo& table) noexcept(false) {

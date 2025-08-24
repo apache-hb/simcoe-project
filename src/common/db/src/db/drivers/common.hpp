@@ -49,6 +49,12 @@ namespace sm::db::detail {
         /// Sqlite does not have user accounts.
         bool hasUsers = false;
 
+        /// True if this database has table spaces.
+        bool hasTableSpaces = false;
+
+        /// True if this database has schemas.
+        bool hasSchemas = false;
+
         /// True if this database driver can report
         /// differences between CHAR and VARCHAR column types.
         /// some databases only have TEXT types, such as sqlite.
@@ -131,6 +137,14 @@ namespace sm::db::detail {
             throw DbException{DbError::todoFn()};
         }
 
+        virtual std::string setupTableSpaceExists() throws(DbException) {
+            throw DbException{DbError::todoFn()};
+        }
+
+        virtual std::string setupSchemaExists() throws(DbException) {
+            throw DbException{DbError::todoFn()};
+        }
+
         /** Create */
 
         virtual std::string setupCreateTable(const dao::TableInfo& table) throws(DbException) {
@@ -175,6 +189,14 @@ namespace sm::db::detail {
             return mInfo.hasUsers;
         }
 
+        bool hasTableSpaces() const noexcept {
+            return mInfo.hasTableSpaces;
+        }
+
+        bool hasSchemas() const noexcept {
+            return mInfo.hasSchemas;
+        }
+
         bool hasDistinctTextTypes() const noexcept {
             return mInfo.hasDistinctTextTypes;
         }
@@ -201,6 +223,11 @@ namespace sm::db::detail {
 
         /** Get statements SQL text */
         virtual std::string getSql() const = 0;
+
+        /** Get the name of the prepared statement */
+        virtual std::string getName() const {
+            throw DbException{DbError::todoFn()};
+        }
 
         /** Fetch results */
 

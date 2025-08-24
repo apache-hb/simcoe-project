@@ -29,6 +29,8 @@ static detail::ConnectionInfo buildConnectionInfo(sqlite3 *db) {
         .hasCommentOn = false,
         .hasNamedParams = true,
         .hasUsers = false,
+        .hasTableSpaces = false,
+        .hasSchemas = false,
         .permissions = sqlite3_db_readonly(db, nullptr) ? Permission::eRead : Permission::eAll,
     };
 }

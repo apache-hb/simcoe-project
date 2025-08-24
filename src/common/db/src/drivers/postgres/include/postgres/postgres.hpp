@@ -9,6 +9,20 @@
 namespace sm::db::postgres {
     using PgConnectionHandle = std::unique_ptr<PGconn, decltype(&PQfinish)>;
 
+    class PgStatement final : public detail::IStatement {
+        DbError start(bool autoCommit, StatementType type) noexcept override;
+
+        DbError execute() noexcept override;
+
+        DbError next() noexcept override;
+
+        std::string getSql() const override;
+
+    public:
+        PgStatement(PGconn *conn) noexcept(false);
+        ~PgStatement() noexcept override;
+    };
+
     class PgConnection final : public detail::IConnection {
         PgConnectionHandle mConnection;
 

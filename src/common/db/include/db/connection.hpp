@@ -380,6 +380,8 @@ namespace sm::db {
             return throwIfFailed(tryPrepareControl(sql));
         }
 
+        PreparedStatement prepareStatement(std::string_view name, std::string_view sql, StatementType type) throws(DbException);
+
         /// @brief Check if a table exists
         /// @param name table to check
         /// @return true if the table exists
@@ -397,10 +399,19 @@ namespace sm::db {
         /// @note If the database does not support users, this will always return the value of fallback
         bool userExists(std::string_view name, bool fallback = false) throws(DbException);
 
+        bool tableSpaceExists(std::string_view name, bool fallback = false) throws(DbException);
+
+        bool schemaExists(std::string_view name, bool fallback = false) throws(DbException);
+
         /// @brief Does this database support the concept of a user?
         /// @return true if the database supports users
         /// @note sqlite does not support users.
         bool hasUsers() const noexcept;
+
+        bool hasTableSpaces() const noexcept;
+
+        bool hasSchemas() const noexcept;
+
 
         /// @brief Get the version of the database driver
         /// @return version information

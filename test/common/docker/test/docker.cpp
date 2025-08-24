@@ -86,10 +86,10 @@ TEST_F(DockerClientTest, CreateContainer) {
         containerId = client.createContainer(createInfo);
     });
 
-    EXPECT_TRUE(!containerId.getId().empty()) << "Container ID should not be empty";
+    EXPECT_EQ(containerId.getId().size(), 64) << "Container ID should contain a valid ID";
 
     auto container = client.getContainer(containerId);
-    EXPECT_EQ(container.getId(), containerId.getId());
+    EXPECT_EQ(container.getId(), containerId);
     EXPECT_EQ(container.getState(), sm::docker::ContainerStatus::Created);
 
     client.start(containerId);
@@ -101,7 +101,7 @@ TEST_F(DockerClientTest, CreateContainer) {
     EXPECT_NE(mappedPort, 0) << "Mapped port should not be zero";
 
     client.stop(containerId);
-    client.destroyContainer(containerId.getId());
+    client.destroyContainer(containerId);
 
     // auto port = container.getMappedPort(5432);
     // ASSERT_NE(port, 0) << "Mapped port should not be zero";

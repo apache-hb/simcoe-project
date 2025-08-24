@@ -1,6 +1,5 @@
 #pragma once
 
-#include "core/memory/unique.hpp"
 #include "net/error.hpp"
 #include "net/address.hpp"
 
@@ -27,27 +26,25 @@ namespace sm::net {
     protected:
         static constexpr int kBlockingFlag = (1 << 0);
 
-        std::unique_ptr<std::atomic<system::os::SocketHandle>> mSocket;
-
-        // TODO: cmon c++, please let me move a damn atomic
-        std::unique_ptr<std::atomic<int>> mFlags = std::make_unique<std::atomic<int>>(0);
+        std::atomic<system::os::SocketHandle> mSocket;
+        std::atomic<int> mFlags{0};
 
     public:
         Socket(system::os::SocketHandle socket) noexcept
-            : mSocket(std::make_unique<std::atomic<system::os::SocketHandle>>(socket))
+            : mSocket(socket)
         { }
 
         ~Socket() noexcept;
 
         Socket(Socket&& other) noexcept
-            : mSocket(std::move(other.mSocket))
-            , mFlags(std::move(other.mFlags))
+            : mSocket(other.mSocket.load(std::memory_order_seq_cst))
+            , mFlags(other.mFlags.load(std::memory_order_seq_cst))
         { }
 
         Socket& operator=(Socket&& other) noexcept {
             if (this != &other) {
-                mSocket = std::move(other.mSocket);
-                mFlags = std::move(other.mFlags);
+                mSocket.store(other.mSocket.load(std::memory_order_seq_cst), std::memory_order_seq_cst);
+                mFlags.store(other.mFlags.load(std::memory_order_seq_cst), std::memory_order_seq_cst);
             }
 
             return *this;
@@ -93,14 +90,14 @@ namespace sm::net {
         }
 
         NetError setBlocking(bool blocking) noexcept;
-        bool isBlocking() const noexcept { return mFlags->load(std::memory_order_seq_cst) & kBlockingFlag; }
+        bool isBlocking() const noexcept { return mFlags.load(std::memory_order_seq_cst) & kBlockingFlag; }
         bool isActive() const noexcept;
 
         NetError setRecvTimeout(std::chrono::milliseconds timeout) noexcept;
         NetError setSendTimeout(std::chrono::milliseconds timeout) noexcept;
 
         system::os::SocketHandle get() const noexcept {
-            return mSocket ? mSocket->load() : system::os::kInvalidSocket;
+            return mSocket ? mSocket.load() : system::os::kInvalidSocket;
         }
     };
 

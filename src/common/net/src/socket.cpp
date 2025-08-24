@@ -13,17 +13,15 @@ namespace chrono = std::chrono;
 /// socket
 ///
 
-static void closeSocket(std::atomic<system::os::SocketHandle> *socket) {
-    if (socket != nullptr) {
-        system::os::SocketHandle handle = socket->exchange(system::os::kInvalidSocket);
-        if (handle != system::os::kInvalidSocket) {
-            system::os::destroySocket(handle);
-        }
+static void closeSocket(std::atomic<system::os::SocketHandle> &socket) {
+    system::os::SocketHandle handle = socket.exchange(system::os::kInvalidSocket);
+    if (handle != system::os::kInvalidSocket) {
+        system::os::destroySocket(handle);
     }
 }
 
 Socket::~Socket() noexcept {
-    closeSocket(mSocket.get());
+    closeSocket(mSocket);
 }
 
 NetResult<size_t> Socket::sendBytes(const void *data, size_t size) noexcept {
@@ -78,16 +76,16 @@ NetError Socket::setBlocking(bool blocking) noexcept {
         return lastNetError();
 
     if (blocking) {
-        mFlags->fetch_or(kBlockingFlag);
+        mFlags.fetch_or(kBlockingFlag);
     } else {
-        mFlags->fetch_and(~kBlockingFlag);
+        mFlags.fetch_and(~kBlockingFlag);
     }
 
     return NetError::ok();
 }
 
 bool Socket::isActive() const noexcept {
-    system::os::SocketHandle handle = mSocket ? mSocket->load() : system::os::kInvalidSocket;
+    system::os::SocketHandle handle = mSocket ? mSocket.load() : system::os::kInvalidSocket;
     if (handle == system::os::kInvalidSocket)
         return false;
 
@@ -150,7 +148,7 @@ Socket ListenSocket::accept() noexcept(false) {
 }
 
 void ListenSocket::cancel() noexcept {
-    closeSocket(mSocket.get());
+    closeSocket(mSocket);
 }
 
 NetError ListenSocket::listen(int backlog) noexcept {

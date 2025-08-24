@@ -1,5 +1,6 @@
 #pragma once
 
+#include "base/panic.h"
 #include "json.hpp"
 #include <fmtlib/format.h>
 #include <stdint.h>
@@ -12,13 +13,27 @@ typedef void CURL;
 
 namespace sm::docker {
     class ContainerId {
-        std::string mId;
+        char mId[64];
 
     public:
-        ContainerId() = default;
-        explicit ContainerId(std::string id) : mId(std::move(id)) { }
+        ContainerId() noexcept = default;
 
-        const std::string& getId() const { return mId; }
+        explicit ContainerId(std::string_view id) noexcept {
+            CTASSERTF(id.size() == sizeof(mId), "Container ID must be exactly %zu characters long, was %zu charaters long", sizeof(mId), id.size());
+            for (size_t i = 0; i < std::size(mId); i++) {
+                CTASSERTF(isalnum(id[i]), "Container ID must only contain alpha-numeric characters");
+            }
+
+            std::copy(id.begin(), id.end(), mId);
+        }
+
+        std::string_view getId() const noexcept {
+            return std::string_view(std::begin(mId), std::end(mId));
+        }
+
+        constexpr bool operator==(const ContainerId& other) const noexcept {
+            return std::equal(std::begin(mId), std::end(mId), std::begin(other.mId));
+        }
     };
 
     class Image {
@@ -62,10 +77,16 @@ namespace sm::docker {
         std::string protocol;
     };
 
+    struct Mount {
+        std::string source;
+        std::string destination;
+        std::string mode;
+    };
+
     class Container {
         std::string mImageId;
         ContainerStatus mState;
-        std::string mId;
+        ContainerId mId;
         std::vector<std::string> mNames;
         std::vector<MappedPort> mPorts;
 
@@ -82,7 +103,7 @@ namespace sm::docker {
             return 0; // Not found
         }
 
-        const std::string& getId() const { return mId; }
+        ContainerId getId() const { return mId; }
         const std::vector<std::string>& getNames() const { return mNames; }
         bool isNamed(const std::string& name) const {
             return std::find(mNames.begin(), mNames.end(), "/" + name) != mNames.end();
@@ -102,6 +123,7 @@ namespace sm::docker {
         std::vector<std::string> entrypoint;
         std::vector<std::string> commands;
         std::map<std::string, std::string> env;
+        std::vector<Mount> mounts;
         std::vector<MappedPort> ports;
     };
 
@@ -132,7 +154,7 @@ namespace sm::docker {
 
         std::optional<Container> findContainer(const std::string& id);
         ContainerId createContainer(const ContainerCreateInfo& createInfo);
-        void destroyContainer(const std::string& id);
+        void destroyContainer(const ContainerId& id);
         Container getContainer(const ContainerId& id);
 
         void importImage(std::string_view name, std::istream& stream);
@@ -172,5 +194,16 @@ struct fmt::formatter<sm::docker::Image> {
     constexpr auto format(const sm::docker::Image& image, fmt::format_context& ctx) const {
         return format_to(ctx.out(), "DockerImage(Id: {}, ParentId: {}, Size: {}, SharedSize: {}, VirtualSize: {}, Containers: {})",
                          image.getId(), image.getParentId(), image.getSize(), image.getSharedSize(), image.getVirtualSize(), image.getContainers());
+    }
+};
+
+template<>
+struct fmt::formatter<sm::docker::ContainerId> {
+    constexpr auto parse(fmt::format_parse_context& ctx) const {
+        return ctx.begin();
+    }
+
+    constexpr auto format(const sm::docker::ContainerId& id, fmt::format_context& ctx) const {
+        return format_to(ctx.out(), "ContainerId({})", id.getId());
     }
 };

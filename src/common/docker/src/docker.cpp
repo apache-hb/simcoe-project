@@ -276,11 +276,11 @@ sm::docker::ContainerId DockerClient::createContainer(const sm::docker::Containe
     post("/containers/create?name=" + createInfo.name, requestBody, "Content-Type: application/json", requestStream, responseStream);
     responseStream.seekg(0);
     std::unique_ptr<argo::json> responseJson = argo::parser::parse(responseStream);
-    return ContainerId((*responseJson)["Id"]);
+    return ContainerId((std::string)(*responseJson)["Id"]);
 }
 
-void DockerClient::destroyContainer(const std::string& id) {
-    auto path = std::format("/containers/{}", id);
+void DockerClient::destroyContainer(const ContainerId& id) {
+    auto path = std::format("/containers/{}", id.getId());
     LOG_TRACE(DockerLog, "Destroying container with ID: {}", id);
     del(path);
 }
@@ -373,7 +373,7 @@ sm::docker::Container sm::docker::Container::ofInspect(const argo::json& json) {
 
     Container result;
 
-    result.mId = (std::string)object.at("Id");
+    result.mId = ContainerId((std::string)object.at("Id"));
     result.mNames.push_back((std::string)object.at("Name"));
     result.mImageId = (std::string)object.at("Image");
 
@@ -424,7 +424,7 @@ sm::docker::Container sm::docker::Container::ofListElement(const argo::json& jso
         }
     }
 
-    result.mId = (std::string)object.at("Id");
+    result.mId = ContainerId((std::string)object.at("Id"));
     result.mImageId = (std::string)object.at("Image");
     result.mState = parseContainerStatus((std::string)object.at("State"));
 
@@ -432,7 +432,7 @@ sm::docker::Container sm::docker::Container::ofListElement(const argo::json& jso
 }
 
 void DockerClient::start(const ContainerId& id) {
-    auto path = std::format("/containers/{}/start", id.getId());
+    auto path = fmt::format("/containers/{}/start", id.getId());
     LOG_TRACE(DockerLog, "Starting container with ID: {}", id.getId());
     std::stringstream requestStream;
     std::stringstream responseStream;
@@ -440,7 +440,7 @@ void DockerClient::start(const ContainerId& id) {
 }
 
 void DockerClient::stop(const ContainerId& id) {
-    auto path = std::format("/containers/{}/stop", id.getId());
+    auto path = fmt::format("/containers/{}/stop", id.getId());
     LOG_TRACE(DockerLog, "Stopping container with ID: {}", id.getId());
     std::stringstream requestStream;
     std::stringstream responseStream;
@@ -448,7 +448,7 @@ void DockerClient::stop(const ContainerId& id) {
 }
 
 void DockerClient::restart(const ContainerId& id) {
-    auto path = std::format("/containers/{}/restart", id.getId());
+    auto path = fmt::format("/containers/{}/restart", id.getId());
     LOG_TRACE(DockerLog, "Restarting container with ID: {}", id.getId());
     std::stringstream requestStream;
     std::stringstream responseStream;

@@ -1,7 +1,8 @@
 docker_include = include_directories('include')
 
 src = [
-    'src/docker.cpp'
+    'src/docker.cpp',
+    'src/databases.cpp',
 ]
 
 curl = dependency('libcurl')
