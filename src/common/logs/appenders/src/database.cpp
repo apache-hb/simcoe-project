@@ -1,12 +1,12 @@
 #include "stdafx.hpp"
 
-#include "logs/logger.hpp"
-#include "logs/logging.hpp"
-#include "logs/message.hpp"
+#include "logger/logger.hpp"
+#include "logger/logging.hpp"
+#include "logger/message.hpp"
 
-#include "logs/category.hpp"
-#include "logs/channel.hpp"
-#include "logs/appenders/channels.hpp"
+#include "logger/category.hpp"
+#include "logger/channel.hpp"
+#include "logger/appenders/channels.hpp"
 
 #include "db/transaction.hpp"
 #include "db/connection.hpp"

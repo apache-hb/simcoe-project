@@ -7,7 +7,7 @@
 #include "core/string.hpp"
 #include "core/format.hpp" // IWYU pragma: keep
 
-#include "logs/logs.hpp"
+#include "logger/logs.hpp"
 
 using namespace sm;
 

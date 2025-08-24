@@ -2,8 +2,8 @@
 
 #include <simcoe_config.h>
 
-#include "logs/category.hpp"
-#include "logs/message.hpp"
+#include "logger/category.hpp"
+#include "logger/message.hpp"
 
 namespace sm::logs {
     struct MessageStore {

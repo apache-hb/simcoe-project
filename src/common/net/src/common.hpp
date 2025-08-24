@@ -2,7 +2,7 @@
 
 #include "net/net.hpp"
 
-#include "logs/logging.hpp"
+#include "logger/logging.hpp"
 
 sm::net::NetError lastNetError();
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "logs/channel.hpp"
+#include "logger/channel.hpp"
 #include "db/connection.hpp"
 
 #include "base/fs.hpp"

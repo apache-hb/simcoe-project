@@ -2,8 +2,8 @@
 
 #include "docker/docker.hpp"
 #include "core/macros.h"
-#include "logs/logger.hpp"
-#include "logs/appenders/channels.hpp"
+#include "logger/logger.hpp"
+#include "logger/appenders/channels.hpp"
 
 #include "core/string.hpp"
 

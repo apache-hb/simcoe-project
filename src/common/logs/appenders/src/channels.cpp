@@ -1,7 +1,7 @@
 #include "stdafx.hpp"
 
-#include "logs/logger.hpp"
-#include "logs/appenders/channels.hpp"
+#include "logger/logger.hpp"
+#include "logger/appenders/channels.hpp"
 
 namespace logs = sm::logs;
 namespace appenders = sm::logs::appenders;

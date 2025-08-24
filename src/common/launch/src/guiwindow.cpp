@@ -4,7 +4,7 @@
 
 #include "imgui/backends/imgui_impl_glfw.h"
 #include "imgui/backends/imgui_impl_opengl3.h"
-#include "logs/logging.hpp"
+#include "logger/logging.hpp"
 #include "math/colour.hpp"
 
 using namespace sm;

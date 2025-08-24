@@ -1,6 +1,6 @@
 #pragma once
 
-#include "logs/channel.hpp"
+#include "logger/channel.hpp"
 
 namespace sm::logs {
     enum class TimerSource {

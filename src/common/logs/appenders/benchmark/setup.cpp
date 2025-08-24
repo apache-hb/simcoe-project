@@ -2,8 +2,8 @@
 
 #include "test/db_test_common.hpp"
 
-#include "logs/appenders/channels.hpp"
-#include "logs/logger.hpp"
+#include "logger/appenders/channels.hpp"
+#include "logger/logger.hpp"
 
 #if _WIN32
 #   include "core/win32.hpp"

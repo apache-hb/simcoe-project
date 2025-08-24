@@ -1,7 +1,7 @@
 #include "stdafx.hpp"
 
-#include "logs/logging.hpp"
-#include "logs/logger.hpp"
+#include "logger/logging.hpp"
+#include "logger/logger.hpp"
 
 namespace logs = sm::logs;
 

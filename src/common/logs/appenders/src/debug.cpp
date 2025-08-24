@@ -2,9 +2,9 @@
 
 #include "common.hpp"
 
-#include "logs/appenders/channels.hpp"
-#include "logs/logging.hpp"
-#include "logs/message.hpp"
+#include "logger/appenders/channels.hpp"
+#include "logger/logging.hpp"
+#include "logger/message.hpp"
 
 namespace os = sm::os;
 namespace logs = sm::logs;

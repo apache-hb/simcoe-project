@@ -4,7 +4,7 @@
 
 #include "system/threads.hpp"
 
-#include "logs/logging.hpp"
+#include "logger/logging.hpp"
 
 LOG_MESSAGE_CATEGORY(ThreadLog, "Threads");
 

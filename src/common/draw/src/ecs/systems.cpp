@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "logs/logging.hpp"
+#include "logger/logging.hpp"
 
 #include "draw/draw.hpp"
 #include "world/ecs.hpp"

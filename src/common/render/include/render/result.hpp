@@ -7,7 +7,7 @@
 
 #include "fmtlib/format.h" // IWYU pragma: export
 
-#include "logs/logging.hpp"
+#include "logger/logging.hpp"
 
 LOG_MESSAGE_CATEGORY(GpuLog, "D3D12");
 LOG_MESSAGE_CATEGORY(RenderLog, "Render");

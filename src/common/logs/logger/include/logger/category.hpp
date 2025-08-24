@@ -1,6 +1,6 @@
 #pragma once
 
-#include "logs/detail.hpp"
+#include "logger/detail.hpp"
 
 namespace sm::logs {
     struct CategoryInfo {

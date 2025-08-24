@@ -2,10 +2,10 @@
 
 #include <simcoe_logs_config.h>
 
-#include "logs/category.hpp"
-#include "logs/params.hpp"
+#include "logger/category.hpp"
+#include "logger/params.hpp"
 
-#include "logs/logs.hpp"
+#include "logger/logs.hpp"
 
 #include <string_view>
 #include <source_location>

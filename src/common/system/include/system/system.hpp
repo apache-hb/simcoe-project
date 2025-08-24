@@ -12,7 +12,7 @@
 
 #include "core/error.hpp"
 
-#include "logs/logging.hpp"
+#include "logger/logging.hpp"
 
 #if _WIN32
 #   include "core/win32.hpp"

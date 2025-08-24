@@ -1,6 +1,6 @@
 #pragma once
 
-#include "logs/message.hpp"
+#include "logger/message.hpp"
 
 namespace sm::logs {
     struct MessagePacket {

@@ -1,6 +1,6 @@
 #include "stdafx.hpp"
 
-#include "logs/logger.hpp"
+#include "logger/logger.hpp"
 
 #include "timer.hpp"
 

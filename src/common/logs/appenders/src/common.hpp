@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/span.hpp"
-#include "logs/message.hpp"
+#include "logger/message.hpp"
 
 namespace sm::logs::detail {
     CT_LOCAL size_t buildMessageHeader(sm::Span<char> buffer, uint32_t timestamp, const logs::MessageInfo& message) noexcept;

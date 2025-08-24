@@ -1,8 +1,8 @@
 #include "launch/launch.hpp"
 
 #include "fmt/ranges.h"
-#include "logs/logger.hpp"
-#include "logs/appenders/channels.hpp"
+#include "logger/logger.hpp"
+#include "logger/appenders/channels.hpp"
 
 #include "threads/threads.hpp"
 

@@ -1,11 +1,11 @@
 #include "test/common.hpp"
 #include "test/db_test_common.hpp"
 
-#include "logs/logger.hpp"
+#include "logger/logger.hpp"
 
 #include "db/connection.hpp"
 
-#include "logs/appenders/channels.hpp"
+#include "logger/appenders/channels.hpp"
 #include <random>
 
 #include "fmt/std.h"

@@ -2,9 +2,9 @@
 
 #include "common.hpp"
 
-#include "logs/logging.hpp"
-#include "logs/channel.hpp"
-#include "logs/appenders/channels.hpp"
+#include "logger/logging.hpp"
+#include "logger/channel.hpp"
+#include "logger/appenders/channels.hpp"
 
 #if _WIN32
 #   include "core/win32.hpp"
