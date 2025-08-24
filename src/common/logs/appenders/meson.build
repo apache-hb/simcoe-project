@@ -15,15 +15,15 @@ moodycamel = dependency('concurrentqueue')
 
 deps = [ logs, db, moodycamel, cthulhu.get_variable('format_core') ]
 
-liblog_sinks = library('log-sinks', src,
-    cpp_args : [ '-DSM_STRUCTURED_LOGS_SINKS_BUILD=1' ],
+liblog_appenders = library('log-appenders', src,
+    cpp_args : [ '-DSM_STRUCTURED_LOGS_APPENDERS_BUILD=1' ],
     cpp_pch : 'src/stdafx.hpp',
     include_directories : [ '.', 'include', 'src' ],
     dependencies : deps
 )
 
-log_sinks = declare_dependency(
-    link_with : liblog_sinks,
+log_appenders = declare_dependency(
+    link_with : liblog_appenders,
     include_directories : [ '.', 'include', ],
     dependencies : [ logs, db ]
 )
@@ -38,7 +38,7 @@ testcases = {
 
 foreach name, sources : testcases
     exe = executable('test-logs-' + name.to_lower().replace(' ', '-'), sources,
-        dependencies : [ log_sinks, dbtest ]
+        dependencies : [ log_appenders, dbtest ]
     )
 
     test(name, exe,
@@ -57,8 +57,8 @@ benchcases = {
 
 foreach name, sources : benchcases
     exe = executable('bench-logs-' + name.to_lower().replace(' ', '-'), sources,
-        include_directories : liblog_sinks.private_dir_include(),
-        dependencies : [ log_sinks, dbtest ]
+        include_directories : liblog_appenders.private_dir_include(),
+        dependencies : [ log_appenders, dbtest ]
     )
 
     benchmark(name, exe,

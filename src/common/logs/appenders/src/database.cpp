@@ -6,7 +6,7 @@
 
 #include "logs/category.hpp"
 #include "logs/channel.hpp"
-#include "logs/sinks/channels.hpp"
+#include "logs/appenders/channels.hpp"
 
 #include "db/transaction.hpp"
 #include "db/connection.hpp"
@@ -15,7 +15,7 @@
 
 namespace db = sm::db;
 namespace logs = sm::logs;
-namespace sinks = sm::logs::sinks;
+namespace appenders = sm::logs::appenders;
 
 struct LogEntryPacket {
     uint64_t timestamp;
@@ -215,7 +215,7 @@ public:
     { }
 };
 
-logs::IAsyncLogChannel *sm::logs::sinks::database(db::Connection connection) {
+logs::IAsyncLogChannel *sm::logs::appenders::database(db::Connection connection) {
     auto [categories, messages] = getMessages();
     registerMessagesWithDb(connection, categories, messages);
     return new DbChannel(std::move(connection));

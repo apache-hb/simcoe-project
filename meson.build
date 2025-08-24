@@ -204,13 +204,13 @@ subdir('src/common/base')
 subdir('src/common/core')
 
 # structured logging
-subdir('src/common/logs/logs')
+subdir('src/common/logs/logger')
 
 subdir('src/common/docker')
 
 subdir('src/common/db')
 
-subdir('src/common/logs/sinks')
+subdir('src/common/logs/appenders')
 
 subdir('src/common/config')
 subdir('src/common/math')

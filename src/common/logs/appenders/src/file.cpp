@@ -4,7 +4,7 @@
 
 #include "logs/channel.hpp"
 #include "logs/logging.hpp"
-#include "logs/sinks/channels.hpp"
+#include "logs/appenders/channels.hpp"
 
 #include "base/fs.hpp"
 
@@ -47,6 +47,6 @@ public:
     { }
 };
 
-logs::ILogChannel *sm::logs::sinks::file(const fs::path& path) {
+logs::ILogChannel *sm::logs::appenders::file(const fs::path& path) {
     return new FileChannel(path);
 }

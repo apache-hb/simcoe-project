@@ -2,7 +2,7 @@
 
 #include "test/db_test_common.hpp"
 
-#include "logs/sinks/channels.hpp"
+#include "logs/appenders/channels.hpp"
 #include "logs/logger.hpp"
 
 #if _WIN32
@@ -32,7 +32,7 @@ TEST_CASE("Setup logging") {
 
     auto env = db::Environment::create(db::DbType::eSqlite3);
 
-    logs::sinks::create(env.connect(makeSqliteTestDb("logs/benchmark")));
+    logs::appenders::create(env.connect(makeSqliteTestDb("logs/benchmark")));
     SUCCEED();
 
     BENCHMARK("Log plain message") {
@@ -43,5 +43,5 @@ TEST_CASE("Setup logging") {
         LOG_INFO(TestLog, "Benchmark logging message with {arg}", fmt::arg("arg", 42));
     };
 
-    logs::sinks::destroy();
+    logs::appenders::destroy();
 }

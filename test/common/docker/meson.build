@@ -4,7 +4,7 @@ testcases = {
 
 foreach name, source : testcases
     exe = executable('test-docker-' + name.to_lower().replace(' ', '-'), source,
-        dependencies : [ docker, gtest, log_sinks ]
+        dependencies : [ docker, gtest, log_appenders ]
     )
 
     test(name, exe,

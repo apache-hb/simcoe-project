@@ -4,7 +4,7 @@ src = [
 ]
 
 deps = [
-    core, system, log_sinks, threads,
+    core, system, log_appenders, threads,
     imgui, render, input,
     archive, config, draw,
     tracy, launch, launch_gui, filebrowser,

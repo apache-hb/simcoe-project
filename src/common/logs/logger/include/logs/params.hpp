@@ -398,7 +398,6 @@ namespace sm::logs {
         return (Wrapper{})(FMT_COMPILE(message)); \
     }()
 
-
 #if SMC_LOGS_INCLUDE_SOURCE_INFO
 #   define BUILD_MESSAGE_IMPL(info, message) message
 #else

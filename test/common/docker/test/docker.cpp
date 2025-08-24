@@ -3,7 +3,7 @@
 #include "docker/docker.hpp"
 #include "core/macros.h"
 #include "logs/logger.hpp"
-#include "logs/sinks/channels.hpp"
+#include "logs/appenders/channels.hpp"
 
 #include "core/string.hpp"
 
@@ -27,7 +27,7 @@ public:
 
         sm::docker::init();
         sm::logs::create(sm::logs::LoggingConfig { });
-        sm::logs::sinks::addConsoleChannel();
+        sm::logs::appenders::addConsoleChannel();
     }
 
     static void TearDownTestSuite() {

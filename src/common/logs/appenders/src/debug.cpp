@@ -2,13 +2,13 @@
 
 #include "common.hpp"
 
-#include "logs/sinks/channels.hpp"
+#include "logs/appenders/channels.hpp"
 #include "logs/logging.hpp"
 #include "logs/message.hpp"
 
 namespace os = sm::os;
 namespace logs = sm::logs;
-namespace sinks = sm::logs::sinks;
+namespace appenders = sm::logs::appenders;
 
 class DebugChannel final : public logs::ILogChannel {
     char mBuffer[2048];
@@ -32,10 +32,10 @@ class DebugChannel final : public logs::ILogChannel {
     }
 };
 
-bool sinks::isDebugConsoleAvailable() noexcept {
+bool appenders::isDebugConsoleAvailable() noexcept {
     return os::isDebuggerAttached();
 }
 
-logs::ILogChannel *sinks::debugConsole() {
+logs::ILogChannel *appenders::debugConsole() {
     return new DebugChannel;
 }

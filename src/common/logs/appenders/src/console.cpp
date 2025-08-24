@@ -4,7 +4,7 @@
 
 #include "logs/logging.hpp"
 #include "logs/channel.hpp"
-#include "logs/sinks/channels.hpp"
+#include "logs/appenders/channels.hpp"
 
 #if _WIN32
 #   include "core/win32.hpp"
@@ -12,7 +12,7 @@
 
 namespace os = sm::os;
 namespace logs = sm::logs;
-namespace sinks = sm::logs::sinks;
+namespace appenders = sm::logs::appenders;
 
 class ConsoleChannel final : public logs::ILogChannel {
     char mBuffer[0x1000 * 16];
@@ -40,7 +40,7 @@ public:
     ConsoleChannel() noexcept = default;
 };
 
-bool sinks::isConsoleAvailable() noexcept {
+bool appenders::isConsoleAvailable() noexcept {
 #if _WIN32
     return !!GetConsoleCP();
 #else
@@ -48,6 +48,6 @@ bool sinks::isConsoleAvailable() noexcept {
 #endif
 }
 
-logs::ILogChannel *sm::logs::sinks::console() {
+logs::ILogChannel *sm::logs::appenders::console() {
     return new ConsoleChannel;
 }

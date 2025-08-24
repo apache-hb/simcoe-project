@@ -5,7 +5,7 @@
 
 #include "db/connection.hpp"
 
-#include "logs/sinks/channels.hpp"
+#include "logs/appenders/channels.hpp"
 #include <random>
 
 #include "fmt/std.h"
@@ -60,7 +60,7 @@ TEST_CASE("Setup logging") {
 
     auto env = db::Environment::create(kType, { .logQueries=true });
     try {
-        logs::sinks::create(env.connect(kConfig));
+        logs::appenders::create(env.connect(kConfig));
     } catch (db::DbException& e) {
         for (const auto& frame : e.stacktrace()) {
             fmt::println(stderr, "[{}:{}] {}", frame.source_file(), frame.source_line(), frame.description());
@@ -88,5 +88,5 @@ TEST_CASE("Setup logging") {
         }
     }
 
-    logs::sinks::destroy();
+    logs::appenders::destroy();
 }

@@ -1,10 +1,10 @@
 #include "stdafx.hpp"
 
 #include "logs/logger.hpp"
-#include "logs/sinks/channels.hpp"
+#include "logs/appenders/channels.hpp"
 
 namespace logs = sm::logs;
-namespace sinks = sm::logs::sinks;
+namespace appenders = sm::logs::appenders;
 
 template<typename T>
 void addChannel(T *channel) {
@@ -12,11 +12,11 @@ void addChannel(T *channel) {
     logs::Logger::instance().addChannel(std::move(ptr));
 }
 
-void sinks::create(db::Connection connection) {
+void appenders::create(db::Connection connection) {
     addDatabaseChannel(std::move(connection));
 }
 
-bool sinks::addConsoleChannel() {
+bool appenders::addConsoleChannel() {
     if (!isConsoleAvailable())
         return false;
 
@@ -24,7 +24,7 @@ bool sinks::addConsoleChannel() {
     return true;
 }
 
-bool sinks::addDebugChannel() {
+bool appenders::addDebugChannel() {
     return false;
 #if 0
     if (!isDebugConsoleAvailable())
@@ -35,17 +35,17 @@ bool sinks::addDebugChannel() {
 #endif
 }
 
-bool sinks::addFileChannel(const fs::path& path) {
+bool appenders::addFileChannel(const fs::path& path) {
     addChannel(file(path));
     return true;
 }
 
-bool sinks::addDatabaseChannel(db::Connection connection) {
+bool appenders::addDatabaseChannel(db::Connection connection) {
     std::unique_ptr<logs::IAsyncLogChannel> ptr{database(std::move(connection))};
     logs::Logger::instance().setAsyncChannel(std::move(ptr));
     return true;
 }
 
-void sinks::destroy(void) noexcept {
+void appenders::destroy(void) noexcept {
     logs::Logger::instance().destroy();
 }

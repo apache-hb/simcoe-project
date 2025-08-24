@@ -4,8 +4,8 @@
 
 #include "timer.hpp"
 
-#ifndef _WIN32
-#   include <cpuid.h>
+#if CT_HAS_TSC_TIMESOURCE
+#   include "core/cpuid.hpp"
 #endif
 
 namespace logs = sm::logs;
@@ -16,28 +16,6 @@ using MessageInfo = sm::logs::MessageInfo;
 
 using SystemTimePoint = chrono::system_clock::time_point;
 using PreciseTimePoint = chrono::high_resolution_clock::time_point;
-
-union CpuId {
-    int32_t iregs[4];
-    uint32_t uregs[4];
-
-    struct {
-        uint32_t eax;
-        uint32_t ebx;
-        uint32_t ecx;
-        uint32_t edx;
-    };
-
-    static CpuId get(int leaf) noexcept {
-        CpuId id;
-#if _WIN32
-        __cpuid(id.iregs, leaf);
-#else
-        __cpuid(leaf, id.uregs[0], id.uregs[1], id.uregs[2], id.uregs[3]);
-#endif
-        return id;
-    }
-};
 
 #if 0
 static uint64_t getInvariantTscRatio() noexcept {
@@ -57,7 +35,7 @@ static uint64_t getInvariantTscRatio() noexcept {
 static bool hasInvariantTsc() noexcept {
 #if CT_HAS_TSC_TIMESOURCE
     // Intel SDM Vol. 2A 3-247 - Table 1-17.
-    CpuId cpuid = CpuId::get(0x80000007);
+    CpuId cpuid = CpuId::of(0x80000007);
     return cpuid.edx & (1 << 8); // Bit 08: Invariant TSC available if 1
 #else
     return false;

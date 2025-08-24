@@ -2,7 +2,9 @@
 
 #include <chrono>
 
-#if _WIN32
+#include "core/compiler.h" // IWYU pragma: keep - defines CT_OS_WINDOWS
+
+#if defined(__x86_64__) && defined(CT_OS_WINDOWS)
 #   define CT_HAS_TSC_TIMESOURCE 1
 #else
 #   define CT_HAS_TSC_TIMESOURCE 0

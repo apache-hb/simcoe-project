@@ -2,7 +2,7 @@
 
 #include "fmt/ranges.h"
 #include "logs/logger.hpp"
-#include "logs/sinks/channels.hpp"
+#include "logs/appenders/channels.hpp"
 
 #include "threads/threads.hpp"
 
@@ -195,11 +195,11 @@ static void setupLogging(const fs::path& path, const db::ConnectionConfig& confi
         .timer = kLoggingTimerSource.getValue()
     });
 
-    logs::sinks::create(gLoggingEnv->connect(config));
+    logs::appenders::create(gLoggingEnv->connect(config));
 
-    logs::sinks::addConsoleChannel();
-    logs::sinks::addDebugChannel();
-    logs::sinks::addFileChannel(path);
+    logs::appenders::addConsoleChannel();
+    logs::appenders::addDebugChannel();
+    logs::appenders::addFileChannel(path);
 }
 
 static void setupSystem(HINSTANCE hInstance, bool enableCom) {
@@ -227,7 +227,7 @@ launch::LaunchResult::~LaunchResult() noexcept try {
     net::destroy();
     threads::destroy();
     system::destroy();
-    logs::sinks::destroy();
+    logs::appenders::destroy();
 } catch (const errors::AnyException& err) {
     LOG_ERROR(GlobalLog, "Unhandled exception during launch: {}.", err.what());
     for (const auto& frame : err.stacktrace()) {

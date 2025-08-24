@@ -3,6 +3,7 @@
 #include <simcoe_db_config.h>
 
 #include "core/core.hpp"
+#include "core/format.hpp"
 #include "core/memory/unique.hpp"
 
 #include "logs/logging.hpp"

@@ -5,8 +5,6 @@
 
 #include <string_view>
 
-#include "core/format.hpp"
-
 namespace sm::logs {
     enum class Severity {
         eTrace,

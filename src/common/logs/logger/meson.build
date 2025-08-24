@@ -7,10 +7,10 @@ include_log_messages = get_option('logs_include_log_messages').disable_auto_if(i
 
 log_cdata = configuration_data()
 log_cdata.set10('SMC_LOGS_INCLUDE_SOURCE_INFO', include_source_info.allowed(),
-    description : 'Include source information and log message content in the game binary.'
+    description : 'Include source information in the final executable.'
 )
 log_cdata.set10('SMC_LOGS_INCLUDE_LOG_MESSAGES', include_log_messages.allowed(),
-    description : 'Include log messages in the game binary.'
+    description : 'Include log message text content in the final executable.'
 )
 
 log_config = configure_file(

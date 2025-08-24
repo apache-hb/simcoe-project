@@ -24,7 +24,7 @@ A Complete test log can be found attached.
 
 ## Benchmarks
 
-2 benchmarks have been added to track performance of key components, the async structured logger `logs/sinks/benchmark`, and the new high level render component `draw`.
+2 benchmarks have been added to track performance of key components, the async structured logger `logs/appenders/benchmark`, and the new high level render component `draw`.
 
 ### Async Logging Benchmark Results
 

@@ -9,7 +9,7 @@ namespace sm::db {
     class Connection;
 }
 
-namespace sm::logs::sinks {
+namespace sm::logs::appenders {
     void create(db::Connection connection);
     void destroy(void) noexcept;
 
