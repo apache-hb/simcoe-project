@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/span.hpp"
+#include "format/colour.h"
 #include "logger/message.hpp"
 
 namespace sm::logs::detail {
