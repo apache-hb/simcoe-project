@@ -4,10 +4,12 @@
 
 cfg = configuration_data()
 
+oci_name = 'instantclient-' + host_machine.system()
+
 tlsf = dependency('tlsf')
 sqlite3 = dependency('sqlite3')
-oci = dependency('instantclient-' + host_machine.system(), required : get_option('orcl'))
-oci_headers = dependency('instantclient-' + host_machine.system() + '-headers', required : get_option('orcl'))
+oci = dependency(oci_name, required : get_option('orcl'))
+oci_headers = dependency(oci_name + '-headers', required : get_option('orcl'))
 db2 = subproject('db2-client', required : get_option('db2'))
 postgres = dependency('libpq', required : get_option('psql'))
 devapi = dependency('devapi', required : get_option('mysql'))
@@ -142,8 +144,8 @@ db = declare_dependency(
 
 src = [ 'src/daocc/main.cpp' ]
 
-argparse = dependency('argparse')
-libxml = dependency('libxml-2.0')
+argparse = dependency('argparse', native: true)
+libxml = dependency('libxml-2.0', native: true)
 
 dao = declare_dependency(
     include_directories : 'include',
@@ -153,7 +155,8 @@ daocc_exe = executable('daocc', src,
     cpp_pch : 'src/daocc/stdafx.hpp',
     cpp_args : cpp.get_supported_arguments('-Wno-unused-variable'),
     include_directories : 'include',
-    dependencies : [ core, libxml, argparse ]
+    dependencies : [ libxml, argparse ],
+    native : true,
 )
 
 daocc = generator(daocc_exe,

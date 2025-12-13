@@ -1,10 +1,9 @@
 #include "stdafx.hpp"
 
-#include "core/string.hpp"
 #include "fmt/ranges.h"
 
 #include "writer.hpp"
-#include "dao/dao.hpp"
+#include "dao/column.hpp"
 
 namespace fs = std::filesystem;
 
@@ -115,8 +114,28 @@ static std::string makeColumnType(const Type& type) {
     }
 }
 
+template<typename T>
+void splitIntoVector(std::vector<T>& dst, std::string_view str, char delim) {
+    if (str.empty()) return;
+
+    size_t start = 0;
+    size_t index = 0;
+
+    do {
+        index = str.find(delim, start);
+        dst.push_back(T{str.substr(start, index - start)});
+        start = index + 1;
+    } while (index != std::string_view::npos);
+}
+
+std::vector<std::string_view> splitAll(std::string_view str, char delim) {
+    std::vector<std::string_view> result;
+    splitIntoVector(result, str, delim);
+    return result;
+}
+
 std::vector<std::string_view> lines(const std::string& text) {
-    return sm::splitAll(text, '\n');
+    return splitAll(text, '\n');
 }
 
 struct ForeignKey {
@@ -470,6 +489,55 @@ static void buildDaoConstraint(Table& parent, Column& column, xmlNodePtr node) {
     }
 }
 
+static size_t getStringPrefixLength(std::string_view text) {
+    size_t length = 0;
+    while (length < text.size() && std::isspace(text[length])) {
+        length++;
+    }
+    return length;
+}
+
+static std::string getComment(const Properties& props) {
+    auto comment = getOrDefault(props, "comment", "");
+
+    while (!comment.empty() && std::isspace(comment.front())) {
+        comment.erase(0, 1);
+    }
+
+    std::vector<std::string_view> lines = splitAll(comment, '\n');
+    if (!lines.empty()) {
+        if (lines.front().empty()) {
+            lines.erase(lines.begin());
+        }
+    }
+
+    size_t prefixLength = SIZE_MAX;
+    for (const auto& line : lines) {
+        size_t currentPrefix = getStringPrefixLength(line);
+        prefixLength = std::min(prefixLength, currentPrefix);
+    }
+
+    for (auto& line : lines) {
+        if (line.size() >= prefixLength) {
+            line.remove_prefix(prefixLength);
+        }
+
+        while (!line.empty() && std::isspace(line.back())) {
+            line.remove_suffix(1);
+        }
+    }
+
+    std::stringstream ss;
+    for (size_t i = 0; i < lines.size(); i++) {
+        ss << lines[i];
+        if (i + 1 < lines.size()) {
+            ss << '\n';
+        }
+    }
+
+    return ss.str();
+}
+
 static Column buildDaoColumn(Table& parent, xmlNodePtr node) {
     if (!expectNode(node, "column")) {
         return {};
@@ -479,7 +547,7 @@ static Column buildDaoColumn(Table& parent, xmlNodePtr node) {
     auto name = expectProperty(props, "name", "");
     Column column = {
         .name = name,
-        .comment = getOrDefault(props, "comment", ""),
+        .comment = getComment(props),
         .type = buildType(props),
         .optional = getOrDefault(props, "nullable", "false") == "true",
         .autoIncrement = getAutoIncrement(props)
@@ -589,7 +657,7 @@ static Table buildDaoTable(xmlNodePtr node) {
 
     Table table = {
         .name = expectProperty(props, "name", ""),
-        .comment = getOrDefault(props, "comment", ""),
+        .comment = getComment(props),
         .primaryKey = getOrDefault(props, "primaryKey", ""),
         .singleton = getOrDefault(props, "singleton", "false") == "true"
     };

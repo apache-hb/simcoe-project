@@ -118,10 +118,11 @@
            A log entry recorded during execution, contains all information&#xA;
            required to reconstruct a complete log.
            ">
+
         <column name="timestamp" type="ulong"
                 comment="
                 Timestamp stored in ms since unix epoch. It was decided to store&#xA;
-                this as an integer to increase performance and reduce storage size.
+                this as an integer to reduce storage size.
                 " />
 
         <column name="message_hash" type="ulong"

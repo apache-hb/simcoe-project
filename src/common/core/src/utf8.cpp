@@ -87,7 +87,7 @@ char32_t TextIterator::operator*() const {
     char32_t codepoint = 0;
 
     if ((mText[mOffset] & 0x80) == 0) {
-        codepoint = mText[mOffset];
+        codepoint = (char32_t)mText[mOffset];
     } else if ((mText[mOffset] & 0xE0) == 0xC0) {
         codepoint = (mText[mOffset] & 0x1F) << 6;
         codepoint |= (mText[mOffset + 1] & 0x3F);
